@@ -1,12 +1,39 @@
-import { nextTestSetup } from 'e2e-utils'
+import http from 'http'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
+import { chromium } from 'playwright'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
-import { retry } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
+import { createTestDataServer } from 'test-data-service/writer'
 
 // @force-gate prepareNavigation
 describe('router.experimental_prepare', () => {
+  // The streaming pages read their data from a test data service, so a test
+  // controls when each part of the response streams in. `nextTestSetup` reads
+  // `env` when it starts the app, after this hook. A deployment can't reach
+  // the service, so it isn't started there.
+  const env: Record<string, string> = {}
+  // Data requests that haven't been responded to, by key.
+  const pendingData = new Map<string, (value: string) => void>()
+  let dataServer: ReturnType<typeof createTestDataServer> | null = null
+  beforeAll(async () => {
+    if (isNextDeploy) {
+      return
+    }
+    dataServer = createTestDataServer((key, response) => {
+      pendingData.set(key, response.resolve)
+    })
+    const port = await findPort()
+    dataServer.listen(port)
+    env.TEST_DATA_SERVICE_URL = `http://localhost:${port}`
+  })
+  afterAll(() => {
+    dataServer?.close()
+  })
+
   const { next } = nextTestSetup({
     files: __dirname,
+    env,
   })
 
   // The warning is development-only.
@@ -399,6 +426,267 @@ describe('router.experimental_prepare', () => {
 
       await expectTargetRendered(browser)
       expect(await getHistoryLength(browser)).toBe(historyLength + 1)
+    })
+  })
+
+  // These tests commit while the prepared response is still streaming. `act`
+  // withholds whole responses, so they control the timing through the data
+  // service instead, and count the requests themselves.
+  // @force-gate !deploy
+  describe('committing while the prepared response is streaming', () => {
+    afterEach(() => {
+      // Unblock any render a failed test left waiting.
+      for (const [key, resolve] of pendingData) {
+        resolve(key)
+      }
+      pendingData.clear()
+    })
+
+    // Forwards requests to the app. The navigation response for `pathname`
+    // can be held until `release()` is called, and its connection dropped
+    // once the body contains `dropAfter`, as a broken network would.
+    async function startProxy(
+      pathname: string,
+      options: { holdResponse?: boolean; dropAfter?: string }
+    ) {
+      const app = new URL(next.url)
+      let release = () => {}
+      const released = options.holdResponse
+        ? new Promise<void>((resolve) => {
+            release = resolve
+          })
+        : Promise.resolve()
+      const server = http.createServer((req, res) => {
+        const isTarget =
+          req.headers['rsc'] === '1' &&
+          new URL(req.url!, app).pathname === pathname
+        const upstream = http.request(
+          {
+            hostname: app.hostname,
+            port: app.port,
+            path: req.url,
+            method: req.method,
+            // Uncompressed, so the body can be searched for `dropAfter`.
+            headers: { ...req.headers, 'accept-encoding': 'identity' },
+          },
+          async (upstreamRes) => {
+            if (isTarget) {
+              await released
+            }
+            res.writeHead(upstreamRes.statusCode!, upstreamRes.headers)
+            let body = ''
+            upstreamRes.on('data', (chunk: Buffer) => {
+              body += chunk.toString()
+              const shouldDrop =
+                isTarget &&
+                options.dropAfter !== undefined &&
+                body.includes(options.dropAfter)
+              if (shouldDrop) {
+                upstreamRes.destroy()
+                res.write(chunk, () => res.socket!.destroy())
+              } else {
+                res.write(chunk)
+              }
+            })
+            upstreamRes.on('end', () => res.end())
+          }
+        )
+        req.pipe(upstream)
+      })
+      const port = await findPort()
+      await new Promise<void>((resolve) => server.listen(port, resolve))
+      return {
+        url: `http://localhost:${port}`,
+        release: () => release(),
+        close() {
+          server.closeAllConnections()
+          server.close()
+        },
+      }
+    }
+
+    // Waits two frames, so the transition the click started has rendered and
+    // suspended on the response, and the response arrives after it.
+    async function waitForTwoFrames(page: Playwright.Page) {
+      await page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve))
+          )
+      )
+    }
+
+    async function waitForDataRequest(key: string) {
+      await retry(() => {
+        expect([...pendingData.keys()]).toContain(key)
+      })
+    }
+
+    function resolveData(key: string, value: string) {
+      const resolve = pendingData.get(key)!
+      pendingData.delete(key)
+      resolve(value)
+    }
+
+    // Presses the link, which prepares the navigation, without releasing it.
+    // Releasing the mouse clicks the link, which commits the navigation.
+    async function pressPrepareLink(page: Playwright.Page, href: string) {
+      const box = (await page
+        .locator(`a[data-prepare-link="${href}"]`)
+        .boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+    }
+
+    async function startBrowser(
+      pathname: string,
+      options?: { baseUrl?: string }
+    ) {
+      let page!: Playwright.Page
+      const requests: Array<string> = []
+      const browser = await next.browser('/', {
+        ...options,
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+          p.on('request', (request) => {
+            const url = new URL(request.url())
+            if (request.headers()['rsc'] === '1' && url.pathname === pathname) {
+              requests.push(request.url())
+            }
+          })
+        },
+      })
+      return { browser, page, requests }
+    }
+
+    it('renders the response as it streams, from a single request', async () => {
+      const { browser, page, requests } =
+        await startBrowser('/streaming-target')
+
+      await pressPrepareLink(page, '/streaming-target')
+      // The server is rendering the page's shell, so the response can't have
+      // finished.
+      await waitForDataRequest('streaming-shell')
+      await page.mouse.up()
+
+      resolveData('streaming-shell', 'Streaming target shell')
+      expect(
+        await (await browser.waitForElementByCss('#streaming-shell')).text()
+      ).toBe('Streaming target shell')
+      expect(await browser.elementById('streaming-late-fallback').text()).toBe(
+        'Loading late section...'
+      )
+      expect(new URL(await browser.url()).pathname).toBe('/streaming-target')
+
+      await waitForDataRequest('streaming-late')
+      resolveData('streaming-late', 'Streaming target late section')
+      expect(
+        await (await browser.waitForElementByCss('#streaming-late')).text()
+      ).toBe('Streaming target late section')
+      expect(await browser.hasElementByCss('#streaming-late-fallback')).toBe(
+        false
+      )
+      expect(requests).toHaveLength(1)
+    })
+
+    // The proxy doesn't forward the development server's WebSocket.
+    // @force-gate !dev
+    it('surfaces a stream error the same way a regular navigation does', async () => {
+      const proxy = await startProxy('/streaming-error', {
+        dropAfter: 'Streaming error shell',
+      })
+      try {
+        async function navigate(
+          commit: (page: Playwright.Page) => Promise<void>
+        ) {
+          const { browser, page } = await startBrowser('/streaming-error', {
+            baseUrl: proxy.url,
+          })
+          await commit(page)
+          resolveData('error-shell', 'Streaming error shell')
+          const error = await (
+            await browser.waitForElementByCss('#streaming-error')
+          ).text()
+          return { error, pathname: new URL(await browser.url()).pathname }
+        }
+
+        const regular = await navigate(async (page) => {
+          await page.click('button[data-push="/streaming-error"]')
+          await waitForDataRequest('error-shell')
+        })
+        const prepared = await navigate(async (page) => {
+          await pressPrepareLink(page, '/streaming-error')
+          await waitForDataRequest('error-shell')
+          await page.mouse.up()
+        })
+
+        expect(prepared).toEqual(regular)
+        expect(prepared.pathname).toBe('/streaming-error')
+      } finally {
+        proxy.close()
+      }
+    })
+
+    // Chrome reports soft navigations by default from version 151. The
+    // harness's Chromium is older, so these tests launch one with the feature
+    // enabled. The proxy doesn't forward the development server's WebSocket.
+    // @force-gate !dev
+    describe('is reported by Chrome as a soft navigation', () => {
+      for (const { scenario, holdResponse } of [
+        // The prepare phase has seeded the route from the response.
+        {
+          scenario: 'after the prepared response arrives',
+          holdResponse: false,
+        },
+        // The commit takes over the prepared request.
+        {
+          scenario: 'before the prepared response arrives',
+          holdResponse: true,
+        },
+      ]) {
+        it(`when committed ${scenario}`, async () => {
+          const proxy = await startProxy('/streaming-target', { holdResponse })
+          const chrome = await chromium.launch({
+            headless: !!process.env.HEADLESS,
+            args: ['--enable-features=SoftNavigationHeuristics'],
+          })
+          try {
+            const page = await chrome.newPage()
+            await page.goto(proxy.url)
+            await page.waitForFunction(() => '__NEXT_HYDRATED' in window)
+
+            const responseArrived = page.waitForResponse(
+              (response) =>
+                new URL(response.url()).pathname === '/streaming-target'
+            )
+            await pressPrepareLink(page, '/streaming-target')
+            await waitForDataRequest('streaming-shell')
+            if (!holdResponse) {
+              await responseArrived
+            }
+            await page.mouse.up()
+            proxy.release()
+            await responseArrived
+            // The shell streams in only after the commit has suspended on it.
+            await waitForTwoFrames(page)
+            resolveData('streaming-shell', 'Streaming target shell')
+            await page.locator('#streaming-shell').waitFor()
+
+            await retry(async () => {
+              expect(
+                await page.evaluate(() =>
+                  performance
+                    .getEntriesByType('soft-navigation')
+                    .map((entry) => new URL(entry.name).pathname)
+                )
+              ).toEqual(['/streaming-target'])
+            })
+          } finally {
+            await chrome.close()
+            proxy.close()
+          }
+        })
+      }
     })
   })
 })

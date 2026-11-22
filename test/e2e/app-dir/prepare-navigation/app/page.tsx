@@ -22,6 +22,16 @@ export default function Page() {
           <PrepareLink href="/target">Prepare link to target</PrepareLink>
         </li>
         <li>
+          <PrepareLink href="/streaming-target">
+            Prepare link to streaming target
+          </PrepareLink>
+        </li>
+        <li>
+          <PrepareLink href="/streaming-error">
+            Prepare link to streaming error
+          </PrepareLink>
+        </li>
+        <li>
           <LinkAccordion href="/static-target">
             Prefetch static target
           </LinkAccordion>

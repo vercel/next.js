@@ -7,6 +7,8 @@ import type { CacheNode } from '../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../shared/lib/app-router-types'
 import {
   fetchServerResponse,
+  isServerResponseStreaming,
+  replayServerResponse,
   type FetchServerResponseResult,
 } from './router-reducer/fetch-server-response'
 import {
@@ -152,6 +154,37 @@ function navigateImpl(
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
+
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.CommitPrepared &&
+    preparation.completedNavigation !== null &&
+    isServerResponseStreaming(preparation.completedNavigation.fetchResult)
+  ) {
+    // The prepare phase seeded this route from a response that's still
+    // streaming. Take the unknown-route path, which decodes the response again
+    // from this commit, rather than render the prepare phase's decode.
+    return navigateToUnknownRoute(
+      now,
+      state,
+      url,
+      currentUrl,
+      currentRenderedSearch,
+      nextUrl,
+      currentRoot,
+      currentFlightRouterState,
+      freshnessPolicy,
+      scrollBehavior,
+      navigateType,
+      navigationLock,
+      map,
+      preparation
+    ).catch(() => {
+      // If the navigation fails, return the current state
+      return state
+    })
+  }
 
   const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
@@ -519,6 +552,9 @@ async function navigateToUnknownRoute(
       break
   }
 
+  // Set when this commit decodes the prepared response again, because it was
+  // still streaming. See replayServerResponse.
+  let replayedResult: FetchServerResponseResult | null = null
   if (
     process.env.__NEXT_PREPARE_NAVIGATION &&
     preparation !== null &&
@@ -548,31 +584,37 @@ async function navigateToUnknownRoute(
       completed.requestTree === dynamicRequestTree &&
       preparation.bfcacheVersion === getBFCacheVersion()
     ) {
-      return navigateToKnownRoute(
-        now,
-        state,
-        url,
-        completed.canonicalUrl,
-        completed.navigationSeed,
-        currentUrl,
-        currentRenderedSearch,
-        currentRoot,
-        freshnessPolicy,
-        nextUrl,
-        scrollBehavior,
-        navigateType,
-        navigationLock,
-        map,
-        completed.debugInfo,
-        null,
-        undefined,
-        preparation
-      )
+      if (isServerResponseStreaming(completed.fetchResult)) {
+        replayedResult = await replayServerResponse(completed.fetchResult)
+      } else {
+        return navigateToKnownRoute(
+          now,
+          state,
+          url,
+          completed.canonicalUrl,
+          completed.navigationSeed,
+          currentUrl,
+          currentRenderedSearch,
+          currentRoot,
+          freshnessPolicy,
+          nextUrl,
+          scrollBehavior,
+          navigateType,
+          navigationLock,
+          map,
+          completed.debugInfo,
+          null,
+          undefined,
+          preparation
+        )
+      }
     }
   }
 
   let result: FetchServerResponseResult
-  if (!process.env.__NEXT_PREPARE_NAVIGATION || preparation === null) {
+  if (replayedResult !== null) {
+    result = replayedResult
+  } else if (!process.env.__NEXT_PREPARE_NAVIGATION || preparation === null) {
     result = await fetchServerResponse(url, {
       flightRouterState: dynamicRequestTree,
       nextUrl,
@@ -586,6 +628,8 @@ async function navigateToUnknownRoute(
       const request = fetchServerResponse(url, {
         flightRouterState: dynamicRequestTree,
         nextUrl,
+        // The commit may need to decode the response again.
+        keepBytes: true,
       })
       preparation.inFlightRequest = request
       preparation.inFlightRequestTree = dynamicRequestTree
@@ -613,6 +657,10 @@ async function navigateToUnknownRoute(
       preparation.inFlightRequest = null
       preparation.inFlightRequestTree = null
       result = await request
+      if (isServerResponseStreaming(result)) {
+        replayedResult = await replayServerResponse(result)
+        result = replayedResult
+      }
     } else {
       // This is the commit, and there's no usable prepared request to take
       // over.
@@ -736,6 +784,7 @@ async function navigateToUnknownRoute(
       canonicalUrl: createHrefFromUrl(canonicalUrl),
       debugInfo,
       requestTree: dynamicRequestTree,
+      fetchResult: result,
     }
   }
 
@@ -748,7 +797,10 @@ async function navigateToUnknownRoute(
     currentUrl,
     currentRenderedSearch,
     currentRoot,
-    freshnessPolicy,
+    // A commit that decoded the response again renders from that decode, like
+    // a regular navigation, rather than from what the prepare phase wrote into
+    // the BFCache.
+    replayedResult !== null ? FreshnessPolicy.Default : freshnessPolicy,
     nextUrl,
     scrollBehavior,
     navigateType,

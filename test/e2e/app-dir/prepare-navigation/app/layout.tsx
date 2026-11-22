@@ -16,6 +16,7 @@ export default function Root({ children }: { children: ReactNode }) {
             '/static-param/b',
             '/redirect-target',
             '/hub-b',
+            '/streaming-error',
           ]}
         />
         {children}

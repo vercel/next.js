@@ -129,6 +129,8 @@ export type PreparedNavigationRecord = {
     canonicalUrl: string
     debugInfo: Array<unknown> | null
     requestTree: FlightRouterState
+    // The response, which may still be streaming. See replayServerResponse.
+    fetchResult: FetchServerResponseResult
   } | null
 }
 

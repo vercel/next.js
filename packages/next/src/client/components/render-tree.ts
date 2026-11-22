@@ -263,8 +263,8 @@ export function startPPRNavigation(
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean,
-  // When freshness is CommitPrepared, the time the prepare phase started.
-  // Null for all other navigations.
+  // For either phase of a prepared navigation, the time the prepare phase
+  // started. Null for all other navigations.
   preparedAt: number | null
 ): RootNavigationTask | null {
   const parentNeedsDynamicRequest = false
@@ -347,8 +347,8 @@ function updateRenderTreeOnNavigation(
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean,
-  // When freshness is CommitPrepared, the time the prepare phase started.
-  // Null for all other navigations.
+  // For either phase of a prepared navigation, the time the prepare phase
+  // started. Null for all other navigations.
   preparedAt: number | null
 ): NavigationTask | null {
   // Check if the route structure changed. If only the params changed, that's
@@ -763,8 +763,8 @@ function createRenderTreeOnNavigation(
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean,
-  // When freshness is CommitPrepared, the time the prepare phase started.
-  // Null for all other navigations.
+  // For either phase of a prepared navigation, the time the prepare phase
+  // started. Null for all other navigations.
   preparedAt: number | null
 ): NavigationTask {
   // Same traversal as updateRenderTreeOnNavigation, but simpler. We switch to this
@@ -1037,8 +1037,8 @@ function createRenderTreeForSegment(
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean,
-  // When freshness is CommitPrepared, the time the prepare phase started.
-  // Null for all other navigations.
+  // For either phase of a prepared navigation, the time the prepare phase
+  // started. Null for all other navigations.
   preparedAt: number | null
 ): { node: RouteTree<CacheNode>; needsDynamicRequest: boolean } {
   // Construct an owned render tree using data from the BFCache, the client's
@@ -1109,7 +1109,15 @@ function createRenderTreeForSegment(
         now,
         tree.varyPath
       )
-      if (bfcacheEntry !== null) {
+      // A prepared commit that decoded the response again renders from its
+      // own seed (Default), not from what the prepare phase wrote, which reads
+      // from the prepare phase's decode. See replayServerResponse.
+      const isWrittenSincePrepared =
+        freshness === FreshnessPolicy.Default &&
+        preparedAt !== null &&
+        bfcacheEntry !== null &&
+        bfcacheEntry.navigatedAt >= preparedAt
+      if (bfcacheEntry !== null && !isWrittenSincePrepared) {
         // A regular navigation that happens to read cached data is still a
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
