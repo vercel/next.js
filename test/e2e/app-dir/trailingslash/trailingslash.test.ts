@@ -64,6 +64,16 @@ describe('app-dir trailingSlash handling', () => {
     )
   })
 
+  it('should add trailing slash to urls with a dot in a directory segment', async () => {
+    const $ = await next.render$('/v1.2/docs/')
+    expect($('[rel="canonical"]').attr('href')).toBe(
+      'http://trailingslash.com/v1.2/docs/'
+    )
+    expect($('[property="og:url"]').attr('content')).toBe(
+      'http://trailingslash.com/v1.2/docs/'
+    )
+  })
+
   it.each([{ withSlash: true }, { withSlash: false }])(
     'should revalidate a page with generated static params (withSlash=$withSlash)',
     async ({ withSlash }) => {
