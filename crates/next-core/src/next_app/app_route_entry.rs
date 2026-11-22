@@ -6,13 +6,17 @@ use turbopack::ModuleAssetContext;
 use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
+    issue::IssueExt,
     module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
 
 use crate::{
-    next_app::{AppEntry, AppPage, AppPath},
+    next_app::{
+        AppEntry, AppPage, AppPath,
+        app_page_native_rsc_runtime_entry::NativeRscRuntimeUnsupportedIssue,
+    },
     next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
@@ -38,6 +42,15 @@ pub async fn get_app_route_entry(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
+    if segment_from_source.await?.native_rsc_runtime.is_some() {
+        NativeRscRuntimeUnsupportedIssue {
+            file_path: source.ident().await?.path.clone(),
+            page: page.clone(),
+            reason: rcstr!("Route handlers can't use the native RSC runtime."),
+        }
+        .resolved_cell()
+        .emit();
+    }
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);

@@ -2,6 +2,7 @@ pub mod app_client_references_chunks;
 pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
+pub mod app_page_native_rsc_runtime_entry;
 pub mod app_route_entry;
 pub mod metadata;
 
@@ -23,6 +24,9 @@ pub use crate::next_app::{
     app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,
+    app_page_native_rsc_runtime_entry::{
+        report_app_builtin_page_native_rsc_runtime, report_app_page_native_rsc_runtime,
+    },
     app_route_entry::get_app_route_entry,
 };
 

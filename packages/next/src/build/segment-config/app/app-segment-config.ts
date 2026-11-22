@@ -167,6 +167,12 @@ const AppSegmentConfigSchema = z.object({
   runtime: z.enum(['edge', 'nodejs']).optional(),
 
   /**
+   * Opts the page into the native RSC runtime. Turbopack only; Rust's
+   * segment config parsing does the rest.
+   */
+  experimental_nativeRscRuntime: z.literal(true).optional(),
+
+  /**
    * The maximum duration for the page in seconds.
    */
   maxDuration: z.number().int().nonnegative().optional(),
@@ -207,6 +213,11 @@ export function parseAppSegmentConfig(
           case 'ensureStatic': {
             return {
               message: `Invalid ensureStatic value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "shell", "prefetch", "navigation", or false.`,
+            }
+          }
+          case 'experimental_nativeRscRuntime': {
+            return {
+              message: `Invalid experimental_nativeRscRuntime value ${JSON.stringify(ctx.data)} on "${route}", must be true.`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -300,6 +311,11 @@ export type AppSegmentConfig = {
    * The runtime to use for the page.
    */
   runtime?: 'edge' | 'nodejs'
+
+  /**
+   * Opts the page into the native RSC runtime.
+   */
+  experimental_nativeRscRuntime?: true
 
   /**
    * The maximum duration for the page in seconds.

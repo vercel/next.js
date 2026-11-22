@@ -714,6 +714,17 @@ export async function getAppPageStaticInfo({
   const route = normalizeAppPath(page)
   const config = parseAppSegmentConfig(exportedConfig, route)
 
+  // Only Turbopack builds pages on the native RSC runtime. Any other
+  // bundler would ignore the field and render the page on App Router.
+  if (
+    config.experimental_nativeRscRuntime !== undefined &&
+    !process.env.TURBOPACK
+  ) {
+    throw new Error(
+      `"${pageFilePath}" sets \`experimental_nativeRscRuntime\`, which requires Turbopack. Build with Turbopack (the default), or remove the export.`
+    )
+  }
+
   const hasParamMatching = paramMatching || generateParamMatching
 
   if (paramMatching && generateParamMatching) {

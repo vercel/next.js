@@ -24,7 +24,9 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{
-        AppPage, PageSegment, PageType, app_entry::AppEntry, app_route_entry::get_app_route_entry,
+        AppPage, PageSegment, PageType, app_entry::AppEntry,
+        app_page_native_rsc_runtime_entry::NativeRscRuntimeUnsupportedIssue,
+        app_route_entry::get_app_route_entry,
     },
     next_config::NextConfig,
     parse_segment_config_from_source,
@@ -69,8 +71,18 @@ pub async fn get_app_metadata_route_entry(
     // dynamic|static metadata route handler.
     let original_path = metadata.clone().into_path();
 
-    let source = Vc::upcast(FileSource::new(original_path));
+    let source = Vc::upcast(FileSource::new(original_path.clone()));
     let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
+    // The route entry only sees the generated handler, so the user's file is checked here.
+    if segment_config.await?.native_rsc_runtime.is_some() {
+        NativeRscRuntimeUnsupportedIssue {
+            file_path: original_path,
+            page: page.clone(),
+            reason: rcstr!("Metadata routes can't use the native RSC runtime."),
+        }
+        .resolved_cell()
+        .emit();
+    }
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
         // is_multi_dynamic is true when config.generateSitemaps or
