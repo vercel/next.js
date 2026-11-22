@@ -1,7 +1,8 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::hash_map::Entry};
 
-use anyhow::{Ok, Result};
+use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use either::Either;
 use futures::join;
 use next_core::{
@@ -17,11 +18,12 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexSet, OperationVc, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexSet, NonLocalValue, OperationVc, OrderedAutoMap, ResolvedVc,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::ChunkingType,
     context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
@@ -100,21 +102,41 @@ impl NextDynamicGraphs {
                 // Just a single graph, no need to merge results
                 Ok(graph.get_next_dynamic_imports_for_endpoint(entry))
             } else {
-                let result = self
+                let results = self
                     .0
                     .iter()
-                    .map(async |graph| {
-                        Ok(graph
-                            .get_next_dynamic_imports_for_endpoint(entry)
-                            .await?
-                            .into_iter()
-                            // TODO remove this collect and return an iterator instead
-                            .collect::<Vec<_>>())
-                    })
-                    .try_flat_join()
+                    .map(|graph| graph.get_next_dynamic_imports_for_endpoint(entry))
+                    .try_join()
                     .await?;
 
-                Ok(Vc::cell(result.into_iter().collect()))
+                // Concatenate the results, offsetting the indices into `async_modules`.
+                let mut merged = DynamicImportEntriesWithImporter::default();
+                for result in results {
+                    let offset = u32::try_from(merged.async_modules.len())?;
+                    let offset_index = |index: Option<u32>| -> Result<Option<u32>> {
+                        index
+                            .map(|index| {
+                                index
+                                    .checked_add(offset)
+                                    .context("Too many plain import()s on next/dynamic paths")
+                            })
+                            .transpose()
+                    };
+                    for node in &result.async_modules {
+                        merged.async_modules.push(AsyncModuleNode {
+                            module: node.module,
+                            parent: offset_index(node.parent)?,
+                        });
+                    }
+                    for import in &result.entries {
+                        merged.entries.push(DynamicImportEntryWithImporter {
+                            dynamic_entry: import.dynamic_entry,
+                            parent_client_reference: import.parent_client_reference,
+                            async_module: offset_index(import.async_module)?,
+                        });
+                    }
+                }
+                Ok(merged.cell())
             }
         }
         .instrument(span)
@@ -122,13 +144,38 @@ impl NextDynamicGraphs {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct DynamicImportEntriesWithImporter(
-    pub  Vec<(
-        ResolvedVc<NextDynamicEntryModule>,
-        Option<ClientReferenceType>,
-    )>,
-);
+/// A `next/dynamic` import, with where its async loader is chunked.
+#[derive(Clone, PartialEq, Eq, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+pub struct DynamicImportEntryWithImporter {
+    pub dynamic_entry: ResolvedVc<NextDynamicEntryModule>,
+    /// The client reference containing the import, if any (App Router).
+    pub parent_client_reference: Option<ClientReferenceType>,
+    /// The innermost plain `import()` on the path from the parent (the client reference or the
+    /// entry) to the import, as an index into
+    /// [`DynamicImportEntriesWithImporter::async_modules`], if any. The async loader of the import
+    /// is created by the chunk group of the parent or of one of the plain `import()`s on the path.
+    pub async_module: Option<u32>,
+}
+
+/// The target of a plain `import()` on the path from a client reference or the entry to
+/// `next/dynamic` imports.
+#[derive(Clone, PartialEq, Eq, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+pub struct AsyncModuleNode {
+    pub module: ResolvedVc<Box<dyn Module>>,
+    /// The plain `import()` enclosing this one, as an index into
+    /// [`DynamicImportEntriesWithImporter::async_modules`] (always smaller than this node's), or
+    /// `None` when this is the outermost one.
+    pub parent: Option<u32>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Default)]
+pub struct DynamicImportEntriesWithImporter {
+    pub entries: Vec<DynamicImportEntryWithImporter>,
+    /// The plain `import()`s on the paths to the `next/dynamic` imports, as a tree: each node only
+    /// refers to its parent, so a path is shared by all the imports beneath it.
+    pub async_modules: Vec<AsyncModuleNode>,
+}
 
 #[turbo_tasks::value_impl]
 impl NextDynamicGraph {
@@ -157,16 +204,17 @@ impl NextDynamicGraph {
             let data = &*self.data.await?;
             let graph = self.graph.await?;
 
-            #[derive(Clone, PartialEq, Eq)]
-            enum VisitState {
-                Entry,
-                InClientReference(ClientReferenceType),
+            #[derive(Clone, Copy)]
+            struct VisitState {
+                client_reference: Option<ClientReferenceType>,
+                /// The innermost plain `import()` on the path, as an index into `async_modules`.
+                async_module: Option<u32>,
             }
 
             let entries = if !self.is_single_page {
                 if !graph.graphs.first().unwrap().has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
-                    return Ok(Vc::cell(vec![]));
+                    return Ok(DynamicImportEntriesWithImporter::default().cell());
                 }
                 Either::Left(std::iter::once(entry))
             } else {
@@ -174,53 +222,71 @@ impl NextDynamicGraph {
             };
 
             let mut result = vec![];
+            let mut async_modules = vec![];
 
-            // module -> the client reference entry (if any)
+            // module -> the client reference entry (if any) and the innermost plain `import()`
             let mut state_map = FxHashMap::default();
             graph.traverse_edges_dfs(
                 entries,
                 &mut (),
                 |parent_info, node, _| {
                     let module = node;
-                    let Some((parent_node, _)) = parent_info else {
-                        state_map.insert(module, VisitState::Entry);
+                    let Some((parent_node, ref_data)) = parent_info else {
+                        state_map.insert(
+                            module,
+                            VisitState {
+                                client_reference: None,
+                                async_module: None,
+                            },
+                        );
                         return Ok(GraphTraversalAction::Continue);
                     };
                     let parent_module = parent_node;
 
                     let module_type = data.get(&module);
-                    let parent_state = state_map.get(&parent_module).unwrap().clone();
-                    let parent_client_reference =
-                        if let Some(DynamicImportEntriesMapType::ClientReference(module)) =
-                            module_type
-                        {
-                            Some(ClientReferenceType::EcmascriptClientReference(*module))
-                        } else if let VisitState::InClientReference(ty) = parent_state {
-                            Some(ty)
-                        } else {
-                            None
-                        };
+                    let parent_state = *state_map.get(&parent_module).unwrap();
 
                     Ok(match module_type {
                         Some(DynamicImportEntriesMapType::DynamicEntry(dynamic_entry)) => {
-                            result.push((*dynamic_entry, parent_client_reference));
+                            result.push(DynamicImportEntryWithImporter {
+                                dynamic_entry: *dynamic_entry,
+                                parent_client_reference: parent_state.client_reference,
+                                async_module: parent_state.async_module,
+                            });
 
                             state_map.insert(module, parent_state);
                             GraphTraversalAction::Skip
                         }
                         Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
+                            // The client reference has its own chunk group.
                             state_map.insert(
                                 module,
-                                VisitState::InClientReference(
-                                    ClientReferenceType::EcmascriptClientReference(
-                                        *client_reference,
+                                VisitState {
+                                    client_reference: Some(
+                                        ClientReferenceType::EcmascriptClientReference(
+                                            *client_reference,
+                                        ),
                                     ),
-                                ),
+                                    async_module: None,
+                                },
                             );
                             GraphTraversalAction::Continue
                         }
                         None => {
-                            state_map.insert(module, parent_state);
+                            // Keep the state of the first visit: the children are only traversed
+                            // from there, and later visits (e.g. through a cycle) would otherwise
+                            // add redundant nodes and change the state of pending children.
+                            if let Entry::Vacant(entry) = state_map.entry(module) {
+                                let mut state = parent_state;
+                                if matches!(ref_data.chunking_type, ChunkingType::Async) {
+                                    state.async_module = Some(u32::try_from(async_modules.len())?);
+                                    async_modules.push(AsyncModuleNode {
+                                        module,
+                                        parent: parent_state.async_module,
+                                    });
+                                }
+                                entry.insert(state);
+                            }
                             GraphTraversalAction::Continue
                         }
                     })
@@ -229,7 +295,11 @@ impl NextDynamicGraph {
                 false,
                 false,
             )?;
-            Ok(Vc::cell(result))
+            Ok(DynamicImportEntriesWithImporter {
+                entries: result,
+                async_modules,
+            }
+            .cell())
         }
         .instrument(span)
         .await

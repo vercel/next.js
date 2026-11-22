@@ -223,7 +223,7 @@ export class MinifyPlugin {
       await Promise.all(scheduledTasks)
 
       if (initializedWorker) {
-        await initializedWorker.end()
+        await initializedWorker.shutdown()
       }
     })
   }

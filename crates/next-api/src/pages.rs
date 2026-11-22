@@ -88,7 +88,7 @@ use crate::{
     project::Project,
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, Endpoint, EndpointOutput,
-        EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        EndpointOutputPaths, FirstLoadChunks, ModuleGraphs, Route, Routes,
     },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
@@ -669,7 +669,7 @@ async fn client_entry_modules(
 async fn page_next_dynamic_chunks(
     endpoint: Vc<PageEndpoint>,
     next_dynamic_imports: ReadRef<DynamicImportEntriesWithImporter>,
-    client_availability_info: AvailabilityInfo,
+    client_chunk_group: &ChunkGroupResult,
 ) -> Result<ResolvedVc<DynamicImportedChunks>> {
     let this = endpoint.await?;
     let project = this.pages_project.project();
@@ -680,15 +680,15 @@ async fn page_next_dynamic_chunks(
             endpoint.client_module_graph(),
             client_chunking_context,
             next_dynamic_imports,
-            NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+            NextDynamicChunkAvailability::PagesRouterClientEntry(client_chunk_group),
         )
         .await;
     }
 
     // `/_app`'s `next/dynamic` imports are loaded by `/_app`'s async loaders, which are chunked
-    // with `/_app`'s graph and availability, so preload them with the chunks `/_app` itself
-    // lists. Chunked with the page's availability, they would name chunks that don't match what
-    // those loaders request (and that may not be emitted at all).
+    // with `/_app`'s graph and chunk group, so preload them with the chunks `/_app` itself
+    // lists. The page's chunk group sees `/_app`'s chunk group as available and doesn't create
+    // those loaders itself.
     // With a per-page module graph, a page's client graph is chained after `/_app`'s (see
     // `client_module_graph`), so `next_dynamic_imports` also contains `/_app`'s imports: chunk
     // only the page's own imports with the page's graph and availability. With a whole-app graph
@@ -700,31 +700,35 @@ async fn page_next_dynamic_chunks(
         .get_next_dynamic_imports_for_endpoint(app_endpoint.client_module())
         .await?;
     let app_dynamic_entries = app_next_dynamic_imports
+        .entries
         .iter()
-        .map(|(dynamic_entry, _)| *dynamic_entry)
+        .map(|import| import.dynamic_entry)
         .collect::<FxHashSet<_>>();
-    let page_next_dynamic_imports = Vc::<DynamicImportEntriesWithImporter>::cell(
-        next_dynamic_imports
+    let page_next_dynamic_imports = DynamicImportEntriesWithImporter {
+        entries: next_dynamic_imports
+            .entries
             .iter()
-            .filter(|(dynamic_entry, _)| !app_dynamic_entries.contains(dynamic_entry))
+            .filter(|import| !app_dynamic_entries.contains(&import.dynamic_entry))
             .cloned()
             .collect(),
-    )
+        async_modules: next_dynamic_imports.async_modules.clone(),
+    }
+    .cell()
     .await?;
 
     let page_chunks = collect_next_dynamic_chunks(
         endpoint.client_module_graph(),
         client_chunking_context,
         page_next_dynamic_imports,
-        NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+        NextDynamicChunkAvailability::PagesRouterClientEntry(client_chunk_group),
     )
     .await?;
     let app_chunks = collect_next_dynamic_chunks(
         app_module_graph,
         client_chunking_context,
         app_next_dynamic_imports,
-        NextDynamicChunkAvailability::AvailabilityInfo(
-            app_endpoint.client_chunk_group().await?.availability_info,
+        NextDynamicChunkAvailability::PagesRouterClientEntry(
+            &*app_endpoint.client_chunk_group().await?,
         ),
     )
     .await?;
@@ -1119,7 +1123,7 @@ impl PageEndpoint {
             let ssr_module_graph = self.ssr_module_graph();
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
-                let client_availability_info = self.client_chunk_group().await?.availability_info;
+                let client_chunk_group = self.client_chunk_group().await?;
 
                 let client_module_graph = self.client_module_graph();
                 let per_page_module_graph = *project.per_page_module_graph().await?;
@@ -1140,18 +1144,15 @@ impl PageEndpoint {
                     NextDynamicGraphs::new(client_module_graph, per_page_module_graph)
                         .get_next_dynamic_imports_for_endpoint(self.client_module())
                         .await?;
-                Some((next_dynamic_imports, client_availability_info))
+                Some((next_dynamic_imports, client_chunk_group))
             } else {
                 None
             };
 
-            let dynamic_import_entries = if let Some((
-                next_dynamic_imports,
-                client_availability_info,
-            )) = next_dynamic_imports
+            let dynamic_import_entries = if let Some((next_dynamic_imports, client_chunk_group)) =
+                next_dynamic_imports
             {
-                page_next_dynamic_chunks(self, next_dynamic_imports, client_availability_info)
-                    .await?
+                page_next_dynamic_chunks(self, next_dynamic_imports, &client_chunk_group).await?
             } else {
                 DynamicImportedChunks::default().resolved_cell()
             };
@@ -1905,11 +1906,28 @@ impl Endpoint for PageEndpoint {
                 },
             };
 
+            // Only needed for the route bundle stats of production builds: the chunks listed for
+            // this page in its `build-manifest.json`.
+            let first_load_chunks = if this.ty == PageEndpointType::Html
+                && project.next_mode().await?.is_production()
+            {
+                Some(FirstLoadChunks::PagesPage(
+                    if this.pages_structure.await?.should_create_pages_entries {
+                        self.client_chunk_group().await?.assets
+                    } else {
+                        OutputAssets::empty_resolved()
+                    },
+                ))
+            } else {
+                None
+            };
+
             anyhow::Ok(
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    first_load_chunks,
                 }
                 .cell(),
             )

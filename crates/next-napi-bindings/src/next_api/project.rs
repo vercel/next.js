@@ -35,6 +35,7 @@ use next_api::{
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
+    route_bundle_stats::route_bundle_stats_asset_if_enabled,
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
     shutdown::ShutdownHooks,
 };
@@ -660,6 +661,13 @@ pub fn project_new<'env>(
                         ProjectContainer::initialize(container_op, options).await?;
                     let container = container_op.resolve().strongly_consistent().await?;
                     container.await?.register_shutdown_hooks(&shutdown_hooks);
+                    // Write the files of the dist dir that don't belong to any entrypoint before
+                    // anything is executed from the dist dir.
+                    read_strongly_consistent_and_apply_effects(
+                        write_dist_dir_files_operation(container),
+                        |effects| effects,
+                    )
+                    .await?;
                     // Return the operation itself so we can pin it below
                     Ok((container, container_op, initialization_issues))
                 })
@@ -720,6 +728,23 @@ pub fn project_new<'env>(
         }
         .instrument(tracing::info_span!("create project")),
     )
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn write_dist_dir_files_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    container.project().write_dist_dir_files().await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn write_dist_dir_files_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<Effects>> {
+    let op = write_dist_dir_files_inner_operation(container);
+    op.read_strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1859,6 +1884,7 @@ async fn output_assets_operation(
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
     let immutable_hashes_manifest_asset =
         immutable_hashes_manifest_asset_if_enabled(project).await?;
+    let route_bundle_stats = route_bundle_stats_asset_if_enabled(project, app_dir_only).await?;
 
     Ok(Vc::cell(
         output_assets
@@ -1866,6 +1892,7 @@ async fn output_assets_operation(
             .chain(nft.iter().copied())
             .chain(routes_hashes_manifest.iter().copied())
             .chain(immutable_hashes_manifest_asset.iter().copied())
+            .chain(route_bundle_stats.iter().copied())
             .collect(),
     ))
 }

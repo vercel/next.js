@@ -204,7 +204,7 @@ describe('API routes', () => {
       body: `{"message":Invalid"}`,
     })
     expect(data.status).toEqual(400)
-    expect(data.statusText).toEqual('Invalid JSON')
+    expect(await data.text()).toEqual('Invalid JSON')
   })
 
   // TODO: Investigate this test flaking
@@ -228,7 +228,7 @@ describe('API routes', () => {
       expect(error.code).toBe('EPIPE')
     } else {
       expect(res.status).toEqual(413)
-      expect(res.statusText).toEqual('Body exceeded 1mb limit')
+      expect(await res.text()).toEqual('Body exceeded 1mb limit')
     }
   })
 
