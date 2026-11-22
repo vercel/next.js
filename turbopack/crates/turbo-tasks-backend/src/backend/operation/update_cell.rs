@@ -631,14 +631,16 @@ mod invalidate_cell_dependents_tests {
             let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::provisional(0)));
         }
 
-        tt.backend().refine_provisional_cell_dependency(
-            task(CELL_TASK),
-            cell_ref().cell,
-            task(DEPENDENT),
-            0,
-            [1u64],
-            &tt,
-        );
+        tt.backend()
+            .refine_provisional_cell_dependency(
+                task(CELL_TASK),
+                cell_ref().cell,
+                task(DEPENDENT),
+                0,
+                [1u64],
+                &tt,
+            )
+            .unwrap();
 
         let mut ctx = ExecuteContext::new(&tt);
         let dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);

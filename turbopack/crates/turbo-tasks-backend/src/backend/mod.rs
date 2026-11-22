@@ -1256,12 +1256,20 @@ impl TurboTasksBackend {
         task_id: TaskId,
         cell: CellId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
+    ) -> Result<()> {
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        // The caller can hold a reference to a cell of a task that GC collected while it was
+        // executing (e.g. its parent dropped both). Fail like a read of that cell would.
+        let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::Data) else {
+            return Err(collected_task_read_error(
+                task_id,
+                "drop_task_cell_content_hint",
+            ));
+        };
         // Only drop the content, if it's there. A later read recomputes the task, exactly like
         // after a `final_read_hint` read.
         let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
+        Ok(())
     }
 
     /// Refines the [`CellKeyKind::Provisional`] dependency of `reader` on `cell` of `task_id`
@@ -1273,6 +1281,11 @@ impl TurboTasksBackend {
     /// dependents), the [`CellKeyKind::Provisional`] dependency is kept, conservatively depending
     /// on the whole cell.
     ///
+    /// Fails when the cell's task no longer exists. GC doesn't wait for executions to finish, and
+    /// it ignores cell dependents, so it collects the task of a cell that `reader` is still using
+    /// when the task's parent drops it. That usually means `reader` is being dropped by its own
+    /// parent as well, so the caller fails the execution.
+    ///
     /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
     /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn refine_provisional_cell_dependency(
@@ -1283,28 +1296,40 @@ impl TurboTasksBackend {
         id: u32,
         key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
+    ) -> Result<()> {
         if !self.should_track_dependencies() || reader == task_id {
-            return;
+            return Ok(());
         }
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
-        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
-        if !immutable && !task.cell_data_contains(&cell) {
-            return;
-        }
-        let reverse = CellRef { task: reader, cell };
         let target = CellRef {
             task: task_id,
             cell,
         };
         let provisional = CellKey::provisional(id);
+        // GC removed both halves of the edge when it collected the task. Drop the reader's half
+        // anyway, so nothing is left behind if it didn't. Checking existence first is race-free:
+        // the context excludes GC until it's dropped, and `task_pair` restores an evicted task.
+        if ctx.try_task(task_id, TaskDataCategory::All).is_none() {
+            let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
+            reader_task.remove_cell_dependencies_keyed(&(target, provisional));
+            reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
+            return Err(collected_task_read_error(
+                task_id,
+                "refine_provisional_cell_dependency",
+            ));
+        }
+        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
+        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+        if !immutable && !task.cell_data_contains(&cell) {
+            return Ok(());
+        }
+        let reverse = CellRef { task: reader, cell };
         task.remove_keyed_cell_dependent(&(reverse, provisional));
         reader_task.remove_cell_dependencies_keyed(&(target, provisional));
         reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
         // Immutable tasks never need dependency edges and can never be invalidated.
         if immutable {
-            return;
+            return Ok(());
         }
         // Many readers can refine their dependencies on the same cell at once, all serialized on
         // the owner task's lock. So the owner side is updated first, and the owner is released
@@ -1336,6 +1361,7 @@ impl TurboTasksBackend {
                 let _ = reader_task.add_cell_dependencies_keyed((target, key));
             }
         }
+        Ok(())
     }
 
     /// Converts all [`CellKeyKind::Provisional`] dependencies of `reader` that are still present
@@ -4263,7 +4289,7 @@ impl Backend for TurboTasksBackend {
         id: u32,
         key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<Self>,
-    ) {
+    ) -> Result<()> {
         self.refine_provisional_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
     }
 
@@ -4281,7 +4307,7 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         cell: CellId,
         turbo_tasks: &TurboTasks<Self>,
-    ) {
+    ) -> Result<()> {
         self.drop_task_cell_content_hint(task_id, cell, turbo_tasks)
     }
 
