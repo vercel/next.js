@@ -7,6 +7,7 @@ import {
   getOrInitDiskLRU,
   resetDiskLRU,
 } from 'next/dist/server/lib/disk-lru-cache.external'
+import { ImageOptimizerCache } from 'next/dist/server/image-optimizer'
 
 async function writeEntry(
   cacheDir: string,
@@ -194,5 +195,109 @@ describe('LRU disk eviction', () => {
     // Subsequent call with working initEntries should succeed because singleton was reset
     const lru = await getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry)
     expect(lru.size).toBe(0)
+  })
+
+  it('should not emit unhandledRejection when init fails and promise is not awaited immediately', async () => {
+    let unhandledReason: unknown = null
+    const handler = (reason: unknown) => {
+      unhandledReason = reason
+    }
+    process.on('unhandledRejection', handler)
+
+    try {
+      const failingInit = async () => {
+        throw new Error('EACCES: permission denied, scan cacheDir')
+      }
+
+      // getOrInitDiskLRU returns the singleton promise directly without an async wrapper.
+      // Storing it without awaiting must not trigger unhandledRejection.
+      getOrInitDiskLRU(cacheDir, 1000, failingInit, rmEntry)
+
+      await setTimeout(50)
+      expect(unhandledReason).toBeNull()
+    } finally {
+      process.removeListener('unhandledRejection', handler)
+    }
+  })
+})
+
+describe('ImageOptimizerCache disk cache initialization guard', () => {
+  const dummyDistDir = '/tmp/dummy-next-dist'
+  const baseConfig = {
+    images: {
+      unoptimized: false,
+      loader: 'default',
+      maximumDiskCacheSize: 1000,
+      path: '/_next/image',
+      domains: [],
+      deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+      imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+      qualities: [75],
+      formats: ['image/webp'],
+      minimumCacheTTL: 60,
+      dangerouslyAllowSVG: false,
+      contentSecurityPolicy: "script-src 'none'; frame-src 'none'; sandbox;",
+      contentDispositionType: 'attachment',
+      remotePatterns: [],
+      localPatterns: undefined,
+    },
+    experimental: {
+      isrFlushToDisk: true,
+    },
+  } as unknown as Parameters<typeof ImageOptimizerCache.validateParams>[2]
+
+  type InternalCache = {
+    cacheDiskLRU?: unknown
+    isDiskCacheEnabled?: boolean
+  }
+
+  beforeEach(() => {
+    resetDiskLRU()
+  })
+
+  afterEach(() => {
+    resetDiskLRU()
+  })
+
+  it('should not initialize cacheDiskLRU when images.unoptimized is true', () => {
+    const cache = new ImageOptimizerCache({
+      distDir: dummyDistDir,
+      nextConfig: {
+        ...baseConfig,
+        images: {
+          ...baseConfig.images,
+          unoptimized: true,
+        },
+      },
+    })
+    const internal = cache as unknown as InternalCache
+    expect(internal.cacheDiskLRU).toBeUndefined()
+    expect(internal.isDiskCacheEnabled).toBeUndefined()
+  })
+
+  it('should not initialize cacheDiskLRU when images.loader is not default', () => {
+    const cache = new ImageOptimizerCache({
+      distDir: dummyDistDir,
+      nextConfig: {
+        ...baseConfig,
+        images: {
+          ...baseConfig.images,
+          loader: 'custom',
+        },
+      },
+    })
+    const internal = cache as unknown as InternalCache
+    expect(internal.cacheDiskLRU).toBeUndefined()
+    expect(internal.isDiskCacheEnabled).toBeUndefined()
+  })
+
+  it('should initialize cacheDiskLRU when images are optimized and default loader', () => {
+    const cache = new ImageOptimizerCache({
+      distDir: dummyDistDir,
+      nextConfig: baseConfig,
+    })
+    const internal = cache as unknown as InternalCache
+    expect(internal.cacheDiskLRU).toBeDefined()
+    expect(internal.isDiskCacheEnabled).toBe(true)
   })
 })

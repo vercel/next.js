@@ -16,7 +16,7 @@ let _diskLRUPromise: Promise<LRUCache<number>> | null = null
  * @param maxDiskSize - Maximum disk cache size in bytes
  * @param readEntries - Callback to scan existing cache entries (format-agnostic)
  */
-export async function getOrInitDiskLRU(
+export function getOrInitDiskLRU(
   cacheDir: string,
   maxDiskSize: number | undefined,
   readEntries: (
