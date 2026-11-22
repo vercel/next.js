@@ -1826,10 +1826,10 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
             GoRouteIssue {
                 path: path.clone(),
                 message: format!(
-                    "Production builds compile every route.go into one executable, so all route.go \
-                     directories must belong to one Go module. {} uses {own}, but other routes \
-                     use a different module: {others}. Move these routes into one module, for \
-                     example by using a single go.mod at the project root.",
+                    "Production builds compile every route.go into one executable, so all \
+                     route.go directories must belong to one Go module. {} uses {own}, but other \
+                     routes use a different module: {others}. Move these routes into one module, \
+                     for example by using a single go.mod at the project root.",
                     display(&package.directory)
                 )
                 .into(),

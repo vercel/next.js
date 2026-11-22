@@ -1044,7 +1044,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
         output: AdapterOutput['APP_ROUTE'],
         run: (port: number) => Promise<T>,
         routeId: string | null = output.id,
-        extraEnv: NodeJS.ProcessEnv = {}
+        extraEnv: Readonly<Record<string, string>> = {}
       ) {
         const directory = await fs.mkdtemp(join(tmpdir(), 'go-adapter-route-'))
         let child: ReturnType<typeof spawn> | undefined

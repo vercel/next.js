@@ -210,8 +210,10 @@ describe('native route runtime', () => {
       '/health': ['/health/route', '/health'],
     }
     jest.spyOn(fs, 'readFile').mockImplementation((async (file: string) => {
+      // The manager joins the descriptor path with the platform separator.
+      const descriptorPath = String(file).replace(/\\/g, '/')
       const [, route] = Object.values(routes).find(([page]) =>
-        String(file).endsWith(`app${page}.native.json`)
+        descriptorPath.endsWith(`app${page}.native.json`)
       )!
       return JSON.stringify({
         executable: 'go-routes-0123',
