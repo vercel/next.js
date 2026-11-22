@@ -181,4 +181,18 @@ describe('LRU disk eviction', () => {
     expect(lru.has('valid-a')).toBe(true)
     expect(lru.has('valid-b')).toBe(true)
   })
+
+  it('should reset the singleton on initialization failure allowing retries without unhandledRejection', async () => {
+    const failingInitEntries = async () => {
+      throw new Error('EACCES: permission denied, scan cacheDir')
+    }
+
+    await expect(
+      getOrInitDiskLRU(cacheDir, 1000, failingInitEntries, rmEntry)
+    ).rejects.toThrow('EACCES: permission denied, scan cacheDir')
+
+    // Subsequent call with working initEntries should succeed because singleton was reset
+    const lru = await getOrInitDiskLRU(cacheDir, 1000, initEntries, rmEntry)
+    expect(lru.size).toBe(0)
+  })
 })

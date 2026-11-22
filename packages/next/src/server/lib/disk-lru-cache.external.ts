@@ -25,7 +25,7 @@ export async function getOrInitDiskLRU(
   evictEntry: (cacheDir: string, cacheKey: string) => Promise<void>
 ): Promise<LRUCache<number>> {
   if (!_diskLRUPromise) {
-    _diskLRUPromise = (async () => {
+    const initPromise = (async () => {
       let maxSize = maxDiskSize
       if (typeof maxSize === 'undefined') {
         // Ensure cacheDir exists before checking disk space
@@ -54,6 +54,16 @@ export async function getOrInitDiskLRU(
 
       return lru
     })()
+
+    // Prevent unhandledRejection if the returned promise is not awaited immediately,
+    // and reset the singleton on failure so transient errors don't permanently break it.
+    initPromise.catch(() => {
+      if (_diskLRUPromise === initPromise) {
+        _diskLRUPromise = null
+      }
+    })
+
+    _diskLRUPromise = initPromise
   }
   return _diskLRUPromise
 }
