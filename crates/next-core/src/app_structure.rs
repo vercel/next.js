@@ -366,6 +366,12 @@ async fn get_directory_tree_internal(
     let mut metadata_open_graph = Vec::new();
     let mut metadata_twitter = Vec::new();
 
+    // `read_dir` returns entries in the filesystem's order, which differs between filesystems.
+    // Iterate them sorted by name, so the result doesn't depend on the filesystem, e.g. which of
+    // `route.go` and `route.ts` handles the route when both exist.
+    let mut entries = entries.iter().collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|(name, _)| *name);
+
     for (basename, entry) in entries {
         let entry = entry.clone().resolve_symlink().await?;
         match entry {
