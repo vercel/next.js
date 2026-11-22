@@ -960,8 +960,8 @@ func GET(w http.ResponseWriter, r *http.Request) {
           ),
         ].sort()
       )
-      // Every Go route output shares one executable that dispatches by path,
-      // with identical assets, while keeping its own route identity.
+      // Every Go route output shares one executable, with identical assets,
+      // while keeping its own route identity.
       expect(new Set(goOutputs.map((output) => output.filePath)).size).toBe(1)
       expect(new Set(goOutputs.map((output) => output.id)).size).toBe(
         goOutputs.length
@@ -1022,7 +1022,8 @@ func GET(w http.ResponseWriter, r *http.Request) {
       async function withStandaloneRoute<T>(
         output: AdapterOutput['APP_ROUTE'],
         run: (port: number) => Promise<T>,
-        routeId: string | null = output.id
+        routeId: string | null = output.id,
+        extraEnv: NodeJS.ProcessEnv = {}
       ) {
         const directory = await fs.mkdtemp(join(tmpdir(), 'go-adapter-route-'))
         let child: ReturnType<typeof spawn> | undefined
@@ -1044,6 +1045,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
             ...process.env,
             PORT: String(port),
             __NEXT_GO_ROUTE: routeId ?? undefined,
+            ...extraEnv,
           }
           delete env.__NEXT_GO_TOKEN
           child = spawn(executable, [], {
@@ -1245,6 +1247,96 @@ func GET(w http.ResponseWriter, r *http.Request) {
         await expect(
           withStandaloneRoute(nativeOutput, async () => {}, routeId)
         ).rejects.toThrow('requires __NEXT_GO_ROUTE set to its output.id')
+      }
+
+      // One process can serve every Go output when the platform supplies the
+      // selected output ID in a routing header that clients cannot set, as
+      // x-matched-path is on Vercel.
+      const routeHeader = { __NEXT_GO_ROUTE_HEADER: 'x-matched-path' }
+      await withStandaloneRoute(
+        nativeOutput,
+        async (port) => {
+          const invoke = (path: string, headers: Record<string, string>) =>
+            fetchViaHTTP(`http://127.0.0.1:${port}`, path, undefined, {
+              headers,
+            })
+          for (const [matched, path, expected] of [
+            [
+              '/catch/static',
+              '/adapter-base/catch/static',
+              { route: 'app/catch/static' },
+            ],
+            [
+              '/catch/[id]',
+              '/adapter-base/catch/one',
+              { route: 'app/catch/[id]', id: 'one' },
+            ],
+            // The routing decision wins over the pathname: an encoded spelling
+            // of the static route stays with the dynamic route.
+            [
+              '/catch/[id]',
+              '/adapter-base/catch/%73tatic',
+              { route: 'app/catch/[id]', id: 'static' },
+            ],
+            [
+              '/internal/health',
+              '/adapter-base/internal/health',
+              { route: 'app/internal/health', visibility: 'app-internal' },
+            ],
+            // Platforms may percent-encode the header value.
+            ['/native/%5Bid%5D', '/adapter-base/native/one', { id: 'one' }],
+          ] as const) {
+            const response = await invoke(path, {
+              'x-matched-path': matched,
+              'x-next-internal-go-route': '/catch/static',
+            })
+            expect(response.status).toBeLessThan(300)
+            expect(await response.json()).toMatchObject(expected)
+          }
+          // A missing or unknown routing header selects nothing, and the
+          // pathname alone never selects a handler.
+          expect((await invoke('/adapter-base/catch/static', {})).status).toBe(
+            404
+          )
+          expect(
+            (
+              await invoke('/adapter-base/catch/static', {
+                'x-matched-path': '/not-a-go-output',
+              })
+            ).status
+          ).toBe(404)
+          // The selected handler still requires its own pathname.
+          expect(
+            (
+              await invoke('/adapter-base/native/one/two', {
+                'x-matched-path': '/native/[id]',
+              })
+            ).status
+          ).toBe(404)
+        },
+        null,
+        routeHeader
+      )
+      for (const [routeId, extraEnv, message] of [
+        [
+          nativeOutput.id,
+          routeHeader,
+          'either __NEXT_GO_ROUTE or __NEXT_GO_ROUTE_HEADER',
+        ],
+        [
+          null,
+          { __NEXT_GO_ROUTE_HEADER: 'x-next-internal-go-route' },
+          'cannot select outputs with an x-next-internal-* header',
+        ],
+        [
+          null,
+          { __NEXT_GO_ROUTE_HEADER: 'not a header' },
+          'valid HTTP header name',
+        ],
+      ] as const) {
+        await expect(
+          withStandaloneRoute(nativeOutput, async () => {}, routeId, extraEnv)
+        ).rejects.toThrow(message)
       }
 
       // Model an adapter that requires authorization for the static output and

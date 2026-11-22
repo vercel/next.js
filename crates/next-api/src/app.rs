@@ -2041,7 +2041,8 @@ impl Endpoint for GoEndpoint {
         let (executable, executable_asset, result) = if !is_proxy
             && is_adapter_build(project).await?
         {
-            // Adapter builds serve every route.go from one executable that dispatches by path.
+            // Adapter builds serve every route.go from one executable. The adapter selects the
+            // output per process or per request; the executable never selects it by path.
             let bundle = go_routes_adapter_bundle(*project).await?;
             // The endpoint can outlive its entry in the shared build's route list.
             if bundle.executable.is_some() && !bundle.routes.contains(&this.path) {

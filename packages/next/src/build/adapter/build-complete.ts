@@ -1354,8 +1354,9 @@ export async function handleBuildComplete({
       )
 
       if (appPageKeys) {
-        // Adapter builds compile every Go route into one executable that
-        // dispatches by path. Every Go APP_ROUTE output shares its filePath,
+        // Adapter builds compile every Go route into one executable that the
+        // adapter binds to an output id per process or per request, never by
+        // path. Every Go APP_ROUTE output shares its filePath,
         // and its traced assets are merged so each output lists the same ones.
         const goRouteOutputs: AdapterOutput['APP_ROUTE'][] = []
         let goRouteExecutable:

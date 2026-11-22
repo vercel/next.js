@@ -11,7 +11,8 @@ import (
 )
 
 // Each route package contains only its own route pattern. Adapter processes
-// select one package at startup using the adapter's authorized output ID.
+// select one package using the adapter's authorized output ID, either at
+// startup or from a platform-controlled routing header on each request.
 const nextGoRoutePattern = "__NEXT_GO_ROUTE_PATTERN__"
 
 type nextGoParamsKey struct{}
