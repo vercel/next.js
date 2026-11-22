@@ -30,10 +30,6 @@ use crate::{
     util::create_tt,
 };
 
-/// The message of the error a read of a collected task fails with (see
-/// `collected_task_read_error` in the backend).
-const COLLECTED_TASK_ERROR: &str = "no longer exists (it was garbage collected)";
-
 #[turbo_tasks::value(transparent, cell = "keyed")]
 struct Map(FxHashMap<u32, u32>);
 
@@ -164,8 +160,10 @@ async fn run_reader_across_owner_collection<T: VcValueType>(
 fn assert_fails_with_collected_task_error(result: Result<()>) {
     let error = result.expect_err("the reader should fail");
     let message = format!("{error:?}");
+    // The error a read of a collected task fails with (see `collected_task_read_error` in the
+    // backend).
     assert!(
-        message.contains(COLLECTED_TASK_ERROR),
+        message.contains("no longer exists (it was garbage collected)"),
         "expected a collected task error, got: {message}"
     );
 }
