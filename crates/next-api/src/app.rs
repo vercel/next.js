@@ -44,7 +44,7 @@ use turbo_tasks::{
     Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
-use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack::{
     ModuleAssetContext,
@@ -1276,7 +1276,28 @@ impl Endpoint for GoEndpoint {
         )
         .to_resolved()
         .await?;
-        let module_root = sources.await?.root.clone();
+        let source_set = sources.await?;
+        let module_root = source_set.root.clone();
+        // The generated `main`, dispatch and handler files below still form a valid program when
+        // the handler is not among the compiled sources, e.g. after it was deleted or replaced by
+        // `route.ts`. Such an endpoint must publish nothing, otherwise it keeps writing outputs
+        // that a replacement endpoint also writes, such as `app-paths-manifest.json`. The source
+        // set tracks the directory listing, so recreating the handler invalidates this check.
+        let handler_name = module_root
+            .get_path_to(&this.path)
+            .context("Go handler outside module")?;
+        if !source_set.files.contains_key(handler_name) {
+            if matches!(*this.path.get_type().await?, FileSystemEntryType::Error) {
+                bail!("Unable to read the Go handler {}", this.path);
+            }
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
         let analysis = go_declarations(*sources, session).await?;
         if is_proxy {
             ensure!(
@@ -2160,7 +2181,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2285,7 +2306,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
