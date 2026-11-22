@@ -1854,6 +1854,12 @@ impl Project {
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
         let module_graphs_vc = if self.next_mode().await?.is_production() {
+            // Wait for the graph, and everything computed under it, before scaling down the
+            // Node.js pool below. `connect()` alone doesn't wait, so the pool would be scaled
+            // down before the graph's loaders spawn their processes, which then stay alive until
+            // the build exits. Connect it rather than returning the read value so its issues
+            // still reach the caller.
+            module_graphs_op.resolve().strongly_consistent().await?;
             module_graphs_op.connect()
         } else {
             let vc = module_graphs_op.resolve().strongly_consistent().await?;
