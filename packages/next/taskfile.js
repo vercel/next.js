@@ -3172,9 +3172,25 @@ export async function next_bundle(task, opts) {
       'next_bundle_app_worker_dev_turbo_experimental',
       // devtools
       'next_bundle_devtools',
+      // the native RSC runtime's bundles
+      'next_bundle_native_rsc_runtime',
     ],
     opts
   )
+}
+
+// Precompiles the native RSC runtime's bundles (declared in
+// next-native-rsc-runtime.webpack-config.js) into dist/native-rsc-runtime. Watch mode
+// rebuilds on source changes; a change to the bundle list itself needs a restart.
+export async function next_bundle_native_rsc_runtime(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-native-rsc-runtime.webpack-config')({
+      root: join(__dirname, 'src/native-rsc-runtime'),
+      outDir: join(__dirname, 'dist/native-rsc-runtime'),
+    }),
+    name: 'next-bundle-native-rsc-runtime',
+  })
 }
 
 function writeJson(file, obj, { spaces = 0 } = {}) {

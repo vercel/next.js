@@ -11,6 +11,7 @@ import tseslint from 'typescript-eslint'
 import nextEslintPluginInternal from '@next/eslint-plugin-internal'
 import mdxParser from 'eslint-mdx'
 import path from 'node:path'
+import { builtinModules } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import js from '@eslint/js'
 import { FlatCompat } from '@eslint/eslintrc'
@@ -23,6 +24,49 @@ const compat = new FlatCompat({
   recommendedConfig: js.configs.recommended,
   allConfig: js.configs.all,
 })
+
+// Shared by every block that sets `no-restricted-syntax`, since a later block's
+// setting replaces an earlier one's instead of adding to it.
+const baseRestrictedSyntax = [
+  'WithStatement',
+  {
+    message: 'substr() is deprecated, use slice() or substring() instead',
+    selector: "MemberExpression > Identifier[name='substr']",
+  },
+  {
+    selector:
+      "BinaryExpression[left.object.name='workUnitStore'][left.property.name='type'][operator=/^(?:===|!==)$/]",
+    message:
+      'Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries.',
+  },
+  {
+    selector:
+      "BinaryExpression[left.type='ChainExpression'][left.expression.object.name='workUnitStore'][left.expression.property.name='type'][operator=/^(?:===|!==)$/]",
+    message:
+      'Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries.',
+  },
+]
+
+const nativeRscRuntimeEngineNeutralMessage =
+  'The native RSC runtime is engine-neutral. Put engine-specific code in an engine fork (forks/*.node.ts).'
+const nativeRscRuntimeNodeGlobals = [
+  'process',
+  'Buffer',
+  'global',
+  'require',
+  'module',
+  '__dirname',
+  '__filename',
+  'setImmediate',
+  'clearImmediate',
+]
+// Builtin names without their subpaths (`fs/promises` → `fs`); the selector
+// below accepts any subpath. esquery regexes can't contain `/`, hence /.
+const nativeRscRuntimeBuiltinNames = [
+  ...new Set(
+    builtinModules.map((name) => name.replace(/^node:/, '').split('/')[0])
+  ),
+]
 
 // This is the default eslint config that is used by IDEs. It does not use
 // computation-heavy type-checked rules to ensure maximum responsiveness while
@@ -162,26 +206,7 @@ export default defineConfig([
         },
       ],
 
-      'no-restricted-syntax': [
-        'error',
-        'WithStatement',
-        {
-          message: 'substr() is deprecated, use slice() or substring() instead',
-          selector: "MemberExpression > Identifier[name='substr']",
-        },
-        {
-          selector:
-            "BinaryExpression[left.object.name='workUnitStore'][left.property.name='type'][operator=/^(?:===|!==)$/]",
-          message:
-            'Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries.',
-        },
-        {
-          selector:
-            "BinaryExpression[left.type='ChainExpression'][left.expression.object.name='workUnitStore'][left.expression.property.name='type'][operator=/^(?:===|!==)$/]",
-          message:
-            'Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries.',
-        },
-      ],
+      'no-restricted-syntax': ['error', ...baseRestrictedSyntax],
 
       'no-script-url': 'error',
       'no-self-assign': 'error',
@@ -525,6 +550,53 @@ export default defineConfig([
     },
   },
   {
+    // The native RSC runtime's renderer is engine-neutral: outside the engine forks,
+    // it uses no Node APIs, so it can run on other JS engines.
+    files: ['packages/next/src/native-rsc-runtime/**/*.{ts,tsx}'],
+    ignores: ['packages/next/src/native-rsc-runtime/forks/*.node.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: builtinModules.map((name) => ({
+            name,
+            message: nativeRscRuntimeEngineNeutralMessage,
+          })),
+          patterns: [
+            {
+              group: ['node:*'],
+              message: nativeRscRuntimeEngineNeutralMessage,
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        ...nativeRscRuntimeNodeGlobals.map((name) => ({
+          name,
+          message: nativeRscRuntimeEngineNeutralMessage,
+        })),
+      ],
+      // The two rules above see only static imports and bare identifiers.
+      'no-restricted-syntax': [
+        'error',
+        ...baseRestrictedSyntax,
+        {
+          selector: `ImportExpression > Literal.source[value=/^(node:.*|(${nativeRscRuntimeBuiltinNames.join('|')})(\\u002F.*)?)$/]`,
+          message: nativeRscRuntimeEngineNeutralMessage,
+        },
+        {
+          selector: `MemberExpression[object.name='globalThis'][property.name=/^(${nativeRscRuntimeNodeGlobals.join('|')})$/]`,
+          message: nativeRscRuntimeEngineNeutralMessage,
+        },
+        {
+          selector: `MemberExpression[object.name='globalThis'][property.value=/^(${nativeRscRuntimeNodeGlobals.join('|')})$/]`,
+          message: nativeRscRuntimeEngineNeutralMessage,
+        },
+      ],
+    },
+  },
+  {
     files: ['examples/**/*'],
     linterOptions: {
       reportUnusedDisableDirectives: 'off',
@@ -561,6 +633,7 @@ export default defineConfig([
       'packages/next/taskfile*.js',
       'packages/next/next-devtools.webpack-config.js',
       'packages/next/next-runtime.webpack-config.js',
+      'packages/next/next-native-rsc-runtime.webpack-config.js',
     ],
     rules: {
       'no-shadow': [
