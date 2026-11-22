@@ -9,6 +9,12 @@ import { proxyNativeRequest } from './native-route-proxy'
 
 const noop = () => {}
 
+/**
+ * Names the route.go route a request is for. A production build's executable
+ * serves every route and selects the handler from this authenticated header.
+ */
+const NATIVE_ROUTE_HEADER = 'x-next-internal-go-route'
+
 // The middleware response pipeline expects decoded bytes and removes the
 // encoded body's Content-Encoding and Content-Length headers.
 // TODO: Remove this decoder once terminal middleware responses can pass through
@@ -77,6 +83,9 @@ export type NativeRouteWorkerEvent =
       address: string
       tokenHeader: string
       token: string
+      /** Header that names the route a request is for, and its value for page. */
+      routeHeader: string
+      route: string
     }>
   // token identifies the worker: a new worker can get an exited one's port.
   | Readonly<{ event: 'gone'; address: string; token: string }>
@@ -285,7 +294,11 @@ export class NativeRouteManager {
     }
   }
 
-  private async getWorker(page: string, entry: string): Promise<Worker> {
+  private async getWorker(
+    page: string,
+    entry: string,
+    route: string
+  ): Promise<Worker> {
     if (this.closed) throw new Error('Next.js server is closing')
     // Development output can change between requests; production output cannot.
     let executable = this.dev ? undefined : this.executablePaths.get(entry)
@@ -337,25 +350,33 @@ export class NativeRouteManager {
         address: `127.0.0.1:${worker.port}`,
         tokenHeader: 'x-next-internal-go-token',
         token: worker.token,
+        routeHeader: NATIVE_ROUTE_HEADER,
+        route,
       })
     }
     return worker
   }
 
+  /**
+   * `route` is the route's pathname without basePath, such as `/users/[id]`.
+   * Production builds compile every route.go into one executable, and its
+   * worker serves the route that this header names.
+   */
   async invoke(
     page: string,
     entry: string,
     req: IncomingMessage,
     res: ServerResponse,
-    url: string
+    url: string,
+    route: string
   ): Promise<void> {
-    const worker = await this.getWorker(page, entry)
+    const worker = await this.getWorker(page, entry, route)
     // Disconnects during descriptor resolution or startup predate the
     // transport listeners below. Do not dispatch those requests to Go.
     if (req.aborted || res.destroyed) return
     worker.active++
     try {
-      await proxyNativeRequest(req, res, url, worker)
+      await proxyNativeRequest(req, res, url, worker, route)
     } finally {
       worker.active--
       if (worker.retired) this.retire(worker)
@@ -373,7 +394,7 @@ export class NativeRouteManager {
     originalUrl: string = req.url
   ): Promise<Response> {
     req.signal.throwIfAborted()
-    const worker = await this.getWorker('/_middleware', entry)
+    const worker = await this.getWorker('/_middleware', entry, '')
     req.signal.throwIfAborted()
     const url = new URL(req.url)
     const target = new URL(originalUrl)

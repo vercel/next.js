@@ -22,13 +22,15 @@ func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler())
 	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"goExact":{"/api/echo":"/api/echo/route"}}`)})
 	f.apply(controlMessage{Event: "worker", Page: "/api/echo/route",
-		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"})
+		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret",
+		RouteHeader: "x-next-internal-go-route", Route: "/api/echo"})
 	s := f.state.Load()
 	if s.table == nil {
 		t.Fatal("no table")
 	}
 	up := s.workers["/api/echo/route"]
-	if up == nil || up.address != "127.0.0.1:51300" || up.tokenHeader != "X-Next-Internal-Go-Token" {
+	if up == nil || up.address != "127.0.0.1:51300" || up.tokenHeader != "X-Next-Internal-Go-Token" ||
+		up.routeHeader != "X-Next-Internal-Go-Route" || len(up.route) != 1 || up.route[0] != "/api/echo" {
 		t.Fatalf("worker %+v", up)
 	}
 

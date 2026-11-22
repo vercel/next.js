@@ -1714,7 +1714,7 @@ fn go_diagnostic_mentions_directory(message: &str, directories: &[String]) -> bo
     })
 }
 
-/// The executable that serves every App Router `route.go` in an adapter build.
+/// The executable that serves every App Router `route.go` in a production build.
 #[turbo_tasks::value(shared)]
 struct GoRoutesBundle {
     /// Source handlers included in the executable.
@@ -1725,11 +1725,15 @@ struct GoRoutesBundle {
     build: Option<turbopack_go::GoBundleResult>,
 }
 
-/// Compile every App Router `route.go` of an adapter build into one executable. Each process
-/// selects an output ID at startup. Each route endpoint reads this task, so Go compiles once.
-/// Every route output references the same executable. Issues are attributed to the route files.
+/// Compile every App Router `route.go` of a production build into one executable. Each route
+/// endpoint reads this task, so Go compiles once, and every route output references the same
+/// executable. Issues are attributed to the route files.
+///
+/// The executable never selects a route by path. With an adapter, the adapter selects the output
+/// per process or per request (`go_routes_adapter_main.go`). With `next start`, Next.js routes
+/// the request and names the selected route in an authenticated header (`go_routes_main.go`).
 #[turbo_tasks::function]
-async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBundle>> {
+async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBundle>> {
     let failed = |build: Option<turbopack_go::GoBundleResult>| {
         GoRoutesBundle {
             routes: vec![],
@@ -1820,7 +1824,7 @@ async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoR
             GoRouteIssue {
                 path: path.clone(),
                 message: format!(
-                    "Adapter builds compile every route.go into one executable, so all route.go \
+                    "Production builds compile every route.go into one executable, so all route.go \
                      directories must belong to one Go module. {} uses {own}, but other routes \
                      use a different module: {others}. Move these routes into one module, for \
                      example by using a single go.mod at the project root.",
@@ -1884,6 +1888,10 @@ async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoR
         aliased.push((import, package));
     }
     aliased.sort_by(|(_, a), (_, b)| a.route_id.cmp(&b.route_id));
+    // Next.js authenticates requests to a `next start` worker and replaces client-supplied
+    // x-next-internal-* headers. Adapter servers receive requests from the platform instead.
+    let adapter = is_adapter_build(project).await?;
+    let trust_internal_headers = !adapter;
     let mut imports = vec![];
     let mut table = vec![];
     for (index, (import, package)) in aliased.iter().enumerate() {
@@ -1892,16 +1900,20 @@ async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoR
             serde_json::to_string(&format!("{module_path}/{import}"))?
         ));
         table.push(format!(
-            "\t\t{}: nextroute{index}.NextInternalGoHandler(false),",
+            "\t\t{}: nextroute{index}.NextInternalGoHandler({trust_internal_headers}),",
             serde_json::to_string(&package.route_id)?
         ));
     }
     generated.insert(
         RcStr::from(format!("{GO_ROUTES_ENTRYPOINT_DIRECTORY}/main.go")),
         RcStr::from(
-            include_str!("templates/go_routes_adapter_main.go")
-                .replace("\t// __NEXT_GO_ROUTE_IMPORTS__", &imports.join("\n"))
-                .replace("\t\t// __NEXT_GO_ROUTES__", &table.join("\n")),
+            if adapter {
+                include_str!("templates/go_routes_adapter_main.go")
+            } else {
+                include_str!("templates/go_routes_main.go")
+            }
+            .replace("\t// __NEXT_GO_ROUTE_IMPORTS__", &imports.join("\n"))
+            .replace("\t\t// __NEXT_GO_ROUTES__", &table.join("\n")),
         ),
     );
     let result = go_packages_bundle_from_sources(
@@ -2039,11 +2051,12 @@ impl Endpoint for GoEndpoint {
         };
         let node_root = project.node_root().owned().await?;
         let (executable, executable_asset, result) = if !is_proxy
-            && is_adapter_build(project).await?
+            && project.next_mode().await?.is_production()
         {
-            // Adapter builds serve every route.go from one executable. The adapter selects the
-            // output per process or per request; the executable never selects it by path.
-            let bundle = go_routes_adapter_bundle(*project).await?;
+            // Production builds serve every route.go from one executable. The adapter or the
+            // `next start` server selects the route; the executable never selects it by path.
+            // Development compiles each route on its own, so an edit rebuilds only that route.
+            let bundle = go_routes_bundle(*project).await?;
             // The endpoint can outlive its entry in the shared build's route list.
             if bundle.executable.is_some() && !bundle.routes.contains(&this.path) {
                 return native_failed(None).await;

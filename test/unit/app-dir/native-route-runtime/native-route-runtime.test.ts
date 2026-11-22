@@ -56,7 +56,8 @@ describe('native route runtime', () => {
         'route.native.json',
         req,
         res,
-        '/route'
+        '/route',
+        '/'
       )
 
       try {
@@ -171,6 +172,96 @@ describe('native route runtime', () => {
       req.destroy()
       res.destroy()
       await manager.close()
+    }
+  })
+
+  it('serves every route of a shared executable from one worker and names the route', async () => {
+    let token = ''
+    const received: Array<{ route: unknown; url?: string }> = []
+    const worker = http.createServer((req, res) => {
+      expect(req.headers['x-next-internal-go-token']).toBe(token)
+      received.push({
+        route: req.headers['x-next-internal-go-route'],
+        url: req.url,
+      })
+      res.end('ok')
+    })
+    await new Promise<void>((resolve) => worker.listen(0, '127.0.0.1', resolve))
+    const port = (worker.address() as import('net').AddressInfo).port
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stdin: new PassThrough(),
+      exitCode: null as number | null,
+      kill: jest.fn(),
+    })
+    const spawn = jest
+      .spyOn(childProcess, 'spawn')
+      .mockImplementation((_, __, options) => {
+        token = options!.env!.__NEXT_GO_TOKEN!
+        setImmediate(() =>
+          child.stdout.write(`\x1eNEXT_GO_READY:${token}:${port}\n`)
+        )
+        return child as unknown as childProcess.ChildProcess
+      })
+    // A production build's descriptors all name the same executable.
+    jest.spyOn(fs, 'readFile').mockResolvedValue(
+      JSON.stringify({
+        executable: 'go-routes-0123',
+        goos: process.platform === 'win32' ? 'windows' : process.platform,
+        goarch:
+          process.arch === 'x64'
+            ? 'amd64'
+            : process.arch === 'ia32'
+              ? '386'
+              : process.arch,
+      })
+    )
+    const manager = new NativeRouteManager(__dirname, false)
+    const routes: Record<string, [page: string, route: string]> = {
+      '/users/1': ['/(group)/users/[id]/route', '/users/[id]'],
+      '/health': ['/health/route', '/health'],
+    }
+    const front = http.createServer((req, res) => {
+      const [page, route] = routes[req.url!]
+      manager
+        .invoke(page, `app${page}.native.json`, req, res, req.url!, route)
+        .catch((error) => {
+          res.statusCode = 500
+          res.end(String(error))
+        })
+    })
+    await new Promise<void>((resolve) => front.listen(0, '127.0.0.1', resolve))
+    const frontPort = (front.address() as import('net').AddressInfo).port
+    try {
+      for (const pathname of ['/users/1', '/health', '/users/1']) {
+        const response = await fetch(
+          `http://127.0.0.1:${frontPort}${pathname}`,
+          {
+            // A client cannot choose the route.
+            headers: { 'x-next-internal-go-route': '/health' },
+          }
+        )
+        expect(response.status).toBe(200)
+        await response.text()
+      }
+      expect(spawn).toHaveBeenCalledTimes(1)
+      expect(received).toEqual([
+        { route: '/users/[id]', url: '/users/1' },
+        { route: '/health', url: '/health' },
+        { route: '/users/[id]', url: '/users/1' },
+      ])
+    } finally {
+      child.exitCode = 0
+      child.emit('exit', 0)
+      child.stdout.destroy()
+      child.stdin.destroy()
+      await manager.close()
+      for (const server of [front, worker]) {
+        server.closeAllConnections()
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve()))
+        )
+      }
     }
   })
 

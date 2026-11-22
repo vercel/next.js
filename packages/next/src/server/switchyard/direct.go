@@ -29,11 +29,14 @@ type directState struct {
 	workers map[string]*goUpstream
 }
 
-// goUpstream is one route.go worker.
+// goUpstream is one route.go worker serving one route. A production build's
+// worker serves every route and selects one from routeHeader.
 type goUpstream struct {
 	address     string
 	tokenHeader string
 	token       []string // as a header value, set as is on each request
+	routeHeader string
+	route       []string // as a header value, set as is on each request
 }
 
 func newSwitchyard(node http.Handler) *switchyard {
@@ -67,6 +70,8 @@ func (f *switchyard) apply(msg controlMessage) {
 			// request.
 			tokenHeader: textproto.CanonicalMIMEHeaderKey(msg.TokenHeader),
 			token:       []string{msg.Token},
+			routeHeader: textproto.CanonicalMIMEHeaderKey(msg.RouteHeader),
+			route:       []string{msg.Route},
 		}
 	case "gone":
 		if msg.Token == "" {

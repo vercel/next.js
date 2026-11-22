@@ -10,9 +10,10 @@ import (
 	"unicode/utf8"
 )
 
-// Each route package contains only its own route pattern. Adapter processes
-// select one package using the adapter's authorized output ID, either at
-// startup or from a platform-controlled routing header on each request.
+// Each route package contains only its own route pattern. Production
+// executables contain every route package and select one by its route ID:
+// adapters bind it at startup or set it in a platform-controlled header, and
+// next start sends it in an authenticated header after routing.
 const nextGoRoutePattern = "__NEXT_GO_ROUTE_PATTERN__"
 
 type nextGoParamsKey struct{}
@@ -107,6 +108,7 @@ func nextGoHandler() http.HandlerFunc {
 		}
 		// Public requests cannot provide the private self-hosted transport metadata.
 		r.Header.Del("x-next-internal-go-token")
+		r.Header.Del("x-next-internal-go-route")
 		for name, values := range params {
 			r.SetPathValue(name, strings.Join(values, "/"))
 		}

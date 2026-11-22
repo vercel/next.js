@@ -133,7 +133,7 @@ Sibling `.go` files compile together with `route.go` and must use the same packa
 
 Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper. Run the route through Next.js to test its integration. Brackets, parentheses, and other characters in route directory names do not need to form valid Go import paths: Next.js compiles the route package from a virtual directory and reports errors and stack traces against the original files. For the same reason, embedding a `.go` file from the route directory itself with `go:embed` yields its source preceded by a `//line` directive. A route without a `go.mod` in its directory or a parent directory within the project uses the language version of the installed Go toolchain.
 
-In adapter builds, all route directories compile into one executable, which is one Go program with one main module. Every route directory must therefore belong to the same Go module, or none of them may have a `go.mod`. A compile error in any Go route fails the build for all of them. Each route directory remains a separate package, so package-level names in different routes do not conflict, and each route can import the same `internal` packages as in development, including routes inside an `internal` directory.
+`next build` compiles all route directories into one executable, with or without an adapter, and `next start` runs it as one process that serves every Go Route Handler. The executable is one Go program with one main module, so every route directory must belong to the same Go module, or none of them may have a `go.mod`. A compile error in any Go route fails the build for all of them. Each route directory remains a separate package, so package-level names in different routes do not conflict, and each route can import the same `internal` packages as in development, including routes inside an `internal` directory. `next dev` compiles each route on its own, so an edit recompiles only that route.
 
 Go routes support `app`, `src/app`, [route groups](/docs/app/api-reference/file-conventions/route-groups), and [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes). A Go handler cannot share its URL with another Route Handler or page.
 
@@ -141,7 +141,7 @@ Go routes support `app`, `src/app`, [route groups](/docs/app/api-reference/file-
 
 Turbopack tracks route sources, sibling files, local imported packages, module metadata, and embedded assets. Edits trigger recompilation. Compiler failures produce errors instead of serving the previous successful executable. Fixing the source allows later requests to recover.
 
-Unchanged requests reuse the compiled process. After a rebuild, new requests use the replacement while in-flight requests can finish on the previous process for a limited time. If a process exits unexpectedly, active requests fail and later requests restart it. In development, a startup failure remains cached until the source changes or the server restarts. In production, a later request retries a failed startup.
+Unchanged requests reuse the compiled process. After a rebuild, new requests use the replacement while in-flight requests can finish on the previous process for a limited time. If a process exits unexpectedly, active requests fail and later requests restart it. In production, one process serves every Go route, so its exit affects all of them. In development, a startup failure remains cached until the source changes or the server restarts. In production, a later request retries a failed startup.
 
 A handler panic aborts its HTTP connection. An error response can be sent only if response headers have not already been sent.
 
@@ -464,9 +464,9 @@ Go Route Handlers always execute dynamically. JavaScript exports such as `dynami
 
 ## Deployment
 
-For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable.
+For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server`. Each native descriptor has a `.native.json.nft.json` trace listing the shared executable.
 
-[`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) copies each Go executable into `.next/standalone` with its permissions, so `node .next/standalone/server.js` serves Go routes without a Go toolchain. The standalone output targets the build host's operating system and architecture.
+[`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) copies the shared Go executable into `.next/standalone` with its permissions, so `node .next/standalone/server.js` serves Go routes without a Go toolchain. The standalone output targets the build host's operating system and architecture.
 
 Go Route Handlers have no build-time prerendering mode, so they cannot produce static response files for [`output: 'export'`](/docs/app/guides/static-exports#route-handlers).
 

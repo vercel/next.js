@@ -797,6 +797,22 @@ describe('native-route-go', () => {
     })
   }
   if (isNextStart) {
+    it('serves every Go route from one production worker', async () => {
+      const manifest: Record<string, string> = JSON.parse(
+        await next.readFile('.next/server/app-paths-manifest.json')
+      )
+      const executables = new Set<string>()
+      for (const entry of Object.values(manifest)) {
+        if (!entry.endsWith('.native.json')) continue
+        executables.add(
+          JSON.parse(await next.readFile('.next/server/' + entry)).executable
+        )
+      }
+      expect([...executables]).toEqual([expect.stringMatching(/^go-routes-/)])
+      // Next.js names the routed handler; the shared process serves both.
+      expect(await lifecyclePid()).toBe((await data()).pid)
+    })
+
     it('retries a transient worker startup failure in production', async () => {
       const trace = await next.readJSON('.next/next-server.js.nft.json')
       for (const filename of [
@@ -840,7 +856,7 @@ describe('native-route-go', () => {
         await next.readFile('.next/server/' + entry + '.nft.json')
       )
       expect(trace.files).toHaveLength(1)
-      expect(trace.files[0]).toContain('route-')
+      expect(trace.files[0]).toContain('go-routes-')
       const metadata = await fs.stat(
         join(next.testDir, '.next/server', descriptor.executable)
       )
