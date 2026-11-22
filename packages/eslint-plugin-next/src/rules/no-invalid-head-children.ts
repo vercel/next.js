@@ -11,6 +11,7 @@ const allowedHeadChildren = new Set([
   'script',
   'base',
   'noscript',
+  'template',
 ])
 
 export default defineRule({

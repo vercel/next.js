@@ -4,7 +4,8 @@ import { rules } from '@next/eslint-plugin-next'
 const NextESLintRule = rules['no-invalid-head-children']
 
 const url = 'https://nextjs.org/docs/messages/no-invalid-head-children'
-const allowed = '<title>, <meta>, <link>, <style>, <script>, <base>, <noscript>'
+const allowed =
+  '<title>, <meta>, <link>, <style>, <script>, <base>, <noscript>, <template>'
 const messageFor = (tag: string) =>
   `Do not use <${tag}> in \`next/head\` component. Only ${allowed} are allowed. See: ${url}`
 
@@ -24,6 +25,24 @@ const tests = {
             <script src="/my-script.js" />
             <base href="/" />
             <noscript>JavaScript is required</noscript>
+            <template id="card">
+              <div>Card</div>
+            </template>
+          </Head>
+        );
+      }`,
+    // A <template> child is valid head content (metadata content per the
+    // HTML spec), even when it contains elements that would be invalid
+    // directly inside <Head>.
+    `
+      import Head from "next/head";
+
+      export default function Index() {
+        return (
+          <Head>
+            <template id="card">
+              <div>Card</div>
+            </template>
           </Head>
         );
       }`,
