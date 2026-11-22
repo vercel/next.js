@@ -601,8 +601,6 @@ func setIfMissing(h http.Header, name, value string) {
 	}
 }
 
-// clientIP formats the client address the way Node reports
-// socket.remoteAddress, rather than Go's form.
 // forwarding holds what both of Switchyard's proxies, to Node and to route.go
 // workers, need from Switchyard's public address to forward a request as the
 // client sent it.
@@ -662,6 +660,8 @@ func (fw forwarding) rewrite(pr *httputil.ProxyRequest) {
 	setIfMissing(pr.Out.Header, "X-Forwarded-Port", fw.publicPort)
 }
 
+// clientIP formats the client address the way Node reports
+// socket.remoteAddress, rather than Go's form.
 func clientIP(remoteAddr string, mapIPv4 bool) string {
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
