@@ -1,4 +1,5 @@
 import { join } from 'path'
+import fs from 'fs-extra'
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { cleanImagesDir, expectWidth, fsToJson } from './util'
@@ -358,12 +359,16 @@ describe('Image Optimizer', () => {
     })
     if (skipped) return
 
-    it('should 404 when loader is not default', async () => {
+    it('should 404 when loader is not default and not create cache directory', async () => {
       const size = 384
       const query = { w: size, q: 90, url: '/test.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
       expect(res.status).toBe(404)
+
+      const imagesDir = join(next.testDir, next.distDir, 'cache', 'images')
+      expect(await fs.pathExists(imagesDir)).toBe(false)
+      expect(next.cliOutput).not.toContain('unhandledRejection')
     })
   })
   describe('images.unoptimized in next.config.js', () => {
@@ -375,12 +380,16 @@ describe('Image Optimizer', () => {
     })
     if (skipped) return
 
-    it('should 404 when unoptimized', async () => {
+    it('should 404 when unoptimized and not create cache directory', async () => {
       const size = 384
       const query = { w: size, q: 75, url: '/test.jpg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
       expect(res.status).toBe(404)
+
+      const imagesDir = join(next.testDir, next.distDir, 'cache', 'images')
+      expect(await fs.pathExists(imagesDir)).toBe(false)
+      expect(next.cliOutput).not.toContain('unhandledRejection')
     })
   })
   describe('experimental.imgOptMaxInputPixels in next.config.js', () => {

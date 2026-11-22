@@ -8,6 +8,7 @@ import {
   resetDiskLRU,
 } from 'next/dist/server/lib/disk-lru-cache.external'
 import { ImageOptimizerCache } from 'next/dist/server/image-optimizer'
+import { CachedRouteKind } from 'next/dist/server/response-cache'
 
 async function writeEntry(
   cacheDir: string,
@@ -299,5 +300,35 @@ describe('ImageOptimizerCache disk cache initialization guard', () => {
     const internal = cache as unknown as InternalCache
     expect(internal.cacheDiskLRU).toBeDefined()
     expect(internal.isDiskCacheEnabled).toBe(true)
+  })
+
+  it('should not access filesystem on get or set when images.unoptimized is true', async () => {
+    const nonExistentDist = join(dummyDistDir, 'non-existent-dist')
+    const cache = new ImageOptimizerCache({
+      distDir: nonExistentDist,
+      nextConfig: {
+        ...baseConfig,
+        images: {
+          ...baseConfig.images,
+          unoptimized: true,
+        },
+      },
+    })
+    const getResult = await cache.get('dummy-key')
+    expect(getResult).toBeNull()
+
+    await cache.set(
+      'dummy-key',
+      {
+        kind: CachedRouteKind.IMAGE,
+        etag: 'dummy-etag',
+        buffer: Buffer.from('test'),
+        extension: 'jpg',
+      },
+      { cacheControl: { revalidate: 60 } }
+    )
+
+    // Directory must not have been created on disk
+    expect(await promises.stat(nonExistentDist).catch(() => null)).toBeNull()
   })
 })
