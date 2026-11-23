@@ -35,7 +35,9 @@ const nextGoTrustInternalHeaders = false
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-url", r.RequestURI)
 	w.Header().Set("x-path", r.URL.Path)
-	Next(w)
+	// What next.Next(w) from the next/go SDK sets; the harness builds without
+	// a Go module, so it cannot import the SDK.
+	w.Header().Set("x-middleware-next", "1")
 }
 
 type testCase struct {

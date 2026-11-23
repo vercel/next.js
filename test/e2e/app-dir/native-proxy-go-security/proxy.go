@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"next/go"
 	"strings"
 )
 
@@ -21,5 +22,5 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("x-authorized-resource", resource)
 	}
-	Next(w)
+	next.Next(w)
 }
