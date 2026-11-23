@@ -445,6 +445,55 @@ describe('instant-nav-panel', () => {
   })
 
   describe('MPA captures', () => {
+    it('should keep the paused banner readable with an explicit light or dark theme', async () => {
+      const browser = await next.browser('/target-page/my-post?search=foo')
+      await clearInstantModeCookie(browser)
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await browser.refresh()
+      await expectMpaPanel(browser)
+
+      for (const theme of ['dark', 'light']) {
+        const colors = await browser.eval((theme) => {
+          const portal = document.querySelector('nextjs-portal')!
+          portal.classList.remove('dark', 'light')
+          portal.classList.add(theme)
+          const banner = portal.shadowRoot!.querySelector(
+            '.instant-nav-debugger-paused'
+          )!
+          const button = banner.querySelector('button')!
+          return {
+            text: getComputedStyle(banner).color,
+            background: getComputedStyle(banner).backgroundColor,
+            buttonText: getComputedStyle(button).color,
+            buttonBackground: getComputedStyle(button).backgroundColor,
+          }
+        }, theme)
+        function luminance(color: string) {
+          const [red, green, blue] = color.match(/\d+/g)!.map((channel) => {
+            const value = Number(channel) / 255
+            return value <= 0.04045
+              ? value / 12.92
+              : ((value + 0.055) / 1.055) ** 2.4
+          })
+          return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+        }
+        function contrast(foreground: string, background: string) {
+          const values = [luminance(foreground), luminance(background)].sort(
+            (a, b) => b - a
+          )
+          return (values[0] + 0.05) / (values[1] + 0.05)
+        }
+        expect(contrast(colors.text, colors.background)).toBeGreaterThanOrEqual(
+          4.5
+        )
+        expect(
+          contrast(colors.buttonText, colors.buttonBackground)
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+      await clearInstantModeCookie(browser)
+    })
+
     it('should show page load state after clicking Start and refreshing', async () => {
       const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)

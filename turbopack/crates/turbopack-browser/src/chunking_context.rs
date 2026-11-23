@@ -1219,7 +1219,7 @@ impl ChunkingContext for BrowserChunkingContext {
                             batch_groups: Vec::new(),
                         }
                         .cell(),
-                        Vec::new(),
+                        Box::default(),
                     )
                     .to_resolved()
                     .await?
@@ -1319,16 +1319,16 @@ impl ChunkingContext for BrowserChunkingContext {
         let chunk = chunk_type
             .chunk(
                 Vc::upcast(self),
-                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                Box::new([ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
                     ChunkItemWithAsyncModuleInfo {
                         chunk_item,
                         chunk_type,
                         module: None,
                         async_info: None,
                     },
-                )],
-                Vec::new(),
-                Vec::new(),
+                )]),
+                Box::default(),
+                Box::default(),
             )
             .to_resolved()
             .await?;
