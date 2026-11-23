@@ -45,6 +45,7 @@ impl StaticAssetsContentSource {
 // TODO(WEB-1251) It would be better to lazily enumerate the directory
 #[turbo_tasks::function]
 async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>> {
+    // DETERMINISM: FIXME: Routes enter a cell unsorted; merge sorts them later.
     let dir = dir.read_dir().await?;
     let DirectoryContent::Entries(entries) = &*dir else {
         return Ok(RouteTree::empty());
@@ -113,6 +114,7 @@ impl Introspectable for StaticAssetsContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+        // DETERMINISM: FIXME: Child enumeration order is preserved in the introspection HTML.
         let dir = self.dir.read_dir().await?;
         let DirectoryContent::Entries(entries) = &*dir else {
             return Ok(Vc::cell(Default::default()));
