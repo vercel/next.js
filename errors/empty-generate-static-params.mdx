@@ -16,6 +16,8 @@ This strict requirement ensures:
 
 ## Possible Ways to Fix It
 
+Return at least one real parameter when your data source has entries. If your data source is empty at build time, use a [placeholder parameter](#option-2-use-a-placeholder-param) and handle it with `notFound()`.
+
 ### Option 1: Return at least one static param
 
 Modify your `generateStaticParams` function to return at least one set of parameters. This is the most common fix and allows build-time validation to work properly.
@@ -41,12 +43,20 @@ The build process only validates code paths that execute with your sample params
 
 ### Option 2: Use a placeholder param
 
-If you don't know actual values at build time, you can use a placeholder for validation. However, this defeats the purpose of build-time validation and should be avoided:
+If your CMS, database, or API can have no entries at build time, return a placeholder parameter when the list is empty. Handle that value with `notFound()` in your page so the build can complete without a real entry. Return real parameters whenever entries are available:
 
 ```tsx filename="app/blog/[slug]/page.tsx"
+import { notFound } from 'next/navigation'
+import { getPost, getPosts } from '@/lib/posts'
+
 export async function generateStaticParams() {
-  // Placeholder only validates one code path
-  return [{ slug: '__placeholder__' }]
+  const posts = await getPosts()
+
+  if (posts.length === 0) {
+    return [{ slug: '__placeholder__' }]
+  }
+
+  return posts.map((post) => ({ slug: post.slug }))
 }
 
 export default async function Page({
@@ -56,20 +66,22 @@ export default async function Page({
 }) {
   const { slug } = await params
 
-  // Handle placeholder case
+  // The placeholder renders the not-found UI.
   if (slug === '__placeholder__') {
     notFound()
   }
 
-  // Real params may trigger code paths
-  // that access dynamic APIs incorrectly, causing
-  // runtime errors that cannot be caught by error boundaries
   const post = await getPost(slug)
+
+  if (!post) {
+    notFound()
+  }
+
   return <div>{post.title}</div>
 }
 ```
 
-Using placeholders provides minimal build-time validation and increases the risk of runtime errors for actual parameter values.
+The placeholder only validates the code path that calls `notFound()`. Code that loads and renders real content remains unvalidated when the data source is empty. Ensure those code paths handle dynamic data with Suspense or `use cache`, as appropriate, to avoid runtime errors when real parameters are requested.
 
 ## Useful Links
 
