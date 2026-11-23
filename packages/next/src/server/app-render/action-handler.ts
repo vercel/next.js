@@ -258,7 +258,7 @@ async function createForwardedActionResponse(
     }
   }
 
-  const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
+  const fetchUrl = new URL(`${origin}${basePath}${encodeURI(workerPathname)}`)
 
   try {
     let body: BodyInit | ReadableStream<Uint8Array> | undefined
