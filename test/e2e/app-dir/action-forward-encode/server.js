@@ -40,7 +40,13 @@ async function main() {
       seenPostPaths.push(url)
     }
 
-    handle(req, res)
+    handle(req, res).catch((err) => {
+      console.error(err)
+      if (!res.headersSent) {
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
+    })
   })
 
   server.on('upgrade', app.getUpgradeHandler())
