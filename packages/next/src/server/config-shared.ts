@@ -1388,7 +1388,7 @@ export interface ExperimentalConfig {
    * Starting the child process adds a small cost, so this is mostly useful
    * for large applications.
    *
-   * @default false
+   * @default true
    */
   turbopackBuildWorker?: boolean
 
@@ -2633,7 +2633,7 @@ export const defaultConfig = Object.freeze({
     ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
-    turbopackBuildWorker: false,
+    turbopackBuildWorker: true,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
