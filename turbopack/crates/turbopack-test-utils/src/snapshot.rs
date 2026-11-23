@@ -91,6 +91,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
 
 pub async fn expected(dir: FileSystemPath) -> Result<FxHashSet<FileSystemPath>> {
     let mut expected = FxHashSet::default();
+    // DETERMINISM: Set membership is order independent, but diagnostic order may vary.
     let entries = dir.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*entries {
         for (file, entry) in entries {

@@ -64,6 +64,7 @@ impl DirList {
         // Sorted by the relative path.
         let mut list = BTreeMap::new();
 
+        // DETERMINISM: Entries enter a BTreeMap
         let dir_content = dir.read_dir().await?;
         let entries = match &*dir_content {
             DirectoryContent::Entries(entries) => Some(entries),
