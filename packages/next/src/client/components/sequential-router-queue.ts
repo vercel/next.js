@@ -179,9 +179,11 @@ export function traverse(
  *
  * The prepare phase holds each response until its body ends. Committing
  * before then claims the response: it's decoded again from the committing
- * task, and the prepare phase continues with that decode. Any other
- * navigation, or another call to `prepare`, releases it instead, so its data
- * arrives as it streams. See decodePreparedNavigationResponse.
+ * task, and the prepare phase continues with that decode. Any other router
+ * action, including a server action, a refresh, or a `history.pushState` or
+ * `replaceState` call from app code, releases it instead, and so does another
+ * call to `prepare`. Its data then arrives as it streams, and a later commit
+ * isn't attributed to its interaction. See decodePreparedNavigationResponse.
  *
  * If the prepared navigation is never committed, nothing else happens; the
  * data stays in the BFCache, where a back/forward navigation to an
