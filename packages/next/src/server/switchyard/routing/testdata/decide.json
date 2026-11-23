@@ -44,9 +44,25 @@
       "goExact": { "/": "/route", "/api/echo": "/api/echo/route" },
       "dynamic": []
     },
-    "proxy": { "contract": { "version": 1 }, "reason": "proxy.ts" }
+    "proxy": { "contract": { "version": 1 }, "reason": "proxy.ts" },
+    "overlap": {
+      "contract": { "version": 1 },
+      "maxHeaderBytes": 16384,
+      "nodePrefixes": ["/_next/"],
+      "nodeExact": [],
+      "goExact": {},
+      "dynamic": [
+        { "path": ["en", { "param": "page" }], "go": "/en/[page]/route" },
+        { "path": [{ "param": "lang" }, "x"] },
+        { "path": [{ "rest": "slug", "min": 0 }], "go": "/[[...slug]]/route" }
+      ]
+    }
   },
   "cases": [
+    { "table": "overlap", "target": "/en/x", "route": "/en/[page]/route" },
+    { "table": "overlap", "target": "/fr/x", "node": "dynamic Node route" },
+    { "table": "overlap", "target": "/", "route": "/[[...slug]]/route" },
+    { "table": "overlap", "target": "/a/b/c", "route": "/[[...slug]]/route" },
     {
       "table": "app",
       "target": "/api/users/42",
