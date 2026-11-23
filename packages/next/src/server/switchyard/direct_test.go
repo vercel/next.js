@@ -665,3 +665,15 @@ func TestDirectResponsesKeepTheHopByHopHeadersNodePassesOn(t *testing.T) {
 		t.Errorf("worker's Connection header reached the client: %q", res)
 	}
 }
+
+func TestATrailerHeaderConnectionNamesIsNotPutBack(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Connection", "Trailer")
+		w.Header().Set("Trailer", "X-Sum")
+		w.Header().Set("Content-Length", "2")
+		io.WriteString(w, "ok")
+	})
+	if res := fx.raw(t, "GET /api/echo HTTP/1.1"); !strings.HasSuffix(res, "ok") || strings.Contains(res, "Trailer:") {
+		t.Errorf("response %q", res)
+	}
+}

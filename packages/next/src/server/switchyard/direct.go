@@ -429,11 +429,18 @@ var hopHeaders = []string{"Keep-Alive", "Proxy-Authenticate", "Proxy-Authorizati
 // but Node's worker proxy passes on, since it drops only Connection and
 // Transfer-Encoding (native-route-proxy.ts): the hop-by-hop headers, and any
 // header Connection names. Go's server writes each of them as is.
+//
+// Known difference: Switchyard's proxy to Node still drops these headers, so
+// a request that goes through Node (a route's first request, or one Decide
+// sends to Node) doesn't get them. Putting them back there too would also
+// forward Node's own Keep-Alive: timeout=5.
 func keepHopHeaders(h http.Header) http.Header {
 	var kept http.Header
 	keep := func(name string) {
 		values, ok := h[name]
-		if !ok || name == "Connection" || name == "Transfer-Encoding" {
+		// Trailer stays out for the reasons above, also when Connection names
+		// it.
+		if !ok || name == "Connection" || name == "Transfer-Encoding" || name == "Trailer" {
 			return
 		}
 		if kept == nil {
