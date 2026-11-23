@@ -422,8 +422,14 @@ describe('switchyard', () => {
     expect(externalUpgrades).toContain('/socket')
   })
 
-  it('follows a server action redirect', async () => {
+  // Node fetches the redirect target itself and sends it with the action's
+  // response, so the browser never requests it.
+  it('follows a server action redirect in one response', async () => {
     const browser = await next.browser('/action')
+    const requested: string[] = []
+    browser.on('request', (request) => {
+      requested.push(new URL(request.url()).pathname)
+    })
     await browser.elementByCss('#submit').click()
     await retry(async () => {
       expect(await browser.elementByCss('#target').text()).toBe(
@@ -431,6 +437,7 @@ describe('switchyard', () => {
       )
     })
     expect(new URL(await browser.url()).pathname).toBe('/action/done')
+    expect(requested).not.toContain('/action/done')
   })
 
   // A proxy that pools connections to Node must not send a request on one

@@ -412,11 +412,10 @@ export async function startServer(
       // With Switchyard (`beforeStartLog` set), start it now and switch to
       // its public address: the URLs printed below, `PORT`, and the hostname
       // and port the router builds `request.url` from all use the public port,
-      // so the app sees the same values as without Switchyard. Only
-      // `__NEXT_PRIVATE_ORIGIN` keeps the Node server's own address
-      // (`privateAppUrl`), because Node uses it to send requests to itself
-      // (server actions), and those don't need to pass through Switchyard.
-      const privateAppUrl = `http://${actualHostname}:${port}`
+      // so the app sees the same values as without Switchyard. That includes
+      // `__NEXT_PRIVATE_ORIGIN`, where Node sends requests to itself (server
+      // actions): they go through Switchyard, which adds the token Node's
+      // private listener requires.
       let publicServer: PublicServer | undefined
       if (serverOptions.beforeStartLog) {
         try {
@@ -479,7 +478,7 @@ export async function startServer(
       // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
 
-      process.env.__NEXT_PRIVATE_ORIGIN = publicServer ? privateAppUrl : appUrl
+      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Set experimental HTTPS flag for metadata resolution
       if (selfSignedCertificate) {

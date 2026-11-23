@@ -389,6 +389,15 @@ describe('switchyard process', () => {
       }
     })
 
+    it("answers only Switchyard's requests on Node's private port", async () => {
+      const { child, port: publicPort } = await startNext({ flag: '1' })
+      const [address] = await listenAddressesOf(child.pid!)
+      const port = Number(address.split(':').pop())
+      const request = 'GET /api/peer HTTP/1.1\r\nHost: localhost'
+      expect((await rawRequest(port, request)).status).toBe(400)
+      expect((await rawRequest(publicPort, request)).status).toBe(200)
+    })
+
     it('refuses a header budget Go cannot enforce', async () => {
       const { exit, output } = spawnNext('start', {
         flag: '1',

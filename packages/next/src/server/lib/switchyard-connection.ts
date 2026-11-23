@@ -16,9 +16,7 @@ export function restoreSwitchyardConnection(
 ): boolean {
   const check = takePeerToken(req, token)
   const address = takeHeader(req, CLIENT_ADDRESS_HEADER)
-  // Node can also call its private listener directly (e.g. server actions).
-  if (check === 'missing') return address === undefined
-  if (check === 'invalid' || typeof address !== 'string') return false
+  if (check !== 'valid' || typeof address !== 'string') return false
 
   const colon = address.lastIndexOf(':')
   const remoteAddress = address.startsWith('[')
