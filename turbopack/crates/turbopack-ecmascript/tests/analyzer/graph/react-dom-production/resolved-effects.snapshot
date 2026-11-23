@@ -1250,7 +1250,7 @@
 139 -> 140 free var = FreeVar(Object)
 
 138 -> 141 member call = Object*0*["keys"](???*1*)
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1261,7 +1261,7 @@
 - *1* Object*2*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2039,7 +2039,7 @@
 - *1* Object*2*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -2053,7 +2053,7 @@
 - *2* Object*3*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 
 270 -> 271 unreachable = ???*0*
 - *0* unreachable
@@ -2066,7 +2066,7 @@
 - *1* Object*2*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -2080,7 +2080,7 @@
 - *2* Object*3*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 
 274 -> 275 unreachable = ???*0*
 - *0* unreachable
@@ -3532,7 +3532,7 @@
 537 -> 538 free var = FreeVar(Object)
 
 534 -> 539 member call = Object*0*["defineProperty"]((???*1* | (...) => undefined["prototype"]), "props", {"set": (...) => undefined})
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* ???*2*["prototype"]
   ⚠️  unknown object
 - *2* arguments[1]
@@ -5095,7 +5095,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 709 -> 710 free var = FreeVar(Object)
 
 0 -> 711 member call = Object*0*["getOwnPropertyDescriptor"](???*1*, ((???*4* | ???*5*) ? "checked" : "value"))
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* ???*2*["prototype"]
   ⚠️  unknown object
 - *2* ???*3*["constructor"]
@@ -5134,7 +5134,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* Object*2*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* ???*4*["prototype"]
   ⚠️  unknown object
 - *4* ???*5*["constructor"]
@@ -5162,7 +5162,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* ???*5*["prototype"]
   ⚠️  unknown object
 - *5* ???*6*["constructor"]
@@ -5188,7 +5188,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* ???*5*["prototype"]
   ⚠️  unknown object
 - *5* ???*6*["constructor"]
@@ -5217,7 +5217,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *4* Object*5*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* ???*7*["prototype"]
   ⚠️  unknown object
 - *7* ???*8*["constructor"]
@@ -5243,7 +5243,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *16* Object*17*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *17* Object: The global Object variable
+- *17* Object: The global Object constructor
 - *18* ???*19*["prototype"]
   ⚠️  unknown object
 - *19* ???["constructor"]
@@ -5262,7 +5262,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
     ((???*2* | ???*3*) ? "checked" : "value"),
     {"configurable": true, "get": (...) => e["call"](???*7*), "set": (...) => undefined}
 )
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *2* assignment expression
@@ -5288,7 +5288,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* ???*5*["prototype"]
   ⚠️  unknown object
 - *5* ???*6*["constructor"]
@@ -5320,7 +5320,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* ???*5*["prototype"]
   ⚠️  unknown object
 - *5* ???*6*["constructor"]
@@ -5343,7 +5343,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 733 -> 734 free var = FreeVar(Object)
 
 722 -> 735 member call = Object*0*["defineProperty"](???*1*, ((???*2* | ???*3*) ? "checked" : "value"), {"enumerable": ???*7*})
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *2* assignment expression
@@ -5365,7 +5365,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *9* Object*10*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *10* Object: The global Object variable
+- *10* Object: The global Object constructor
 - *11* ???*12*["prototype"]
   ⚠️  unknown object
 - *12* ???*13*["constructor"]
@@ -6461,7 +6461,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
         "strokeWidth": true
     }
 )
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 
 0 -> 982 member call = ???*0*["forEach"]((...) => undefined)
 - *0* ???*1*(
@@ -6516,7 +6516,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* Object*2*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 
 982 -> 984 member call = ["Webkit", "ms", "Moz", "O"]["forEach"]((...) => undefined)
 
@@ -7444,7 +7444,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 1113 -> 1114 free var = FreeVar(Object)
 
 1112 -> 1115 member call = Object*0*["defineProperty"](({} | undefined), "passive", {"get": (...) => undefined})
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 
 1116 -> 1117 free var = FreeVar(window)
 
@@ -12861,7 +12861,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* Object*1*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *1* Object: The global Object variable
+- *1* Object: The global Object constructor
 
 1859 -> 1860 free var = FreeVar(Object)
 
@@ -12871,7 +12871,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* Object*2*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 
 1862 -> 1863 free var = FreeVar(Object)
 
@@ -12883,11 +12883,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -12911,11 +12911,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* Object*7*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* (((a === b) && ((0 !== a) || (???*9* === ???*10*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *9* unsupported expression
@@ -12954,14 +12954,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 1871 -> 1872 free var = FreeVar(Object)
 
 1869 -> 1873 member call = Object*0*["keys"](???*1*)
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 1874 -> 1875 free var = FreeVar(Object)
 
 1869 -> 1876 member call = Object*0*["keys"](???*1*)
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -12975,7 +12975,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *5* ???*6*["length"]
@@ -12987,7 +12987,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *7* Object*8*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *8* Object: The global Object variable
+- *8* Object: The global Object constructor
 - *9* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -13002,7 +13002,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* Object*2*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *4* ???*5*[d]
@@ -13014,7 +13014,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *6* Object*7*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -13026,11 +13026,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -13056,7 +13056,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* ???*5*(???*15*, ???*17*)
   ⚠️  unknown callee
 - *5* (???*6* ? ???*10* : (...) => ???*12*)
@@ -13068,11 +13068,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *8* Object*9*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *9* Object: The global Object variable
+- *9* Object: The global Object constructor
 - *10* Object*11*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *11* Object: The global Object variable
+- *11* Object: The global Object constructor
 - *12* (
      || ((a === b) && ((0 !== a) || (???*13* === ???*14*)))
      || ((a !== a) && (b !== b))
@@ -22540,7 +22540,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* Object*2*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -22569,7 +22569,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *4* Object*5*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* `object with keys {${???*7*}}`
   ⚠️  nested operation
 - *7* ???*8*["join"](", ")
@@ -22581,7 +22581,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *9* Object*10*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *10* Object: The global Object variable
+- *10* Object: The global Object constructor
 - *11* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *12* arguments[0]
@@ -22595,7 +22595,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *15* Object*16*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *16* Object: The global Object variable
+- *16* Object: The global Object constructor
 
 3192 -> 3193 conditional = ("[object Object]" === (???*0* | ???*1*))
 - *0* arguments[0]
@@ -22609,12 +22609,12 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *3* Object*4*["prototype"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *4* Object: The global Object variable
+- *4* Object: The global Object constructor
 
 3195 -> 3196 free var = FreeVar(Object)
 
 3194 -> 3197 member call = Object*0*["keys"](???*1*)
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -22625,7 +22625,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* Object*2*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -26767,11 +26767,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -26799,11 +26799,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* Object*7*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* (((a === b) && ((0 !== a) || (???*9* === ???*10*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *9* unsupported expression
@@ -27511,11 +27511,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -27599,11 +27599,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -27637,11 +27637,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -27872,11 +27872,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *6* Object*7*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* Object*9*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *9* Object: The global Object variable
+- *9* Object: The global Object constructor
 - *10* (
      || ((a === b) && ((0 !== a) || (???*11* === ???*12*)))
      || ((a !== a) && (b !== b))
@@ -28399,11 +28399,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -29178,11 +29178,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -30261,11 +30261,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -30295,11 +30295,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* Object*7*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* (((a === b) && ((0 !== a) || (???*9* === ???*10*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *9* unsupported expression
@@ -43968,11 +43968,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -44059,11 +44059,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* Object*7*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* (((a === b) && ((0 !== a) || (???*9* === ???*10*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *9* unsupported expression
@@ -46843,11 +46843,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -46875,11 +46875,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* Object*7*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* (((a === b) && ((0 !== a) || (???*9* === ???*10*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *9* unsupported expression
