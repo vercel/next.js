@@ -24,7 +24,7 @@ kind: error
 
 During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake "now" into the prerendered HTML. The timestamp at build time will be stale at runtime, so you need to choose: cache the value (treat it as "now-ish" with a tolerated drift), defer the read with [`io()`](/docs/app/api-reference/functions/io) or [`connection()`](/docs/app/api-reference/functions/connection) inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, or read it in the browser after mount.
 
-The stack trace may point to where your app calls a helper or renders a component, even if a dependency reads the clock. If the result must be fresh for each request, [defer the library call in your own component](#when-a-library-reads-the-time).
+The stack trace may point to where your app calls a helper or renders a component, even if a dependency reads the clock. In your own code, [cache the library result](#cache-the-result-of-a-library-call) if you can reuse it, or [call the library at request time](#call-a-library-at-request-time) if the result must be fresh.
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
@@ -109,9 +109,9 @@ export async function UpdatedAt() {
 }
 ```
 
-#### When a library reads the time
+#### Call a library at request time
 
-For example, a session helper might read the clock to check whether a token has expired. Put the session UI inside `<Suspense>` and call `await io()` **before** calling the helper. The boundary provides the fallback while `io()` defers the check until request time.
+A session helper that checks token expiry needs the current time for this request. Put the session UI inside `<Suspense>` and call `await io()` **before** calling the helper. The boundary provides the fallback while `io()` defers the check until request time.
 
 ```jsx filename="app/account/page.js"
 import { io } from 'next/cache'
@@ -167,6 +167,19 @@ export default async function Page() {
 ```
 
 Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-cache).
+
+#### Cache the result of a library call
+
+Suppose a reporting library adds a timestamp to each public report it generates. If readers can share the same report until it refreshes, call the library inside a cached function. The timestamp then records when that report was generated.
+
+```jsx filename="app/lib/reports.js"
+import { generatePublicReport } from '@/lib/report-generator'
+
+export async function getReport(month) {
+  'use cache'
+  return generatePublicReport(month)
+}
+```
 
 #### Cache the timestamp alongside the data it relates to
 

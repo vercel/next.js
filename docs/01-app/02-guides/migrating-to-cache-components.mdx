@@ -99,8 +99,8 @@ You don't have to migrate every route at once. `instant = false` lets you get th
    The app keeps building and serving, now with validation deferred for the opted-out routes.
 
 3. **Fix synchronous IO errors.** Setting `instant = false` does not clear prerender errors for `Date.now()`, `new Date()`, `Math.random()`, or `crypto.randomUUID()`. Choose when the value should be produced:
-   - If the server needs a fresh value on each request, put the component inside [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`await io()`](/docs/app/api-reference/functions/io) before the read. If a library reads the clock, [defer the call to the library](/docs/messages/blocking-prerender-current-time#when-a-library-reads-the-time).
-   - If the value can be reused, [cache the function that produces it](/docs/app/api-reference/directives/use-cache).
+   - If the server can reuse the result, put [`use cache`](/docs/app/api-reference/directives/use-cache) in the function that produces it. This also works when you [call a library inside the cached function](/docs/messages/blocking-prerender-current-time#cache-the-result-of-a-library-call).
+   - If the server needs a fresh value on each request, put the component inside [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`await io()`](/docs/app/api-reference/functions/io) before the read. If a library performs the read, [await `io()` before calling it](/docs/messages/blocking-prerender-current-time#call-a-library-at-request-time).
    - If only the browser needs the value, [read it in an effect or event handler](/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler). Client Components also render on the server, so adding `'use client'` alone does not defer the read.
 4. **Convert one route at a time.** Remove `instant = false` from a route, then resolve its insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Repeat until no routes opt out.
 
