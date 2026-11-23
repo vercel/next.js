@@ -8,12 +8,14 @@ use turbo_tasks_malloc::TurboMalloc;
 ///
 /// mimalloc keeps each page in the heap of the thread that allocated it. A free from another
 /// thread only queues the block on that page, and the owning thread has to collect its heap
-/// before the page is free. Scheduler workers can do that whenever they park (with a
-/// [`TurboMalloc::thread_park`] `on_thread_park` hook), but threads in tokio's blocking pool have
-/// no such hook. Many of these were scheduler workers that did compilation work and handed their
-/// worker role to a new thread in `block_in_place` (which [`crate::scope_bounded`] uses), so they
-/// can own a large share of the heap. Left alone, they only collect when they exit after tokio's
-/// idle keep-alive (10s by default).
+/// before the page is free. Scheduler workers do that whenever they park (with a
+/// [`TurboMalloc::thread_park`] `on_thread_park` hook), and threads in tokio's blocking pool
+/// whenever they run out of work (with an `on_blocking_thread_park` hook). Many of the latter were
+/// scheduler workers that did compilation work and handed their worker role to a new thread in
+/// `block_in_place` (which [`crate::scope_bounded`] uses), so they can own a large share of the
+/// heap. But a park hook only collects what was freed before the thread parked: memory freed while
+/// it is idle (e.g. the storage dropped at shutdown) stays queued until the thread gets work again
+/// or exits after tokio's idle keep-alive (10s by default).
 ///
 /// This tries to visit each currently idle blocking-pool thread once to collect its heap, then
 /// purges the freed pages to the OS, including small free ranges between memory that's still in
