@@ -414,9 +414,26 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
-		proxy.ServeHTTP(w, r)
+		proxy.ServeHTTP(&clientWriter{w}, r)
 	})
 }
+
+// clientWriter is the client's ResponseWriter as the proxy sees it.
+type clientWriter struct {
+	http.ResponseWriter
+}
+
+// WriteHeader puts back the marker that stops Go from guessing a
+// Content-Type (see the handler above): the proxy clears the header map after
+// each 1xx response it passes on, such as 103 Early Hints.
+func (c *clientWriter) WriteHeader(code int) {
+	if _, ok := c.Header()["Content-Type"]; !ok && code >= 200 {
+		c.Header()["Content-Type"] = nil
+	}
+	c.ResponseWriter.WriteHeader(code)
+}
+
+func (c *clientWriter) Unwrap() http.ResponseWriter { return c.ResponseWriter }
 
 type requestBodyKey struct{}
 
