@@ -869,7 +869,10 @@ impl ChildProcessPool {
 
 /// The number of idle processes across all pools.
 pub(crate) fn idle_process_count() -> usize {
-    ACTIVE_POOLS.lock().iter().map(|pool| pool.len()).sum()
+    // Release `ACTIVE_POOLS` before locking the heaps: `HeapQueue` locks its heap first, then
+    // `ACTIVE_POOLS`, so holding both in the other order could deadlock.
+    let pools = ACTIVE_POOLS.lock().clone();
+    pools.iter().map(|pool| pool.len()).sum()
 }
 
 /// Stops all idle processes of each pool except one.
