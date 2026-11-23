@@ -159,6 +159,129 @@ it('should not evaluate globalThis members used for feature detection', () => {
   expect(processExists).toBe(typeof process !== 'undefined')
 })
 
+// Temporarily replaces a property of the global object, so that the checks
+// below observe a value that only exists at runtime.
+function withGlobal(name, value, fn) {
+  const descriptor = Reflect.getOwnPropertyDescriptor(globalThis, name)
+  Reflect.defineProperty(globalThis, name, {
+    value,
+    configurable: true,
+    writable: true,
+  })
+  try {
+    return fn()
+  } finally {
+    if (descriptor) {
+      Reflect.defineProperty(globalThis, name, descriptor)
+    } else {
+      Reflect.deleteProperty(globalThis, name)
+    }
+  }
+}
+
+it('should keep existence checks of well-known globals as runtime checks', () => {
+  // Each entry evaluates `if (globalThis.X)`, `globalThis.X ? … : …`,
+  // `typeof X` and `typeof globalThis.X` for one well-known global X. The
+  // expressions must be written out literally, as that is what the static
+  // analyzer sees.
+  const checks = {
+    process: () => {
+      let exists = false
+      if (globalThis.process) {
+        exists = true
+      }
+      return [
+        exists,
+        globalThis.process ? 'yes' : 'no',
+        typeof process,
+        typeof globalThis.process,
+      ]
+    },
+    Object: () => {
+      let exists = false
+      if (globalThis.Object) {
+        exists = true
+      }
+      return [
+        exists,
+        globalThis.Object ? 'yes' : 'no',
+        typeof Object,
+        typeof globalThis.Object,
+      ]
+    },
+    Buffer: () => {
+      let exists = false
+      if (globalThis.Buffer) {
+        exists = true
+      }
+      return [
+        exists,
+        globalThis.Buffer ? 'yes' : 'no',
+        typeof Buffer,
+        typeof globalThis.Buffer,
+      ]
+    },
+    navigator: () => {
+      let exists = false
+      if (globalThis.navigator) {
+        exists = true
+      }
+      return [
+        exists,
+        globalThis.navigator ? 'yes' : 'no',
+        typeof navigator,
+        typeof globalThis.navigator,
+      ]
+    },
+    URL: () => {
+      let exists = false
+      if (globalThis.URL) {
+        exists = true
+      }
+      return [
+        exists,
+        globalThis.URL ? 'yes' : 'no',
+        typeof URL,
+        typeof globalThis.URL,
+      ]
+    },
+    Worker: () => {
+      let exists = false
+      if (globalThis.Worker) {
+        exists = true
+      }
+      return [
+        exists,
+        globalThis.Worker ? 'yes' : 'no',
+        typeof Worker,
+        typeof globalThis.Worker,
+      ]
+    },
+    SharedWorker: () => {
+      let exists = false
+      if (globalThis.SharedWorker) {
+        exists = true
+      }
+      return [
+        exists,
+        globalThis.SharedWorker ? 'yes' : 'no',
+        typeof SharedWorker,
+        typeof globalThis.SharedWorker,
+      ]
+    },
+  }
+
+  for (const [name, check] of Object.entries(checks)) {
+    const missing = withGlobal(name, undefined, check)
+    const present = withGlobal(name, function stub() {}, check)
+    expect({ name, missing, present }).toEqual({
+      name,
+      missing: [false, 'no', 'undefined', 'undefined'],
+      present: [true, 'yes', 'function', 'function'],
+    })
+  }
+})
+
 it('should evaluate process.turbopack through globalThis and global', () => {
   if (!globalThis.process.turbopack) {
     require('fail')
