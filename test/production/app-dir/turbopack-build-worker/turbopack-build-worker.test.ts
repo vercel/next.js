@@ -188,7 +188,7 @@ describe('turbopack-build-worker', () => {
           next
             .patchFile(
               'app/prerender-error/page.tsx',
-              `export default function Page() {
+              `export default function Page(): never {
   throw new Error('build-worker-prerender-failure')
 }
 `,
