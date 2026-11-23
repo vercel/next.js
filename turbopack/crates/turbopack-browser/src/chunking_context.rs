@@ -14,9 +14,9 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
         ChunkItemWithAsyncModuleInfo, ChunkLoadRetry, ChunkType, ChunkableModule, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin, EntryChunkGroupResult,
-        EvaluatableAsset, EvaluatableAssets, HmrChunkListSource, MinifyType, SourceMapSourceType,
-        UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin, EmitOption, EmitOptions,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, HmrChunkListSource,
+        SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -140,8 +140,16 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
-        self.chunking_context.minify_type = minify_type;
+    pub fn emit_option(mut self, opt: ResolvedVc<Box<dyn EmitOption>>) -> Self {
+        self.chunking_context.emit_options.push(opt);
+        self
+    }
+
+    pub fn emit_options(
+        mut self,
+        opts: impl IntoIterator<Item = ResolvedVc<Box<dyn EmitOption>>>,
+    ) -> Self {
+        self.chunking_context.emit_options.extend(opts);
         self
     }
 
@@ -192,6 +200,12 @@ impl BrowserChunkingContextBuilder {
 
     pub fn shared_runtime(mut self, shared_runtime: bool) -> Self {
         self.chunking_context.shared_runtime = shared_runtime;
+        self
+    }
+
+    /// The template attribute containing JSON-encoded entry bootstrap params.
+    pub fn bootstrap_metadata_attribute(mut self, attribute: Option<RcStr>) -> Self {
+        self.chunking_context.bootstrap_metadata_attribute = attribute;
         self
     }
 
@@ -379,6 +393,9 @@ pub struct BrowserChunkingContext {
     /// entrypoint's chunk group bootstrap params via
     /// `ChunkGroupResult.chunk_group_bootstrap_params`.
     shared_runtime: bool,
+    /// An optional template attribute containing an array of JSON-encoded entry bootstrap params.
+    /// The DOM runtime consumes these templates as they arrive while the document is loading.
+    bootstrap_metadata_attribute: Option<RcStr>,
     /// Whether the runtime chunk is shared with other module graphs using this context.
     /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
     shared_runtime_chunk: bool,
@@ -386,8 +403,8 @@ pub struct BrowserChunkingContext {
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
-    /// Whether to minify resulting chunks
-    minify_type: MinifyType,
+    /// Crate-specific emit options (e.g. JS/CSS minification settings).
+    emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
     /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
     /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
     minify_before_chunking: bool,
@@ -465,10 +482,11 @@ impl BrowserChunkingContext {
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
                 shared_runtime: false,
+                bootstrap_metadata_attribute: None,
                 shared_runtime_chunk: false,
                 environment,
                 runtime_type,
-                minify_type: MinifyType::NoMinify,
+                emit_options: vec![],
                 minify_before_chunking: false,
                 chunk_content_hashing: None,
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
@@ -594,6 +612,11 @@ impl BrowserChunkingContext {
         Vc::cell(self.shared_runtime)
     }
 
+    #[turbo_tasks::function]
+    pub fn bootstrap_metadata_attribute(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.bootstrap_metadata_attribute.clone())
+    }
+
     /// Whether the runtime chunk is shared with other module graphs using this context, meaning no
     /// single graph may decide which optional runtime features to omit.
     /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
@@ -616,13 +639,6 @@ impl BrowserChunkingContext {
         } else {
             AssetSuffix::None.cell()
         }
-    }
-
-    /// Returns the source map type.
-    /// Returns the minify type.
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     /// Returns the chunk path information.
@@ -881,8 +897,8 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        Vc::cell(self.emit_options.clone())
     }
 
     #[turbo_tasks::function]
@@ -915,6 +931,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability,
             } = make_chunk_group(
                 groups,
                 module_graph,
@@ -937,6 +954,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references: ResolvedVc::cell(references),
                 availability_info,
                 chunk_group_bootstrap_params: None,
+                async_loader_availability: vec![async_loader_availability],
             }
             .cell())
         }
@@ -953,6 +971,7 @@ impl ChunkingContext for BrowserChunkingContext {
         // Extra chunks to include in the HMR chunk list beyond what is reachable from this chunk
         // group. Used to cover RSC client reference chunks that are built separately.
         extra_chunks: Vc<OutputAssets>,
+        hmr_ident: Option<Vc<AssetIdent>>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -970,6 +989,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability,
             } = make_chunk_group(
                 smallvec![chunk_group.clone()],
                 module_graph,
@@ -1039,7 +1059,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 assets.push(
                     self.generate_chunk_list_register_chunk(
-                        ident,
+                        hmr_ident.unwrap_or(ident),
                         entries,
                         hmr_other_assets,
                         EcmascriptDevChunkListSource::Entry,
@@ -1051,10 +1071,10 @@ impl ChunkingContext for BrowserChunkingContext {
 
             // The evaluate chunk registers this entry's chunks/modules onto the
             // `globalThis[TURBOPACK]` queue. When `shared_runtime` is enabled we return that chunk
-            // group's bootstrap params for Next to inline into the HTML and skip emitting the
-            // per-route evaluate chunk file. Only `ChunkGroup::Entry` groups (the page/app client
-            // entries Next renders into HTML) can be inlined. When `shared_runtime` is disabled the
-            // evaluate chunk itself carries the runtime, so it is always emitted as an asset.
+            // group's bootstrap params for the host to inline into the HTML and skip emitting the
+            // per-route evaluate chunk file. Only `ChunkGroup::Entry` groups can be inlined. When
+            // `shared_runtime` is disabled the evaluate chunk itself carries the runtime, so it is
+            // always emitted as an asset.
             let evaluate_chunk = self
                 .generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
                 .to_resolved()
@@ -1096,6 +1116,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references: ResolvedVc::cell(references),
                 availability_info,
                 chunk_group_bootstrap_params,
+                async_loader_availability: vec![async_loader_availability],
             }
             .cell())
         }
@@ -1164,6 +1185,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability: _,
             } = make_chunk_group(
                 smallvec![chunk_group.clone()],
                 module_graph,
