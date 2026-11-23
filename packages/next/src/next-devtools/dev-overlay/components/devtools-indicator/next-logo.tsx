@@ -55,8 +55,8 @@ export function NextLogo({
     ? 'bottom'
     : 'top'
   const collapseLabel = state.disableDevIndicator
-    ? 'Dismiss issues badge'
-    : 'Collapse issues badge'
+    ? 'Dismiss badge'
+    : 'Collapse badge'
 
   const hasError = totalErrorCount > 0
   const { insightsOnly, hasNormal, hasInstant } = getIssueBucketState(
@@ -158,10 +158,10 @@ export function NextLogo({
       ? 'insight'
       : 'issue'
     : undefined
-  const collapsedCount = hasNormal ? normalErrorCount : instantErrorCount
-  const collapsedLabel = hasNormal
-    ? `Show ${normalErrorCount} ${pluralize(normalErrorCount, 'issue')}`
-    : `Show ${instantErrorCount} ${pluralize(instantErrorCount, 'Insight')}`
+  const collapsedCount = normalErrorCount + instantErrorCount
+  const collapsedKind =
+    hasNormal && hasInstant ? 'diagnostic' : hasNormal ? 'issue' : 'Insight'
+  const collapsedLabel = `Show ${collapsedCount} ${pluralize(collapsedCount, collapsedKind)}`
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
@@ -662,7 +662,7 @@ export function NextLogo({
               </span>
               {showControl && (
                 <TrayControl
-                  label={`Collapse ${cacheBadge === 'bypass' ? 'Cache disabled' : 'Cold cache'} badge`}
+                  label="Collapse badge"
                   icon="collapse"
                   disableTooltips={disableTooltips}
                   tooltipDirection={tooltipDirection}

@@ -330,6 +330,17 @@ describe('instant insights tab overlay', () => {
         ).toBe(true)
       })
     }
+
+    await browser.elementByCss('[data-issues-tab="instant"]').click()
+    await browser.elementByCss('[data-issues-collapse]').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('[data-collapsed-count]').text()).toBe(
+        '2'
+      )
+      expect(
+        await browser.elementByCss('#next-logo').getAttribute('aria-label')
+      ).toBe('Show 2 diagnostics')
+    })
   })
 
   it('should clear the Insight when navigating away from the offending route', async () => {
@@ -362,7 +373,7 @@ describe('instant insights tab overlay', () => {
     })
     await clickIndicatorPill(browser)
 
-    await browser.elementByCss('[aria-label="Collapse issues badge"]').click()
+    await browser.elementByCss('[aria-label="Collapse badge"]').click()
     await retry(async () => {
       expect(await browser.hasElementByCssSelector('[data-issues]')).toBe(false)
       expect(
@@ -444,7 +455,7 @@ describe('instant insights tab overlay', () => {
       expect((await getIndicatorPillState(browser))?.text).toMatch(/Issue/i)
     })
     await clickIndicatorPill(browser)
-    await browser.elementByCss('[aria-label="Dismiss issues badge"]').click()
+    await browser.elementByCss('[aria-label="Dismiss badge"]').click()
     await retry(async () => {
       await assertNoDevToolsIndicator(browser)
     })

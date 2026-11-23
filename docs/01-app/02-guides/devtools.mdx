@@ -144,7 +144,7 @@ Click the chevron (‹) at the end of the badge to collapse it to the DevTools b
   height="53"
 />
 
-Click the Next.js DevTools button to expand the badge again, then click **Issues** or **Insights** to reopen its tab.
+The collapsed count includes both Issues and Insights. For example, one Issue and one Insight show a count of **2**. Click the Next.js DevTools button to expand the badge again, then click **Issues** or **Insights** to reopen its tab.
 
 When the idle indicator is [hidden](#show-indicator), **×** replaces the chevron and dismisses the diagnostic badge until a new diagnostic appears. Build errors remain available until you fix them.
 
@@ -155,7 +155,7 @@ Close any open DevTools panels, then drag the Next.js DevTools button to another
 For browser automation, collapse or move an obstructing badge instead of setting `instant = false`, which disables Instant Navigation validation for the route. For example, in Playwright:
 
 ```ts filename="tests/navigation.spec.ts"
-const collapse = page.getByRole('button', { name: 'Collapse issues badge' })
+const collapse = page.getByRole('button', { name: 'Collapse badge' })
 if (await collapse.isVisible()) {
   await collapse.click()
 }
