@@ -41,10 +41,10 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
-use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack::{
     ModuleAssetContext,
@@ -75,14 +75,13 @@ use turbopack_core::{
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
     GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_bundle_from_sources, go_declarations, go_failure_from_sources, go_source_set,
+    go_bundle_from_sources, go_declarations, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::FontManifest,
-    go_config::go_entry_config,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft::{EndpointTraceResult, trace_endpoint},
@@ -94,7 +93,8 @@ use crate::{
     project::{BaseAndFullModuleGraph, Project},
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, FirstLoadChunks, ModuleGraphs,
+        Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
@@ -1244,6 +1244,7 @@ impl Endpoint for GoEndpoint {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
                 output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
             }
             .cell());
         }
@@ -1275,51 +1276,35 @@ impl Endpoint for GoEndpoint {
         )
         .to_resolved()
         .await?;
-        let module_root = sources.await?.root.clone();
-        // Only the entrypoint file is parsed: handlers, `Proxy` and `var Config` must live there.
-        // The rest of the package is compiled but not analyzed.
-        let entrypoint: RcStr = module_root
+        let source_set = sources.await?;
+        let module_root = source_set.root.clone();
+        // The generated `main`, dispatch and handler files below still form a valid program when
+        // the handler is not among the compiled sources, e.g. after it was deleted or replaced by
+        // `route.ts`. Such an endpoint must publish nothing, otherwise it keeps writing outputs
+        // that a replacement endpoint also writes, such as `app-paths-manifest.json`. The source
+        // set tracks the directory listing, so recreating the handler invalidates this check.
+        let handler_name = module_root
             .get_path_to(&this.path)
-            .context("Go entrypoint outside module")?
-            .into();
-        let analysis = go_declarations(*sources, vec![entrypoint], session).await?;
+            .context("Go handler outside module")?;
+        if !source_set.files.contains_key(handler_name) {
+            if matches!(*this.path.get_type().await?, FileSystemEntryType::Error) {
+                bail!("Unable to read the Go handler {}", this.path);
+            }
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
+        let analysis = go_declarations(*sources, session).await?;
         if is_proxy {
             ensure!(
                 analysis.functions.iter().any(|name| name == "Proxy"),
                 "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
             );
         }
-        // Static `var Config` is read from the same syntax analysis and published in the
-        // descriptor, so Next.js never parses Go entrypoints separately.
-        let config = match go_entry_config(&analysis.functions, &analysis.values, is_proxy) {
-            Ok(config) => config,
-            Err(message) => {
-                // The failure depends on the entry's source, so keep the selection's inputs
-                // for request-side validation: a request right after the fix must not get
-                // this stale failure.
-                let result = go_failure_from_sources(*sources, session, message.into()).await?;
-                if matches!(result.outcome, GoBuildOutcome::Retry) {
-                    bail!("Go route inputs changed during analysis; retry the request")
-                }
-                if let GoBuildOutcome::Failed(message) = &result.outcome {
-                    GoRouteIssue {
-                        path: this.path.clone(),
-                        message: message.clone(),
-                    }
-                    .resolved_cell()
-                    .emit();
-                }
-                return Ok(EndpointOutput {
-                    project,
-                    output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed {
-                        build: Some((*result).clone()),
-                    }
-                    .resolved_cell(),
-                }
-                .cell());
-            }
-        };
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
@@ -1402,6 +1387,7 @@ impl Endpoint for GoEndpoint {
                         build: Some((*result).clone()),
                     }
                     .resolved_cell(),
+                    first_load_chunks: None,
                 }
                 .cell());
             }
@@ -1421,7 +1407,7 @@ impl Endpoint for GoEndpoint {
         let entry = format!("{output_name}.native.json");
         let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
-        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch, "config": config });
+        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
         if is_proxy {
             descriptor["source"] =
                 serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
@@ -1508,6 +1494,7 @@ impl Endpoint for GoEndpoint {
                 build: (*result).clone(),
             }
             .resolved_cell(),
+            first_load_chunks: None,
         }
         .cell())
     }
@@ -1733,30 +1720,35 @@ impl AppEndpoint {
                 .await?;
 
         // We only need the client runtime entries for pages not for Route Handlers
-        let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
-            if is_app_page {
-                let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                    AssetIdent::from_path(project.project_path().owned().await?)
-                        .with_modifier(rcstr!("client-shared-chunks"))
-                        .into_vc(),
-                    this.app_project.client_runtime_entries(),
-                    *module_graphs.full,
-                    *client_chunking_context,
-                );
+        let (
+            availability_info,
+            client_shared_chunks,
+            client_shared_chunks_vc,
+            client_chunk_group_bootstrap_params,
+        ) = if is_app_page {
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
+                this.app_project.client_runtime_entries(),
+                *module_graphs.full,
+                *client_chunking_context,
+            );
 
-                client_assets.extend(client_shared_chunk_group.all_assets().await?);
+            client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
-                let client_shared_chunk_group = client_shared_chunk_group.await?;
-                (
-                    client_shared_chunk_group.availability_info,
-                    client_shared_chunk_group.assets.owned().await?,
-                    client_shared_chunk_group
-                        .chunk_group_bootstrap_params
-                        .clone(),
-                )
-            } else {
-                (AvailabilityInfo::root(), vec![], None)
-            };
+            let client_shared_chunk_group = client_shared_chunk_group.await?;
+            (
+                client_shared_chunk_group.availability_info,
+                client_shared_chunk_group.assets.owned().await?,
+                Some(client_shared_chunk_group.assets),
+                client_shared_chunk_group
+                    .chunk_group_bootstrap_params
+                    .clone(),
+            )
+        } else {
+            (AvailabilityInfo::root(), vec![], None, None)
+        };
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1935,9 +1927,9 @@ impl AppEndpoint {
 
         if emit_manifests != EmitManifests::None {
             let root_main_files_per_page = if page_hmr_chunks.is_empty() {
-                FxIndexMap::default()
+                OrderedAutoMap::default()
             } else {
-                let mut m = FxIndexMap::default();
+                let mut m = OrderedAutoMap::default();
                 m.insert(app_entry.original_name.clone(), page_hmr_chunks);
                 m
             };
@@ -1959,7 +1951,7 @@ impl AppEndpoint {
                 root_main_files_per_page,
                 pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
                     .map(|params| {
-                        let mut m = FxIndexMap::default();
+                        let mut m = OrderedAutoMap::default();
                         m.insert(app_entry.original_name.clone(), params);
                         m
                     })
@@ -2073,6 +2065,20 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
+        // Only needed for the route bundle stats of production builds.
+        let first_load_chunks = if let Some(client_shared_chunks) = client_shared_chunks_vc
+            && emit_rsc_manifests
+            && project.next_mode().await?.is_production()
+        {
+            Some(FirstLoadChunks::AppPage {
+                client_references,
+                client_references_chunks,
+                client_shared_chunks,
+            })
+        } else {
+            None
+        };
+
         if emit_rsc_manifests {
             let entry_manifest = ResolvedVc::upcast(
                 ClientReferenceManifest {
@@ -2175,7 +2181,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2271,6 +2277,7 @@ impl AppEndpoint {
                     files: app_entry_chunks,
                     server_assets,
                     client_assets,
+                    first_load_chunks,
                 }
             }
             NextRuntime::NodeJs => {
@@ -2299,7 +2306,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2353,6 +2360,7 @@ impl AppEndpoint {
                     rsc_chunk,
                     server_assets,
                     client_assets,
+                    first_load_chunks,
                 }
             }
         }
@@ -2736,11 +2744,21 @@ impl Endpoint for AppEndpoint {
                 },
             };
 
+            let first_load_chunks = match &*output.await? {
+                AppEndpointOutput::NodeJs {
+                    first_load_chunks, ..
+                }
+                | AppEndpointOutput::Edge {
+                    first_load_chunks, ..
+                } => first_load_chunks.clone(),
+            };
+
             anyhow::Ok(
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    first_load_chunks,
                 }
                 .cell(),
             )
@@ -3014,11 +3032,15 @@ enum AppEndpointOutput {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_chunks: Option<FirstLoadChunks>,
     },
     Edge {
         files: ResolvedVc<OutputAssets>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_chunks: Option<FirstLoadChunks>,
     },
 }
 
