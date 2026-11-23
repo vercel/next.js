@@ -15,3 +15,10 @@ export const BUILD_SWITCHYARD_ENV = 'NEXT_BUILD_SWITCHYARD'
 
 /** Passed only to the child process, never on its command line. */
 export const SWITCHYARD_TOKEN_ENV = '__NEXT_PRIVATE_SWITCHYARD_TOKEN'
+
+/**
+ * `0` keeps Switchyard on but sends every request through Node, as in its
+ * first version, so the direct path to route.go workers can be compared with
+ * the path through Node, or switched off on its own.
+ */
+export const SWITCHYARD_DIRECT_ENV = '__NEXT_EXPERIMENTAL_SWITCHYARD_DIRECT'
