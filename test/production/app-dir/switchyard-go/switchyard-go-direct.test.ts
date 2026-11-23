@@ -168,7 +168,8 @@ describe('switchyard-go direct path with a basePath', () => {
   if (skipped) return
 
   async function received(target: string) {
-    // Resume Node in finally if a request unexpectedly needs it.
+    // The timeout ends a request that needs the paused Node, so the test's
+    // finally can resume it.
     const res = await next.fetch(target, { signal: AbortSignal.timeout(5000) })
     expect(res.status).toBe(200)
     return res.json()
