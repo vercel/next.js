@@ -90,12 +90,11 @@ pub mod test_utils {
     /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor<'a>(
         arena: &'a ThreadLocal<Bump>,
-        v: JsValue<'a>,
+        mut v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
     ) -> Result<(JsValue<'a>, Modified)> {
         let ImportAttributes { ignore, .. } = *attributes;
-        let mut v = v;
         if replace_well_known_global(&mut v, ignore) {
             return Ok((v, Modified::Yes));
         }

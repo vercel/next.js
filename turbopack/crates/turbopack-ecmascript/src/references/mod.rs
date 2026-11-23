@@ -4233,7 +4233,7 @@ async fn value_visitor_inner<'a>(
     arena: &'a ThreadLocal<Bump>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     origin_path: &FileSystemPath,
-    v: JsValue<'a>,
+    mut v: JsValue<'a>,
     compile_time_info: Vc<CompileTimeInfo>,
     compile_time_info_ref: &CompileTimeInfo,
     var_graph: &VarGraph<'a>,
@@ -4269,7 +4269,6 @@ async fn value_visitor_inner<'a>(
     }
 
     let ImportAttributes { ignore, .. } = *attributes;
-    let mut v = v;
     if replace_well_known_global(&mut v, ignore) {
         return Ok((v, Modified::Yes));
     }
