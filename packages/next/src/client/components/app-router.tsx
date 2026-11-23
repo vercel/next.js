@@ -642,7 +642,18 @@ if (!process.env.TURBOPACK && typeof window !== 'undefined') {
 
 function RuntimeStylesForWebpack() {
   const [, forceUpdate] = React.useState(0)
-  const renderedStylesSize = runtimeStyles?.size ?? 0
+  // Don't render runtime styles as part of the initial commit. They all share
+  // `precedence="next"` with the route's stylesheets, and React keeps
+  // same-precedence stylesheets in insertion order. A chunk's CSS that is
+  // registered before the first commit (e.g. from `next/dynamic` during a
+  // client render) would otherwise be inserted ahead of the route's own CSS,
+  // letting the route's CSS wrongly override it. Rendering them after mount
+  // appends them after the route's stylesheets, like any chunk loaded later.
+  const [mounted, setMounted] = React.useState(false)
+  const renderedStylesSize = mounted ? (runtimeStyles?.size ?? 0) : 0
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   useEffect(() => {
     if (!runtimeStyles || !runtimeStyleChanged) return
     const changed = () => forceUpdate((c) => c + 1)
@@ -654,6 +665,8 @@ function RuntimeStylesForWebpack() {
       runtimeStyleChanged.delete(changed)
     }
   }, [renderedStylesSize, forceUpdate])
+
+  if (!mounted) return null
 
   const query = getAssetTokenQuery()
   return [...(runtimeStyles || [])].map((href, i) => (

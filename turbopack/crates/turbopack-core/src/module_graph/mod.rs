@@ -2591,7 +2591,7 @@ pub mod tests {
         module::{ActivatableModule, Module, ModuleSideEffects, Modules},
         module_graph::chunk_group_info::{
             AsyncLoaderRelevantChunkGroups, AsyncLoaderRelevantChunkGroupsMap, ChunkGroup,
-            ChunkGroupKey, EntryHeuristics, chunk_group_at,
+            ChunkGroupKey, ChunkGroupKind, EntryHeuristics, chunk_group_at,
         },
         reference::{ModuleReference, ModuleReferences},
         resolve::ModuleResolveResult,
@@ -4296,13 +4296,17 @@ pub mod tests {
                 .await?
                 .iter()
             {
-                let kind = match &group.chunk_group {
-                    ChunkGroup::Entry(_) => "entry",
-                    ChunkGroup::Async(_) => "async",
+                let kind = match &group.kind {
+                    ChunkGroupKind::Entry => "entry",
+                    ChunkGroupKind::Async(_) => "async",
                     _ => "other",
                 };
-                let entry_names = group
-                    .chunk_group
+                let chunk_group = chunk_group_info
+                    .chunk_groups()
+                    .get(&(group.index as usize))
+                    .await?
+                    .context("chunk group index out of range")?;
+                let entry_names = chunk_group
                     .entries()
                     .map(async |entry| Ok(entry.ident().await?.path.path.clone()))
                     .try_join()
@@ -5556,7 +5560,7 @@ pub mod tests {
             .get_async_loader_ancestor_chunk_groups(*a)
             .await?
             .iter()
-            .map(|g| g.index)
+            .copied()
             .collect();
         let index_of_a = chunk_group_info
             .get_index_of(ChunkGroupKey::Async(a))

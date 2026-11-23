@@ -249,6 +249,7 @@ impl Asset for ServerNftJsonAsset {
             nft_json.add(module_path, hash, &content)?;
 
             let contexts_dir = dir.join("vendored/contexts")?;
+            // DETERMINISM: NftJsonBuilder sorts and deduplicates asset locations.
             let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
                 bail!(
                     "Expected contexts directory to be a directory, found: {:?}",
@@ -286,6 +287,7 @@ fn next_owned_ignores(
     has_next_support: bool,
     is_standalone: bool,
     has_native_routes: bool,
+    img_opt_safe_mode_enabled: bool,
 ) -> Vec<RcStr> {
     let mut globs = vec![
         rcstr!("**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js"),
@@ -323,6 +325,17 @@ fn next_owned_ignores(
 
     if !has_native_routes {
         globs.push(rcstr!("**/next/dist/server/lib/native-route*.js"));
+    }
+
+    // `image-optimizer/nsio.js` requires this, but it's only used with
+    // `experimental.imgOptSafeMode`. Keep the large platform-specific binary out of other builds.
+    // The package path itself is also ignored, or the pnpm symlink to it would be copied and left
+    // dangling.
+    if !img_opt_safe_mode_enabled {
+        globs.push(rcstr!("**/node_modules/@next/safe-image-optimization*"));
+        globs.push(rcstr!(
+            "**/node_modules/@next/safe-image-optimization*/**/*"
+        ));
     }
 
     // only ignore image-optimizer code when
@@ -383,6 +396,11 @@ impl ServerNftJsonAsset {
                 *self.project.ci_has_next_support().await?,
                 is_standalone,
                 *has_native_routes(*self.project).await?,
+                *self
+                    .project
+                    .next_config()
+                    .img_opt_safe_mode_enabled()
+                    .await?,
             )
             .into_iter()
             .map(|g| Glob::new(g, GlobOptions::default()))
@@ -494,6 +512,11 @@ impl ServerNftJsonAsset {
             has_next_support,
             is_standalone,
             *has_native_routes(*self.project).await?,
+            *self
+                .project
+                .next_config()
+                .img_opt_safe_mode_enabled()
+                .await?,
         )
         .into_iter()
         .chain(additional_ignores)

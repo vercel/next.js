@@ -17,6 +17,7 @@ interface TooltipProps {
   arrowSize?: number
   offset?: number
   className?: string
+  disabled?: boolean
 }
 
 export const Tooltip = forwardRef<HTMLElement, TooltipProps>(function Tooltip(
@@ -31,6 +32,7 @@ export const Tooltip = forwardRef<HTMLElement, TooltipProps>(function Tooltip(
     direction = 'top',
     arrowSize = 6,
     offset = 8,
+    disabled = false,
   },
   ref
 ) {
@@ -40,7 +42,12 @@ export const Tooltip = forwardRef<HTMLElement, TooltipProps>(function Tooltip(
   }
   return (
     <BaseTooltip.Provider>
-      <BaseTooltip.Root delay={400} onOpenChange={onOpenChange} open={open}>
+      <BaseTooltip.Root
+        delay={400}
+        disabled={disabled}
+        onOpenChange={onOpenChange}
+        open={open}
+      >
         <BaseTooltip.Trigger
           ref={ref}
           render={
