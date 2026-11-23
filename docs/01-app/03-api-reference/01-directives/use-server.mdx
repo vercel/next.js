@@ -3,7 +3,7 @@ title: use server
 description: Learn how to use the use server directive to execute code on the server.
 ---
 
-The `use server` directive designates a function or file to be executed on the **server side**. It can be used at the top of a file to indicate that all functions in the file are server-side, or inline at the top of a function to mark the function as a [Server Function](https://19.react.dev/reference/rsc/server-functions). This is a React feature.
+The `use server` directive designates a function or file to be executed on the **server side**. It can be used at the top of a file to mark its exported async functions as Server Functions, or inline at the top of an async function to mark the function as a [Server Function](https://19.react.dev/reference/rsc/server-functions). This is a React feature.
 
 For Next.js-specific Server Action behaviors (response model, security, configuration, deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
 
@@ -11,7 +11,7 @@ For Next.js-specific Server Action behaviors (response model, security, configur
 
 ## Using `use server` at the top of a file
 
-The following example shows a file with a `use server` directive at the top. All functions in the file are executed on the server.
+The following example shows a file with a `use server` directive at the top. The exported async functions are Server Functions.
 
 ```tsx filename="app/actions.ts" highlight={1} switcher
 'use server'
@@ -42,6 +42,22 @@ export async function createUser(data) {
 
   const user = await db.user.create({ data })
   return { id: user.id, name: user.name }
+}
+```
+
+### Allowed exports
+
+When `use server` is at the top of a file, all runtime exports must be async functions. Exporting a synchronous function or a non-function value, such as an object or number, causes an [Invalid "use server" Value](/docs/messages/invalid-use-server-value) error. Move shared constants and other values to a separate module.
+
+In TypeScript, explicit `export type` exports and re-exports are allowed. They are erased during compilation and do not become Server Functions. For example, if `ActionResult` is defined in `app/types.ts`, you can re-export it alongside a Server Function:
+
+```ts filename="app/actions.ts"
+'use server'
+
+export type { ActionResult } from './types'
+
+export async function getMessage() {
+  return { message: 'Hello' }
 }
 ```
 
