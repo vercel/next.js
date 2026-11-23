@@ -14,10 +14,9 @@ import {
 
 type RuntimeErrorProps = {
   error: ReadyRuntimeError
-  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
-export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
+export function RuntimeError({ error }: RuntimeErrorProps) {
   const frames = useFrames(error)
 
   const firstFrame = useMemo(() => {
@@ -40,22 +39,12 @@ export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
         />
       )}
 
-      {frames.length > 0 && (
-        <ErrorOverlayCallStack
-          dialogResizerRef={dialogResizerRef}
-          frames={frames}
-        />
-      )}
+      {frames.length > 0 && <ErrorOverlayCallStack frames={frames} />}
 
-      {error.cause && (
-        <ErrorCause cause={error.cause} dialogResizerRef={dialogResizerRef} />
-      )}
+      {error.cause && <ErrorCause cause={error.cause} />}
 
       {'aggregateErrors' in error && error.aggregateErrors !== null && (
-        <ErrorAggregateErrors
-          errors={error.aggregateErrors}
-          dialogResizerRef={dialogResizerRef}
-        />
+        <ErrorAggregateErrors errors={error.aggregateErrors} />
       )}
     </>
   )
