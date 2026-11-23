@@ -57,17 +57,17 @@ const fn v(major: u32, minor: u32) -> Version {
     }
 }
 
-// https://caniuse.com/es6-module
-static NOMODULE_POLYFILL: PolyfillDefinition = PolyfillDefinition {
-    filename: "polyfill-nomodule.js",
-    edge: Some(v(16, 0)),
-    firefox: Some(v(60, 0)),
-    chrome: Some(v(61, 0)),
-    safari: Some(v(10, 1)),
-    opera: Some(v(48, 0)),
-};
-
 static MODULE_POLYFILLS: &[PolyfillDefinition] = &[
+    // A blanket nomodule polyfill for very old browsers
+    // https://caniuse.com/es6-module
+    PolyfillDefinition {
+        filename: "polyfill-nomodule.js",
+        edge: Some(v(16, 0)),
+        firefox: Some(v(60, 0)),
+        chrome: Some(v(61, 0)),
+        safari: Some(v(10, 1)),
+        opera: Some(v(48, 0)),
+    },
     // String.prototype.trimStart/trimEnd
     // https://caniuse.com/mdn-javascript_builtins_string_trimstart
     PolyfillDefinition {
@@ -151,16 +151,11 @@ static MODULE_POLYFILLS: &[PolyfillDefinition] = &[
 ];
 
 pub fn get_required_polyfills(versions: &Versions) -> Vec<&'static str> {
-    if NOMODULE_POLYFILL.is_needed(versions) {
-        // NOMODULE_POLYFILL includes everything in MODULE_POLYFILLS
-        vec![NOMODULE_POLYFILL.filename]
-    } else {
-        MODULE_POLYFILLS
-            .iter()
-            .filter(|polyfill| polyfill.is_needed(versions))
-            .map(|d| d.filename)
-            .collect()
-    }
+    MODULE_POLYFILLS
+        .iter()
+        .filter(|polyfill| polyfill.is_needed(versions))
+        .map(|d| d.filename)
+        .collect()
 }
 
 #[turbo_tasks::value]
