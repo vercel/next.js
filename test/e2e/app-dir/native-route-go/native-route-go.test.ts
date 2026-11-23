@@ -1249,6 +1249,8 @@ describe('native route diagnostics', () => {
             TURBOPACK_GO: '/missing-go-toolchain',
             IS_TURBOPACK_TEST: '1',
             IS_WEBPACK_TEST: '',
+            NEXT_RSPACK: '',
+            NEXT_TEST_USE_RSPACK: '',
           },
         })
         expect(result.exitCode).not.toBe(0)
@@ -1274,6 +1276,8 @@ describe('native route diagnostics', () => {
           TURBOPACK_GO: '/missing-go-toolchain',
           IS_TURBOPACK_TEST: '1',
           IS_WEBPACK_TEST: '',
+          NEXT_RSPACK: '',
+          NEXT_TEST_USE_RSPACK: '',
         },
       })
       if (result.exitCode !== 0) throw new Error(result.cliOutput)
