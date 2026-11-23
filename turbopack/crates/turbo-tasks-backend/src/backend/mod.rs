@@ -631,17 +631,17 @@ impl TurboTasksBackend {
             }
             TaskError::TaskChain(chain) => {
                 let task_id = chain.last().unwrap();
-                let error = {
-                    let task = ctx.task(*task_id, TaskDataCategory::Meta);
-                    if let Some(OutputValue::Error(error)) = task.get_output() {
-                        Some(error.clone())
-                    } else {
-                        None
-                    }
-                };
+                // The chain is not a reference GC knows about: the task can be gone (collected
+                // after its parent dropped it) while this stale error output still names it.
+                let error = ctx
+                    .try_task(*task_id, TaskDataCategory::Meta)
+                    .and_then(|task| match task.get_output() {
+                        Some(OutputValue::Error(error)) => Some(error.clone()),
+                        _ => None,
+                    });
                 let error = error.map_or_else(
                     || {
-                        // Eventual consistency will cause errors to no longer be available
+                        // Eventual consistency (or GC) will cause errors to no longer be available
                         TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
                             message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(
                                 "Error no longer available",
