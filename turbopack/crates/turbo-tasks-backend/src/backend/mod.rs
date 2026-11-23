@@ -646,7 +646,9 @@ impl TurboTasksBackend {
                 let error = if let Some(task) = ctx.try_task(*task_id, TaskDataCategory::Meta) {
                     match task.get_output() {
                         Some(OutputValue::Error(error)) => {
-                            self.task_error_to_turbo_tasks_execution_error(error, ctx)
+                            let error = error.clone();
+                            drop(task);
+                            self.task_error_to_turbo_tasks_execution_error(&error, ctx)
                         }
                         _ => make_missing_error_error("not errored"),
                     }
