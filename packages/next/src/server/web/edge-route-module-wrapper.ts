@@ -15,7 +15,7 @@ import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getServerUtils } from '../server-utils'
-import { getRequestMeta } from '../request-meta'
+import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { WebNextRequest } from '../../server/base-http/web'
@@ -102,14 +102,8 @@ export class EdgeRouteModuleWrapper {
       setCacheHandler(kind, cacheHandler)
     }
 
-    // Prefer route captures from the canonical invocation pathname so transport
-    // suffix normalization and routed params cannot be overridden by the public
-    // query. If a rewrite retains a public pathname that does not match this
-    // route, use the router-owned params instead of client search parameters.
-    const paramsMatch = utils.dynamicRouteMatcher?.(request.nextUrl.pathname)
-    const routerParams = getRequestMeta(request, 'params')
     const { params } = utils.normalizeDynamicRouteParams(
-      paramsMatch || routerParams || {},
+      searchParamsToUrlQuery(request.nextUrl.searchParams),
       false
     )
 

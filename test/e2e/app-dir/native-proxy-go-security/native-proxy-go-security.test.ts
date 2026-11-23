@@ -33,7 +33,14 @@ async function expectQueryAuthorization(
   })
 }
 
-async function expectLiteralParams(
+// App Router strips an RSC suffix from decoded route params, so proxy.go
+// rejects paths that still carry one after the transport suffix is removed.
+async function expectRejected(response: Response, path: string) {
+  expect({ path, status: response.status }).toEqual({ path, status: 404 })
+  expect(await response.text()).not.toContain('"secret":true')
+}
+
+async function expectRSCSuffixedParams(
   fetchRequest: (path: string) => Promise<Response>
 ) {
   for (const path of [
@@ -42,27 +49,15 @@ async function expectLiteralParams(
     '/native-security/resource/private%2ersc',
     '/native-security/single/private%2Ersc',
   ]) {
-    const response = await fetchRequest(path)
-    expect(response.status).toBe(200)
-    const result = await response.json()
-    expect(result.secret).toBe(false)
-    expect(
-      Array.isArray(result.name)
-        ? result.name[result.name.length - 1]
-        : result.name
-    ).toBe('private.rsc')
+    await expectRejected(await fetchRequest(path), path)
   }
   expect((await fetchRequest('/native-security/resource/private')).status).toBe(
     403
   )
   for (const kind of ['resource', 'single']) {
-    const literal = await fetchRequest(`/native-security/${kind}/literal.rsc`)
-    expect(literal.status).toBe(200)
-    expect(await literal.json()).toMatchObject({ secret: false })
     for (const suffix of ['literal%2Ersc', 'literal.rsc.rsc']) {
-      expect(
-        (await fetchRequest(`/native-security/${kind}/${suffix}`)).status
-      ).toBe(403)
+      const path = `/native-security/${kind}/${suffix}`
+      await expectRejected(await fetchRequest(path), path)
     }
   }
 }
@@ -84,19 +79,21 @@ async function expectEdgeParamAuthorization(
   expect(literal.status).toBe(200)
   expect(await literal.json()).toEqual({ name: 'literal', secret: false })
 
-  const encoded = await fetchRequest('/native-security/edge/private%2Ersc')
-  expect(encoded.status).toBe(200)
-  expect(await encoded.json()).toEqual({ name: 'private.rsc', secret: false })
-
   for (const path of [
     '/native-security/edge/private',
     '/native-security/edge/private.rsc',
-    '/native-security/edge/literal%2Ersc',
-    '/native-security/edge/literal.rsc.rsc',
   ]) {
     const response = await fetchRequest(path)
     expect({ path, status: response.status }).toEqual({ path, status: 403 })
     expect(await response.text()).not.toContain('"secret":true')
+  }
+
+  for (const path of [
+    '/native-security/edge/private%2Ersc',
+    '/native-security/edge/literal%2Ersc',
+    '/native-security/edge/literal.rsc.rsc',
+  ]) {
+    await expectRejected(await fetchRequest(path), path)
   }
 }
 
@@ -110,46 +107,36 @@ const coldGoBuildTimeout = 240_000
 // support its artifact. Deployment-specific coverage below invokes that artifact.
 // Edge Runtime is not supported with Cache Components.
 // @force-gate turbopack && !deploy && !cacheComponents
-describe.each(['go', 'typescript'])(
-  'native proxy authorization with %s',
-  (runtime) => {
-    const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+describe('native proxy authorization', () => {
+  const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
-    beforeAll(async () => {
-      if (runtime === 'typescript') {
-        await next.deleteFile('proxy.go')
-        await next.patchFile(
-          'proxy.ts',
-          await next.readFile('proxy-reference.ts')
-        )
-      }
-      await next.start()
-    }, coldGoBuildTimeout)
+  beforeAll(async () => {
+    await next.start()
+  }, coldGoBuildTimeout)
 
-    it('authorizes the same query values as the App Router handler', async () => {
-      await expectQueryAuthorization((path) => next.fetch(path))
+  it('authorizes the same query values as the App Router handler', async () => {
+    await expectQueryAuthorization((path) => next.fetch(path))
+  })
+
+  it('rejects RSC suffixes that route params would strip again', async () => {
+    await expectRSCSuffixedParams((path) => next.fetch(path))
+  })
+
+  it('keeps Edge route params aligned with the authorized pathname', async () => {
+    await expectEdgeParamAuthorization((path) => next.fetch(path))
+  })
+
+  it('preserves repeated ordinary query parameters', async () => {
+    const query = new URLSearchParams({ resource: 'public' })
+    for (let i = 0; i < 2000; i++) query.append('value', 'a')
+    const response = await next.fetch(`/native-security/query?${query}`)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      repeated: 2000,
+      secret: false,
     })
-
-    it('preserves literal RSC suffixes in decoded route parameters', async () => {
-      await expectLiteralParams((path) => next.fetch(path))
-    })
-
-    it('keeps Edge route params aligned with the authorized pathname', async () => {
-      await expectEdgeParamAuthorization((path) => next.fetch(path))
-    })
-
-    it('preserves repeated ordinary query parameters', async () => {
-      const query = new URLSearchParams({ resource: 'public' })
-      for (let i = 0; i < 2000; i++) query.append('value', 'a')
-      const response = await next.fetch(`/native-security/query?${query}`)
-      expect(response.status).toBe(200)
-      expect(await response.json()).toMatchObject({
-        repeated: 2000,
-        secret: false,
-      })
-    })
-  }
-)
+  })
+})
 
 type CapturedOutputs = {
   middleware: { filePath: string }
@@ -246,8 +233,8 @@ describe('adapter Go proxy authorization', () => {
     await expectQueryAuthorization(requestAdapter)
   })
 
-  it('preserves literal suffixes through downstream route matching', async () => {
-    await expectLiteralParams(requestAdapter)
+  it('rejects RSC suffixes that downstream route params would strip again', async () => {
+    await expectRSCSuffixedParams(requestAdapter)
   })
 
   it('keeps Edge route params aligned with the authorized pathname', async () => {

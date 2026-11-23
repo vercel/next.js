@@ -1,7 +1,4 @@
 import type { NextConfig } from '../../config-shared'
-import type { IncomingMessage } from 'http'
-import type { UrlWithParsedQuery } from 'url'
-import type { BaseNextRequest } from '../../base-http'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
@@ -15,10 +12,6 @@ import {
   type RouteModuleHandleContext,
   type RouteModuleOptions,
 } from '../route-module'
-import { normalizeRscURL } from '../../../shared/lib/router/utils/app-paths'
-import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
-import { normalizeAppPageRequestUrl } from '../app-page/normalize-request-url'
-import { addRequestMeta } from '../../request-meta'
 import { createRequestStoreForAPI } from '../../async-storage/request-store'
 import {
   createPrerenderWorkStore,
@@ -252,8 +245,6 @@ export interface AppRouteRouteModuleOptions
   readonly getUserland?: () => AppRouteUserlandModule
 }
 
-const segmentPrefetchRSCNormalizer = new SegmentPrefixRSCPathnameNormalizer()
-
 /**
  * AppRouteRouteHandler is the handler for app routes.
  */
@@ -287,25 +278,6 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
-
-  public normalizeUrl(
-    req: IncomingMessage | BaseNextRequest,
-    parsedUrl: UrlWithParsedQuery
-  ) {
-    const pathname = parsedUrl.pathname || '/'
-    const segmentPrefetch = segmentPrefetchRSCNormalizer.extract(pathname)
-    const normalized = segmentPrefetch
-      ? segmentPrefetch.originalPathname
-      : normalizeRscURL(pathname)
-    if (normalized === pathname) return
-
-    // Decode route parameters only after removing raw transport suffixes.
-    // Encoded suffixes remain literal, while cached matches for the old
-    // transport pathname must be recomputed from the canonical path.
-    parsedUrl.pathname = normalized
-    normalizeAppPageRequestUrl(req, normalized)
-    addRequestMeta(req, 'params', undefined)
-  }
 
   // Loaded lazily since the route file may be an async module (top-level
   // await).

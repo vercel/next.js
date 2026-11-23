@@ -1,7 +1,9 @@
 /**
- * proxy.go must receive the same URL as proxy.ts. In adapter builds the Go
- * handler reimplements the JavaScript adapter's URL normalization, so this
- * compares the compiled Go handler with `adapter()` on generated URLs.
+ * proxy.go receives the same URL as proxy.ts, except where proxy.ts would
+ * authorize a different resource from the one the App Router handler uses.
+ * The Go handler reimplements the JavaScript adapter's URL normalization, so
+ * this compares the compiled Go handler with `adapter()` on generated URLs and
+ * asserts the stricter cases separately.
  */
 import { adapter } from 'next/dist/server/web/adapter'
 import { execFileSync } from 'child_process'
@@ -138,6 +140,35 @@ function generateCases(): string[] {
   return cases
 }
 
+// proxy.go rejects a path that still matches the RSC suffix after its
+// transport suffix is removed. App Router decodes route params and strips that
+// suffix again, so Proxy would authorize a different resource.
+function hasRSCSegment(url: string) {
+  return url
+    .split('?', 1)[0]
+    .split('/')
+    .some((segment) => {
+      try {
+        const decoded = decodeURIComponent(segment)
+        return decoded.endsWith('.rsc') || decoded.includes('.rsc?')
+      } catch {
+        return true
+      }
+    })
+}
+
+// proxy.go keeps query values ending in .rsc, does not promote client nxtP and
+// nxtI names, and authorizes segment prefetches as their page. proxy.ts does
+// none of these. These cases are asserted separately.
+function isStricterThanProxyTs(path: string) {
+  const query = path.includes('?') ? path.slice(path.indexOf('?') + 1) : ''
+  return (
+    query.includes('.rsc') ||
+    /(^|&)nxt[PI]/.test(query) ||
+    path.includes('.segment.rsc')
+  )
+}
+
 async function proxyTsURL(
   path: string,
   nextConfig: { basePath?: string; trailingSlash?: boolean },
@@ -223,7 +254,7 @@ describe('proxy.go request URLs', () => {
   })
 
   it.each([false, true])(
-    'match proxy.ts with skipProxyUrlNormalize %s',
+    'match proxy.ts or reject ambiguous RSC paths with skipProxyUrlNormalize %s',
     async (skipProxyUrlNormalize) => {
       const binary = buildHarness(
         join(directory, `skip-${skipProxyUrlNormalize}`),
@@ -253,7 +284,14 @@ describe('proxy.go request URLs', () => {
             nextConfig,
             skipProxyUrlNormalize
           )
-          if (go[0] !== expected || go[1].startsWith('inconsistent')) {
+          const rejected = go[2] === '404'
+          if (rejected !== hasRSCSegment(expected ?? '')) {
+            mismatches.push({ path, nextConfig, expected, go })
+          } else if (
+            !rejected &&
+            !isStricterThanProxyTs(path) &&
+            (go[0] !== expected || go[1].startsWith('inconsistent'))
+          ) {
             mismatches.push({ path, nextConfig, expected, go })
           }
         }
@@ -291,7 +329,7 @@ describe('proxy.go request URLs', () => {
     120_000
   )
 
-  it('preserves client queries and handles large duplicate queries in bounded work', async () => {
+  it('preserves client queries and handles large duplicate queries in bounded work', () => {
     const binary = buildHarness(join(directory, 'security'), false)
     const paths = [
       '/page?resource=public.rsc',
@@ -305,9 +343,6 @@ describe('proxy.go request URLs', () => {
     ]
     const results = runHarness(binary, paths)
     expect(results.map((result) => result?.[0])).toEqual(paths)
-    for (const path of paths.slice(0, 5)) {
-      expect(await proxyTsURL(path, {}, false)).toBe(path)
-    }
     const oversizedQueries = [
       '/page?value=' + 'a'.repeat(64 * 1024),
       '/page?' + 'value=1&'.repeat(30_000),
@@ -318,19 +353,63 @@ describe('proxy.go request URLs', () => {
     ).toEqual(['414', '414', '414'])
   }, 120_000)
 
-  it('rejects reserved data paths even when a trusted adapter skips normalization', () => {
+  it.each([false, true])(
+    'authorizes the resource the App Router handler uses with normalization skipped: %s',
+    (skip) => {
+      const binary = buildHarness(join(directory, `stricter-${skip}`), skip)
+      const cases: Array<[path: string, url: string | null]> = [
+        ['/page?q=a.rsc', '/page?q=a.rsc'],
+        ['/page?q=a.rsc?z', skip ? '/page?q=a.rsc?z' : '/page?q=a.rsc%3Fz'],
+        ['/page?nxtPslug=a&slug=b', '/page?nxtPslug=a&slug=b'],
+        ['/page?nxtIslug=a', '/page?nxtIslug=a'],
+        ['/page.segments/_tree.segment.rsc', '/page'],
+        ['/page.segments/$c$children/__PAGE__.segment.rsc', '/page'],
+        ['/a/private.rsc', '/a/private'],
+        // Rejected: the handler would receive private or private.rsc.
+        ['/a/private%2Ersc', null],
+        ['/a/private%2ersc', null],
+        ['/a/private.rsc.rsc', null],
+        ['/a/private.rsc%2Ersc', null],
+        ['/a/private.rsc/', null],
+        ['/a/x%2Ersc/b', null],
+        ['/a/x.rsc%3Fy', null],
+        ['/page.segments/_tree.segment.rsc.rsc', null],
+      ]
+      const results = runHarness(
+        binary,
+        cases.map(([path]) => path)
+      )
+      expect(
+        cases.map(([path], i) => [
+          path,
+          results[i]?.[2] === '404' ? null : results[i]?.[0],
+        ])
+      ).toEqual(cases)
+    },
+    120_000
+  )
+
+  it('normalizes the URL a trusted Next.js server forwards exactly once', () => {
     const binary = buildHarness(join(directory, 'trusted'), true, '/docs', true)
     const paths = [
       '/_next/data/build/private.json',
       '/docs/_next/data/build/private.json',
       '/docs/_next/data/build/private.json.rsc',
       '/page?' + '&'.repeat(4096),
+      '/docs/a/private%2Ersc',
+      '/docs/a/private.rsc.rsc',
+      '/docs/a/private.rsc',
     ]
-    expect(runHarness(binary, paths).map((result) => result?.[2])).toEqual([
-      '404',
-      '404',
-      '404',
-      '414',
+    expect(
+      runHarness(binary, paths).map((result) => [result?.[2], result?.[0]])
+    ).toEqual([
+      ['404', ''],
+      ['404', ''],
+      ['404', ''],
+      ['414', ''],
+      ['404', ''],
+      ['404', ''],
+      ['200', '/docs/a/private'],
     ])
   }, 120_000)
 })

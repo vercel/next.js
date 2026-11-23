@@ -1,7 +1,7 @@
 import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
-import { fromNodeOutgoingHttpHeaders } from './utils'
+import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
 import {
   NextFetchEvent,
   getWaitUntilPromiseFromEvent,
@@ -16,7 +16,6 @@ import { NextURL } from './next-url'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
-import { SegmentPrefixRSCPathnameNormalizer } from '../normalizers/request/segment-prefix-rsc'
 import {
   FLIGHT_HEADERS,
   NEXT_REWRITTEN_PATH_HEADER,
@@ -48,7 +47,7 @@ import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
-import { addRequestMeta, setRequestMeta } from '../request-meta'
+import { setRequestMeta } from '../request-meta'
 
 // The proxy (middleware) does not support `'use cache'`, so this work store
 // never reaches the code that reads `cacheLife` (and `'use cache'` is
@@ -95,8 +94,6 @@ const headersGetter: TextMapGetter<Headers> = {
   keys: (headers) => Array.from(headers.keys()),
   get: (headers, key) => headers.get(key) ?? undefined,
 }
-
-const segmentPrefetchRSCNormalizer = new SegmentPrefixRSCPathnameNormalizer()
 
 export type AdapterOptions = {
   handler: (req: NextRequestHint, event: NextFetchEvent) => Promise<Response>
@@ -176,25 +173,30 @@ export async function adapter(
     // eslint-disable-next-line @next/internal/no-as-any
     typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
 
-  const inputURL = new URL(params.request.url)
-  const segmentPrefetch = segmentPrefetchRSCNormalizer.extract(
-    inputURL.pathname
-  )
-  inputURL.pathname = segmentPrefetch
-    ? segmentPrefetch.originalPathname
-    : normalizeRscURL(inputURL.pathname)
-  params.request.url = inputURL.toString()
+  params.request.url = normalizeRscURL(params.request.url)
 
   const requestURL = params.bypassNextUrl
-    ? inputURL
-    : new NextURL(inputURL, {
+    ? new URL(params.request.url)
+    : new NextURL(params.request.url, {
         headers: params.request.headers,
         nextConfig: params.request.nextConfig,
       })
 
-  // Internal route parameters are supplied separately by the router. Promoting
-  // client-supplied nxtP/nxtI query names here would make authorization observe
-  // different application values from the downstream request.
+  // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
+  // Instead we use the keys before iteration.
+  const keys = [...requestURL.searchParams.keys()]
+  for (const key of keys) {
+    const value = requestURL.searchParams.getAll(key)
+
+    const normalizedKey = normalizeNextQueryParam(key)
+    if (normalizedKey) {
+      requestURL.searchParams.delete(normalizedKey)
+      for (const val of value) {
+        requestURL.searchParams.append(normalizedKey, val)
+      }
+      requestURL.searchParams.delete(key)
+    }
+  }
 
   // Ensure users only see page requests, never data requests.
   let buildId = process.env.__NEXT_BUILD_ID || ''
@@ -225,7 +227,9 @@ export async function adapter(
     }
   }
 
-  const normalizeURL = skipProxyUrlNormalize ? inputURL : requestURL
+  const normalizeURL = skipProxyUrlNormalize
+    ? new URL(params.request.url)
+    : requestURL
 
   const rscHash = normalizeURL.searchParams.get(NEXT_RSC_UNION_QUERY)
 
@@ -252,9 +256,6 @@ export async function adapter(
 
   if (params.request.requestMeta) {
     setRequestMeta(request, params.request.requestMeta)
-  }
-  if (params.request.page?.params) {
-    addRequestMeta(request, 'params', params.request.page.params)
   }
 
   /**

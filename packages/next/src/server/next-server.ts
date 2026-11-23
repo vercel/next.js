@@ -1830,7 +1830,9 @@ export default class NextNodeServer extends BaseServer<
           handler:
             (nativeEntry
               ? (request: Request) =>
-                  this.nativeProxy!.invokeMiddleware(nativeEntry, request)
+                  // proxy.go normalizes the URL itself, so it receives the
+                  // URL from before the adapter's proxy.ts normalization.
+                  this.nativeProxy!.invokeMiddleware(nativeEntry, request, url)
               : undefined) ||
             middlewareModule.proxy ||
             middlewareModule.middleware ||

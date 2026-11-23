@@ -108,7 +108,11 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 
 - Go Proxy runs on every request by default.
 - Go Proxy is only supported in App Router applications. A build fails when the project also contains Pages Router routes (pages or API routes in the `pages` directory) or sets the `i18n` configuration. Custom `_app`, `_document`, and `_error` files are allowed.
-- `r.URL` matches the request URL that a JavaScript Proxy receives.
+- `r.URL` matches the request URL that a JavaScript Proxy receives, with these exceptions so that Go Proxy authorizes the same resource the route uses:
+  - Query values ending in `.rsc` are kept as sent.
+  - Query parameters whose names start with `nxtP` or `nxtI` are kept as sent.
+  - Segment prefetch requests use the URL of their page.
+  - Requests whose path still ends in `.rsc` after the RSC suffix is removed, including through percent-encoding such as `%2Ersc`, receive a `404` response before Go Proxy runs.
 - Requests with a query string larger than 64 KiB or more than 4,096 parameters receive a `414 URI Too Long` response before Go Proxy runs. Empty parameters count toward this limit.
 - Only one proxy file is supported. Go and JavaScript proxies cannot be combined.
 - Go Proxy requires Turbopack and runs as a compiled Go executable.

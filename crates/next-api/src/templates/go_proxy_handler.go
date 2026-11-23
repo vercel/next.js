@@ -180,10 +180,14 @@ const nextGoProxyMaxQueryBytes = 64 << 10
 const nextGoProxyMaxQueryParams = 4096
 
 // nextGoNormalizeURL rewrites the request URL to the one the JavaScript
-// adapter passes to proxy.ts as request.url. Transport suffixes apply only to
-// the pathname, before percent decoding. Client query names are never routing
-// metadata. Pages data URLs are rejected because proxy.go only supports App
-// Router applications, whose catch-all handlers can otherwise reinterpret them.
+// adapter passes to proxy.ts as request.url, but is stricter where proxy.ts
+// can authorize a different resource from the one the route handler uses.
+// Transport suffixes apply only to the pathname, before percent decoding, so
+// query values keep a trailing .rsc. Client query names are never routing
+// metadata, so nxtP/nxtI names are not promoted. Pages data URLs are rejected
+// because proxy.go only supports App Router applications, whose catch-all
+// handlers can otherwise reinterpret them, and so are paths that would still
+// carry an RSC suffix after decoding (see nextGoHasRSCSegment).
 func nextGoNormalizeURL(r *http.Request) bool {
 	target := r.RequestURI
 	if !strings.HasPrefix(target, "/") {
@@ -198,7 +202,7 @@ func nextGoNormalizeURL(r *http.Request) bool {
 	// Assigning URL.pathname reparses dot segments, including ones exposed by
 	// removing a transport suffix, such as /a/...rsc becoming /a/.. and then /.
 	path = nextGoParsePath(nextGoNormalizeRSCPath(path))
-	if nextGoIsDataPath(path) {
+	if nextGoIsDataPath(path) || nextGoHasRSCSegment(path) {
 		return false
 	}
 	query := ""
@@ -228,6 +232,27 @@ func nextGoIsDataPath(path string) bool {
 		path = strings.TrimPrefix(path, nextGoProxyBasePath)
 	}
 	return path == "/_next/data" || strings.HasPrefix(path, "/_next/data/")
+}
+
+// nextGoHasRSCSegment reports whether a decoded path segment still matches
+// the RSC suffix after the transport suffix has been removed. Depending on how
+// a route is invoked, such as directly by an adapter or in the Edge runtime,
+// its dynamic params are decoded and then have that suffix stripped again, so
+// /a/private%2Ersc or /a/private.rsc.rsc can reach the handler as private or
+// private.rsc while Proxy authorized private.rsc or private.rsc.rsc. Such
+// paths are rejected rather than authorized as an ambiguous resource. The
+// check mirrors normalizeRscURL: .rsc at the end or before a `?`.
+func nextGoHasRSCSegment(path string) bool {
+	for _, segment := range strings.Split(path, "/") {
+		decoded, err := url.PathUnescape(segment)
+		if err != nil {
+			return true
+		}
+		if strings.HasSuffix(decoded, ".rsc") || strings.Contains(decoded, ".rsc?") {
+			return true
+		}
+	}
+	return false
 }
 
 // Match SegmentPrefixRSCPathnameNormalizer before the ordinary RSC suffix,
@@ -402,20 +427,13 @@ func nextGoHandler() http.HandlerFunc {
 			http.Error(w, http.StatusText(http.StatusRequestURITooLong), http.StatusRequestURITooLong)
 			return
 		}
-		// Adapter builds invoke Go directly, bypassing the JavaScript adapter.
-		// Apply its URL normalization so Proxy sees the same URL as proxy.ts.
-		// Next.js has already applied it to requests it forwards, and it is not
-		// idempotent: applying it twice would change paths such as /a.rsc.rsc.
-		if nextGoTrustInternalHeaders {
-			if nextGoIsDataPath(r.URL.EscapedPath()) {
-				http.NotFound(w, r)
-				return
-			}
-		} else {
-			if !nextGoNormalizeURL(r) {
-				http.NotFound(w, r)
-				return
-			}
+		// Adapter builds invoke Go directly, and Next.js forwards the URL from
+		// before its proxy.ts normalization, so normalization happens exactly
+		// once, here. It is not idempotent: applying it twice would change
+		// paths such as /a.rsc.rsc.
+		if !nextGoNormalizeURL(r) {
+			http.NotFound(w, r)
+			return
 		}
 		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
 		// Next.js resolves destinations against its own request origin, which

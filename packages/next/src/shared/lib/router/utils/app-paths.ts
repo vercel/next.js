@@ -133,8 +133,8 @@ export function selectAppPageEntry(
  */
 export function normalizeRscURL(url: string) {
   return url.replace(
-    /^([^?#]*)\.rsc([?#]|$)/,
-    // Only the pathname may carry a transport suffix, never query values.
-    '$1$2'
+    /\.rsc($|\?)/,
+    // $1 ensures `?` is preserved
+    '$1'
   )
 }

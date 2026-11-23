@@ -336,12 +336,21 @@ export class NativeRouteManager {
     }
   }
 
-  /** Return a response to Next's middleware adapter without finishing the client response. */
-  async invokeMiddleware(entry: string, req: Request): Promise<Response> {
+  /**
+   * Return a response to Next's middleware adapter without finishing the client
+   * response. `originalUrl` is the URL before the adapter's proxy.ts
+   * normalization: proxy.go applies its own, stricter normalization.
+   */
+  async invokeMiddleware(
+    entry: string,
+    req: Request,
+    originalUrl: string = req.url
+  ): Promise<Response> {
     req.signal.throwIfAborted()
     const worker = await this.getWorker('/_middleware', entry)
     req.signal.throwIfAborted()
     const url = new URL(req.url)
+    const target = new URL(originalUrl)
     const headers: Record<string, string> = Object.create(null)
     for (const [name, value] of req.headers) {
       if (
@@ -380,8 +389,8 @@ export class NativeRouteManager {
           port: worker.port,
           agent: worker.agent,
           method: req.method,
-          // Forward request.url exactly, including an empty query.
-          path: url.href.slice(url.origin.length).split('#', 1)[0],
+          // Forward the URL exactly, including an empty query.
+          path: target.href.slice(target.origin.length).split('#', 1)[0],
           headers,
         })
         upstream = connection

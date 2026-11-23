@@ -642,6 +642,42 @@ describe('native-proxy-go', () => {
   })
 })
 
+// proxy.go keeps query values ending in .rsc, does not promote client nxtP
+// names, and authorizes segment prefetches as their page. proxy.ts does none of
+// these, so these paths are asserted through `expected` instead.
+const stricterThanProxyTs = [
+  '/native-proxy/inspect?q=a.rsc',
+  '/native-proxy/inspect?nxtPslug=a&slug=b',
+  '/native-proxy/inspect.segments/_tree.segment.rsc',
+  '/native-proxy/inspect.segments/$c$children/__PAGE__.segment.rsc',
+]
+const stricterExpected = [
+  ['/native-proxy/inspect?q=a.rsc', '/native-proxy/inspect?q=a.rsc'],
+  [
+    '/native-proxy/inspect?nxtPslug=a&slug=b',
+    '/native-proxy/inspect?nxtPslug=a&slug=b',
+  ],
+  ['/native-proxy/inspect.segments/_tree.segment.rsc', '/native-proxy/inspect'],
+  [
+    '/native-proxy/inspect.segments/$c$children/__PAGE__.segment.rsc',
+    '/native-proxy/inspect',
+  ],
+]
+
+function hasRSCSegment(url: string) {
+  return url
+    .split('?', 1)[0]
+    .split('/')
+    .some((segment) => {
+      try {
+        const decoded = decodeURIComponent(segment)
+        return decoded.endsWith('.rsc') || decoded.includes('.rsc?')
+      } catch {
+        return true
+      }
+    })
+}
+
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
 describe.each([
@@ -651,13 +687,10 @@ describe.each([
     basePath: '',
     expected: [
       ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
-      [
-        '/native-proxy/inspect.segments/_tree.segment.rsc',
-        '/native-proxy/inspect',
-      ],
       ['/native-proxy/x/../inspect', '/native-proxy/inspect'],
       ['/native-proxy/inspect?_rsc=abc&a=1', '/native-proxy/inspect?a=1'],
       ['/native-proxy/inspect?', '/native-proxy/inspect'],
+      ...stricterExpected,
     ],
   },
   {
@@ -666,13 +699,10 @@ describe.each([
     basePath: '/docs',
     expected: [
       ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
-      [
-        '/native-proxy/inspect.segments/_tree.segment.rsc',
-        '/native-proxy/inspect',
-      ],
       ['/native-proxy/x/../inspect', '/native-proxy/inspect'],
       ['/native-proxy/inspect?_rsc=abc&a=1', '/native-proxy/inspect?a=1'],
       ['/native-proxy/inspect?', '/native-proxy/inspect'],
+      ...stricterExpected,
     ],
   },
   {
@@ -696,6 +726,7 @@ describe.each([
         '/native-proxy/inspect?_rsc=abc&a=1',
       ],
       ['/native-proxy/inspect?', '/native-proxy/inspect?'],
+      ...stricterExpected,
     ],
   },
   {
@@ -709,6 +740,7 @@ describe.each([
         '/native-proxy/inspect?_rsc=abc&a=1',
       ],
       ['/native-proxy/inspect?', '/native-proxy/inspect?'],
+      ...stricterExpected,
     ],
   },
 ])(
@@ -788,19 +820,29 @@ describe.each([
         const tsStart = await receivedURLs(next.url)
 
         const p = (path: string) => basePath + path
-        expect(tsStart).toMatchObject(
+        expect(goStart).toMatchObject(
           Object.fromEntries(expected.map(([path, url]) => [p(path), p(url)]))
         )
-        expect(goStart).toEqual(tsStart)
         // Routing that happens before the proxy, such as trailing slash
-        // redirects, is the platform's job, so the executable alone is compared
-        // only for requests that reached the proxy under next start.
+        // redirects, is the platform's job, so only requests that reached
+        // proxy.ts under next start are compared.
         const reachedProxy = paths.filter((path) => tsStart[path] !== null)
         expect(reachedProxy.length).toBeGreaterThanOrEqual(10)
         for (const path of reachedProxy) {
+          // proxy.go normalizes the URL itself under next start too, so the
+          // adapter executable receives the same URL.
           expect({ path, url: goAdapter[path] }).toEqual({
             path,
-            url: tsStart[path],
+            url: goStart[path],
+          })
+          if (stricterThanProxyTs.some((stricter) => p(stricter) === path)) {
+            continue
+          }
+          // proxy.go rejects paths that would still carry an RSC suffix after
+          // its transport suffix is removed, and otherwise matches proxy.ts.
+          expect({ path, url: goStart[path] }).toEqual({
+            path,
+            url: hasRSCSegment(tsStart[path]!) ? null : tsStart[path],
           })
         }
       } finally {
