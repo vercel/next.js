@@ -185,11 +185,29 @@ function isJSONSerializable(value: unknown, seen = new Set<object>()): boolean {
   return valid
 }
 
+const zTurbopackModuleFederationManifestUrl = z.string().refine((value) => {
+  try {
+    const url = new URL(value)
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') &&
+      !url.username &&
+      !url.password &&
+      url.pathname.endsWith('.json')
+    )
+  } catch {
+    return false
+  }
+}, 'Manifest must be an http(s) URL whose pathname ends in .json, without credentials')
+
 const zTurbopackModuleFederationRemoteConfig = z.union([
   z.string(),
   z.array(z.string()),
   z.strictObject({
     external: z.union([z.string(), z.array(z.string())]),
+    shareScope: z.string().optional(),
+  }),
+  z.strictObject({
+    manifest: zTurbopackModuleFederationManifestUrl,
     shareScope: z.string().optional(),
   }),
 ])

@@ -22,6 +22,13 @@ export function RemoteMessage() {
   const [runtimeIsolation, setRuntimeIsolation] = useState('loading')
   const [shareStrategy, setShareStrategy] = useState('loading')
   const [dynamicMessage, setDynamicMessage] = useState('loading')
+  const [manifestMessage, setManifestMessage] = useState('not configured')
+  const [manifestObjectMessage, setManifestObjectMessage] =
+    useState('not configured')
+  const [preloadedMessage, setPreloadedMessage] = useState('not configured')
+  const [badManifestError, setBadManifestError] = useState('not configured')
+  const [missingManifestError, setMissingManifestError] =
+    useState('not configured')
   const [fallbackRemoteMessage, setFallbackRemoteMessage] = useState('loading')
   const [pluginMarker, setPluginMarker] = useState('loading')
   const [hostShared, setHostShared] = useState('loading')
@@ -93,6 +100,58 @@ export function RemoteMessage() {
         'dynamicCatalog/message'
       )
       setDynamicMessage(dynamicRemote?.message ?? 'missing')
+      if (process.env.NEXT_PUBLIC_MF_REMOTE_MANIFEST) {
+        const fromString = await instance.loadRemote<typeof remote>(
+          'catalogManifest/message'
+        )
+        setManifestMessage(fromString?.message ?? 'missing')
+        const fromObject = await instance.loadRemote<typeof remote>(
+          'catalogObject/message'
+        )
+        setManifestObjectMessage(fromObject?.message ?? 'missing')
+        instance.registerRemotes([
+          {
+            name: 'dynamicManifest',
+            entry: `${process.env.NEXT_PUBLIC_MF_REMOTE_MANIFEST}?dynamic=1`,
+          },
+        ])
+        await instance.preloadRemote([
+          {
+            nameOrAlias: 'dynamicManifest',
+            exposes: ['./message', './component'],
+            resourceCategory: 'all',
+          },
+        ])
+        const preloaded = await instance.loadRemote<typeof remote>(
+          'dynamicManifest/message'
+        )
+        setPreloadedMessage(preloaded?.message ?? 'missing')
+        const base = process.env.NEXT_PUBLIC_MF_REMOTE_MANIFEST.replace(
+          /mf-manifest\.json$/,
+          ''
+        )
+        // Invalid remotes should not poison version-first sharing in the real host.
+        const invalidHost = init({
+          name: 'invalidManifestHost',
+          remotes: [],
+          shared: {},
+          shareStrategy: 'loaded-first',
+        })
+        invalidHost.registerRemotes([
+          { name: 'badManifest', entry: `${base}invalid-manifest.json` },
+          { name: 'missingManifest', entry: `${base}missing-manifest.json` },
+        ])
+        try {
+          await invalidHost.loadRemote('badManifest/message')
+        } catch (error) {
+          setBadManifestError((error as Error).message)
+        }
+        try {
+          await invalidHost.loadRemote('missingManifest/message')
+        } catch (error) {
+          setMissingManifestError((error as Error).message)
+        }
+      }
       const other = init({ name: 'independentHost', remotes: [], shared: {} })
       setRuntimeIsolation(
         getInstance((host) => host.name === 'nextHost') === instance &&
@@ -145,6 +204,11 @@ export function RemoteMessage() {
       <p id="enhanced-runtime-isolation">{runtimeIsolation}</p>
       <p id="enhanced-share-strategy">{shareStrategy}</p>
       <p id="enhanced-dynamic-message">{dynamicMessage}</p>
+      <p id="manifest-string-message">{manifestMessage}</p>
+      <p id="manifest-object-message">{manifestObjectMessage}</p>
+      <p id="manifest-preloaded-message">{preloadedMessage}</p>
+      <p id="manifest-invalid-error">{badManifestError}</p>
+      <p id="manifest-missing-error">{missingManifestError}</p>
       <p id="enhanced-fallback-remote">{fallbackRemoteMessage}</p>
       <p id="enhanced-plugin-marker">{pluginMarker}</p>
       <RemoteComponent />

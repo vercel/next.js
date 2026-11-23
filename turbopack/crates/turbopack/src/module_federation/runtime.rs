@@ -38,7 +38,14 @@ pub async fn module_federation_runtime_source(
 
     let mut remotes = Vec::new();
     for remote in &config.remotes {
-        if let Some(external) = remote.external.first() {
+        if let Some(manifest) = &remote.manifest {
+            remotes.push(format!(
+                "{{name:{},entry:{},shareScope:{}}}",
+                StringifyJs(&remote.request),
+                StringifyJs(manifest),
+                StringifyJs(&remote.share_scope),
+            ));
+        } else if let Some(external) = remote.external.first() {
             remotes.push(format!(
                 "{{name:{},entry:{},entryGlobalName:{},type:'var',shareScope:{}}}",
                 StringifyJs(&remote.request),

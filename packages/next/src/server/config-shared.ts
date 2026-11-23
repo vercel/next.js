@@ -327,6 +327,10 @@ export type TurbopackModuleFederationRemoteConfig =
       external: string | string[]
       shareScope?: string
     }
+  | {
+      manifest: string
+      shareScope?: string
+    }
 
 export type TurbopackModuleFederationExposeConfig =
   | string
