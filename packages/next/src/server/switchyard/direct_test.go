@@ -610,8 +610,16 @@ func TestReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, "body")
 			w.Header().Set("X-Checksum", "abc")
+		case "unannounced":
+			io.WriteString(w, "body")
+			w.(http.Flusher).Flush()
+			// Go's documented way to send a trailer the header didn't announce.
+			w.Header().Set(http.TrailerPrefix+"X-Late", "secret-value")
 		}
 	})
+	if res := fx.raw(t, "GET /api/echo?case=unannounced HTTP/1.1"); !strings.HasPrefix(res, "HTTP/1.1 200 OK\r\n") || strings.Contains(res, "secret-value") {
+		t.Errorf("unannounced trailer reached the client: %q", res)
+	}
 	if res := fx.raw(t, "GET /api/echo?case=413 HTTP/1.1"); !strings.HasPrefix(res, "HTTP/1.1 413 Request Entity Too Large\r\n") {
 		t.Errorf("413: %q", res)
 	}

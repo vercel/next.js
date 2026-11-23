@@ -301,8 +301,11 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// Node passes the worker's Trailer header on but never the trailer
 			// fields themselves. The proxy writes the header from the names in
 			// res.Trailer, and after the body the fields the Transport put
-			// there; trailerDropper clears them first.
-			if len(res.Trailer) > 0 {
+			// there; trailerDropper clears them first. The Transport reads a
+			// chunked body's trailer section whether or not the Trailer header
+			// announced it (a handler can send fields under
+			// http.TrailerPrefix), so every chunked body is wrapped.
+			if len(res.Trailer) > 0 || len(res.TransferEncoding) > 0 {
 				res.Body = &trailerDropper{ReadCloser: res.Body, res: res}
 			}
 			if attempt.compress != compressNone {
@@ -361,6 +364,12 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 // delimiters. Go's MaxResponseHeaderBytes includes those delimiters, so using
 // it would reject responses below Node's limit. Check before ReverseProxy
 // removes hop-by-hop headers, and retain Transport's existing raw-byte cap.
+//
+// The count is close, not exact: it sees the headers after Go's Transport
+// parsed them, which can add a field (Cache-Control for a bare Pragma:
+// no-cache) or drop one (Connection, a duplicate Content-Length, the
+// Content-Length of a chunked body). Like Node, it fails at exactly the
+// limit.
 type nodeHeaderLimitTransport struct {
 	transport *http.Transport
 }
@@ -391,7 +400,7 @@ func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, er
 	}
 	if size >= limit {
 		res.Body.Close()
-		return nil, fmt.Errorf("route.go response headers exceed Node's %d-byte limit", limit)
+		return nil, fmt.Errorf("route.go response headers reach Node's %d-byte limit", limit)
 	}
 	return res, nil
 }
