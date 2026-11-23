@@ -5,7 +5,8 @@ use crate::analyzer::{ConstantString, JsValue, RequireContextValue};
 /// A list of well-known objects that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
-    GlobalObject,
+    /// The `Object` global variable.
+    ObjectConstructor,
     /// The `globalThis` global object.
     GlobalThis,
     /// The Node.js `global` object (an alias of `globalThis`).
@@ -53,7 +54,7 @@ pub enum WellKnownObjectKind {
 impl WellKnownObjectKind {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
-            Self::GlobalObject => Some(&["Object"]),
+            Self::ObjectConstructor => Some(&["Object"]),
             Self::GlobalThis => Some(&["globalThis"]),
             Self::NodeGlobal => Some(&["global"]),
             Self::PathModule => Some(&["path"]),
@@ -80,7 +81,7 @@ impl WellKnownObjectKind {
                 "Generator",
                 "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
             ),
-            Self::GlobalObject => ("Object", "The global Object variable"),
+            Self::ObjectConstructor => ("Object", "The global Object constructor"),
             Self::GlobalThis => (
                 "globalThis",
                 "The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis",

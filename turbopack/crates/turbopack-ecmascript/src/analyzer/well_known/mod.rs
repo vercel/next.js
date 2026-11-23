@@ -101,7 +101,7 @@ fn well_known_global<'a>(name: &str, ignore: bool) -> Option<JsValue<'a>> {
         "globalThis" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis),
         "global" => JsValue::WellKnownObject(WellKnownObjectKind::NodeGlobal),
         "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault),
-        "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
+        "Object" => JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
         "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
         "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
         "URL" => JsValue::unknown_if(
@@ -774,7 +774,7 @@ async fn well_known_object_member<'a>(
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<(JsValue<'a>, Modified)> {
     let new_value = match kind {
-        WellKnownObjectKind::GlobalObject => global_object(arena.get_or_default(), prop),
+        WellKnownObjectKind::ObjectConstructor => global_object(arena.get_or_default(), prop),
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
             path_module_member(arena, kind, prop, compile_time_info).await?
         }
@@ -919,7 +919,7 @@ fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
         _ => JsValue::unknown(
             JsValue::member(
                 arena,
-                JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
+                JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
                 prop,
             ),
             true,
