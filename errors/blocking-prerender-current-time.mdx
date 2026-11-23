@@ -73,13 +73,13 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 
 ## Generate on every request
 
-Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. Prefer [`await io()`](/docs/app/api-reference/functions/io#how-io-differs-from-connection) before the clock read. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight.
 
 ### Patterns
 
 #### Use `await io()` before the timestamp read
 
-Call [`io()`](/docs/app/api-reference/functions/io) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Outside a cache scope, the code after the `await` runs at request time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
+Await [`io()`](/docs/app/api-reference/functions/io) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Outside a cache scope, the code after the `await` runs at request time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
 
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the timestamp read as possible. If the parent has cached content (metrics, headers, navigation), isolate the timestamp in its own component so only that piece falls behind the boundary.
 
@@ -109,7 +109,7 @@ export async function UpdatedAt() {
 
 #### Alternative: `await connection()`
 
-Use [`await connection()`](/docs/app/api-reference/functions/connection) to wait for an incoming request. Outside a cache scope, you can use it instead of `await io()` under the same parent `<Suspense>` boundary. Unlike `connection()`, `io()` also works inside `"use cache"` scopes and Client Components.
+Use [`await connection()`](/docs/app/api-reference/functions/connection) to wait for an incoming request under the same parent `<Suspense>` boundary.
 
 ```jsx filename="app/dashboard/updated-at.js"
 import { connection } from 'next/server'
@@ -120,7 +120,7 @@ export async function UpdatedAt() {
 }
 ```
 
-Learn more: [`io`](/docs/app/api-reference/functions/io), [Streaming](/docs/app/guides/streaming).
+Learn more: [How `io()` differs from `connection()`](/docs/app/api-reference/functions/io#how-io-differs-from-connection), [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
@@ -229,7 +229,7 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Read the clock after mount or in an event handler. [Client Components](/docs/app/getting-started/server-and-client-components) also render on the server.
+Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Read the clock after mount or in an event handler. [Client Components also render on the server](/docs/app/getting-started/server-and-client-components#on-the-server).
 
 ### Patterns
 
@@ -308,17 +308,11 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Use [`--debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for more detailed stack traces or [`--debug-build-paths`](/docs/app/guides/building#build-specific-routes) to build specific routes.
 
 ### Find the clock read in a stack trace
 
-If the stack trace only shows `at ignore-listed frames` or points to a component without showing where it read the clock, rerun the build with the internal `__NEXT_SHOW_IGNORE_LISTED` environment variable. This includes normally hidden frames in the terminal output:
-
-```bash filename="Terminal"
-__NEXT_SHOW_IGNORE_LISTED=true npm exec -- next build --debug-prerender
-```
-
-Look for the caller of `Date.now()` or `new Date()`. For example, a frame such as `readCurrentTime (node_modules/blocking-widget/index.js:4:10)` identifies the helper that read the clock. An application frame farther down, such as `Page (app/page.jsx:7:7)`, shows where your app rendered the widget.
+If the trace stops at the component that rendered a widget, [show stack frames from dependencies](/docs/app/guides/building#show-stack-frames-from-dependencies). For example, `readCurrentTime (node_modules/blocking-widget/index.js:4:10)` identifies the helper that read the clock. An application frame farther down, such as `Page (app/page.jsx:7:7)`, shows where your app rendered the widget.
 
 ## Why `instant = false` doesn't clear this error
 
