@@ -112,6 +112,11 @@
     { "table": "app", "target": "/api/echo?a==b", "node": "query characters" },
     {
       "table": "app",
+      "target": "/api/echo?a=1&a=2&b=3",
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
       "target": "/api/echo?b=1&a=2&b=3",
       "node": "query key repeated apart"
     },
