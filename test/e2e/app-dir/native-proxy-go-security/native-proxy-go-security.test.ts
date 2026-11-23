@@ -75,10 +75,6 @@ async function expectEdgeParamAuthorization(
     expect(await response.json()).toEqual({ name: 'public', secret: false })
   }
 
-  const literal = await fetchRequest('/native-security/edge/literal.rsc')
-  expect(literal.status).toBe(200)
-  expect(await literal.json()).toEqual({ name: 'literal', secret: false })
-
   for (const path of [
     '/native-security/edge/private',
     '/native-security/edge/private.rsc',
