@@ -1,6 +1,7 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   assertNoDevToolsIndicator,
+  getRedboxDescription,
   retry,
   toggleDevToolsIndicatorPopover,
 } from 'next-test-utils'
@@ -235,6 +236,29 @@ describe('instant insights tab overlay', () => {
     expect(await getErrorOverlayTabCounts(browser)).toEqual({
       errors: 0,
       instant: 1,
+    })
+  })
+
+  it('opens Issues on a render crash after viewing Insights', async () => {
+    const browser = await next.browser('/')
+    await browser.elementByCss('a[href="/insight-only"]').click()
+
+    const insightsChip = '[data-issues-tab="instant"]'
+    const openDialog = '[data-nextjs-dialog-root][data-rendered="true"]'
+    await browser.elementByCss(insightsChip).click()
+    await browser.waitForElementByCss(openDialog)
+    expect(await getActiveErrorOverlayTab(browser)).toBe('instant')
+    await browser.elementByCss(insightsChip).click()
+    await browser.locator(openDialog).waitFor({ state: 'hidden' })
+
+    await browser.locator('button', { hasText: 'Crash during render' }).click()
+    await browser.waitForElementByCss(openDialog)
+    await retry(async () => {
+      expect((await getErrorOverlayTabCounts(browser))?.instant).toBe(1)
+      expect(await getActiveErrorOverlayTab(browser)).toBe('errors')
+      expect(await getRedboxDescription(browser)).toContain(
+        'Crash after viewing an Insight'
+      )
     })
   })
 

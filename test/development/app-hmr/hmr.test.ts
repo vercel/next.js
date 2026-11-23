@@ -5,7 +5,7 @@ import path from 'path'
 const envFile = '.env.development.local'
 
 describe(`app-dir-hmr`, () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     patchFileDelay: 1000,
   })
@@ -182,28 +182,24 @@ describe(`app-dir-hmr`, () => {
       const browser = await next.browser('/bundler-runtime-changes')
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
-      const button = '[data-testid="new-runtime-functionality-page"]'
-      await browser.elementByCss('a').click()
-      await browser.elementByCss(button).click()
-      await retry(async () => {
-        expect(await browser.elementByCss(button).text()).toBe('Count: 1')
-      })
-
-      // Webpack updates its runtime on this navigation. Turbopack can load
-      // the destination without a hot update or a Fast Refresh message.
-      if (!isTurbopack) {
-        await retry(async () => {
-          expect(await browser.log()).toEqual(
-            expect.arrayContaining([
-              {
-                message: expect.stringContaining('[Fast Refresh] done in'),
-                source: 'log',
-              },
-            ])
-          )
+      await browser
+        .elementByCss('a')
+        .click()
+        .waitForElementByCss('[data-testid="new-runtime-functionality-page"]', {
+          state: 'attached',
         })
-      }
-      expect(await browser.log()).not.toEqual(
+
+      const logs = await browser.log()
+      // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
+      expect(logs).toEqual(
+        expect.arrayContaining([
+          {
+            message: expect.stringContaining('[Fast Refresh] done in'),
+            source: 'log',
+          },
+        ])
+      )
+      expect(logs).not.toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             source: 'error',

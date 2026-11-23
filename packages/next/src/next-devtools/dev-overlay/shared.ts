@@ -271,7 +271,7 @@ interface DevIndicatorSetAction {
 
 interface ErrorOverlayOpenAction {
   type: typeof ACTION_ERROR_OVERLAY_OPEN
-  tab?: ErrorOverlayTab
+  tab: ErrorOverlayTab
 }
 interface ErrorOverlayCloseAction {
   type: typeof ACTION_ERROR_OVERLAY_CLOSE
@@ -684,7 +684,7 @@ export function useErrorOverlayReducer(
           return {
             ...state,
             isErrorOverlayOpen: true,
-            errorOverlayTab: action.tab ?? state.errorOverlayTab,
+            errorOverlayTab: action.tab,
           }
         }
         case ACTION_ERROR_OVERLAY_CLOSE: {
