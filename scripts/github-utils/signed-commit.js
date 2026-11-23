@@ -1,28 +1,75 @@
 // @ts-check
 
 const execa = require('execa')
+const { fetchWithRetry, getRetryMetadata } = require('./retry')
+
+// Blob uploads run in parallel, but GitHub's secondary rate limit trips on
+// bursts of content-creating requests, so only this many are in flight.
+const BLOB_UPLOAD_CONCURRENCY = 4
+
+/**
+ * Whether a request may be repeated after a 5xx, which does not tell whether
+ * it was processed. Reads are safe. So are git object writes (a repeated blob,
+ * tree or commit is a duplicate object nothing references), ref creation (a
+ * repeat fails with "Reference already exists" instead of creating a second
+ * one) and ref updates (setting the same sha again changes nothing). Anything
+ * else, such as creating a release, is only retried on rate limit responses,
+ * which mean the request was rejected.
+ *
+ * @param {string} method
+ * @param {string} path
+ */
+function isSafeToRepeat(method, path) {
+  if (method === 'GET' || method === 'HEAD') {
+    return true
+  }
+  if (method === 'POST') {
+    return /\/git\/(blobs|trees|commits|refs)$/.test(path)
+  }
+  if (method === 'PATCH') {
+    return /\/git\/refs\//.test(path)
+  }
+  return false
+}
 
 /**
  * Call the GitHub REST API and include response bodies in thrown errors so
- * workflow failures show actionable details.
+ * workflow failures show actionable details. Rate limited responses, and 5xx
+ * responses to requests that are safe to repeat (see `isSafeToRepeat`), are
+ * retried with backoff (see `./retry`).
+ *
+ * @param {string} token
+ * @param {string} method
+ * @param {string} path
+ * @param {unknown} [body]
+ * @param {import('./retry').RetryOptions} [retryOptions]
  */
-async function githubRequest(token, method, path, body) {
-  const response = await fetch(`https://api.github.com${path}`, {
-    method,
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+async function githubRequest(token, method, path, body, retryOptions) {
+  const response = await fetchWithRetry(
+    `https://api.github.com${path}`,
+    {
+      method,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
     },
-    body: body ? JSON.stringify(body) : undefined,
-  })
+    {
+      description: `GitHub API ${method} ${path}`,
+      retryServerErrors: isSafeToRepeat(method, path),
+      ...retryOptions,
+    }
+  )
 
   if (!response.ok) {
     const responseText = await response.text()
+    const { attempts } = getRetryMetadata(response)
 
     throw new Error(
-      `GitHub API ${method} ${path} failed (${response.status}): ${responseText}`
+      `GitHub API ${method} ${path} failed (${response.status})${attempts > 1 ? ` after ${attempts} attempts` : ''}: ${responseText}`
     )
   }
 
@@ -113,8 +160,37 @@ async function createBlobForFile(
 }
 
 /**
+ * Like `Promise.all(items.map(mapper))`, with at most `limit` mappers running
+ * at once. Results keep the order of `items`.
+ *
+ * @template T, R
+ * @param {T[]} items
+ * @param {number} limit
+ * @param {(item: T) => Promise<R>} mapper
+ * @returns {Promise<R[]>}
+ */
+async function mapWithConcurrency(items, limit, mapper) {
+  /** @type {R[]} */
+  const results = new Array(items.length)
+  let next = 0
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (next < items.length) {
+        const index = next++
+        results[index] = await mapper(items[index])
+      }
+    }
+  )
+
+  await Promise.all(workers)
+  return results
+}
+
+/**
  * Build a GitHub tree matching a local commit, creating new blob objects for
- * changed files in parallel while preserving deletions and submodules.
+ * changed files (`BLOB_UPLOAD_CONCURRENCY` at a time) while preserving
+ * deletions and submodules.
  */
 async function createTreeFromLocalCommit({
   token,
@@ -136,8 +212,10 @@ async function createTreeFromLocalCommit({
     throw new Error(`Commit ${localCommitSha} has no file changes`)
   }
 
-  const tree = await Promise.all(
-    changedFiles.map(async (filePath) => {
+  const tree = await mapWithConcurrency(
+    changedFiles,
+    BLOB_UPLOAD_CONCURRENCY,
+    async (filePath) => {
       const treeEntry = await getTreeEntry(localCommitSha, filePath)
 
       if (!treeEntry) {
@@ -170,7 +248,7 @@ async function createTreeFromLocalCommit({
         type: treeEntry.type,
         sha: blobSha,
       }
-    })
+    }
   )
 
   const createdTree = await request(token, 'POST', `${repoApiPath}/git/trees`, {
@@ -387,6 +465,7 @@ async function alignLocalBranchWithSignedCommit(
 }
 
 module.exports = {
+  BLOB_UPLOAD_CONCURRENCY,
   githubRequest,
   getChangedFiles,
   getTreeEntry,

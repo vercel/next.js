@@ -16,6 +16,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { buildTestReport } from './test-report.js'
+import { fetchWithRetry, getRetryMetadata } from './github-utils/retry.js'
 
 const TEST_COMMENT_MARKER = '<!-- __NEXT_TEST_REPORT_COMMENT__ -->'
 const MAX_COMMENT_LENGTH = 62_000
@@ -50,9 +51,13 @@ class GitHubClient {
     const res = await this.fetchApi(route, options)
 
     if (!res.ok) {
-      throw new Error(
+      const err = new Error(
         await formatResponseError(res, `${options.method || 'GET'} ${route}`)
       )
+      // A rate limit or server error that outlasted the retries. `main` only
+      // warns about these, since the cost is a missing comment.
+      err.transient = getRetryMetadata(res).transient
+      throw err
     }
 
     if (res.status === 204) {
@@ -62,7 +67,7 @@ class GitHubClient {
     return res.json()
   }
 
-  async fetchApi(route, options = {}) {
+  async fetchApi(route, { retryServerErrors, ...options } = {}) {
     return fetchWithRateLimitRetry(
       `${API_BASE}${route}`,
       {
@@ -74,7 +79,8 @@ class GitHubClient {
           ...options.headers,
         },
       },
-      `${options.method || 'GET'} ${route}`
+      `${options.method || 'GET'} ${route}`,
+      { retryServerErrors }
     )
   }
 
@@ -192,9 +198,13 @@ class GitHubClient {
         console.log(`Updated comment ${existing.html_url}`)
         return
       } catch (err) {
+        // Creating a second comment would not help while GitHub is failing,
+        // and a 5xx PATCH may have been applied already.
+        if (err.transient) {
+          throw err
+        }
         console.log(
-          `Failed to update existing comment ${existing.id}, creating a new one`,
-          err
+          `Failed to update existing comment ${existing.id}, creating a new one: ${err.message}`
         )
       }
     }
@@ -204,6 +214,9 @@ class GitHubClient {
       {
         method: 'POST',
         body: JSON.stringify({ body }),
+        // A 5xx may come after the comment was created, and repeating the
+        // POST would post it twice.
+        retryServerErrors: false,
       }
     )
     console.log(`Created comment ${created.html_url}`)
@@ -243,6 +256,8 @@ class GitHubClient {
       {
         method: 'POST',
         body: JSON.stringify({ body }),
+        // See `upsertIssueComment`.
+        retryServerErrors: false,
       }
     )
     console.log(`Created placeholder comment ${created.html_url}`)
@@ -703,25 +718,22 @@ function fitComment(body) {
   return `${body.slice(0, MAX_COMMENT_LENGTH)}\n\n... truncated to fit in one GitHub comment ...`
 }
 
-async function fetchWithRateLimitRetry(url, options, description) {
-  const res = await fetch(url, options)
-  const retryDelay = getRetryAfterMs(res.headers)
-
-  if ((res.status === 403 || res.status === 429) && retryDelay !== null) {
-    console.log(
-      `${description} was rate limited; retrying after ${Math.ceil(retryDelay / 1000)}s`
-    )
-    await sleep(retryDelay)
-    return fetch(url, options)
-  }
-
-  return res
+// Retries rate limited and 5xx responses with backoff, see
+// `github-utils/retry.js`.
+async function fetchWithRateLimitRetry(
+  url,
+  options,
+  description,
+  retryOptions = {}
+) {
+  return fetchWithRetry(url, options, { description, ...retryOptions })
 }
 
 async function formatResponseError(res, description) {
   const text = await res.text().catch(() => '')
   const details = formatRateLimitDetails(res.headers)
-  return `${description} failed with ${res.status}${details ? ` (${details})` : ''}: ${text}`
+  const { attempts } = getRetryMetadata(res)
+  return `${description} failed with ${res.status}${attempts > 1 ? ` after ${attempts} attempts` : ''}${details ? ` (${details})` : ''}: ${text}`
 }
 
 function formatRateLimitDetails(headers) {
@@ -756,29 +768,6 @@ function formatRateLimitReset(value) {
   return `${value}/${new Date(timestamp * 1000).toISOString()}`
 }
 
-function getRetryAfterMs(headers) {
-  const retryAfter = headers.get('retry-after')
-  if (!retryAfter) {
-    return null
-  }
-
-  const seconds = Number(retryAfter)
-  if (Number.isFinite(seconds)) {
-    return Math.max(0, seconds * 1000)
-  }
-
-  const retryAt = Date.parse(retryAfter)
-  if (Number.isFinite(retryAt)) {
-    return Math.max(0, retryAt - Date.now())
-  }
-
-  return null
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 async function mapLimit(items, limit, mapper) {
   const queue = [...items]
   const workers = Array.from(
@@ -795,6 +784,30 @@ async function mapLimit(items, limit, mapper) {
 }
 
 main().catch((err) => {
-  console.error(err)
+  const message = err instanceof Error ? err.message : String(err)
+
+  if (err?.transient) {
+    // GitHub kept failing after the retries. The only consequence is a missing
+    // or stale comment, which the next run of the workflow fixes, so this
+    // does not fail the check.
+    console.log(`Not updating the test report comment: ${message}`)
+    console.log(
+      `::warning title=Test report comment not updated::${escapeAnnotation(message)}`
+    )
+    return
+  }
+
+  console.log(
+    `::error title=Test report comment failed::${escapeAnnotation(message)}`
+  )
   process.exit(1)
 })
+
+// Workflow command messages end at a newline, so encode the characters that
+// GitHub decodes.
+function escapeAnnotation(value) {
+  return value
+    .replaceAll('%', '%25')
+    .replaceAll('\r', '%0D')
+    .replaceAll('\n', '%0A')
+}
