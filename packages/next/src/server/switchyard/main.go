@@ -366,7 +366,11 @@ func newRequestBody(body io.ReadCloser) *requestBody {
 // upstream answered before the upload ended, its Transport may still be
 // reading the body. Closing Go's server body waits for that read, which ends
 // only at the request timeout, so the proxy wouldn't return, and a chunked
-// response wouldn't end, until then.
+// response wouldn't end, until then. This also turns off the proxy's own
+// Close, which guards against reading a body after the handler returns
+// (golang/go#46866); Go's server still closes the body once the handler
+// returns, after a panic too (finishRequest, Go 1.24). Because the Transport
+// can't close it, a request the direct path hands to Node keeps its body.
 func (b *requestBody) Close() error { return nil }
 
 func (b *requestBody) Read(p []byte) (int, error) {
