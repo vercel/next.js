@@ -1,39 +1,63 @@
 import path from 'path'
 import { NextBuildContext } from '../build-context'
 import type { Telemetry } from '../../telemetry/storage'
-import { turbopackBuild as turbopackBuildImpl } from './impl'
+import {
+  turbopackBuild as turbopackBuildImpl,
+  type TurbopackBuildProject,
+  type TurbopackBuildProjectHost,
+} from './impl'
 import { Worker } from '../../lib/worker'
 import { exportTraceState, recordTraceEvents } from '../../trace'
 import type { Span } from '../../trace'
+import { getBindingsSync } from '../swc'
+import type {
+  ProjectOptions,
+  TurboEngineOptions,
+  TurbopackProjectCallbacks,
+  TurbopackResult,
+} from '../swc/types'
+import { entrypointsFromTransferable } from './transfer'
+import type { WriteAllEntrypointsToDiskResult } from './worker'
 
 type TurbopackBuildResult = Awaited<ReturnType<typeof turbopackBuildImpl>>
 
 // Span ids are a per-process counter. The build worker continues counting
-// from this far above the parent's counter, so the ids it allocates can't
-// collide with the ones the parent allocates in the meantime.
+// from this far above the main process's counter, so the ids it allocates
+// can't collide with the ones the main process allocates in the meantime.
 const WORKER_SPAN_ID_OFFSET = 2 ** 31
 
 /**
- * Runs the Turbopack compilation in a child process
- * (`experimental.turbopackBuildWorker`). When the child exits after
- * persisting the Turbopack cache, all of its memory is returned to the OS, and
- * the parent process stays small, which makes forking the static generation
- * workers cheap.
+ * Hosts the native Turbopack project of `next build` in a child process
+ * (`experimental.turbopackBuildWorker`). Only the native calls run in the
+ * child; everything else, including loading the config, stays in this
+ * process. When the child exits after persisting the Turbopack cache, all of
+ * its memory is returned to the OS, and this process stays small, which makes
+ * forking the static generation workers cheap.
  *
  * The child is spawned as early as possible, so that starting Node.js and
- * loading the modules and native bindings overlaps with the work the parent
- * does before the compilation.
+ * loading the modules and native bindings overlaps with the work this process
+ * does before the compilation. It inherits the environment at that time; the
+ * build's environment is also passed to the project explicitly.
  */
-export class TurbopackBuildWorker {
+export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
   private readonly worker: Worker & typeof import('./worker')
   private readonly prepared: Promise<void>
   // Settles once Turbopack in the worker has shut down (persisted its cache).
   private shutdown: Promise<void> | undefined
   private ending: Promise<void> | undefined
+  private runTurbopackSpan: Span | undefined
 
   constructor({ useWasmBinary }: { useWasmBinary: boolean }) {
     this.worker = new Worker(path.join(__dirname, 'worker.js'), {
-      exposedMethods: ['prepare', 'workerMain', 'waitForShutdown'],
+      exposedMethods: [
+        'prepare',
+        'createProject',
+        'writeAllEntrypointsToDisk',
+        'continueAfterDeferredEntries',
+        'featureUsage',
+        'writeAnalyzeData',
+        'shutdown',
+      ],
       debuggerPortOffset: -1,
       isolatedMemory: false,
       numWorkers: 1,
@@ -53,75 +77,116 @@ export class TurbopackBuildWorker {
       },
     }) as Worker & typeof import('./worker')
     this.prepared = this.worker.prepare(useWasmBinary)
-    // Awaited (and rethrown) in `build()`. Don't report it as unhandled if the
-    // build fails before it gets there.
+    // Awaited (and rethrown) in `createProject()`. Don't report it as
+    // unhandled if the build fails before it gets there.
     this.prepared.catch(() => {})
   }
 
-  async build(
-    telemetry: Telemetry,
-    runTurbopackSpan: Span
-  ): Promise<TurbopackBuildResult> {
-    const {
-      // Not serializable, the worker creates its own span.
-      nextBuildSpan: _nextBuildSpan,
-      // Not serializable, loaded again in the worker.
-      config: _config,
-      // Not serializable, events are recorded with `telemetry` instead.
-      telemetry: _telemetry,
-      ...buildContext
-    } = NextBuildContext
+  /** Called by `turbopackBuild()` within its `run-turbopack` span. */
+  setParentSpan(span: Span) {
+    this.runTurbopackSpan = span
+  }
 
-    try {
-      await this.prepared
-      const traceState = exportTraceState()
-      const result = await this.worker.workerMain({
-        buildContext,
-        env: process.env,
+  async createProject(
+    options: ProjectOptions,
+    turboEngineOptions: TurboEngineOptions,
+    callbacks: TurbopackProjectCallbacks | undefined
+  ): Promise<TurbopackResult<TurbopackBuildProject>> {
+    // Serialized here, where the config is loaded: the worker never loads it.
+    const serializedOptions =
+      await getBindingsSync().turbo.serializeProjectOptions(options)
+    await this.prepared
+    const traceState = exportTraceState()
+    const result = await this.call(() =>
+      this.worker.createProject({
+        options: serializedOptions,
+        turboEngineOptions,
+        hasOnBeforeDeferredEntries: !!callbacks?.onBeforeDeferredEntries,
         traceState: {
           ...traceState,
           lastId: traceState.lastId + WORKER_SPAN_ID_OFFSET,
           shouldSaveTraceEvents: true,
         },
-        parentSpanId: runTurbopackSpan.getId(),
-        telemetryEnabled: telemetry.isEnabled,
+        parentSpanId: (
+          this.runTurbopackSpan ?? NextBuildContext.nextBuildSpan!
+        ).getId(),
       })
-      for (const events of result.telemetryEvents) {
-        telemetry.record(events)
-      }
+    )
 
-      // The worker keeps running while Turbopack persists its cache. End it
-      // once that's done, so its memory is released.
-      this.shutdown = this.recordWorkerTraceAfterShutdown()
-      const shutdownPromise = this.shutdown.finally(() => this.end())
-      // Awaited at the end of the build. Don't report it as unhandled if the
-      // build fails before that.
-      shutdownPromise.catch(() => {})
+    const project: TurbopackBuildProject = {
+      writeAllEntrypointsToDisk: async (appDirOnly) => {
+        let written = await this.call(() =>
+          this.worker.writeAllEntrypointsToDisk(appDirOnly)
+        )
+        if (written.type === 'before-deferred-entries') {
+          written = await this.runOnBeforeDeferredEntries(callbacks)
+        }
+        if (written.type !== 'done') {
+          throw new Error('Turbopack stopped before writing all entrypoints')
+        }
+        return entrypointsFromTransferable(written.entrypoints)
+      },
+      featureUsage: () => this.call(() => this.worker.featureUsage()),
+      writeAnalyzeData: (appDirOnly) =>
+        this.call(() => this.worker.writeAnalyzeData(appDirOnly)),
+      shutdown: () => {
+        this.shutdown ??= this.call(() => this.worker.shutdown()).then(
+          ({ traceEvents }) => recordTraceEvents(traceEvents)
+        )
+        return this.shutdown
+      },
+    }
+    return { ...result, value: project }
+  }
 
-      return {
-        duration: result.duration,
-        buildTraceContext: undefined,
-        shutdownPromise,
-        warnings: result.warnings,
-      }
+  /**
+   * Turbopack in the worker is waiting for `onBeforeDeferredEntries`. Run it
+   * here, where the config is loaded, and let the worker continue.
+   */
+  private async runOnBeforeDeferredEntries(
+    callbacks: TurbopackProjectCallbacks | undefined
+  ): Promise<WriteAllEntrypointsToDiskResult> {
+    let callbackFailure: { error: unknown } | undefined
+    try {
+      await callbacks?.onBeforeDeferredEntries?.()
+    } catch (error) {
+      callbackFailure = { error }
+    }
+    // Always let the worker continue, so it doesn't wait forever. When the
+    // callback failed, Turbopack receives the error and stops compiling.
+    let written: WriteAllEntrypointsToDiskResult
+    try {
+      written = await this.call(() =>
+        this.worker.continueAfterDeferredEntries(
+          callbackFailure &&
+            (callbackFailure.error instanceof Error
+              ? {
+                  message: callbackFailure.error.message,
+                  stack: callbackFailure.error.stack,
+                }
+              : { message: String(callbackFailure.error) })
+        )
+      )
     } catch (err) {
-      // Same as the in-process build, wait for Turbopack to shut down (it
-      // already did when the compilation failed) before reporting the error.
-      await this.recordWorkerTraceAfterShutdown().catch(() => {})
-      await this.end()
+      if (callbackFailure) throw callbackFailure.error
+      throw err
+    }
+    if (callbackFailure) throw callbackFailure.error
+    return written
+  }
+
+  private async call<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn()
+    } catch (err) {
       throw restoreWorkerError(err)
     }
   }
 
-  private async recordWorkerTraceAfterShutdown(): Promise<void> {
-    const { traceEvents } = await this.worker.waitForShutdown()
-    recordTraceEvents(traceEvents)
-  }
-
   /**
-   * Ends the worker process. If the compilation has finished, this first
-   * waits for Turbopack to finish persisting its cache, so a build that fails
-   * later doesn't cut that short. Safe to call more than once.
+   * Ends the worker process. If the project was created, this first waits for
+   * Turbopack to finish persisting its cache, so a build that fails later
+   * doesn't cut that short. Safe to call more than once.
    */
   end(): Promise<void> {
     this.ending ??= (async () => {
@@ -164,14 +229,33 @@ function restoreWorkerError(err: unknown): unknown {
   return error
 }
 
-export function turbopackBuild(
+export async function turbopackBuild(
   telemetry: Telemetry,
   worker: TurbopackBuildWorker | undefined
 ): Promise<TurbopackBuildResult> {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   return nextBuildSpan
     .traceChild('run-turbopack')
-    .traceAsyncFn((span) =>
-      worker ? worker.build(telemetry, span) : turbopackBuildImpl(telemetry)
-    )
+    .traceAsyncFn(async (span) => {
+      if (!worker) {
+        return turbopackBuildImpl(telemetry, undefined)
+      }
+      worker.setParentSpan(span)
+      try {
+        const result = await turbopackBuildImpl(telemetry, worker)
+        // The worker keeps running while Turbopack persists its cache. End it
+        // once that's done, so its memory is released.
+        const shutdownPromise = result.shutdownPromise.finally(() =>
+          worker.end()
+        )
+        // Awaited at the end of the build. Don't report it as unhandled if the
+        // build fails before that.
+        shutdownPromise.catch(() => {})
+        return { ...result, shutdownPromise }
+      } catch (err) {
+        // `turbopackBuild()` already shut the project down.
+        await worker.end()
+        throw err
+      }
+    })
 }

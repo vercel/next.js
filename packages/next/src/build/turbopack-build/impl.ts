@@ -10,7 +10,6 @@ import {
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
-import loadConfig from '../../server/config'
 import type { Telemetry } from '../../telemetry/storage'
 import { eventBuildFeatureUsageFromTurbopack } from '../../telemetry/events/build'
 import { isCI } from '../../server/ci-info'
@@ -18,16 +17,38 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { getSupportedBrowsers } from '../get-supported-browsers'
 import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
-import type { ProjectOptions, RawEntrypoints } from '../swc/types'
-import { Bundler } from '../../lib/bundler'
+import type {
+  Project,
+  ProjectOptions,
+  RawEntrypoints,
+  TurboEngineOptions,
+  TurbopackProjectCallbacks,
+  TurbopackResult,
+} from '../swc/types'
 import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
 
-// Only the parts of `Telemetry` the build uses, so the build worker can collect
-// the events and hand them to the main process's `Telemetry`.
-export type TurbopackBuildTelemetry = Pick<Telemetry, 'isEnabled' | 'record'>
+/** The parts of a Turbopack project that `next build` uses. */
+export type TurbopackBuildProject = Pick<
+  Project,
+  'writeAllEntrypointsToDisk' | 'featureUsage' | 'writeAnalyzeData' | 'shutdown'
+>
+
+/**
+ * Hosts the Turbopack project in another process
+ * (`experimental.turbopackBuildWorker`). That process also logs and traces
+ * the project's compilation events.
+ */
+export interface TurbopackBuildProjectHost {
+  createProject(
+    options: ProjectOptions,
+    turboEngineOptions: TurboEngineOptions,
+    callbacks: TurbopackProjectCallbacks | undefined
+  ): Promise<TurbopackResult<TurbopackBuildProject>>
+}
 
 export async function turbopackBuild(
-  telemetry: TurbopackBuildTelemetry
+  telemetry: Telemetry,
+  projectHost: TurbopackBuildProjectHost | undefined
 ): Promise<{
   duration: number
   buildTraceContext: undefined
@@ -130,35 +151,42 @@ export async function turbopackBuild(
 
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
-  const projectResult = await bindings.turbo.createProject(
-    {
-      ...sharedProjectOptions,
-      debugBuildPaths: NextBuildContext.debugBuildPaths,
-    },
-    sharedTurboOptions,
-    hasDeferredEntries && config.experimental.onBeforeDeferredEntries
-      ? {
-          onBeforeDeferredEntries: async () => {
-            const workerConfig = await loadConfig(PHASE_PRODUCTION_BUILD, dir, {
-              debugPrerender: NextBuildContext.debugPrerender,
-              reactProductionProfiling:
-                NextBuildContext.reactProductionProfiling,
-              bundler: Bundler.Turbopack,
-            })
-
-            await workerConfig.experimental.onBeforeDeferredEntries?.()
-          },
-        }
+  const projectOptions: ProjectOptions = {
+    ...sharedProjectOptions,
+    debugBuildPaths: NextBuildContext.debugBuildPaths,
+  }
+  const onBeforeDeferredEntries = config.experimental.onBeforeDeferredEntries
+  const callbacks: TurbopackProjectCallbacks | undefined =
+    hasDeferredEntries && onBeforeDeferredEntries
+      ? { onBeforeDeferredEntries: async () => onBeforeDeferredEntries() }
       : undefined
-  )
-  const project = projectResult.value
+
+  let projectResult: TurbopackResult<TurbopackBuildProject>
+  let compilationEvents: Promise<void>
   const shutdownController = new AbortController()
-  const compilationEvents = backgroundLogCompilationEvents(project, {
-    // Compilation events carry their own timestamps, so they hang directly off
-    // the build rather than a synthetic grouping span.
-    parentSpan: NextBuildContext.nextBuildSpan,
-    signal: shutdownController.signal,
-  })
+  if (projectHost) {
+    projectResult = await projectHost.createProject(
+      projectOptions,
+      sharedTurboOptions,
+      callbacks
+    )
+    // Logged and traced in the process hosting the project.
+    compilationEvents = Promise.resolve()
+  } else {
+    const localResult = await bindings.turbo.createProject(
+      projectOptions,
+      sharedTurboOptions,
+      callbacks
+    )
+    projectResult = localResult
+    compilationEvents = backgroundLogCompilationEvents(localResult.value, {
+      // Compilation events carry their own timestamps, so they hang directly
+      // off the build rather than a synthetic grouping span.
+      parentSpan: NextBuildContext.nextBuildSpan,
+      signal: shutdownController.signal,
+    })
+  }
+  const project = projectResult.value
   const runShutdown = async () => {
     await project.shutdown()
     // Shutdown flushes and closes the compilation event queue, so the
