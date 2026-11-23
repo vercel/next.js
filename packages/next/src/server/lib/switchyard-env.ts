@@ -24,3 +24,10 @@ export const SWITCHYARD_TOKEN_ENV = '__NEXT_PRIVATE_SWITCHYARD_TOKEN'
  */
 export const SWITCHYARD_ROUTE_GO_MAXPROCS_ENV =
   '__NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS'
+
+/**
+ * `0` keeps Switchyard on but sends every request through Node, as in its
+ * first version, so the direct path to route.go workers can be compared with
+ * the path through Node, or switched off on its own.
+ */
+export const SWITCHYARD_DIRECT_ENV = '__NEXT_EXPERIMENTAL_SWITCHYARD_DIRECT'
