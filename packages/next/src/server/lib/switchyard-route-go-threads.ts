@@ -23,10 +23,20 @@ export const DEFAULT_ROUTE_GO_MAXPROCS = 4
  * __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS, when Go would accept it,
  * sets it. Otherwise a GOMAXPROCS the user set is kept (the worker inherits
  * it). Otherwise the default applies, but never above `cores`
- * (os.availableParallelism(), which counts a container's CPU quota on
- * current Node versions). Go 1.24 doesn't count the quota itself, so without
- * this a worker in a 2-CPU container on a large host would run on every one
- * of the host's cores.
+ * (os.availableParallelism()). Go 1.24 doesn't count a container's CPU
+ * quota, so without this a worker in a 2-CPU container on a large host would
+ * run on every one of the host's cores.
+ *
+ * Limits (measured in a 2-CPU container on a 15-core host):
+ * - os.availableParallelism() counts the quota on Node 22 and 24 (2), not on
+ *   Node 20 (15), so on Node 20 such a container gets 4.
+ * - Go 1.25 and later count the quota themselves and follow changes while the
+ *   process runs; any GOMAXPROCS, this one included, turns that off. With
+ *   Node 22 or 24 the result is the same number, fixed at start; with Node 20
+ *   it is 4 where Go would have picked 2.
+ * - A CPU-bound handler can use at most 4 cores per worker, also for requests
+ *   that go through Node. __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS
+ *   raises it.
  */
 export function routeGoMaxProcs(
   env: Readonly<Record<string, string | undefined>>,
