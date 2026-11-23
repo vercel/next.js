@@ -61,6 +61,32 @@ describe('static Go config', () => {
         await next.patchFile('proxy.go', source)
       }
     })
+
+    it('fails requests instead of skipping the proxy while its Config is invalid', async () => {
+      // Go accepts the literal; Next.js matcher validation rejects it, which
+      // `next build` reports as an error. Dev must not serve the routes the
+      // proxy guards without running it.
+      const source = await next.readFile('proxy.go')
+      try {
+        await next.patchFile(
+          'proxy.go',
+          source.replace('Source: "/configured"', 'Source: "invalid"')
+        )
+        await retry(async () => {
+          const response = await next.fetch('/configured')
+          expect(response.status).toBe(500)
+          expect(await response.text()).not.toBe('configured route')
+        })
+        expect(next.cliOutput).toContain('must start with /')
+      } finally {
+        await next.patchFile('proxy.go', source)
+      }
+      await retry(async () => {
+        const response = await next.fetch('/configured')
+        expect(await response.text()).toBe('configured route')
+        expect(response.headers.get('x-static-go-config')).toBe('matched')
+      })
+    })
   }
 
   if (isNextStart) {
@@ -144,6 +170,12 @@ describe('static Go config diagnostics', () => {
       error: 'positive integer literal',
     },
     {
+      file: 'app/configured/route.go',
+      from: 'const MaxDuration = 17',
+      to: 'const MaxDuration time.Duration = 17',
+      error: 'number of seconds',
+    },
+    {
       file: 'proxy.go',
       from: 'Source: "/configured"',
       to: 'Source: "invalid"',
@@ -160,6 +192,11 @@ describe('static Go config diagnostics', () => {
           patched = patched.replace('"net/http"', '"net/http"\n"os"')
         if (to.includes('duration()'))
           patched += '\nfunc duration() int { return 17 }\n'
+        if (to.includes('time.Duration'))
+          patched = patched.replace(
+            'import "net/http"',
+            'import (\n"net/http"\n"time"\n)'
+          )
         await next.patchFile(file, patched)
         const result = await next.build()
         expect(result.exitCode).not.toBe(0)

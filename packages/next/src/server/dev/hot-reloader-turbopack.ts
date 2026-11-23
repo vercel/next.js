@@ -38,6 +38,7 @@ import type {
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { readGoProxyConfig } from '../../build/analysis/go-config'
+import type { ProxyMatcher } from '../../build/analysis/get-page-static-info'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   BLOCKED_PAGES,
@@ -1319,29 +1320,24 @@ export async function createHotReloaderTurbopack(
                 opts.isSrcDir ? 'src' : '',
                 'proxy.go'
               )
+              let matchers: ProxyMatcher[]
               try {
-                const { matchers } = await readGoProxyConfig(
-                  join(distDir, 'server', 'middleware.native.json'),
-                  proxyPath,
-                  nextConfig
-                )
-                serverFields.middleware = {
-                  // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
-                  // eslint-disable-next-line @next/internal/no-as-any
-                  match: null as any,
-                  page: '/',
-                  matchers,
-                  runtime: 'go',
-                  nativeEntry: 'middleware.native.json',
-                }
-                opts.fsChecker.middlewareMatcher =
-                  getMiddlewareRouteMatcher(matchers)
+                matchers = (
+                  await readGoProxyConfig(
+                    join(distDir, 'server', 'middleware.native.json'),
+                    proxyPath,
+                    nextConfig
+                  )
+                ).matchers
+                serverFields.goProxyConfigError = undefined
               } catch (error) {
                 // `next build` fails on an invalid Config. In dev, report it as a
                 // compilation error of the proxy entry, which the next successful
-                // compile clears, and match no paths until then. Keeping the
-                // previous matchers would run the proxy on every path on the first
-                // compile, when they are still the default `/:path*`.
+                // compile clears. Until then the proxy matches every path and
+                // `ensureMiddleware` fails each request with this error: matching
+                // nothing would serve routes the proxy protects, and keeping the
+                // previous matchers would run it with a configuration that no
+                // longer applies.
                 const message =
                   error instanceof Error ? error.message : String(error)
                 const issue: Issue = {
@@ -1357,11 +1353,20 @@ export async function createHotReloaderTurbopack(
                 issues.set(getIssueKey(issue), issue)
                 currentEntryIssues.set(key, issues)
                 Log.error(message)
-                if (serverFields.middleware?.runtime === 'go') {
-                  serverFields.middleware.matchers = []
-                }
-                opts.fsChecker.middlewareMatcher = getMiddlewareRouteMatcher([])
+                serverFields.goProxyConfigError = message
+                matchers = [{ regexp: '^/.*$', originalSource: '/:path*' }]
               }
+              serverFields.middleware = {
+                // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
+                // eslint-disable-next-line @next/internal/no-as-any
+                match: null as any,
+                page: '/',
+                matchers,
+                runtime: 'go',
+                nativeEntry: 'middleware.native.json',
+              }
+              opts.fsChecker.middlewareMatcher =
+                getMiddlewareRouteMatcher(matchers)
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
