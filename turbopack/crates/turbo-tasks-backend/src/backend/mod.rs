@@ -695,20 +695,17 @@ fn lock_task_and_optional_reader<'e>(
     };
 
     // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
-    // reader too in that common case. When the task is still mutable, drop the speculative lock
-    // and reacquire both locks together to preserve the invalidation race guarantee.
+    // reader too in that common case. When the task is still mutable, lock the reader together
+    // with it to preserve the invalidation race guarantee: locking the reader separately could
+    // lose an invalidation that races with dependency edge insertion.
     if task.immutable() && !cfg!(feature = "verify_immutable") {
         Some((task, None))
     } else {
-        drop(task);
-
-        // Having a task_pair here is not optimal, but locking the reader separately could lose an
-        // invalidation that races with dependency edge insertion.
-        // TODO(sokra): solve this more performantly for mutable tasks.
-        let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-        // The task can become immutable between the speculative task lock and the pair lock.
-        // Recheck under the final lock so callers can rely on a reader guard only being returned
-        // when dependency edges may still be added.
+        // Keeps the task locked when the reader can be locked right away, otherwise relocks both.
+        let (task, reader) = ctx.task_pair_upgrade(task, reader_id, TaskDataCategory::All);
+        // When the task was relocked, it can have become immutable in between. Recheck under the
+        // final lock so callers can rely on a reader guard only being returned when dependency
+        // edges may still be added.
         if task.immutable() && !cfg!(feature = "verify_immutable") {
             drop(reader);
             Some((task, None))
@@ -1308,8 +1305,9 @@ impl TurboTasksBackend {
         let provisional = CellKey::provisional(id);
         // GC removed both halves of the edge when it collected the task. Drop the reader's half
         // anyway, so nothing is left behind if it didn't. Checking existence first is race-free:
-        // the context excludes GC until it's dropped, and `task_pair` restores an evicted task.
-        if ctx.try_task(task_id, TaskDataCategory::All).is_none() {
+        // the context excludes GC until it's dropped, and if `task_pair_upgrade` has to relock the
+        // task, it restores it when it was evicted in between.
+        let Some(task) = ctx.try_task(task_id, TaskDataCategory::All) else {
             let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
             reader_task.remove_cell_dependencies_keyed(&(target, provisional));
             reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
@@ -1317,8 +1315,9 @@ impl TurboTasksBackend {
                 task_id,
                 "refine_provisional_cell_dependency",
             ));
-        }
-        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
+        };
+        let (mut task, mut reader_task) =
+            ctx.task_pair_upgrade(task, reader, TaskDataCategory::All);
         let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
         if !immutable && !task.cell_data_contains(&cell) {
             return Ok(());
