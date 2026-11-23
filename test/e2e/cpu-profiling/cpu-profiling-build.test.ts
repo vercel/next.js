@@ -52,9 +52,14 @@ describe('CPU Profiling - next build', () => {
     expect(new Set(staticWorkerPids).size).toBe(2)
 
     if (isTurbopack) {
-      // Turbopack builds in the main build process, so the profiles are
-      // build-main plus the two static workers.
-      expect(cpuProfiles.length).toBe(3)
+      // Turbopack compiles in the build worker
+      // (`experimental.turbopackBuildWorker`), which writes its own profile,
+      // so the profiles are build-main, build-turbopack and the two static
+      // workers.
+      expect(cpuProfiles.length).toBe(4)
+      expect(cpuProfiles.some((f) => f.startsWith('build-turbopack-'))).toBe(
+        true
+      )
     } else {
       // Webpack mode additionally generates build-webpack-client,
       // build-webpack-server and build-webpack-edge-server.
