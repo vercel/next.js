@@ -24,6 +24,7 @@ describe('switchyard-route-table', () => {
       ['/docs/[...path]', ['docs', { rest: 'path', min: 1 }]],
       ['/docs/[[...path]]', ['docs', { rest: 'path', min: 0 }]],
       ['/[lang]/[...path]', [{ param: 'lang' }, { rest: 'path', min: 1 }]],
+      ['/[[...slug]]', [{ rest: 'slug', min: 0 }]],
     ])('reads %s', (page, pattern) => {
       expect(patternOf(page)).toEqual(pattern)
     })
@@ -35,9 +36,12 @@ describe('switchyard-route-table', () => {
       // Interception routes.
       '/feed/(.)[id]',
       '/feed/(..)photo/[id]',
+      '/feed/(.)[[...rest]]',
       // Brackets that aren't a whole-segment parameter.
       '/a[b]',
       '/[id]x',
+      // The router reads parameter a, then the literal "[b]".
+      '/x/[a][b]',
     ])('refuses %s', (page) => {
       expect(patternOf(page)).toBeUndefined()
     })
