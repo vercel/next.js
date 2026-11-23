@@ -5,7 +5,7 @@ description: >
   including Turbopack crates and next-napi-bindings. Use for native-binding
   rebuilds before e2e tests, clippy or Miri, Turbopack snapshot and execution
   fixtures, UPDATE=1 snapshot refreshes, fixture discovery, analyzer graph
-  snapshots, task-statistics snapshots, wasi test failures, worktree target
+  snapshots, wasi test failures, worktree target
   directory mistakes, Rust disk usage, TURBO_ENGINE_IGNORE_DIRTY, persistent
   cache benchmarks, RSS measurements, or Criterion runs.
 metadata:
@@ -84,9 +84,6 @@ pnpm build-all
 - Analyzer graph snapshots include `Effect` debug output. After changing it,
   run `UPDATE=1 cargo test -p turbopack-ecmascript --lib analyzer::tests` and
   check that the snapshot diff contains only the intended change.
-- `test/e2e/app-dir/turbopack-portable-build-cache` snapshots executed
-  turbo-tasks functions. Run it after adding task functions that execute during
-  builds.
 
 ## wasi tests
 
@@ -111,15 +108,6 @@ Use `scripts/wasi-test-host/README.md` for host setup and commands.
   when you need instrumentation output.
 - Parallel copies of tests that use a persistent cache need separate cache or
   target directories.
-
-## turbo_tasks gotchas
-
-- A `#[turbo_tasks::value_impl]` block should contain task functions. Put plain
-  helpers in free functions.
-- Task functions receive clones of their inputs. Don't infer stored-input
-  capacity from the value inside the function.
-- In JavaScript generated with Rust `format!`, escape literal braces as `{{` and
-  `}}`.
 
 ## Related Skills
 

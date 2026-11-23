@@ -43,19 +43,21 @@ in Turbopack crates. For render-pipeline throughput, see
   the CPU model, since the host can change between batches.
 - Don't run cargo builds while a Criterion benchmark is running.
 - With SMT, "N CPUs" scaling runs should pin one logical CPU per physical core
-  (`taskset`), together with `TURBO_TASKS_AVAILABLE_PARALLELISM`.
+  (`taskset` on Linux), together with `TURBO_TASKS_AVAILABLE_PARALLELISM`.
 - Large `.next` caches take several GB per arm. Check free disk before each
   build.
 
 ## Measure memory correctly
 
-- `wait4()` / `ru_maxrss` is the peak of the single largest process in the
-  waited tree, not the main process and not the tree total. It is KiB, so
-  KiB/1024 is MiB.
-- Report roles separately: the launched process's `VmHWM` (poll
-  `/proc/<pid>/status`), the largest process, and a sampled sum of `VmRSS`
-  over the tree (or cgroup `memory.peak`). For `next dev` the large process is
-  the forked server, not the CLI parent.
+- For `next dev` the large process is the forked server, not the CLI parent.
+  Report the launched process, the largest process, and the whole process tree
+  separately.
+- On Linux:
+  - `wait4()` / `ru_maxrss` is the peak of the single largest process in the
+    waited tree, not the main process and not the tree total. It is KiB.
+  - Poll `VmHWM` in `/proc/<pid>/status` for one process. For the tree, sample
+    the sum of `VmRSS` or read cgroup `memory.peak`.
+- On macOS, `ru_maxrss` is in bytes, and `/proc` and cgroups don't exist.
 - `.next/trace` has thousands of events. Aggregate the direct children of
   `next-build` (for example `turbopack-module-graph`,
   `turbopack-write-entrypoints`, `turbopack-persistence`, `static-generation`)
