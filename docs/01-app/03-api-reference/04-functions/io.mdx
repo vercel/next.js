@@ -85,7 +85,9 @@ If an operation already suspends prerendering, such as an uncached `fetch` or as
 
 During build-time prerendering, awaiting [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) suspends before the following code executes. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), these APIs can resolve during runtime prerendering. An uncached read of time or randomness after these APIs can still trigger a prerender error, even inside `<Suspense>`.
 
-Call `await io()` before the synchronous read, or [before calling a helper that performs it](/docs/messages/blocking-prerender-current-time#when-a-library-reads-the-time). To keep the helper eligible for runtime prefetching instead, [read the required request values outside a `use cache` scope and pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions). Include the synchronous read in the cached scope.
+Call `await io()` before the synchronous read, or before calling a helper that performs it. To keep the helper eligible for runtime prefetching instead, [read the required request values outside a `use cache` scope and pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions). Include the synchronous read in the cached scope.
+
+If the error doesn't identify the helper that read the time, see [Find the clock read in a stack trace](/docs/messages/blocking-prerender-current-time#find-the-clock-read-in-a-stack-trace).
 
 ## How `io()` differs from `connection()`
 

@@ -22,7 +22,7 @@ kind: error
   come back here for the specific fix.
 </div>
 
-During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake "now" into the prerendered HTML. The timestamp at build time will be stale at runtime.
+During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date). [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) can reuse the prerendered HTML on later requests, so a timestamp captured at build time can be stale when someone visits the page.
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
@@ -73,7 +73,7 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 
 ## Generate on every request
 
-Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. With Cache Components, prefer [`await io()`](/docs/app/api-reference/functions/io#how-io-differs-from-connection) before the clock read. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. Prefer [`await io()`](/docs/app/api-reference/functions/io#how-io-differs-from-connection) before the clock read. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
 
 ### Patterns
 
@@ -310,9 +310,15 @@ After applying a fix, reload the route and confirm the page immediately paints m
 
 In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-### When a library reads the time
+### Find the clock read in a stack trace
 
-If the highlighted line doesn't read the clock, check the helper it calls or the component it renders. For example, the stack trace may point to `isPast(deadline)` in your app even though `date-fns` calls `Date.now()` internally. The component that calls `isPast` is where you can change when the check runs.
+If `next build --debug-prerender` still shows `at ignore-listed frames` instead of the call that read the clock, rerun the build with the internal `__NEXT_SHOW_IGNORE_LISTED` environment variable. This includes normally hidden frames in the terminal output:
+
+```bash filename="Terminal"
+__NEXT_SHOW_IGNORE_LISTED=true npm exec -- next build --debug-prerender
+```
+
+Look for the caller of `Date.now()` or `new Date()`. For example, a frame such as `readCurrentTime (node_modules/blocking-widget/index.js:4:10)` identifies the helper that read the clock. An application frame farther down, such as `Page (app/page.jsx:7:7)`, shows where your app rendered the widget.
 
 ## Why `instant = false` doesn't clear this error
 
