@@ -27,35 +27,6 @@ import {
 // of continuing as an orphan.
 process.once('disconnect', () => process.exit(1))
 
-/**
- * Errors are sent to the main process through JSON, which drops the
- * non-enumerable `cause`. Make it enumerable and serializable, so the main
- * process can restore it.
- */
-function prepareErrorForParent(err: unknown): unknown {
-  if (err instanceof Error && err.cause !== undefined) {
-    const { cause } = err
-    Object.defineProperty(err, 'cause', {
-      value:
-        cause instanceof Error
-          ? { name: cause.name, message: cause.message, stack: cause.stack }
-          : cause,
-      enumerable: true,
-      configurable: true,
-      writable: true,
-    })
-  }
-  return err
-}
-
-async function forParent<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn()
-  } catch (err) {
-    throw prepareErrorForParent(err)
-  }
-}
-
 let project: Project | undefined
 let workerSpan: Span | undefined
 let compilationEvents: Promise<void> = Promise.resolve()
@@ -108,34 +79,32 @@ export async function prepare(useWasmBinary: boolean): Promise<void> {
   await installBindings(useWasmBinary)
 }
 
-export function createProject(data: {
+export async function createProject(data: {
   options: NapiProjectOptions
   turboEngineOptions: TurboEngineOptions
   hasOnBeforeDeferredEntries: boolean
   traceState: TraceState
   parentSpanId: SpanId
 }): Promise<Omit<TurbopackResult<unknown>, 'value'>> {
-  return forParent(async () => {
-    initializeTraceState(data.traceState)
-    // Spans of this worker, including Turbopack's compilation events, are
-    // recorded as descendants of this span.
-    workerSpan = trace('turbopack-build-worker', data.parentSpanId)
+  initializeTraceState(data.traceState)
+  // Spans of this worker, including Turbopack's compilation events, are
+  // recorded as descendants of this span.
+  workerSpan = trace('turbopack-build-worker', data.parentSpanId)
 
-    const { value, ...result } =
-      await getBindingsSync().turbo.createProjectFromSerializedOptions(
-        withWorkerNodeOptions(data.options),
-        data.turboEngineOptions,
-        data.hasOnBeforeDeferredEntries
-          ? { onBeforeDeferredEntries: setupDeferredEntriesCallback() }
-          : undefined
-      )
-    project = value
-    compilationEvents = backgroundLogCompilationEvents(value, {
-      parentSpan: workerSpan,
-      signal: compilationEventsController.signal,
-    })
-    return result
+  const { value, ...result } =
+    await getBindingsSync().turbo.createProjectFromSerializedOptions(
+      withWorkerNodeOptions(data.options),
+      data.turboEngineOptions,
+      data.hasOnBeforeDeferredEntries
+        ? { onBeforeDeferredEntries: setupDeferredEntriesCallback() }
+        : undefined
+    )
+  project = value
+  compilationEvents = backgroundLogCompilationEvents(value, {
+    parentSpan: workerSpan,
+    signal: compilationEventsController.signal,
   })
+  return result
 }
 
 /**
@@ -164,33 +133,31 @@ let pendingWriteAllEntrypoints:
   | Promise<WriteAllEntrypointsToDiskResult>
   | undefined
 
-export function writeAllEntrypointsToDisk(
+export async function writeAllEntrypointsToDisk(
   appDirOnly: boolean
 ): Promise<WriteAllEntrypointsToDiskResult> {
-  return forParent(async () => {
-    const written = getProject()
-      .writeAllEntrypointsToDisk(appDirOnly)
-      .then(
-        (entrypoints): WriteAllEntrypointsToDiskResult => ({
-          type: 'done',
-          entrypoints: entrypointsToTransferable(entrypoints),
-        })
-      )
-    if (!deferredEntriesCallback) {
-      return written
-    }
-    pendingWriteAllEntrypoints = written
-    // Don't report it as unhandled while the main process runs the callback.
-    written.catch(() => {})
-    return Promise.race([
-      written,
-      deferredEntriesCallback.reached.then(
-        (): WriteAllEntrypointsToDiskResult => ({
-          type: 'before-deferred-entries',
-        })
-      ),
-    ])
-  })
+  const written = getProject()
+    .writeAllEntrypointsToDisk(appDirOnly)
+    .then(
+      (entrypoints): WriteAllEntrypointsToDiskResult => ({
+        type: 'done',
+        entrypoints: entrypointsToTransferable(entrypoints),
+      })
+    )
+  if (!deferredEntriesCallback) {
+    return written
+  }
+  pendingWriteAllEntrypoints = written
+  // Don't report it as unhandled while the main process runs the callback.
+  written.catch(() => {})
+  return Promise.race([
+    written,
+    deferredEntriesCallback.reached.then(
+      (): WriteAllEntrypointsToDiskResult => ({
+        type: 'before-deferred-entries',
+      })
+    ),
+  ])
 }
 
 /**
@@ -198,62 +165,60 @@ export function writeAllEntrypointsToDisk(
  * and returns the result of `writeAllEntrypointsToDisk`. When the callback
  * failed, `error` is passed back to Turbopack and the call rejects.
  */
-export function continueAfterDeferredEntries(
+export async function continueAfterDeferredEntries(
   error: { message: string; stack?: string } | undefined
 ): Promise<WriteAllEntrypointsToDiskResult> {
-  return forParent(async () => {
-    if (!deferredEntriesCallback || !pendingWriteAllEntrypoints) {
-      throw new Error('Turbopack is not waiting for onBeforeDeferredEntries')
-    }
-    let callbackError: Error | undefined
-    if (error) {
-      callbackError = new Error(error.message)
-      callbackError.stack = error.stack
-    }
-    deferredEntriesCallback.resume(callbackError)
-    return pendingWriteAllEntrypoints
-  })
+  if (!deferredEntriesCallback || !pendingWriteAllEntrypoints) {
+    throw new Error('Turbopack is not waiting for onBeforeDeferredEntries')
+  }
+  let callbackError: Error | undefined
+  if (error) {
+    callbackError = new Error(error.message)
+    callbackError.stack = error.stack
+  }
+  deferredEntriesCallback.resume(callbackError)
+  return pendingWriteAllEntrypoints
 }
 
 export function featureUsage(): Promise<BuildFeatureUsage[]> {
-  return forParent(() => getProject().featureUsage())
+  return getProject().featureUsage()
 }
 
 export function writeAnalyzeData(
   appDirOnly: boolean
 ): Promise<TurbopackResult<void>> {
-  return forParent(() => getProject().writeAnalyzeData(appDirOnly))
+  return getProject().writeAnalyzeData(appDirOnly)
 }
 
 /**
  * Shuts Turbopack down (which persists its cache) and returns the trace events
  * recorded in this worker, so the main process can write them.
  */
-export function shutdownProject(): Promise<{ traceEvents: TraceEvent[] }> {
-  return forParent(async () => {
-    shutdownPromise ??= (async () => {
-      await project?.shutdown()
-      // Shutdown flushes and closes the compilation event queue, so the
-      // subscription ends once final events (e.g. persistence, compaction
-      // trace spans) have been delivered. The timeout is only a backstop
-      // against a subscription that never closes.
-      await Promise.race([
-        compilationEvents,
-        new Promise((resolve) => setTimeout(resolve, 10_000).unref()),
-      ])
-      compilationEventsController.abort()
-      await compilationEvents
-      workerSpan?.stop()
-    })()
-    await shutdownPromise
-    // Writes to the stdio pipes are asynchronous. Flush what was logged during
-    // shutdown before the main process ends this process.
-    await Promise.all(
-      [process.stdout, process.stderr].map(
-        (stream) =>
-          new Promise<void>((resolve) => stream.write('', () => resolve()))
-      )
+export async function shutdownProject(): Promise<{
+  traceEvents: TraceEvent[]
+}> {
+  shutdownPromise ??= (async () => {
+    await project?.shutdown()
+    // Shutdown flushes and closes the compilation event queue, so the
+    // subscription ends once final events (e.g. persistence, compaction
+    // trace spans) have been delivered. The timeout is only a backstop
+    // against a subscription that never closes.
+    await Promise.race([
+      compilationEvents,
+      new Promise((resolve) => setTimeout(resolve, 10_000).unref()),
+    ])
+    compilationEventsController.abort()
+    await compilationEvents
+    workerSpan?.stop()
+  })()
+  await shutdownPromise
+  // Writes to the stdio pipes are asynchronous. Flush what was logged during
+  // shutdown before the main process ends this process.
+  await Promise.all(
+    [process.stdout, process.stderr].map(
+      (stream) =>
+        new Promise<void>((resolve) => stream.write('', () => resolve()))
     )
-    return { traceEvents: getTraceEvents() }
-  })
+  )
+  return { traceEvents: getTraceEvents() }
 }

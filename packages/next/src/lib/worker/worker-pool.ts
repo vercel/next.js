@@ -17,7 +17,65 @@ import {
   PARENT_MESSAGE_LOAD_ERROR,
   type ParentMessage,
   type ChildMessageInitialize,
+  type SerializedErrorCause,
 } from './types'
+
+/**
+ * Create an error with the named global constructor (e.g. TypeError,
+ * RangeError) when there is one, or a plain `Error`.
+ */
+function createError(name: string, message: string): Error {
+  const ErrorConstructor = (globalThis as Record<string, unknown>)[name]
+  if (
+    typeof ErrorConstructor === 'function' &&
+    (ErrorConstructor === Error || ErrorConstructor.prototype instanceof Error)
+  ) {
+    return new (ErrorConstructor as ErrorConstructor)(message)
+  }
+  return new Error(message)
+}
+
+/**
+ * Set the jest-worker compatible `type` property (the name of the error's
+ * constructor in the worker). It's non-enumerable, so it doesn't show up when
+ * the error is printed.
+ */
+function setErrorType(error: Error, type: unknown): void {
+  Object.defineProperty(error, 'type', {
+    value: type,
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  })
+}
+
+/** Recreate the `cause` of an error thrown in a worker. */
+function deserializeCause(cause: SerializedErrorCause): unknown {
+  if ('value' in cause) {
+    return cause.value
+  }
+  const error = createError(cause.name, cause.message)
+  if (error.name !== cause.name) {
+    error.name = cause.name
+  }
+  error.stack = cause.stack
+  Object.assign(error, cause.properties)
+  // JSON (child processes) sends a missing cause as `null`.
+  if (cause.cause != null) {
+    setErrorCause(error, cause.cause)
+  }
+  return error
+}
+
+/** Set `cause` as a non-enumerable property, like `new Error(msg, { cause })`. */
+function setErrorCause(error: Error, cause: SerializedErrorCause): void {
+  Object.defineProperty(error, 'cause', {
+    value: deserializeCause(cause),
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  })
+}
 
 /**
  * Error thrown when a worker process exits unexpectedly (non-zero exit code
@@ -803,10 +861,8 @@ export class WorkerPool {
       }
       case PARENT_MESSAGE_SETUP_ERROR: {
         this._reportActivity(worker)
-        const error: Error & { type?: unknown } = new Error(
-          'Error when calling setup: ' + message[2]
-        )
-        error.type = message[1]
+        const error = new Error('Error when calling setup: ' + message[2])
+        setErrorType(error, message[1])
         error.stack = message[3]
         // setup() threw, but require() already ran — main is set and the worker
         // can still handle CALLs. Reject any active requests, then transition to
@@ -844,8 +900,8 @@ export class WorkerPool {
   /**
    * Reconstruct an Error from a CLIENT_ERROR message.
    * If the child sent errorProperties (extra fields like `code`), they are
-   * copied onto the error instance. A thrown non-object value (e.g. a string)
-   * is passed through as-is.
+   * copied onto the error instance, and its `cause` is recreated. A thrown
+   * non-object value (e.g. a string) is passed through as-is.
    */
   private _deserializeError(
     message: Extract<
@@ -853,27 +909,25 @@ export class WorkerPool {
       [typeof PARENT_MESSAGE_CLIENT_ERROR, ...any]
     >
   ): unknown {
-    const [, , errorName, errorMessage, errorStack, errorProperties] = message
+    const [, , errorName, errorMessage, errorStack, errorProperties, cause] =
+      message
 
     if (errorProperties === null || typeof errorProperties !== 'object') {
       // e.g. `throw 'message'`: the child sends the value itself.
       return errorProperties
     }
 
-    // Use the named global constructor (e.g. TypeError, RangeError) when available
-    const ErrorConstructor =
-      typeof (globalThis as Record<string, unknown>)[errorName] === 'function'
-        ? ((globalThis as Record<string, unknown>)[
-            errorName
-          ] as ErrorConstructor)
-        : Error
-
-    const error: Error & { type?: unknown } = new ErrorConstructor(errorMessage)
-    error.type = errorName
+    const error = createError(errorName, errorMessage)
+    setErrorType(error, errorName)
     error.stack = errorStack
 
     // Copy extra properties (e.g. `code`, `digest`) onto the error
     Object.assign(error, errorProperties)
+    // JSON (child processes) sends a missing cause as `null`; a `null` cause
+    // itself is sent as `{ value: null }`.
+    if (cause != null) {
+      setErrorCause(error, cause)
+    }
 
     return error
   }
@@ -963,10 +1017,8 @@ export class WorkerPool {
     message: Extract<ParentMessage, [typeof PARENT_MESSAGE_LOAD_ERROR, ...any]>
   ): void {
     const [, errorName, errorMessage, errorStack] = message
-    const error: Error & { type?: unknown } = new Error(
-      'Error when loading worker module: ' + errorMessage
-    )
-    error.type = errorName
+    const error = new Error('Error when loading worker module: ' + errorMessage)
+    setErrorType(error, errorName)
     error.stack = errorStack
 
     if (worker.state === WorkerState.BOOTING) {

@@ -16,7 +16,46 @@ import {
   PARENT_MESSAGE_READY,
   PARENT_MESSAGE_LOAD_ERROR,
   type ChildMessage,
+  type SerializedErrorCause,
 } from './types'
+
+/** How many levels of nested `cause`s are sent to the parent. */
+const MAX_CAUSE_DEPTH = 5
+
+/**
+ * Whether the error has a `cause` (an own property, like the one set by
+ * `new Error(message, { cause })`). An `undefined` cause counts as none.
+ */
+function hasOwnCause(error: unknown): error is { cause: unknown } {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    Object.prototype.hasOwnProperty.call(error, 'cause') &&
+    (error as { cause: unknown }).cause !== undefined
+  )
+}
+
+/**
+ * Serialize the `cause` of an error. It's usually a non-enumerable own
+ * property, so spreading the error doesn't include it.
+ */
+function serializeCause(cause: unknown, depth: number): SerializedErrorCause {
+  if (!(cause instanceof Error)) {
+    return { value: cause }
+  }
+  const properties: Record<string, unknown> = { ...cause }
+  delete properties.cause
+  return {
+    name: cause.name,
+    message: cause.message,
+    stack: cause.stack,
+    properties,
+    cause:
+      depth < MAX_CAUSE_DEPTH && hasOwnCause(cause)
+        ? serializeCause(cause.cause, depth + 1)
+        : undefined,
+  }
+}
 
 /** Transport abstraction: how the child sends messages back to the parent */
 export interface ChildTransport {
@@ -79,30 +118,56 @@ export function createMessageHandler(
       error = new Error('"null" or "undefined" thrown')
     }
     const e = normalizeError(error)
-    try {
+    let properties: unknown = error
+    let cause: SerializedErrorCause | undefined
+    if (typeof error === 'object') {
+      // Extra properties of the original error (e.g. `code`, `digest`).
+      const extra: Record<string, unknown> = { ...error }
+      if (hasOwnCause(error)) {
+        delete extra.cause
+        cause = serializeCause(error.cause, 1)
+      }
+      properties = extra
+    }
+    const send = (
+      extraProperties: unknown,
+      errorCause?: SerializedErrorCause
+    ) =>
       transport.send([
         PARENT_MESSAGE_CLIENT_ERROR,
         requestId,
         e.name,
         e.message,
         e.stack,
-        // Extra properties of the original error (e.g. `code`, `digest`), or
-        // a thrown non-object value (e.g. a string) itself.
-        typeof error === 'object' ? { ...error } : error,
+        // The extra properties, or a thrown non-object value (e.g. a string)
+        // itself.
+        extraProperties,
+        errorCause,
       ])
+    try {
+      send(properties, cause)
+      return
     } catch {
-      // The error's extra properties can't be serialized (e.g. a function, or
-      // circular data). Send what can always be serialized, so the call still
-      // fails with its error instead of crashing the worker.
-      transport.send([
-        PARENT_MESSAGE_CLIENT_ERROR,
-        requestId,
-        String(e.name),
-        String(e.message),
-        e.stack === undefined ? undefined : String(e.stack),
-        {},
-      ])
+      // Something can't be serialized (e.g. a function, or circular data).
     }
+    if (cause !== undefined) {
+      try {
+        // Maybe it's only the cause: keep the error's own properties.
+        send(properties)
+        return
+      } catch {}
+    }
+    // The error's extra properties can't be serialized. Send what can always
+    // be serialized, so the call still fails with its error instead of
+    // crashing the worker.
+    transport.send([
+      PARENT_MESSAGE_CLIENT_ERROR,
+      requestId,
+      String(e.name),
+      String(e.message),
+      e.stack === undefined ? undefined : String(e.stack),
+      {},
+    ])
   }
 
   function reportInitializeError(error: unknown): void {

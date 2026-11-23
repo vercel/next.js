@@ -43,16 +43,18 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 
 ### Child → Parent
 
-| Message      | Format                                                  |
-| ------------ | ------------------------------------------------------- |
-| OK           | `[0, requestId, result]`                                |
-| CLIENT_ERROR | `[1, requestId, errorName, message, stack, properties]` |
-| SETUP_ERROR  | `[2, errorName, message, stack]`                        |
-| CUSTOM       | `[3, payload]`                                          |
-| READY        | `[4]`                                                   |
-| LOAD_ERROR   | `[5, errorName, message, stack]`                        |
+| Message      | Format                                                          |
+| ------------ | --------------------------------------------------------------- |
+| OK           | `[0, requestId, result]`                                        |
+| CLIENT_ERROR | `[1, requestId, errorName, message, stack, properties, cause?]` |
+| SETUP_ERROR  | `[2, errorName, message, stack]`                                |
+| CUSTOM       | `[3, payload]`                                                  |
+| READY        | `[4]`                                                           |
+| LOAD_ERROR   | `[5, errorName, message, stack]`                                |
 
 Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized. If `setup()` fails, READY is not sent; the SETUP_ERROR handler frees the booting slot instead and the worker keeps serving calls, since its module is loaded.
+
+A call that throws rejects with an error recreated from CLIENT_ERROR: the named global constructor (e.g. `TypeError`) when there is one, the original message and stack, the error's enumerable properties (e.g. `code`, `digest`), and its `cause` (nested up to 5 levels; recreated the same way, or the value itself for a non-error cause) as a non-enumerable property, like `new Error(message, { cause })`. A thrown non-object value (e.g. a string) is passed through as-is. Errors from CLIENT_ERROR, SETUP_ERROR and LOAD_ERROR also have a jest-worker compatible `type` property (the name of the constructor in the worker), which is non-enumerable so it doesn't show up when the error is printed. When the properties or the cause can't be serialized, the cause is dropped first, then the properties.
 
 If loading the module itself fails (`require()` throws), the child sends LOAD_ERROR instead. That worker can't serve any call, so the pool fails its in-flight calls with `Error when loading worker module: <message>`, then removes the worker from the pool and terminates it. Queued calls fail with the same error if that was the last worker; otherwise they wait for the remaining workers. This exit is expected: it isn't reported via `onWorkerExit` and doesn't trigger a respawn. The next `dispatch()` spawns a fresh worker.
 

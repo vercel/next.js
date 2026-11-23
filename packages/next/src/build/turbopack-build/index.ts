@@ -59,6 +59,12 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
         'shutdownProject',
       ],
       workerName: 'Next.js Turbopack build worker',
+      // Must stay a child process, never a worker thread: the point of the
+      // worker is that all of Turbopack's (native) memory is returned to the
+      // OS when it exits, and that this process stays small so forking the
+      // static generation workers is cheap. A thread shares this process's
+      // heap, allocator and native runtime, so its memory would stay here.
+      enableWorkerThreads: false,
       maxWorkers: 1,
       maxRetries: 0,
       forkOptions: {
@@ -96,27 +102,23 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
       await getBindingsSync().turbo.serializeProjectOptions(options)
     await this.prepared
     const traceState = exportTraceState()
-    const result = await this.call(() =>
-      this.worker.createProject({
-        options: serializedOptions,
-        turboEngineOptions,
-        hasOnBeforeDeferredEntries: !!callbacks?.onBeforeDeferredEntries,
-        traceState: {
-          ...traceState,
-          lastId: traceState.lastId + WORKER_SPAN_ID_OFFSET,
-          shouldSaveTraceEvents: true,
-        },
-        parentSpanId: (
-          this.runTurbopackSpan ?? NextBuildContext.nextBuildSpan!
-        ).getId(),
-      })
-    )
+    const result = await this.worker.createProject({
+      options: serializedOptions,
+      turboEngineOptions,
+      hasOnBeforeDeferredEntries: !!callbacks?.onBeforeDeferredEntries,
+      traceState: {
+        ...traceState,
+        lastId: traceState.lastId + WORKER_SPAN_ID_OFFSET,
+        shouldSaveTraceEvents: true,
+      },
+      parentSpanId: (
+        this.runTurbopackSpan ?? NextBuildContext.nextBuildSpan!
+      ).getId(),
+    })
 
     const project: TurbopackBuildProject = {
       writeAllEntrypointsToDisk: async (appDirOnly) => {
-        let written = await this.call(() =>
-          this.worker.writeAllEntrypointsToDisk(appDirOnly)
-        )
+        let written = await this.worker.writeAllEntrypointsToDisk(appDirOnly)
         if (written.type === 'before-deferred-entries') {
           written = await this.runOnBeforeDeferredEntries(callbacks)
         }
@@ -125,13 +127,13 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
         }
         return entrypointsFromTransferable(written.entrypoints)
       },
-      featureUsage: () => this.call(() => this.worker.featureUsage()),
+      featureUsage: () => this.worker.featureUsage(),
       writeAnalyzeData: (appDirOnly) =>
-        this.call(() => this.worker.writeAnalyzeData(appDirOnly)),
+        this.worker.writeAnalyzeData(appDirOnly),
       shutdown: () => {
-        this.shutdown ??= this.call(() => this.worker.shutdownProject()).then(
-          ({ traceEvents }) => recordTraceEvents(traceEvents)
-        )
+        this.shutdown ??= this.worker
+          .shutdownProject()
+          .then(({ traceEvents }) => recordTraceEvents(traceEvents))
         return this.shutdown
       },
     }
@@ -155,16 +157,14 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
     // callback failed, Turbopack receives the error and stops compiling.
     let written: WriteAllEntrypointsToDiskResult
     try {
-      written = await this.call(() =>
-        this.worker.continueAfterDeferredEntries(
-          callbackFailure &&
-            (callbackFailure.error instanceof Error
-              ? {
-                  message: callbackFailure.error.message,
-                  stack: callbackFailure.error.stack,
-                }
-              : { message: String(callbackFailure.error) })
-        )
+      written = await this.worker.continueAfterDeferredEntries(
+        callbackFailure &&
+          (callbackFailure.error instanceof Error
+            ? {
+                message: callbackFailure.error.message,
+                stack: callbackFailure.error.stack,
+              }
+            : { message: String(callbackFailure.error) })
       )
     } catch (err) {
       if (callbackFailure) throw callbackFailure.error
@@ -172,14 +172,6 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
     }
     if (callbackFailure) throw callbackFailure.error
     return written
-  }
-
-  private async call<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn()
-    } catch (err) {
-      throw restoreWorkerError(err)
-    }
   }
 
   /**
@@ -194,38 +186,6 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
     })()
     return this.ending
   }
-}
-
-/**
- * The worker pool recreates errors thrown in the worker as `Error` instances with
- * the original message, stack and enumerable properties, plus a `type`
- * property. Remove that and restore the `cause` (see `worker.ts`), so the error
- * is reported the same way as when compiling in this process.
- */
-function restoreWorkerError(err: unknown): unknown {
-  if (!(err instanceof Error)) return err
-  const error = err as Error & { type?: unknown }
-  delete error.type
-  const { cause } = error
-  if (
-    cause !== null &&
-    typeof cause === 'object' &&
-    'message' in cause &&
-    typeof cause.message === 'string'
-  ) {
-    const restored = new Error(cause.message)
-    if ('name' in cause && typeof cause.name === 'string') {
-      restored.name = cause.name
-    }
-    restored.stack = 'stack' in cause ? String(cause.stack) : undefined
-    Object.defineProperty(error, 'cause', {
-      value: restored,
-      enumerable: false,
-      configurable: true,
-      writable: true,
-    })
-  }
-  return error
 }
 
 export async function turbopackBuild(
