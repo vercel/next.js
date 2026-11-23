@@ -35,7 +35,8 @@ type Table struct {
 	// Exact paths (basePath removed) that Node answers: public files, app
 	// and pages routes that aren't route.go.
 	nodeExact map[string]struct{}
-	// Exact paths answered by a static route.go, to its route id.
+	// Paths answered by a route.go, to its route id. A dynamic route's path
+	// (with brackets) can be in here too; no request path matches it.
 	goExact map[string]string
 	// Dynamic routes in Node's order; the first match wins.
 	dynamic []dynamicRoute
