@@ -348,10 +348,12 @@ async fn get_pages_structure_for_directory(
 
         let mut children = vec![];
         let mut items = vec![];
-        // DETERMINISM: FIXME: Sorting by basename leaves extension ties in filesystem order.
+        // DETERMINISM: Full-name sorting breaks extension ties before the stable basename sort.
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
-            for (name, entry) in entries.iter() {
+            let mut entries = entries.iter().collect::<Vec<_>>();
+            entries.sort_unstable_by_key(|(name, _)| *name);
+            for (name, entry) in entries {
                 match entry {
                     DirectoryEntry::File(_) => {
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
