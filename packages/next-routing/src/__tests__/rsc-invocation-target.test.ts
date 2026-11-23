@@ -11,7 +11,9 @@ function createReadableStream(): ReadableStream {
 
 // The rewrite an adapter build emits for a fixed-path App Router page that has
 // no prerendered `.rsc` output: its RSC and per-segment requests go to the
-// page function.
+// page function. The destination copies the base path and the page path from
+// the request, so only their exact case reaches the page. The root page's
+// rewrite names its destination, because it drops the `index` of the request.
 function rscAlias(
   basePath: string,
   normalizedPathname: string,
@@ -19,9 +21,17 @@ function rscAlias(
 ): Route {
   const escape = (value: string) =>
     value.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+  const suffix = '(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)(?<rscsuff>)(?:/)?$'
+  if (pathname === '/') {
+    return {
+      sourceRegex: `^${escape(basePath)}/index${suffix}`,
+      destination: basePath || '/',
+    }
+  }
+  const prefix = normalizedPathname === pathname ? '' : '/index'
   return {
-    sourceRegex: `^${escape(basePath)}${escape(normalizedPathname)}(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)(?<rscsuff>)(?:/)?$`,
-    destination: `${basePath}${pathname}`.replace(/\/$/, '') || '/',
+    sourceRegex: `^(${escape(basePath)})${prefix}(${escape(pathname)})${suffix}`,
+    destination: '$1$2',
   }
 }
 
@@ -92,6 +102,51 @@ describe('invocation target of RSC requests rewritten to their page', () => {
       }
     )
   }
+
+  it.each([
+    ['', '/About.rsc', '/about', '/about'],
+    ['', '/ABOUT.segments/_tree.segment.rsc', '/about', '/about'],
+    ['/docs', '/docs/About.rsc', '/about', '/about'],
+    ['/docs', '/DOCS/about.rsc', '/about', '/about'],
+    ['', '/index/index/Foo.rsc', '/index/index/foo', '/index/foo'],
+    ['/docs', '/docs/index/index/Foo.rsc', '/index/index/foo', '/index/foo'],
+  ])(
+    'does not resolve %s%s, which differs in case, to the page',
+    async (basePath, request, normalizedPathname, pathname) => {
+      const page = `${basePath}${pathname}`
+      const result = await resolve(request, {
+        basePath,
+        afterFiles: [rscAlias(basePath, normalizedPathname, pathname)],
+        pathnames: [page],
+      })
+
+      expect(result.resolvedPathname).not.toBe(page)
+    }
+  )
+
+  it.each(['', '/docs'])(
+    'invokes a page under /index with its RSC pathname with base path %p',
+    async (basePath) => {
+      const request = `${basePath}/index/index/foo.rsc`
+      const result = await resolve(request, {
+        basePath,
+        afterFiles: [rscAlias(basePath, '/index/index/foo', '/index/foo')],
+        pathnames: [`${basePath}/index/foo`],
+      })
+
+      expect(result.resolvedPathname).toBe(`${basePath}/index/foo`)
+      expect(result.invocationTarget?.pathname).toBe(request)
+    }
+  )
+
+  it('matches the extra /index prefix of a page under /index in any case', async () => {
+    const result = await resolve('/INDEX/index/foo.rsc', {
+      afterFiles: [rscAlias('', '/index/index/foo', '/index/foo')],
+      pathnames: ['/index/foo'],
+    })
+
+    expect(result.resolvedPathname).toBe('/index/foo')
+  })
 
   it('drops a trailing slash after the RSC suffix', async () => {
     const result = await resolve('/about.rsc/', {

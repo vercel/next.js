@@ -655,6 +655,29 @@ describe('adapter-config', () => {
       expect(result.invocationTarget?.pathname).toBe(pathname)
     }
 
+    // Like an exact `.rsc` output, the routing entry for a static page matches
+    // the page path and the base path only in their exact case. A request
+    // with a different case does not select the page function. The case of
+    // the `.rsc` suffix is not checked.
+    const nodeAppEntry = routing.afterFiles.find(
+      (route) =>
+        route.sourceRegex.includes('node\\-app') &&
+        route.sourceRegex.includes('\\.segments/')
+    )
+    expect(nodeAppEntry).toBeDefined()
+    for (const pathname of [
+      '/docs/Node-App.rsc',
+      '/docs/NODE-APP.segments/_tree.segment.rsc',
+      '/DOCS/node-app.rsc',
+    ]) {
+      expect((await resolve(pathname)).resolvedPathname).not.toBe(
+        '/docs/node-app'
+      )
+    }
+    expect((await resolve('/docs/node-app.RSC')).resolvedPathname).toBe(
+      '/docs/node-app'
+    )
+
     // Route handlers have no `.rsc` form.
     for (const pathname of ['/docs/node-route.rsc', '/docs/edge-route.rsc']) {
       expect((await resolve(pathname)).resolvedPathname).not.toBe(

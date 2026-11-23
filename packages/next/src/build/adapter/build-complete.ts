@@ -2796,6 +2796,18 @@ export async function handleBuildComplete({
     // would also match a doubled suffix. It ends in an unescaped `(?:/)?$`
     // instead, and defines an always-empty `rscsuff` group for adapters that
     // append `$rscsuff` to every afterFiles destination.
+    //
+    // Routes usually match case-insensitively, while an exact output only
+    // matches its own case. For a page other than the root, the destination
+    // therefore copies the base path and the page path from the request,
+    // instead of naming the page. A request in the exact case reaches the
+    // function, and a request in another case rewrites to a path that no
+    // output serves. Routing then treats it like any other unknown path.
+    //
+    // The suffix and the extra `/index` prefix that `normalizePagePath` adds
+    // to a page under `/index` match in any case. The root page's rewrite from
+    // `/index.rsc` names its destination, so its whole pattern, including the
+    // base path, also matches in any case.
     for (const pathname of rscFunctionPathnames) {
       if (isDynamicRoute(pathname)) {
         continue
@@ -2804,15 +2816,28 @@ export async function handleBuildComplete({
       if (rscOutputPathnames.has(`${normalizedPathname}.rsc`)) {
         continue
       }
-      staticRscRoutes.push({
-        source: `${normalizedPathname}.rsc`,
-        sourceRegex: `^${escapedBasePath}${escapeStringRegexp(normalizedPathname)}(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)(?<rscsuff>)(?:/)?$`,
-        destination:
-          path.posix.join('/', config.basePath, pathname).replace(/\/$/, '') ||
-          '/',
-        has: undefined,
-        missing: undefined,
-      })
+      const rscSuffix =
+        '(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)(?<rscsuff>)(?:/)?$'
+      const isRoot = pathname === '/'
+      staticRscRoutes.push(
+        isRoot
+          ? {
+              source: `${normalizedPathname}.rsc`,
+              sourceRegex: `^${escapedBasePath}/index${rscSuffix}`,
+              destination: config.basePath || '/',
+              has: undefined,
+              missing: undefined,
+            }
+          : {
+              source: `${normalizedPathname}.rsc`,
+              // `normalizePagePath` maps a page `/index/x` to `/index/index/x`.
+              // The first `/index` is matched but not copied.
+              sourceRegex: `^(${escapedBasePath})${normalizedPathname === pathname ? '' : '/index'}(${escapeStringRegexp(pathname)})${rscSuffix}`,
+              destination: '$1$2',
+              has: undefined,
+              missing: undefined,
+            }
+      )
     }
 
     const needsMiddlewareResolveRoutes =

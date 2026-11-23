@@ -115,6 +115,19 @@ describe('adapter-rsc-after-files-rewrite', () => {
     expect(segment.status).toBe(404)
   })
 
+  // Like an exact output, the RSC form of a fixed-path page only matches the
+  // page path in its exact case. A request in another case doesn't reach the
+  // page, with or without the RSC request header.
+  it('does not serve the .rsc payload of a fixed-path page for a different case', async () => {
+    for (const headers of [{}, { rsc: '1' }]) {
+      const res = await next.fetch(withBasePath('/Dynamic-Page.rsc'), {
+        headers,
+      })
+      expect(res.status).toBeLessThan(500)
+      expect(await res.text()).not.toContain('Per-request page')
+    }
+  })
+
   // A route handler has no `.rsc` form, and no routing entry rewrites the
   // request to one. The handler still serves the request. `next start` keeps
   // the `.rsc` ending in the param. Vercel removes it, with and without the
