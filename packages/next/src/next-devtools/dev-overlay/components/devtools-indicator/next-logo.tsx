@@ -556,12 +556,8 @@ export function NextLogo({
             direction={tooltipDirection}
             title={
               isCollapsed
-                ? canDrag
-                  ? `${collapsedLabel}. Drag to move.`
-                  : collapsedLabel
-                : canDrag
-                  ? 'Open DevTools menu. Drag to move.'
-                  : `${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`
+                ? 'Expand badge. Drag to move.'
+                : 'Open DevTools menu. Drag to move.'
             }
           >
             <button
