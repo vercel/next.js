@@ -149,21 +149,30 @@ func TestAWorkerThatCannotBeReachedHandsTheRequestToNode(t *testing.T) {
 	dead := ln.Addr().String()
 	ln.Close()
 	fx.announce(dead, "/api/echo/route")
-	conn, _ := net.Dial("tcp", fx.addr)
-	defer conn.Close()
-	fmt.Fprintf(conn, "POST /api/echo HTTP/1.1\r\nHost: example.com\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbody")
-	out, _ := io.ReadAll(conn)
-	if !strings.HasSuffix(string(out), "node") {
-		t.Fatalf("%q", out)
-	}
-	got := <-fx.node
-	body, _ := io.ReadAll(got.Body)
-	if got.RequestURI != "/api/echo" || string(body) != "body" {
-		t.Errorf("Node got %q with body %q", got.RequestURI, body)
-	}
-	for _, name := range []string{"X-Next-Internal-Go-Token", "X-Forwarded-Host", "X-Forwarded-Proto"} {
-		if value := got.Header.Get(name); value != "" {
-			t.Errorf("fallback added %s: %q", name, value)
+	for _, c := range []struct{ request, body string }{
+		{"GET /api/echo HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n", ""},
+		{"POST /api/echo HTTP/1.1\r\nHost: example.com\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbody", "body"},
+	} {
+		conn, err := net.Dial("tcp", fx.addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.SetDeadline(time.Now().Add(5 * time.Second))
+		io.WriteString(conn, c.request)
+		out, err := io.ReadAll(conn)
+		conn.Close()
+		if err != nil || !strings.HasSuffix(string(out), "node") {
+			t.Fatalf("%q: %q, %v", c.request, out, err)
+		}
+		got := <-fx.node
+		body, _ := io.ReadAll(got.Body)
+		if got.RequestURI != "/api/echo" || string(body) != c.body {
+			t.Errorf("Node got %q with body %q", got.RequestURI, body)
+		}
+		for _, name := range []string{"X-Next-Internal-Go-Token", "X-Forwarded-Host", "X-Forwarded-Proto"} {
+			if value := got.Header.Get(name); value != "" {
+				t.Errorf("fallback added %s: %q", name, value)
+			}
 		}
 	}
 }
