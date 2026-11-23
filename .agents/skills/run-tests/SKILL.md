@@ -44,7 +44,7 @@ The basic commands are in the root `AGENTS.md`. For flaky tests, read
   those roots reports `No tests found`. Use a temporary worktree for experiments.
 - `node run-tests.js` is the CI runner:
   - `--retries 0 --runs N` repeats each selected file; repeats require
-    `--retries 0`.
+    `--retries 0` and fail when `NEXT_SKIP_ISOLATE` is set.
   - `--concurrency 1` serializes files.
   - `--debug` shows test output.
   - It selects files, not individual test names. Use a Jest script with `-t` to
@@ -55,9 +55,12 @@ The basic commands are in the root `AGENTS.md`. For flaky tests, read
 - Inline snapshots can depend on CI env flags. Use the exact `afterBuild:` flags
   from `.github/workflows/build_and_test.yml`, keep them set for the full run,
   and use the same bundler. For example `build-output-prerender` expects
-  `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true`. Bundler choice also changes
-  output: Turbopack resolves `react-dom/server.edge` (no Node APIs such as
-  `renderToPipeableStream`), while webpack resolves the Node build.
+  `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true`. The `react-dom/server` build
+  depends on runtime and bundler: Edge contexts get `server.edge` (no
+  `renderToPipeableStream`), Node contexts get `server.node`, and the Pages
+  renderer differs between bundlers. Check
+  `crates/next-core/src/next_import_map.rs` (Turbopack) and
+  `packages/next/src/build/create-compiler-aliases.ts` (webpack).
 - For exact replication of a failed job, use `$pr-status-triage` and its
   `local-repro.md`.
 - Isolated installs use a `.node` file from `packages/next-swc/native` when
