@@ -46,6 +46,7 @@ describe('devtools-position-default', () => {
       ).find((p) => p.shadowRoot?.querySelector('[data-nextjs-toast]'))
       const indicator = portal?.shadowRoot?.querySelector('[data-nextjs-toast]')
       const draggable = indicator?.firstElementChild as HTMLElement
+      const logo = draggable.querySelector('[data-next-mark]')!
 
       Element.prototype.setPointerCapture = function () {}
       Element.prototype.hasPointerCapture = function () {
@@ -71,13 +72,14 @@ describe('devtools-position-default', () => {
           bubbles: true,
         })
 
-      const box = draggable.getBoundingClientRect()
+      const box = logo.getBoundingClientRect()
       const x = box.x + box.width / 2
       const y = box.y + box.height / 2
 
-      draggable.dispatchEvent(pointerEvent('pointerdown', x, y))
+      logo.dispatchEvent(pointerEvent('pointerdown', x, y))
       // past the 5px threshold, so the drag actually starts
       window.dispatchEvent(pointerEvent('pointermove', x + 40, y - 40))
+      const duringDrag = draggable.style.translate
       window.dispatchEvent(pointerEvent('pointercancel', x + 40, y - 40))
       const afterCancel = draggable.style.translate
 
@@ -87,10 +89,16 @@ describe('devtools-position-default', () => {
       window.dispatchEvent(pointerEvent('pointermove', x + 200, y - 200))
       window.dispatchEvent(pointerEvent('pointerup', x + 200, y - 200))
 
-      return { errors, afterCancel, afterMove: draggable.style.translate }
+      return {
+        errors,
+        duringDrag,
+        afterCancel,
+        afterMove: draggable.style.translate,
+      }
     })
 
     expect(result.errors).toEqual([])
+    expect(result.duringDrag).not.toBe('')
     expect(result.afterMove).toBe(result.afterCancel)
   })
 })

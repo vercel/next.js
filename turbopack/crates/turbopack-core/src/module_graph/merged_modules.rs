@@ -833,8 +833,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             .get(&ResolvedVc::upcast(**m))
                             .is_none_or(|refs| refs.is_disjoint(&list_set))
                     })
-                    .map(|m| **m)
-                    .collect::<Vec<_>>();
+                    .copied()
+                    .collect::<Box<[_]>>();
                 debug_assert_ne!(entry_points.len(), 0);
 
                 let list_exposed = list
@@ -851,7 +851,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             },
                         )
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Box<[_]>>();
 
                 let entry = *list.last().unwrap();
                 let result = entry

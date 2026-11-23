@@ -76,7 +76,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
                  at Page (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -103,7 +103,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
                18 | async function SyncIOComponent() {
                19 |   await new Promise((r) => process.nextTick(r))
@@ -131,7 +131,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
                  at Page (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -158,7 +158,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
@@ -236,7 +236,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
                  at Page (app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
                19 |   await new Promise((r) => process.nextTick(r))
@@ -263,7 +263,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
                19 |   await new Promise((r) => process.nextTick(r))
                20 |   const first = crypto
@@ -291,7 +291,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
                  at Page (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -318,7 +318,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
@@ -396,7 +396,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
                  at Page (app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -423,7 +423,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
                18 | async function SyncIOComponent() {
                19 |   await new Promise((r) => process.nextTick(r))
@@ -451,7 +451,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
                  at Page (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -478,7 +478,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
@@ -716,7 +716,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
                  at Page (app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -743,7 +743,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
                18 | async function SyncIOComponent() {
                19 |   await new Promise((r) => process.nextTick(r))
@@ -771,7 +771,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
                  at Page (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -798,7 +798,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
@@ -876,7 +876,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
                  at Page (app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                19 |   await new Promise((r) => process.nextTick(r))
@@ -903,7 +903,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
                19 |   await new Promise((r) => process.nextTick(r))
                20 |   const first = new Uint8Array(16)
@@ -931,7 +931,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
                  at Page (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                19 |   await new Promise((r) => process.nextTick(r))
@@ -958,7 +958,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
@@ -1036,7 +1036,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
                  at Page (app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -1063,7 +1063,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
                18 | async function SyncIOComponent() {
                19 |   await new Promise((r) => process.nextTick(r))
@@ -1091,7 +1091,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
                  at Page (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -1118,7 +1118,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
@@ -1196,7 +1196,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
                  at Page (app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -1223,7 +1223,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
                18 | async function SyncIOComponent() {
                19 |   await new Promise((r) => process.nextTick(r))
@@ -1251,7 +1251,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
                  at Page (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -1278,7 +1278,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
@@ -1356,7 +1356,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
                  at Page (app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -1383,7 +1383,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
                18 | async function SyncIOComponent() {
                19 |   await new Promise((r) => process.nextTick(r))
@@ -1411,7 +1411,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
                  at Page (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                18 | async function SyncIOComponent() {
@@ -1438,7 +1438,7 @@ export function registerSyncIoNodeCryptoTests(
                - [cache] Prerender and cache the value with \`"use cache"\`
                - [client] Render the value on the client with \`"use client"\`
 
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
