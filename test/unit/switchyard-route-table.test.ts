@@ -63,6 +63,7 @@ describe('switchyard-route-table', () => {
       useFileSystemPublicRoutes: true,
       hasMiddleware: false,
       hasInstrumentation: false,
+      directOff: false,
       keepsInternalHeaders: false,
       headers: [],
       onMatchHeaders: [],
@@ -103,6 +104,7 @@ describe('switchyard-route-table', () => {
     })
 
     it.each<[string, Partial<SwitchyardRouteTableInput>]>([
+      ['__NEXT_EXPERIMENTAL_SWITCHYARD_DIRECT=0', { directOff: true }],
       ['experimental.goRoutes is off', { goRoutes: false }],
       ['proxy', { hasMiddleware: true }],
       ['instrumentation', { hasInstrumentation: true }],
