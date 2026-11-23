@@ -65,6 +65,11 @@ func (t *Table) Decide(r Request) Decision {
 // worker closes a reused connection before answering; Node's never does.
 var headersNodeHandles = []string{"Upgrade", "Expect", "Te", "Trailer", "Proxy-Connection", "Idempotency-Key", "X-Idempotency-Key"}
 
+// nodeMaxHeaderLines is how many request header lines Node handles: with
+// more, Node 22 and 24 answer 431 and Node 20 keeps only the first 1,023
+// (measured, counting Host). Such requests go to Node.
+const nodeMaxHeaderLines = 1000
+
 // headerMargin leaves room for how Node counts header bytes (the request
 // line, separators) beyond what checkRequest adds up.
 const headerMargin = 512
@@ -101,6 +106,10 @@ func (t *Table) checkRequest(r Request) string {
 				return "header " + name
 			}
 		}
+	}
+	// One line per name (repeated names go to Node below), plus Host.
+	if len(r.Header)+1 > nodeMaxHeaderLines {
+		return "more header lines than Node handles"
 	}
 	size := len(r.Method) + len(r.Target) + len(r.Proto) + 4 + len("Host") + len(r.Host) + 4
 	for name, values := range r.Header {

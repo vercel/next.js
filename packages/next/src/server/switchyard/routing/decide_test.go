@@ -2,6 +2,7 @@ package routing
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -99,5 +100,28 @@ func TestHostCountsTowardTheHeaderLimit(t *testing.T) {
 	r := Request{Method: "GET", Target: "/api/echo", Proto: "HTTP/1.1", Host: strings.Repeat("h", 4000), Header: map[string][]string{"X-Large": {strings.Repeat("x", 12500)}}}
 	if got := table.Decide(r); got.Why != "headers near Node's size limit" {
 		t.Errorf("large Host went direct: %+v", got)
+	}
+}
+
+func TestRequestsWithMoreHeaderLinesThanNodeHandlesGoToNode(t *testing.T) {
+	table, err := Load([]byte(`{"contract":{"version":1},"maxHeaderBytes":1000000,"goExact":{"/api/echo":"/api/echo/route"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	header := func(n int) map[string][]string {
+		h := map[string][]string{}
+		for i := 0; i < n; i++ {
+			h[fmt.Sprintf("X-%d", i)] = []string{""}
+		}
+		return h
+	}
+	for _, c := range []struct {
+		names int
+		route string
+	}{{999, "/api/echo/route"}, {1000, ""}} {
+		got := table.Decide(Request{Method: "GET", Target: "/api/echo", Proto: "HTTP/1.1", Host: "x", Header: header(c.names)})
+		if got.Route != c.route {
+			t.Errorf("%d headers plus Host: got %+v", c.names, got)
+		}
 	}
 }
