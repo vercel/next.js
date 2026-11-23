@@ -21,7 +21,7 @@ For a visit to a URL whose params were included in `generateStaticParams`, Next.
 
 If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router, this is the Cache Components equivalent.
 
-Enable both [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching).
+Enable both [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config`. The per-route [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export changes how links to that route are prefetched, but it doesn't upgrade App Shells.
 
 Cache Components prerenders a static shell that can include fallback UI. For paths not returned by `generateStaticParams`, Next.js can render the path on demand and store the completed result in the ISR cache.
 
