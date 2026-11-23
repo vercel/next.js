@@ -354,7 +354,7 @@ func TestAddsNoContentTypeAfterAnEarlyHint(t *testing.T) {
 	public := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}
 	handler := newProxy(upstream.Listener.Addr().String(), public, 4*time.Second, testToken)
 
-	w := &finalHeaderRecorder{header: http.Header{}, codes: "", finalHasContentType: false, wroteFinal: false}
+	w := &finalHeaderRecorder{header: http.Header{}}
 	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://shop.example.com/", nil))
 	if w.codes != "103,200" {
 		t.Fatalf("WriteHeader calls %q, want 103,200", w.codes)
@@ -1290,7 +1290,6 @@ func startCountingProxyWith(t *testing.T, upstreamIdle time.Duration, handler ht
 			open++
 		case http.StateClosed, http.StateHijacked:
 			open--
-		case http.StateActive, http.StateIdle:
 		}
 	}
 	upstream.Start()
