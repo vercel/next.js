@@ -249,6 +249,7 @@ impl Asset for ServerNftJsonAsset {
             nft_json.add(module_path, hash, &content)?;
 
             let contexts_dir = dir.join("vendored/contexts")?;
+            // DETERMINISM: NftJsonBuilder sorts and deduplicates asset locations.
             let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
                 bail!(
                     "Expected contexts directory to be a directory, found: {:?}",

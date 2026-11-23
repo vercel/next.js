@@ -138,13 +138,19 @@ async fn resolve_node_pre_gyp_files(
                 .into();
 
             // Find all dynamic libraries in the given directory.
+            // DETERMINISM: Sort libraries before inserting into the ordered sources map.
             if let DirectoryContent::Entries(entries) = &*config_file_dir
                 .join(&native_binding_path)?
                 .read_dir()
                 .await?
             {
                 let extension = compile_target.dylib_ext();
-                for (key, entry) in entries.iter().filter(|(k, _)| k.ends_with(extension)) {
+                let mut entries = entries
+                    .iter()
+                    .filter(|(key, _)| key.ends_with(extension))
+                    .collect::<Vec<_>>();
+                entries.sort_unstable_by_key(|(a, _)| *a);
+                for (key, entry) in entries {
                     if let DirectoryEntry::File(dylib) | DirectoryEntry::Symlink(dylib) = entry {
                         sources.insert(
                             format!("{native_binding_path}/{key}").into(),
@@ -167,6 +173,7 @@ async fn resolve_node_pre_gyp_files(
                 );
             }
         }
+        // DETERMINISM: Sort dependencies before collecting sources and symlink affecting paths.
         if let DirectoryContent::Entries(entries) = &*config_file_dir
             // TODO
             // read the dependencies path from `bindings.gyp`
@@ -174,7 +181,9 @@ async fn resolve_node_pre_gyp_files(
             .read_dir()
             .await?
         {
-            for (key, entry) in entries.iter() {
+            let mut entries = entries.iter().collect::<Vec<_>>();
+            entries.sort_unstable_by_key(|(a, _)| *a);
+            for (key, entry) in entries {
                 match entry {
                     DirectoryEntry::File(dylib) => {
                         sources.insert(
