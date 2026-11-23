@@ -11,10 +11,9 @@ import type {
   DevValidationWorkerResult,
 } from '../app-render/dev-validation-worker-globals'
 
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../../lib/worker/index'
 import { setDevValidationWorker } from '../app-render/dev-validation-worker-globals'
 import { onCacheInvalidation } from './require-cache'
-import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { needsExperimentalReact } from '../../lib/needs-experimental-react'
 
 interface InstallOptions {
@@ -92,7 +91,7 @@ export function installDevValidationWorker(options: InstallOptions): void {
   // marker block contiguous in the piped output. Torn down on HMR (stale user
   // modules) and on crash.
   //
-  // TODO(dev-validation-worker): raise `numWorkers` if concurrent navigations
+  // TODO(dev-validation-worker): raise `maxWorkers` if concurrent navigations
   // across independent requests (e.g. multiple tabs) show a validation-latency
   // tail. Raising it means `mirrorChange` has to reach every worker instead of
   // whichever one the pool hands the call to, and the ordering it relies on
@@ -111,7 +110,7 @@ export function installDevValidationWorker(options: InstallOptions): void {
     }
 
     // The worker runs one call at a time, in the order the calls were made
-    // (see `numWorkers` below), so this is replayed before any validation
+    // (see `maxWorkers` below), so this is replayed before any validation
     // requested after it, and never in the middle of one. That ordering is by
     // call time, which is why the call is made here, as the change arrives,
     // rather than deferred onto a queue of our own. A validation already
@@ -138,10 +137,6 @@ export function installDevValidationWorker(options: InstallOptions): void {
     if (pool) {
       return pool
     }
-    // Strip `--inspect` from any inherited `NODE_OPTIONS` so the worker doesn't
-    // fight the parent for the same debug port.
-    const workerNodeOptions = getFormattedNodeOptionsWithoutInspect()
-
     // The worker is shipped as four pre-bundled dev-only artifacts
     // ({webpack,turbopack} × {stable,experimental}), one per combination of the
     // user's bundler and vendored React channel. Pick the matching artifact
@@ -155,8 +150,11 @@ export function installDevValidationWorker(options: InstallOptions): void {
     )
 
     const worker = new Worker(workerPath, {
+      workerName: 'Next.js dev validation worker',
       maxRetries: 0,
-      numWorkers: 1,
+      maxWorkers: 1,
+      // One call at a time, in call order (see `mirrorChange` above).
+      concurrencyPerWorker: 1,
       // Always worker-threads, regardless of `experimental.workerThreads`.
       // Unlike the `'use cache'` probe (which follows the flag), validation has
       // no reason to prefer a child process: it doesn't need process-level
@@ -167,25 +165,21 @@ export function installDevValidationWorker(options: InstallOptions): void {
       // also carry the transported Flight bytes as typed arrays via structured
       // clone, with no JSON round-trip to corrupt them.
       enableWorkerThreads: true,
-      // Listing the method explicitly tells jest-worker to skip the discovery
-      // `require()` it would otherwise do in the parent process to enumerate
-      // the module's exports. This worker's top-level imports (`require-hook`,
-      // `node-environment`) run runtime setup meant only for the isolated
-      // worker thread, so they must not be evaluated in the parent.
+      // Pass call arguments through structured clone unchanged: the abort flag
+      // is a `SharedArrayBuffer` and the Flight bytes are typed arrays, which a
+      // JSON round-trip would destroy.
+      sanitizeArgs: false,
+      // The worker module is only ever loaded in the worker thread, never
+      // `require()`d in the parent process. This worker's top-level imports
+      // (`require-hook`, `node-environment`) run runtime setup meant only for
+      // the isolated worker thread, so they must not be evaluated in the
+      // parent.
       exposedMethods: [
         'runDevValidation',
         'applyHmrUpdate',
         'invalidateCaches',
       ],
-      forkOptions: {
-        env: {
-          ...process.env,
-          NODE_OPTIONS: workerNodeOptions,
-        },
-      },
     }) as Worker & ValidationPool
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
     pool = worker
     return worker
   }
@@ -196,10 +190,12 @@ export function installDevValidationWorker(options: InstallOptions): void {
       return
     }
     pool = undefined
-    await current.end().catch(() => {
+    try {
+      await current.shutdown()
+    } catch {
       // The worker thread exits on its own once its work settles; a failed
-      // `.end()` here just means we couldn't wait for it cleanly.
-    })
+      // `.shutdown()` here just means we couldn't wait for it cleanly.
+    }
   }
 
   const runValidation = async (

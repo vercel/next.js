@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: untracked-invalidation-comment
+message: 'Explain every `.untracked().await` call with a preceding `// INVALIDATION:` comment.'
+severity: error
+language: Rust
+utils:
+  invalidation-comment:
+    follows:
+      stopBy:
+        not:
+          kind: line_comment
+      all:
+        - kind: line_comment
+        - regex: '^// INVALIDATION:'
+rule:
+  all:
+    - pattern: $VALUE.untracked()
+    - inside:
+        kind: await_expression
+    - not:
+        any:
+          - matches: invalidation-comment
+          - inside:
+              stopBy:
+                kind: block
+              all:
+                - not:
+                    kind: block
+                - matches: invalidation-comment

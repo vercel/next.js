@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, Vc};
+use turbo_tasks::{OrderedAutoSet, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
@@ -37,7 +37,7 @@ pub async fn children_from_module_references(
     references: Vc<ModuleReferences>,
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = REFERENCE_TY.clone();
-    let mut children = FxIndexSet::default();
+    let mut children = OrderedAutoSet::default();
     let references = references.await?;
     for &reference in &*references {
         let trait_ref = reference.into_trait_ref().await?;
@@ -80,7 +80,7 @@ pub async fn children_from_output_assets(
     references: Vc<OutputAssetsWithReferenced>,
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = REFERENCE_TY.clone();
-    let mut children = FxIndexSet::default();
+    let mut children = OrderedAutoSet::default();
     let references = references.expand_all_assets().await?;
     for &reference in &*references {
         children.insert((
