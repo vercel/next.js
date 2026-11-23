@@ -77,8 +77,8 @@ export function navigate(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  // Set during both phases of a prepared navigation (freshnessPolicy Prepare
-  // or CommitPrepared). Null for all other navigations.
+  // Set during both phases of a prepared navigation (freshnessPolicy Prepare,
+  // CommitPrepared or CommitPreparedReplay). Null for all other navigations.
   preparation: PreparedNavigationRecord | null
 ): AppRouterState | Promise<AppRouterState> {
   let navigationLock: NavigationLock | null = null
@@ -304,8 +304,8 @@ export function navigateToKnownRoute(
   // dispatchRetryDueToTreeMismatch).
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   signal: AbortSignal | undefined,
-  // Set during both phases of a prepared navigation (freshnessPolicy Prepare
-  // or CommitPrepared). Null for all other navigations.
+  // Set during both phases of a prepared navigation (freshnessPolicy Prepare,
+  // CommitPrepared or CommitPreparedReplay). Null for all other navigations.
   preparation: PreparedNavigationRecord | null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
@@ -319,6 +319,11 @@ export function navigateToKnownRoute(
     // The BFCache entries the prepare phase wrote are still waiting on its
     // response, and would wake React from the prepare phase's decode. Take
     // over its request instead. See CommitPreparedReplay.
+    //
+    // This is decided before the commit's own request tree exists. If that
+    // tree turns out not to match the prepared request's, the commit fetches
+    // its data instead (see fetchDynamicResponse), which costs one extra
+    // request.
     freshnessPolicy = FreshnessPolicy.CommitPreparedReplay
   }
   if (
@@ -875,6 +880,8 @@ function takePreparedResponse(
   if (preparation.bfcacheVersion !== getBFCacheVersion()) {
     return null
   }
+  // An unknown-route request is made against the current tree itself, so
+  // compare by identity.
   if (
     completedNavigation !== null &&
     completedNavigation.requestTree === requestTree

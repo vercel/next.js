@@ -650,7 +650,8 @@ describe('router.experimental_prepare', () => {
     describe('is reported by Chrome as a soft navigation', () => {
       for (const { scenario, pathname, name, isRouteKnown, holdResponse } of [
         {
-          // The prepare phase has seeded the route from its response.
+          // The prepare phase usually seeds the route before the commit; the
+          // test doesn't establish it.
           scenario: 'after the prepared response starts arriving',
           pathname: '/streaming-target',
           name: 'streaming',
@@ -704,6 +705,18 @@ describe('router.experimental_prepare', () => {
           })
           try {
             const page = await chrome.newPage()
+            // Navigation requests, which the commit shares with the prepare
+            // phase rather than making its own.
+            const requests: Array<string> = []
+            page.on('request', (request) => {
+              const isNavigationRequest =
+                request.headers()['rsc'] === '1' &&
+                !request.headers()['next-router-prefetch'] &&
+                new URL(request.url()).pathname === pathname
+              if (isNavigationRequest) {
+                requests.push(request.url())
+              }
+            })
             page.on('console', (message) => {
               console.log(`Browser ${message.type()}: ${message.text()}`)
             })
@@ -742,6 +755,7 @@ describe('router.experimental_prepare', () => {
                 )
               ).toEqual([pathname])
             })
+            expect(requests).toHaveLength(1)
           } finally {
             await chrome.close()
             proxy.close()

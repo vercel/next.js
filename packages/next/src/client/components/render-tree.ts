@@ -109,7 +109,8 @@ export const enum FreshnessPolicy {
   // The prepare phase of `router.experimental_prepare()`. Behaves like
   // Default, except the result is never committed, and nothing is retried if
   // the requests fail. Its only lasting effect is the data written into the
-  // BFCache, which the commit reuses.
+  // BFCache, which the commit reuses unless it replays a response (see
+  // CommitPreparedReplay).
   Prepare,
   // The commit phase of `router.experimental_prepare()`. A fresh navigation,
   // like Default, except that like HistoryTraversal it reads from the BFCache
@@ -1545,7 +1546,9 @@ export function spawnDynamicRequests(
             navigationLock,
             map,
             signal,
-            // Only the primary request is shared with the prepare phase.
+            // Only the primary request is shared with the prepare phase. A
+            // commit using CommitPreparedReplay skips the prepare phase's
+            // entries, so it fetches these again.
             null
           )
         )
@@ -1874,7 +1877,7 @@ async function fetchMissingDynamicData(
   seed: NavigationSeed | null
 }> {
   try {
-    const result = await fetchDynamicResponse(
+    const responsePromise = fetchDynamicResponse(
       url,
       dynamicRequestTree,
       nextUrl,
@@ -1882,6 +1885,14 @@ async function fetchMissingDynamicData(
       signal,
       preparation
     )
+    // The prepare phase puts its request on the record synchronously.
+    const preparedRequest =
+      process.env.__NEXT_PREPARE_NAVIGATION &&
+      preparation !== null &&
+      freshnessPolicy === FreshnessPolicy.Prepare
+        ? preparation.dynamicRequest
+        : null
+    const result = await responsePromise
     if (typeof result === 'string') {
       // fetchServerResponse will return an href to indicate that the SPA
       // navigation failed. For example, if the server triggered a hard
@@ -1918,7 +1929,13 @@ async function fetchMissingDynamicData(
       await navigationLock
     }
 
-    if (routeCacheEntry !== null) {
+    // A commit that took over the prepare phase's request writes the response
+    // into the cache itself.
+    const isTakenOverByCommit =
+      preparedRequest !== null &&
+      preparation !== null &&
+      preparation.dynamicRequest !== preparedRequest
+    if (routeCacheEntry !== null && !isTakenOverByCommit) {
       bufferAndWriteNavigationResponse(
         now,
         result.flightResponse,
@@ -2050,7 +2067,8 @@ async function fetchDynamicResponse(
       const dynamicRequest = preparation.dynamicRequest
       preparation.dynamicRequest = null
       // The prepared request was made against the tree at the time it
-      // started. If the commit needs different data, fetch it instead.
+      // started. If the commit needs different data, fetch it instead. Each
+      // navigation rebuilds its request tree, so compare by value.
       if (
         dynamicRequest !== null &&
         JSON.stringify(dynamicRequest.requestTree) ===
