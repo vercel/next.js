@@ -9,8 +9,7 @@ import {
  *
  * Go's own default is one thread per core, for every Go process. Under
  * Switchyard, `next start` runs three kinds of process on the same machine:
- * Node, Switchyard (a Go process, which has its own limit) and a route.go
- * worker per route (Go processes running the app's handlers). With every one
+ * Node, Switchyard (a Go process too) and a route.go worker per route (Go processes running the app's handlers). With every one
  * of them using all the cores, they spend their CPU waking each other instead
  * of serving requests.
  */
@@ -21,17 +20,13 @@ export const DEFAULT_ROUTE_GO_MAXPROCS = 4
  * worker's environment as it is.
  *
  * In order: without Switchyard, nothing changes. Otherwise
- * __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS, when it holds a positive
- * whole number, sets it. Otherwise a GOMAXPROCS the user set is kept (the
- * worker inherits it, as Switchyard does). Otherwise the default applies, on
- * machines with more cores than it; on smaller ones Go's choice is already
- * at most that.
- *
- * Known limit: `cores` (os.availableParallelism()) can report the host's
- * cores rather than a container's CPU quota. In a container with a quota
- * under 4 CPUs the default can then be above the quota, and any GOMAXPROCS
- * also turns off the quota-aware default of Go 1.25 and later. Such setups
- * can set __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS.
+ * __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS, when Go would accept it,
+ * sets it. Otherwise a GOMAXPROCS the user set is kept (the worker inherits
+ * it). Otherwise the default applies, but never above `cores`
+ * (os.availableParallelism(), which counts a container's CPU quota on
+ * current Node versions). Go 1.24 doesn't count the quota itself, so without
+ * this a worker in a 2-CPU container on a large host would run on every one
+ * of the host's cores.
  */
 export function routeGoMaxProcs(
   env: Readonly<Record<string, string | undefined>>,
@@ -39,17 +34,21 @@ export function routeGoMaxProcs(
 ): string | undefined {
   if (env[SWITCHYARD_ENV] !== '1') return undefined
   const configured = env[SWITCHYARD_ROUTE_GO_MAXPROCS_ENV]
-  if (configured !== undefined && isPositiveInteger(configured)) {
+  if (configured !== undefined && goAcceptsMaxProcs(configured)) {
     return configured
   }
-  if (env.GOMAXPROCS !== undefined && isPositiveInteger(env.GOMAXPROCS)) {
+  if (env.GOMAXPROCS !== undefined && goAcceptsMaxProcs(env.GOMAXPROCS)) {
     return undefined
   }
-  return cores > DEFAULT_ROUTE_GO_MAXPROCS
-    ? String(DEFAULT_ROUTE_GO_MAXPROCS)
-    : undefined
+  return String(Math.max(1, Math.min(DEFAULT_ROUTE_GO_MAXPROCS, cores)))
 }
 
-function isPositiveInteger(value: string): boolean {
-  return /^[1-9]\d*$/.test(value)
+/**
+ * Whether Go's runtime accepts value as GOMAXPROCS: decimal digits only (no
+ * sign; leading zeros are fine) for a number from 1 to 2^31 - 1.
+ */
+function goAcceptsMaxProcs(value: string): boolean {
+  if (!/^\d+$/.test(value)) return false
+  const n = Number(value)
+  return n >= 1 && n <= 2 ** 31 - 1
 }

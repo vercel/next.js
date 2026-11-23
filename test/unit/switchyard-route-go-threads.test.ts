@@ -20,9 +20,10 @@ describe('switchyard-route-go-threads', () => {
     expect(routeGoMaxProcs(on, 16)).toBe('4')
   })
 
-  it("keeps Go's one thread per core on machines with 4 cores or fewer", () => {
-    expect(routeGoMaxProcs(on, 4)).toBeUndefined()
-    expect(routeGoMaxProcs(on, 2)).toBeUndefined()
+  it('limits workers to the available cores on smaller machines', () => {
+    // A 2-CPU container on a large host: Go 1.24 would use every host core.
+    expect(routeGoMaxProcs(on, 4)).toBe('4')
+    expect(routeGoMaxProcs(on, 2)).toBe('2')
   })
 
   it('uses __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS when set', () => {
@@ -49,8 +50,19 @@ describe('switchyard-route-go-threads', () => {
     expect(routeGoMaxProcs({ ...on, GOMAXPROCS: '12' }, 16)).toBeUndefined()
   })
 
-  it('ignores a value that is not a positive whole number', () => {
-    for (const value of ['', '0', '-1', '2.5', 'four']) {
+  it('accepts the values Go accepts', () => {
+    for (const value of ['08', '2147483647']) {
+      expect(
+        routeGoMaxProcs(
+          { ...on, __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS: value },
+          16
+        )
+      ).toBe(value)
+    }
+  })
+
+  it('ignores a value Go would not accept', () => {
+    for (const value of ['', '0', '-1', '+8', '2.5', 'four', '2147483648']) {
       expect(
         routeGoMaxProcs(
           { ...on, __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS: value },
