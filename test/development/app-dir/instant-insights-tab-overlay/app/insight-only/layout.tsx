@@ -1,5 +1,11 @@
 import { Suspense } from 'react'
+import { CrashButton } from './crash-button'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<p>Loading...</p>}>{children}</Suspense>
+  return (
+    <>
+      <CrashButton />
+      <Suspense fallback={<p>Loading...</p>}>{children}</Suspense>
+    </>
+  )
 }

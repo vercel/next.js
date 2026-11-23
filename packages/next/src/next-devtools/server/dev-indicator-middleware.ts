@@ -23,11 +23,12 @@ export function getDisableDevIndicatorMiddleware() {
         return next()
       }
 
-      if (req.method !== 'POST') {
+      if (req.method !== 'POST' && req.method !== 'DELETE') {
         return middlewareResponse.methodNotAllowed(res)
       }
 
-      devIndicatorServerState.disabledUntil = Date.now() + COOLDOWN_TIME_MS
+      devIndicatorServerState.disabledUntil =
+        req.method === 'POST' ? Date.now() + COOLDOWN_TIME_MS : 0
 
       return middlewareResponse.noContent(res)
     } catch (err) {
