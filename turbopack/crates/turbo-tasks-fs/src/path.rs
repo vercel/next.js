@@ -433,6 +433,7 @@ impl FileSystemPath {
     /// DETERMINISM: Result is in random order. Either sort result or do not
     /// depend on the order.
     pub fn raw_read_dir(&self) -> Vc<RawDirectoryContent> {
+        // DETERMINISM: Forward the unordered result; callers must sort or ignore entry order.
         self.fs().raw_read_dir(self.clone())
     }
 
@@ -484,6 +485,7 @@ impl FileSystemPath {
     /// DETERMINISM: Result is in random order. Either sort result or do not
     /// depend on the order.
     pub fn read_dir(&self) -> Vc<DirectoryContent> {
+        // DETERMINISM: Forward the unordered result; callers must sort or ignore entry order.
         read_dir(self.clone())
     }
 
@@ -586,6 +588,7 @@ impl Error for RealPathError {}
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
     let fs = path.fs().to_resolved().await?;
+    // DETERMINISM: Each entry is normalized independently into an unordered AutoMap.
     match &*fs.raw_read_dir(path.clone()).await? {
         RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
         RawDirectoryContent::Entries(entries) => {
@@ -621,6 +624,7 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
         return Ok(FileSystemEntryType::Directory.cell());
     }
     let parent = path.parent();
+    // DETERMINISM: Only the entry with the exact filename is looked up.
     let dir_content = parent.raw_read_dir().await?;
     match &*dir_content {
         RawDirectoryContent::NotFound => Ok(FileSystemEntryType::NotFound.cell()),

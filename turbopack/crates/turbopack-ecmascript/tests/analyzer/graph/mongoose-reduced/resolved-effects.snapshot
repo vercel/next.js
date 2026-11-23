@@ -3,25 +3,15 @@
 0 -> 3 free var = FreeVar(require)
 
 0 -> 4 call = require*0*(
-    `${(???*1* | "./drivers/node-mongodb-native"){truthy}}/connection`
+    `${(global*1*["MONGOOSE_DRIVER_PATH"] | "./drivers/node-mongodb-native"){truthy}}/connection`
 )
 - *0* require: The require method from CommonJS
-- *1* ???*2*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *1* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 0 -> 5 free var = FreeVar(require)
 
 0 -> 6 call = require*0*(
-    `${(???*1* | "./drivers/node-mongodb-native"){truthy}}/collection`
+    `${(global*1*["MONGOOSE_DRIVER_PATH"] | "./drivers/node-mongodb-native"){truthy}}/collection`
 )
 - *0* require: The require method from CommonJS
-- *1* ???*2*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *1* global: The Node.js global object: https://nodejs.org/api/globals.html#global

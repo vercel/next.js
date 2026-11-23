@@ -1,11 +1,15 @@
 ---
 title: devIndicators
-description: Configuration options for the on-screen indicator that gives context about the current route you're viewing during development.
+description: Configure the position and visibility of the Next.js development indicator with devIndicators.
 ---
 
-`devIndicators` allows you to configure the on-screen indicator that gives context about the current route you're viewing during development.
+Use `devIndicators` in `next.config` to set the initial position of the Next.js development indicator or hide it when idle.
 
-Open `next.config.ts` and set `position` to choose where the indicator renders. The default is `bottom-left`.
+See the [Next.js DevTools guide](/docs/app/guides/devtools) to open DevTools, move the indicator, and collapse diagnostic badges.
+
+## Position
+
+Set `devIndicators.position` in `next.config.ts` to choose where the indicator initially appears. The default is `bottom-left`.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -19,7 +23,11 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-To hide the indicator entirely, set `devIndicators` to `false`. Next.js will still surface any compile or runtime errors that were encountered.
+To move the badge from the browser, use the [Position preference](/docs/app/guides/devtools#position) or drag the Next.js logo.
+
+## Hide the indicator
+
+To hide the idle indicator, set `devIndicators` to `false`. Compile errors, runtime errors, and Insights still appear, and you can open the DevTools menu whenever a diagnostic badge is visible. To hide the indicator temporarily from the browser, use [Show indicator](/docs/app/guides/devtools#show-indicator) in Preferences.
 
 ```ts filename="next.config.ts"
 const nextConfig: NextConfig = {
@@ -33,35 +41,7 @@ export default nextConfig
 
 ### Indicator not marking a route as static
 
-If you expect a route to be static and the indicator has marked it as dynamic, it's likely the route has opted out of prerendering.
-
-You can confirm if a route is [prerendered](/docs/app/glossary#prerendering) or [dynamically rendered](/docs/app/glossary#dynamic-rendering) by building your application using `next build --debug`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
-
-```bash filename="Build Output"
-Route (app)
-┌ ○ /_not-found
-└ ƒ /products/[id]
-
-○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand
-```
-
-<AppOnly>
-
-There are two reasons a route might opt out of prerendering:
-
-- The presence of [Request-time APIs](/docs/app/glossary#request-time-apis) which rely on request information.
-- An [uncached data request](/docs/app/getting-started/fetching-data), like a call to an ORM or database driver.
-
-Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/getting-started/linking-and-navigating#streaming).
-
-</AppOnly>
-
-<PagesOnly>
-
-When exporting [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) from a page, it will be marked as dynamic.
-
-</PagesOnly>
+See [Route information in DevTools](/docs/app/guides/devtools#route-information) for the Static/Dynamic label and how it relates to Cache Components.
 
 ## Version History
 
