@@ -41,7 +41,7 @@ command, platform, or env var below as a requirement.
   up once; every later optimization is then verifiable by construction. The
   loop is the deliverable, not any one route.
 - **The mechanism: `@next/playwright` `instant()`.** This skill uses
-  [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
+  [`instant()`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations)
   as a ruler, not a stopwatch (phase A). It comes from
   `@next/playwright` (installed alongside `@playwright/test`, on the same
   release line as `next`), so it isn't tied to any host. Keep it. Timing a
@@ -189,9 +189,8 @@ of this step; the loop does not assume a pre-existing suite.
 Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
 every platform:
 
-1. **Never measure on `next dev`.** It does not prefetch, and its lock is
-   unreliable for blocking routes, so a dev `instant()` result is not a valid
-   RED or GREEN.
+1. **Run the RED and GREEN checks on a production build.** For a quick look
+   while editing, [inspect the prefetched UI on the dev server](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
 2. **The measured build must expose the testing API.** Otherwise `instant()`
    silently no-ops and the test passes vacuously (see
    `reference/red-test-robustness.md`). The lock-engagement proof is the phase-C

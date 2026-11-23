@@ -491,6 +491,8 @@ export async function handleRouteType({
       break
     }
     default: {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       throw new Error(`unknown route type ${(route as any).type} for ${page}`)
     }
   }
@@ -786,14 +788,26 @@ export async function handleEntrypoints({
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      if (logErrors && writtenEndpoint.value.type === 'native') {
+        // A Go proxy that failed to build has no fallback, so report its
+        // errors in the terminal as well as in the overlay.
+        for (const issue of writtenEndpoint.issues) {
+          if (issue.severity === 'error' || issue.severity === 'fatal') {
+            Log.error(formatIssue(issue))
+          }
+        }
+      }
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
 
       if (dev && middlewareConfig) {
         dev.serverFields.middleware = {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           match: null as any,
           page: '/',
+          runtime: 'edge',
           matchers: middlewareConfig.matchers,
         }
       }

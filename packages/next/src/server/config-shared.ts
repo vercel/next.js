@@ -17,6 +17,7 @@ import { deepFreeze } from '../shared/lib/deep-freeze'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
+import { DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS } from '../shared/lib/image-optimizer-constants'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -37,6 +38,16 @@ export interface ResolvedCacheLifeProfiles {
 export type PrefetchInliningConfig =
   | false
   | { maxSize: number; maxBundleSize: number }
+
+/**
+ * Resolved form of the `imgOptSafeMode` config after
+ * normalization in config.ts. Booleans and partial objects are converted to
+ * this shape.
+ */
+export interface ImgOptSafeModeConfig {
+  nextImage: boolean
+  imageResponse: boolean
+}
 
 export type NextConfigComplete = Required<
   Omit<
@@ -85,6 +96,9 @@ export type NextConfigComplete = Required<
       // Normalized by config.ts: `false` becomes `undefined` (GC off),
       // `true`/unset becomes `{}` (GC on with default timings)
       turbopackGcOptions: TurbopackGcOptions | undefined
+      // Normalized by config.ts: booleans and partial objects become resolved
+      // objects
+      imgOptSafeMode: ImgOptSafeModeConfig
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -511,13 +525,17 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
-  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  /**
+   * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
+   * `next dev` manages upgrade instructions in AGENTS.md using this policy.
+   */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
-   * anonymized Next.js feedback for user review.
+   * anonymized Next.js feedback for user review. Written by `next dev` when
+   * enabled. Requires telemetry and does not run in CI.
    */
   agentFeedback?: boolean
   /**
@@ -635,8 +653,8 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
   /**
-   * Exposes the Instant Navigation Testing API in production builds. This
-   * API is always available in development mode.
+   * Exposes the Instant Navigation Testing API in production builds. This API
+   * requires Cache Components. It is enabled by default in development.
    *
    * The testing API allows e2e tests to control navigation timing, enabling
    * deterministic assertions on prefetched/cached UI before dynamic data
@@ -655,12 +673,60 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  /**
+   * With `sharp`, this is the number of libvips threads used to process each
+   * image. The number of images processed in parallel is bounded by
+   * `UV_THREADPOOL_SIZE`. With `imgOptSafeMode`, this is the size of the
+   * worker process pool, which is the maximum number of images optimized in
+   * parallel.
+   *
+   * `null` selects a default. With `sharp`, this is a fraction of the
+   * available CPUs, depending on `NODE_ENV`. With
+   * `imgOptSafeMode`, this is the number of available CPUs.
+   */
   imgOptConcurrency?: number | null
   imgOptOperationCache?: boolean | null
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
   imgOptMozjpeg?: boolean
+  /**
+   * Uses `@next/safe-image-optimization` instead of `sharp`. This utilizes
+   * memory-safe image decoders written in Rust combined with OS-level
+   * sandboxing on Linux. It does not support some uncommon image formats, and
+   * it may sacrifice some performance.
+   *
+   * This will have no effect in production if your hosting platform (e.g.
+   * Vercel) provides image optimization as a service by overriding the
+   * `_next/image` route.
+   *
+   * This also has no effect if a custom loader is configured with
+   * `images.loader: 'custom'` and [`images.loaderFile`], as the built-in image
+   * optimizer is not used.
+   *
+   * `true` enables it everywhere. An object enables it individually for
+   * `next/image` (`nextImage`) and `ImageResponse` (`imageResponse`). Omitted
+   * keys default to `false`.
+   *
+   * Currently, only `nextImage` is implemented. `imageResponse` has no effect
+   * yet.
+   *
+   * Compared to `sharp`, for `next/image`:
+   * - Output formats: Only WebP, PNG, JPEG, and GIF output are supported.
+   *   Unsupported values in `images.formats` (i.e. AVIF) generate a warning and
+   *   are ignored.
+   * - `imgOptSequentialRead` and `imgOptOperationCache` are ignored.
+   *
+   * [`images.loaderFile`]: https://nextjs.org/docs/app/api-reference/components/image#loaderfile
+   *
+   * @default false
+   */
+  imgOptSafeMode?:
+    | boolean
+    | {
+        nextImage?: boolean
+        imageResponse?: boolean
+      }
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -905,7 +971,8 @@ export interface ExperimentalConfig {
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
    * Chunking then sizes modules by their minified code, see `turbopackChunking`.
-   * Defaults to false. Only applies to production builds.
+   * Defaults to true on canary releases and false on stable releases. Only applies to
+   * production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
 
@@ -981,6 +1048,26 @@ export interface ExperimentalConfig {
      */
     maxMergeChunkSize?: number
     /**
+     * Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
+     * (minified when `turbopackMinifyBeforeChunking` applies). Chunks are never merged into bigger
+     * chunks, and chunks that are bigger on their own are split deterministically (by module
+     * identifier) into smaller chunks. This can create chunks smaller than `minChunkSize` or
+     * exceed `maxChunkCountPerGroup`. Must be at
+     * least 3 times `minChunkSize`, and not smaller than `maxMergeChunkSize`; otherwise the values
+     * are adjusted with a warning. Set to `0` to disable the limit. Defaults to `1000000` (1 MB),
+     * or `400000` (400 KB) when minifying before chunking. Explicit values are not scaled.
+     */
+    maxChunkSize?: number
+    /**
+     * Like `maxChunkSize`, but for server (Node.js and edge) JavaScript chunks. For Node.js,
+     * must be at least 3 times `minServerChunkSize`, and not smaller than `maxMergeServerChunkSize`;
+     * otherwise the values are adjusted with a warning. Edge uses a minimum of 20 KB (8 KB when
+     * minifying before chunking) and the effective maximum as its merge limit.
+     * Set to `0` to disable the maximum size limit. Defaults to `10000000` (10 MB), or `4000000`
+     * (4 MB) when minifying before chunking. Explicit values are not scaled.
+     */
+    maxServerChunkSize?: number
+    /**
      * Emit each merged production chunk's constituent component chunks alongside it, so the
      * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
      */
@@ -993,8 +1080,8 @@ export interface ExperimentalConfig {
     minComponentChunkSize?: number
     /**
      * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
-     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
-     * apply to Edge runtime chunks.
+     * Smaller chunks are merged into bigger ones to avoid that, unless `maxServerChunkSize` takes
+     * precedence. Defaults to `4000` (4 KB). Doesn't apply to Edge runtime chunks.
      */
     minServerChunkSize?: number
     /**
@@ -1100,6 +1187,14 @@ export interface ExperimentalConfig {
    * Enable extraction of source maps from input files. Defaults to true.
    */
   turbopackInputSourceMaps?: boolean
+
+  /**
+   * Enable file tracing (NFT) in the Turbopack dev server. File references in
+   * server code and externals are traced and included in the module graph,
+   * but no `.nft.json` files are written. This option does not change
+   * production builds. Defaults to false.
+   */
+  turbopackFileTracingForDev?: boolean
 
   /**
    * Currently in active development. This splits modules into fragments and
@@ -1559,8 +1654,8 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Enables durable `"use cache"` remote cache entries across deployments. Only implemented for
-   * Turbopack.
+   * Enables durable `"use cache"` remote cache entries across deployments.
+   * Ignored in development and when using webpack or Rspack.
    */
   durableUseCacheEntries?: boolean
 
@@ -2265,10 +2360,9 @@ export interface NextConfig {
   expireTime?: number
 
   /**
-   * When `next dev` detects an AI coding agent and no managed
-   * agent-rules block is present, Next.js auto-generates `AGENTS.md` at the
-   * project root so the agent reads version-matched docs from
-   * `node_modules/next/dist/docs/` instead of stale training data. Set to
+   * When `next dev` runs, Next.js creates or updates the managed agent-rules
+   * block in `AGENTS.md` at the project root so coding agents read version-matched
+   * docs from `node_modules/next/dist/docs/` instead of stale training data. Set to
    * `false` to disable this behavior.
    *
    * @default true
@@ -2490,10 +2584,11 @@ export const defaultConfig = Object.freeze({
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
     imgOptOperationCache: null,
-    imgOptTimeoutInSeconds: 7,
+    imgOptTimeoutInSeconds: DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
     imgOptMozjpeg: true,
+    imgOptSafeMode: false,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2684,6 +2779,7 @@ export interface NextConfigRuntime {
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
+    | 'imgOptSafeMode'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2758,6 +2854,7 @@ export function getNextConfigRuntime(
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     imgOptMozjpeg: ex.imgOptMozjpeg,
+    imgOptSafeMode: ex.imgOptSafeMode,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,

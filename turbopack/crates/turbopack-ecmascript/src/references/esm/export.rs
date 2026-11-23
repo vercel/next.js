@@ -2,7 +2,6 @@ use std::{cmp::Ordering, collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use indexmap::map::Entry;
 use rustc_hash::FxHashSet;
 use swc_core::{
     common::{DUMMY_SP, Span, SyntaxContext},
@@ -15,7 +14,8 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, KeyedReadRef, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt,
+    FxIndexMap, KeyedReadRef, NonLocalValue, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt, Vc,
+    turbofmt,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt, UnusedReferences},
@@ -352,8 +352,7 @@ async fn find_export_from_reexports(
 #[turbo_tasks::value]
 struct AllExportNamesResult {
     /// A map from export name to how each export is defined.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    esm_exports: FxIndexMap<RcStr, EsmExport>,
+    esm_exports: OrderedAutoMap<RcStr, EsmExport>,
     /// A list of all direct or indirectly referenced modules that are dynamically exporting
     dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
@@ -365,14 +364,14 @@ async fn get_all_export_names(
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
         return Ok(AllExportNamesResult {
-            esm_exports: FxIndexMap::default(),
+            esm_exports: OrderedAutoMap::default(),
             dynamic_exporting_modules: vec![module],
         }
         .cell());
     };
 
     let exports = exports.await?;
-    let mut esm_exports = FxIndexMap::default();
+    let mut esm_exports = OrderedAutoMap::default();
     let mut dynamic_exporting_modules = Vec::new();
     esm_exports.extend(
         exports
@@ -417,8 +416,7 @@ async fn get_all_export_names(
 
 #[turbo_tasks::value]
 pub struct ExpandStarResult {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub esm_exports: FxIndexMap<RcStr, EsmExport>,
+    pub esm_exports: OrderedAutoMap<RcStr, EsmExport>,
     pub dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
@@ -427,7 +425,7 @@ pub async fn expand_star_exports(
     root_reference: ResolvedVc<Box<dyn ModuleReference>>,
     root_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<ExpandStarResult>> {
-    let mut esm_exports = FxIndexMap::default();
+    let mut esm_exports = OrderedAutoMap::default();
     let mut dynamic_exporting_modules = Vec::new();
     let mut checked_modules = FxHashSet::default();
     checked_modules.insert(root_module);
@@ -440,8 +438,9 @@ pub async fn expand_star_exports(
                     if key == "default" {
                         continue;
                     }
-                    if let Entry::Vacant(entry) = esm_exports.entry(key.clone()) {
-                        entry.insert(match esm_export {
+                    esm_exports
+                        .entry(key.clone())
+                        .or_insert_with(|| match esm_export {
                             EsmExport::LocalBinding(_, liveness) => EsmExport::ImportedBinding(
                                 reference,
                                 key.clone(),
@@ -449,7 +448,6 @@ pub async fn expand_star_exports(
                             ),
                             _ => esm_export.clone(),
                         });
-                    }
                 }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
@@ -697,9 +695,10 @@ impl UnusedReferencesRead {
     }
 }
 
-/// Orders the exports by key and groups adjacent exports forwarded from the same module, or returns
-/// `None` if any export does not fit the compact shape (a plain, immutable forward of a named
-/// binding out of an in-graph module) so the caller falls back to the general registration.
+/// Orders the exports and groups adjacent exports forwarded from the same module, or returns `None`
+/// if any export does not fit the compact shape (a plain, immutable forward of a named binding out
+/// of an in-graph module) so the caller falls back to the general registration. Exports are in code
+/// unit order of their keys, or in import order when the names are mangled.
 async fn build_compact_reexports(
     exports: &FrozenMap<RcStr, EsmExport>,
     mangled_names: Option<&FrozenMap<RcStr, RcStr>>,
@@ -867,8 +866,19 @@ async fn build_compact_reexports(
     let sources: Vec<ReexportSource> = sources.into_values().collect();
 
     // The runtime defines the namespace properties in list order, and a module namespace object
-    // must list its keys in code unit order. Adjacent exports from the same module share a group.
-    pairs.sort_by(|(a, ..), (b, ..)| cmp_code_units(a, b));
+    // must list its keys in code unit order. Mangled names are only chosen when the namespace
+    // object cannot escape, so nothing can observe its key order: keep the exports in import order
+    // instead, which gives every module a single group so the imports can be subsumed when the
+    // checks below allow it. The source index keeps modules that share a position apart, and the
+    // stable sort keeps each module's exports in their original order.
+    // Adjacent exports from the same module share a group.
+    if mangled_names.is_some() {
+        pairs.sort_by_key(|(_, _, source)| {
+            (sources.get(*source).map(|source| source.order), *source)
+        });
+    } else {
+        pairs.sort_by(|(a, ..), (b, ..)| cmp_code_units(a, b));
+    }
     let mut groups: Vec<ReexportGroup> = Vec::new();
     for (exported, imported, source) in pairs {
         match groups.last_mut() {
@@ -1032,8 +1042,9 @@ async fn emit_compact_reexports(
 }
 
 /// A run of adjacent entries in a compact re-export registration that are forwarded from the same
-/// module: the `exported name -> name on that module` pairs, in code unit order of the exported
-/// names. A module whose exports interleave with another module's heads several groups.
+/// module: the `exported name -> name on that module` pairs. Without mangling the pairs are in code
+/// unit order of the exported names, and a module whose exports interleave with another module's
+/// heads several groups. With mangling every module heads a single group.
 struct ReexportGroup {
     /// Index into [`CompactReexports::sources`].
     source: usize,
@@ -1218,7 +1229,25 @@ impl EsmExports {
             return emit_compact_reexports(compact, chunking_context, scope_hoisting_context).await;
         }
 
-        for (exported, local) in &expanded.exports {
+        // The runtime defines the namespace properties in list order, and a module namespace object
+        // must list its keys in code unit order. The map is in UTF-8 byte order, which differs for
+        // characters outside the Basic Multilingual Plane, and mangling changes the emitted keys.
+        let mut exports: Vec<(&RcStr, &RcStr, &EsmExport)> = expanded
+            .exports
+            .iter()
+            .map(|(exported, local)| {
+                // The key this export is emitted under: the mangled one when this module's names
+                // are shortened, otherwise the original.
+                let key = mangled_names
+                    .as_ref()
+                    .and_then(|names| names.get(exported))
+                    .unwrap_or(exported);
+                (key, exported, local)
+            })
+            .collect();
+        exports.sort_by(|(a, ..), (b, ..)| cmp_code_units(a, b));
+
+        for (key, exported, local) in exports {
             if let EsmExport::ImportedBinding(reference, ..)
             | EsmExport::ImportedNamespace(reference) = local
                 && unused_references.contains(reference)
@@ -1366,14 +1395,7 @@ impl EsmExports {
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,
-                        // The key this export is emitted under: the mangled one when this module's
-                        // names are shortened, otherwise the original.
-                        value: mangled_names
-                            .as_ref()
-                            .and_then(|names| names.get(exported))
-                            .unwrap_or(exported)
-                            .as_str()
-                            .into(),
+                        value: key.as_str().into(),
                         raw: None,
                     }))
                     .into(),

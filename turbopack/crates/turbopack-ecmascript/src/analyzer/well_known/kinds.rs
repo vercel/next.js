@@ -26,6 +26,7 @@ pub enum WellKnownObjectKind {
     OsModule,
     OsModuleDefault,
     NodeProcessModule,
+    NodeProcessModuleDefault,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -55,7 +56,7 @@ impl WellKnownObjectKind {
             Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
             Self::WorkerThreadsModule => Some(&["worker_threads"]),
-            Self::NodeProcessModule => Some(&["process"]),
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault => Some(&["process"]),
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -114,7 +115,7 @@ impl WellKnownObjectKind {
                 "os",
                 "The Node.js os module: https://nodejs.org/api/os.html",
             ),
-            Self::NodeProcessModule => (
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault => (
                 "process",
                 "The Node.js process module: https://nodejs.org/api/process.html",
             ),

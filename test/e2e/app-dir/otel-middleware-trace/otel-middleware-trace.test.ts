@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
 import type { NextInstance } from 'e2e-utils'
 import cheerio from 'cheerio'
+import { retry } from 'next-test-utils'
 import {
   isOneTimeSpan,
   printSpanTree,
@@ -12,6 +13,7 @@ import {
 import {
   collectSpanGroups,
   collectSpans,
+  parseSpanEvents,
   type SpanGroup,
   type SpanGroupResult,
 } from 'otel-span-capture'
@@ -300,6 +302,49 @@ function expectNoInternalHeaders(res: Response) {
   for (const key of res.headers.keys()) {
     expect(key).not.toMatch(/^x-middleware-(request-|override-headers)/)
   }
+}
+
+// Self-hosted dev: the span tree of the Cache Components validation of a
+// request's render (`renderName`), from the server output. The validation
+// runs in the background after the response, as the root of a trace of its
+// own, with a link to the render span. Fails unless exactly one such root
+// exists, without a parent.
+async function getDevValidationTree(
+  next: NextInstance,
+  res: Response,
+  renderName: string
+) {
+  const traceId = res.headers.get('x-mw-trace-id')
+  const endEvents = () =>
+    parseSpanEvents(next.cliOutput).events.filter(
+      (event) => event.event === 'end'
+    )
+  const render = await retry(() => {
+    const found = endEvents().filter(
+      (event) => event.traceId === traceId && event.name === renderName
+    )
+    expect(found).toHaveLength(1)
+    return found[0]
+  })
+  const root = await retry(() => {
+    const found = endEvents().filter((event) =>
+      event.links?.some(
+        (link) => link.traceId === render.traceId && link.spanId === render.id
+      )
+    )
+    expect(found).toHaveLength(1)
+    return found[0]
+  }, 10_000)
+  expect(root.parentId).toBeUndefined()
+  expect(root.traceId).not.toBe(render.traceId)
+  return printSpanTree(
+    await collectSpans(next, {
+      traceIds: [root.traceId],
+      expected: [root.type!, 'NextNodeServer.createComponentTree'],
+      since: new Date(Date.now() - LOGS_WINDOW_MS),
+    }),
+    { omit: isOneTimeSpan }
+  )
 }
 
 // The environment a test runs in, which selects its span tree snapshot: how
@@ -1119,17 +1164,13 @@ describe.each(VARIANTS)(
         ) {
           expect(tree).toMatchInlineSnapshot(`
           "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-isr, http.status_code=200} [error: doesn't cover descendants]
-          ├─ GET /isr (BaseServer.handleRequest) {http.target=/rewrite-isr, http.route=/isr, next.route=/isr, http.status_code=200} [error: doesn't cover descendants]
+          ├─ GET /isr (BaseServer.handleRequest) {http.target=/rewrite-isr, http.route=/isr, next.route=/isr, http.status_code=200}
           │  ├─ NextNodeServer.clientComponentLoading
           │  ├─ prepare route module (RouteModule.prepare)
-          │  ├─ render route (app) /isr (AppRender.getBodyResult) {next.route=/isr} [error: doesn't cover descendants]
+          │  ├─ render route (app) /isr (AppRender.getBodyResult) {next.route=/isr}
           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-          │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-          │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-          │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-          │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
           │  │  └─ start response (NextNodeServer.startResponse)
           │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/isr}
@@ -1157,6 +1198,20 @@ describe.each(VARIANTS)(
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
+        }
+
+        // In dev, Cache Components validate the page in the background after
+        // the response: in a trace of its own, linked to the render.
+        if (isNextDev && process.env.__NEXT_CACHE_COMPONENTS) {
+          expect(
+            await getDevValidationTree(next, res, 'render route (app) /isr')
+          ).toMatchInlineSnapshot(`
+            "[trace A] validate route (app) /isr (AppRender.devValidation) {next.route=/isr}
+            ├─ build component tree (NextNodeServer.createComponentTree)
+            │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            └─ generateMetadata /layout (ResolveMetadata.generateMetadata)"
+          `)
         }
       }
     )

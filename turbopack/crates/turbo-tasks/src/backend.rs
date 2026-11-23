@@ -523,6 +523,23 @@ impl TurboTasksExecutionError {
             source: Some(self),
         }))
     }
+
+    /// Finds the panic that caused this error, if that panic was caused by the persistent cache
+    /// being unreadable (see [`crate::PersistentCacheUnreadablePanic`]).
+    pub fn persistent_cache_unreadable_panic(&self) -> Option<&TurboTasksPanic> {
+        let mut current = self;
+        loop {
+            let source = match current {
+                TurboTasksExecutionError::Panic(panic) => {
+                    return panic.is_persistent_cache_unreadable().then_some(&**panic);
+                }
+                TurboTasksExecutionError::Error(error) => &error.source,
+                TurboTasksExecutionError::TaskContext(context_error) => &context_error.source,
+                TurboTasksExecutionError::LocalTaskContext(context_error) => &context_error.source,
+            };
+            current = source.as_ref()?;
+        }
+    }
 }
 
 impl Error for TurboTasksExecutionError {
@@ -683,6 +700,10 @@ pub trait Backend: Sized + Sync + Send {
     /// [`CellKeyKind::Hash`][crate::CellKeyKind::Hash] dependencies on each of the `key_hashes`, in
     /// a single operation. With no `key_hashes`, the dependency is removed.
     ///
+    /// `key_hashes` must not contain duplicates. It can be iterated multiple times (by cloning
+    /// the iterator), so an implementation can process them in several passes without buffering
+    /// them.
+    ///
     /// Must only be called from within the same execution of `reader` that created the
     /// dependency.
     fn refine_provisional_cell_dependency(
@@ -691,7 +712,7 @@ pub trait Backend: Sized + Sync + Send {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<Self>,
     );
 

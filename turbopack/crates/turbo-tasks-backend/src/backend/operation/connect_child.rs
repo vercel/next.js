@@ -196,7 +196,7 @@ mod tests {
                 .set_restored(TaskDataCategory::All);
         }
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             for task_id in [PERSISTENT_CHILD, TRANSIENT_CHILD] {
                 let mut task = ctx.task(id(task_id), TaskDataCategory::All);
                 task.set_output(OutputValue::Cell(CellRef {
@@ -209,13 +209,13 @@ mod tests {
     }
 
     fn aggregation_number(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) -> u32 {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(task_id), TaskDataCategory::Meta);
         get_aggregation_number(&task)
     }
 
     fn transient_ref_count(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) -> u32 {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(task_id), TaskDataCategory::Meta);
         task.get_transient_ref_count().copied().unwrap_or(0)
     }
@@ -223,12 +223,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn parentless_persistent_child_is_not_made_a_root() {
         let tt = setup();
-        connect_child(
-            None,
-            id(PERSISTENT_CHILD),
-            false,
-            ExecuteContext::new(tt.backend(), &tt),
-        );
+        connect_child(None, id(PERSISTENT_CHILD), false, ExecuteContext::new(&tt));
         assert_ne!(aggregation_number(&tt, PERSISTENT_CHILD), u32::MAX);
         // The caller still holds the task alive with a transient ref.
         assert_eq!(transient_ref_count(&tt, PERSISTENT_CHILD), 1);
@@ -237,12 +232,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn parentless_transient_child_is_not_made_a_root() {
         let tt = setup();
-        connect_child(
-            None,
-            id(TRANSIENT_CHILD),
-            false,
-            ExecuteContext::new(tt.backend(), &tt),
-        );
+        connect_child(None, id(TRANSIENT_CHILD), false, ExecuteContext::new(&tt));
         assert_ne!(aggregation_number(&tt, TRANSIENT_CHILD), u32::MAX);
         assert_eq!(transient_ref_count(&tt, TRANSIENT_CHILD), 1);
     }
@@ -251,7 +241,7 @@ mod tests {
     async fn persistent_child_of_transient_parent_is_made_a_root() {
         let tt = setup();
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut parent = ctx.task(id(TRANSIENT_PARENT), TaskDataCategory::All);
             parent.set_in_progress(InProgressState::InProgress(Box::new(
                 InProgressStateInner {
@@ -267,11 +257,11 @@ mod tests {
             Some(id(TRANSIENT_PARENT)),
             id(PERSISTENT_CHILD),
             false,
-            ExecuteContext::new(tt.backend(), &tt),
+            ExecuteContext::new(&tt),
         );
         // The persistent child shields the persistent graph from the transient parent.
         assert_eq!(aggregation_number(&tt, PERSISTENT_CHILD), u32::MAX);
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let parent = ctx.task(id(TRANSIENT_PARENT), TaskDataCategory::All);
         let Some(InProgressState::InProgress(inner)) = parent.get_in_progress() else {
             panic!("parent must still be in progress");

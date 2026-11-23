@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
+    NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
@@ -24,7 +24,7 @@ use turbopack::module_options::{
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::CrossOrigin,
+    chunk::{ChunkingConfig, CrossOrigin},
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
@@ -175,9 +175,9 @@ pub struct NextConfig {
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    public_runtime_config: FxIndexMap<String, serde_json::Value>,
+    public_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    server_runtime_config: FxIndexMap<String, serde_json::Value>,
+    server_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
     typescript: TypeScriptConfig,
@@ -491,7 +491,7 @@ pub struct TurbopackConfig {
     #[serde(default)]
     pub rules: OrderedAutoMap<RcStr, RuleConfigCollection>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
+    pub resolve_alias: Option<OrderedAutoMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
     pub chunk_loading_global: Option<RcStr>,
@@ -957,6 +957,16 @@ pub struct TurbopackChunkingConfig {
     /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
     /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
     max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
+    /// (default `1000000`, or `400000` when minifying before chunking). Chunks are never merged
+    /// into bigger chunks, and chunks that are bigger on their own are split deterministically
+    /// into smaller chunks, which may be smaller than `min_chunk_size` or exceed
+    /// `max_chunk_count_per_group`. Inconsistent values (smaller than 3 times `min_chunk_size`, or
+    /// than `max_merge_chunk_size`) are adjusted with a warning. `0` disables the limit.
+    max_chunk_size: Option<usize>,
+    /// Like `max_chunk_size`, but for Node.js server and edge JavaScript chunks (default
+    /// `10000000`, or `4000000` when minifying before chunking). `0` disables the limit.
+    max_server_chunk_size: Option<usize>,
     /// Emit each merged production chunk's constituent component chunks alongside it, so the
     /// browser runtime can load only the chunks it doesn't already have (default `false`).
     generate_component_chunks: Option<bool>,
@@ -990,6 +1000,11 @@ pub struct TurbopackChunking {
     pub max_chunk_count_per_group: Option<usize>,
     /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
     pub max_merge_chunk_size: Option<usize>,
+    /// Override for the maximum client JS chunk size, or `None` to use the scaled default.
+    pub max_chunk_size: Option<usize>,
+    /// Override for the maximum Node.js server and edge JS chunk size, or `None` for the scaled
+    /// default.
+    pub max_server_chunk_size: Option<usize>,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
     /// Override for the Node.js server JS `min_chunk_size`, or `None` to use the default.
@@ -1195,6 +1210,7 @@ pub struct ExperimentalConfig {
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
+    turbopack_file_tracing_for_dev: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_minify_before_chunking: Option<bool>,
@@ -1240,6 +1256,7 @@ pub struct ExperimentalConfig {
     /// route.
     strict_route_matching: Option<bool>,
     go_routes: Option<bool>,
+    img_opt_safe_mode: Option<ImgOptSafeMode>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1291,6 +1308,33 @@ pub struct SubResourceIntegrity {
 pub struct LightningCssFeatures {
     pub include: Option<Vec<RcStr>>,
     pub exclude: Option<Vec<RcStr>>,
+}
+
+/// `experimental.imgOptSafeMode`. `assignDefaultsAndValidate` normalizes this to the object form
+/// with both fields set, but the boolean form is accepted too.
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
+#[serde(untagged)]
+pub enum ImgOptSafeMode {
+    Bool(bool),
+    #[serde(rename_all = "camelCase")]
+    Options {
+        next_image: Option<bool>,
+        image_response: Option<bool>,
+    },
+}
+
+impl ImgOptSafeMode {
+    /// Whether `@next/safe-image-optimization` is used by any feature. The defaults for omitted
+    /// fields match `assignDefaultsAndValidate`.
+    fn is_enabled(&self) -> bool {
+        match self {
+            ImgOptSafeMode::Bool(enabled) => *enabled,
+            ImgOptSafeMode::Options {
+                next_image,
+                image_response,
+            } => next_image.unwrap_or(false) || image_response.unwrap_or(false),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
@@ -1546,6 +1590,148 @@ pub struct OptionJsonValue(
 static TURBOPACK_CONFIG_DOCUMENTATION_LINK: RcStr = rcstr!(
     "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
 );
+
+/// How the size limits of a production JS chunking config map to Next.js config options, for
+/// [`warn_on_adjusted_chunking_config`].
+pub struct ChunkingConfigOptionNames {
+    /// The kind of chunks the config is for, e.g. `client`.
+    pub chunks: &'static str,
+    /// The option for `max_chunk_size`.
+    pub max_chunk_size: &'static str,
+    /// The option for `min_chunk_size`, or `None` when it is not configurable.
+    pub min_chunk_size: Option<&'static str>,
+    /// The option for `max_merge_chunk_size`, or `None` when it is not configurable.
+    pub max_merge_chunk_size: Option<&'static str>,
+}
+
+/// [`ChunkingConfigOptionNames`] of client chunks.
+pub const CLIENT_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "client",
+        max_chunk_size: "maxChunkSize",
+        min_chunk_size: Some("minChunkSize"),
+        max_merge_chunk_size: Some("maxMergeChunkSize"),
+    };
+
+/// [`ChunkingConfigOptionNames`] of Node.js server chunks.
+pub const SERVER_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "server",
+        max_chunk_size: "maxServerChunkSize",
+        min_chunk_size: Some("minServerChunkSize"),
+        max_merge_chunk_size: Some("maxMergeServerChunkSize"),
+    };
+
+/// [`ChunkingConfigOptionNames`] of edge server chunks.
+pub const EDGE_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "edge server",
+        max_chunk_size: "maxServerChunkSize",
+        min_chunk_size: None,
+        max_merge_chunk_size: None,
+    };
+
+/// Turbopack normalizes the size limits of a chunking config (see [`ChunkingConfig::normalized`]).
+/// Emits a warning when that adjusts the values of `config`, so that the user can fix the
+/// `experimental.turbopackChunking` options.
+pub fn warn_on_adjusted_chunking_config(
+    config: &ChunkingConfig,
+    names: &ChunkingConfigOptionNames,
+    file_path: FileSystemPath,
+) {
+    let normalized = config.normalized();
+    let option = |name: Option<&str>, fallback: &str| match name {
+        Some(name) => format!("`experimental.turbopackChunking.{name}`"),
+        None => fallback.to_string(),
+    };
+    let max_chunk_size = option(Some(names.max_chunk_size), "");
+    let mut adjustments = Vec::new();
+    if normalized.max_chunk_size != config.max_chunk_size {
+        adjustments.push(format!(
+            "{max_chunk_size} ({}) was increased to {} (3 times {} of {}).",
+            config.max_chunk_size,
+            normalized.max_chunk_size,
+            option(
+                names.min_chunk_size,
+                &format!("the minimum {} chunk size", names.chunks)
+            ),
+            config.min_chunk_size,
+        ));
+    }
+    if normalized.max_merge_chunk_size != config.max_merge_chunk_size {
+        adjustments.push(format!(
+            "{} ({}) was decreased to {}, the maximum chunk size from {max_chunk_size}.",
+            option(
+                names.max_merge_chunk_size,
+                &format!("The maximum merge size of {} chunks", names.chunks)
+            ),
+            if config.max_merge_chunk_size == 0 {
+                "unlimited".to_string()
+            } else {
+                config.max_merge_chunk_size.to_string()
+            },
+            normalized.max_merge_chunk_size,
+        ));
+    }
+    if adjustments.is_empty() {
+        return;
+    }
+    AdjustedChunkingConfigIssue {
+        file_path,
+        chunks: names.chunks.into(),
+        adjustments: adjustments.into_iter().map(RcStr::from).collect(),
+    }
+    .resolved_cell()
+    .emit();
+}
+
+#[turbo_tasks::value(shared)]
+struct AdjustedChunkingConfigIssue {
+    file_path: FileSystemPath,
+    chunks: RcStr,
+    adjustments: Vec<RcStr>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for AdjustedChunkingConfigIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!(
+                "Inconsistent chunk size limits for {} chunks were adjusted",
+                self.chunks
+            )
+            .into(),
+        ))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(
+            std::iter::once(StyledString::Text(rcstr!(
+                "The maximum chunk size must be at least 3 times the minimum chunk size, and \
+                 chunks bigger than the maximum chunk size are never merged:"
+            )))
+            .chain(
+                self.adjustments
+                    .iter()
+                    .map(|adjustment| StyledString::Text(adjustment.clone())),
+            )
+            .collect(),
+        )))
+    }
+}
 
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleRenameAsIssue {
@@ -1832,6 +2018,16 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn img_opt_safe_mode_enabled(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .img_opt_safe_mode
+                .as_ref()
+                .is_some_and(ImgOptSafeMode::is_enabled),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn strict_route_matching(&self) -> Vc<bool> {
         Vc::cell(self.experimental.strict_route_matching.unwrap_or_default())
     }
@@ -2019,6 +2215,8 @@ impl NextConfig {
             min_chunk_size: config.and_then(|c| c.min_chunk_size),
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
+            max_chunk_size: config.and_then(|c| c.max_chunk_size),
+            max_server_chunk_size: config.and_then(|c| c.max_server_chunk_size),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
             min_server_chunk_size: config.and_then(|c| c.min_server_chunk_size),
             max_merge_server_chunk_size: config.and_then(|c| c.max_merge_server_chunk_size),
@@ -2653,6 +2851,17 @@ impl NextConfig {
             self.experimental
                 .turbopack_input_source_maps
                 .unwrap_or(true),
+        )
+    }
+
+    /// Whether file tracing should be performed in development (without writing `.nft.json`
+    /// files). This option does not change production builds.
+    #[turbo_tasks::function]
+    pub fn turbopack_file_tracing_for_dev(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_file_tracing_for_dev
+                .unwrap_or(false),
         )
     }
 

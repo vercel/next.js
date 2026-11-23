@@ -10,7 +10,18 @@ use smallvec::SmallVec;
 
 /// Keyed comparison for keyed cells (`cell = "keyed"`).
 pub trait KeyedEq {
+    /// The key type readers pass to [`KeyedAccess::get`].
     type Key;
+
+    /// How [`KeyedEq::different_keys`] reports a key: a reference into the value for collections
+    /// that store their keys (`&'l Self::Key`), or the key itself for keys that aren't stored (e.g.
+    /// the index of a `Vec`).
+    ///
+    /// It must hash like `Self::Key` (`&K` hashes like `K`): the backend matches the hashes of the
+    /// reported keys against the hashes of the keys readers accessed.
+    type KeyRef<'l>: Hash
+    where
+        Self: 'l;
 
     /// Compares two values key by key.
     ///
@@ -19,7 +30,7 @@ pub trait KeyedEq {
     /// are invalidated, as are readers of the whole value. `Some` of no keys means that the values
     /// differ in a way no single key observes (e.g. only the order of an ordered map changed), so
     /// only readers of the whole value are invalidated.
-    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[&'l Self::Key; 2]>>;
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>>;
 }
 
 /// `None` for no different keys, for collections whose equality is only their content.
@@ -38,8 +49,12 @@ pub trait KeyedAccess<Q: ?Sized> {
 
 impl<K: Eq + Hash, V: PartialEq, H: BuildHasher> KeyedEq for HashMap<K, V, H> {
     type Key = K;
+    type KeyRef<'l>
+        = &'l K
+    where
+        Self: 'l;
 
-    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[&'l Self::Key; 2]>> {
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>> {
         let mut different_keys = SmallVec::new();
 
         for (key, value) in self.iter() {
@@ -80,8 +95,12 @@ impl<K: Eq + Hash + Borrow<Q>, V, H: BuildHasher, Q: Eq + Hash + ?Sized> KeyedAc
 
 impl<K: Eq + Hash, V: PartialEq, H: BuildHasher> KeyedEq for IndexMap<K, V, H> {
     type Key = K;
+    type KeyRef<'l>
+        = &'l K
+    where
+        Self: 'l;
 
-    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[&'l Self::Key; 2]>> {
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>> {
         let mut different_keys = SmallVec::new();
 
         for (key, value) in self.iter() {
@@ -120,8 +139,12 @@ impl<K, V, H: BuildHasher, Q: Equivalent<K> + Hash + ?Sized> KeyedAccess<Q> for 
 
 impl<K: Eq + Hash, H: BuildHasher> KeyedEq for HashSet<K, H> {
     type Key = K;
+    type KeyRef<'l>
+        = &'l K
+    where
+        Self: 'l;
 
-    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[&'l Self::Key; 2]>> {
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>> {
         let mut different_keys = SmallVec::new();
 
         for key in self.iter() {
@@ -158,8 +181,12 @@ impl<K: Eq + Hash + Borrow<Q>, Q: Eq + Hash + ?Sized, H: BuildHasher> KeyedAcces
 
 impl<K: Eq + Hash, H: BuildHasher> KeyedEq for IndexSet<K, H> {
     type Key = K;
+    type KeyRef<'l>
+        = &'l K
+    where
+        Self: 'l;
 
-    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[&'l Self::Key; 2]>> {
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>> {
         let mut different_keys = SmallVec::new();
 
         for key in self.iter() {
@@ -192,6 +219,116 @@ impl<K, Q: Equivalent<K> + Hash + ?Sized, H: BuildHasher> KeyedAccess<Q> for Ind
     }
 }
 
+/// A `Vec` keyed by index: readers of index `i` (`KeyedAccess<usize>`) are only invalidated when
+/// the value at `i` changes, or `i` is added or removed (the length changed).
+///
+/// The key is a `usize`: read it with `get(&index)` where `index: usize`. Only
+/// `KeyedAccess<usize>` is implemented, so a key of another integer type (which would hash
+/// differently and never be invalidated) doesn't compile.
+///
+/// Inserting or removing an element in the middle shifts every later index, so all of them are
+/// reported. The common prefix is compared in lockstep, without hashing.
+impl<T: PartialEq> KeyedEq for Vec<T> {
+    type Key = usize;
+    type KeyRef<'l>
+        = usize
+    where
+        Self: 'l;
+
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>> {
+        let common = self.len().min(other.len());
+        let mut different_keys: SmallVec<[usize; 2]> = self[..common]
+            .iter()
+            .zip(&other[..common])
+            .enumerate()
+            .filter(|(_, (a, b))| a != b)
+            .map(|(index, _)| index)
+            .collect();
+        // Indices that exist in only one of the two.
+        different_keys.extend(common..self.len().max(other.len()));
+        non_empty(different_keys)
+    }
+}
+
+impl<T> KeyedAccess<usize> for Vec<T> {
+    type Value = T;
+
+    fn get(&self, key: &usize) -> Option<&Self::Value> {
+        <[T]>::get(self, *key)
+    }
+}
+
+#[cfg(test)]
+mod vec_tests {
+    use std::hash::BuildHasher;
+
+    use rustc_hash::FxBuildHasher;
+
+    use super::{KeyedAccess, KeyedEq};
+
+    fn diff(a: &[u32], b: &[u32]) -> Option<Vec<usize>> {
+        a.to_vec()
+            .different_keys(&b.to_vec())
+            .map(|keys| keys.into_vec())
+    }
+
+    #[test]
+    fn equal() {
+        assert_eq!(diff(&[1, 2, 3], &[1, 2, 3]), None);
+        assert_eq!(diff(&[], &[]), None);
+    }
+
+    #[test]
+    fn changed() {
+        assert_eq!(diff(&[1, 2, 3], &[1, 22, 3]), Some(vec![1]));
+        assert_eq!(diff(&[1, 2, 3], &[11, 2, 33]), Some(vec![0, 2]));
+    }
+
+    #[test]
+    fn appended_and_truncated() {
+        assert_eq!(diff(&[1, 2], &[1, 2, 3, 4]), Some(vec![2, 3]));
+        assert_eq!(diff(&[1, 2, 3, 4], &[1, 2]), Some(vec![2, 3]));
+        assert_eq!(diff(&[], &[1]), Some(vec![0]));
+        // A changed element and a truncation.
+        assert_eq!(diff(&[1, 2, 3], &[0, 2]), Some(vec![0, 2]));
+    }
+
+    #[test]
+    fn inserted_in_the_middle_shifts_later_indices() {
+        assert_eq!(diff(&[1, 2, 3], &[1, 9, 2, 3]), Some(vec![1, 2, 3]));
+    }
+
+    #[test]
+    fn keyed_access() {
+        let v = vec![10, 20];
+        assert_eq!(KeyedAccess::get(&v, &1), Some(&20));
+        assert!(!KeyedAccess::contains_key(&v, &2));
+    }
+
+    /// The backend matches the hashes of the reported keys against the hashes of the keys readers
+    /// passed to `get`, both hashed with `FxBuildHasher`.
+    #[test]
+    fn reported_keys_hash_like_reader_keys() {
+        let a = vec![1u32, 2, 3];
+        let b = vec![1u32, 22, 3];
+        let reported = a.different_keys(&b).unwrap();
+        let reader_key: &usize = &1;
+        assert_eq!(
+            FxBuildHasher.hash_one(reported[0]),
+            FxBuildHasher.hash_one(reader_key)
+        );
+
+        let map_a = rustc_hash::FxHashMap::from_iter([("a".to_string(), 1)]);
+        let map_b = rustc_hash::FxHashMap::from_iter([("a".to_string(), 2)]);
+        let reported = map_a.different_keys(&map_b).unwrap();
+        let reader_key = "a".to_string();
+        assert_eq!(
+            FxBuildHasher.hash_one(reported[0]),
+            FxBuildHasher.hash_one(&reader_key)
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,9 +353,10 @@ mod tests {
         [("e", 5), ("d", 4), ("c", 3), ("b", 2), ("a", 1)]
     }
 
-    fn assert_diff<T: KeyedEq>(a: &T, b: &T, expected: &[&T::Key])
+    fn assert_diff<'l, T>(a: &'l T, b: &'l T, expected: &[T::KeyRef<'l>])
     where
-        T::Key: std::fmt::Debug + PartialEq,
+        T: KeyedEq,
+        T::KeyRef<'l>: std::fmt::Debug + PartialEq,
     {
         let diffs = a.different_keys(b).unwrap_or_default();
         assert_eq!(a.different_keys(b).is_none(), expected.is_empty());
@@ -295,8 +433,12 @@ impl<K: Eq + Hash, V: PartialEq, H: BuildHasher, const I: usize> KeyedEq
     for OrderedAutoMap<K, V, H, I>
 {
     type Key = K;
+    type KeyRef<'l>
+        = &'l K
+    where
+        Self: 'l;
 
-    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[&'l Self::Key; 2]>> {
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>> {
         let mut self_iter = self.iter();
         let mut other_iter = other.iter();
         let (self_first, other_first) = loop {
@@ -345,8 +487,12 @@ where
 /// Like the [`OrderedAutoMap`] impl, the common prefix is compared in lockstep first.
 impl<K: Eq + Hash, H: BuildHasher + Default, const I: usize> KeyedEq for OrderedAutoSet<K, H, I> {
     type Key = K;
+    type KeyRef<'l>
+        = &'l K
+    where
+        Self: 'l;
 
-    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[&'l Self::Key; 2]>> {
+    fn different_keys<'l>(&'l self, other: &'l Self) -> Option<SmallVec<[Self::KeyRef<'l>; 2]>> {
         let mut self_iter = self.iter();
         let mut other_iter = other.iter();
         let (self_first, other_first) = loop {

@@ -60,6 +60,18 @@ const CHANGE_ITEM_GROUPS = {
     'test/production/create-next-app',
     'scripts/send-trace-to-jaeger',
   ],
+  // Switchyard, the experimental next start server: its code, its launcher and the
+  // start path it hooks into, and its tests. PRs run test-switchyard-prod
+  // only when one of these changes; canary pushes always run it.
+  switchyard: [
+    'packages/next/src/server/switchyard',
+    // Matches by prefix: switchyard.ts and every switchyard-*.ts module.
+    'packages/next/src/server/lib/switchyard',
+    'packages/next/src/server/lib/native-route.external.ts',
+    'packages/next/src/server/lib/start-server.ts',
+    'packages/next/src/cli/next-start.ts',
+    'test/production/app-dir/switchyard',
+  ],
   // Changes confined to these paths cannot affect a webpack build.
   turbopack: [
     'turbopack/crates',
