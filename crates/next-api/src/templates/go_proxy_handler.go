@@ -97,7 +97,9 @@ const nextGoProxyMaxQueryParams = 4096
 // metadata, so nxtP/nxtI names are not promoted. Pages data URLs are rejected
 // because proxy.go only supports App Router applications, whose catch-all
 // handlers can otherwise reinterpret them, and so are paths that would still
-// carry an RSC suffix after decoding (see nextGoHasRSCSegment).
+// carry an RSC suffix after decoding (see nextGoHasRSCSegment), and targets
+// with a literal #, which proxy.ts would drop as a fragment but Go handlers do
+// not.
 func nextGoNormalizeURL(r *http.Request) bool {
 	target := r.RequestURI
 	if !strings.HasPrefix(target, "/") {
@@ -106,7 +108,13 @@ func nextGoNormalizeURL(r *http.Request) bool {
 			target += "?" + r.URL.RawQuery
 		}
 	}
-	target, _, _ = strings.Cut(target, "#")
+	// Clients never send a fragment, and Go's HTTP server does not treat # as
+	// one: a route.go handler that receives the original target parses query
+	// fields after it. Truncating here would hide those fields from Proxy, so
+	// reject a literal # instead.
+	if strings.Contains(target, "#") {
+		return false
+	}
 	rawPath, rawQuery, hasQuery := strings.Cut(target, "?")
 	path := nextGoParsePath(rawPath)
 	// Assigning URL.pathname reparses dot segments, including ones exposed by

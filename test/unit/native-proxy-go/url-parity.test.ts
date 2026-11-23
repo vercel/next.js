@@ -376,6 +376,11 @@ describe('proxy.go request URLs', () => {
         ['/a/x%2Ersc/b', null],
         ['/a/x.rsc%3Fy', null],
         ['/page.segments/_tree.segment.rsc.rsc', null],
+        // Rejected: Go handlers parse query fields after a literal #, which
+        // proxy.ts drops as a fragment, so Proxy would not see them.
+        ['/page?resource=public#&resource=private', null],
+        ['/page#?resource=private', null],
+        ['/page#frag', null],
       ]
       const results = runHarness(
         binary,

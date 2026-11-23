@@ -249,6 +249,19 @@ describe('adapter Go proxy authorization', () => {
     }
   })
 
+  it('rejects a literal # that would hide query fields from Go Proxy', async () => {
+    // Go route handlers parse query fields after a literal #, so Proxy must
+    // not authorize a target truncated at it.
+    for (const path of [
+      '/native-security/query?resource=public#&resource=private',
+      '/native-security/query#?resource=private',
+    ]) {
+      const response = await fetchViaRawHttp(origin, `/docs${path}`)
+      expect({ path, status: response.status }).toEqual({ path, status: 404 })
+      expect(await response.text()).not.toContain('"secret":true')
+    }
+  })
+
   it('bounds query bytes and parameter counts before calling Go Proxy', async () => {
     for (const query of [
       'resource=private&value=' + 'a'.repeat(64 * 1024),
