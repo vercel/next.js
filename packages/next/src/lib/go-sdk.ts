@@ -212,6 +212,10 @@ async function ensureModule(
   // Only add the requirement when the SDK is imported. `go mod tidy` removes an
   // unused one, and adding it back on every start would fight it.
   const require = !required && (await importsSdk(moduleDir, packages))
+  // Go ignores a replacement for a module that is not required, so leave the
+  // go.mod of a module that does not use the SDK, such as a Go service that
+  // lives in the project directory, untouched.
+  if (!required && !require) return
   if (mapped && !require) return
 
   const target = replacementPath(moduleDir, sdkDir)
@@ -234,16 +238,64 @@ async function ensureModule(
   )
 }
 
+// Matches an import spec for the SDK, alone or in an import block, with or
+// without a package name: `"next/go"`, `next "next/go"`, `import "next/go"`.
+const SDK_IMPORT = /^\s*(?:import\s+)?(?:[\w.]+\s+)?"next\/go(?:\/[^"]*)?"\s*$/m
+
+/** The Go files in `pkg` that import the SDK, by a source scan. */
+async function filesImportingSdk(pkg: string): Promise<string[]> {
+  const files: string[] = []
+  for (const name of await fs.readdir(pkg)) {
+    if (!name.endsWith('.go') || name.startsWith('.') || name.startsWith('_')) {
+      continue
+    }
+    try {
+      if (SDK_IMPORT.test(await fs.readFile(path.join(pkg, name), 'utf8'))) {
+        files.push(path.join(pkg, name))
+      }
+    } catch {}
+  }
+  return files
+}
+
+// Packages already warned about, so the dev server, which runs this on every
+// Go change, warns once per package.
+const warnedWithoutModule = new Set<string>()
+
+/**
+ * Go only resolves `next/go` through a `go.mod` replacement, so a package that
+ * imports it outside any module fails to compile with "package next/go is not
+ * in std". Explain why instead.
+ */
+async function warnImportsWithoutModule(
+  packages: string[],
+  dir: string
+): Promise<void> {
+  for (const pkg of packages) {
+    if (warnedWithoutModule.has(pkg)) continue
+    const files = await filesImportingSdk(pkg)
+    if (files.length === 0) continue
+    warnedWithoutModule.add(pkg)
+    const names = files.map((file) => path.relative(dir, file)).join(', ')
+    Log.warn(
+      `${names} imports ${GO_SDK_MODULE}, but is not in a Go module, so Go cannot resolve it. Create a go.mod in the project (for example with "go mod init example.com/app"), then run next dev or next build again to map ${GO_SDK_MODULE} in it.`
+    )
+  }
+}
+
 /**
  * `next dev` and `next build`: map `next/go` to the installed SDK in every Go
- * module that holds the project's Go sources, like TypeScript setup
- * reconfigures tsconfig.json.
+ * module that holds the project's Go sources and uses the SDK, like TypeScript
+ * setup reconfigures tsconfig.json.
  *
- * - The directory replacement is always kept current. It is harmless when the
- *   SDK is unused, and with pnpm its path changes when Next.js is upgraded.
- * - The requirement is added only when the SDK is imported, because Go ignores
- *   a replacement for a module that is not required. It is never removed;
- *   `go mod tidy` does that.
+ * - Modules that neither require nor import the SDK are left untouched, because
+ *   Go ignores a replacement for a module that is not required.
+ * - The requirement is added only when the SDK is imported. It is never
+ *   removed; `go mod tidy` does that.
+ * - The directory replacement is kept current while the SDK is required. With
+ *   pnpm its path changes when Next.js is upgraded.
+ * - Packages that import the SDK outside any module get a warning, since Go
+ *   cannot resolve it there.
  *
  * Never throws: failures are logged, and Go reports any remaining problem when
  * the handler is compiled.
@@ -265,13 +317,18 @@ export async function ensureGoSdk(options: GoSdkOptions): Promise<void> {
     const modules = [...nested, ...(ancestor ? [ancestor] : [])]
     // Assign each package to its nearest module, as Go does.
     const packagesByModule = new Map<string, string[]>()
+    const withoutModule: string[] = []
     for (const pkg of packages) {
       const owner = modules
         .filter((moduleDir) => isInside(moduleDir, pkg))
         .sort((a, b) => b.length - a.length)[0]
-      if (!owner) continue
+      if (!owner) {
+        withoutModule.push(pkg)
+        continue
+      }
       packagesByModule.set(owner, [...(packagesByModule.get(owner) ?? []), pkg])
     }
+    if (withoutModule.length) await warnImportsWithoutModule(withoutModule, dir)
     if (packagesByModule.size === 0) return
 
     if (!isInside(rootDir, sdkDir)) {

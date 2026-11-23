@@ -31,9 +31,10 @@ response; Next.js turns them into the proxy result.
 ## Module mapping
 
 The SDK is the `next/go` module shipped inside the installed `next` package.
-`next dev` and `next build` map it in `go.mod` with a directory replacement to its
-real location and, once your Go code imports it, a requirement. They log when they
-change `go.mod`, the same way they reconfigure `tsconfig.json`:
+Code that imports it must be in a Go module. Once your Go code imports it,
+`next dev` and `next build` add a requirement and a directory replacement to its
+real location in `go.mod`. They log when they change `go.mod`, the same way they
+reconfigure `tsconfig.json`:
 
 ```go
 require next/go v0.0.0
@@ -49,9 +50,10 @@ replacement, always at the installed Next.js version, without downloads or
   requirement is added only when a Go source in the project, its tests, or a
   package it imports uses `next/go`, and is never removed, so it agrees with
   `go mod tidy`. During `next dev`, editing a Go source in the project adds it.
-- **Replacement:** kept pointing at the installed SDK. With pnpm it names the
-  package's real directory under `node_modules/.pnpm`, so it changes when Next.js
-  is upgraded, and the next `next dev` or `next build` updates it.
+- **Replacement:** kept pointing at the installed SDK while the module requires
+  it. With pnpm it names the package's real directory under `node_modules/.pnpm`,
+  so it changes when Next.js is upgraded, and the next `next dev` or `next build`
+  updates it. Modules that neither require nor import the SDK are left unchanged.
 - **Monorepos:** the `go.mod` can be in the application, in a directory nested in
   it, or at the workspace root, and `next` can be installed anywhere inside
   Turbopack's root (`turbopack.root`), such as the workspace's `node_modules`.
@@ -59,6 +61,10 @@ replacement, always at the installed Next.js version, without downloads or
   its own `go.mod`. The application's replacement applies to it too, so nothing
   needs to be published. Its own replacement, for developing it on its own, is
   ignored by applications.
+- **No module:** Go cannot resolve `next/go` outside a module, so `next dev` and
+  `next build` warn about Go files that import it without a `go.mod`.
+- **Go version:** the SDK declares `go 1.21`, so application modules with an older
+  `go` line than the Go 1.24 toolchain Next.js requires can still use it.
 
 Other requirements and `go.sum` are left to Go. Versioned replacements and Go
 workspaces are not supported.
