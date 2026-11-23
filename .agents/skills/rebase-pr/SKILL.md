@@ -53,8 +53,9 @@ Prefer rebase over merge. Keep the PR's draft state unchanged. For general
   APIs the PR removes or renames.
 - A squash-style rebase rewrites the PR's commit history. Only use it with the
   PR owner's approval and with a backup branch of the old head.
-- Re-fetch canary immediately before pushing. If it moved, repeat the rebase
-  and verification.
+- Re-fetch canary immediately before pushing. If it moved, ask the PR owner
+  whether to repeat the rebase. Usually it isn't needed, and repeating it
+  automatically can loop.
 
 ## Verify
 
