@@ -312,7 +312,7 @@ In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error ov
 
 ### Find the clock read in a stack trace
 
-If `next build --debug-prerender` still shows `at ignore-listed frames` instead of the call that read the clock, rerun the build with the internal `__NEXT_SHOW_IGNORE_LISTED` environment variable. This includes normally hidden frames in the terminal output:
+If the stack trace only shows `at ignore-listed frames` or points to a component without showing where it read the clock, rerun the build with the internal `__NEXT_SHOW_IGNORE_LISTED` environment variable. This includes normally hidden frames in the terminal output:
 
 ```bash filename="Terminal"
 __NEXT_SHOW_IGNORE_LISTED=true npm exec -- next build --debug-prerender
