@@ -187,7 +187,7 @@ func nextGoHandler() http.HandlerFunc {
 		if nextGoTrustInternalHeaders {
 			response.rewriteHost = r.Header.Get("x-next-internal-go-rewrite-host")
 		}
-		r.Header.Del("x-next-internal-go-token")
+		r.Header.Del("x-next-internal-peer-token")
 		r.Header.Del("x-next-internal-go-rewrite-host")
 		Proxy(response, r)
 		if !response.wroteHeader {

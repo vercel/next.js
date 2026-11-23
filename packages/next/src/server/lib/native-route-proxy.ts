@@ -4,6 +4,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'http'
+import { PEER_TOKEN_HEADER } from './peer-token'
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -81,7 +82,7 @@ export function proxyNativeRequest(
   ) {
     headers['transfer-encoding'] = 'chunked'
   }
-  headers['x-next-internal-go-token'] = target.token
+  headers[PEER_TOKEN_HEADER] = target.token
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
       hostname: '127.0.0.1',

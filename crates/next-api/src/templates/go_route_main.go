@@ -16,7 +16,7 @@ import (
 const nextGoTrustInternalHeaders = true
 
 func main() {
-	token := os.Getenv("__NEXT_GO_TOKEN")
+	token := os.Getenv("__NEXT_PRIVATE_PEER_TOKEN")
 	if token == "" {
 		panic("native route must be started by Next.js")
 	}
@@ -26,7 +26,7 @@ func main() {
 	}
 	handler := nextGoHandler()
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if subtle.ConstantTimeCompare([]byte(r.Header.Get("x-next-internal-go-token")), []byte(token)) != 1 {
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("x-next-internal-peer-token")), []byte(token)) != 1 {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}

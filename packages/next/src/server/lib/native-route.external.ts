@@ -1,11 +1,15 @@
 import { spawn, type ChildProcess } from 'child_process'
-import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
 import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
 import { join, relative, isAbsolute } from 'path'
 import { PassThrough, Readable, pipeline, type Transform } from 'stream'
 import { createBrotliDecompress, createUnzip } from 'zlib'
 import { proxyNativeRequest } from './native-route-proxy'
+import {
+  PEER_TOKEN_ENV,
+  PEER_TOKEN_HEADER,
+  createPeerToken,
+} from './peer-token'
 
 const noop = () => {}
 
@@ -148,10 +152,10 @@ export class NativeRouteManager {
   }
 
   private async start(executable: string): Promise<Worker> {
-    const token = randomBytes(32).toString('hex')
+    const token = createPeerToken()
     const child = spawn(/* turbopackIgnore: true */ executable, [], {
       stdio: ['pipe', 'pipe', 'inherit'],
-      env: { ...process.env, __NEXT_GO_TOKEN: token },
+      env: { ...process.env, [PEER_TOKEN_ENV]: token },
       windowsHide: true,
     })
     const worker: Worker = {
@@ -309,7 +313,7 @@ export class NativeRouteManager {
         event: 'worker',
         page,
         address: `127.0.0.1:${worker.port}`,
-        tokenHeader: 'x-next-internal-go-token',
+        tokenHeader: PEER_TOKEN_HEADER,
         token: worker.token,
       })
     }
@@ -357,7 +361,7 @@ export class NativeRouteManager {
     }
     headers.host = req.headers.get('host') || url.host
     headers['x-forwarded-proto'] = url.protocol.slice(0, -1)
-    headers['x-next-internal-go-token'] = worker.token
+    headers[PEER_TOKEN_HEADER] = worker.token
     headers['x-next-internal-go-rewrite-host'] = url.host
     // The cloned body has no known length. Node does not default to chunked
     // encoding for every method (including DELETE and OPTIONS).

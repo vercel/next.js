@@ -393,7 +393,7 @@ describe('native-proxy-go', () => {
   it('does not expose private worker authentication metadata', async () => {
     const response = await next.fetch('/native-proxy/inspect', {
       headers: {
-        'x-next-internal-go-token': 'forged',
+        'x-next-internal-peer-token': 'forged',
         'x-next-internal-go-rewrite-host': 'forged.example.test',
         'x-next-internal-test': 'internal value',
       },

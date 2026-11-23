@@ -7,6 +7,10 @@ import { PassThrough } from 'stream'
 import { brotliCompressSync, deflateSync, gzipSync } from 'zlib'
 import { NativeRouteManager } from 'next/dist/server/lib/native-route.external'
 import { filterInternalHeaders } from 'next/dist/server/lib/server-ipc/utils'
+import {
+  PEER_TOKEN_ENV,
+  PEER_TOKEN_HEADER,
+} from 'next/dist/server/lib/peer-token'
 
 describe('native route runtime', () => {
   afterEach(() => {
@@ -28,7 +32,7 @@ describe('native route runtime', () => {
       })
       let token!: string
       jest.spyOn(childProcess, 'spawn').mockImplementation((_, __, options) => {
-        token = options!.env!.__NEXT_GO_TOKEN!
+        token = options!.env![PEER_TOKEN_ENV]!
         resolveStarted()
         return child as unknown as childProcess.ChildProcess
       })
@@ -88,7 +92,7 @@ describe('native route runtime', () => {
 
   it('strips private Go transport metadata at the public request boundary', () => {
     const headers = {
-      'x-next-internal-go-token': 'untrusted-token',
+      [PEER_TOKEN_HEADER]: 'untrusted-token',
       host: 'example.test',
       cookie: 'session=value',
     }
@@ -136,7 +140,7 @@ describe('native route runtime', () => {
       const spawn = jest
         .spyOn(childProcess, 'spawn')
         .mockImplementation((_, __, options) => {
-          const token = options!.env!.__NEXT_GO_TOKEN!
+          const token = options!.env![PEER_TOKEN_ENV]!
           setImmediate(() =>
             child.stdout.write(`\x1eNEXT_GO_READY:${token}:${port}\n`)
           )
@@ -237,7 +241,7 @@ describe('native route runtime', () => {
           protocol: req.headers['x-forwarded-proto'] as string,
           body: Buffer.concat(chunks).toString(),
         }
-        expect(req.headers['x-next-internal-go-token']).toBe(token)
+        expect(req.headers[PEER_TOKEN_HEADER]).toBe(token)
         expect(req.headers['x-next-internal-test']).toBeUndefined()
         expect(req.headers['cache-control']).toBeUndefined()
         expect(req.headers.pragma).toBeUndefined()
@@ -273,7 +277,7 @@ describe('native route runtime', () => {
         kill: jest.fn(),
       })
       jest.spyOn(childProcess, 'spawn').mockImplementation((_, __, options) => {
-        token = options!.env!.__NEXT_GO_TOKEN!
+        token = options!.env![PEER_TOKEN_ENV]!
         setImmediate(() =>
           child.stdout.write(`\x1eNEXT_GO_READY:${token}:${port}\n`)
         )

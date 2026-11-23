@@ -14,7 +14,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-go-proxy", "yes")
 	w.Header().Set("x-go-url", r.URL.RequestURI())
 	w.Header().Set("x-go-host", r.Host)
-	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != "" || r.Header.Get("x-next-internal-go-rewrite-host") != "" || r.Header.Get("x-next-internal-test") != ""))
+	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-peer-token") != "" || r.Header.Get("x-next-internal-go-rewrite-host") != "" || r.Header.Get("x-next-internal-test") != ""))
 	if date := r.URL.Query().Get("response-date"); date != "" {
 		w.Header().Set("Date", date)
 	}

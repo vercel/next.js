@@ -12,7 +12,7 @@ import (
 //
 //	{"event":"table","table":{...}}      the route table, once the router loaded
 //	{"event":"worker","page":"/api/users/[id]/route",
-//	 "address":"127.0.0.1:51300","tokenHeader":"x-next-internal-go-token",
+//	 "address":"127.0.0.1:51300","tokenHeader":"x-next-internal-peer-token",
 //	 "token":"…"}                         a route.go worker is ready for a page
 //	{"event":"gone","address":"127.0.0.1:51300"}
 //	                                      that worker takes no new requests

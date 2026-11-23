@@ -244,8 +244,8 @@ describe('native-route-go', () => {
     expect((await data()).pid).toBe(first.pid)
     const response = await fetchViaRawHttp(next.url, '/native/trusted', {
       headers: {
-        connection: 'x-next-internal-go-token',
-        'x-next-internal-go-token': 'forged',
+        connection: 'x-next-internal-peer-token',
+        'x-next-internal-peer-token': 'forged',
         'x-next-internal-test': 'internal value',
       },
     })
@@ -255,7 +255,7 @@ describe('native-route-go', () => {
     expect(result.privateMetadata).toBe(false)
     for (const headers of [
       {},
-      { 'x-next-internal-go-token': 'wrong' },
+      { 'x-next-internal-peer-token': 'wrong' },
     ] as Record<string, string>[]) {
       const direct = await fetchViaHTTP(
         `http://${result.address}`,
@@ -950,7 +950,7 @@ describe('native-route-go', () => {
             ...process.env,
             PORT: String(port),
           }
-          delete env.__NEXT_GO_TOKEN
+          delete env.__NEXT_PRIVATE_PEER_TOKEN
           child = spawn(executable, [], {
             cwd: directory,
             env,
@@ -998,7 +998,7 @@ describe('native-route-go', () => {
             method: 'POST',
             body: 'adapter request body',
             headers: {
-              'x-next-internal-go-token': 'forged',
+              'x-next-internal-peer-token': 'forged',
             },
           }
         )
