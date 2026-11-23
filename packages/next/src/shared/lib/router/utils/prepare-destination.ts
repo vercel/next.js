@@ -5,7 +5,8 @@ import type { RouteHas } from '../../../../lib/load-custom-routes'
 import type { BaseNextRequest } from '../../../../server/base-http'
 
 import { escapeStringRegexp } from '../../escape-regexp'
-import { parseUrl, type ParsedUrl } from './parse-url'
+import type { ParsedUrl } from './parse-url'
+import { parseRouteURL, toLegacyURL } from './route-url'
 import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
@@ -159,80 +160,67 @@ export function compileNonPath(value: string, params: Params): string {
   return safeCompile(`/${value}`, { validate: false })(params).slice(1)
 }
 
-export function parseDestination(args: {
+type DestinationArgs = {
   destination: string
   params: Readonly<Params>
   query: Readonly<NextParsedUrlQuery>
-}): ParsedUrl {
+}
+
+function parseDestinationTemplate(args: DestinationArgs) {
   let escaped = args.destination
   for (const param of Object.keys({ ...args.params, ...args.query })) {
-    if (!param) continue
-
-    escaped = escapeSegment(escaped, param)
+    if (param) escaped = escapeSegment(escaped, param)
   }
 
-  const parsed = parseUrl(escaped)
-
-  let pathname = parsed.pathname
-  if (pathname) {
-    pathname = unescapeSegments(pathname)
-  }
-
-  let href = parsed.href
-  if (href) {
-    href = unescapeSegments(href)
-  }
-
-  let hostname = parsed.hostname
-  if (hostname) {
-    hostname = unescapeSegments(hostname)
-  }
-
-  let hash = parsed.hash
-  if (hash) {
-    hash = unescapeSegments(hash)
-  }
-
-  let search = parsed.search
-  if (search) {
-    search = unescapeSegments(search)
-  }
-
-  let origin = parsed.origin
-  if (origin) {
-    origin = unescapeSegments(origin)
-  }
-
+  const target = parseRouteURL(escaped)
+  // A template is not yet a valid URL: e.g. a hostname can contain :param.
+  // Keep these strings outside the native URL until interpolation is complete.
   return {
-    ...parsed,
-    pathname,
-    hostname,
-    href,
-    hash,
-    search,
-    origin,
+    target,
+    pathname: unescapeSegments(target.url.pathname),
+    hostname:
+      target.kind === 'absolute' ? unescapeSegments(target.url.hostname) : null,
+    hash: unescapeSegments(target.url.hash),
+    search: unescapeSegments(target.url.search),
   }
 }
 
-export function prepareDestination(args: {
+export function parseDestination(args: DestinationArgs): ParsedUrl {
+  const { target, ...template } = parseDestinationTemplate(args)
+  const { path: _path, host: _host, ...parsed } = toLegacyURL(target)
+  return {
+    ...parsed,
+    ...(target.kind === 'relative' ? { host: null } : {}),
+    ...template,
+    href: unescapeSegments(parsed.href),
+    origin: parsed.origin ? unescapeSegments(parsed.origin) : undefined,
+  }
+}
+
+export function prepareDestination(
+  args: Parameters<typeof prepareDestinationURL>[0]
+) {
+  const { parsedDestination, ...result } = prepareDestinationURL(args)
+  return { ...result, parsedDestination: toLegacyURL(parsedDestination) }
+}
+
+export function prepareDestinationURL(args: {
   appendParamsToQuery: boolean
   destination: string
   params: Params
   query: NextParsedUrlQuery
 }) {
-  const parsedDestination = parseDestination(args)
-
-  const {
-    hostname: destHostname,
-    query: destQuery,
-    search: destSearch,
-  } = parsedDestination
+  const template = parseDestinationTemplate(args)
+  const parsedDestination = template.target
+  const destHostname = template.hostname
+  const destQuery = parsedDestination.query
+  const destSearch = template.search
 
   // The following code assumes that the pathname here includes the hash if it's
   // present.
-  let destPath = parsedDestination.pathname
-  if (parsedDestination.hash) {
-    destPath = `${destPath}${parsedDestination.hash}`
+  let destPath = template.pathname
+  if (template.hash) {
+    destPath = `${destPath}${template.hash}`
   }
 
   const destParams: (string | number)[] = []
@@ -325,12 +313,12 @@ export function prepareDestination(args: {
     newUrl = destPathCompiler(args.params)
 
     const [pathname, hash] = newUrl.split('#', 2)
-    if (destHostnameCompiler) {
-      parsedDestination.hostname = destHostnameCompiler(args.params)
+    if (destHostnameCompiler && parsedDestination.kind === 'absolute') {
+      parsedDestination.url.hostname = destHostnameCompiler(args.params)
     }
-    parsedDestination.pathname = pathname
-    parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    parsedDestination.search = destSearch
+    parsedDestination.url.pathname = pathname
+    parsedDestination.url.hash = `${hash ? '#' : ''}${hash || ''}`
+    parsedDestination.url.search = destSearch
       ? compileNonPath(destSearch, args.params)
       : ''
   } catch (err: any) {

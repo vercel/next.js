@@ -1,4 +1,4 @@
-import { parseDestination } from './prepare-destination'
+import { parseDestination, prepareDestinationURL } from './prepare-destination'
 
 describe('parseDestination', () => {
   it('should parse the destination', () => {
@@ -86,5 +86,44 @@ describe('parseDestination', () => {
        "slashes": true,
      }
     `)
+  })
+})
+
+describe('prepareDestinationURL', () => {
+  it('keeps routing query data separate from the destination search', () => {
+    const { parsedDestination } = prepareDestinationURL({
+      destination: '/target?item=one&item=two',
+      params: { slug: 'hello' },
+      query: { item: 'original', original: 'value' },
+      appendParamsToQuery: true,
+    })
+    expect(parsedDestination.kind).toBe('relative')
+    expect(parsedDestination.url.pathname).toBe('/target')
+    expect(parsedDestination.url.searchParams.getAll('item')).toEqual([
+      'one',
+      'two',
+    ])
+    expect(parsedDestination.url.searchParams.has('slug')).toBe(false)
+    expect(parsedDestination.query).toEqual({
+      item: ['one', 'two'],
+      original: 'value',
+      slug: 'hello',
+    })
+  })
+
+  it('interpolates hostname templates before constructing the final authority', () => {
+    const { parsedDestination } = prepareDestinationURL({
+      destination: 'https://:sub.example.org/:slug?q=:slug',
+      params: { sub: 'API', slug: 'hello' },
+      query: {},
+      appendParamsToQuery: true,
+    })
+    expect(parsedDestination.kind).toBe('absolute')
+    if (parsedDestination.kind !== 'absolute')
+      throw new Error('Expected absolute destination')
+    expect(parsedDestination.url.href).toBe(
+      'https://api.example.org/hello?q=hello'
+    )
+    expect(parsedDestination.query).toEqual({ q: 'hello' })
   })
 })
