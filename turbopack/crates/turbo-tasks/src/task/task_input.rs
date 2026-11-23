@@ -202,6 +202,29 @@ where
     }
 }
 
+/// A boxed slice has no spare capacity, so it is a good fit for list inputs that are stored for as
+/// long as the task exists.
+impl<T> TaskInput for Box<[T]>
+where
+    T: TaskInput + 'static,
+{
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut resolved = Vec::with_capacity(self.len());
+        for value in self {
+            resolved.push(value.resolve_input().await?);
+        }
+        Ok(resolved.into_boxed_slice())
+    }
+}
+
 impl<A> TaskInput for SmallVec<A>
 where
     A: Array + Send + Sync,
@@ -628,6 +651,60 @@ mod tests {
         assert!(spilled.is_resolved());
         assert!(!spilled.is_transient());
         assert_eq!(spilled.resolve_input().await?, spilled);
+        Ok(())
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
+    enum ResolvableInput {
+        Resolved(u32),
+        Unresolved(u32),
+        Transient(u32),
+    }
+
+    impl TaskInput for ResolvableInput {
+        async fn resolve_input(&self) -> Result<Self> {
+            Ok(match *self {
+                Self::Unresolved(value) => Self::Resolved(value),
+                ref value => value.clone(),
+            })
+        }
+
+        fn is_resolved(&self) -> bool {
+            !matches!(self, Self::Unresolved(_))
+        }
+
+        fn is_transient(&self) -> bool {
+            matches!(self, Self::Transient(_))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_boxed_slice() -> Result<()> {
+        let boxed: Box<[ResolvableInput]> = Box::new([
+            ResolvableInput::Resolved(1),
+            ResolvableInput::Unresolved(2),
+            ResolvableInput::Transient(3),
+        ]);
+        assert_task_input(boxed.clone());
+        assert!(!boxed.is_resolved());
+        assert!(boxed.is_transient());
+
+        let resolved = boxed.resolve_input().await?;
+        assert_eq!(
+            &*resolved,
+            &[
+                ResolvableInput::Resolved(1),
+                ResolvableInput::Resolved(2),
+                ResolvableInput::Transient(3),
+            ]
+        );
+        assert!(resolved.is_resolved());
+        assert!(resolved.is_transient());
+
+        let empty: Box<[ResolvableInput]> = Box::new([]);
+        assert!(empty.is_resolved());
+        assert!(!empty.is_transient());
+        assert_eq!(empty.resolve_input().await?, empty);
         Ok(())
     }
 

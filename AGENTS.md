@@ -443,6 +443,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
+- `$run-tests` - test bootstrap in a fresh checkout, CI env matching, fixture gitignore traps, flaky-test reproduction
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
 
 ## Commit and PR Style
@@ -493,18 +494,11 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 - Keep `require()` behind compile-time `if/else` branches for DCE (avoid early-return/throw patterns).
 - In edge builds, force feature flags that gate Node-only imports to `false` in `define-env.ts`.
 - `react-server-dom-webpack/*` imports must stay in `entry-base.ts`; consume via component module exports elsewhere.
+- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
 
 ### Test Gotchas
 
-- **Cache components enables PPR by default**: When `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. Dedicated `ppr-full/` and `ppr/` test suites are mostly `describe.skip` (migrating to cache components). To test PPR codepaths, run normal app-dir e2e tests with `__NEXT_CACHE_COMPONENTS=true` rather than looking for explicit PPR test suites.
-- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
-- Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
-- Don't rely on exact log messages - filter by content patterns, find sequences not positions
-- **Snapshot tests vary by env flags**: Tests with inline snapshots can produce different output depending on env flags. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
-- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
-- **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences such as `IS_WEBPACK_TEST=1` can change bundler selection and snapshot output, so use the CI command and mode when verifying module resolution fixes.
-- **Showing full stack traces**: Set `__NEXT_SHOW_IGNORE_LISTED=true` to disable the ignore-list filtering in dev server error output. By default, Next.js collapses internal frames to `at ignore-listed frames`, which hides useful context when debugging framework internals. Defined in `packages/next/src/server/patch-error-inspect.ts`.
-- **Router act tests must use LinkAccordion to control prefetches**: Always use `LinkAccordion` to control when prefetches happen inside `act` scopes. Never use `browser.back()` to return to a page where accordion links are already visible — BFCache restores state and triggers uncontrolled re-prefetches. See `$router-act` for full patterns.
+Test-writing gotchas (PPR under cache components, mode-specific setup, log assertions, stack traces, router act tests) are in `test/AGENTS.md`. Running tests outside the happy path (fresh-checkout bootstrap, CI env flags, smoke tests, flaky tests, ignored fixture files) is in `$run-tests`.
 
 ### Rust/Cargo
 
