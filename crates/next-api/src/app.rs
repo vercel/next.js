@@ -2551,7 +2551,7 @@ impl AppEndpoint {
                                         NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     )
                                     .await?;
-                                merged.as_ref().map(|group| group.chunk_group.key())
+                                merged.as_ref().and_then(|group| group.kind.key())
                             };
 
                             ensure!(
