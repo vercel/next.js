@@ -494,16 +494,11 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 - Keep `require()` behind compile-time `if/else` branches for DCE (avoid early-return/throw patterns).
 - In edge builds, force feature flags that gate Node-only imports to `false` in `define-env.ts`.
 - `react-server-dom-webpack/*` imports must stay in `entry-base.ts`; consume via component module exports elsewhere.
+- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
 
 ### Test Gotchas
 
-- **Cache components enables PPR by default**: When `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. Dedicated `ppr-full/` and `ppr/` test suites are mostly `describe.skip` (migrating to cache components). To test PPR codepaths, run normal app-dir e2e tests with `__NEXT_CACHE_COMPONENTS=true` rather than looking for explicit PPR test suites.
-- **Running tests outside the happy path**: fresh-checkout bootstrap, CI env flags for snapshot tests, toy-app smoke tests, flaky tests, and fixture files Git ignores are in `$run-tests`. Match CI env vars exactly when reproducing failures (`$pr-status-triage`).
-- Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
-- Don't rely on exact log messages - filter by content patterns, find sequences not positions
-- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
-- **Showing full stack traces**: Set `__NEXT_SHOW_IGNORE_LISTED=true` to disable the ignore-list filtering in dev server error output. By default, Next.js collapses internal frames to `at ignore-listed frames`, which hides useful context when debugging framework internals. Defined in `packages/next/src/server/patch-error-inspect.ts`.
-- **Router act tests must use LinkAccordion to control prefetches**: Always use `LinkAccordion` to control when prefetches happen inside `act` scopes. Never use `browser.back()` to return to a page where accordion links are already visible — BFCache restores state and triggers uncontrolled re-prefetches. See `$router-act` for full patterns.
+Test-writing gotchas (PPR under cache components, mode-specific setup, log assertions, stack traces, router act tests) are in `test/AGENTS.md`. Running tests outside the happy path (fresh-checkout bootstrap, CI env flags, smoke tests, flaky tests, ignored fixture files) is in `$run-tests`.
 
 ### Rust/Cargo
 

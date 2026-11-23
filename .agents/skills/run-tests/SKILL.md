@@ -5,7 +5,7 @@ description: >
   fix flaky tests. Use for Playwright browser install errors, missing build
   outputs, pnpm test-unit or Jest selection surprises, run-tests.js repeats,
   CI env flags for snapshot tests, native binding selection, ignored fixture
-  files such as tsconfig.json or target directories, CI-only test type/lint
+  files such as tsconfig.json, CI-only test type/lint
   gates, CPU-starved flakes, fixed waits, requestIdleCallback starvation, or
   flake-detection failures.
 metadata:
@@ -88,8 +88,8 @@ needs to resolve the linked `next` package.
 - `test/.gitignore` ignores `tsconfig.json` under `e2e/**`, `production/**`,
   and `development/**`. If the fixture needs that file, force-add it with
   `git add -f`. Don't force-add generated `next-env.d.ts`.
-- The root `.gitignore` ignores any directory named `target`, including a
-  fixture route. Use another directory name.
+- The root `.gitignore` only ignores the Rust `target` directories of the Cargo
+  workspaces. If you add a Cargo workspace, add its `target` path there.
 - Before pushing, compare the tracked fixture files with the files the test
   needs. Use `git ls-tree -r --name-only HEAD -- <dir>`, or
   `git check-ignore -v <path>` for a single path.
