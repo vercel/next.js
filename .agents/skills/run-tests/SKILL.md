@@ -55,7 +55,9 @@ The basic commands are in the root `AGENTS.md`. For flaky tests, read
 - Inline snapshots can depend on CI env flags. Use the exact `afterBuild:` flags
   from `.github/workflows/build_and_test.yml`, keep them set for the full run,
   and use the same bundler. For example `build-output-prerender` expects
-  `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true`.
+  `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true`. Bundler choice also changes
+  output: Turbopack resolves `react-dom/server.edge` (no Node APIs such as
+  `renderToPipeableStream`), while webpack resolves the Node build.
 - For exact replication of a failed job, use `$pr-status-triage` and its
   `local-repro.md`.
 - Isolated installs use a `.node` file from `packages/next-swc/native` when
