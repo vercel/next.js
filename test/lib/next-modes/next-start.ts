@@ -100,6 +100,7 @@ export class NextStartInstance extends NextInstance {
     await this.stopLeftoverBuildOrThrow('next already started')
 
     this._cliOutput = ''
+    this.rustPanicCheckedLength = 0
     const spawnOpts = this.getSpawnOpts(options.env)
 
     let startArgs = ['pnpm', 'next', 'start']
@@ -123,7 +124,7 @@ export class NextStartInstance extends NextInstance {
       this._phase = 'building'
       const buildArgs = this.getBuildArgs()
       console.log('running', shellQuote(buildArgs))
-      await new Promise<void>((resolve, reject) => {
+      const buildPromise = new Promise<void>((resolve, reject) => {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
@@ -157,6 +158,14 @@ export class NextStartInstance extends NextInstance {
           setTimeout(() => process.exit(1), 0)
         }
       })
+      try {
+        await buildPromise
+      } catch (err) {
+        // Prefer reporting a panic over the generic build failure.
+        this.throwOnRustPanics('next build', err)
+        throw err
+      }
+      this.throwOnRustPanics('next build')
 
       this._buildId = (
         await fs
@@ -296,6 +305,7 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+    this.throwOnRustPanics('next build')
 
     this._buildId = (
       await fs

@@ -24,6 +24,7 @@ pub struct MockFileSystem {
     pub tokio_handle: Handle,
     pub invalidator_map: InvalidatorMap,
     pub dir_invalidator_map: InvalidatorMap,
+    pub metadata_invalidator_map: InvalidatorMap,
     pub invalidation_lock: RwLock<()>,
     pub run_counts: Mutex<FxHashMap<Arc<PathBuf>, u64>>,
     /// Tracked reads wait for a read lock on this before reading. Tests can hold the write lock to
@@ -50,6 +51,7 @@ impl MockFileSystem {
             tokio_handle: Handle::current(),
             invalidator_map: InvalidatorMap::new(),
             dir_invalidator_map: InvalidatorMap::new(),
+            metadata_invalidator_map: InvalidatorMap::new(),
             invalidation_lock: RwLock::new(()),
             run_counts: Mutex::new(FxHashMap::default()),
             read_gate: RwLock::new(()),
@@ -129,6 +131,10 @@ impl DiskFileSystemWatcherApi for MockFileSystem {
 
     fn dir_invalidator_map(&self) -> &InvalidatorMap {
         &self.dir_invalidator_map
+    }
+
+    fn metadata_invalidator_map(&self) -> &InvalidatorMap {
+        &self.metadata_invalidator_map
     }
 
     fn invalidation_lock(&self) -> &RwLock<()> {

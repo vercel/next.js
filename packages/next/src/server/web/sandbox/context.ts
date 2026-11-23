@@ -145,6 +145,8 @@ function createProcessPolyfill(env: Record<string, string>) {
         if (overriddenValue[key] !== undefined) {
           return overriddenValue[key]
         }
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         if (typeof (process as any)[key] === 'function') {
           return () => throwUnsupportedAPIError(`process.${key}`)
         }
@@ -235,6 +237,8 @@ const NativeModuleMap = (() => {
       'throws',
     ]),
     'node:util': pick(UtilImplementation, [
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       '_extend' as any,
       'callbackify',
       'format',

@@ -5,7 +5,7 @@ use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::chunking_context::UnusedReferences,
@@ -113,10 +113,17 @@ impl BindingUsageInfo {
     }
 }
 
+/// Computes which exports and references of the modules in `graph` are used.
+///
+/// With `drop_unused_module_data`, modules that are not reachable via used references (i.e. that
+/// remove_unused_imports removes) are hinted to drop data they only retain for code generation, see
+/// [`Module::drop_code_gen_data_hint`]. Only enable this when this graph decides which modules
+/// are code generated, otherwise the data might be needed again and has to be recomputed.
 #[turbo_tasks::function(operation)]
 pub async fn compute_binding_usage_info(
     graph: OperationVc<ModuleGraph>,
     remove_unused_imports: bool,
+    drop_unused_module_data: bool,
 ) -> Result<Vc<BindingUsageInfo>> {
     let span_outer = tracing::info_span!(
         "compute binding usage info",
@@ -168,9 +175,9 @@ pub async fn compute_binding_usage_info(
         // Visit modules in reverse postorder. In an acyclic graph, this processes each module only
         // after all modules importing it, i.e. once, with its final usage. Cycles still rely on the
         // fixed point and may revisit modules in or after them. This avoids order-dependent
-        // revisits in DAG-shaped graphs, at the cost of an additional traversal to compute ranks.
-        let module_rank =
-            graph_ref.reverse_postorder_ranks(graph_ref.all_chunk_group_entry_modules())?;
+        // revisits in DAG-shaped graphs, at the cost of an additional traversal to compute ranks
+        // (shared with the other analyses of this graph).
+        let module_rank = graph_ref.entry_ranks()?;
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             graph_ref
@@ -374,6 +381,23 @@ pub async fn compute_binding_usage_info(
         span.record("visit_count", visit_count);
         span.record("unused_reference_count", unused_references.len());
 
+        if drop_unused_module_data {
+            // The traversal visits every module that is reachable via used references (and sets
+            // its usage), so the remaining ones are unused.
+            graph_ref
+                .iter_nodes()
+                .filter(|module| !used_exports.contains_key(module))
+                .map(async |module| {
+                    module
+                        .into_trait_ref()
+                        .await?
+                        .drop_code_gen_data_hint()
+                        .await
+                })
+                .try_join()
+                .await?;
+        }
+
         #[cfg(debug_assertions)]
         {
             use std::sync::LazyLock;
@@ -566,7 +590,7 @@ mod graph_tests {
         ident::AssetIdent,
         module::{Module, ModuleSideEffects},
         module_graph::{
-            GraphEntries, ModuleGraph, SingleModuleGraph,
+            GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
             chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
         },
         reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
@@ -709,11 +733,17 @@ mod graph_tests {
                 }],
                 vec![],
             )),
-            false,
-            true,
+            ModuleGraphOptions {
+                include_binding_usage: true,
+                ..Default::default()
+            },
         );
         let graph = ModuleGraph::from_graphs(vec![single_graph], None);
-        let binding_usage = compute_binding_usage_info(graph, false).connect().await?;
+        let binding_usage = compute_binding_usage_info(
+            graph, /* remove_unused_imports */ false, /* drop_unused_module_data */ false,
+        )
+        .connect()
+        .await?;
 
         let escapes = names
             .iter()

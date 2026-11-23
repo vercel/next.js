@@ -139,15 +139,27 @@ export declare function lightningCssTransformStyleAttribute(
   opts: object
 ): unknown
 
+/** OS failures are returned as data so JS can distinguish retryable errors from unsupported locks. */
+export interface LockfileError {
+  message: string
+  transient: boolean
+  unsupported: boolean
+}
+
+export type LockfileResult =
+  | { type: 'acquired'; lockfile: { __napiType: 'Lockfile' } }
+  | { type: 'wouldBlock' }
+  | { type: 'error'; error: LockfileError }
+
 export declare function lockfileTryAcquire(
   path: string,
   content?: string | undefined | null
-): Promise<{ __napiType: 'Lockfile' } | null>
+): Promise<LockfileResult>
 
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null
-): { __napiType: 'Lockfile' } | null
+): LockfileResult
 
 export declare function lockfileUnlock(lockfile: {
   __napiType: 'Lockfile'
@@ -446,6 +458,8 @@ export interface NapiProjectOptions {
   nextVersion: RcStr
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /** Retains shallow source maps for `analyze` without changing the emitted source map variant. */
+  ensureShallowSourceMaps?: boolean
 }
 
 /** Keep in sync with [`next_core::next_config::Rewrite`] */
@@ -676,17 +690,17 @@ export declare function projectNew(
 ): Promise<TurbopackResult<{ project: { __napiType: 'Project' } }>>
 
 /**
- * Runs exit handlers for the project registered using the [`ExitHandler`] API.
+ * Runs resource cleanup and exit handlers for the project registered using the [`ExitHandler`]
+ * API.
  *
- * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
- * one.
+ * This cleanup is included in `project_shutdown`, so callers should normally use only one API.
  */
 export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
 
 /**
- * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+ * Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
  *
  * This is used in builds where it's important that we completely persist turbo-tasks to disk, but
  * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),

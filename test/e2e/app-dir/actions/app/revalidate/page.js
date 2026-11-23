@@ -8,16 +8,19 @@ import RedirectClientComponent from './client'
 export default async function Page() {
   const cookie = (await cookies()).get('random')
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?page',
+    'https://next-data-api-endpoint.vercel.app/api/random?actions-page',
     {
-      next: { revalidate: 3600, tags: ['thankyounext'] },
+      next: { revalidate: 3600, tags: ['actions:thankyounext'] },
     }
   ).then((res) => res.text())
 
   const data2 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?a=b',
+    'https://next-data-api-endpoint.vercel.app/api/random?actions-a=b',
     {
-      next: { revalidate: 3600, tags: ['thankyounext', 'justputit'] },
+      next: {
+        revalidate: 3600,
+        tags: ['actions:thankyounext', 'actions:justputit'],
+      },
     }
   ).then((res) => res.text())
 
@@ -26,9 +29,8 @@ export default async function Page() {
       <h1 id="title">revalidate</h1>
       <p>
         {' '}
-        revalidate (tags: thankyounext): <span id="thankyounext">
-          {data}
-        </span>{' '}
+        revalidate (tags: actions:thankyounext):{' '}
+        <span id="thankyounext">{data}</span>{' '}
         <span>
           <Link href="/revalidate-2" id="another">
             /revalidate-2
@@ -36,7 +38,7 @@ export default async function Page() {
         </span>
       </p>
       <p>
-        revalidate (tags: thankyounext, justputit):{' '}
+        revalidate (tags: actions:thankyounext, actions:justputit):{' '}
         <span id="justputit">{data2}</span>
       </p>
       <p>
@@ -59,7 +61,7 @@ export default async function Page() {
           id="revalidate-thankyounext"
           formAction={async () => {
             'use server'
-            updateTag('thankyounext')
+            updateTag('actions:thankyounext')
           }}
         >
           revalidate thankyounext
@@ -70,7 +72,7 @@ export default async function Page() {
           id="revalidate-justputit"
           formAction={async () => {
             'use server'
-            updateTag('justputit')
+            updateTag('actions:justputit')
           }}
         >
           revalidate justputit
@@ -92,7 +94,7 @@ export default async function Page() {
           id="revalidate-path-redirect"
           formAction={async () => {
             'use server'
-            updateTag('justputit')
+            updateTag('actions:justputit')
             redirect('/revalidate')
           }}
         >
@@ -115,7 +117,7 @@ export default async function Page() {
           id="redirect-revalidate"
           formAction={async () => {
             'use server'
-            updateTag('justputit')
+            updateTag('actions:justputit')
             redirect('/revalidate?foo=bar')
           }}
         >
@@ -125,7 +127,7 @@ export default async function Page() {
       <RedirectClientComponent
         action={async () => {
           'use server'
-          updateTag('justputit')
+          updateTag('actions:justputit')
         }}
       />
     </>

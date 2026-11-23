@@ -39,6 +39,8 @@ export async function assertCssHmrStartupRecovery(
     const browser = await next.browser(pathname, {
       async beforePageLoad(page: Page) {
         await page.addInitScript(() => {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(window as any).__cssRaceDocumentId = crypto.randomUUID()
         })
         page.on('pageerror', (error) => browserErrors.push(error.message))
@@ -96,7 +98,14 @@ export async function assertCssHmrStartupRecovery(
           reconnectHmr = () => serverSocket.close()
         })
         await page.route('**/*.js*', async (route) => {
-          const response = await route.fetch()
+          // route.fetch() runs on Playwright's process-wide keep-alive agent,
+          // which ignores the server's `Keep-Alive: timeout=5` hint and reuses
+          // sockets from earlier races. A socket idle for ~5s can be closed by
+          // the dev server just as it is reused ("socket hang up"), leaving
+          // this request unfulfilled and the page load hanging. Don't pool.
+          const response = await route.fetch({
+            headers: { ...route.request().headers(), connection: 'close' },
+          })
           await javaScriptGate
           await route.fulfill({ response })
         })
@@ -107,7 +116,11 @@ export async function assertCssHmrStartupRecovery(
               await response.finished()
               initialCss = await response.text()
               const snapshot = await page.evaluate(() => ({
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
                 documentId: (window as any).__cssRaceDocumentId,
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
                 version: (window as any).__nextHmrInitialVersion,
               }))
               originalDocumentId = snapshot.documentId

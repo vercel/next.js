@@ -94,14 +94,21 @@ function passthroughFetch(
   return originalFetch(request)
 }
 
-export async function handleFetch(
+/**
+ * Returns the response supplied by the test proxy, or `null` when there is no
+ * test context or the proxy asks to continue the request. A `null` result means
+ * the caller must send the request using its original transport, preserving
+ * that transport's response handling (such as raw compressed HTTP bodies).
+ * Throws if the proxy aborts the request or leaves it unhandled.
+ */
+export async function handleProxyFetch(
   originalFetch: Fetch,
   request: Request
-): Promise<Response> {
+): Promise<Response | null> {
   const testInfo = getTestReqInfo(request, reader)
   if (!testInfo) {
-    // Passthrough non-test requests.
-    return passthroughFetch(originalFetch, request)
+    // Let the caller pass through using its original transport.
+    return null
   }
 
   const { testData, proxyPort } = testInfo
@@ -131,7 +138,7 @@ export async function handleFetch(
   const { api } = proxyResponse
   switch (api) {
     case 'continue':
-      return passthroughFetch(originalFetch, request)
+      return null
     case 'abort':
     case 'unhandled':
       throw new Error(
@@ -145,7 +152,7 @@ export async function handleFetch(
 }
 
 export function interceptFetch(originalFetch: Fetch) {
-  global.fetch = function testFetch(
+  global.fetch = async function testFetch(
     input: FetchInputArg,
     init?: FetchInitArg
   ): Promise<Response> {
@@ -154,7 +161,9 @@ export function interceptFetch(originalFetch: Fetch) {
     if (init?.next?.internal) {
       return originalFetch(input, init)
     }
-    return handleFetch(originalFetch, new Request(input, init))
+    const request = new Request(input, init)
+    const response = await handleProxyFetch(originalFetch, request)
+    return response ?? passthroughFetch(originalFetch, request)
   }
   return () => {
     global.fetch = originalFetch

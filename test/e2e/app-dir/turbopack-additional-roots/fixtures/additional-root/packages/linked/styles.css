@@ -1,0 +1,3 @@
+#postcss-from::after {
+  content: 'from-placeholder';
+}

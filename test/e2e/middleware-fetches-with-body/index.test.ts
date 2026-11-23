@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Middleware fetches with body', () => {
@@ -60,8 +60,8 @@ describe('Middleware fetches with body', () => {
       try {
         expect(res.status).toBe(413)
 
-        if (!(global as any).isNextDeploy) {
-          expect(res.statusText).toBe('Body exceeded 1mb limit')
+        if (!isNextDeploy) {
+          expect(await res.text()).toBe('Body exceeded 1mb limit')
         }
       } catch (err) {
         // TODO: investigate occasional EPIPE errors causing
@@ -136,8 +136,8 @@ describe('Middleware fetches with body', () => {
       try {
         expect(res.status).toBe(413)
 
-        if (!(global as any).isNextDeploy) {
-          expect(res.statusText).toBe('Body exceeded 5kb limit')
+        if (!isNextDeploy) {
+          expect(await res.text()).toBe('Body exceeded 5kb limit')
         }
       } catch (err) {
         // TODO: investigate occasional EPIPE errors causing
@@ -189,8 +189,8 @@ describe('Middleware fetches with body', () => {
       try {
         expect(res.status).toBe(413)
 
-        if (!(global as any).isNextDeploy) {
-          expect(res.statusText).toBe('Body exceeded 5mb limit')
+        if (!isNextDeploy) {
+          expect(await res.text()).toBe('Body exceeded 5mb limit')
         }
       } catch (err) {
         // TODO: investigate occasional EPIPE errors causing
@@ -201,7 +201,7 @@ describe('Middleware fetches with body', () => {
       }
     })
 
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       it('should be able to send and return body size equal to 5mb', async () => {
         const bodySize = 5 * 1024 * 1024
         const body = 'FGHI1J2K3L4M5N6O7P8Q9R0SaTbUcVdW'.repeat(bodySize / 32)
@@ -291,8 +291,8 @@ describe('Middleware fetches with body', () => {
     try {
       expect(res.status).toBe(413)
 
-      if (!(global as any).isNextDeploy) {
-        expect(res.statusText).toBe('Body exceeded 5mb limit')
+      if (!isNextDeploy) {
+        expect(await res.text()).toBe('Body exceeded 5mb limit')
       }
     } catch (err) {
       // TODO: investigate occasional EPIPE errors causing

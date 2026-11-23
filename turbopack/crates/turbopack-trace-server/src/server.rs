@@ -1,4 +1,5 @@
 use std::{
+    io,
     net::{SocketAddr, SocketAddrV4, TcpListener, TcpStream},
     sync::{Arc, Mutex},
     thread::spawn,
@@ -6,7 +7,7 @@ use std::{
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use tungstenite::{Message, accept};
+use tungstenite::{Message, accept, error::ProtocolError};
 
 use crate::{
     store::SpanId,
@@ -124,10 +125,36 @@ pub fn serve(store: Arc<StoreContainer>, port: u16) {
 
         spawn(move || {
             let websocket = accept(stream.unwrap()).unwrap();
-            if let Err(err) = handle_connection(websocket, store) {
-                eprintln!("Error: {err:?}");
+            match handle_connection(websocket, store) {
+                Ok(()) => {}
+                Err(err) if is_disconnect(&err) => {
+                    println!("Trace viewer disconnected");
+                }
+                Err(err) => {
+                    eprintln!("Error: {err:?}");
+                }
             }
         });
+    }
+}
+
+/// Whether the error is caused by the client going away without a clean close handshake, e.g.
+/// when the trace viewer tab is closed or reloaded while an update is being sent.
+fn is_disconnect(err: &anyhow::Error) -> bool {
+    match err.downcast_ref::<tungstenite::Error>() {
+        Some(
+            tungstenite::Error::ConnectionClosed
+            | tungstenite::Error::AlreadyClosed
+            | tungstenite::Error::Protocol(ProtocolError::ResetWithoutClosingHandshake),
+        ) => true,
+        Some(tungstenite::Error::Io(err)) => matches!(
+            err.kind(),
+            io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted
+                | io::ErrorKind::BrokenPipe
+                | io::ErrorKind::UnexpectedEof
+        ),
+        _ => false,
     }
 }
 

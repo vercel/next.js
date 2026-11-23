@@ -20,6 +20,11 @@ const nextConfig = {
       revalidate: 100,
       expire: 300,
     },
+    nonPrefetchable: {
+      stale: 0,
+      revalidate: 15,
+      expire: 300,
+    },
     expireNow: {
       stale: 0,
       expire: 0,

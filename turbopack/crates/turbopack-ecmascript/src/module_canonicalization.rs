@@ -22,54 +22,58 @@ pub enum EcmascriptModuleCanonicalization {
     FollowReexports(Option<ModulePart>),
 }
 
-#[turbo_tasks::function]
-pub async fn canonicalize_ecmascript_module(
-    module: ResolvedVc<EcmascriptModuleAsset>,
+pub fn canonicalize_ecmascript_module(
+    module: Vc<EcmascriptModuleAsset>,
     canonicalization: EcmascriptModuleCanonicalization,
-) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    Ok(match canonicalization {
-        EcmascriptModuleCanonicalization::None => Vc::upcast(*module),
+) -> Vc<Box<dyn EcmascriptChunkPlaceable>> {
+    match canonicalization {
+        EcmascriptModuleCanonicalization::None => Vc::upcast(module),
         EcmascriptModuleCanonicalization::ModuleFragments(part) => {
-            EcmascriptModulePartAsset::select_part(*module, part)
+            EcmascriptModulePartAsset::select_part(module, part)
         }
         EcmascriptModuleCanonicalization::FollowReexports(part) => {
-            let mangle_via_materialized_namespace_object = module
-                .options()
-                .await?
-                .mangle_via_materialized_namespace_object;
-            if *module
-                .get_exports()
-                .split_locals_and_reexports(mangle_via_materialized_namespace_object)
-                .await?
-            {
-                if let Some(part) = part {
-                    match part {
-                        ModulePart::Evaluation => {
-                            Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                        }
-                        ModulePart::Export(_) | ModulePart::PartialExport { .. } => {
-                            apply_reexport_tree_shaking(
-                                Vc::upcast(
-                                    *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
-                                        .to_resolved()
-                                        .await?,
-                                ),
-                                part,
-                            )
-                            .await?
-                        }
-                        _ => bail!(
-                            "Invalid module part \"{}\" for reexports only tree shaking mode",
-                            part
-                        ),
-                    }
-                } else {
-                    Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
-                }
-            } else {
-                Vc::upcast(*module)
-            }
+            canonicalize_following_reexports(module, part)
         }
+    }
+}
+
+/// Splits a module that has reexports into a facade and its locals. An export `part` is followed
+/// through the reexports to the module that defines it. A module without reexports is returned
+/// as is.
+#[turbo_tasks::function]
+async fn canonicalize_following_reexports(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+    part: Option<ModulePart>,
+) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+    let mangle_via_materialized_namespace_object = module
+        .options()
+        .await?
+        .mangle_via_materialized_namespace_object;
+    if !*module
+        .get_exports()
+        .split_locals_and_reexports(mangle_via_materialized_namespace_object)
+        .await?
+    {
+        return Ok(Vc::upcast(*module));
+    }
+    Ok(match part {
+        None => Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module))),
+        Some(ModulePart::Evaluation) => Vc::upcast(EcmascriptModuleLocalsModule::new(*module)),
+        Some(part @ (ModulePart::Export(_) | ModulePart::PartialExport { .. })) => {
+            apply_reexport_tree_shaking(
+                Vc::upcast(
+                    *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
+                        .to_resolved()
+                        .await?,
+                ),
+                part,
+            )
+            .await?
+        }
+        Some(part) => bail!(
+            "Invalid module part \"{}\" for reexports only tree shaking mode",
+            part
+        ),
     })
 }
 

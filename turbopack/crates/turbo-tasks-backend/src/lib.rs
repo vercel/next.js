@@ -1,4 +1,6 @@
+#![feature(current_thread_id)]
 #![feature(deref_patterns)]
+#![feature(thread_id_value)]
 
 mod backend;
 mod backing_storage;
@@ -43,6 +45,9 @@ pub struct BackingStorageOptions {
 /// Creates a `BackingStorage` to be passed to [`TurboTasksBackend::new`].
 ///
 /// Information about the state of the on-disk cache is returned using [`StartupCacheState`].
+/// A database that can't be opened is replaced by an empty one and reported as
+/// [`StartupCacheState::Invalidated`], unless invalidation is disabled (see
+/// `TURBO_ENGINE_SKIP_INVALIDATE_ON_PANIC`), in which case the error is returned.
 pub fn turbo_backing_storage(
     base_path: &Path,
     version_info: &GitVersionInfo,
@@ -102,4 +107,11 @@ pub fn compact_database(
     })?;
     db.shutdown();
     Ok(())
+}
+
+/// Internals exposed for benchmarks only. Not a stable API.
+#[doc(hidden)]
+pub mod private {
+    #[cfg(not(target_family = "wasm"))]
+    pub use crate::backend::aggregation_queue;
 }

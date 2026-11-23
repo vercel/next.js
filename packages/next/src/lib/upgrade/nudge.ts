@@ -358,7 +358,6 @@ ${reference ? `Reference: ${reference}` : ''}`
         telemetry.flushDetached({
           mode: 'dev',
           dir: options.directory,
-          distDir: resolve(options.directory, options.distDir),
           events: [
             policyEvent,
             eventAgentUpgradeNudgeShown({

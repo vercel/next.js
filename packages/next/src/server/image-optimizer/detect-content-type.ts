@@ -17,6 +17,26 @@ import {
 } from './image-type'
 
 /**
+ * ISOBMFF files (AVIF, HEIC) start with an `ftyp` box: a 4-byte big-endian
+ * box size, the box type "ftyp", then the major brand. Validating the box
+ * size keeps text documents from matching the brand bytes at offset 4, e.g.
+ * an SVG starting with the XML comment `<!--ftypavif-->`.
+ */
+function hasFtypBox(buffer: Buffer, brand: number[]): boolean {
+  if (buffer.byteLength < 12) {
+    return false
+  }
+  const boxSize = buffer.readUInt32BE(0)
+  if (boxSize < 16 || boxSize > buffer.byteLength) {
+    return false
+  }
+  return (
+    [0x66, 0x74, 0x79, 0x70].every((b, i) => buffer[i + 4] === b) &&
+    brand.every((b, i) => buffer[i + 8] === b)
+  )
+}
+
+/**
  * Inspects the first few bytes of a buffer to determine if
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
@@ -53,11 +73,7 @@ export async function detectContentType(
   if ([0x3c, 0x73, 0x76, 0x67].every((b, i) => buffer[i] === b)) {
     return SVG
   }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
+  if (hasFtypBox(buffer, [0x61, 0x76, 0x69, 0x66])) {
     return AVIF
   }
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
@@ -82,11 +98,7 @@ export async function detectContentType(
   ) {
     return JXL
   }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
+  if (hasFtypBox(buffer, [0x68, 0x65, 0x69, 0x63])) {
     return HEIC
   }
   if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {

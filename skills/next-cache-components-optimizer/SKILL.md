@@ -41,7 +41,7 @@ command, platform, or env var below as a requirement.
   up once; every later optimization is then verifiable by construction. The
   loop is the deliverable, not any one route.
 - **The mechanism: `@next/playwright` `instant()`.** This skill uses
-  [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
+  [`instant()`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations)
   as a ruler, not a stopwatch (phase A). It comes from
   `@next/playwright` (installed alongside `@playwright/test`, on the same
   release line as `next`), so it isn't tied to any host. Keep it. Timing a
@@ -189,9 +189,8 @@ of this step; the loop does not assume a pre-existing suite.
 Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
 every platform:
 
-1. **Never measure on `next dev`.** It does not prefetch, and its lock is
-   unreliable for blocking routes, so a dev `instant()` result is not a valid
-   RED or GREEN.
+1. **Run the RED and GREEN checks on a production build.** For a quick look
+   while editing, [inspect the prefetched UI on the dev server](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
 2. **The measured build must expose the testing API.** Otherwise `instant()`
    silently no-ops and the test passes vacuously (see
    `reference/red-test-robustness.md`). The lock-engagement proof is the phase-C
@@ -246,6 +245,11 @@ completed UI renders after release. Do not change an existing data source,
 production selector, or required route variant to make the test easier. A
 required contract may not be skipped or weakened.
 
+For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
+
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
 RED recipes in `reference/red-test-robustness.md`.
@@ -286,6 +290,9 @@ Preserve the route's existing data source, freshness, authorization, and
 completed behavior. Do not replace a mutable read with a build-time import to
 make it appear static. Cache the existing read when it can be reused. Stream it
 when it must be computed for each request.
+
+Trace each async subtree to its own cache, Suspense, and navigation boundary
+before concluding that the route is cached.
 
 If development or a build surfaces another instant-navigation Insight during
 the refactor, follow [validation as you

@@ -213,6 +213,7 @@ export const experimentalSchema = {
       })
     )
     .optional(),
+  turbopackDetectGlobalVirtualStore: z.boolean().optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
@@ -295,6 +296,15 @@ export const experimentalSchema = {
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
   imgOptMozjpeg: z.boolean().optional(),
+  imgOptSafeMode: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        nextImage: z.boolean().optional(),
+        imageResponse: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -331,6 +341,7 @@ export const experimentalSchema = {
     .optional(),
   taint: z.boolean().optional(),
   blockingSSR: z.boolean().optional(),
+  externalBrowserRuntime: z.boolean().optional(),
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
@@ -392,6 +403,8 @@ export const experimentalSchema = {
     .optional(),
   transitionIndicator: z.boolean().optional(),
   gestureTransition: z.boolean().optional(),
+  hydrationChangeEvent: z.boolean().optional(),
+  prepareNavigation: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
@@ -420,16 +433,19 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
+  goRoutes: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),
   turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
+  turbopackFileTracingForDev: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackMinifyBeforeChunking: z.boolean().optional(),
   turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunking: z
     .object({
@@ -441,8 +457,12 @@ export const experimentalSchema = {
       minChunkSize: z.number().min(0).optional(),
       maxChunkCountPerGroup: z.number().min(0).optional(),
       maxMergeChunkSize: z.number().min(0).optional(),
+      maxChunkSize: z.number().min(0).optional(),
+      maxServerChunkSize: z.number().min(0).optional(),
       minComponentChunkSize: z.number().min(0).optional(),
       generateComponentChunks: z.boolean().optional(),
+      minServerChunkSize: z.number().min(0).optional(),
+      maxMergeServerChunkSize: z.number().min(0).optional(),
     })
     .optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),
@@ -527,7 +547,6 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
-  lockDistDir: z.boolean().optional(),
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
   supportsImmutableAssets: z.boolean().optional(),
@@ -852,6 +871,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     instrumentationClientInject: z.array(z.string()).optional(),
+    instrumentationInject: z.array(z.string()).optional(),
     partialPrefetching: z.boolean().optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),

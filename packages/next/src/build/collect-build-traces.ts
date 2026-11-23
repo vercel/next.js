@@ -1,3 +1,4 @@
+import type { FunctionsConfigManifest } from './index'
 // Import cpu-profile to start profiling early if enabled
 import '../server/lib/cpu-profile'
 import { Span } from '../trace'
@@ -133,6 +134,38 @@ export async function collectBuildTraces({
         'next-minimal-server.js.nft.json'
       )
       const root = outputFileTracingRoot
+      let hasNativeRoutes = false
+      if (config.experimental.goRoutes) {
+        const functionsConfig: FunctionsConfigManifest = JSON.parse(
+          await fs
+            .readFile(
+              path.join(distDir, 'server', 'functions-config-manifest.json'),
+              'utf8'
+            )
+            .catch((error) => {
+              if (error.code === 'ENOENT') return '{"functions":{}}'
+              throw error
+            })
+        )
+        hasNativeRoutes =
+          functionsConfig.functions['/_middleware']?.runtime === 'go'
+
+        try {
+          // One read per tracing worker, only after opting in. The emitted manifest
+          // also distinguishes an enabled experiment with no native routes.
+          const appPaths: Record<string, string> = JSON.parse(
+            await fs.readFile(
+              path.join(distDir, 'server', 'app-paths-manifest.json'),
+              'utf8'
+            )
+          )
+          hasNativeRoutes ||= Object.values(appPaths).some((entry) =>
+            entry.endsWith('.native.json')
+          )
+        } catch (error) {
+          if (!isError(error) || error.code !== 'ENOENT') throw error
+        }
+      }
 
       // Under standalone mode, we need to trace the extra IPC server and
       // worker files.
@@ -222,10 +255,13 @@ export async function collectBuildTraces({
 
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
+        ...(isStandalone ? [] : ['**/next/dist/lib/worker/worker-*-child*']),
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
+        ...(hasNativeRoutes
+          ? []
+          : ['**/next/dist/server/lib/native-route*.js']),
         // Upgrade workflows are CLI-only and are not needed by production servers.
         '**/next/dist/lib/upgrade/**/*',
         // The testmode interceptors bundle reads its HTTP parser WASM with a
@@ -261,6 +297,19 @@ export async function collectBuildTraces({
         ...(ciEnvironment.hasNextSupport
           ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
           : []),
+        // `image-optimizer/nsio.js` requires this, but next-server only uses it
+        // with `experimental.imgOptSafeMode`. Keep the large platform-specific
+        // binary out of the server trace otherwise. Route traces aren't
+        // affected, since routes can call `imageOptimizerTransform()` directly.
+        // The package path itself is also ignored, or the pnpm symlink to it
+        // would be copied and left dangling.
+        ...(config.experimental.imgOptSafeMode.nextImage ||
+        config.experimental.imgOptSafeMode.imageResponse
+          ? []
+          : [
+              '**/node_modules/@next/safe-image-optimization*',
+              '**/node_modules/@next/safe-image-optimization*/**/*',
+            ]),
       ].filter(nonNullable)
       const serverIgnoreFn = makeIgnoreFn(root, serverIgnores)
 
@@ -295,12 +344,12 @@ export async function collectBuildTraces({
       if (isStandalone) {
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/processChild'),
+          require.resolve('../lib/worker/worker-process-child'),
           serverTracedFiles
         )
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/threadChild'),
+          require.resolve('../lib/worker/worker-thread-child'),
           serverTracedFiles
         )
       }
@@ -325,21 +374,6 @@ export async function collectBuildTraces({
                 // files might be removed from that step so tolerate ENOENT
                 // errors gracefully
                 return ''
-              }
-              throw e
-            }
-          },
-          async readlink(p) {
-            try {
-              return await fs.readlink(p)
-            } catch (e) {
-              if (
-                isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
-              ) {
-                return null
               }
               throw e
             }

@@ -14,6 +14,7 @@ export default defineConfig({
     trace: 'off',
   },
   webServer: {
+    env: { EXPOSE_TESTING_API: '1' },
     command: `npm run start -- --port ${port}`,
     url: baseURL,
     reuseExistingServer: false,

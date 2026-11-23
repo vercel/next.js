@@ -392,10 +392,16 @@ fn report_error(filepath: &str, error_kind: RSCErrorKind) {
                 .to_string(),
             vec![span],
         ),
-        RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
-            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
-            vec![span],
-        ),
+        RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => {
+            let documentation = match property {
+                NextConfigProperty::CacheComponents => " Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
+                NextConfigProperty::UseCache => "",
+            };
+            (
+                format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it.{documentation}"),
+                vec![span],
+            )
+        },
         RSCErrorKind::NextRscErrRequiresRouteSegmentConfig(span, segment, property) => (
             format!("Route segment config \"{segment}\" requires `nextConfig.{property}` to be enabled."),
             vec![span],

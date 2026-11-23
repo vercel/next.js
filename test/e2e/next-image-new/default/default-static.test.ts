@@ -104,7 +104,11 @@ describe('Static Image Component Tests', () => {
   }
 
   it('should have <head> containing <meta name="viewport"> followed by <link rel="preload"> for priority image', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let metaViewport = { index: 0, attribs: {} as any }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let linkPreload = { index: 0, attribs: {} as any }
     $('head')
       .children()

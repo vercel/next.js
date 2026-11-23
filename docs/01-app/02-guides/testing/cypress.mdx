@@ -189,10 +189,18 @@ describe('Navigation', () => {
     cy.url().should('include', '/about')
 
     // The new page should contain an h1 with "About"
-    cy.get('h1').contains('About')
+    cy.get('h1').filter(':visible').contains('About')
   })
 })
 ```
+
+<AppOnly>
+
+### Testing routes preserved by Cache Components
+
+With Cache Components, previous pages remain hidden in the DOM after client-side navigation. Queries such as `cy.get()` can still match those elements. Use [`.filter(':visible')`](https://docs.cypress.io/api/commands/filter#Filter-to-visible-elements-with-the-visible-selector) to narrow the matches before interacting or asserting on their count. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing) for more details.
+
+</AppOnly>
 
 ### Running E2E Tests
 

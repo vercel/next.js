@@ -50,6 +50,7 @@ import {
 } from './stream-utils'
 import type { DebugChannelPair } from '../debug-channel-server'
 import type { FlightComponentMod } from '../stream-ops'
+import { encodeTextChunk } from '../../stream-utils/node-web-streams-helper'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
@@ -385,7 +386,12 @@ async function collectSegmentDataForStage(
           if (controller.currentStage === RenderStage.Before) {
             throw new InvariantError('Unexpected chunk emitted in Before stage')
           }
-          writeChunk(stageEntry, controller.currentStage, targetStage, chunk)
+          writeChunk(
+            stageEntry,
+            controller.currentStage,
+            targetStage,
+            encodeTextChunk(chunk)
+          )
         }
       })(),
       // accumulate Debug chunks
@@ -623,9 +629,10 @@ export async function createCombinedPayloadStream(
         // Accumulate Flight chunks
         (async () => {
           for await (const chunk of stream) {
-            allChunks.push(chunk)
+            const bytes = encodeTextChunk(chunk)
+            allChunks.push(bytes)
             if (isRenderable) {
-              renderableChunks.push(chunk)
+              renderableChunks.push(bytes)
             }
           }
         })(),

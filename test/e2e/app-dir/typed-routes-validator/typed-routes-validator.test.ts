@@ -1,15 +1,12 @@
 import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir, retry } from 'next-test-utils'
-
-const strictRouteTypes =
-  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+import { gate, getDistDir, retry } from 'next-test-utils'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely expects a local build failure instead of a successful deployment.
 // @force-gate !deploy
 describe('typed-routes-validator', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -72,7 +69,9 @@ describe('typed-routes-validator', () => {
     }
   })
 
-  if (isNextStart) {
+  // Type validation here explicitly runs local production builds.
+  // @force-gate start
+  describe('production mode', () => {
     it('should pass type checking with valid page exports', async () => {
       await next.patchFile(
         'app/test-page.tsx',
@@ -104,7 +103,7 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/page.tsx')
 
       expect(exitCode).toBe(1)
-      if (strictRouteTypes) {
+      if (await gate('strictRouteTypes')) {
         expect(cliOutput).toMatch(
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
         )
@@ -147,7 +146,7 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/page.tsx')
 
       expect(exitCode).toBe(1)
-      if (strictRouteTypes) {
+      if (await gate('strictRouteTypes')) {
         expect(cliOutput).toMatch(
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
         )
@@ -216,7 +215,7 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/route.ts')
 
       expect(exitCode).toBe(1)
-      if (strictRouteTypes) {
+      if (await gate('strictRouteTypes')) {
         expect(cliOutput).toMatch(
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'RouteHandlerConfig</
         )
@@ -243,7 +242,7 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid-2/route.ts')
 
       expect(exitCode).toBe(1)
-      if (strictRouteTypes) {
+      if (await gate('strictRouteTypes')) {
         expect(cliOutput).toMatch(
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'RouteHandlerConfig</
         )
@@ -290,7 +289,7 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/layout.tsx')
 
       expect(exitCode).toBe(1)
-      if (strictRouteTypes) {
+      if (await gate('strictRouteTypes')) {
         expect(cliOutput).toMatch(
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'LayoutConfig</
         )
@@ -340,7 +339,7 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('pages/api/invalid-api.ts')
 
       expect(exitCode).toBe(1)
-      if (strictRouteTypes) {
+      if (await gate('strictRouteTypes')) {
         expect(cliOutput).toMatch(
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'ApiRouteConfig'/
         )
@@ -350,5 +349,5 @@ describe('typed-routes-validator', () => {
         )
       }
     })
-  }
+  })
 })

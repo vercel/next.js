@@ -11,7 +11,7 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
@@ -60,7 +60,9 @@ pub fn invalidate(
     queue.execute(&mut ctx);
 }
 
-/// Requires the guard to be allocated with [TaskDataCategory::All]
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
 pub fn make_task_dirty_internal(
     task: &mut TaskGuard<'_>,
     make_stale: bool,
@@ -84,7 +86,9 @@ pub fn make_task_dirty_internal(
 /// priority to schedule it with (see [`ExecuteContext::schedule_task`]). The task is already marked
 /// as scheduled when this returns `Some`, so the caller must schedule it.
 ///
-/// Requires the guard to be allocated with [TaskDataCategory::All]
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
 #[must_use]
 pub(super) fn make_task_dirty_without_scheduling(
     task: &mut TaskGuard<'_>,
@@ -111,6 +115,8 @@ pub(super) fn make_task_dirty_without_scheduling(
 
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
+    #[cfg(feature = "trace_task_dirty")]
+    let task_id = task.id();
     if make_stale
         && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()
@@ -236,7 +242,7 @@ pub(super) fn make_task_dirty_without_scheduling(
         queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
-    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
+    let should_schedule = !ctx.should_track_activeness() || task.is_active();
 
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());

@@ -6,12 +6,13 @@ import { retry } from 'next-test-utils'
 // process over a local TCP socket. When connecting to that local port is
 // denied (e.g. a sandbox without a usable loopback interface), the build should
 // fail with an actionable diagnostic rather than an internal compiler error.
+// The preload denies connections in a local child process, not a deployment.
+// @force-gate !deploy
 // @force-gate turbopack
 describe('turbopack css node process connect failure', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     skipStart: true,
-    skipDeployment: true,
   })
 
   it('reports an actionable error when the CSS side process cannot use a local port', async () => {

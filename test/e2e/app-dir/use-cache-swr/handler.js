@@ -8,11 +8,16 @@ const { setTimeout } = require('timers/promises')
  * in-memory handler which expires entries at revalidate time.
  */
 
-/** @type {Map<string, import('next/dist/server/lib/cache-handlers/types').CacheEntry>} */
+/**
+ * @type {Map<string, import('next/dist/server/lib/cache-handlers/types').CacheEntry>}
+ */
 const store = new Map()
 
-/** @type {Map<string, Promise<void>>} */
+/**
+ * @type {Map<string, Promise<void>>}
+ */
 const pendingSets = new Map()
+const writeAttempts = new Map()
 
 /**
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
@@ -51,7 +56,9 @@ const cacheHandler = {
   },
 
   async set(cacheKey, pendingEntry) {
-    /** @type {() => void} */
+    /**
+     * @type {() => void}
+     */
     let resolvePending = () => {}
     const pendingPromise = new Promise((resolve) => {
       resolvePending = /** @type {() => void} */ (resolve)
@@ -60,6 +67,17 @@ const cacheHandler = {
 
     try {
       const entry = await pendingEntry
+      const failureTag = entry.tags.find((tag) =>
+        tag.startsWith('caller-context:failed-refresh-')
+      )
+      if (failureTag !== undefined) {
+        const attempt = (writeAttempts.get(cacheKey) ?? 0) + 1
+        writeAttempts.set(cacheKey, attempt)
+        if (attempt === 2) {
+          console.log('PersistentCacheHandler::write-failed', failureTag)
+          throw new Error('expected background cache write failure')
+        }
+      }
       const [value, clonedValue] = entry.value.tee()
       entry.value = value
 
@@ -75,8 +93,14 @@ const cacheHandler = {
 
       store.set(cacheKey, entry)
       console.log('PersistentCacheHandler::set', cacheKey)
+      if (failureTag !== undefined) {
+        console.log('PersistentCacheHandler::write-completed', failureTag)
+      }
     } catch (err) {
       console.log('PersistentCacheHandler::set', cacheKey, 'failed', err)
+      if (cacheKey.includes('failed-refresh-')) {
+        throw err
+      }
     } finally {
       resolvePending()
       pendingSets.delete(cacheKey)
