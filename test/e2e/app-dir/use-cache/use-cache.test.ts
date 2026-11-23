@@ -408,6 +408,12 @@ describe('use-cache', () => {
       expect(after).toHaveLength(1)
       expect(after.text()).not.toBe(initialUnstable)
     })
+
+    // The cache has settled, so a browser reload now sees the refreshed value.
+    await browser.refresh()
+    expect(await browser.elementByCss('#unstable-time').text()).not.toBe(
+      initialUnstable
+    )
   })
 
   it('should revalidate caches nested in unstable_cache', async () => {
@@ -838,6 +844,10 @@ describe('use-cache', () => {
       expect(random).toHaveLength(1)
       expect(random.text()).not.toBe(initialValue)
     })
+
+    // The cache has settled, so a browser reload now sees the refreshed value.
+    await browser.refresh()
+    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
   })
 
   it('should cache fetch without no-store', async () => {
