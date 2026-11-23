@@ -46,6 +46,23 @@ exports.errorWithUnsendableCause = () => {
   const cause = Object.assign(new Error('cause boom'), { retry() {} })
   throw Object.assign(new Error('outer boom', { cause }), { code: 'E_KEEP' })
 }
+exports.errorWithThrowingGetter = () => {
+  const error = new Error('getter boom')
+  Object.defineProperty(error, 'detail', {
+    enumerable: true,
+    get() { throw new Error('property getter threw') },
+  })
+  throw error
+}
+exports.errorWithThrowingCauseGetter = (nested) => {
+  const inner = new Error('inner boom')
+  Object.defineProperty(inner, 'detail', {
+    enumerable: true,
+    get() { throw new Error('cause getter threw') },
+  })
+  const cause = nested ? new Error('middle boom', { cause: inner }) : inner
+  throw Object.assign(new Error('outer boom', { cause }), { code: 'E_KEEP' })
+}
 exports.errorWithNullishCause = (cause) => {
   throw new Error('nullish cause', { cause: cause === 'null' ? null : undefined })
 }
@@ -90,6 +107,8 @@ exports.strayThrow = () =>
         'errorWithUnsendableCause',
         'errorWithDeepCause',
         'errorWithNullishCause',
+        'errorWithThrowingGetter',
+        'errorWithThrowingCauseGetter',
         'strayThrow',
       ],
       maxWorkers: 1,
@@ -152,6 +171,35 @@ exports.strayThrow = () =>
     }
     await expect(worker.ok('after')).resolves.toBe('after')
   })
+
+  it('sends an error whose properties cannot be read', async () => {
+    const worker = createWorker()
+    const error: any = await worker
+      .errorWithThrowingGetter()
+      .catch((err) => err)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(WorkerExitError)
+    expect(error.message).toBe('getter boom')
+    await expect(worker.ok('after')).resolves.toBe('after')
+  })
+
+  it.each([
+    ['its cause', false],
+    ['a nested cause', true],
+  ])(
+    'keeps the properties of an error when %s cannot be read',
+    async (_, nested) => {
+      const worker = createWorker()
+      const error: any = await worker
+        .errorWithThrowingCauseGetter(nested)
+        .catch((err) => err)
+      expect(error).not.toBeInstanceOf(WorkerExitError)
+      expect(error.message).toBe('outer boom')
+      expect(error.code).toBe('E_KEEP')
+      expect(error.cause).toBeUndefined()
+      await expect(worker.ok('after')).resolves.toBe('after')
+    }
+  )
 
   it('passes a null cause through and ignores an undefined one', async () => {
     const worker = createWorker()

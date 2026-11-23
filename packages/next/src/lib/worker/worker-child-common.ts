@@ -121,13 +121,24 @@ export function createMessageHandler(
     let properties: unknown = error
     let cause: SerializedErrorCause | undefined
     if (typeof error === 'object') {
-      // Extra properties of the original error (e.g. `code`, `digest`).
-      const extra: Record<string, unknown> = { ...error }
-      if (hasOwnCause(error)) {
+      try {
+        // Extra properties of the original error (e.g. `code`, `digest`).
+        const extra: Record<string, unknown> = { ...error }
         delete extra.cause
-        cause = serializeCause(error.cause, 1)
+        properties = extra
+      } catch {
+        // E.g. a throwing getter: send the error without its properties.
+        properties = undefined
       }
-      properties = extra
+      if (properties !== undefined) {
+        try {
+          if (hasOwnCause(error)) {
+            cause = serializeCause(error.cause, 1)
+          }
+        } catch {
+          // E.g. a throwing getter in the cause: send the error without it.
+        }
+      }
     }
     const send = (
       extraProperties: unknown,
@@ -144,18 +155,20 @@ export function createMessageHandler(
         extraProperties,
         errorCause,
       ])
-    try {
-      send(properties, cause)
-      return
-    } catch {
-      // Something can't be serialized (e.g. a function, or circular data).
-    }
-    if (cause !== undefined) {
+    if (properties !== undefined || typeof error !== 'object') {
       try {
-        // Maybe it's only the cause: keep the error's own properties.
-        send(properties)
+        send(properties, cause)
         return
-      } catch {}
+      } catch {
+        // Something can't be serialized (e.g. a function, or circular data).
+      }
+      if (cause !== undefined) {
+        try {
+          // Maybe it's only the cause: keep the error's own properties.
+          send(properties)
+          return
+        } catch {}
+      }
     }
     // The error's extra properties can't be serialized. Send what can always
     // be serialized, so the call still fails with its error instead of
