@@ -256,13 +256,6 @@ Don't add `as any` casts; `@next/internal/no-as-any` rejects them. Fix the type,
 
 A trailing `// eslint-disable-line` takes the reason after `--` instead. `@next/internal/require-disable-reason` rejects a missing or vague reason. Existing casts carry a `// TODO(as-any): pre-existing cast, not yet reviewed` line; don't copy that marker onto new code. When you fix a cast, delete both the disable comment and its reason (unused disable comments fail lint; the reason line does not, so it's on you).
 
-## PR Status (CI Failures and Reviews)
-
-Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or
-PR status. It contains the `scripts/pr-status.js` commands, prioritization,
-review-thread workflow, and CI reproduction guidance. See
-`.agents/skills/pr-status-triage/SKILL.md`.
-
 ## GitHub Pull Requests
 
 Check and see if you are creating a fork PR or a branch PR.
@@ -372,8 +365,6 @@ You must inform the user that you are not allowed to create issues/discussions/c
 
 ## Key Directories (Quick Reference)
 
-See [Codebase structure](#codebase-structure) above for detailed explanations.
-
 - `packages/next/src/` - Main Next.js source code
 - `packages/next/src/server/` - Server runtime (most changes happen here)
 - `packages/next/src/client/` - Client-side runtime
@@ -432,8 +423,9 @@ provider, ask the user to make it available or unlock it before continuing.
 
 Use skills for conditional, deep workflows. Keep baseline iteration/build/test policy in this file.
 
-- `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
+- `$pr-status-triage` - use whenever asked about CI failures, PR reviews, or PR status (incl. reading canary CI)
 - `$create-pr` - branch, commit, push, and draft PR creation workflow
+- `$rebase-pr` - rebase a PR onto canary or restack dependent PRs safely
 - `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
 - `$backport-pr` - cherry-pick merged PRs from `canary` to `releases/lts/active` or `releases/lts/maintenance`
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
@@ -442,6 +434,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
+- `$rust-turbopack` - Rust/Turbopack build, test, snapshot, and benchmarking workflow (cargo, nextest, UPDATE=1, clippy, Miri, wasi)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$run-tests` - test bootstrap in a fresh checkout, CI env matching, fixture gitignore traps, flaky-test reproduction
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
@@ -499,12 +492,6 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 ### Test Gotchas
 
 Test-writing gotchas (PPR under cache components, mode-specific setup, log assertions, stack traces, router act tests) are in `test/AGENTS.md`. Running tests outside the happy path (fresh-checkout bootstrap, CI env flags, smoke tests, flaky tests, ignored fixture files) is in `$run-tests`.
-
-### Rust/Cargo
-
-- cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
-- **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
-- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`) — prefer `crate::`-rooted paths. This makes imports consistent and easier to grep for.
 
 ### Node.js Source Maps
 

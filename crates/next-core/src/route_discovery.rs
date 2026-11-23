@@ -64,6 +64,7 @@ pub fn authored_slot(directory: &str) -> Option<AuthoredSlot> {
 /// configured the caller stops depending on this task.
 #[turbo_tasks::function]
 pub async fn has_typescript_files(directory: FileSystemPath) -> Result<Vc<bool>> {
+    // DETERMINISM: The result is whether any entry matches, which entry order cannot change.
     let DirectoryContent::Entries(entries) = &*directory.read_dir().await? else {
         return Ok(Vc::cell(false));
     };

@@ -168,6 +168,7 @@ async fn get_pages_structure_for_root_directory(
         let mut items = vec![];
         let mut authored_files = Vec::new();
 
+        // DETERMINISM: Items and children are sorted below; basename ties produce identical items.
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
             for (name, entry) in entries.iter() {
@@ -264,6 +265,7 @@ async fn get_pages_structure_for_root_directory(
         // Ensure deterministic order since read_dir is not deterministic
         items.sort_by_key(|(k, _)| *k);
         children.sort_by_key(|(k, _)| *k);
+        authored_files.sort_by(|a, b| a.source.path.cmp(&b.source.path));
 
         Some(
             PagesDirectoryStructure {
@@ -366,9 +368,12 @@ async fn get_pages_structure_for_directory(
         let mut children = vec![];
         let mut items = vec![];
         let mut authored_files = Vec::new();
+        // DETERMINISM: Full-name sorting breaks extension ties before the stable basename sort.
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
-            for (name, entry) in entries.iter() {
+            let mut entries = entries.iter().collect::<Vec<_>>();
+            entries.sort_unstable_by_key(|(name, _)| *name);
+            for (name, entry) in entries {
                 match entry {
                     DirectoryEntry::File(_) => {
                         if name.ends_with(".d.ts") {
