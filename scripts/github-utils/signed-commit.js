@@ -10,17 +10,21 @@ const BLOB_UPLOAD_CONCURRENCY = 4
 /**
  * Whether a request may be repeated after a 5xx, which does not tell whether
  * it was processed. Reads are safe. So are git object writes (a repeated blob,
- * tree or commit is a duplicate object nothing references) and ref updates
- * (setting the same sha again changes nothing). Ref creation is not: if the
- * first attempt created the ref, a repeat fails with "Reference already
- * exists" and hides the original error from the caller. Anything else, such
- * as creating a ref or a release, is only retried on rate limit responses,
- * which mean the request was rejected.
+ * tree or commit is a duplicate object nothing references) and fast-forward
+ * ref updates (setting the same sha again changes nothing, and if the branch
+ * moved on in the meantime GitHub rejects the repeat as not a fast-forward).
+ * Forced ref updates are not: if the first attempt landed and the branch was
+ * advanced before the repeat, the repeat would rewind it. Ref creation is not
+ * either: if the first attempt created the ref, a repeat fails with
+ * "Reference already exists" and hides the original error from the caller.
+ * Those, and anything else such as creating a release, are only retried on
+ * rate limit responses, which mean the request was rejected.
  *
  * @param {string} method
  * @param {string} path
+ * @param {unknown} [body]
  */
-function isSafeToRepeat(method, path) {
+function isSafeToRepeat(method, path, body) {
   if (method === 'GET' || method === 'HEAD') {
     return true
   }
@@ -28,7 +32,12 @@ function isSafeToRepeat(method, path) {
     return /\/git\/(blobs|trees|commits)$/.test(path)
   }
   if (method === 'PATCH') {
-    return /\/git\/refs\//.test(path)
+    const forced =
+      typeof body === 'object' &&
+      body !== null &&
+      'force' in body &&
+      body.force === true
+    return /\/git\/refs\//.test(path) && !forced
   }
   return false
 }
@@ -60,7 +69,7 @@ async function githubRequest(token, method, path, body, retryOptions) {
     },
     {
       description: `GitHub API ${method} ${path}`,
-      retryServerErrors: isSafeToRepeat(method, path),
+      retryServerErrors: isSafeToRepeat(method, path, body),
       ...retryOptions,
     }
   )

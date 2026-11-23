@@ -358,6 +358,47 @@ describe('signed-commit githubRequest', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('does not repeat a forced ref PATCH after a 502', async () => {
+    const fetch = stubFetch([{ status: 502, body: 'Server Error' }])
+    globalThis.fetch = fetch
+
+    await expect(
+      githubRequest(
+        'token',
+        'PATCH',
+        '/repos/o/r/git/refs/heads/next-15-5',
+        { sha: 'abc', force: true },
+        {
+          sleep: async () => {},
+          log: () => {},
+        }
+      )
+    ).rejects.toThrow(
+      'GitHub API PATCH /repos/o/r/git/refs/heads/next-15-5 failed (502)'
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a fast-forward ref PATCH after a 502', async () => {
+    const fetch = stubFetch([
+      { status: 502, body: 'Server Error' },
+      { status: 200, body: '{"object":{"sha":"abc"}}' },
+    ])
+    globalThis.fetch = fetch
+
+    await githubRequest(
+      'token',
+      'PATCH',
+      '/repos/o/r/git/refs/heads/canary',
+      { sha: 'abc', force: false },
+      {
+        sleep: async () => {},
+        log: () => {},
+      }
+    )
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
   it('retries a release POST that was rate limited', async () => {
     const fetch = stubFetch([
       { status: 429 },
