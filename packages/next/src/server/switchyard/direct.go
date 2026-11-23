@@ -182,9 +182,6 @@ type directAttempt struct {
 	up    *goUpstream
 	// The request as the client sent it, for handing it to Node.
 	request *http.Request
-	// The request body as the Transport sees it, so the error handler knows
-	// whether the worker could have seen the request.
-	body *guardedBody
 	// Whether the Transport has written the request to a worker, on any
 	// attempt. The Transport sends it on its own goroutine.
 	sent atomic.Bool
@@ -254,10 +251,6 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// proxyNativeRequest sends the worker keep-alive and its token.
 			pr.Out.Header["Connection"] = keepAlive
 			pr.Out.Header[attempt.up.tokenHeader] = attempt.up.token
-			if pr.Out.Body != nil {
-				attempt.body = &guardedBody{body: pr.Out.Body}
-				pr.Out.Body = attempt.body
-			}
 		},
 		// directAttempt.Write flushes after every write, as Node does.
 		FlushInterval: 0,
@@ -304,8 +297,12 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 				return
 			}
 			// The worker is gone and never saw the request (Node hasn't told
-			// us yet): hand it to Node, as if the worker weren't ready.
-			if isDialError(err) && !attempt.sent.Load() && (attempt.body == nil || !attempt.body.read) {
+			// us yet): hand it to Node, as if the worker weren't ready. No
+			// attempt wrote the request, so none of its body was read either:
+			// the Transport sends a request again only without a body, and the
+			// body (requestBody) ignores the Transport's Close, so Node can
+			// still read it.
+			if isDialError(err) && !attempt.sent.Load() {
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
 			}
@@ -350,24 +347,6 @@ func hasAnyPrefix(s string, prefixes []string) bool {
 	}
 	return false
 }
-
-// guardedBody is the request body as the Transport sees it. It records
-// whether anything was read, and ignores Close, so a request the worker
-// never received can still go to Node with its body.
-type guardedBody struct {
-	body io.ReadCloser
-	read bool
-}
-
-func (b *guardedBody) Read(p []byte) (int, error) {
-	n, err := b.body.Read(p)
-	if n > 0 {
-		b.read = true
-	}
-	return n, err
-}
-
-func (b *guardedBody) Close() error { return nil }
 
 // WriteHeader writes the status line and headers.
 func (a *directAttempt) WriteHeader(code int) {
