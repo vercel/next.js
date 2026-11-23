@@ -130,11 +130,11 @@ func (t *Table) checkRequest(r Request) string {
 		if r.ContentLength != 0 {
 			return "body on " + r.Method
 		}
-		// Node passes a client's "Content-Length: 0" on to the worker; Go's
-		// Transport writes none for these methods without a body.
-		if _, ok := r.Header["Content-Length"]; ok {
-			return "Content-Length on " + r.Method
-		}
+		// Known difference, on both of Switchyard's paths: plain Node passes a
+		// client's "Content-Length: 0" on these methods to the worker, but Go's
+		// client writes none for them, here and on Switchyard's proxy to Node
+		// alike. Sending such requests to Node wouldn't change what the worker
+		// gets, so they aren't.
 	}
 	if r.ContentLength != 0 {
 		return "request body"
