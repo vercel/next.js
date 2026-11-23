@@ -53,15 +53,16 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the generated value is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. Next.js can prerender the fallback. If the Client Component renders on the server at request time, the browser can compute a different value during hydration.
+Choose this fix when a generated value belongs in the server-rendered HTML and a fallback can appear first. Generate it in a Server Component under [`<Suspense>`](https://react.dev/reference/react/Suspense) and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration.
 
 ### Patterns
 
 #### Wrap from a Server Component parent
 
-Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component.
+Await [`io()`](/docs/app/api-reference/functions/io) inside `RequestCorrelationId` before generating the correlation ID.
 
 ```jsx filename="app/page.js"
+import { io } from 'next/cache'
 import { Suspense } from 'react'
 import { CorrelationId } from './correlation-id'
 
@@ -69,18 +70,24 @@ export default function Page() {
   return (
     <PageShell>
       <Suspense fallback={null}>
-        <CorrelationId />
+        <RequestCorrelationId />
       </Suspense>
     </PageShell>
   )
+}
+
+async function RequestCorrelationId() {
+  await io()
+  const id = crypto.randomUUID()
+  return <CorrelationId id={id} />
 }
 ```
 
 ```jsx filename="app/correlation-id.js"
 'use client'
 
-export function CorrelationId() {
-  return <input type="hidden" name="trace" value={crypto.randomUUID()} />
+export function CorrelationId({ id }) {
+  return <input type="hidden" name="trace" value={id} />
 }
 ```
 
