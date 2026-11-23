@@ -1,0 +1,156 @@
+id: read-dir-determinism-comment
+snapshots:
+  ? |
+    // DETERMINISM: A comment on the function does not explain its calls.
+    async fn example() {
+        directory.read_dir().await?;
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 95
+      end: 115
+  ? |
+    async fn example() {
+        /* DETERMINISM: A block comment is not the required line comment. */
+        directory.read_dir().await?;
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 98
+      end: 118
+  ? |
+    async fn example() {
+        // DETERMINISM: A comment outside the block does not explain its calls.
+        Some({ directory.raw_read_dir().await? })
+    }
+  : labels:
+    - source: directory.raw_read_dir()
+      style: primary
+      start: 108
+      end: 132
+  ? |
+    async fn example() {
+        // DETERMINISM: A comment outside the block does not explain its calls.
+        if condition {
+            directory.read_dir().await?;
+        }
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 124
+      end: 144
+  ? |
+    async fn example() {
+        // DETERMINISM: This explains a different statement.
+        other();
+        directory.read_dir().await?;
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 95
+      end: 115
+  ? |
+    async fn example() {
+        // Entries are sorted before use.
+        directory.read_dir().await?;
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 63
+      end: 83
+  ? |
+    async fn example() {
+        // Explanation: DETERMINISM: this is not the required prefix.
+        directory.read_dir().await?;
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 91
+      end: 111
+  ? |
+    async fn example() {
+        /// DETERMINISM: A doc comment is not the required line comment.
+        directory.read_dir().await?;
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 94
+      end: 114
+  ? |
+    async fn example() {
+        directory.read_dir().await?;
+        // DETERMINISM: This comment comes after the call.
+    }
+  : labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 25
+      end: 45
+  ? |
+    async fn example() {
+        let entries = directory
+            .read_dir()
+            .await?;
+    }
+  : labels:
+    - source: |-
+        directory
+                .read_dir()
+      style: primary
+      start: 39
+      end: 68
+  consume(directory.read_dir()).await?;:
+    labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 8
+      end: 28
+  directory.raw_read_dir().await?;:
+    labels:
+    - source: directory.raw_read_dir()
+      style: primary
+      start: 0
+      end: 24
+  directory.raw_read_dir();:
+    labels:
+    - source: directory.raw_read_dir()
+      style: primary
+      start: 0
+      end: 24
+  directory.read_dir().await;:
+    labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 0
+      end: 20
+  directory.read_dir().await?;:
+    labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 0
+      end: 20
+  directory.read_dir().owned().await?;:
+    labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 0
+      end: 20
+  directory.read_dir();:
+    labels:
+    - source: directory.read_dir()
+      style: primary
+      start: 0
+      end: 20
+  fs.raw_read_dir(path).await?;:
+    labels:
+    - source: fs.raw_read_dir(path)
+      style: primary
+      start: 0
+      end: 21

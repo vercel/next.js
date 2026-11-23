@@ -4,6 +4,14 @@ Turbopack is a general-purpose bundler that is built and designed for Next.js, b
 
 - **Do NOT mention Next.js config options** (e.g. anything under `next.config.js`, `experimental.*`, or other `NextConfig` fields) inside `turbopack/` code, comments, or docs. Refer to Turbopack's own options/inputs instead, and let the Next.js (in `packages/next/`) do the translation from Next.js config to Turbopack options. (This only applies to `turbopack/` — the Next.js-specific crates in `crates/` and `packages/next/` may reference Next.js config options.)
 
+## Rust conventions
+
+These apply to all Rust code in this directory tree. For building, testing, snapshot updates, and benchmarking, use `$rust-turbopack`.
+
+- Run `cargo fmt` rather than ordering imports by hand: it uses ASCII order (uppercase before lowercase).
+- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`). Prefer `crate::`-rooted paths, which keep imports consistent and easier to grep for.
+- In JavaScript generated with Rust `format!`, escape literal braces as `{{` and `}}`.
+
 ## turbo_tasks caching and invalidation
 
 These rules apply throughout this directory tree when developing with turbo_tasks:
@@ -20,6 +28,8 @@ These rules apply throughout this directory tree when developing with turbo_task
 - When a task only needs a cell's value in some cases, and only finds out in synchronous code, use `let value = vc.lazy_reader().await?;` and access it with `value.get()`. When the `LazyReadRef` is dropped without `get()` ever being called, the read is canceled: the task no longer depends on the cell through it. The same lifetime rules as for `KeyedReadRef` apply.
 - When changing task boundaries, check the intended invalidation behavior. An unrelated module change should not invalidate consumers of unchanged keyed entries; correct output alone does not demonstrate good cache granularity.
 - Cell equality must include every observable distinction: comparison can retain the old value when the new value compares equal. In particular, `IndexSet` has deterministic iteration order but order-insensitive equality. Use `Vec` or an order-sensitive comparison when order is semantic or another cell stores positional indices into the collection; otherwise a reorder can leave old data paired with new indices even after recomputation settles.
+- A `#[turbo_tasks::value_impl]` block should contain task functions. Put plain helpers in free functions.
+- Task functions receive clones of their inputs. Don't infer the capacity of a stored input from the value inside the function.
 - In `#[turbo_tasks::function]` functions, if an argument needs to be resolved unconditionally, accept `ResolvedVc<T>` instead of accepting `Vc<T>` and calling `.to_resolved().await?` on it. The task macro automatically resolves arguments declared as `ResolvedVc<T>`, so callers do not need to manually resolve them before passing them in.
 
 ### Eventual consistency
