@@ -22,7 +22,7 @@ kind: error
   come back here for the specific fix.
 </div>
 
-A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
+A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML.
 
 The Server Component case is handled at [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random). Other unpredictable client-side APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
@@ -53,13 +53,13 @@ The Server Component case is handled at [`Math.random()` during prerendering](/d
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the random value is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. The fallback ships in the prerendered HTML, and Next.js fills in the real component when the browser hydrates.
+Choose this fix when the random value is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. Next.js can prerender the fallback. If the Client Component renders on the server at request time, the browser can compute a different random value during hydration.
 
 ### Patterns
 
 #### Wrap from a Server Component parent
 
-Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component. The fallback prerenders, the inner Client Component runs in the browser, and you only handle the random value once.
+Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component.
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -95,7 +95,7 @@ The component shows the fallback during SSR and the first paint. For above-the-f
 
 - Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in any of them raises this same error. Use stable placeholder content.
 - The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the random value only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
-- A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary only fixes the prerender/hydration mismatch, not client re-renders. If the component using [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) re-renders on the client (a parent state change, a context update), it produces a new value each time. To stabilize the value across re-renders, call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) once in a [`useState`](https://react.dev/reference/react/useState) initializer or [`useRef`](https://react.dev/reference/react/useRef), or compute it on the server and pass it down as a prop.
+- React [state](https://react.dev/reference/react/useState) and [refs](https://react.dev/reference/react/useRef) can preserve a value across browser re-renders, but they do not carry it from the server to the browser.
 
 ## Move into effect or event handler
 
@@ -186,7 +186,7 @@ The user sees the placeholder briefly before the real value. For interactions th
 
 - Don't compute the random value inline during render even with `useState((/* ... */) => Math.random())`. The lazy initializer still runs during SSR and triggers the error.
 - Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render in a server-rendered Client Component also causes a hydration mismatch (the SSR HTML uses one value, the browser uses another). The `useEffect` and event handler patterns above avoid both the error and the mismatch.
-- If the value needs to be hydration-stable (the SSR HTML and the hydrated render must match exactly), use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
+- If the random value needs to appear in the server-rendered HTML, generate it in a Server Component and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
 ## Other options
