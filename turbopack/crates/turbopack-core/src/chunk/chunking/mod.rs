@@ -422,45 +422,50 @@ struct SplitContext<'a> {
 }
 
 // The key an element (a chunk item, a batch or a batch group) is sorted by is the asset ident of a
-// representative chunk item: the item itself, or the first item of the batch / batch group.
+// representative chunk item: the item itself, or the first item of the batch / batch group. Empty
+// batches (and batch groups) have no key. They contribute no code, so they are dropped.
 
-async fn chunk_item_sort_key(chunk_item: Option<ResolvedVc<Box<dyn ChunkItem>>>) -> Result<RcStr> {
-    Ok(match chunk_item {
-        Some(chunk_item) => chunk_item.asset_ident().to_string().owned().await?,
-        None => RcStr::default(),
-    })
-}
-
-async fn item_sort_key(item: &ChunkItemOrBatchWithInfo) -> Result<RcStr> {
+async fn item_sort_key(item: &ChunkItemOrBatchWithInfo) -> Result<Option<RcStr>> {
     Ok(match item {
-        ChunkItemOrBatchWithInfo::ChunkItem { asset_ident, .. } => asset_ident.clone(),
+        ChunkItemOrBatchWithInfo::ChunkItem { asset_ident, .. } => Some(asset_ident.clone()),
         ChunkItemOrBatchWithInfo::Batch { batch, .. } => batch_sort_key(**batch).await?,
     })
 }
 
-async fn batch_sort_key(batch: Vc<ChunkItemBatchWithAsyncModuleInfo>) -> Result<RcStr> {
-    let first = batch.await?.chunk_items.first().map(|item| item.chunk_item);
-    chunk_item_sort_key(first).await
-}
-
-async fn batch_group_sort_key(batch_group: Vc<ChunkItemBatchGroup>) -> Result<RcStr> {
-    Ok(match batch_group.await?.items.first() {
-        Some(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(item)) => {
-            chunk_item_sort_key(Some(item.chunk_item)).await?
-        }
-        Some(&ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)) => batch_sort_key(*batch).await?,
-        None => chunk_item_sort_key(None).await?,
+async fn batch_sort_key(batch: Vc<ChunkItemBatchWithAsyncModuleInfo>) -> Result<Option<RcStr>> {
+    Ok(match batch.await?.chunk_items.first() {
+        Some(item) => Some(item.chunk_item.asset_ident().to_string().owned().await?),
+        None => None,
     })
 }
 
-/// Sorts `elements` by their `keys`.
+async fn batch_group_sort_key(batch_group: Vc<ChunkItemBatchGroup>) -> Result<Option<RcStr>> {
+    for item in &batch_group.await?.items {
+        let key = match *item {
+            ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(item) => {
+                Some(item.chunk_item.asset_ident().to_string().owned().await?)
+            }
+            ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => batch_sort_key(*batch).await?,
+        };
+        if key.is_some() {
+            return Ok(key);
+        }
+    }
+    Ok(None)
+}
+
+/// Sorts `elements` by their `keys`, dropping the elements without a key (which are empty).
 ///
 /// The keys of the elements of one chunk are unique: a module is part of at most one element of a
 /// chunk (batches and batch groups are disjoint, see `sort_batch_groups`), and
 /// [`ChunkItem::asset_ident`] must uniquely identify a chunk item at runtime, as it's the source of
 /// its module id.
-fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<RcStr>) {
-    let mut keyed = keys.into_iter().zip(elements.drain(..)).collect::<Vec<_>>();
+fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<Option<RcStr>>) {
+    let mut keyed = keys
+        .into_iter()
+        .zip(elements.drain(..))
+        .filter_map(|(key, element)| Some((key?, element)))
+        .collect::<Vec<_>>();
     keyed.sort_by(|(a, _), (b, _)| a.cmp(b));
     debug_assert!(
         keyed.windows(2).all(|pair| pair[0].0 != pair[1].0),
@@ -470,9 +475,6 @@ fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<RcStr>) {
 }
 
 async fn sort_chunk_items(chunk_items: &mut Vec<&'_ ChunkItemOrBatchWithInfo>) -> Result<()> {
-    if chunk_items.len() < 2 {
-        return Ok(());
-    }
     let keys = chunk_items
         .iter()
         .map(|item| item_sort_key(item))
@@ -487,9 +489,6 @@ async fn sort_chunk_items(chunk_items: &mut Vec<&'_ ChunkItemOrBatchWithInfo>) -
 /// one bitset, so the batch groups of a chunk are disjoint. The lookup map that `batch_info` builds
 /// from them therefore doesn't depend on their order.
 async fn sort_batch_groups(batch_groups: &mut Vec<ResolvedVc<ChunkItemBatchGroup>>) -> Result<()> {
-    if batch_groups.len() < 2 {
-        return Ok(());
-    }
     let keys = batch_groups
         .iter()
         .map(|batch_group| batch_group_sort_key(**batch_group))
