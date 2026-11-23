@@ -46,6 +46,10 @@ impl<T: Ord> HeapQueue<T> {
         Ok(item)
     }
 
+    pub(super) fn len(&self) -> usize {
+        self.heap.lock().len()
+    }
+
     pub(super) fn reduce_to_one(&self) {
         // Drain the semaphore permits
         let mut n = self.semaphore.forget_permits(usize::MAX);

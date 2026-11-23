@@ -733,14 +733,12 @@ impl NodeBackend for ChildProcessesBackend {
         })
     }
 
-    fn scale_down(&self) -> Result<()> {
-        ChildProcessPool::scale_down();
-        Ok(())
+    fn scale_down(&self) {
+        scale_down();
     }
 
-    fn scale_zero(&self) -> Result<()> {
-        ChildProcessPool::scale_zero();
-        Ok(())
+    fn scale_zero(&self) {
+        scale_zero();
     }
 }
 
@@ -867,19 +865,26 @@ impl ChildProcessPool {
             .await
             .context("creating new process")
     }
+}
 
-    fn scale_down() {
-        let pools = ACTIVE_POOLS.lock().clone();
-        for pool in pools {
-            pool.reduce_to_one();
-        }
+/// The number of idle processes across all pools.
+pub(crate) fn idle_process_count() -> usize {
+    ACTIVE_POOLS.lock().iter().map(|pool| pool.len()).sum()
+}
+
+/// Stops all idle processes of each pool except one.
+fn scale_down() {
+    let pools = ACTIVE_POOLS.lock().clone();
+    for pool in pools {
+        pool.reduce_to_one();
     }
+}
 
-    fn scale_zero() {
-        let pools = ACTIVE_POOLS.lock().clone();
-        for pool in pools {
-            pool.reduce_to_zero(&ACTIVE_POOLS);
-        }
+/// Stops all idle processes of each pool.
+fn scale_zero() {
+    let pools = ACTIVE_POOLS.lock().clone();
+    for pool in pools {
+        pool.reduce_to_zero(&ACTIVE_POOLS);
     }
 }
 

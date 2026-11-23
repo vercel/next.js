@@ -197,25 +197,18 @@ impl NodeBackend for WorkerThreadsBackend {
         })
     }
 
-    fn scale_down(&self) -> Result<()> {
-        WorkerThreadPool::scale_down();
-        Ok(())
+    fn scale_down(&self) {
+        WORKER_POOL_OPERATION.scale_down();
     }
 
-    fn scale_zero(&self) -> Result<()> {
-        WorkerThreadPool::scale_zero();
-        Ok(())
+    fn scale_zero(&self) {
+        WORKER_POOL_OPERATION.scale_zero();
     }
 }
 
-impl WorkerThreadPool {
-    fn scale_down() {
-        let _ = WORKER_POOL_OPERATION.scale_down();
-    }
-
-    fn scale_zero() {
-        let _ = WORKER_POOL_OPERATION.scale_zero();
-    }
+/// The number of idle workers across all pools.
+pub(crate) fn idle_worker_count() -> usize {
+    WORKER_POOL_OPERATION.idle_worker_count()
 }
 
 #[async_trait::async_trait]

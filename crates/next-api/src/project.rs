@@ -1836,20 +1836,28 @@ impl Project {
     ///
     /// Use this instead of [Self::whole_app_module_graphs] when you need to collect issues from
     /// the computation (e.g. for the `get_compilation_issues` MCP tool).
-    #[turbo_tasks::function]
+    ///
+    /// Session dependent so that it scales down the Node.js pool in every session, see
+    /// [Self::whole_app_module_graphs].
+    #[turbo_tasks::function(session_dependent)]
     pub async fn whole_app_module_graphs_without_dropping_issues(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
         // Wait for the graph before scaling down the Node.js pool, see `whole_app_module_graphs`.
-        let module_graphs_vc = module_graphs_op.resolve().strongly_consistent().await?;
+        let module_graphs_vc = module_graphs_op.resolve().strongly_consistent().await;
         scale_down_node_pool(self).await?;
-        Ok(*module_graphs_vc)
+        Ok(*module_graphs_vc?)
     }
 
     /// Computes the whole app module graph, dropping issues in development mode so that
     /// individual routes don't each report every issue from the shared graph.
-    #[turbo_tasks::function(root)]
+    ///
+    /// Session dependent so that it executes, and scales down the Node.js pool, in every session.
+    /// With a warm cache, loaders run again for changed modules, but the graph's own tasks don't
+    /// necessarily execute again. Executing it again is cheap: the graph is read from the cache,
+    /// and its result doesn't change unless the graph did.
+    #[turbo_tasks::function(root, session_dependent)]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
@@ -1857,11 +1865,13 @@ impl Project {
         // Wait for the graph, and everything computed under it, before scaling down the Node.js
         // pool below. Otherwise the pool would be scaled down before the graph's loaders spawn
         // their processes, which would then stay alive until the build exits.
-        let module_graphs_vc = module_graphs_op.resolve().strongly_consistent().await?;
+        // Scale down even if computing the graph failed, so a failed build doesn't keep them.
+        let module_graphs_vc = module_graphs_op.resolve().strongly_consistent().await;
+        scale_down_node_pool(self).await?;
+        let module_graphs_vc = module_graphs_vc?;
         if !self.next_mode().await?.is_production() {
             module_graphs_op.drop_issues();
         }
-        scale_down_node_pool(self).await?;
         Ok(*module_graphs_vc)
     }
 
@@ -3199,9 +3209,9 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
     let execution_context = project.execution_context().await?;
     let node_backend = execution_context.node_backend.into_trait_ref().await?;
     if *project.is_watch_enabled().await? {
-        node_backend.scale_down()?;
+        node_backend.scale_down();
     } else {
-        node_backend.scale_zero()?;
+        node_backend.scale_zero();
     }
     Ok(())
 }

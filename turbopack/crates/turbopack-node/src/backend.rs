@@ -48,7 +48,9 @@ pub trait NodeBackend: sealed::Sealed {
 
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture;
 
-    fn scale_down(&self) -> Result<()>;
+    /// Stops all idle processes of each pool except one.
+    fn scale_down(&self);
 
-    fn scale_zero(&self) -> Result<()>;
+    /// Stops all idle processes of each pool.
+    fn scale_zero(&self);
 }

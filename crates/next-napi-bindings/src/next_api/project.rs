@@ -422,6 +422,8 @@ pub struct ProjectInstance {
     // Never locked across an await point.
     exit_receiver: Mutex<Option<ExitReceiver>>,
     shutdown: Arc<ShutdownHooks>,
+    /// Whether the file system is watched, i.e. whether the Node.js pools are kept warm.
+    watch: bool,
     // Pin the ProjectContainer for as long as this struct survives.
     _container_gc_root: GcRoot<ProjectContainer>,
 }
@@ -651,6 +653,7 @@ pub fn project_new<'env>(
 
             let options = options.into_project_options();
             let is_dev = options.dev;
+            let watch = options.watch.enable;
             let root_path = options.root_path.clone();
             let shutdown = Arc::new(ShutdownHooks::default());
             let shutdown_hooks = shutdown.clone();
@@ -717,6 +720,7 @@ pub fn project_new<'env>(
                         container,
                         exit_receiver: Mutex::new(Some(exit_receiver)),
                         shutdown,
+                        watch,
                         _container_gc_root: container_gc_root,
                     }),
                 },
@@ -939,6 +943,14 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    // Without watching, the pools were scaled to zero once the module graph was built (see
+    // `Project::whole_app_module_graphs`), so no Node.js process should still be holding memory.
+    debug_assert!(
+        project.watch || turbopack_node::idle_node_process_count() == 0,
+        "{} idle Node.js processes are still running at shutdown, but they should have been \
+         stopped after building the module graph",
+        turbopack_node::idle_node_process_count()
+    );
     let eager_purge = TurboMalloc::enter_eager_purge_mode();
     run_shutdown_hooks(project).await;
     tt.stop_and_wait().await;
