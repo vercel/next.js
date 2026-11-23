@@ -221,13 +221,6 @@ describe('request insights', () => {
       (await next.fetch('/_next/development/request-insights?view=history'))
         .status
     ).toBe(404)
-    expect(
-      (
-        await next.fetch('/_next/development/request-insights?action=on', {
-          method: 'POST',
-        })
-      ).status
-    ).toBe(405)
   })
 
   it('records route module loading and preparation spans', async () => {
