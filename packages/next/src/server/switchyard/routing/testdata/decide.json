@@ -350,6 +350,11 @@
       "target": "/api/echo",
       "node": "outside basePath or its root"
     },
+    {
+      "table": "base",
+      "target": "/shop/_next/static/x.js",
+      "node": "node prefix /_next/"
+    },
 
     { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" },
     {
