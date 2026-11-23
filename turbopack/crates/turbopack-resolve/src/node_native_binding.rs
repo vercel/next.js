@@ -138,6 +138,7 @@ async fn resolve_node_pre_gyp_files(
                 .into();
 
             // Find all dynamic libraries in the given directory.
+            // DETERMINISM: FIXME: Library enumeration order reaches the resolved module slice.
             if let DirectoryContent::Entries(entries) = &*config_file_dir
                 .join(&native_binding_path)?
                 .read_dir()
@@ -167,6 +168,7 @@ async fn resolve_node_pre_gyp_files(
                 );
             }
         }
+        // DETERMINISM: FIXME: Module and affecting-source slices retain enumeration order.
         if let DirectoryContent::Entries(entries) = &*config_file_dir
             // TODO
             // read the dependencies path from `bindings.gyp`

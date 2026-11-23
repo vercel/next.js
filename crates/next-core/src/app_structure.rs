@@ -2730,6 +2730,7 @@ pub async fn get_global_metadata(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<GlobalMetadata>> {
+    // DETERMINISM: FIXME: Files for the same metadata category overwrite in filesystem order.
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")
     };
