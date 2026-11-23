@@ -637,7 +637,7 @@ describe('next.rs api', () => {
         expect(chunkNames).toHaveProperty('length', expect.toBePositive())
 
         const subscriptions = chunkNames.map((chunkName) =>
-          project.clientHmrEvents(chunkName)
+          project.clientHmrEvents(chunkName, undefined)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -759,7 +759,7 @@ describe('next.rs api', () => {
     const chunkNames = result.value.value.chunkNames
 
     const subscriptions = chunkNames.map((chunkName) =>
-      project.clientHmrEvents(chunkName)
+      project.clientHmrEvents(chunkName, undefined)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {

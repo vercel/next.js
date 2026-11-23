@@ -120,6 +120,10 @@ impl EcmascriptDevChunkListContent {
             }
         };
 
+        // The client subscribes to updates from this version, so the server can tell whether the
+        // chunks it loaded have changed since.
+        let version = self.version().await?;
+
         let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
@@ -134,12 +138,14 @@ impl EcmascriptDevChunkListContent {
                 (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
                     script: {script_or_path},
                     chunks: {chunks},
-                    source: {source}
+                    source: {source},
+                    version: {version}
                 }});
             "#,
             chunk_lists_global = StringifyJs(&chunk_lists_global),
             chunks = StringifyJs(&chunks),
             source = StringifyJs(&this.source),
+            version = StringifyJs(&version.id),
         )?;
 
         Ok(Code::cell(code.build()))

@@ -349,7 +349,7 @@ async fn hmr(
             let ident = ident_for_task.clone();
             async move {
                 let project = project.project();
-                let state = project.hmr_version_state(ident.clone(), session);
+                let state = project.hmr_version_state(ident.clone(), None, session);
                 project.hmr_update(ident.clone(), state).await?;
                 Ok(Vc::<()>::cell(()))
             }

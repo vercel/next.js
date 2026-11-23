@@ -1992,6 +1992,8 @@ pub fn project_entrypoints_subscribe(
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
+    /// The id of the version a partial update brings the content to.
+    to_version: Option<RcStr>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
@@ -2018,17 +2020,24 @@ async fn hmr_update_with_issues_operation(
     state: ResolvedVc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     tracing::info!(chunk_name = %chunk_name, "hmr subscription");
-    let update_op = project_hmr_update_operation(project, chunk_name, state);
+    let update_op = project_hmr_update_operation(project, chunk_name.clone(), state);
     // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
     let update = update_op.read_strongly_consistent().await?;
+    // A partial update brings the content to its current version.
+    let to_version = if matches!(&*update, Update::Partial(_)) {
+        project.hmr_version_id(chunk_name).owned().await?
+    } else {
+        None
+    };
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
+        to_version,
         issues,
         effects,
     }
@@ -2178,12 +2187,26 @@ pub async fn project_get_server_hmr_update(
     })
 }
 
+/// Resolves once no effects, such as writes of output files, are being applied. Output files read
+/// before then may be a mix of new, old and partially written files.
+#[napi]
+pub async fn project_wait_for_effects_applied() {
+    turbo_tasks::wait_for_effects_applied().await;
+}
+
+/// Whether effects, such as writes of output files, are being applied.
+#[napi]
+pub fn project_is_applying_effects() -> bool {
+    turbo_tasks::is_applying_effects()
+}
+
 #[tracing::instrument(level = "info", name = "get client HMR events", skip(env, project, func), fields(chunk_name = %chunk_name))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_client_hmr_events(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     chunk_name: RcStr,
+    client_version: Option<RcStr>,
     #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<Update>) => void")] func: FunctionRef<
         TurbopackResult<Unknown<'static>>,
         (),
@@ -2200,13 +2223,14 @@ pub fn project_client_hmr_events(
             let session = session.clone();
             move || {
                 let chunk_name: RcStr = outer_chunk_name.clone();
+                let client_version = client_version.clone();
                 let session = session.clone();
                 async move {
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
                     let state = project
-                        .hmr_version_state(chunk_name.clone(), session)
+                        .hmr_version_state(chunk_name.clone(), client_version, session)
                         .to_resolved()
                         .await?;
 
@@ -2219,7 +2243,12 @@ pub fn project_client_hmr_events(
                             .await?;
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
-                    let HmrUpdateWithIssues { update, issues, .. } = &*read;
+                    let HmrUpdateWithIssues {
+                        update,
+                        to_version,
+                        issues,
+                        ..
+                    } = &*read;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -2229,12 +2258,12 @@ pub fn project_client_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((Some(update.clone()), issues.clone()))
+                    Ok((Some(update.clone()), issues.clone(), to_version.clone()))
                 }
             }
         },
         move |ctx| {
-            let (update, issues) = ctx.value;
+            let (update, issues, to_version) = ctx.value;
 
             let napi_issues = issues
                 .iter()
@@ -2253,11 +2282,19 @@ pub fn project_client_hmr_events(
                 None | Some(Update::Missing) | Some(Update::Total(_)) => {
                     ClientUpdateInstruction::restart(&identifier, &update_issues)
                 }
-                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
-                    &identifier,
-                    &update.instruction,
-                    &update_issues,
-                ),
+                Some(Update::Partial(update)) => match &to_version {
+                    Some(to_version) => ClientUpdateInstruction::partial_to_version(
+                        &identifier,
+                        &update.instruction,
+                        to_version,
+                        &update_issues,
+                    ),
+                    None => ClientUpdateInstruction::partial(
+                        &identifier,
+                        &update.instruction,
+                        &update_issues,
+                    ),
+                },
                 Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 

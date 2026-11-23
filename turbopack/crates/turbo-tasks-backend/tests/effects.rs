@@ -18,6 +18,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyError, CapturedEffect, Effect, EffectExt, EffectStateStorage, Effects, EffectsError,
     NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TurboTasks, Vc, take_effects,
+    wait_for_effects_applied,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -40,6 +41,12 @@ struct SharedState {
     /// and `run_apply` (in `apply`).
     #[turbo_tasks(unsafe_ignore)]
     state_storage: EffectStateStorage,
+    /// When set, every apply waits for a permit, so tests can observe an apply in progress.
+    #[turbo_tasks(unsafe_ignore)]
+    apply_gate: Mutex<Option<Arc<tokio::sync::Semaphore>>>,
+    /// Notified when an apply starts.
+    #[turbo_tasks(unsafe_ignore)]
+    apply_started: tokio::sync::Notify,
 }
 
 impl SharedState {
@@ -49,6 +56,8 @@ impl SharedState {
             total_applies: AtomicU64::new(0),
             captures_with_content: AtomicU64::new(0),
             state_storage: EffectStateStorage::default(),
+            apply_gate: Mutex::new(None),
+            apply_started: tokio::sync::Notify::new(),
         })
     }
 
@@ -126,8 +135,13 @@ impl CapturedEffect for TestEffectCaptured {
     }
 
     async fn apply(&self) -> Result<(), ApplyError> {
+        let gate = self.shared.apply_gate.lock().clone();
         let body = if self.content {
             Some(async || {
+                self.shared.apply_started.notify_one();
+                if let Some(gate) = &gate {
+                    let _permit = gate.acquire().await.unwrap();
+                }
                 self.shared.total_applies.fetch_add(1, Ordering::Relaxed);
                 *self
                     .shared
@@ -290,6 +304,42 @@ async fn duplicate_apply_runs_once() {
             1,
             "second apply on the same Effects must not re-run"
         );
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// `wait_for_effects_applied` stays pending while an apply is in progress and resolves after it
+/// finishes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn wait_for_effects_applied_waits_for_apply_in_progress() {
+    let tt = create_tt();
+    tt.run_once(async move {
+        let (input, TestInput { shared, spec, .. }) = TestInput::new();
+        let gate = Arc::new(tokio::sync::Semaphore::new(0));
+        *shared.apply_gate.lock() = Some(gate.clone());
+
+        let effects = emit_and_take(&spec, input, vec![(rcstr!("foo"), 0xAAAA)]).await?;
+
+        let check = async {
+            shared.apply_started.notified().await;
+            let mut waiting = std::pin::pin!(wait_for_effects_applied());
+            assert!(
+                futures::poll!(waiting.as_mut()).is_pending(),
+                "waits while the apply is in progress"
+            );
+            gate.add_permits(1);
+            waiting.await;
+            assert_eq!(
+                shared.applies_for(&rcstr!("foo")),
+                1,
+                "resolves after the effect is applied"
+            );
+        };
+        let (applied, ()) = futures::join!(effects.apply_for_testing(), check);
+        applied?;
 
         anyhow::Ok(())
     })
