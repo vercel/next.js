@@ -137,14 +137,26 @@ it('should evaluate NODE_ENV through globalThis and global', () => {
     require('fail')
     import('fail')
   }
-  if (globalThis.globalThis.process.env.NODE_ENV !== 'production') {
+  const p = globalThis.process
+  if (p.env.NODE_ENV !== 'production') {
     require('fail')
     import('fail')
   }
-  if (globalThis.global.process.env.NODE_ENV !== 'production') {
-    require('fail')
-    import('fail')
+})
+
+it('should not evaluate globalThis members used for feature detection', () => {
+  // These globals don't exist in Node.js, so the fallback branch must be kept
+  expect(globalThis.Worker ? 'yes' : 'no').toBe(
+    typeof Worker === 'undefined' ? 'no' : 'yes'
+  )
+  expect(global.SharedWorker ? 'yes' : 'no').toBe(
+    typeof SharedWorker === 'undefined' ? 'no' : 'yes'
+  )
+  let processExists = false
+  if (globalThis.process) {
+    processExists = true
   }
+  expect(processExists).toBe(typeof process !== 'undefined')
 })
 
 it('should evaluate process.turbopack through globalThis and global', () => {

@@ -1,5 +1,7 @@
 aliased (const after eval) = g["process"]["platform"]
 
+aliasedProcess (const after eval) = p["platform"]
+
 binding (const after eval) = FreeVar(require)(
     `esbuild-${FreeVar(globalThis)["process"]["arch"]}-${n["process"]["platform"]}`
 )
@@ -14,13 +16,19 @@ n (const after eval) = FreeVar(global)
 
 nav (const after eval) = FreeVar(globalThis)["navigator"]
 
-nested (const after eval) = FreeVar(globalThis)["globalThis"]["global"]["process"]["platform"]
+nested (const after eval) = FreeVar(globalThis)["globalThis"]["process"]["platform"]
 
 nodeProcessArch (const after eval) = FreeVar(global)["process"]["arch"]
 
 notAGlobal (const after eval) = FreeVar(globalThis)["require"]
 
 obj (const after eval) = FreeVar(globalThis)["Object"]
+
+p (const after eval) = FreeVar(globalThis)["process"]
+
+processAndCheck (const after eval) = (FreeVar(global)["process"] && true)
+
+processCheck (const after eval) = (FreeVar(globalThis)["process"] ? 1 : 2)
 
 processPlatform (const after eval) = FreeVar(globalThis)["process"]["platform"]
 

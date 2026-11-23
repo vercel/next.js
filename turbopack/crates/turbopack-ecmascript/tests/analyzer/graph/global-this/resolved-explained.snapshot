@@ -1,9 +1,11 @@
 aliased = "linux"
 
+aliasedProcess = "linux"
+
 binding = module<esbuild-x64-linux, {}>
 
-buffer = Buffer*0*
-- *0* Buffer: The Node.js Buffer object: https://nodejs.org/api/buffer.html#class-buffer
+buffer = global*0*["Buffer"]
+- *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 env = process.env*0*
 - *0* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
@@ -14,22 +16,34 @@ g = globalThis*0*
 n = global*0*
 - *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
-nav = navigator*0*
-- *0* navigator: The browser navigator global: https://developer.mozilla.org/en-US/docs/Web/API/Navigator
+nav = globalThis*0*["navigator"]
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 
-nested = "linux"
+nested = globalThis*0*["globalThis"]["process"]["platform"]
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 
 nodeProcessArch = "x64"
 
 notAGlobal = globalThis*0*["require"]
 - *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 
-obj = Object*0*
-- *0* Object: The global Object variable
+obj = globalThis*0*["Object"]
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+
+p = globalThis*0*["process"]
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+
+processAndCheck = (global*0*["process"] | true)
+- *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global
+
+processCheck = (globalThis*0*["process"] ? 1 : 2)
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 
 processPlatform = "linux"
 
 unknownMember = globalThis*0*["somethingElse"]
 - *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 
-url = ./file.js relative
+url = new globalThis*0*["URL"]("./file.js", import.meta*1*["url"])
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+- *1* import.meta: The import.meta object

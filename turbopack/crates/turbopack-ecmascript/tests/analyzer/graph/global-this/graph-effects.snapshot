@@ -531,344 +531,6 @@
     },
     Member {
         obj: Member(
-            7,
-            Member(
-                5,
-                Member(
-                    3,
-                    FreeVar(
-                        "globalThis",
-                    ),
-                    Constant(
-                        Str(
-                            Atom(
-                                "globalThis",
-                            ),
-                        ),
-                    ),
-                ),
-                Constant(
-                    Str(
-                        Atom(
-                            "global",
-                        ),
-                    ),
-                ),
-            ),
-            Constant(
-                Str(
-                    Atom(
-                        "process",
-                    ),
-                ),
-            ),
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "platform",
-                ),
-            ),
-        ),
-        base_effects: [
-            Member {
-                obj: Member(
-                    5,
-                    Member(
-                        3,
-                        FreeVar(
-                            "globalThis",
-                        ),
-                        Constant(
-                            Str(
-                                Atom(
-                                    "globalThis",
-                                ),
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        Str(
-                            Atom(
-                                "global",
-                            ),
-                        ),
-                    ),
-                ),
-                prop: Constant(
-                    Str(
-                        Atom(
-                            "process",
-                        ),
-                    ),
-                ),
-                base_effects: [
-                    Member {
-                        obj: Member(
-                            3,
-                            FreeVar(
-                                "globalThis",
-                            ),
-                            Constant(
-                                Str(
-                                    Atom(
-                                        "globalThis",
-                                    ),
-                                ),
-                            ),
-                        ),
-                        prop: Constant(
-                            Str(
-                                Atom(
-                                    "global",
-                                ),
-                            ),
-                        ),
-                        base_effects: [
-                            Member {
-                                obj: FreeVar(
-                                    "globalThis",
-                                ),
-                                prop: Constant(
-                                    Str(
-                                        Atom(
-                                            "globalThis",
-                                        ),
-                                    ),
-                                ),
-                                base_effects: [
-                                    FreeVar {
-                                        var: "globalThis",
-                                        ast_path: [
-                                            Program(
-                                                Module,
-                                            ),
-                                            Module(
-                                                Body(
-                                                    5,
-                                                ),
-                                            ),
-                                            ModuleItem(
-                                                Stmt,
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Var,
-                                            ),
-                                            VarDecl(
-                                                Decls(
-                                                    0,
-                                                ),
-                                            ),
-                                            VarDeclarator(
-                                                Init,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                            MemberExpr(
-                                                Obj,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                            MemberExpr(
-                                                Obj,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                            MemberExpr(
-                                                Obj,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                            MemberExpr(
-                                                Obj,
-                                            ),
-                                            Expr(
-                                                Ident,
-                                            ),
-                                        ],
-                                        span: 191..201,
-                                    },
-                                ],
-                                ast_path: [
-                                    Program(
-                                        Module,
-                                    ),
-                                    Module(
-                                        Body(
-                                            5,
-                                        ),
-                                    ),
-                                    ModuleItem(
-                                        Stmt,
-                                    ),
-                                    Stmt(
-                                        Decl,
-                                    ),
-                                    Decl(
-                                        Var,
-                                    ),
-                                    VarDecl(
-                                        Decls(
-                                            0,
-                                        ),
-                                    ),
-                                    VarDeclarator(
-                                        Init,
-                                    ),
-                                    Expr(
-                                        Member,
-                                    ),
-                                    MemberExpr(
-                                        Obj,
-                                    ),
-                                    Expr(
-                                        Member,
-                                    ),
-                                    MemberExpr(
-                                        Obj,
-                                    ),
-                                    Expr(
-                                        Member,
-                                    ),
-                                    MemberExpr(
-                                        Obj,
-                                    ),
-                                    Expr(
-                                        Member,
-                                    ),
-                                ],
-                                span: 191..212,
-                                in_truthiness_context: false,
-                            },
-                        ],
-                        ast_path: [
-                            Program(
-                                Module,
-                            ),
-                            Module(
-                                Body(
-                                    5,
-                                ),
-                            ),
-                            ModuleItem(
-                                Stmt,
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Member,
-                            ),
-                            MemberExpr(
-                                Obj,
-                            ),
-                            Expr(
-                                Member,
-                            ),
-                            MemberExpr(
-                                Obj,
-                            ),
-                            Expr(
-                                Member,
-                            ),
-                        ],
-                        span: 191..219,
-                        in_truthiness_context: false,
-                    },
-                ],
-                ast_path: [
-                    Program(
-                        Module,
-                    ),
-                    Module(
-                        Body(
-                            5,
-                        ),
-                    ),
-                    ModuleItem(
-                        Stmt,
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Var,
-                    ),
-                    VarDecl(
-                        Decls(
-                            0,
-                        ),
-                    ),
-                    VarDeclarator(
-                        Init,
-                    ),
-                    Expr(
-                        Member,
-                    ),
-                    MemberExpr(
-                        Obj,
-                    ),
-                    Expr(
-                        Member,
-                    ),
-                ],
-                span: 191..227,
-                in_truthiness_context: false,
-            },
-        ],
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    5,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 191..236,
-        in_truthiness_context: false,
-    },
-    Member {
-        obj: Member(
             3,
             Variable(
                 (
@@ -913,7 +575,7 @@
                     ),
                     Module(
                         Body(
-                            6,
+                            5,
                         ),
                     ),
                     ModuleItem(
@@ -943,8 +605,94 @@
                         Member,
                     ),
                 ],
-                span: 254..263,
+                span: 192..201,
                 in_truthiness_context: false,
+            },
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    5,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 192..210,
+        in_truthiness_context: false,
+    },
+    Member {
+        obj: FreeVar(
+            "globalThis",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "process",
+                ),
+            ),
+        ),
+        base_effects: [
+            FreeVar {
+                var: "globalThis",
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            6,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 222..232,
             },
         ],
         ast_path: [
@@ -977,7 +725,55 @@
                 Member,
             ),
         ],
-        span: 254..272,
+        span: 222..240,
+        in_truthiness_context: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "p",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "platform",
+                ),
+            ),
+        ),
+        base_effects: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    7,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 265..275,
         in_truthiness_context: false,
     },
     FreeVar {
@@ -988,7 +784,7 @@
             ),
             Module(
                 Body(
-                    7,
+                    8,
                 ),
             ),
             ModuleItem(
@@ -1021,7 +817,7 @@
                 Ident,
             ),
         ],
-        span: 291..298,
+        span: 294..301,
     },
     Call {
         func: FreeVar(
@@ -1140,7 +936,7 @@
                                             ),
                                             Module(
                                                 Body(
-                                                    7,
+                                                    8,
                                                 ),
                                             ),
                                             ModuleItem(
@@ -1195,7 +991,7 @@
                                                 Ident,
                                             ),
                                         ],
-                                        span: 310..320,
+                                        span: 313..323,
                                     },
                                 ],
                                 ast_path: [
@@ -1204,7 +1000,7 @@
                                     ),
                                     Module(
                                         Body(
-                                            7,
+                                            8,
                                         ),
                                     ),
                                     ModuleItem(
@@ -1253,7 +1049,7 @@
                                         Member,
                                     ),
                                 ],
-                                span: 310..328,
+                                span: 313..331,
                                 in_truthiness_context: false,
                             },
                         ],
@@ -1263,7 +1059,7 @@
                             ),
                             Module(
                                 Body(
-                                    7,
+                                    8,
                                 ),
                             ),
                             ModuleItem(
@@ -1306,7 +1102,7 @@
                                 Member,
                             ),
                         ],
-                        span: 310..333,
+                        span: 313..336,
                         in_truthiness_context: false,
                     },
                     Member {
@@ -1355,7 +1151,7 @@
                                     ),
                                     Module(
                                         Body(
-                                            7,
+                                            8,
                                         ),
                                     ),
                                     ModuleItem(
@@ -1404,7 +1200,7 @@
                                         Member,
                                     ),
                                 ],
-                                span: 337..346,
+                                span: 340..349,
                                 in_truthiness_context: false,
                             },
                         ],
@@ -1414,7 +1210,7 @@
                             ),
                             Module(
                                 Body(
-                                    7,
+                                    8,
                                 ),
                             ),
                             ModuleItem(
@@ -1457,98 +1253,11 @@
                                 Member,
                             ),
                         ],
-                        span: 337..355,
+                        span: 340..358,
                         in_truthiness_context: false,
                     },
                 ],
             ),
-        ],
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    7,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: 291..358,
-        in_try: false,
-        new: false,
-    },
-    Member {
-        obj: FreeVar(
-            "globalThis",
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "Object",
-                ),
-            ),
-        ),
-        base_effects: [
-            FreeVar {
-                var: "globalThis",
-                ast_path: [
-                    Program(
-                        Module,
-                    ),
-                    Module(
-                        Body(
-                            8,
-                        ),
-                    ),
-                    ModuleItem(
-                        Stmt,
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Var,
-                    ),
-                    VarDecl(
-                        Decls(
-                            0,
-                        ),
-                    ),
-                    VarDeclarator(
-                        Init,
-                    ),
-                    Expr(
-                        Member,
-                    ),
-                    MemberExpr(
-                        Obj,
-                    ),
-                    Expr(
-                        Ident,
-                    ),
-                ],
-                span: 373..383,
-            },
         ],
         ast_path: [
             Program(
@@ -1577,26 +1286,27 @@
                 Init,
             ),
             Expr(
-                Member,
+                Call,
             ),
         ],
-        span: 373..390,
-        in_truthiness_context: false,
+        span: 294..361,
+        in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
-            "global",
+            "globalThis",
         ),
         prop: Constant(
             Str(
                 Atom(
-                    "Buffer",
+                    "process",
                 ),
             ),
         ),
         base_effects: [
             FreeVar {
-                var: "global",
+                var: "globalThis",
                 ast_path: [
                     Program(
                         Module,
@@ -1624,6 +1334,12 @@
                         Init,
                     ),
                     Expr(
+                        Cond,
+                    ),
+                    CondExpr(
+                        Test,
+                    ),
+                    Expr(
                         Member,
                     ),
                     MemberExpr(
@@ -1633,7 +1349,7 @@
                         Ident,
                     ),
                 ],
-                span: 407..413,
+                span: 449..459,
             },
         ],
         ast_path: [
@@ -1663,26 +1379,99 @@
                 Init,
             ),
             Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+            Expr(
                 Member,
             ),
         ],
-        span: 407..420,
-        in_truthiness_context: false,
+        span: 449..467,
+        in_truthiness_context: true,
+    },
+    Conditional {
+        condition: Member(
+            3,
+            FreeVar(
+                "globalThis",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "process",
+                    ),
+                ),
+            ),
+        ),
+        kind: Ternary {
+            then: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    AstPathId(
+                        9,
+                    ),
+                ),
+            },
+            else: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    AstPathId(
+                        10,
+                    ),
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    9,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+        ],
+        span: 449..475,
     },
     Member {
         obj: FreeVar(
-            "globalThis",
+            "global",
         ),
         prop: Constant(
             Str(
                 Atom(
-                    "navigator",
+                    "process",
                 ),
             ),
         ),
         base_effects: [
             FreeVar {
-                var: "globalThis",
+                var: "global",
                 ast_path: [
                     Program(
                         Module,
@@ -1710,6 +1499,12 @@
                         Init,
                     ),
                     Expr(
+                        Bin,
+                    ),
+                    BinExpr(
+                        Left,
+                    ),
+                    Expr(
                         Member,
                     ),
                     MemberExpr(
@@ -1719,7 +1514,7 @@
                         Ident,
                     ),
                 ],
-                span: 434..444,
+                span: 501..507,
             },
         ],
         ast_path: [
@@ -1749,10 +1544,274 @@
                 Init,
             ),
             Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
                 Member,
             ),
         ],
-        span: 434..454,
+        span: 501..515,
+        in_truthiness_context: false,
+    },
+    Member {
+        obj: FreeVar(
+            "globalThis",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "Object",
+                ),
+            ),
+        ),
+        base_effects: [
+            FreeVar {
+                var: "globalThis",
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            11,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 558..568,
+            },
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    11,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 558..575,
+        in_truthiness_context: false,
+    },
+    Member {
+        obj: FreeVar(
+            "global",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "Buffer",
+                ),
+            ),
+        ),
+        base_effects: [
+            FreeVar {
+                var: "global",
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            12,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 592..598,
+            },
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    12,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 592..605,
+        in_truthiness_context: false,
+    },
+    Member {
+        obj: FreeVar(
+            "globalThis",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "navigator",
+                ),
+            ),
+        ),
+        base_effects: [
+            FreeVar {
+                var: "globalThis",
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            13,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 619..629,
+            },
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    13,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 619..639,
         in_truthiness_context: false,
     },
     Member {
@@ -1775,7 +1834,7 @@
                     ),
                     Module(
                         Body(
-                            11,
+                            14,
                         ),
                     ),
                     ModuleItem(
@@ -1811,7 +1870,7 @@
                         Ident,
                     ),
                 ],
-                span: 472..482,
+                span: 657..667,
             },
         ],
         ast_path: [
@@ -1820,7 +1879,7 @@
             ),
             Module(
                 Body(
-                    11,
+                    14,
                 ),
             ),
             ModuleItem(
@@ -1850,7 +1909,7 @@
                 Member,
             ),
         ],
-        span: 472..486,
+        span: 657..671,
         in_truthiness_context: false,
     },
     MemberCall {
@@ -1909,7 +1968,7 @@
                                     ),
                                     Module(
                                         Body(
-                                            11,
+                                            14,
                                         ),
                                     ),
                                     ModuleItem(
@@ -1950,7 +2009,7 @@
                                         MetaProp,
                                     ),
                                 ],
-                                span: 500..511,
+                                span: 685..696,
                             },
                         ],
                         ast_path: [
@@ -1959,7 +2018,7 @@
                             ),
                             Module(
                                 Body(
-                                    11,
+                                    14,
                                 ),
                             ),
                             ModuleItem(
@@ -1994,7 +2053,7 @@
                                 Member,
                             ),
                         ],
-                        span: 500..515,
+                        span: 685..700,
                         in_truthiness_context: false,
                     },
                 ],
@@ -2006,7 +2065,7 @@
             ),
             Module(
                 Body(
-                    11,
+                    14,
                 ),
             ),
             ModuleItem(
@@ -2030,9 +2089,247 @@
                 New,
             ),
         ],
-        span: 468..516,
+        span: 653..701,
         in_try: false,
         new: true,
+    },
+    Member {
+        obj: Member(
+            5,
+            Member(
+                3,
+                FreeVar(
+                    "globalThis",
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "globalThis",
+                        ),
+                    ),
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "process",
+                    ),
+                ),
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "platform",
+                ),
+            ),
+        ),
+        base_effects: [
+            Member {
+                obj: Member(
+                    3,
+                    FreeVar(
+                        "globalThis",
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "globalThis",
+                            ),
+                        ),
+                    ),
+                ),
+                prop: Constant(
+                    Str(
+                        Atom(
+                            "process",
+                        ),
+                    ),
+                ),
+                base_effects: [
+                    Member {
+                        obj: FreeVar(
+                            "globalThis",
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "globalThis",
+                                ),
+                            ),
+                        ),
+                        base_effects: [
+                            FreeVar {
+                                var: "globalThis",
+                                ast_path: [
+                                    Program(
+                                        Module,
+                                    ),
+                                    Module(
+                                        Body(
+                                            15,
+                                        ),
+                                    ),
+                                    ModuleItem(
+                                        Stmt,
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Var,
+                                    ),
+                                    VarDecl(
+                                        Decls(
+                                            0,
+                                        ),
+                                    ),
+                                    VarDeclarator(
+                                        Init,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        Ident,
+                                    ),
+                                ],
+                                span: 718..728,
+                            },
+                        ],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    15,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Obj,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Obj,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 718..739,
+                        in_truthiness_context: false,
+                    },
+                ],
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            15,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 718..747,
+                in_truthiness_context: false,
+            },
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    15,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 718..756,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -2054,7 +2351,7 @@
                     ),
                     Module(
                         Body(
-                            12,
+                            16,
                         ),
                     ),
                     ModuleItem(
@@ -2084,7 +2381,7 @@
                         Ident,
                     ),
                 ],
-                span: 540..550,
+                span: 781..791,
             },
         ],
         ast_path: [
@@ -2093,7 +2390,7 @@
             ),
             Module(
                 Body(
-                    12,
+                    16,
                 ),
             ),
             ModuleItem(
@@ -2117,7 +2414,7 @@
                 Member,
             ),
         ],
-        span: 540..564,
+        span: 781..805,
         in_truthiness_context: false,
     },
     Member {
@@ -2140,7 +2437,7 @@
                     ),
                     Module(
                         Body(
-                            13,
+                            17,
                         ),
                     ),
                     ModuleItem(
@@ -2170,7 +2467,7 @@
                         Ident,
                     ),
                 ],
-                span: 585..595,
+                span: 826..836,
             },
         ],
         ast_path: [
@@ -2179,7 +2476,7 @@
             ),
             Module(
                 Body(
-                    13,
+                    17,
                 ),
             ),
             ModuleItem(
@@ -2203,7 +2500,7 @@
                 Member,
             ),
         ],
-        span: 585..603,
+        span: 826..844,
         in_truthiness_context: false,
     },
 ]

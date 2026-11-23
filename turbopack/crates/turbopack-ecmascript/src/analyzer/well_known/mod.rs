@@ -126,27 +126,64 @@ fn well_known_global<'a>(name: &str, ignore: bool) -> Option<JsValue<'a>> {
     })
 }
 
+/// Returns the well-known value of a property of the global object, i.e. `globalThis.process` or
+/// `global.process`.
+///
+/// TODO: Do this for the other globals from `well_known_global` as well (e.g.
+/// `new globalThis.Worker()`, `new globalThis.URL()`, `globalThis.Buffer.from()`).
+fn well_known_global_object_member<'a>(value: &JsValue<'a>) -> Option<JsValue<'a>> {
+    let JsValue::Member(_, obj, prop) = value else {
+        return None;
+    };
+    if !matches!(
+        &**obj,
+        JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis | WellKnownObjectKind::NodeGlobal)
+    ) {
+        return None;
+    }
+    match prop.as_str()? {
+        "process" => Some(JsValue::WellKnownObject(
+            WellKnownObjectKind::NodeProcessModuleDefault,
+        )),
+        _ => None,
+    }
+}
+
 /// Replaces a reference to a global with its well-known value, both as a free variable
 /// (`process`) and as a property of the global object (`globalThis.process`, `global.process`).
 ///
-/// Returns `None` when the value isn't a known global. Unknown properties of the global object
-/// are intentionally left as they are (e.g. `globalThis.foo`), so that they keep their definable
-/// name and can still be replaced by compile-time defines.
-pub fn replace_well_known_global<'a>(value: &JsValue<'a>, ignore: bool) -> Option<JsValue<'a>> {
-    match value {
-        JsValue::FreeVar(name) => well_known_global(name, ignore),
-        JsValue::Member(_, obj, prop)
-            if matches!(
-                &**obj,
-                JsValue::WellKnownObject(
-                    WellKnownObjectKind::GlobalThis | WellKnownObjectKind::NodeGlobal
-                )
-            ) =>
-        {
-            well_known_global(prop.as_str()?, ignore)
+/// A property of the global object is only replaced when it is used: as the object of a member
+/// access or member call (`globalThis.process.env`, `globalThis.process.cwd()`), or as a callee.
+/// Using the value would throw if it doesn't exist, so it's safe to assume it's the global.
+/// The property itself (`globalThis.process`) is left as is, since it's commonly used for feature
+/// detection (`if (globalThis.process)`) and the global might not exist at runtime. Folding it to
+/// a well-known (always truthy) value would remove the fallback branch.
+///
+/// Unknown properties of the global object (e.g. `globalThis.foo`) are left as is too, so that
+/// they keep their definable name and can still be replaced by compile-time defines.
+///
+/// Returns `true` when the value was modified.
+pub fn replace_well_known_global<'a>(value: &mut JsValue<'a>, ignore: bool) -> bool {
+    let used = match value {
+        JsValue::FreeVar(name) => {
+            return if let Some(replacement) = well_known_global(name, ignore) {
+                *value = replacement;
+                true
+            } else {
+                false
+            };
         }
-        _ => None,
-    }
+        JsValue::Member(_, obj, _) => &mut **obj,
+        JsValue::MemberCall(_, list) => list.obj_mut(),
+        JsValue::Call(_, list) | JsValue::New(_, list) => list.callee_mut(),
+        _ => return false,
+    };
+    let Some(replacement) = well_known_global_object_member(used) else {
+        return false;
+    };
+    *used = replacement;
+    value.update_total_nodes();
+    true
 }
 
 pub async fn well_known_function_call<'a>(

@@ -95,8 +95,9 @@ pub mod test_utils {
         attributes: &ImportAttributes,
     ) -> Result<(JsValue<'a>, Modified)> {
         let ImportAttributes { ignore, .. } = *attributes;
-        if let Some(value) = replace_well_known_global(&v, ignore) {
-            return Ok((value, Modified::Yes));
+        let mut v = v;
+        if replace_well_known_global(&mut v, ignore) {
+            return Ok((v, Modified::Yes));
         }
         let mut new_value = match v {
             JsValue::Call(_, ref call)

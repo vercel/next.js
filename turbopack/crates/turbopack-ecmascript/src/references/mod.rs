@@ -4269,8 +4269,9 @@ async fn value_visitor_inner<'a>(
     }
 
     let ImportAttributes { ignore, .. } = *attributes;
-    if let Some(value) = replace_well_known_global(&v, ignore) {
-        return Ok((value, Modified::Yes));
+    let mut v = v;
+    if replace_well_known_global(&mut v, ignore) {
+        return Ok((v, Modified::Yes));
     }
     let value = match v {
         JsValue::Call(_, call)

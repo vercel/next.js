@@ -29,6 +29,25 @@
         ),
     ),
     (
+        "aliasedProcess",
+        Member(
+            3,
+            Variable(
+                (
+                    "p",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "platform",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
         "binding",
         Call(
             15,
@@ -180,28 +199,18 @@
     (
         "nested",
         Member(
-            9,
+            7,
             Member(
-                7,
+                5,
                 Member(
-                    5,
-                    Member(
-                        3,
-                        FreeVar(
-                            "globalThis",
-                        ),
-                        Constant(
-                            Str(
-                                Atom(
-                                    "globalThis",
-                                ),
-                            ),
-                        ),
+                    3,
+                    FreeVar(
+                        "globalThis",
                     ),
                     Constant(
                         Str(
                             Atom(
-                                "global",
+                                "globalThis",
                             ),
                         ),
                     ),
@@ -276,6 +285,80 @@
                 Str(
                     Atom(
                         "Object",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "p",
+        Member(
+            3,
+            FreeVar(
+                "globalThis",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "process",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "processAndCheck",
+        Logical(
+            5,
+            And,
+            [
+                Member(
+                    3,
+                    FreeVar(
+                        "global",
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "process",
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    True,
+                ),
+            ],
+        ),
+    ),
+    (
+        "processCheck",
+        Tenary(
+            6,
+            Member(
+                3,
+                FreeVar(
+                    "globalThis",
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "process",
+                        ),
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        2.0,
                     ),
                 ),
             ),

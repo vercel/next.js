@@ -8,27 +8,36 @@
 
 10 -> 11 free var = FreeVar(globalThis)
 
-15 -> 16 free var = FreeVar(globalThis)
+14 -> 15 free var = FreeVar(globalThis)
 
-0 -> 19 free var = FreeVar(require)
+0 -> 17 free var = FreeVar(require)
 
-0 -> 20 call = require*0*("esbuild-x64-linux")
+0 -> 18 call = require*0*("esbuild-x64-linux")
 - *0* require: The require method from CommonJS
 
-22 -> 23 free var = FreeVar(globalThis)
+20 -> 21 free var = FreeVar(globalThis)
 
-26 -> 27 free var = FreeVar(globalThis)
+24 -> 25 free var = FreeVar(globalThis)
 
-28 -> 29 free var = FreeVar(global)
+0 -> 26 conditional = globalThis*0*["process"]
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 
-30 -> 31 free var = FreeVar(globalThis)
+27 -> 28 free var = FreeVar(global)
 
-32 -> 33 free var = FreeVar(globalThis)
+29 -> 30 free var = FreeVar(globalThis)
 
-0 -> 34 member call = globalThis*0*["URL"]("./file.js", import.meta*1*["url"])
+31 -> 32 free var = FreeVar(global)
+
+33 -> 34 free var = FreeVar(globalThis)
+
+35 -> 36 free var = FreeVar(globalThis)
+
+0 -> 37 member call = globalThis*0*["URL"]("./file.js", import.meta*1*["url"])
 - *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 - *1* import.meta: The import.meta object
 
-37 -> 38 free var = FreeVar(globalThis)
+42 -> 43 free var = FreeVar(globalThis)
 
-39 -> 40 free var = FreeVar(globalThis)
+44 -> 45 free var = FreeVar(globalThis)
+
+46 -> 47 free var = FreeVar(globalThis)
