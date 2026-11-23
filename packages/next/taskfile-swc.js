@@ -198,6 +198,12 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
     /** @type {import('@swc/core').Options} */
     const options = {
       minify: true,
+      jsc: {
+        minify: {
+          mangle: true,
+          compress: true,
+        },
+      },
     }
 
     const source = file.data.toString('utf-8')
