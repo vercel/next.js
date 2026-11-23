@@ -477,6 +477,7 @@ Adapter deployments require an adapter that supports `runtime: 'go'`. Adapter bu
 ## Build and Runtime Limitations
 
 - WebSocket upgrades and HTTP trailers are unsupported.
+- Production builds reject a Go route whose path is the percent-encoded spelling of another Go route's path, such as a literal `%5Bid%5D` folder beside an `[id]` folder, because one executable selects routes by their percent-encoded path.
 - Runtime file reads are not traced. Use `go:embed` for assets shipped with Go handlers.
 - Go handlers read the process environment. `next.config` environment inlining does not apply.
 - Go builds target the build host operating system and architecture with CGO disabled. The build environment must match the deployment runtime.

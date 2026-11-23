@@ -812,10 +812,22 @@ describe('native-route-go', () => {
         if (page === '/(group)/native/[id]/route') {
           expect(descriptor.route).toBe('/native/[id]')
         }
+        if (page === '/adapter-special/café a 100%/route') {
+          expect(descriptor.route).toBe('/adapter-special/café a 100%')
+        }
       }
       expect([...executables]).toEqual([expect.stringMatching(/^go-routes-/)])
       // Next.js names the routed handler; the shared process serves both.
       expect(await lifecyclePid()).toBe((await data()).pid)
+      // A route ID that is not a valid header value as is. Next.js sends it
+      // percent-encoded and the worker decodes it exactly once.
+      const special = await next.fetch(
+        '/adapter-special/caf%C3%A9%20a%20100%25'
+      )
+      expect(special.status).toBe(200)
+      expect(await special.json()).toMatchObject({
+        path: '/adapter-special/caf%C3%A9%20a%20100%25',
+      })
     })
 
     it('retries a transient worker startup failure in production', async () => {
@@ -1304,8 +1316,16 @@ func GET(w http.ResponseWriter, r *http.Request) {
               '/adapter-base/internal/health',
               { route: 'app/internal/health', visibility: 'app-internal' },
             ],
-            // Platforms may percent-encode the header value.
+            // The header carries the output ID percent-encoded and is decoded
+            // exactly once. IDs without "%" may also be sent unencoded.
             ['/native/%5Bid%5D', '/adapter-base/native/one', { id: 'one' }],
+            ['%2Fnative%2F%5Bid%5D', '/adapter-base/native/one', { id: 'one' }],
+            // An ID with "%" and non-ASCII characters has one spelling.
+            [
+              '/adapter-special/caf%C3%A9%20a%20100%25',
+              '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+              { path: '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25' },
+            ],
           ] as const) {
             const response = await invoke(path, {
               'x-matched-path': matched,
@@ -1319,6 +1339,21 @@ func GET(w http.ResponseWriter, r *http.Request) {
           expect((await invoke('/adapter-base/catch/static', {})).status).toBe(
             404
           )
+          // The value is decoded once, never matched both raw and decoded: a
+          // double-encoded ID names no output instead of falling back to
+          // another spelling, and invalid percent-encoding names nothing.
+          for (const matched of [
+            '/catch/%255Bid%255D',
+            '/adapter-special/caf%C3%A9%20a%20100%',
+          ]) {
+            expect(
+              (
+                await invoke('/adapter-base/catch/one', {
+                  'x-matched-path': matched,
+                })
+              ).status
+            ).toBe(404)
+          }
           expect(
             (
               await invoke('/adapter-base/catch/static', {
@@ -1846,6 +1881,36 @@ func init() {
       expect(output).toContain('"/metrics"')
     } finally {
       for (const file of files) await next.deleteFile(file)
+    }
+  })
+  it('rejects a Go route spelled as the percent-encoded path of another', async () => {
+    // A literal %5Bid%5D folder's route ID is the percent-encoded ID of the
+    // dynamic [id] route beside it. One executable selects routes by encoded
+    // ID, so an adapter that sent the literal ID unencoded would dispatch to
+    // the dynamic handler instead of the one it authorized.
+    const source = `package route
+
+import "net/http"
+
+func GET(w http.ResponseWriter, r *http.Request) {}
+`
+    try {
+      await next.patchFile('app/collide/[id]/route.go', source)
+      await next.patchFile('app/collide/%5Bid%5D/route.go', source)
+      const result = await next.runCommand(['build', '--turbopack'], {
+        env: {
+          IS_WEBPACK_TEST: '',
+          IS_TURBOPACK_TEST: '1',
+          NEXT_RSPACK: '',
+          NEXT_TEST_USE_RSPACK: '',
+        },
+      })
+      expect(result.exitCode).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain(
+        'The Go route /collide/%5Bid%5D is the percent-encoded spelling of the Go route /collide/[id]'
+      )
+    } finally {
+      await next.deleteFile('app/collide')
     }
   })
   it('diagnoses conflicting Go and TS handlers', async () => {

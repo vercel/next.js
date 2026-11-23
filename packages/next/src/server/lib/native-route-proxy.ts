@@ -37,6 +37,18 @@ function distinctHeaders(message: IncomingMessage): Record<string, string[]> {
   return headers
 }
 
+/**
+ * Encodes a route ID as the value of the header that selects it in a production
+ * Go executable. Route IDs can contain characters that are invalid in header
+ * values, such as non-ASCII folder names, and "%" in literal folder names. The
+ * executable decodes the value exactly once, so every route ID has exactly one
+ * spelling: the dynamic /x/[id] is sent as %2Fx%2F%5Bid%5D, and a literal
+ * /x/%5Bid%5D folder as %2Fx%2F%255Bid%255D.
+ */
+export function encodeNativeRouteId(route: string): string {
+  return encodeURIComponent(route)
+}
+
 /** Forwards an admitted request to an authenticated worker's HTTP listener. */
 export function proxyNativeRequest(
   req: IncomingMessage,
@@ -84,7 +96,7 @@ export function proxyNativeRequest(
   }
   headers['x-next-internal-go-token'] = target.token
   // A production executable serves every route.go and selects this route.
-  headers['x-next-internal-go-route'] = route
+  headers['x-next-internal-go-route'] = encodeNativeRouteId(route)
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
       hostname: '127.0.0.1',

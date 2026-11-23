@@ -53,6 +53,9 @@ func main() {
 const nextGoRouteRequirement = "route.go adapter server requires __NEXT_GO_ROUTE set to its output.id, " +
 	"or __NEXT_GO_ROUTE_HEADER set to a routing header that the platform sets to the selected output.id"
 
+// __NEXT_GO_ROUTE is the exact output ID. A routing header carries the output ID
+// percent-encoded (see nextGoLookupRoute).
+
 // nextGoSelectHandler reads trusted process configuration from the adapter.
 // __NEXT_GO_ROUTE binds the process to one output. __NEXT_GO_ROUTE_HEADER names
 // a request header that carries the selected output ID on each request.
@@ -97,19 +100,18 @@ func nextGoHeaderHandler(routes map[string]http.HandlerFunc, header string) http
 	}
 }
 
-// nextGoLookupRoute matches a header value to an output ID. Platforms may
-// percent-encode non-ASCII or reserved characters in the header, so a value
-// that is not an output ID is also tried decoded. The platform sets the value
-// and clients cannot, so decoding does not widen what a request can select.
+// nextGoLookupRoute matches a routing header value to an output ID. The value is
+// the output ID percent-encoded, and it is decoded exactly once. It is never also
+// matched raw: output IDs can contain "%", so trying both spellings would let one
+// value name two outputs, such as /x/%5Bid%5D naming both the literal
+// /x/%5Bid%5D route and, decoded, the dynamic /x/[id] route. An ID without "%"
+// decodes to itself, so platforms may send such IDs unencoded.
 func nextGoLookupRoute(routes map[string]http.HandlerFunc, value string) (http.HandlerFunc, bool) {
-	if handler, ok := routes[value]; ok {
-		return handler, true
-	}
-	decoded, err := url.PathUnescape(value)
-	if err != nil || decoded == value {
+	id, err := url.PathUnescape(value)
+	if err != nil {
 		return nil, false
 	}
-	handler, ok := routes[decoded]
+	handler, ok := routes[id]
 	return handler, ok
 }
 

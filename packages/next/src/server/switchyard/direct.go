@@ -36,7 +36,7 @@ type goUpstream struct {
 	tokenHeader string
 	token       []string // as a header value, set as is on each request
 	routeHeader string
-	route       []string // as a header value, set as is on each request
+	route       []string // the encoded route ID, set as is on each request
 }
 
 func newSwitchyard(node http.Handler) *switchyard {

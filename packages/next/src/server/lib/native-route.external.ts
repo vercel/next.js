@@ -5,7 +5,7 @@ import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
 import { join, relative, isAbsolute } from 'path'
 import { PassThrough, Readable, pipeline, type Transform } from 'stream'
 import { createBrotliDecompress, createUnzip } from 'zlib'
-import { proxyNativeRequest } from './native-route-proxy'
+import { encodeNativeRouteId, proxyNativeRequest } from './native-route-proxy'
 
 const noop = () => {}
 
@@ -90,7 +90,10 @@ export type NativeRouteWorkerEvent =
       address: string
       tokenHeader: string
       token: string
-      /** Header that names the route a request is for, and its value for page. */
+      /**
+       * Header that names the route a request is for, and its value for page:
+       * the route ID encoded by encodeNativeRouteId, to be sent as is.
+       */
       routeHeader?: string
       route?: string
     }>
@@ -362,7 +365,10 @@ export class NativeRouteManager {
         token: worker.token,
         ...(route === undefined
           ? {}
-          : { routeHeader: NATIVE_ROUTE_HEADER, route }),
+          : {
+              routeHeader: NATIVE_ROUTE_HEADER,
+              route: encodeNativeRouteId(route),
+            }),
       })
     }
     return { worker, route }

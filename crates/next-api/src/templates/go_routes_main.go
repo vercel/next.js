@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 	// __NEXT_GO_ROUTE_IMPORTS__
@@ -15,7 +16,8 @@ import (
 func main() {
 	// One worker serves every route.go of a production build. Next.js routes each
 	// request, including rewrites and proxy.ts, and names the selected route in
-	// x-next-internal-go-route. Requests never select a handler by pathname.
+	// x-next-internal-go-route, percent-encoded. Requests never select a handler
+	// by pathname.
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
 	}
@@ -45,7 +47,14 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
-		handler, ok := routes[selected[0]]
+		// Next.js sends encodeURIComponent(route ID), so any ID is a valid header
+		// value. Decode it exactly once and match only the decoded ID.
+		id, err := url.PathUnescape(selected[0])
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		handler, ok := routes[id]
 		if !ok {
 			http.NotFound(w, r)
 			return

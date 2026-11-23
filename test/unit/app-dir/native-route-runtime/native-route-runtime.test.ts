@@ -5,7 +5,11 @@ import http from 'http'
 import { Socket } from 'net'
 import { PassThrough } from 'stream'
 import { brotliCompressSync, deflateSync, gzipSync } from 'zlib'
-import { NativeRouteManager } from 'next/dist/server/lib/native-route.external'
+import {
+  NativeRouteManager,
+  observeNativeRouteWorkers,
+  type NativeRouteWorkerEvent,
+} from 'next/dist/server/lib/native-route.external'
 import { filterInternalHeaders } from 'next/dist/server/lib/server-ipc/utils'
 
 describe('native route runtime', () => {
@@ -208,7 +212,14 @@ describe('native route runtime', () => {
     const routes: Record<string, [page: string, route: string]> = {
       '/users/1': ['/(group)/users/[id]/route', '/users/[id]'],
       '/health': ['/health/route', '/health'],
+      // Route IDs that are not valid header values as is.
+      '/%E6%97%A5%E6%9C%AC%E8%AA%9E': ['/日本語/route', '/日本語'],
+      // A literal folder named %5Bid%5D beside a dynamic [id] folder. Its ID is
+      // the dynamic route's ID percent-encoded, so each must keep one spelling.
+      '/users/%255Bid%255D': ['/users/%5Bid%5D/route', '/users/%5Bid%5D'],
     }
+    const events: NativeRouteWorkerEvent[] = []
+    observeNativeRouteWorkers((event) => events.push(event))
     jest.spyOn(fs, 'readFile').mockImplementation((async (file: string) => {
       // The manager joins the descriptor path with the platform separator.
       const descriptorPath = String(file).replace(/\\/g, '/')
@@ -240,7 +251,13 @@ describe('native route runtime', () => {
     await new Promise<void>((resolve) => front.listen(0, '127.0.0.1', resolve))
     const frontPort = (front.address() as import('net').AddressInfo).port
     try {
-      for (const pathname of ['/users/1', '/health', '/users/1']) {
+      for (const pathname of [
+        '/users/1',
+        '/health',
+        '/users/1',
+        '/%E6%97%A5%E6%9C%AC%E8%AA%9E',
+        '/users/%255Bid%255D',
+      ]) {
         const response = await fetch(
           `http://127.0.0.1:${frontPort}${pathname}`,
           {
@@ -252,12 +269,40 @@ describe('native route runtime', () => {
         await response.text()
       }
       expect(spawn).toHaveBeenCalledTimes(1)
+      // The route header carries encodeURIComponent(route ID), which the Go
+      // executable decodes exactly once.
       expect(received).toEqual([
-        { route: '/users/[id]', url: '/users/1' },
-        { route: '/health', url: '/health' },
-        { route: '/users/[id]', url: '/users/1' },
+        { route: '%2Fusers%2F%5Bid%5D', url: '/users/1' },
+        { route: '%2Fhealth', url: '/health' },
+        { route: '%2Fusers%2F%5Bid%5D', url: '/users/1' },
+        {
+          route: '%2F%E6%97%A5%E6%9C%AC%E8%AA%9E',
+          url: '/%E6%97%A5%E6%9C%AC%E8%AA%9E',
+        },
+        { route: '%2Fusers%2F%255Bid%255D', url: '/users/%255Bid%255D' },
+      ])
+      expect(
+        received.map(({ route }) => decodeURIComponent(route as string))
+      ).toEqual([
+        '/users/[id]',
+        '/health',
+        '/users/[id]',
+        '/日本語',
+        '/users/%5Bid%5D',
+      ])
+      // Switchyard sets the announced value on requests as is.
+      expect(
+        events.flatMap((event) =>
+          event.event === 'worker' ? [[event.page, event.route]] : []
+        )
+      ).toEqual([
+        ['/(group)/users/[id]/route', '%2Fusers%2F%5Bid%5D'],
+        ['/health/route', '%2Fhealth'],
+        ['/日本語/route', '%2F%E6%97%A5%E6%9C%AC%E8%AA%9E'],
+        ['/users/%5Bid%5D/route', '%2Fusers%2F%255Bid%255D'],
       ])
     } finally {
+      observeNativeRouteWorkers(() => {})
       child.exitCode = 0
       child.emit('exit', 0)
       child.stdout.destroy()

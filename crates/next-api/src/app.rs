@@ -1496,6 +1496,50 @@ impl Issue for GoRouteIssue {
     }
 }
 
+/// Decodes `%XX` escapes exactly once, as Go's `url.PathUnescape` does when a production Go
+/// executable reads the route header. Returns `None` where Go fails: an invalid escape, or a
+/// result that is not UTF-8 and so cannot be a route ID.
+fn go_path_unescape(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let hex = bytes.get(index + 1..index + 3)?;
+            if !hex.iter().all(u8::is_ascii_hexdigit) {
+                return None;
+            }
+            decoded.push(u8::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()?);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).ok()
+}
+
+/// Pairs `(spelled, decoded)` of distinct Go route IDs where decoding `spelled` once yields
+/// `decoded`, such as a literal `/x/%5Bid%5D` folder beside a dynamic `/x/[id]` route.
+///
+/// A production executable selects a route by its percent-encoded ID and decodes the header
+/// exactly once, so Next.js and conforming adapters always select the right route. An adapter
+/// that sent `spelled` without encoding it would select `decoded` instead, a different handler
+/// than the one it authorized, so such IDs are rejected at build time.
+fn go_route_id_collisions<'a>(ids: &[&'a str]) -> Vec<(&'a str, &'a str)> {
+    let known: std::collections::BTreeSet<&str> = ids.iter().copied().collect();
+    let mut collisions = vec![];
+    for &id in ids {
+        if let Some(decoded) = go_path_unescape(id)
+            && decoded != id
+            && let Some(&other) = known.get(decoded.as_str())
+        {
+            collisions.push((id, other));
+        }
+    }
+    collisions
+}
+
 /// Virtual directory of the adapter entrypoint that serves every route, relative to the Go
 /// module root. It lies outside every `internal` tree.
 const GO_ROUTES_ENTRYPOINT_DIRECTORY: &str = "_next_go_main_routes";
@@ -1779,6 +1823,34 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
     }
     if blocked {
         return Ok(failed(failed_build));
+    }
+    let ids = packages
+        .iter()
+        .map(|(_, package)| package.route_id.as_str())
+        .collect::<Vec<_>>();
+    let collisions = go_route_id_collisions(&ids);
+    if !collisions.is_empty() {
+        for (spelled, decoded) in collisions {
+            for (path, package) in &packages {
+                if package.route_id != spelled && package.route_id != decoded {
+                    continue;
+                }
+                GoRouteIssue {
+                    path: path.clone(),
+                    message: format!(
+                        "The Go route {spelled} is the percent-encoded spelling of the Go route \
+                         {decoded}. Production builds compile every route.go into one executable \
+                         that selects a route by its percent-encoded route ID, so these two \
+                         routes cannot be told apart reliably. Rename the folder so that its name \
+                         contains no percent-encoded characters."
+                    )
+                    .into(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+        }
+        return Ok(failed(None));
     }
     let source_root = project.project_root_path().owned().await?;
     let display = |path: &FileSystemPath| -> String {
@@ -3926,6 +3998,46 @@ mod tests {
         let (import, shims) = go_internal_shims("example.com/m", alias).unwrap();
         assert_eq!(import, format!("_next_go_shim_{:08x}", hash(alias)));
         assert_eq!(shims.len(), 1);
+    }
+
+    #[test]
+    fn go_route_ids_decode_exactly_once_like_go() {
+        assert_eq!(go_path_unescape("/x/[id]").as_deref(), Some("/x/[id]"));
+        assert_eq!(go_path_unescape("/x/%5Bid%5D").as_deref(), Some("/x/[id]"));
+        assert_eq!(
+            go_path_unescape("%2Fx%2F%255Bid%255D").as_deref(),
+            Some("/x/%5Bid%5D")
+        );
+        assert_eq!(
+            go_path_unescape("%2F%E6%97%A5%E6%9C%AC%E8%AA%9E").as_deref(),
+            Some("/日本語")
+        );
+        assert_eq!(go_path_unescape("/a+b").as_deref(), Some("/a+b"));
+        // Go rejects these, so they select no route.
+        for invalid in ["/x/%zz", "/x/%5", "/x/%", "/x/%+5", "/x/%FF", "/x/%e6%97"] {
+            assert_eq!(go_path_unescape(invalid), None, "{invalid}");
+        }
+    }
+
+    #[test]
+    fn go_route_ids_reject_a_literal_percent_spelling_of_another_route() {
+        // A public dynamic route and a literal folder spelled as its encoded ID.
+        assert_eq!(
+            go_route_id_collisions(&["/x/[id]", "/x/%5Bid%5D", "/health"]),
+            [("/x/%5Bid%5D", "/x/[id]")]
+        );
+        assert_eq!(
+            go_route_id_collisions(&["/x/%255Bid%255D", "/x/%5Bid%5D"]),
+            [("/x/%255Bid%255D", "/x/%5Bid%5D")]
+        );
+        assert_eq!(
+            go_route_id_collisions(&["/caf%C3%A9", "/café", "/%5Fprivate"]),
+            [("/caf%C3%A9", "/café")]
+        );
+        // Escapes that decode to no other route, or not at all, are allowed.
+        assert!(
+            go_route_id_collisions(&["/x/[id]", "/y/%5Bid%5D", "/x/%zz", "/日本語"]).is_empty()
+        );
     }
 
     #[test]

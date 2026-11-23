@@ -14,7 +14,9 @@ import (
 //	{"event":"worker","page":"/api/users/[id]/route",
 //	 "address":"127.0.0.1:51300","tokenHeader":"x-next-internal-go-token",
 //	 "token":"…","routeHeader":"x-next-internal-go-route",
-//	 "route":"/api/users/[id]"}           a route.go worker is ready for a page
+//	 "route":"%2Fapi%2Fusers%2F%5Bid%5D"} a route.go worker is ready for a page;
+//	                                      route is the routeHeader value, the
+//	                                      route ID already percent-encoded
 //	{"event":"gone","address":"127.0.0.1:51300","token":"…"}
 //	                                      that worker takes no new requests
 type controlMessage struct {
