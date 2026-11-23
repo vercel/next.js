@@ -716,6 +716,7 @@ jobs:
         cargo check -p turbopack-trace-server-wasm --target wasm32-wasip1-threads --locked
         pnpm --filter @vercel/turbopack-trace-server-wasm build-trace-wasm
         cargo test -p turbopack-trace-server
+        cargo test -p turbopack-trace-server-wasm --test input --locked
       stepName: 'test-turbopack-trace-server-wasm'
     secrets: inherit
 

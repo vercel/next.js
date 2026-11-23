@@ -4,6 +4,8 @@ This crate exposes the transport-independent Turbopack trace viewer engine throu
 
 The exported `TurbopackTraceServer` class incrementally accepts raw or gzip-compressed trace chunks through its `read()` method. Its `handleMessage()` method accepts the existing trace viewer client JSON protocol and returns the corresponding server messages in protocol order. The store can be queried while more trace data is still arriving.
 
+Gzip output is fed directly to the incremental parser in batches of at most 64 KiB, so a compressed input chunk is not fully expanded into a staging vector before trace validation. Compression detection retains at most four input bytes. This is a staging bound, not a total memory limit: valid traces still grow the store, and incomplete records can grow the parser's input buffer.
+
 Each `read()` call parses synchronously. Pass an optional progress callback to the constructor to receive updates at most once every 250 milliseconds:
 
 ```js

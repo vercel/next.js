@@ -1,5 +1,4 @@
 use std::{
-    io::Write,
     sync::Mutex,
     time::{Duration, Instant},
 };
@@ -9,9 +8,10 @@ use napi::{
     bindgen_prelude::{Env, Function, FunctionRef, Uint8Array},
 };
 use napi_derive::napi;
-use turbopack_trace_server::{
-    TraceParser, protocol::ProtocolSession, store_container::StoreContainer,
-};
+use turbopack_trace_server::{protocol::ProtocolSession, store_container::StoreContainer};
+
+mod input;
+use input::TraceInput;
 
 #[cfg(target_family = "wasm")]
 #[global_allocator]
@@ -66,23 +66,15 @@ pub struct TraceLoadProgress {
     pub stats: String,
 }
 
-enum Compression {
-    Undetermined(Vec<u8>),
-    Raw,
-    Gzip(flate2::write::GzDecoder<Vec<u8>>),
-}
-
 /// In-memory implementation of the turbo trace viewer protocol.
 #[napi]
 pub struct TurbopackTraceServer {
     session: ProtocolSession,
-    parser: TraceParser,
-    compression: Compression,
+    input: TraceInput,
     on_progress: Option<FunctionRef<TraceLoadProgress, ()>>,
     started: Instant,
     last_reported: Option<Duration>,
     bytes_read: usize,
-    uncompressed_bytes_read: usize,
 }
 
 #[napi]
@@ -94,17 +86,15 @@ impl TurbopackTraceServer {
             .map(|on_progress| on_progress.create_ref())
             .transpose()?;
         let store = std::sync::Arc::new(StoreContainer::new());
-        let parser = TraceParser::new(store.clone());
+        let input = TraceInput::new(store.clone());
 
         Ok(Self {
             session: ProtocolSession::new(store),
-            parser,
-            compression: Compression::Undetermined(Vec::new()),
+            input,
             on_progress,
             started: Instant::now(),
             last_reported: None,
             bytes_read: 0,
-            uncompressed_bytes_read: 0,
         })
     }
 
@@ -112,7 +102,7 @@ impl TurbopackTraceServer {
     #[napi]
     pub fn read(&mut self, env: Env, trace: Uint8Array) -> Result<()> {
         self.bytes_read += trace.len();
-        self.push_bytes(trace.as_ref()).map_err(|error| {
+        self.input.push(trace.as_ref()).map_err(|error| {
             napi::Error::from_reason(format!("failed to read Turbopack trace: {error:#}"))
         })?;
 
@@ -130,14 +120,14 @@ impl TurbopackTraceServer {
             let bytes_read = self.bytes_read as f64;
             on_progress.borrow_back(&env)?.call(TraceLoadProgress {
                 bytes_read,
-                uncompressed_bytes_read: self.uncompressed_bytes_read as f64,
+                uncompressed_bytes_read: self.input.uncompressed_bytes_read() as f64,
                 elapsed_ms,
                 bytes_per_second: if elapsed_ms > 0.0 {
                     bytes_read * 1000.0 / elapsed_ms
                 } else {
                     0.0
                 },
-                stats: self.parser.stats(),
+                stats: self.input.stats(),
             })?;
         }
 
@@ -151,48 +141,5 @@ impl TurbopackTraceServer {
         self.session.handle_text(&message).map_err(|error| {
             napi::Error::from_reason(format!("failed to handle trace viewer message: {error:#}"))
         })
-    }
-}
-
-impl TurbopackTraceServer {
-    fn push_bytes(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        if let Compression::Undetermined(prefix) = &mut self.compression {
-            prefix.extend_from_slice(bytes);
-            if prefix.len() < 4 {
-                return Ok(());
-            }
-
-            const GZIP_MAGIC: &[u8] = &[0x1f, 0x8b];
-            const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
-
-            if prefix.starts_with(ZSTD_MAGIC) {
-                return Err(std::io::Error::other(
-                    "zstd-compressed traces are not supported by the WASM trace engine",
-                ));
-            }
-
-            let prefix = std::mem::take(prefix);
-            self.compression = if prefix.starts_with(GZIP_MAGIC) {
-                Compression::Gzip(flate2::write::GzDecoder::new(Vec::new()))
-            } else {
-                Compression::Raw
-            };
-            return self.push_bytes(&prefix);
-        }
-
-        let uncompressed = match &mut self.compression {
-            Compression::Raw => bytes.to_vec(),
-            Compression::Gzip(decoder) => {
-                decoder.write_all(bytes)?;
-                std::mem::take(decoder.get_mut())
-            }
-            Compression::Undetermined(_) => unreachable!(),
-        };
-
-        self.parser
-            .push(&uncompressed)
-            .map_err(std::io::Error::other)?;
-        self.uncompressed_bytes_read += uncompressed.len();
-        Ok(())
     }
 }
