@@ -733,6 +733,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         _chunk_group: ChunkGroupKey,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
+        _hmr_ident: Option<Vc<AssetIdent>>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         bail!("the Node.js chunking context does not support evaluated chunk groups")

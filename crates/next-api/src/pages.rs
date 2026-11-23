@@ -975,6 +975,7 @@ impl PageEndpoint {
                 ChunkGroupKey::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
+                None,
                 availability_info,
             );
 

@@ -971,6 +971,7 @@ impl ChunkingContext for BrowserChunkingContext {
         // Extra chunks to include in the HMR chunk list beyond what is reachable from this chunk
         // group. Used to cover RSC client reference chunks that are built separately.
         extra_chunks: Vc<OutputAssets>,
+        hmr_ident: Option<Vc<AssetIdent>>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -1058,7 +1059,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 assets.push(
                     self.generate_chunk_list_register_chunk(
-                        ident,
+                        hmr_ident.unwrap_or(ident),
                         entries,
                         hmr_other_assets,
                         EcmascriptDevChunkListSource::Entry,

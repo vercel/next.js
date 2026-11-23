@@ -13,6 +13,7 @@ use turbopack_core::{
 #[turbo_tasks::function]
 pub async fn get_app_client_shared_chunk_group(
     ident: Vc<AssetIdent>,
+    hmr_ident: Vc<AssetIdent>,
     app_client_runtime_entries: Vc<EvaluatableAssets>,
     module_graph: Vc<ModuleGraph>,
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -34,10 +35,10 @@ pub async fn get_app_client_shared_chunk_group(
                         .collect(),
                 ),
                 module_graph,
-                // The shared chunk group must stay shared across pages; page-specific HMR
-                // chunks (e.g. client references) are routed through a separate page-specific
-                // evaluated chunk group instead.
+                // The evaluated chunk group stays shared across pages, while the HMR chunk list
+                // is page-specific because it can contain route-specific dynamic chunks.
                 OutputAssets::empty(),
+                Some(hmr_ident),
                 AvailabilityInfo::root(),
             )
             .to_resolved()
