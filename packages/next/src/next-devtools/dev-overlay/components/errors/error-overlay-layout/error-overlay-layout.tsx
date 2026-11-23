@@ -33,7 +33,6 @@ import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 import { useFocusTrap } from '../dev-tools-indicator/utils'
-import { Resizer } from '../../resizer'
 import { OverlayBackdrop } from '../../overlay'
 
 export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
@@ -54,7 +53,6 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   runtimeErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
-  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
   generateErrorInfo: () => Promise<string>
 }
 
@@ -77,7 +75,6 @@ export function ErrorOverlayLayout({
   runtimeErrors,
   activeIdx,
   setActiveIndex,
-  dialogResizerRef,
   generateErrorInfo,
   // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
   // If it's not being passed, we should just render the component as it is being
@@ -92,31 +89,13 @@ export function ErrorOverlayLayout({
     } as React.CSSProperties,
   }
 
-  const [animating, setAnimating] = React.useState(
-    Boolean(transitionDurationMs)
-  )
-
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
-
-  function onTransitionEnd({ propertyName, target }: React.TransitionEvent) {
-    // We can only measure height after the `scale` transition ends,
-    // otherwise we will measure height as a multiple of the animating value
-    // which will give us an incorrect value.
-    if (propertyName === 'scale' && target === dialogRef.current) {
-      setAnimating(false)
-    }
-  }
 
   return (
     <ErrorOverlayOverlay {...animationProps}>
       <OverlayBackdrop fixed={isBuildError} />
-      <div
-        data-nextjs-dialog-root
-        onTransitionEnd={onTransitionEnd}
-        ref={dialogRef}
-        {...animationProps}
-      >
+      <div data-nextjs-dialog-root ref={dialogRef} {...animationProps}>
         <ErrorOverlayNav
           runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
@@ -129,39 +108,33 @@ export function ErrorOverlayLayout({
           renderTabBar={renderTabBar}
         />
         <ErrorOverlayDialog onClose={onClose}>
-          <Resizer
-            ref={dialogResizerRef}
-            measure={!animating}
-            data-nextjs-dialog-sizer
-          >
-            <DialogContent>
-              <ErrorOverlayDialogHeader>
-                <div className="nextjs__container_errors__error_title">
-                  <div className="nextjs__container_errors__error_title__row">
-                    <span data-nextjs-error-label-group>
-                      <ErrorTypeLabel errorType={errorType} />
-                      {error.environmentName && (
-                        <EnvironmentNameLabel
-                          environmentName={error.environmentName}
-                        />
-                      )}
-                    </span>
-                    <ErrorOverlayToolbar
-                      error={error}
-                      debugInfo={debugInfo}
-                      generateErrorInfo={generateErrorInfo}
-                    />
-                  </div>
-                  <ErrorMessage
-                    errorMessage={errorMessage}
-                    errorType={errorType}
+          <DialogContent>
+            <ErrorOverlayDialogHeader>
+              <div className="nextjs__container_errors__error_title">
+                <div className="nextjs__container_errors__error_title__row">
+                  <span data-nextjs-error-label-group>
+                    <ErrorTypeLabel errorType={errorType} />
+                    {error.environmentName && (
+                      <EnvironmentNameLabel
+                        environmentName={error.environmentName}
+                      />
+                    )}
+                  </span>
+                  <ErrorOverlayToolbar
+                    error={error}
+                    debugInfo={debugInfo}
+                    generateErrorInfo={generateErrorInfo}
                   />
                 </div>
-                {headerChildren}
-              </ErrorOverlayDialogHeader>
-              <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
-            </DialogContent>
-          </Resizer>
+                <ErrorMessage
+                  errorMessage={errorMessage}
+                  errorType={errorType}
+                />
+              </div>
+              {headerChildren}
+            </ErrorOverlayDialogHeader>
+            <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+          </DialogContent>
         </ErrorOverlayDialog>
       </div>
     </ErrorOverlayOverlay>

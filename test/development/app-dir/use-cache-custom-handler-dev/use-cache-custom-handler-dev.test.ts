@@ -38,7 +38,7 @@ describe('use-cache-custom-handler-dev', () => {
     })
     expect(
       await browser
-        .elementByCss('[data-cold-cache-badge] [data-issues-open]')
+        .elementByCss('[data-cold-cache-badge] [data-cache-label]')
         .text()
     ).toBe('Cold cache')
 
