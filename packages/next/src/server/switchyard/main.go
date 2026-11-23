@@ -20,6 +20,8 @@
 //	    and stop.
 //	  - On stdin EOF (Node exited or asked it to stop), SIGINT or SIGTERM it
 //	    stops accepting, finishes in-flight requests and exits 0.
+//	  - It runs Go code on at most 4 threads at once; a GOMAXPROCS environment
+//	    variable overrides that.
 package main
 
 import (
@@ -35,6 +37,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -131,6 +134,14 @@ func parseConfig(args []string) (config, error) {
 }
 
 func main() {
+	// runtime.GOMAXPROCS(0) reads the current limit without changing it. Only
+	// a different value is set: from Go 1.25, any call that sets the limit
+	// also turns off Go's own updates of it.
+	current := runtime.GOMAXPROCS(0)
+	if threads := threadsToUse(os.Getenv("GOMAXPROCS"), current); threads != current {
+		runtime.GOMAXPROCS(threads)
+	}
+
 	cfg, err := parseConfig(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "switchyard:", err)
@@ -172,6 +183,39 @@ func main() {
 		os.Exit(1)
 	}
 	<-stopped
+}
+
+// maxThreads is Switchyard's default limit on threads running Go code at once.
+const maxThreads = 4
+
+// threadsToUse returns how many threads may run Switchyard's Go code at once:
+// at most maxThreads, unless the user chose a limit with GOMAXPROCS.
+// Go runs Go code on as many threads at once as there are cores the process
+// may use (GOMAXPROCS). On a machine with many cores, most of those threads
+// spend their CPU waking each other and in the scheduler, which costs more per
+// request than the forwarding itself. Four threads keep that overhead low and
+// still serve route.go requests, which Switchyard sends to the Go worker
+// without Node, as fast as no limit does; with two, Switchyard itself became
+// the bottleneck for those requests under load.
+// env is the GOMAXPROCS environment variable, and current is the limit Go
+// already applied: GOMAXPROCS when it holds a number Go accepts, otherwise one
+// per core.
+func threadsToUse(env string, current int) int {
+	if goAcceptsGOMAXPROCS(env) {
+		return current // the user chose the limit; keep it
+	}
+	return min(current, maxThreads) // Go's default (one per core), at most maxThreads
+}
+
+// goAcceptsGOMAXPROCS reports whether Go's runtime uses env as the limit: a
+// whole number above 0 that fits in 32 bits, written with digits only (Go's
+// parser rejects a leading +, which strconv would accept).
+func goAcceptsGOMAXPROCS(env string) bool {
+	if env == "" || env[0] < '0' || env[0] > '9' {
+		return false
+	}
+	n, err := strconv.ParseInt(env, 10, 32)
+	return err == nil && n > 0
 }
 
 // newServer is the public server. It times out what Node times out: idle
@@ -375,7 +419,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
-		proxy.ServeHTTP(w, r)
+		proxy.ServeHTTP(&clientWriter{w}, r)
 	})
 }
 
@@ -403,6 +447,23 @@ func (b *bufferPool) Put(buf []byte) {
 	clear(buf)
 	b.pool.Put(&buf)
 }
+
+// clientWriter is the client's ResponseWriter as the proxy sees it.
+type clientWriter struct {
+	http.ResponseWriter
+}
+
+// WriteHeader puts back the marker that stops Go from guessing a
+// Content-Type (see the handler above): the proxy clears the header map after
+// each 1xx response it passes on, such as 103 Early Hints.
+func (c *clientWriter) WriteHeader(code int) {
+	if _, ok := c.Header()["Content-Type"]; !ok && code >= 200 {
+		c.Header()["Content-Type"] = nil
+	}
+	c.ResponseWriter.WriteHeader(code)
+}
+
+func (c *clientWriter) Unwrap() http.ResponseWriter { return c.ResponseWriter }
 
 type requestBodyKey struct{}
 

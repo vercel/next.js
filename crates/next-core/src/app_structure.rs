@@ -346,6 +346,7 @@ async fn get_directory_tree_internal(
     dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
+    // DETERMINISM: Entries are sorted by full name below before selecting modules and metadata.
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
         // the file watcher might invalidate things in the wrong order,
         // and we have to account for the eventual consistency of turbo-tasks
@@ -2729,10 +2730,13 @@ pub async fn get_global_metadata(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<GlobalMetadata>> {
+    // DETERMINISM: Sorting full filenames makes metadata-category overwrites deterministic.
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")
     };
     let mut metadata = GlobalMetadata::default();
+    let mut entries = entries.iter().collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|(name, _)| *name);
 
     for (basename, entry) in entries {
         let DirectoryEntry::File(file) = entry else {

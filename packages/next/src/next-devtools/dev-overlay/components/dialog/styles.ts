@@ -27,6 +27,11 @@ export const styles = css`
     &[data-rendered='true'] {
       opacity: 1;
       scale: 1;
+
+      @starting-style {
+        opacity: 0;
+        scale: 0.97;
+      }
     }
   }
 
@@ -46,6 +51,17 @@ export const styles = css`
   [data-nextjs-dialog-overlay][data-rendered='true']
     [data-nextjs-dialog-backdrop] {
     opacity: 1;
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-nextjs-dialog-root],
+    [data-nextjs-dialog-backdrop] {
+      transition: none;
+    }
   }
 
   [data-nextjs-dialog-content] {

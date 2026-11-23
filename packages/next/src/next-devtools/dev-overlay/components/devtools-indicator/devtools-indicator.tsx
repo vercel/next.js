@@ -44,6 +44,10 @@ export function DevToolsIndicator() {
       <Draggable
         // avoids a lot of weird edge cases that would cause jank if the logo and panel were de-synced
         disableDrag={panel !== null}
+        // Only the Next.js logo moves the badge. The Issues, Insights and
+        // collapse controls are plain buttons, so dragging never competes with
+        // clicking them.
+        dragHandleSelector="[data-next-mark]"
         padding={INDICATOR_PADDING}
         position={state.devToolsPosition}
         setPosition={(p) => {

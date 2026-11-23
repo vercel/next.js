@@ -59,6 +59,10 @@ pub mod invalidation_reasons {
     /// Indicates that the user explicitly clicked a button or ran a command that invalidates the
     /// cache.
     pub const USER_REQUEST: &str = concat!(module_path!(), "::USER_REQUEST");
+    /// This invalidation reason is used by [`crate::turbo_backing_storage`] when the database
+    /// could not be opened, e.g. because files were deleted or modified from outside, and was
+    /// deleted and replaced by an empty one.
+    pub const UNREADABLE: &str = concat!(module_path!(), "::UNREADABLE");
 }
 
 /// Atomically create an invalidation marker.
