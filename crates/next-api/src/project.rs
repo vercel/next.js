@@ -1841,9 +1841,10 @@ impl Project {
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = module_graphs_op.connect();
+        // Wait for the graph before scaling down the Node.js pool, see `whole_app_module_graphs`.
+        let module_graphs_vc = module_graphs_op.resolve().strongly_consistent().await?;
         scale_down_node_pool(self).await?;
-        Ok(module_graphs_vc)
+        Ok(*module_graphs_vc)
     }
 
     /// Computes the whole app module graph, dropping issues in development mode so that
@@ -1853,21 +1854,15 @@ impl Project {
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = if self.next_mode().await?.is_production() {
-            // Wait for the graph, and everything computed under it, before scaling down the
-            // Node.js pool below. `connect()` alone doesn't wait, so the pool would be scaled
-            // down before the graph's loaders spawn their processes, which then stay alive until
-            // the build exits. Connect it rather than returning the read value so its issues
-            // still reach the caller.
-            module_graphs_op.resolve().strongly_consistent().await?;
-            module_graphs_op.connect()
-        } else {
-            let vc = module_graphs_op.resolve().strongly_consistent().await?;
+        // Wait for the graph, and everything computed under it, before scaling down the Node.js
+        // pool below. Otherwise the pool would be scaled down before the graph's loaders spawn
+        // their processes, which would then stay alive until the build exits.
+        let module_graphs_vc = module_graphs_op.resolve().strongly_consistent().await?;
+        if !self.next_mode().await?.is_production() {
             module_graphs_op.drop_issues();
-            *vc
-        };
+        }
         scale_down_node_pool(self).await?;
-        Ok(module_graphs_vc)
+        Ok(*module_graphs_vc)
     }
 
     #[turbo_tasks::function]
