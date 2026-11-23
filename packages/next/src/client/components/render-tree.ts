@@ -2065,15 +2065,17 @@ async function fetchDynamicResponse(
     }
     if (freshnessPolicy === FreshnessPolicy.CommitPreparedReplay) {
       const dynamicRequest = preparation.dynamicRequest
-      preparation.dynamicRequest = null
       // The prepared request was made against the tree at the time it
-      // started. If the commit needs different data, fetch it instead. Each
-      // navigation rebuilds its request tree, so compare by value.
+      // started. If the commit needs different data, it fetches it instead,
+      // and leaves the prepared request to the prepare phase, which writes its
+      // response into the cache. Each navigation rebuilds its request tree, so
+      // compare by value.
       if (
         dynamicRequest !== null &&
         JSON.stringify(dynamicRequest.requestTree) ===
           JSON.stringify(dynamicRequestTree)
       ) {
+        preparation.dynamicRequest = null
         const result = await dynamicRequest.request
         return isServerResponseStreaming(result)
           ? replayServerResponse(result)
