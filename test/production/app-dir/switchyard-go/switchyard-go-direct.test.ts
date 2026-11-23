@@ -139,6 +139,35 @@ describe('switchyard-go direct path', () => {
     expect(compressed.status).toBe(200)
     expect(compressed.headers.get('content-encoding')).toBe('gzip')
   })
+
+  // Repro for review: with Switchyard on, the same route answers with
+  // different response headers depending on whether Switchyard sent the
+  // request direct or through Node. The direct path puts the worker's
+  // hop-by-hop headers back (as plain `next start` sends them), while
+  // Switchyard's proxy to Node still drops them. A route's first request
+  // always goes through Node, so its headers differ from later requests.
+  it('sends the same response headers direct and through Node', async () => {
+    const hopHeaders = [
+      'keep-alive',
+      'proxy-authenticate',
+      'proxy-authorization',
+      'proxy-connection',
+      'te',
+      'upgrade',
+    ]
+    const pick = (headers: IncomingHttpHeaders) =>
+      Object.fromEntries(hopHeaders.map((name) => [name, headers[name]]))
+    // Starts the worker.
+    await get('/go/hop')
+    // Plain path and query: direct.
+    const direct = await get('/go/hop?a=1')
+    // A key repeated apart: Node rewrites the query, so Switchyard sends it
+    // to Node.
+    const throughNode = await get('/go/hop?a=1&b=2&a=3')
+    expect(direct.status).toBe(200)
+    expect(throughNode.status).toBe(200)
+    expect(pick(throughNode.headers)).toEqual(pick(direct.headers))
+  })
 })
 
 // The same app with a basePath: Node's route table carries it, and a direct
