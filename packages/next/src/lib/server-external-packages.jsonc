@@ -11,6 +11,8 @@
   "@libsql/client",
   "@mikro-orm/core",
   "@mikro-orm/knex",
+  // Spawns a platform-specific worker binary located relative to its package
+  "@next/safe-image-optimization",
   "@node-rs/argon2",
   "@node-rs/bcrypt",
   "@prisma/client",

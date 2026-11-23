@@ -794,16 +794,16 @@ impl ChunkingContext for NodeJsChunkingContext {
         let chunk = chunk_type
             .chunk(
                 Vc::upcast(self),
-                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                Box::new([ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
                     ChunkItemWithAsyncModuleInfo {
                         chunk_item,
                         chunk_type,
                         module: None,
                         async_info: None,
                     },
-                )],
-                Vec::new(),
-                Vec::new(),
+                )]),
+                Box::default(),
+                Box::default(),
             )
             .to_resolved()
             .await?;

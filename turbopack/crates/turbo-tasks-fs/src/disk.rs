@@ -2416,6 +2416,7 @@ mod tests {
                 .expect("the linked directory should resolve");
 
             assert_ne!(unresolved_dir, resolved_dir);
+            // DETERMINISM: Only the read error is asserted; no entries are enumerated.
             let error = unresolved_dir
                 .read_dir()
                 .await
@@ -2423,11 +2424,13 @@ mod tests {
             let message = format!("{error:#}");
             assert!(message.contains("alias/child"));
             assert!(message.contains("real/child"));
+            // DETERMINISM: Only key presence is checked, independent of entry order.
             assert!(matches!(
                 &*resolved_dir.read_dir().await?,
                 DirectoryContent::Entries(entries) if entries.contains_key(&rcstr!("data.txt"))
             ));
 
+            // DETERMINISM: Only NotFound is asserted; no entries are enumerated.
             assert!(matches!(
                 &*root_path.join("file-alias")?.raw_read_dir().await?,
                 RawDirectoryContent::NotFound
@@ -3150,6 +3153,7 @@ mod tests {
                 let root_path = fs.root().await?;
 
                 // Test: read_dir on root should not include denied_dir
+                // DETERMINISM: Only key presence and absence are checked.
                 let dir_content = root_path.read_dir().await?;
                 match &*dir_content {
                     DirectoryContent::Entries(entries) => {
@@ -3175,6 +3179,7 @@ mod tests {
 
                 // Test: read_dir on denied_dir should return NotFound
                 let denied_dir = root_path.join("denied_dir")?;
+                // DETERMINISM: Only NotFound is asserted; no entries are enumerated.
                 let dir_content = denied_dir.read_dir().await?;
                 assert!(
                     matches!(&*dir_content, DirectoryContent::NotFound),
