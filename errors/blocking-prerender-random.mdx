@@ -215,15 +215,15 @@ export function Avatar() {
 
 If the random value needs to appear in the server-rendered HTML, [generate it on the server](#generate-on-every-request) and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the first browser render uses the same value.
 
-Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components), [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
 
 ### Trade-off
 
-The first paint shows the SSR fallback or initial state, and the random value appears only after the browser hydrates the component. That's fine for UI flourishes but wrong for content that has to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+When you read the value in an effect, the first paint shows the initial state until the effect runs. Passing a server-generated value as a prop lets the server and the browser render the same value from the start. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that produces a random value inline during render still trips this error during SSR. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A parent `<Suspense>` boundary can show a fallback during prerendering. If the Client Component renders at request time, the boundary does not preserve its random value for hydration. [Pass the server value as a prop](#pass-a-server-generated-value-to-the-client) instead of calling `Math.random()` again in the browser.
 
 ## Verifying the fix
 
