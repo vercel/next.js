@@ -4245,3 +4245,162 @@ fn healthy_database_is_readable(#[case] mmap: bool) -> Result<()> {
     assert!(db.get(0, &vec![3u8])?.is_none());
     Ok(())
 }
+
+/// Commits two batches (and, with `compact`, fully compacts them, which retires the SSTs of both
+/// commits) and returns the `.sst` files a fresh open would read keys from.
+fn committed_db_with_live_ssts(path: &Path, compact: bool) -> Result<Vec<std::path::PathBuf>> {
+    let db = SerialDb::open(path.to_path_buf())?;
+    for (key, value) in [(1u8, 10u8), (2, 20)] {
+        let batch = db.write_batch()?;
+        batch.put(0, vec![key], vec![value].into())?;
+        db.commit_write_batch(batch)?;
+    }
+    if compact {
+        db.compact(&CompactConfig::full())?;
+    }
+    db.shutdown();
+    drop(db);
+    let mut ssts = Vec::new();
+    for entry in fs::read_dir(path)? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|ext| ext == "sst") {
+            ssts.push(path);
+        }
+    }
+    ssts.sort();
+    Ok(ssts)
+}
+
+/// An SST that a live `.meta` file references but that was removed from outside fails the open
+/// itself, naming the file, rather than failing a later read of a key that lives in it.
+#[rstest]
+#[case::writable(false)]
+#[case::read_only(true)]
+fn open_fails_when_a_referenced_sst_is_missing(#[case] read_only: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let ssts = committed_db_with_live_ssts(path, false)?;
+    assert_eq!(ssts.len(), 2, "each commit writes one SST");
+    fs::remove_file(&ssts[0])?;
+    let before = dir_snapshot(path)?;
+
+    let result = if read_only {
+        open_read_only(path).map(drop)
+    } else {
+        SerialDb::open(path.to_path_buf()).map(|db| db.shutdown())
+    };
+    let error = format!("{:#}", result.expect_err("opening must fail"));
+    let missing = ssts[0].file_name().unwrap().to_str().unwrap();
+    assert!(
+        error.contains(missing),
+        "the error should name the missing file {missing}: {error}"
+    );
+    assert!(
+        error.contains(".meta"),
+        "the error should name the referencing meta file: {error}"
+    );
+    if read_only {
+        assert_eq!(
+            dir_snapshot(path)?,
+            before,
+            "a failed read-only open must not modify the directory"
+        );
+    }
+    Ok(())
+}
+
+/// A file with the same number but not the canonical name of a referenced SST (e.g. `1.sst`
+/// instead of `00000001.sst`) doesn't stand in for the missing file.
+#[test]
+fn open_fails_when_a_referenced_sst_is_renamed() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let ssts = committed_db_with_live_ssts(path, false)?;
+    let canonical = ssts[0].file_name().unwrap().to_str().unwrap().to_owned();
+    let seq: u32 = canonical.trim_end_matches(".sst").parse()?;
+    fs::rename(&ssts[0], path.join(format!("{seq}.sst")))?;
+
+    let error = format!(
+        "{:#}",
+        SerialDb::open(path.to_path_buf())
+            .map(|db| db.shutdown())
+            .expect_err("opening must fail")
+    );
+    assert!(
+        error.contains(&canonical),
+        "the error should name the missing file {canonical}: {error}"
+    );
+    Ok(())
+}
+
+/// SST files retired by compaction aren't referenced anymore, so a healthy compacted database
+/// keeps opening and reading normally.
+#[test]
+fn open_ignores_ssts_retired_by_compaction() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    committed_db_with_live_ssts(path, true)?;
+    // Reopen twice: the first open finishes deleting retired files, the second sees the result.
+    for _ in 0..2 {
+        let db = SerialDb::open(path.to_path_buf())?;
+        assert_eq!(db.get(0, &[1u8])?.as_deref(), Some(&[10u8][..]));
+        assert_eq!(db.get(0, &[2u8])?.as_deref(), Some(&[20u8][..]));
+        db.shutdown();
+    }
+    Ok(())
+}
+
+/// Files whose name starts with `.` (such as the `._<name>` AppleDouble files macOS writes next
+/// to every file on exFAT and other non-Apple filesystems) are not database files and are ignored,
+/// whatever their extension.
+#[rstest]
+#[case::writable(false)]
+#[case::read_only(true)]
+fn open_ignores_dot_files(#[case] read_only: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    committed_db_with_live_ssts(path, false)?;
+    let names: Vec<String> = fs::read_dir(path)?
+        .map(|entry| Ok(entry?.file_name().into_string().expect("utf-8 file name")))
+        .collect::<Result<_>>()?;
+    for name in names {
+        fs::write(path.join(format!("._{name}")), b"\x00\x05\x16\x07")?;
+    }
+    fs::write(path.join(".DS_Store"), b"")?;
+
+    let check = |db: &SerialDb| -> Result<()> {
+        assert_eq!(db.get(0, &[1u8])?.as_deref(), Some(&[10u8][..]));
+        assert_eq!(db.get(0, &[2u8])?.as_deref(), Some(&[20u8][..]));
+        Ok(())
+    };
+    if read_only {
+        check(&open_read_only(path)?)?;
+    } else {
+        let db = SerialDb::open(path.to_path_buf())?;
+        check(&db)?;
+        db.shutdown();
+    }
+    assert!(path.join("._CURRENT").exists(), "dot files are left alone");
+    Ok(())
+}
+
+/// A file that looks like a database file but whose name isn't a sequence number fails the open
+/// with an error that names it.
+#[test]
+fn open_names_unparseable_files() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    committed_db_with_live_ssts(path, false)?;
+    fs::write(path.join("copy-of-00000001.sst"), b"")?;
+    let error = format!(
+        "{:#}",
+        SerialDb::open(path.to_path_buf())
+            .map(|db| db.shutdown())
+            .expect_err("opening must fail")
+    );
+    assert!(
+        error.contains("copy-of-00000001.sst"),
+        "the error should name the file: {error}"
+    );
+    Ok(())
+}

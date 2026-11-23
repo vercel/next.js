@@ -1538,8 +1538,12 @@ pub struct PatternMatches(Vec<PatternMatch>);
 ///
 /// A path that cannot be resolved (a dangling or cyclic link) is read as-is, which yields
 /// [`RawDirectoryContent::NotFound`] just as it did before.
+///
+/// DETERMINISM: Result is in random order. Either sort result or do not
+/// depend on the order.
 async fn raw_read_dir_resolved(path: &FileSystemPath) -> Result<ReadRef<RawDirectoryContent>> {
     let resolved = path.realpath().await?.unwrap_or_else(|_| path.clone());
+    // DETERMINISM: Forward the unordered result; callers must sort or ignore entry order.
     resolved.raw_read_dir().await
 }
 
@@ -1605,6 +1609,8 @@ pub async fn read_matches(
                                 lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
+                                // DETERMINISM: The directory listing is only ever queried with
+                                // entries.get(last_segment), not iterated.
                                 Some(e.insert((raw_read_dir_resolved(&path).await?, path)))
                             } else {
                                 None
@@ -1772,6 +1778,7 @@ pub async fn read_matches(
                 prefix.pop();
                 prefix.pop();
             }
+            // DETERMINISM: `results` is sorted before returning.
             match &*raw_read_dir_resolved(&lookup_dir).await? {
                 RawDirectoryContent::Entries(map) => {
                     for (key, entry) in map.iter() {

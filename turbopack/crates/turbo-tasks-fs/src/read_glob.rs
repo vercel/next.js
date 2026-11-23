@@ -56,6 +56,7 @@ async fn read_glob_internal(
     directory: FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
+    // DETERMINISM: Entries populate uniquely keyed unordered maps; read_glob promises no order.
     let dir = directory.read_dir().await?;
     let mut result = ReadGlobResult::default();
     let glob_value = glob.await?;
@@ -280,6 +281,7 @@ async fn read_dir_for_track_glob(
     directory: FileSystemPath,
     include_dot_files: bool,
 ) -> Result<Vc<DirectoryContent>> {
+    // DETERMINISM: Filtering preserves an unordered map; tracking only waits for all reads.
     let read_dir = directory.read_dir();
     if include_dot_files {
         return Ok(read_dir);
