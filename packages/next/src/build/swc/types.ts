@@ -207,6 +207,7 @@ export interface RawEntrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
   instrumentation?: Instrumentation
+  moduleFederation?: Endpoint
   pagesDocumentEndpoint: Endpoint
   pagesAppEndpoint: Endpoint
   pagesErrorEndpoint: Endpoint
@@ -557,6 +558,7 @@ export interface GlobalEntrypoints {
   error: Endpoint | undefined
   middleware: Middleware | undefined
   instrumentation: Instrumentation | undefined
+  moduleFederation: Endpoint | undefined
 }
 
 export type PageRoute =
