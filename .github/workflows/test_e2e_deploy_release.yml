@@ -18,10 +18,16 @@ on:
         description: Version of Vercel CLI to use
         default: 'vercel@latest'
         type: string
-      overrideProxyAddress:
-        description: Override the proxy address to use for the test
-        default: ''
-        type: string
+      stagingProxyRegion:
+        description: Use dedicated deploy test projects whose preview hostnames resolve to this staging Proxy
+        type: choice
+        default: 'none'
+        options:
+          - 'none'
+          - 'iad1'
+          - 'dub1'
+          - 'sfo1'
+          - 'cle1'
       forceBuildInHive:
         description: Hive ID to force the build onto
         default: ''
@@ -206,7 +212,7 @@ jobs:
       stepName: 'test-deploy-webpack-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
-      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+      stagingProxyRegion: ${{ inputs.stagingProxyRegion || 'none' }}
 
   test-deploy-turbopack:
     name: Run Deploy Tests (Turbopack)
@@ -258,7 +264,7 @@ jobs:
       stepName: 'test-deploy-turbopack-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
-      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+      stagingProxyRegion: ${{ inputs.stagingProxyRegion || 'none' }}
 
   test-deploy-adapter:
     name: Run Deploy Adapter Tests (Turbopack)
@@ -308,7 +314,7 @@ jobs:
       testReportsArtifactPrefix: 'adapter-test-reports'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
-      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+      stagingProxyRegion: ${{ inputs.stagingProxyRegion || 'none' }}
 
   report-test-results-to-datadog:
     needs: [test-deploy-turbopack, test-deploy-webpack]

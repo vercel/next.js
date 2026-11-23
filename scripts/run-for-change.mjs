@@ -67,6 +67,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next/src/server/switchyard',
     // Matches by prefix: switchyard.ts and every switchyard-*.ts module.
     'packages/next/src/server/lib/switchyard',
+    'packages/next/src/server/lib/native-route.external.ts',
     'packages/next/src/server/lib/start-server.ts',
     'packages/next/src/cli/next-start.ts',
     'test/production/app-dir/switchyard',
