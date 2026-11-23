@@ -1,0 +1,35 @@
+aliased = "linux"
+
+binding = module<esbuild-x64-linux, {}>
+
+buffer = Buffer*0*
+- *0* Buffer: The Node.js Buffer object: https://nodejs.org/api/buffer.html#class-buffer
+
+env = process.env*0*
+- *0* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+g = globalThis*0*
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+
+n = global*0*
+- *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global
+
+nav = navigator*0*
+- *0* navigator: The browser navigator global: https://developer.mozilla.org/en-US/docs/Web/API/Navigator
+
+nested = "linux"
+
+nodeProcessArch = "x64"
+
+notAGlobal = globalThis*0*["require"]
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+
+obj = Object*0*
+- *0* Object: The global Object variable
+
+processPlatform = "linux"
+
+unknownMember = globalThis*0*["somethingElse"]
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+
+url = ./file.js relative

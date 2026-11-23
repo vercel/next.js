@@ -1,35 +1,20 @@
 Collection = ???*0*
 - *0* require*1*(
-        `${(???*2* | "./drivers/node-mongodb-native"){truthy}}/collection`
+        `${(global*2*["MONGOOSE_DRIVER_PATH"] | "./drivers/node-mongodb-native"){truthy}}/collection`
     )
   ⚠️  only constant argument is supported
   ⚠️  This value might have side effects
 - *1* require: The require method from CommonJS
-- *2* ???*3*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *3* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *2* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 Connection = ???*0*
 - *0* require*1*(
-        `${(???*2* | "./drivers/node-mongodb-native"){truthy}}/connection`
+        `${(global*2*["MONGOOSE_DRIVER_PATH"] | "./drivers/node-mongodb-native"){truthy}}/connection`
     )
   ⚠️  only constant argument is supported
   ⚠️  This value might have side effects
 - *1* require: The require method from CommonJS
-- *2* ???*3*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *3* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *2* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
-driver = (???*0* | "./drivers/node-mongodb-native"){truthy}
-- *0* ???*1*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+driver = (global*0*["MONGOOSE_DRIVER_PATH"] | "./drivers/node-mongodb-native"){truthy}
+- *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global

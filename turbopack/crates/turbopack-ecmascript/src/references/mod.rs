@@ -111,7 +111,7 @@ use crate::{
         linker::link,
         parse_require_context,
         top_level_await::has_top_level_await,
-        well_known::replace_well_known,
+        well_known::{replace_well_known, replace_well_known_global},
     },
     ast_path_trie::{AstPathId, AstPathTrieBuilder},
     chunk::CjsStaticExports,
@@ -4269,6 +4269,9 @@ async fn value_visitor_inner<'a>(
     }
 
     let ImportAttributes { ignore, .. } = *attributes;
+    if let Some(value) = replace_well_known_global(&v, ignore) {
+        return Ok((value, Modified::Yes));
+    }
     let value = match v {
         JsValue::Call(_, call)
             if matches!(
@@ -4392,29 +4395,8 @@ async fn value_visitor_inner<'a>(
                 true,
                 rcstr!("ignored import"),
             ),
-            "Worker" => JsValue::unknown_if(
-                ignore,
-                JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
-                true,
-                rcstr!("ignored Worker constructor"),
-            ),
-            "SharedWorker" => JsValue::unknown_if(
-                ignore,
-                JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
-                true,
-                rcstr!("ignored SharedWorker constructor"),
-            ),
+            // Globals like `process` or `URL` are handled by `replace_well_known_global` above.
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-            "URL" => JsValue::unknown_if(
-                ignore,
-                JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                true,
-                rcstr!("ignored URL constructor"),
-            ),
-            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault),
-            "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
-            "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
-            "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
             "__turbopack_emit__" => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackEmit)
             }

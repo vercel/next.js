@@ -89,6 +89,66 @@ pub async fn replace_well_known<'a>(
     })
 }
 
+/// Returns the well-known value of a global variable, e.g. `process` or `URL`.
+///
+/// This only covers actual globals, i.e. values that are also reachable as a property of the
+/// global object (`globalThis.process`). Module-scoped free variables like `require` or
+/// `__dirname` are not included.
+///
+/// `ignore` is set when the expression is annotated with `turbopackIgnore`.
+fn well_known_global<'a>(name: &str, ignore: bool) -> Option<JsValue<'a>> {
+    Some(match name {
+        "globalThis" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis),
+        "global" => JsValue::WellKnownObject(WellKnownObjectKind::NodeGlobal),
+        "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault),
+        "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
+        "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
+        "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
+        "URL" => JsValue::unknown_if(
+            ignore,
+            JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+            true,
+            rcstr!("ignored URL constructor"),
+        ),
+        "Worker" => JsValue::unknown_if(
+            ignore,
+            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+            true,
+            rcstr!("ignored Worker constructor"),
+        ),
+        "SharedWorker" => JsValue::unknown_if(
+            ignore,
+            JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
+            true,
+            rcstr!("ignored SharedWorker constructor"),
+        ),
+        _ => return None,
+    })
+}
+
+/// Replaces a reference to a global with its well-known value, both as a free variable
+/// (`process`) and as a property of the global object (`globalThis.process`, `global.process`).
+///
+/// Returns `None` when the value isn't a known global. Unknown properties of the global object
+/// are intentionally left as they are (e.g. `globalThis.foo`), so that they keep their definable
+/// name and can still be replaced by compile-time defines.
+pub fn replace_well_known_global<'a>(value: &JsValue<'a>, ignore: bool) -> Option<JsValue<'a>> {
+    match value {
+        JsValue::FreeVar(name) => well_known_global(name, ignore),
+        JsValue::Member(_, obj, prop)
+            if matches!(
+                &**obj,
+                JsValue::WellKnownObject(
+                    WellKnownObjectKind::GlobalThis | WellKnownObjectKind::NodeGlobal
+                )
+            ) =>
+        {
+            well_known_global(prop.as_str()?, ignore)
+        }
+        _ => None,
+    }
+}
+
 pub async fn well_known_function_call<'a>(
     arena: &'a ThreadLocal<Bump>,
     kind: WellKnownFunctionKind<'a>,

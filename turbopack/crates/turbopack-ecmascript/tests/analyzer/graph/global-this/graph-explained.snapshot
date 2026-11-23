@@ -1,0 +1,30 @@
+aliased (const after eval) = g["process"]["platform"]
+
+binding (const after eval) = FreeVar(require)(
+    `esbuild-${FreeVar(globalThis)["process"]["arch"]}-${n["process"]["platform"]}`
+)
+
+buffer (const after eval) = FreeVar(global)["Buffer"]
+
+env (const after eval) = FreeVar(globalThis)["process"]["env"]
+
+g (const after eval) = FreeVar(globalThis)
+
+n (const after eval) = FreeVar(global)
+
+nav (const after eval) = FreeVar(globalThis)["navigator"]
+
+nested (const after eval) = FreeVar(globalThis)["globalThis"]["global"]["process"]["platform"]
+
+nodeProcessArch (const after eval) = FreeVar(global)["process"]["arch"]
+
+notAGlobal (const after eval) = FreeVar(globalThis)["require"]
+
+obj (const after eval) = FreeVar(globalThis)["Object"]
+
+processPlatform (const after eval) = FreeVar(globalThis)["process"]["platform"]
+
+unknownMember (const after eval) = FreeVar(globalThis)["somethingElse"]
+
+url (const after eval) = new FreeVar(globalThis)["URL"]("./file.js", import.meta*0*["url"])
+- *0* import.meta: The import.meta object

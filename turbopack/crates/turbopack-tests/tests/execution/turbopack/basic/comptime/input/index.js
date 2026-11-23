@@ -128,6 +128,36 @@ it('should evaluate NODE_ENV', () => {
   }
 })
 
+it('should evaluate NODE_ENV through globalThis and global', () => {
+  if (globalThis.process.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (global.process.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (globalThis.globalThis.process.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (globalThis.global.process.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+})
+
+it('should evaluate process.turbopack through globalThis and global', () => {
+  if (!globalThis.process.turbopack) {
+    require('fail')
+    import('fail')
+  }
+  if (!global.process.turbopack) {
+    require('fail')
+    import('fail')
+  }
+})
+
 import importedProcess from 'process'
 import * as processNamespace from 'process'
 import nodeProcess from 'node:process'

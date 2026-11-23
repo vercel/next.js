@@ -6,6 +6,10 @@ use crate::analyzer::{ConstantString, JsValue, RequireContextValue};
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
     GlobalObject,
+    /// The `globalThis` global object.
+    GlobalThis,
+    /// The Node.js `global` object (an alias of `globalThis`).
+    NodeGlobal,
     PathModule,
     PathModuleDefault,
     FsModule,
@@ -50,6 +54,8 @@ impl WellKnownObjectKind {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::GlobalObject => Some(&["Object"]),
+            Self::GlobalThis => Some(&["globalThis"]),
+            Self::NodeGlobal => Some(&["global"]),
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
@@ -75,6 +81,14 @@ impl WellKnownObjectKind {
                 "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
             ),
             Self::GlobalObject => ("Object", "The global Object variable"),
+            Self::GlobalThis => (
+                "globalThis",
+                "The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis",
+            ),
+            Self::NodeGlobal => (
+                "global",
+                "The Node.js global object: https://nodejs.org/api/globals.html#global",
+            ),
             Self::PathModule | Self::PathModuleDefault => (
                 "path",
                 "The Node.js path module: https://nodejs.org/api/path.html",
