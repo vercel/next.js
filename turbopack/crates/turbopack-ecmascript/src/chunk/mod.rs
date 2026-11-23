@@ -56,7 +56,7 @@ pub use self::{
 pub struct EcmascriptChunk {
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub content: ResolvedVc<EcmascriptChunkContent>,
-    pub component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    pub component_chunks: Box<[ResolvedVc<Box<dyn Chunk>>]>,
 }
 
 #[turbo_tasks::value_impl]
@@ -65,7 +65,7 @@ impl EcmascriptChunk {
     pub fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         content: ResolvedVc<EcmascriptChunkContent>,
-        component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+        component_chunks: Box<[ResolvedVc<Box<dyn Chunk>>]>,
     ) -> Vc<Self> {
         EcmascriptChunk {
             chunking_context,
@@ -77,7 +77,7 @@ impl EcmascriptChunk {
 
     #[turbo_tasks::function]
     pub fn component_chunks(&self) -> Vc<Chunks> {
-        Vc::cell(self.component_chunks.clone())
+        Vc::cell(self.component_chunks.to_vec())
     }
 
     #[turbo_tasks::function]

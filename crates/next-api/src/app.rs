@@ -2336,17 +2336,25 @@ impl AppEndpoint {
                     .should_write_nft_manifests()
                     .await?
                 {
+                    let mut additional_assets = Vec::with_capacity(
+                        client_reference_manifest.iter().len()
+                            + loadable_manifest_output
+                                .iter()
+                                .map(|m| m.len())
+                                .sum::<usize>(),
+                    );
+                    additional_assets.extend(
+                        client_reference_manifest
+                            .iter()
+                            .chain(loadable_manifest_output.iter().flat_map(|m| &**m))
+                            .map(|m| **m),
+                    );
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
                             Some(app_function_name(&app_entry.original_name).into()),
                             *rsc_chunk,
-                            client_reference_manifest
-                                .iter()
-                                .copied()
-                                .chain(loadable_manifest_output.iter().flat_map(|m| &**m).copied())
-                                .map(|m| *m)
-                                .collect(),
+                            additional_assets,
                             self.trace_result(),
                         )
                         .to_resolved()
