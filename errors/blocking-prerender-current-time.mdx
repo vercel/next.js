@@ -73,13 +73,13 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 
 ## Generate on every request
 
-Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. Add [`await connection()`](/docs/app/api-reference/functions/connection) before the call to tell Next.js the surrounding component is request-bound. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. With Cache Components, prefer [`await io()`](/docs/app/api-reference/functions/io#how-io-differs-from-connection) before the clock read. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
 
 ### Patterns
 
-#### Use `await connection()` before the timestamp read
+#### Use `await io()` before the timestamp read
 
-Call [`connection()`](/docs/app/api-reference/functions/connection) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Everything after the `await` is request-time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
+Call [`io()`](/docs/app/api-reference/functions/io) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Outside a cache scope, the code after the `await` runs at request time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
 
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the timestamp read as possible. If the parent has cached content (metrics, headers, navigation), isolate the timestamp in its own component so only that piece falls behind the boundary.
 
@@ -99,23 +99,23 @@ export default function Page() {
 ```
 
 ```jsx filename="app/dashboard/updated-at.js"
-import { connection } from 'next/server'
-
-export async function UpdatedAt() {
-  await connection()
-  return <small>Updated at {new Date().toLocaleString()}</small>
-}
-```
-
-#### Alternative: `await io()`
-
-With Cache Components, [prefer `io()` for this read](/docs/app/api-reference/functions/io#how-io-differs-from-connection). Use `await io()` in place of `await connection()` under the same parent `<Suspense>` boundary. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` works inside `"use cache"` scopes and Client Components.
-
-```jsx filename="app/dashboard/updated-at.js"
 import { io } from 'next/cache'
 
 export async function UpdatedAt() {
   await io()
+  return <small>Updated at {new Date().toLocaleString()}</small>
+}
+```
+
+#### Alternative: `await connection()`
+
+The error suggests [`await connection()`](/docs/app/api-reference/functions/connection) to wait for an incoming request. Outside a cache scope, you can use it instead of `await io()` under the same parent `<Suspense>` boundary. Unlike `connection()`, `io()` also works inside `"use cache"` scopes and Client Components.
+
+```jsx filename="app/dashboard/updated-at.js"
+import { connection } from 'next/server'
+
+export async function UpdatedAt() {
+  await connection()
   return <small>Updated at {new Date().toLocaleString()}</small>
 }
 ```
