@@ -107,9 +107,7 @@ export function restoreReducer(
     // A history-traversal restore is bound to the shared map.
     segmentCacheMap,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined,
-    // Not a prepared navigation.
-    null
+    undefined
   )
   // Instant Navigation Testing API: a traversal resets the lock to a fresh
   // pending scope — releasing any data withheld by prior forward navigations and

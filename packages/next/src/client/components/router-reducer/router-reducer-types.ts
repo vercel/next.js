@@ -103,10 +103,6 @@ export interface NavigateAction {
  * State shared by the prepare and commit phases of a navigation started with
  * `router.experimental_prepare()`. Both phases read and write it
  * synchronously.
- *
- * The commit takes `inFlightRequest` (with its tree) or `completedNavigation`
- * when it finds no matching route in the route cache, and `dynamicRequest`
- * when it renders the route with navigateToKnownRoute.
  */
 export type PreparedNavigationRecord = {
   // The time the prepare phase started. The commit only reuses BFCache entries
@@ -133,17 +129,6 @@ export type PreparedNavigationRecord = {
     canonicalUrl: string
     debugInfo: Array<unknown> | null
     requestTree: FlightRouterState
-    // The response, which may still be streaming. See replayServerResponse.
-    fetchResult: FetchServerResponseResult
-  } | null
-  // The request the prepare phase made for a route's dynamic data, the tree
-  // it was made against, and its result once it arrives. A commit that starts
-  // before the response has finished arriving takes over the request, and
-  // clears this field. See replayServerResponse.
-  dynamicRequest: {
-    request: Promise<FetchServerResponseResult>
-    requestTree: FlightRouterState
-    result: FetchServerResponseResult | null
   } | null
 }
 

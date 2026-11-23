@@ -59,11 +59,6 @@ export interface FetchServerResponseOptions {
   readonly nextUrl: string | null
   readonly isHmrRefresh?: boolean
   readonly signal?: AbortSignal
-  /**
-   * Keep the response's bytes while it streams, so it can be decoded again.
-   * See `replayServerResponse`.
-   */
-  readonly keepBytes?: boolean
 }
 
 type SpaFetchServerResponseResult = {
@@ -100,24 +95,6 @@ type SpaFetchServerResponseResult = {
    * render.
    */
   revealAfter: Promise<void> | null
-  /** Set when `keepBytes` was requested. */
-  bytes: ResponseBytes | null
-}
-
-/**
- * A response's bytes, kept as they're read so that a second decode can read
- * them too, including the ones that haven't arrived yet.
- */
-type ResponseBytes = {
-  headers: RequestHeaders
-  // The bytes that haven't been replayed yet. Dropped once the body ends,
-  // unless a replay is still reading them.
-  chunks: Array<Uint8Array>
-  status: 'streaming' | 'done' | 'errored'
-  error: unknown
-  isReplaying: boolean
-  // Wakes the replay when more bytes arrive or the body ends.
-  wake: (() => void) | null
 }
 
 type MpaFetchServerResponseResult = string
@@ -220,16 +197,6 @@ export async function fetchServerResponse(
       process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
         ? []
         : null
-    const bytes: ResponseBytes | null = options.keepBytes
-      ? {
-          headers,
-          chunks: [],
-          status: 'streaming',
-          error: undefined,
-          isReplaying: false,
-          wake: null,
-        }
-      : null
     // Start decoding before the response arrives, so React DevTools can show
     // the latency from the client to the server. Navigations only ever receive
     // live-render responses (per-segment prefetch responses, which omit some
@@ -246,8 +213,7 @@ export async function fetchServerResponse(
           process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION
           ? options.signal
           : undefined,
-        responseChunks,
-        bytes
+        responseChunks
       )
     const res = await responsePromise
 
@@ -339,7 +305,6 @@ export async function fetchServerResponse(
       responseChunks: res.isPartial ? null : responseChunks,
       debugInfo: flightResponsePromise._debugInfo ?? null,
       revealAfter: flightResponse._revealAfter ?? null,
-      bytes,
     }
   } catch (err) {
     if (options.signal?.aborted) {
@@ -490,8 +455,7 @@ function decodeNavigationResponse<T>(
   // When not null, we also keep each chunk here as it's decoded, so we can
   // cut a shell from them later. We skip this for partial responses, because
   // only a complete prerender has a shell we can use.
-  responseChunks: Array<Uint8Array> | null,
-  bytes: ResponseBytes | null
+  responseChunks: Array<Uint8Array> | null
 ): Promise<T> & { _debugInfo?: Array<any> } {
   let closed = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
@@ -548,7 +512,6 @@ function decodeNavigationResponse<T>(
         }
         const body = response.body
         if (body === null) {
-          endResponseBytes(bytes, 'done', undefined)
           controller.close()
           return
         }
@@ -561,15 +524,10 @@ function decodeNavigationResponse<T>(
           return
         }
         if (done) {
-          endResponseBytes(bytes, 'done', undefined)
           controller.close()
         } else {
           if (chunks !== null) {
             chunks.push(value)
-          }
-          if (bytes !== null) {
-            bytes.chunks.push(value)
-            wakeResponseBytesReplay(bytes)
           }
           controller.enqueue(value)
         }
@@ -578,7 +536,6 @@ function decodeNavigationResponse<T>(
         // controller is already closed and the outcome is moot, so we swallow
         // the rejection unconditionally; only a real, non-superseded read
         // failure (`closed` still false) is surfaced.
-        endResponseBytes(bytes, 'errored', err)
         if (!closed) {
           controller.error(err)
         }
@@ -591,93 +548,6 @@ function decodeNavigationResponse<T>(
     // Only a stream that closes on abort may end before the response does.
     allowPartialStream: signal !== undefined,
   }) as Promise<T> & { _debugInfo?: Array<any> }
-}
-
-/**
- * Whether a response fetched with `keepBytes` is still streaming, so that
- * `replayServerResponse` can decode it again.
- */
-export function isServerResponseStreaming(
-  result: FetchServerResponseResult
-): result is SpaFetchServerResponseResult {
-  return typeof result !== 'string' && result.bytes?.status === 'streaming'
-}
-
-/**
- * Decodes a still-streaming response a second time, from the bytes kept by
- * `keepBytes`, and returns a result that reads from the new decode.
- *
- * Flight wakes whatever waits on a row synchronously, from the task that reads
- * the stream. For a response fetched in one task and rendered from another,
- * React is then woken outside the task that's rendering. For example, the
- * browser doesn't attribute the URL change of a prepared navigation to the
- * click that committed it, so Chrome doesn't report it as a soft navigation.
- * This decode receives each chunk through a promise it awaits itself, so those
- * continuations keep the caller's task attribution, and so do the rows it
- * decodes.
- */
-export async function replayServerResponse(
-  result: SpaFetchServerResponseResult
-): Promise<SpaFetchServerResponseResult> {
-  const bytes = result.bytes!
-  bytes.isReplaying = true
-  const stream = new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      while (bytes.chunks.length === 0 && bytes.status === 'streaming') {
-        await new Promise<void>((resolve) => {
-          bytes.wake = resolve
-        })
-      }
-      const chunk = bytes.chunks.shift()
-      if (chunk !== undefined) {
-        controller.enqueue(chunk)
-      } else if (bytes.status === 'errored') {
-        controller.error(bytes.error)
-      } else {
-        controller.close()
-      }
-    },
-  })
-  const flightResponsePromise =
-    createFromNextReadableStream<DynamicNavigationFlightResponse>(
-      stream,
-      bytes.headers
-    ) as Promise<DynamicNavigationFlightResponse> & {
-      _debugInfo?: Array<any>
-    }
-  const flightResponse = await flightResponsePromise
-  return {
-    ...result,
-    // The other fields don't depend on the decode.
-    transportData: flightResponse.t ?? null,
-    flightResponse,
-    debugInfo: flightResponsePromise._debugInfo ?? null,
-    revealAfter: flightResponse._revealAfter ?? null,
-    bytes: null,
-  }
-}
-
-function wakeResponseBytesReplay(bytes: ResponseBytes) {
-  const wake = bytes.wake
-  bytes.wake = null
-  wake?.()
-}
-
-function endResponseBytes(
-  bytes: ResponseBytes | null,
-  status: 'done' | 'errored',
-  error: unknown
-) {
-  if (bytes === null || bytes.status !== 'streaming') {
-    return
-  }
-  bytes.status = status
-  bytes.error = error
-  if (!bytes.isReplaying) {
-    // Nothing can replay a response that has ended.
-    bytes.chunks = []
-  }
-  wakeResponseBytesReplay(bytes)
 }
 
 /**
