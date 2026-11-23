@@ -158,7 +158,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	addr := ln.Addr().(*net.TCPAddr)
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "switchyard: the listener has no TCP address")
+		os.Exit(1)
+	}
 
 	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token))
 	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)

@@ -1,0 +1,42 @@
+# golangci-lint rules for Switchyard. CI runs them in test-switchyard-prod
+# (.github/workflows/build_and_test.yml). To run them here, with the version
+# CI pins:
+#
+#   go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run
+version: '2'
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck and unused.
+  default: standard
+  enable:
+    # A switch over a sealed interface (a "sum type", marked with
+    # `//sumtype:decl`) or over an enum's constants must cover every case, so
+    # a new variant can't be forgotten in one place.
+    - gochecksumtype
+    - exhaustive
+    # `v.(T)` panics when v isn't a T; require the `v, ok := v.(T)` form.
+    - forcetypeassert
+    # Returning nil after checking that err isn't nil, and returning a nil
+    # value together with a nil error.
+    - nilerr
+    - nilnil
+    # Compare and unwrap errors with errors.Is and errors.As, which see
+    # through wrapped errors.
+    - errorlint
+    # An HTTP response body that's never closed keeps its connection open.
+    - bodyclose
+  settings:
+    errcheck:
+      exclude-functions:
+        # Closing a connection that's being dropped: there's nothing to do
+        # with the error.
+        - (net.Conn).Close
+  exclusions:
+    rules:
+      # In a test, an unchecked error or a failed type assertion fails or
+      # panics that test, which is the outcome wanted.
+      - path: _test\.go
+        linters:
+          - bodyclose
+          - errcheck
+          - forcetypeassert
