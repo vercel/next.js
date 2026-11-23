@@ -339,6 +339,25 @@ describe('signed-commit githubRequest', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('does not repeat a ref-creating POST after a 502', async () => {
+    const fetch = stubFetch([{ status: 502, body: 'Server Error' }])
+    globalThis.fetch = fetch
+
+    await expect(
+      githubRequest(
+        'token',
+        'POST',
+        '/repos/o/r/git/refs',
+        { ref: 'refs/tags/v1.0.0', sha: 'abc' },
+        {
+          sleep: async () => {},
+          log: () => {},
+        }
+      )
+    ).rejects.toThrow('GitHub API POST /repos/o/r/git/refs failed (502)')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('retries a release POST that was rate limited', async () => {
     const fetch = stubFetch([
       { status: 429 },

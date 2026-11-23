@@ -10,10 +10,11 @@ const BLOB_UPLOAD_CONCURRENCY = 4
 /**
  * Whether a request may be repeated after a 5xx, which does not tell whether
  * it was processed. Reads are safe. So are git object writes (a repeated blob,
- * tree or commit is a duplicate object nothing references), ref creation (a
- * repeat fails with "Reference already exists" instead of creating a second
- * one) and ref updates (setting the same sha again changes nothing). Anything
- * else, such as creating a release, is only retried on rate limit responses,
+ * tree or commit is a duplicate object nothing references) and ref updates
+ * (setting the same sha again changes nothing). Ref creation is not: if the
+ * first attempt created the ref, a repeat fails with "Reference already
+ * exists" and hides the original error from the caller. Anything else, such
+ * as creating a ref or a release, is only retried on rate limit responses,
  * which mean the request was rejected.
  *
  * @param {string} method
@@ -24,7 +25,7 @@ function isSafeToRepeat(method, path) {
     return true
   }
   if (method === 'POST') {
-    return /\/git\/(blobs|trees|commits|refs)$/.test(path)
+    return /\/git\/(blobs|trees|commits)$/.test(path)
   }
   if (method === 'PATCH') {
     return /\/git\/refs\//.test(path)
