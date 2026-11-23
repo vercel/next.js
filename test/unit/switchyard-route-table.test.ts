@@ -86,6 +86,15 @@ describe('switchyard-route-table', () => {
       ...overrides,
     })
 
+    it('passes the basePath to Switchyard', () => {
+      expect(
+        buildSwitchyardRouteTable(input({ basePath: '/docs' }))
+      ).toMatchObject({
+        basePath: '/docs',
+        goExact: { '/api/health': '/api/health/route' },
+      })
+    })
+
     it("splits Node's routes into Node's and route.go's, in Node's order", () => {
       const table = buildSwitchyardRouteTable(input())
       expect(table).toMatchObject({
