@@ -114,6 +114,9 @@ export function buildSwitchyardRouteTable(
     // Pages data routes only match /_next/data/..., which always goes to Node.
     if (route.dataRouteRegex) continue
     const pattern = patternOf(route.page)
+    // Leaving one route out would change which route matches first, so a
+    // pattern Switchyard can't match sends the whole app to Node, static
+    // route.go routes included.
     if (!pattern) {
       return {
         contract: { version: VERSION },
@@ -185,21 +188,25 @@ export function patternOf(page: string): PatternEntry[] | undefined {
   const segments = page.split('/').slice(1)
   const pattern: PatternEntry[] = []
   for (const [i, segment] of segments.entries()) {
+    // Interception markers ("(..)photo", "(.)[id]") come with rewrites of
+    // their own. getSegmentParam strips the marker before reading the
+    // parameter, and loses it for "(.)[[...x]]", so check first.
+    if (
+      INTERCEPTION_ROUTE_MARKERS.some((marker) => segment.startsWith(marker))
+    ) {
+      return undefined
+    }
     const param = getSegmentParam(segment)
     if (!param) {
       // A literal segment. Brackets getSegmentParam didn't read as a
-      // parameter ("a[b]"), and interception markers ("(..)photo"), are
-      // forms Switchyard doesn't match.
-      if (
-        segment === '' ||
-        /[[\]]/.test(segment) ||
-        INTERCEPTION_ROUTE_MARKERS.some((marker) => segment.startsWith(marker))
-      ) {
-        return undefined
-      }
+      // parameter ("a[b]") are a form Switchyard doesn't match.
+      if (segment === '' || /[[\]]/.test(segment)) return undefined
       pattern.push(segment)
       continue
     }
+    // getSegmentParam reads "[a][b]" as one parameter named "a][b"; the
+    // router reads parameter a followed by the literal "[b]".
+    if (/[[\]]/.test(param.paramName)) return undefined
     if (param.paramType === 'dynamic') {
       pattern.push({ param: param.paramName })
     } else if (
@@ -213,7 +220,6 @@ export function patternOf(page: string): PatternEntry[] | undefined {
         min: param.paramType === 'catchall' ? 1 : 0,
       })
     } else {
-      // Interception routes ("(.)[id]") come with rewrites of their own.
       return undefined
     }
   }
