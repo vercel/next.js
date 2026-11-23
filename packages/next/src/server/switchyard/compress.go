@@ -102,6 +102,8 @@ func planCompression(res *http.Response, s *directState) (compressMode, string) 
 	encoding := ""
 	if compressible(res.Header, s) {
 		addCompressionVary(res.Header)
+		// One line is enough: a request with repeated Accept-Encoding lines
+		// goes to Node (routing.Decide), where the middleware joins them.
 		encoding = negotiateEncoding(res.Request.Header.Get("Accept-Encoding"))
 	}
 	if res.Request.Method == "HEAD" {
