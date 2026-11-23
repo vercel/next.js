@@ -20,9 +20,8 @@ func TestReadControlSkipsBadLinesAndStopsAtEOF(t *testing.T) {
 
 func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler())
-	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"goExact":{"/api/echo":"/api/echo/route"}}`),
-		Page: "", Address: "", TokenHeader: "", Token: ""})
-	f.apply(controlMessage{Event: "worker", Table: nil, Page: "/api/echo/route",
+	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"goExact":{"/api/echo":"/api/echo/route"}}`)})
+	f.apply(controlMessage{Event: "worker", Page: "/api/echo/route",
 		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"})
 	s := f.state.Load()
 	if s.table == nil {
@@ -34,20 +33,19 @@ func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 	}
 
 	// A table Switchyard can't read keeps the previous one.
-	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":2}}`),
-		Page: "", Address: "", TokenHeader: "", Token: ""})
+	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":2}}`)})
 	if f.state.Load().table != s.table {
 		t.Error("an unreadable table replaced the previous one")
 	}
 
 	// A late gone for an earlier worker that had the same port leaves this
 	// one in place.
-	f.apply(controlMessage{Event: "gone", Table: nil, Page: "", Address: "127.0.0.1:51300", TokenHeader: "", Token: "earlier"})
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "earlier"})
 	if f.state.Load().workers["/api/echo/route"] == nil {
 		t.Fatal("a gone for another worker's token removed this one")
 	}
 
-	f.apply(controlMessage{Event: "gone", Table: nil, Page: "", Address: "127.0.0.1:51300", TokenHeader: "", Token: "secret"})
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
 	if len(f.state.Load().workers) != 0 {
 		t.Errorf("workers after gone: %v", f.state.Load().workers)
 	}
@@ -59,7 +57,7 @@ func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 
 func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler())
-	complete := controlMessage{Event: "worker", Table: nil, Page: "/api/echo/route",
+	complete := controlMessage{Event: "worker", Page: "/api/echo/route",
 		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"}
 	for _, drop := range []func(*controlMessage){
 		func(m *controlMessage) { m.Page = "" },
@@ -75,7 +73,7 @@ func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
 		t.Errorf("workers from incomplete messages: %v", f.state.Load().workers)
 	}
 	f.apply(complete)
-	f.apply(controlMessage{Event: "gone", Table: nil, Page: "", Address: "127.0.0.1:51300", TokenHeader: "", Token: ""})
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300"})
 	if f.state.Load().workers["/api/echo/route"] == nil {
 		t.Error("a gone without a token removed a worker")
 	}
@@ -83,10 +81,10 @@ func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
 
 func TestApplyGoneSkipsWorkersWithoutAToken(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler())
-	f.state.Store(&directState{table: nil, workers: map[string]*goUpstream{
-		"/api/echo/route": {address: "127.0.0.1:51300", tokenHeader: "", token: nil},
+	f.state.Store(&directState{workers: map[string]*goUpstream{
+		"/api/echo/route": {address: "127.0.0.1:51300"},
 	}})
-	f.apply(controlMessage{Event: "gone", Table: nil, Page: "", Address: "127.0.0.1:51300", TokenHeader: "", Token: "secret"})
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
 	if f.state.Load().workers["/api/echo/route"] == nil {
 		t.Error("a gone removed a worker with no token")
 	}
