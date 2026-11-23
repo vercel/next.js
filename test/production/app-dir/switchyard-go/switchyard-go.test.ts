@@ -236,7 +236,9 @@ describe('switchyard-go', () => {
 
   describe('the response the client gets', () => {
     it('rejects worker response headers larger than Node’s limit through Node', async () => {
-      // A query pair without "=" always goes through Node (checkQuery).
+      // A query pair without "=" always goes through Node (checkQuery). If
+      // checkQuery ever sends such queries direct, pick another way to
+      // reach Node here, or this stops testing Node's limit.
       const res = await send('/go/extras?largeHeader=1&via-node')
       expect(res.status).toBe(500)
     })
