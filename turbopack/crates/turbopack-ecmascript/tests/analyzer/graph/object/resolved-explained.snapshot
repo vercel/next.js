@@ -19,12 +19,10 @@ a4 = (1 | ???*0*)
   ⚠️  This value might have side effects
 
 a5 = ???*0*
-- *0* {"a": 1, ...???*1*, "b": 2}["a"]
+- *0* {"a": 1, ...global*1*, "b": 2}["a"]
   ⚠️  spread object
   ⚠️  This value might have side effects
-- *1* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *1* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 a6 = (1 | 2 | 4 | ???*0*)
 - *0* unknown mutation
@@ -82,12 +80,10 @@ c4 = (3 | ???*0*)
   ⚠️  This value might have side effects
 
 c5 = ???*0*
-- *0* {"a": 1, ...???*1*, "b": 2}["c"]
+- *0* {"a": 1, ...global*1*, "b": 2}["c"]
   ⚠️  spread object
   ⚠️  This value might have side effects
-- *1* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *1* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 c6 = (3 | 4 | ???*0*)
 - *0* unknown mutation
@@ -126,17 +122,11 @@ e6 = (5 | ???*0*)
 
 object = {"a": 1, "b": 2, "c": 3}
 
-object2 = {"a": 1, ???*0*: 2, "c": 3, ???*1*: 4, "e": 5}
-- *0* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *1* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+object2 = {"a": 1, global*0*: 2, "c": 3, global*1*: 4, "e": 5}
+- *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global
+- *1* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 object_spread = {"a": 11, "a": 1, "b": 2, "c": 3, "b": 22}
 
-unknown_spread = {"a": 1, ...???*0*, "b": 2}
-- *0* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+unknown_spread = {"a": 1, ...global*0*, "b": 2}
+- *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global

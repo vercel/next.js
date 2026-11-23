@@ -7,7 +7,7 @@ export function useShortcuts(
 ) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (isFocusedOnElement(rootRef)) return
+      if (e.repeat || isFocusedOnElement(rootRef)) return
 
       const keys = []
 
