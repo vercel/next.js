@@ -13,7 +13,7 @@ import (
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-go-proxy", "yes")
-	w.Header().Set("x-go-url", r.URL.RequestURI())
+	w.Header().Set("x-go-url", r.RequestURI)
 	w.Header().Set("x-go-host", r.Host)
 	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != "" || r.Header.Get("x-next-internal-go-rewrite-host") != "" || r.Header.Get("x-next-internal-test") != ""))
 	if date := r.URL.Query().Get("response-date"); date != "" {
@@ -48,7 +48,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		next.Rewrite(w, "/native-proxy/inspect", next.ProxyOptions{}, next.ProxyOptions{})
 	case "/native-proxy/blocked":
 		http.Error(w, "blocked by Go", http.StatusForbidden)
-	case "/native-proxy/secure":
+	case "/native-proxy/secure", "/native-proxy/pages-secure":
 		http.Error(w, "protected", http.StatusForbidden)
 	case "/native-proxy/compressed":
 		w.Header().Set("Content-Type", "text/plain")
