@@ -41,15 +41,11 @@ describe('adapter dynamic routes (cache components)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "12 entries
+     "7 entries
 
      /[lang]
        ^[/]?/(?<nxtPlang>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /[lang]$2?nxtPlang=$nxtPlang
-
-     /[lang].rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)\\.rsc(?:/)?$
-       -> /[lang]?nxtPlang=$nxtPlang
 
      /$1/fallback-shell/[slug]
        ^[/]?/(de|en)/fallback\\-shell/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
@@ -59,25 +55,13 @@ describe('adapter dynamic routes (cache components)', () => {
        ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /[lang]/fallback-shell/[slug]$3?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
 
-     /[lang]/fallback-shell/[slug].rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)\\.rsc(?:/)?$
-       -> /[lang]/fallback-shell/[slug]?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
-
      /[lang]/ppr
        ^[/]?/(?<nxtPlang>[^/]+?)/ppr(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /[lang]/ppr$2?nxtPlang=$nxtPlang
 
-     /[lang]/ppr.rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/ppr\\.rsc(?:/)?$
-       -> /[lang]/ppr?nxtPlang=$nxtPlang
-
      /[lang]/static
        ^[/]?/(?<nxtPlang>[^/]+?)/static(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /[lang]/static$2?nxtPlang=$nxtPlang
-
-     /[lang]/static.rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/static\\.rsc(?:/)?$
-       -> /[lang]/static?nxtPlang=$nxtPlang
 
      /$1/[slug]
        ^[/]?/(de|en)/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
@@ -85,11 +69,7 @@ describe('adapter dynamic routes (cache components)', () => {
 
      /[lang]/[slug]
        ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[lang]/[slug]$3?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
-
-     /[lang]/[slug].rsc
-       ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)\\.rsc(?:/)?$
-       -> /[lang]/[slug]?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug"
+       -> /[lang]/[slug]$3?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug"
     `)
   })
 })

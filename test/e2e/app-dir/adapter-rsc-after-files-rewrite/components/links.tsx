@@ -13,7 +13,13 @@ export function Links() {
         <LinkAccordion href="/static-page" />
       </li>
       <li>
-        <LinkAccordion href="/unknown" />
+        {/*
+          Not prefetched: on Vercel's non-adapter builder a segment prefetch
+          for a path that only a user rewrite serves fails (a separate,
+          pre-existing issue). The navigation itself is what this suite
+          covers.
+        */}
+        <LinkAccordion href="/unknown" prefetch={false} />
       </li>
     </ul>
   )

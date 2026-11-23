@@ -101,7 +101,7 @@ React pages from the `app/` directory:
 }
 ```
 
-Each App Router page and route has a single function output. There is no separate `.rsc` function output. When no prerendered `X.rsc` output serves an `X.rsc` request, routing sends it to the function `X`: `routing.afterFiles` does this for static paths and `routing.dynamicRoutes` for dynamic paths.
+Each App Router page has a single function output. There is no separate `.rsc` function output. When a page has no prerendered `X.rsc` output, routing sends its `X.rsc` requests, and its per-segment prefetch requests (`X.segments/...`), to the function `X`: `routing.afterFiles` does this for static paths and `routing.dynamicRoutes` for dynamic paths. App Route handlers have no `.rsc` form.
 
 ## App Routes (`outputs.appRoutes`)
 

@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import type * as Playwright from 'playwright'
 
@@ -73,6 +73,61 @@ describe('adapter-rsc-after-files-rewrite', () => {
   ])('renders $pathname on a direct visit', async ({ pathname, page }) => {
     const $ = await next.render$(withBasePath(pathname))
     expect($('#page').text()).toBe(page)
+  })
+
+  async function expectRscPayload(pathname: string, page: string) {
+    // The URL alone asks for the payload. Routing must keep that signal when it
+    // sends the request to the page function.
+    const res = await next.fetch(`${withBasePath(pathname)}.rsc`)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('text/x-component')
+    // The heading is outside the Suspense boundary, so every form of the
+    // payload carries it.
+    expect(await res.text()).toContain(page)
+  }
+
+  // `next start` and `next dev` let the user afterFiles rewrite capture a
+  // bare `.rsc` URL of a page. Only the adapter routing output covers it.
+  // @gate deploy
+  it('serves the .rsc payload of a fixed-path page without RSC request headers', async () => {
+    await expectRscPayload('/dynamic-page', 'Per-request page')
+  })
+
+  it('serves the .rsc payload of a rewritten path without RSC request headers', async () => {
+    await expectRscPayload('/unknown', 'Rewrite target')
+  })
+
+  // A doubled suffix isn't the RSC form of the fixed-path page. The user
+  // rewrite handles it, with the same result as before the page's `.rsc`
+  // routing moved to routing entries.
+  // @gate deploy
+  it('leaves a doubled .rsc suffix to the user rewrite', async () => {
+    const rsc = await next.fetch(withBasePath('/dynamic-page.rsc.rsc'))
+    expect(rsc.status).toBe(200)
+    expect(rsc.headers.get('x-nextjs-rewritten-path')).toBe(
+      withBasePath('/rewritten/dynamic-page.rsc')
+    )
+    expect(await rsc.text()).toContain('Rewrite target')
+
+    const segment = await next.fetch(
+      withBasePath('/dynamic-page.segments/_tree.segment.rsc.rsc')
+    )
+    expect(segment.status).toBe(404)
+  })
+
+  // A route handler has no `.rsc` form, and no routing entry rewrites the
+  // request to one. The handler still serves the request. `next start` keeps
+  // the `.rsc` ending in the param. Vercel removes it, with and without the
+  // adapter.
+  it('serves a .rsc request of a dynamic route handler', async () => {
+    for (const [slug, expected] of [
+      ['plain', 'plain'],
+      ['plain.rsc', isNextDeploy ? 'plain' : 'plain.rsc'],
+    ]) {
+      const res = await next.fetch(withBasePath(`/api/${slug}`))
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ slug: expected })
+    }
   })
 
   it('navigates to a fixed-path page rendered per request', async () => {

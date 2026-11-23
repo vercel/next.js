@@ -639,47 +639,68 @@ describe('adapter-config', () => {
         invokeMiddleware: async () => ({}),
       })
 
-    // Requests without an `.rsc` output resolve to the function itself.
+    // Requests without an `.rsc` output resolve to the page function itself,
+    // and so do per-segment prefetches that no prerendered segment serves.
     for (const [pathname, expected] of [
       ['/docs/node-app.rsc', '/docs/node-app'],
       ['/docs/edge-app.rsc', '/docs/edge-app'],
-      ['/docs/node-route.rsc', '/docs/node-route'],
-      ['/docs/edge-route.rsc', '/docs/edge-route'],
+      ['/docs/node-app.segments/_tree.segment.rsc', '/docs/node-app'],
     ]) {
       expect(functionPathnames.has(expected)).toBe(true)
       expect(prerenderPathnames.has(pathname)).toBe(false)
-      expect((await resolve(pathname)).resolvedPathname).toBe(expected)
+      const result = await resolve(pathname)
+      expect(result.resolvedPathname).toBe(expected)
+      // The function needs the suffix to tell an RSC request from a document
+      // request, so it is invoked with the request pathname.
+      expect(result.invocationTarget?.pathname).toBe(pathname)
     }
 
-    // The root page's `.rsc` form uses the `/index.rsc` pathname. Without a
-    // prerendered output for it, it resolves to the root function.
-    const withoutRootRsc = pathnames.filter(
-      (pathname) => pathname !== '/docs/index.rsc'
-    )
-    expect(functionPathnames.has('/docs')).toBe(true)
-    expect(
-      (await resolve('/docs/index.rsc', withoutRootRsc)).resolvedPathname
-    ).toBe('/docs')
-
-    // A dynamic page without a matching `.rsc` prerender resolves to its
-    // function, and the suffix doesn't leak into the route parameter.
-    const withoutDynamicRsc = pathnames.filter(
-      (pathname) => pathname !== '/docs/node-app/[slug].rsc'
-    )
-    const dynamicResult = await resolve(
-      '/docs/node-app/not-prerendered.rsc',
-      withoutDynamicRsc
-    )
-    expect(dynamicResult.resolvedPathname).toBe('/docs/node-app/[slug]')
-    expect(dynamicResult.resolvedQuery).toEqual(
-      expect.objectContaining({ nxtPslug: 'not-prerendered' })
+    // Route handlers have no `.rsc` form.
+    for (const pathname of ['/docs/node-route.rsc', '/docs/edge-route.rsc']) {
+      expect((await resolve(pathname)).resolvedPathname).not.toBe(
+        pathname.replace(/\.rsc$/, '')
+      )
+    }
+    // For a dynamic route handler, a `.rsc` ending is part of the param.
+    const routeHandlerResult = await resolve('/docs/isr-route/other.rsc')
+    expect(routeHandlerResult.resolvedPathname).toBe('/docs/isr-route/[slug]')
+    expect(routeHandlerResult.resolvedQuery).toEqual(
+      expect.objectContaining({ nxtPslug: 'other.rsc' })
     )
 
-    // Prerendered `.rsc` outputs still take precedence.
-    expect(prerenderPathnames.has('/docs/isr-app/first.rsc')).toBe(true)
-    expect((await resolve('/docs/isr-app/first.rsc')).resolvedPathname).toBe(
-      '/docs/isr-app/first.rsc'
-    )
+    // No route rewrites a page request to an `X.rsc` or `X.segments/...`
+    // path of a page that has no prerendered `.rsc` output: no output serves
+    // that path.
+    const pagesWithoutRscOutput = outputs.appPages
+      .map((output) => output.pathname)
+      .filter(
+        (pathname) =>
+          !prerenderPathnames.has(
+            `${pathname === '/docs' ? '/docs/index' : pathname}.rsc`
+          )
+      )
+    for (const route of [
+      ...routing.beforeFiles,
+      ...routing.afterFiles,
+      ...routing.dynamicRoutes,
+      ...routing.onMatch,
+      ...routing.fallback,
+    ]) {
+      const destination = route.destination?.split('?')[0]
+      if (destination === undefined) continue
+      for (const pathname of pagesWithoutRscOutput) {
+        expect(destination).not.toStartWith(`${pathname}.rsc`)
+        expect(destination).not.toStartWith(`${pathname}.segments/`)
+        expect(destination).not.toStartWith(`${pathname}$`)
+      }
+    }
+
+    // Prerendered `.rsc` outputs still take precedence, for the root page
+    // (whose `.rsc` form uses the `/index.rsc` pathname) and for others.
+    for (const pathname of ['/docs/index.rsc', '/docs/isr-app/first.rsc']) {
+      expect(prerenderPathnames.has(pathname)).toBe(true)
+      expect((await resolve(pathname)).resolvedPathname).toBe(pathname)
+    }
   })
 
   it('resolves static .rsc requests before user afterFiles rewrites', async () => {
@@ -729,12 +750,51 @@ describe('adapter-config', () => {
       '/docs/node-app/[slug]'
     )
 
+    // A rewritten `.rsc` or per-segment request reaches the dynamic page with
+    // the param the rewrite captured, never a `[slug]` placeholder or a
+    // suffix.
+    for (const pathname of [
+      '/docs/not-a-page.rsc',
+      '/docs/node-app/not-a-page.rsc',
+      '/docs/node-app/not-a-page.segments/_tree.segment.rsc',
+    ]) {
+      const result = await resolve(pathname)
+      expect(result.resolvedPathname).toStartWith('/docs/node-app/[slug]')
+      expect(result.resolvedQuery).toEqual(
+        expect.objectContaining({ nxtPslug: 'not-a-page' })
+      )
+    }
+
     for (const [pathname, expected] of [
       ['/docs/node-app.rsc', '/docs/node-app'],
       ['/docs/edge-app.rsc', '/docs/edge-app'],
-      ['/docs/node-route.rsc', '/docs/node-route'],
+      ['/docs/node-app.segments/_tree.segment.rsc', '/docs/node-app'],
     ]) {
       expect((await resolve(pathname)).resolvedPathname).toBe(expected)
+    }
+
+    // A doubled suffix is not an RSC request for the page, so the user
+    // rewrite handles it.
+    for (const pathname of [
+      '/docs/node-app.rsc.rsc',
+      '/docs/node-app.segments/_tree.segment.rsc.rsc',
+    ]) {
+      expect((await resolve(pathname)).resolvedPathname).not.toBe(
+        '/docs/node-app'
+      )
+    }
+
+    // Adapters that extend user afterFiles rewrites with an optional RSC
+    // suffix recognize them by an escaped optional trailing slash. The RSC
+    // routing entries already match the suffix, so they must not end that
+    // way, and they define the `rscsuff` group such adapters append.
+    const rscEntries = routing.afterFiles.filter((route) =>
+      route.sourceRegex.includes('\\.segments/')
+    )
+    expect(rscEntries.length).toBeGreaterThan(0)
+    for (const route of rscEntries) {
+      expect(route.sourceRegex).not.toEndWith('(?:\\/)?$')
+      expect(route.sourceRegex).toEndWith('(?<rscsuff>)(?:/)?$')
     }
   })
 })

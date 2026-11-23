@@ -2465,14 +2465,31 @@ export async function handleBuildComplete({
       }
     }
 
-    // App Router functions also serve the `.rsc` form of their request. No
-    // separate `.rsc` function is emitted: routing sends an `X.rsc` request
-    // that no prerendered output serves to the function `X`. Collect the
-    // pathnames before the base path is added to them.
+    // An App Router page function also serves the `.rsc` form of its request.
+    // No separate `.rsc` function is emitted: routing sends an `X.rsc` request
+    // that no prerendered output serves to the function `X`. Route handlers
+    // have no `.rsc` form. Collect the pathnames before the base path is added
+    // to them.
     const rscFunctionPathnames = new Set(
-      [...outputs.appPages, ...outputs.appRoutes].map(
-        (output) => output.pathname
-      )
+      outputs.appPages.map((output) => output.pathname)
+    )
+    const appRoutePathnames = new Set(
+      outputs.appRoutes.map((output) => output.pathname)
+    )
+    // The prerendered `.rsc` outputs. A route rule may only rewrite to an
+    // `X.rsc` pathname when one of these exists for it. Some adapters continue
+    // routing with the rewritten path when it doesn't, and a later rule can
+    // then capture a placeholder such as `[slug]` as a param value.
+    const rscOutputPathnames = new Set(
+      outputs.prerenders
+        .map((output) => output.pathname)
+        .filter((pathname) => pathname.endsWith('.rsc'))
+    )
+    // The pages that have prerendered per-segment outputs (`X.segments/...`).
+    const rscSegmentOutputPages = new Set(
+      [...rscOutputPathnames]
+        .filter((pathname) => pathname.includes('.segments/'))
+        .map((pathname) => pathname.slice(0, pathname.indexOf('.segments/')))
     )
 
     normalizePathnames(config, outputs)
@@ -2599,17 +2616,58 @@ export async function handleBuildComplete({
         hasAppPages &&
         suffixedHas === plainHas
 
-      // No `.rsc` function exists for an App Router page. When the suffixed
-      // entry doesn't resolve a `.rsc` request to a prerendered output, this
-      // entry routes it to the function for the page. It must precede the
-      // plain entry, whose last parameter would otherwise capture the suffix.
+      // No `.rsc` function exists for an App Router page, so no route may
+      // rewrite a request for one to an `X.rsc` or `X.segments/...` path that
+      // no prerendered output serves. Some adapters continue routing with the
+      // rewritten path when its output is missing, and a later entry can then
+      // capture a placeholder such as `[slug]` as a param value.
+      //
+      // - A page with prerendered `.rsc` output keeps the suffixed entry, which
+      //   resolves each suffix to its prerendered output.
+      // - A page with no prerendered `.rsc` or segment output sends both
+      //   suffixes straight to its function.
+      // - A page with segment outputs but no `.rsc` output sends only the
+      //   `.rsc` suffix to its function.
+      // - A route handler has no `.rsc` form, and matches its plain path only.
+      //
+      // The function entry precedes the entries that match the plain path,
+      // whose last parameter would otherwise capture the suffix. A run of
+      // fallback shells whose pages disagree keeps the suffixed entry, and the
+      // function entry follows it, so it only catches the pages that the
+      // suffixed entry leaves unresolved.
+      const routePages = fallbackShellRun
+        ? fallbackShellRun.prefixes.map((prefix) =>
+            path.posix.join('/', prefix, fallbackShellRun.tail)
+          )
+        : [route.page]
+      const isAppPage = routePages.every((page) =>
+        rscFunctionPathnames.has(page)
+      )
+      const pagesWithRscOutput = routePages.filter((page) =>
+        rscOutputPathnames.has(`${page}.rsc`)
+      ).length
+      const pagesWithSegmentOutput = routePages.filter((page) =>
+        rscSegmentOutputPages.has(page)
+      ).length
+      // A route handler has no `.rsc` form, so its entry matches the plain
+      // path only, and a `.rsc` ending is part of its last parameter.
+      const isAppRoute = routePages.every((page) => appRoutePathnames.has(page))
+      const routesRscToFunction = isAppPage && pagesWithRscOutput === 0
+      const routesSegmentsToFunction =
+        routesRscToFunction && pagesWithSegmentOutput === 0
+      const matchesPlainPathOnly = routesSegmentsToFunction || isAppRoute
+      const rscSuffixPattern = routesRscToFunction
+        ? '\\.segments/.+\\.segment\\.rsc'
+        : '\\.rsc|\\.segments/.+\\.segment\\.rsc'
       const rscFunctionRoute: DynamicRouteItem | undefined =
-        rscFunctionPathnames.has(route.page)
+        isAppPage && pagesWithRscOutput < routePages.length
           ? {
               source: pagePath + '.rsc',
               sourceRegex: sourceRegex.replace(
                 new RegExp(escapeStringRegexp('(?:/)?$')),
-                '\\.rsc(?:/)?$'
+                routesSegmentsToFunction
+                  ? '(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+                  : '\\.rsc(?:/)?$'
               ),
               destination,
               has: suffixedHas,
@@ -2633,20 +2691,33 @@ export async function handleBuildComplete({
         // from the match result rather than from the pattern. A group that does
         // not match is then absent from that result, and the destination
         // placeholder stays unresolved.
-        dynamicRoutes.push({
-          source: pagePath,
-          sourceRegex: sourceRegex.replace(
-            new RegExp(escapeStringRegexp('(?:/)?$')),
-            '(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
-          ),
-          destination: destination.replace(
-            /($|\?)/,
-            (separator) => `$${suffixCaptureIndex}${separator}`
-          ),
-          has: plainHas,
-          missing: undefined,
-        })
-        if (rscFunctionRoute) {
+        if (rscFunctionRoute && routesRscToFunction) {
+          dynamicRoutes.push(rscFunctionRoute)
+        }
+        dynamicRoutes.push(
+          matchesPlainPathOnly
+            ? {
+                source: pagePath,
+                sourceRegex,
+                destination,
+                has: plainHas,
+                missing: undefined,
+              }
+            : {
+                source: pagePath,
+                sourceRegex: sourceRegex.replace(
+                  new RegExp(escapeStringRegexp('(?:/)?$')),
+                  `(${rscSuffixPattern}|)(?:/)?$`
+                ),
+                destination: destination.replace(
+                  /($|\?)/,
+                  (separator) => `$${suffixCaptureIndex}${separator}`
+                ),
+                has: plainHas,
+                missing: undefined,
+              }
+        )
+        if (rscFunctionRoute && !routesRscToFunction) {
           dynamicRoutes.push(rscFunctionRoute)
         }
       } else {
@@ -2654,12 +2725,15 @@ export async function handleBuildComplete({
         // the `.rsc` payload, and a per-segment prefetch request. The suffix
         // group accepts both forms, and the destination copies the matched
         // suffix, so each request resolves to the artifact that it asks for.
-        if (hasAppPages) {
+        if (rscFunctionRoute && routesRscToFunction) {
+          dynamicRoutes.push(rscFunctionRoute)
+        }
+        if (hasAppPages && !matchesPlainPathOnly) {
           dynamicRoutes.push({
             source: pagePath + '.rsc',
             sourceRegex: sourceRegex.replace(
               new RegExp(escapeStringRegexp('(?:/)?$')),
-              '(\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+              `(${rscSuffixPattern})(?:/)?$`
             ),
             destination: destination.replace(
               /($|\?)/,
@@ -2669,7 +2743,7 @@ export async function handleBuildComplete({
             missing: undefined,
           })
         }
-        if (rscFunctionRoute) {
+        if (rscFunctionRoute && !routesRscToFunction) {
           dynamicRoutes.push(rscFunctionRoute)
         }
 
@@ -2683,10 +2757,10 @@ export async function handleBuildComplete({
         })
       }
 
-      // The entry above resolves a per-segment request on its own, because its
-      // suffix group accepts a segment path. A build that turns the collapse
-      // off emits a dedicated route for each segment, and the table lists those
-      // before that entry.
+      // The entries above resolve a per-segment request on their own, because
+      // the suffix group or the function entry accepts a segment path. A build
+      // that turns the collapse off emits a dedicated route for each segment,
+      // and the table lists those before those entries.
       if (!config.experimental.collapseAdapterRoutes) {
         for (const segmentRoute of route.prefetchSegmentDataRoutes || []) {
           dynamicSegmentRoutes.push({
@@ -2708,18 +2782,31 @@ export async function handleBuildComplete({
       }
     }
 
-    // A request for `X.rsc` that no prerendered output serves goes to the
-    // function `X` of a static App Router page or route. These rewrites lead
-    // `afterFiles`, so they run after the output check, like the `.rsc`
-    // function outputs they replace, but before any user afterFiles rewrite.
+    // A request for `X.rsc`, or a per-segment prefetch `X.segments/...` that
+    // no prerendered segment serves, goes to the function `X` of a static App
+    // Router page that has no prerendered `X.rsc` output. A page with one keeps
+    // its `.rsc` and segment requests on the prerendered outputs, which the
+    // output check serves first.
+    //
+    // These rewrites lead `afterFiles`, so they run after the output check,
+    // like the `.rsc` function outputs they replace, but before any user
+    // afterFiles rewrite. The pattern already matches the RSC suffixes, so it
+    // must not be extended by adapters that add an optional `.rsc` suffix to
+    // user rewrites ending in an escaped optional slash (`(?:\/)?$`): that
+    // would also match a doubled suffix. It ends in an unescaped `(?:/)?$`
+    // instead, and defines an always-empty `rscsuff` group for adapters that
+    // append `$rscsuff` to every afterFiles destination.
     for (const pathname of rscFunctionPathnames) {
       if (isDynamicRoute(pathname)) {
         continue
       }
-      const rscPathname = normalizePagePath(pathname) + '.rsc'
+      const normalizedPathname = normalizePagePath(pathname)
+      if (rscOutputPathnames.has(`${normalizedPathname}.rsc`)) {
+        continue
+      }
       staticRscRoutes.push({
-        source: rscPathname,
-        sourceRegex: `^${escapedBasePath}${escapeStringRegexp(rscPathname)}(?:/)?$`,
+        source: `${normalizedPathname}.rsc`,
+        sourceRegex: `^${escapedBasePath}${escapeStringRegexp(normalizedPathname)}(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)(?<rscsuff>)(?:/)?$`,
         destination:
           path.posix.join('/', config.basePath, pathname).replace(/\/$/, '') ||
           '/',

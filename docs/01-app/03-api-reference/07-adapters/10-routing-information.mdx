@@ -21,13 +21,15 @@ Rewrite routes checked before filesystem route matching.
 
 Rewrite routes checked after filesystem route matching.
 
-The first entries route `X.rsc` requests to the function `X` of a static App Router page or route (`/index.rsc` for the root). They come before user rewrites. Next.js does not emit a separate `.rsc` function output, so a `.rsc` request that no prerendered output serves resolves through these entries.
+The first entries route `X.rsc` and per-segment prefetch (`X.segments/...`) requests to the function `X` of a static App Router page that has no prerendered `X.rsc` output (`/index` for the root). They come before user rewrites. Next.js does not emit a separate `.rsc` function output, so these requests resolve through these entries. Their patterns already match the `.rsc` and segment suffixes, so an adapter should not add another optional RSC suffix to them. They define an always-empty `rscsuff` named group, so a destination that appends `$rscsuff` is unchanged.
+
+When routing sends an `X.rsc` or `X.segments/...` request to the function `X`, invoke the function with the original request pathname, so it responds with the RSC payload instead of HTML. [`@next/routing`](/docs/app/api-reference/adapters/routing-with-next-routing) returns that pathname as `invocationTarget.pathname`.
 
 ## `routing.dynamicRoutes`
 
 Dynamic matchers generated from route segments such as `[slug]` and catch-all routes.
 
-These routes also route `X.rsc` requests for a dynamic App Router page or route to its function `X`.
+For a dynamic App Router page with prerendered `.rsc` output, these routes rewrite `X.rsc` and `X.segments/...` requests to those outputs. For a dynamic App Router page without one, they route those requests to its function `X`. No entry rewrites to an `X.rsc` or `X.segments/...` path that no output serves.
 
 ## `routing.onMatch`
 
