@@ -88,7 +88,12 @@ A clean text rebase can still fail CI:
 
 ## Restack dependent PRs
 
-Work bottom-up and push one branch at a time:
+If the PRs form a `gh stack`, restack with `gh stack rebase --upstack` (or
+`gh stack sync`). See `$gh-stack` for conflict handling. Afterwards, still check
+each layer as in steps 4, 5 and 7 below.
+
+Otherwise, or if the tool fails, restack by hand. Work bottom-up and push one
+branch at a time:
 
 1. Commit each change on the layer that owns it. Use history or blame when
    ownership is unclear.
