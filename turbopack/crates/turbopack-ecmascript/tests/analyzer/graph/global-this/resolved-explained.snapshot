@@ -2,6 +2,9 @@ aliased = "linux"
 
 aliasedProcess = "linux"
 
+aliasedProcessCheck = (globalThis*0*["process"] ? 1 : 2)
+- *0* globalThis: The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+
 binding = module<esbuild-x64-linux, {}>
 
 buffer = global*0*["Buffer"]

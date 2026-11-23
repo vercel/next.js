@@ -48,6 +48,32 @@
         ),
     ),
     (
+        "aliasedProcessCheck",
+        Tenary(
+            4,
+            Variable(
+                (
+                    "p",
+                    #2,
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        2.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
         "binding",
         Call(
             15,

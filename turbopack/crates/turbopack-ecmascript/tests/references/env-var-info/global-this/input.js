@@ -1,6 +1,6 @@
 console.log(globalThis.process.env.FOO1)
 console.log(global.process.env.FOO2)
-const p = globalThis.process
+var p = globalThis.process
 console.log(p.env.FOO3)
 
 // Inlined, so not a runtime read

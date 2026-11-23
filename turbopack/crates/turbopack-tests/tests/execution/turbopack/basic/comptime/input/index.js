@@ -137,7 +137,7 @@ it('should evaluate NODE_ENV through globalThis and global', () => {
     require('fail')
     import('fail')
   }
-  const p = globalThis.process
+  var p = globalThis.process
   if (p.env.NODE_ENV !== 'production') {
     require('fail')
     import('fail')

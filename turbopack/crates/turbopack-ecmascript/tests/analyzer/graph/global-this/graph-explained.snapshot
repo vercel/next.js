@@ -2,6 +2,8 @@ aliased (const after eval) = g["process"]["platform"]
 
 aliasedProcess (const after eval) = p["platform"]
 
+aliasedProcessCheck (const after eval) = (p ? 1 : 2)
+
 binding (const after eval) = FreeVar(require)(
     `esbuild-${FreeVar(globalThis)["process"]["arch"]}-${n["process"]["platform"]}`
 )
