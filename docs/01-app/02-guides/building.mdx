@@ -103,7 +103,7 @@ If the stack trace shows only `at ignore-listed frames` or points to your compon
 __NEXT_SHOW_IGNORE_LISTED=true npm exec -- next build --debug-prerender
 ```
 
-The terminal output includes normally hidden stack frames. Look for the function in `node_modules` that called the API, then look farther down the stack for the code in your app that called the function or rendered the component.
+The terminal output includes normally hidden stack frames. For example, `readCurrentTime (node_modules/blocking-widget/index.js:4:10)` identifies the dependency function that called `new Date()`. Farther down the stack, `Page (app/page.jsx:7:7)` shows where your app rendered the widget.
 
 ### Build specific routes
 
