@@ -178,7 +178,12 @@ jobs:
       # job does not bottleneck the larger test matrix.
       - name: Get pnpm store directory
         id: get-store-path
-        run: echo STORE_PATH="$(pnpm store path)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          # Preserve bootstrap failures instead of passing an empty path to cache.
+          STORE_PATH="$(pnpm store path)"
+          test -n "$STORE_PATH"
+          printf 'STORE_PATH=%s\n' "$STORE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
