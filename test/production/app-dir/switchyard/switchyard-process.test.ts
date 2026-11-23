@@ -373,15 +373,20 @@ describe('switchyard process', () => {
       const { child, port: publicPort } = await startNext({ flag: '1' })
       const [address] = await listenAddressesOf(child.pid!)
       const port = Number(address.split(':').pop())
-      const request =
-        'GET /api/peer HTTP/1.1\r\nHost: localhost\r\nX-Nextjs-Switchyard-Connection: forged;127.0.0.1:1234'
-      const result = await rawRequest(port, request)
-      expect(result.status).toBe(400)
-      const forwarded = await rawRequest(publicPort, request)
-      expect(forwarded.status).toBe(200)
-      expect(JSON.parse(forwarded.body.toString()).internalHeaderPresent).toBe(
-        false
-      )
+      const forged = [
+        'X-Next-Internal-Peer-Token: forged\r\nX-Next-Internal-Client-Address: 127.0.0.1:1234',
+        'X-Next-Internal-Client-Address: 127.0.0.1:1234',
+      ]
+      for (const headers of forged) {
+        const request = `GET /api/peer HTTP/1.1\r\nHost: localhost\r\n${headers}`
+        const result = await rawRequest(port, request)
+        expect(result.status).toBe(400)
+        const forwarded = await rawRequest(publicPort, request)
+        expect(forwarded.status).toBe(200)
+        expect(
+          JSON.parse(forwarded.body.toString()).internalHeaderPresent
+        ).toBe(false)
+      }
     })
 
     it('refuses a header budget Go cannot enforce', async () => {

@@ -11,7 +11,9 @@
 //
 //	  - Every flag is required. Node passes every behavior value, read off its
 //	    own server, so Switchyard has no defaults of its own.
-//	  - Node passes the connection metadata secret in __NEXT_PRIVATE_SWITCHYARD_TOKEN.
+//	  - Node passes the token for its private listener in
+//	    __NEXT_PRIVATE_SWITCHYARD_TOKEN. Switchyard sends it on every request
+//	    (peer-token.ts), with the client's address beside it.
 //	  - Once it listens, it prints `NEXT_SWITCHYARD_READY <port>` on stdout.
 //	  - If it can't listen, it prints the error on stderr and exits 1; Node
 //	    reports "Failed to start server".
@@ -70,7 +72,11 @@ type config struct {
 
 // net/http adds this read-buffer allowance to Server.MaxHeaderBytes.
 const headerReadAllowance = 4096
-const connectionHeader = "X-Nextjs-Switchyard-Connection"
+
+// Spelled out from peer-token.ts and switchyard-connection.ts;
+// test/unit/peer-token.test.ts keeps them equal.
+const peerTokenHeader = "X-Next-Internal-Peer-Token"
+const clientAddressHeader = "X-Next-Internal-Client-Address"
 
 func parseConfig(args []string) (config, error) {
 	flags := flag.NewFlagSet("switchyard", flag.ContinueOnError)
@@ -295,9 +301,11 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			// this function runs; put them back, so Node sees them as before.
 			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
 			_, remotePort, _ := net.SplitHostPort(pr.In.RemoteAddr)
-			// Always replace caller-supplied metadata, including headers named
-			// in Connection. Node authenticates and removes this before routing.
-			pr.Out.Header.Set(connectionHeader, token+";"+net.JoinHostPort(clientIP(pr.In.RemoteAddr, mapIPv4), remotePort))
+			// Always replace caller-supplied values, including headers named
+			// in Connection. Node checks the token and removes both before
+			// routing.
+			pr.Out.Header.Set(peerTokenHeader, token)
+			pr.Out.Header.Set(clientAddressHeader, net.JoinHostPort(clientIP(pr.In.RemoteAddr, mapIPv4), remotePort))
 			// Node now sees Switchyard's connection (127.0.0.1 and its private
 			// port) instead of the client's, so pass on the client's address
 			// and the public port when no proxy in front of us already did.

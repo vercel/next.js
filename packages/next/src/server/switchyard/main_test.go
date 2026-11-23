@@ -154,17 +154,21 @@ func TestReplacesUntrustedConnectionMetadata(t *testing.T) {
 	}
 	defer conn.Close()
 	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n"+
-		"Connection: close, X-Nextjs-Switchyard-Connection\r\n"+
-		"X-Nextjs-Switchyard-Connection: forged;127.0.0.1:1234\r\n"+
-		"X-Nextjs-Switchyard-Connection: another-forgery\r\n\r\n")
+		"Connection: close, X-Next-Internal-Peer-Token, X-Next-Internal-Client-Address\r\n"+
+		"X-Next-Internal-Peer-Token: forged\r\n"+
+		"X-Next-Internal-Peer-Token: another-forgery\r\n"+
+		"X-Next-Internal-Client-Address: 127.0.0.1:1234\r\n\r\n")
 	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	res.Body.Close()
-	values := (<-seen).header.Values(connectionHeader)
-	if len(values) != 1 || values[0] != testToken+";"+conn.LocalAddr().String() {
-		t.Fatalf("untrusted connection metadata was not replaced: %v", values)
+	header := (<-seen).header
+	if values := header.Values(peerTokenHeader); len(values) != 1 || values[0] != testToken {
+		t.Fatalf("untrusted token was not replaced: %v", values)
+	}
+	if values := header.Values(clientAddressHeader); len(values) != 1 || values[0] != conn.LocalAddr().String() {
+		t.Fatalf("untrusted client address was not replaced: %v", values)
 	}
 }
 
@@ -190,7 +194,7 @@ func TestUpstreamConnectionsKeepOneClientIdentity(t *testing.T) {
 		io.Copy(io.Discard, res.Body)
 		res.Body.Close()
 		got := <-seen
-		if got.header.Get(connectionHeader) != testToken+";"+conn.LocalAddr().String() {
+		if got.header.Get(peerTokenHeader) != testToken || got.header.Get(clientAddressHeader) != conn.LocalAddr().String() {
 			t.Fatal("upstream received the wrong client identity")
 		}
 		return got

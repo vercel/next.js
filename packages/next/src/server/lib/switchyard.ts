@@ -1,6 +1,5 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
-import { randomBytes } from 'crypto'
 import readline from 'readline'
 import type { Readable } from 'stream'
 import setupDebug from 'next/dist/compiled/debug'
@@ -12,6 +11,7 @@ import {
   type StartServerResult,
 } from './start-server'
 import { findSwitchyardBinary } from './switchyard-binary'
+import { createPeerToken } from './peer-token'
 import type { SwitchyardRouteTable } from './switchyard-route-table'
 import { SWITCHYARD_ENV, SWITCHYARD_TOKEN_ENV } from './switchyard-env'
 import { formatHostname } from './format-hostname'
@@ -50,7 +50,7 @@ export async function startSwitchyard(
   // Start the Node server, on a private loopback port instead of the public
   // one. Once it listens, startServer calls beforeStartLog below, which starts
   // Switchyard on the public port.
-  const token = randomBytes(32).toString('hex')
+  const token = createPeerToken()
   return startServer({
     ...options,
     hostname: '127.0.0.1',
