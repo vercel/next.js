@@ -75,7 +75,7 @@ import {
   type SendHmr,
   type StartBuilding,
   processTopLevelIssues,
-  printNewTopLevelErrors,
+  printNewTopLevelIssues,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
   type StartChangeSubscription,
@@ -1264,7 +1264,7 @@ export async function createHotReloaderTurbopack(
         continue
       }
 
-      printNewTopLevelErrors(newTopLevelIssues)
+      printNewTopLevelIssues(newTopLevelIssues)
 
       const routes = entrypoints.value.routes
       // Only valid Rust entrypoint snapshots replace the active Go route set.
@@ -2055,12 +2055,10 @@ export async function createHotReloaderTurbopack(
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
         const errors = []
-        // Top-level errors are logged once by the entrypoints subscription
+        // Top-level issues are logged once by the entrypoints subscription
         // when they appear, so they are not logged again per request here.
         for (const issue of topLevelIssues) {
-          if (issue.severity === 'warning') {
-            printNonFatalIssue(issue)
-          } else {
+          if (issue.severity !== 'warning') {
             errors.push(new Error(formatIssue(issue)))
           }
         }

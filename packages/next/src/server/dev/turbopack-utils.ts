@@ -103,7 +103,7 @@ export function processTopLevelIssues<T>(
 }
 
 /**
- * Logs top-level error issues that appeared in the latest entrypoints update.
+ * Logs top-level issues that appeared in the latest entrypoints update.
  *
  * Top-level issues are not tied to an endpoint, so no compilation step logs
  * them. Requests that render an error page without compiling a route (e.g. an
@@ -111,9 +111,11 @@ export function processTopLevelIssues<T>(
  * intentionally not logged. Logging them once here keeps them visible in the
  * terminal without repeating them on every request.
  */
-export function printNewTopLevelErrors(newIssues: Issue[]) {
+export function printNewTopLevelIssues(newIssues: Issue[]) {
   for (const issue of newIssues) {
-    if (
+    if (issue.severity === 'warning') {
+      printNonFatalIssue(issue)
+    } else if (
       issue.severity === 'error' ||
       issue.severity === 'fatal' ||
       issue.severity === 'bug'
