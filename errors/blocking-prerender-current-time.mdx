@@ -322,7 +322,7 @@ Look for the caller of `Date.now()` or `new Date()`. For example, a frame such a
 
 ## Why `instant = false` doesn't clear this error
 
-This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). For the other migration steps, see [Adopting Cache Components incrementally](/docs/app/guides/migrating-to-cache-components#adopting-incrementally).
+This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
 
 ## Related validation errors
 
