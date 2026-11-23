@@ -149,7 +149,7 @@ async fn resolve_node_pre_gyp_files(
                     .iter()
                     .filter(|(key, _)| key.ends_with(extension))
                     .collect::<Vec<_>>();
-                entries.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+                entries.sort_unstable_by_key(|(a, _)| *a);
                 for (key, entry) in entries {
                     if let DirectoryEntry::File(dylib) | DirectoryEntry::Symlink(dylib) = entry {
                         sources.insert(
@@ -182,7 +182,7 @@ async fn resolve_node_pre_gyp_files(
             .await?
         {
             let mut entries = entries.iter().collect::<Vec<_>>();
-            entries.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+            entries.sort_unstable_by_key(|(a, _)| *a);
             for (key, entry) in entries {
                 match entry {
                     DirectoryEntry::File(dylib) => {
