@@ -113,23 +113,27 @@ pub trait TaskInput:
     Send + Sync + Clone + Debug + PartialEq + Eq + Hash + Encode + Decode<()>
 {
     /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
-    /// the process. If the input is unresolved ([`TaskInput::is_resolved`]) a "local" resolution
-    /// task is created that runs this method.
+    /// the process. If the input is unresolved ([`TaskInput::is_resolved`] returns `false`), a
+    /// "local" resolution task is created that runs this method.
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         CloneReady { inner: Some(self) }
     }
 
-    /// This should return `true` if there are any unresolved [`Vc`]s in the type.
+    /// This should return `true` if the type is fully resolved, i.e. it contains no unresolved
+    /// [`Vc`]s, and `false` if any nested [`Vc`] still needs to be resolved.
     ///
     /// Note that [`Vc`]s can sometimes be internally resolved, so you should call
-    /// [`Vc::is_resolved`] (or rely on the derive macro for this trait) instead of returning `true`
-    /// for any [`Vc`]. [`ResolvedVc::is_resolved`] always returns `true`.
+    /// [`Vc::is_resolved`] (or rely on the derive macro for this trait) instead of returning
+    /// `false` for any [`Vc`]. [`ResolvedVc::is_resolved`] always returns `true`.
     ///
-    /// If this returns `true`, a "local" resolution task calling [`TaskInput::resolve_input`] will
-    /// be spawned before the function accepting the arguments is run.
-    ///
-    /// If this returns `false`, the `TaskInput` will be [cloned][Clone] instead of resolved, and
+    /// If this returns `true`, the `TaskInput` will be [cloned][Clone] instead of resolved, and
     /// the function's task will be spawned directly without a resolution step.
+    ///
+    /// If this returns `false`, a "local" resolution task calling [`TaskInput::resolve_input`]
+    /// will be spawned before the function accepting the arguments is run.
+    ///
+    /// The default implementation returns `true`, which is correct for types that cannot contain
+    /// a [`Vc`].
     fn is_resolved(&self) -> bool {
         true
     }
