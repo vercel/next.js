@@ -1221,8 +1221,10 @@ jobs:
             node run-tests.js \
               test/production/app-dir/front-server/front-server.test.ts \
               test/production/app-dir/front-server/front-server-process.test.ts || failed=1
-          # The same suites with the reactor on.
-          __NEXT_EXPERIMENTAL_FRONT_SERVER_REACTOR=1 \
+          # The same suites with the reactor on. NEXT_TEST_SKIP_RESULT_CACHE
+          # keeps run-tests.js from skipping suites the run above recorded as
+          # passed: both runs share one passed-tests file.
+          __NEXT_EXPERIMENTAL_FRONT_SERVER_REACTOR=1 NEXT_TEST_SKIP_RESULT_CACHE=1 \
             NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
             node run-tests.js \
               test/production/app-dir/front-server/front-server.test.ts \
