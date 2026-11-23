@@ -52,6 +52,7 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' wit
 import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
+  NEXT_PRELUDE_METADATA_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -400,8 +401,8 @@ export function createAppPageEntrypoint({
     // We extract it here so the RDC is available for the re-render after the action completes.
     const resumeStateLengthHeader = req.headers[NEXT_RESUME_STATE_LENGTH_HEADER]
     if (
-      !getRequestMeta(req, 'postponed') &&
       isMinimalMode &&
+      !getRequestMeta(req, 'postponed') &&
       isPPREnabled &&
       isPossibleServerAction &&
       resumeStateLengthHeader &&
@@ -638,11 +639,11 @@ export function createAppPageEntrypoint({
 
     const canRenderDynamicRSCForPPRRoute =
       // Prerendered PPR routes served by next start.
+      !isMinimalMode &&
       isPPREnabled &&
       isSSG &&
       !routeModule.isDev &&
       !isDraftMode &&
-      !isMinimalMode &&
       // Navigations and runtime prefetches.
       req.method === 'GET' &&
       isRSCRequest &&
@@ -1264,10 +1265,10 @@ export function createAppPageEntrypoint({
           // skip on-demand revalidate if cache is not present and
           // revalidate-if-generated is set
           if (
+            !isMinimalMode &&
             isOnDemandRevalidate &&
             revalidateOnlyGenerated &&
-            !previousIncrementalCacheEntry &&
-            !isMinimalMode
+            !previousIncrementalCacheEntry
           ) {
             if (routerServerContext?.render404) {
               await routerServerContext.render404(req, res)
@@ -1332,11 +1333,11 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            !isMinimalMode &&
             // Ordinary dev requests always use the request-specific render
             // below. Only production, forced background work, and explicit
             // shell debugging may enter fallback prerender handling.
             (isProduction || forceStaticRender || isDebugPrerender) &&
-            !isMinimalMode &&
             fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
             staticPathKey &&
             !didRespond &&
@@ -1430,7 +1431,6 @@ export function createAppPageEntrypoint({
               // Otherwise, if we did get a fallback response, we should return it.
               if (fallbackResponse) {
                 if (
-                  !isMinimalMode &&
                   isPPREnabled &&
                   // Upgrading a fallback shell into a more specific ISR entry is
                   // only done when Partial Prefetching is enabled, mirroring the
@@ -1518,6 +1518,7 @@ export function createAppPageEntrypoint({
           let hasFullyStaticCacheEntry = false
 
           if (
+            !isMinimalMode &&
             // Dynamic RSC and Server Action requests reuse the RDC from cached
             // postponed state to keep cached values consistent with the
             // prerender. Draft mode requests render fresh values without this
@@ -1525,7 +1526,6 @@ export function createAppPageEntrypoint({
             isPPREnabled &&
             !isDraftMode &&
             process.env.NEXT_RUNTIME !== 'edge' &&
-            !isMinimalMode &&
             incrementalCache &&
             // Include both dynamic RSC requests (navigations) and server actions
             (isDynamicRSCRequest || isPossibleServerAction) &&
@@ -1855,6 +1855,20 @@ export function createAppPageEntrypoint({
         const cacheEntryUrl = rawCacheEntryUrl
           ? (parseUrl(rawCacheEntryUrl)?.pathname ?? rawCacheEntryUrl)
           : undefined
+
+        const value = cacheEntry.value
+        if (
+          isRSCRequest &&
+          value?.kind === CachedRouteKind.APP_PAGE &&
+          value.headers?.[NEXT_PRELUDE_METADATA_HEADER] !== undefined
+        ) {
+          // Exclude the HTML metadata marker from RSC cache capture. Matching
+          // bots would otherwise bypass cached RSC responses. Clone the entry
+          // so the shared HTML cache entry retains its marker.
+          const headers = { ...value.headers }
+          delete headers[NEXT_PRELUDE_METADATA_HEADER]
+          cacheEntry = { ...cacheEntry, value: { ...value, headers } }
+        }
 
         return onCacheEntry(cacheEntry, { url: cacheEntryUrl })
       }
@@ -2339,6 +2353,10 @@ export function createAppPageEntrypoint({
 
         if (cachedData.headers) {
           const headers = { ...cachedData.headers }
+          if (isRSCRequest) {
+            // This HTML-only marker would make bot policies bypass cached RSC.
+            delete headers[NEXT_PRELUDE_METADATA_HEADER]
+          }
 
           if (!isMinimalMode || !isSSG) {
             delete headers[NEXT_CACHE_TAGS_HEADER]
@@ -2507,13 +2525,13 @@ export function createAppPageEntrypoint({
         // If there's no postponed state, we should just serve the HTML. This
         // should also be the case for a resume request because it's completed
         // as a server render (rather than a static render).
-        if (!didPostpone || isMinimalMode || isRSCRequest) {
+        if (isMinimalMode || !didPostpone || isRSCRequest) {
           // If we're in test mode, we should add a sentinel chunk to the response
           // that's between the static and dynamic parts so we can compare the
           // chunks and add assertions.
           if (
-            process.env.__NEXT_TEST_MODE &&
             isMinimalMode &&
+            process.env.__NEXT_TEST_MODE &&
             isPPREnabled &&
             body.contentType === HTML_CONTENT_TYPE_HEADER
           ) {
