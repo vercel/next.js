@@ -1940,6 +1940,20 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
         },
+        // Rspack defaults `exportsPresence` to 'error', so importing a name that
+        // a dependency doesn't export fails the build (webpack only warns).
+        // Next.js's own code feature-detects React 19 APIs, e.g. `use` in
+        // `next/dist/esm/client/image-component.js`, and these are missing in
+        // React 18. Downgrade to a warning for Next.js's own modules only, so
+        // user code keeps Rspack's stricter check.
+        ...(isRspack
+          ? [
+              {
+                test: /[\\/]next[\\/]dist[\\/]/,
+                parser: { exportsPresence: 'warn' },
+              },
+            ]
+          : []),
         // Mark the action-client-wrapper module as side-effects free to make sure
         // the individual transformed module of client action can be tree-shaken.
         // This will make modules processed by `next-flight-server-reference-proxy-loader` become side-effects free,

@@ -3,7 +3,15 @@ import * as React from 'react'
 import Form from 'next/form'
 import { useRouter } from 'next/router'
 
-const isReact18 = typeof React.useActionState !== 'function'
+const isReact18 = typeof getUseActionState() !== 'function'
+
+// `useActionState` only exists in React 19. Read it through `Reflect.get`
+// rather than `React.useActionState`: Rspack treats a static reference to a
+// missing export as a build error, which would fail the build under React 18
+// even though this page is never used there.
+function getUseActionState(): typeof React.useActionState {
+  return Reflect.get(React, 'useActionState')
+}
 
 export default isReact18 ? DummyPage : Page
 
@@ -34,7 +42,8 @@ function NavigateButton({
   ...props
 }: { to: string } & React.ComponentProps<'button'>) {
   const router = useRouter()
-  const [, dispatch] = React.useActionState(() => {
+  const useActionState = getUseActionState()
+  const [, dispatch] = useActionState(() => {
     router.push(to)
   }, undefined)
   return <button type="submit" formAction={dispatch} {...props} />
