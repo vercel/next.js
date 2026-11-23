@@ -195,6 +195,10 @@
 }
 
 .instant-nav-debugger-paused {
+  --instant-nav-paused-background: #fef4ab;
+  --instant-nav-paused-button-background: white;
+  --instant-nav-paused-button-hover: #fafafa;
+  --instant-nav-paused-button-color: #171717;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -202,23 +206,27 @@
   height: 42px;
   padding: 0 20px;
   border: 0;
-  background: #fef4ab;
-  color: var(--color-gray-1000);
+  background: var(--instant-nav-paused-background);
+  color: #171717;
   font-size: var(--size-13);
   font-weight: 400;
   line-height: 1;
 }
-:host(.dark) {
-  .instant-nav-debugger-paused {
-    color: #171717;
-    background-color: #e7c755;
-  }
+
+:host(.dark) .instant-nav-debugger-paused {
+  --instant-nav-paused-background: #e7c755;
+  --instant-nav-paused-button-background: #000000;
+  --instant-nav-paused-button-hover: #2e2e2e;
+  --instant-nav-paused-button-color: #ededed;
 }
+
 @media (prefers-color-scheme: dark) {
   :host(:not(.light)) {
     .instant-nav-debugger-paused {
-      color: #171717;
-      background-color: #e7c755;
+      --instant-nav-paused-background: #e7c755;
+      --instant-nav-paused-button-background: #000000;
+      --instant-nav-paused-button-hover: #2e2e2e;
+      --instant-nav-paused-button-color: #ededed;
     }
   }
 }
@@ -227,36 +235,17 @@
   margin-left: auto;
   font-size: var(--size-12);
   font-weight: 500;
-  color: var(--color-gray-1000);
+  color: var(--instant-nav-paused-button-color);
   padding: 7px 12px 7px 14px;
   border-radius: 9999px;
-  background-color: white;
+  background-color: var(--instant-nav-paused-button-background);
   border: 1px solid var(--color-gray-alpha-300);
   display: inline-flex;
   gap: 8px;
   align-items: center;
 }
-:host(.dark) {
-  .instant-nav-debugger-paused-button {
-    background-color: #000000;
-  }
-  .instant-nav-debugger-paused-button:hover {
-    background-color: #2e2e2e;
-  }
-}
-@media (prefers-color-scheme: dark) {
-  :host(:not(.light)) {
-    .instant-nav-debugger-paused-button {
-      background-color: #000000;
-    }
-    .instant-nav-debugger-paused-button:hover {
-      background-color: #2e2e2e;
-    }
-  }
-}
-
 .instant-nav-debugger-paused-button:hover {
-  background: #fafafa;
+  background: var(--instant-nav-paused-button-hover);
 }
 
 .instant-nav-debugger-paused-button:focus-visible {

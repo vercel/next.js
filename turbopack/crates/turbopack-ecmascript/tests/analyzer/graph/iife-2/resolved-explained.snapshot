@@ -14,7 +14,7 @@ key = (???*0* | undefined)
 - *2* Object*3*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -25,7 +25,7 @@ keys = ???*0*
 - *1* Object*2*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[0]
   ⚠️  function calls are not analyzed yet
 

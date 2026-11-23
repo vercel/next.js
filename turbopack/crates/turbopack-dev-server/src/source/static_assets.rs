@@ -45,13 +45,16 @@ impl StaticAssetsContentSource {
 // TODO(WEB-1251) It would be better to lazily enumerate the directory
 #[turbo_tasks::function]
 async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>> {
+    // DETERMINISM: Entries are sorted by name before creating the route cells.
     let dir = dir.read_dir().await?;
     let DirectoryContent::Entries(entries) = &*dir else {
         return Ok(RouteTree::empty());
     };
+    let mut entries = entries.iter().collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|(name, _)| *name);
 
     let routes = entries
-        .iter()
+        .into_iter()
         .flat_map(|(name, entry)| match entry {
             DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
                 Some(RouteTree::new_route(
@@ -113,14 +116,17 @@ impl Introspectable for StaticAssetsContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+        // DETERMINISM: Entries are sorted by name before creating the ordered children set.
         let dir = self.dir.read_dir().await?;
         let DirectoryContent::Entries(entries) = &*dir else {
             return Ok(Vc::cell(Default::default()));
         };
+        let mut entries = entries.iter().collect::<Vec<_>>();
+        entries.sort_unstable_by_key(|(name, _)| *name);
 
         let prefix = self.prefix.await?;
         let children = entries
-            .iter()
+            .into_iter()
             .map(move |(name, entry)| {
                 let prefix = prefix.clone();
                 async move {

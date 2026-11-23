@@ -71,7 +71,10 @@ describe('deployment lifecycle', () => {
       NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH: '',
       NEXT_TEST_CLEANUP_SCRIPT_PATH: '',
       NEXT_TEST_PROXY_ADDRESS: '',
+      NEXT_TEST_PROXY_IN_PROCESS: '',
+      NEXT_TEST_STAGING_PROXY_REGION: '',
       NEXT_TEST_JOB: '',
+      VERCEL_TEST_PROJECT: '',
       VERCEL_FORCE_BUILD_IN_HIVE: '',
       VERCEL_BUILD_CONTAINER_VERSION: '',
     })
@@ -321,6 +324,22 @@ describe('deployment lifecycle', () => {
     await next.start()
     expect(next.buildId).toBe('build-id')
     expect(next.deploymentId).toBe('deployment-id')
+  })
+
+  it('links the test project for the requested staging region', async () => {
+    process.env.NEXT_TEST_STAGING_PROXY_REGION = 'sfo1'
+    successfulDeployment()
+
+    const next = await instance()
+    await next.start()
+
+    const linkArgs = jest
+      .mocked(execa)
+      .mock.calls.find(
+        ([command, args]) => command === 'vercel' && args?.[0] === 'link'
+      )?.[1]
+    expect(linkArgs?.[1]).toBe('-p')
+    expect(linkArgs?.[2]).toBe('vtest314-e2e-tests-staging-sfo1')
   })
 
   it('reuses a deployment for concurrent and subsequent start calls', async () => {
