@@ -195,14 +195,18 @@ describe('switchyard-go', () => {
   describe('the worker process', () => {
     // route.go workers run the app's own Go code. Under Switchyard they run it
     // on at most 4 threads at once by default, so they don't compete with
-    // Switchyard and Node for every core; Switchyard's own process has a
-    // separate limit. Without Switchyard, Go picks one thread per core.
+    // Switchyard and Node for every core. Without Switchyard, Go picks one
+    // thread per core it sees.
     it('limits the threads a route.go worker runs Go code on', async () => {
-      const { goMaxProcs } = await received('/go/echo')
-      const cores = availableParallelism()
-      expect(goMaxProcs).toBe(
-        process.env[SWITCHYARD_ENV] === '1' ? Math.min(4, cores) : cores
-      )
+      const { goMaxProcs, numCPU } = await received('/go/echo')
+      if (process.env.GOMAXPROCS) {
+        // A GOMAXPROCS from the environment is kept either way.
+        expect(goMaxProcs).toBe(Number(process.env.GOMAXPROCS))
+      } else if (process.env[SWITCHYARD_ENV] === '1') {
+        expect(goMaxProcs).toBe(Math.min(4, availableParallelism()))
+      } else {
+        expect(goMaxProcs).toBe(numCPU)
+      }
     })
   })
 
