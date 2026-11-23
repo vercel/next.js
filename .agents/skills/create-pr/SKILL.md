@@ -131,3 +131,4 @@ Use `--body` with this filled content.
 
 - `$pr-status-triage` - Analyze CI failures and PR review feedback after the PR exists.
 - `$gh-stack` - Manage stacked branches and dependent pull requests.
+- `$rebase-pr` - Rebase a PR onto canary or restack dependent PRs.
