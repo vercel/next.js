@@ -209,7 +209,7 @@
       "table": "app",
       "target": "/api/echo",
       "header": { "Content-Length": ["0"] },
-      "node": "Content-Length on GET"
+      "route": "/api/echo/route"
     },
     {
       "table": "app",
