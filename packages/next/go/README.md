@@ -51,9 +51,9 @@ replacement, always at the installed Next.js version, without downloads or
   package it imports uses `next/go`, and is never removed, so it agrees with
   `go mod tidy`. During `next dev`, editing a Go source in the project adds it.
 - **Replacement:** kept pointing at the installed SDK while the module requires
-  it. Modules that neither require nor import the SDK are left unchanged. With pnpm it names the
-  package's real directory under `node_modules/.pnpm`, so it changes when Next.js
-  is upgraded, and the next `next dev` or `next build` updates it.
+  it. With pnpm it names the package's real directory under `node_modules/.pnpm`,
+  so it changes when Next.js is upgraded, and the next `next dev` or `next build`
+  updates it. Modules that neither require nor import the SDK are left unchanged.
 - **Monorepos:** the `go.mod` can be in the application, in a directory nested in
   it, or at the workspace root, and `next` can be installed anywhere inside
   Turbopack's root (`turbopack.root`), such as the workspace's `node_modules`.
@@ -61,7 +61,6 @@ replacement, always at the installed Next.js version, without downloads or
   its own `go.mod`. The application's replacement applies to it too, so nothing
   needs to be published. Its own replacement, for developing it on its own, is
   ignored by applications.
-
 - **No module:** Go cannot resolve `next/go` outside a module, so `next dev` and
   `next build` warn about Go files that import it without a `go.mod`.
 - **Go version:** the SDK declares `go 1.21`, so application modules with an older
