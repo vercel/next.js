@@ -255,7 +255,7 @@ export async function collectBuildTraces({
 
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
+        ...(isStandalone ? [] : ['**/next/dist/lib/worker/worker-*-child*']),
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
@@ -297,6 +297,19 @@ export async function collectBuildTraces({
         ...(ciEnvironment.hasNextSupport
           ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
           : []),
+        // `image-optimizer/nsio.js` requires this, but next-server only uses it
+        // with `experimental.imgOptSafeMode`. Keep the large platform-specific
+        // binary out of the server trace otherwise. Route traces aren't
+        // affected, since routes can call `imageOptimizerTransform()` directly.
+        // The package path itself is also ignored, or the pnpm symlink to it
+        // would be copied and left dangling.
+        ...(config.experimental.imgOptSafeMode.nextImage ||
+        config.experimental.imgOptSafeMode.imageResponse
+          ? []
+          : [
+              '**/node_modules/@next/safe-image-optimization*',
+              '**/node_modules/@next/safe-image-optimization*/**/*',
+            ]),
       ].filter(nonNullable)
       const serverIgnoreFn = makeIgnoreFn(root, serverIgnores)
 
@@ -331,12 +344,12 @@ export async function collectBuildTraces({
       if (isStandalone) {
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/processChild'),
+          require.resolve('../lib/worker/worker-process-child'),
           serverTracedFiles
         )
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/threadChild'),
+          require.resolve('../lib/worker/worker-thread-child'),
           serverTracedFiles
         )
       }

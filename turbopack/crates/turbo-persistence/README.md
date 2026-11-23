@@ -16,6 +16,8 @@ There is a single `CURRENT` file, a small JSON object holding the latest committ
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
+Files whose name starts with `.` are ignored, such as `.DS_Store` or the `._<name>` AppleDouble files macOS writes next to every file on filesystems like exFAT. Any other unrecognized file fails opening the database, with an error that names it.
+
 There are four different file types:
 
 - Static Sorted Table (SST, `*.sst`): These files contain key value pairs.
@@ -102,7 +104,7 @@ The 4-byte header distinguishes compressed from uncompressed storage:
 
 #### Block Checksum
 
-Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged. Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
+Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged, marked as `CacheFileUnreadable` (see [Unreadable files](#unreadable-files)). Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
 
 #### Index Block
 
@@ -305,6 +307,16 @@ index blocks of the SST files.
         - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
 
+### Unreadable files
+
+SST and blob files are read lazily, so a file can become unreadable after the database was opened,
+e.g. when another process deletes or modifies it while the database is in use. Errors of such reads
+are wrapped in a `CacheFileUnreadable` marker naming the file (find it with
+`CacheFileUnreadable::find`; it displays like the error it wraps): an SST file that can't be opened,
+an SST block that can't be read or fails its checksum, and a blob file that can't be read, fails its
+checksum, or can't be decompressed. This lets callers tell damage to the files apart from other
+errors.
+
 ### Memory map advice
 
 Lookups usually touch only some blocks of an SST file, and a block is read in full the first time it
@@ -447,6 +459,9 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
 - Read all `*.del` files and delete the files that are listed in there.
 - Open all remaining `*.meta` files (memory mapped with `AccessMode::Mmap`, read onto the heap with
   `AccessMode::File`), parse their AMQFs and drop entries for SST files that are obsolete.
+- Check that the SST file of every remaining entry exists. If one is missing (e.g. because it was
+  deleted from outside), opening fails with an error that names it, rather than a later lookup
+  failing on a key stored in it.
 - SST and blob files are not opened while the database opens. Once the meta files are loaded, the SST
   files start opening eagerly in the background (see [Reading](#reading)); a lookup that needs one
   first opens it itself. An SST file is memory mapped in mmap access mode, or read with positional

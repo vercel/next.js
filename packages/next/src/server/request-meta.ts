@@ -86,12 +86,6 @@ export interface RequestMeta {
   isLocaleDomain?: boolean
 
   /**
-   * True when the request had locale information stripped from the pathname
-   * part of the URL.
-   */
-  didStripLocale?: boolean
-
-  /**
    * If the request had its URL rewritten, this is the pathname it was rewritten
    * to (not a full URL, just the pathname).
    */

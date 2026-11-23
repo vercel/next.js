@@ -13,9 +13,9 @@ The example is a roadmap voting application where users can enter and vote for f
 
 ## Deploy Your Own
 
-This examples uses [Upstash](https://upstash.com) (Serverless Redis Database) as its data storage. During deployment. The integration will help you create a free Redis database and link it to your Vercel project automatically.
+This example uses [Upstash](https://upstash.com) (Serverless Redis) as its data store, through the [`@upstash/redis`](https://github.com/upstash/redis-js) client. The Deploy button installs the [Upstash integration](https://vercel.com/marketplace/upstash) from the Vercel Marketplace, which creates a Redis database and adds its credentials to your project.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-redis&project-name=redis-roadmap&repository-name=redis-roadmap&demo-title=Redis%20Roadmap&demo-description=Create%20and%20upvote%20features%20for%20your%20product.&demo-url=https%3A%2F%2Froadmap-redis.vercel.app%2F&stores=%5B%7B"type"%3A"kv"%7D%5D&)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-redis&project-name=redis-roadmap&repository-name=redis-roadmap&demo-title=Redis%20Roadmap&demo-description=Create%20and%20upvote%20features%20for%20your%20product.&demo-url=https%3A%2F%2Froadmap-redis.vercel.app%2F&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
 
 ## How to use
 
@@ -34,3 +34,5 @@ pnpm create next-app --example with-redis roadmap
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+To run it locally, create a database in the [Upstash Console](https://console.upstash.com), copy `.env.example` to `.env.local`, and fill in `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. If you deployed with the button, `vercel env pull` writes the credentials for you; `Redis.fromEnv()` reads either the `UPSTASH_REDIS_REST_*` or the `KV_REST_API_*` names the integration provides.

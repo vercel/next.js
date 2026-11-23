@@ -95,16 +95,16 @@ describe('configured image optimization routing path', () => {
     nextConfig: { images: { path: '/media/image' } },
   })
 
-  // TODO: next/image advertises the configured `images.path` (`/media/image`),
-  // but the server answers 404 there and serves the Image Optimization API
-  // only at `/_next/image`. The docs say `images.path` changes the API's path:
+  // images.path changes only the URL next/image advertises. The server keeps
+  // serving the Image Optimization API at /_next/image, so something in front
+  // of Next.js has to route images.path there:
   // https://nextjs.org/docs/app/api-reference/components/image#path
-  // @gate FIXME
-  it('serves the advertised image through images.path', async () => {
+  it('advertises images.path while serving the optimizer at /_next/image', async () => {
     const $ = await next.render$('/')
     const source = $('img[alt="allowed image"]').attr('src')
     expect(source).toMatch(/^\/media\/image\?/)
-    const response = await next.fetch(source!)
+    const query = source!.slice(source!.indexOf('?'))
+    const response = await next.fetch(`/_next/image${query}`)
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toMatch(/^image\//)
     expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0)

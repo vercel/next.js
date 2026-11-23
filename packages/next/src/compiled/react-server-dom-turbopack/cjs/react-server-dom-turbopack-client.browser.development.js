@@ -1278,6 +1278,15 @@
         return "";
       }
     }
+    function createReactMetadata(requestId, kind, outcome, environment) {
+      return {
+        version: 1,
+        requestId: requestId,
+        kind: kind,
+        outcome: outcome,
+        environment: environment
+      };
+    }
     function markAllTracksInOrder() {
       supportsUserTiming &&
         (console.timeStamp(
@@ -1356,7 +1365,8 @@
       startTime,
       endTime,
       rootEnv,
-      value
+      value,
+      requestId
     ) {
       if (supportsUserTiming && 0 < endTime) {
         var description = getIODescription(value),
@@ -1375,7 +1385,7 @@
             ? addObjectToProperties(value, properties, 0, "")
             : void 0 !== value &&
               addValueToProperties("awaited value", value, properties, 0, "");
-          asyncInfo = getIOLongName(
+          rootEnv = getIOLongName(
             asyncInfo.awaited,
             description,
             asyncInfo.env,
@@ -1391,8 +1401,14 @@
                   track: trackNames[trackIdx],
                   trackGroup: "Server Components \u269b",
                   properties: properties,
-                  tooltipText: asyncInfo
-                }
+                  tooltipText: rootEnv
+                },
+                react: createReactMetadata(
+                  requestId,
+                  "await",
+                  "completed",
+                  asyncInfo.env
+                )
               }
             })
           );
@@ -2976,7 +2992,8 @@
       environmentName,
       debugStartTime,
       debugEndTime,
-      debugChannel
+      debugChannel,
+      debugRequestId
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -3014,6 +3031,7 @@
       this._debugIOStarted = !1;
       setTimeout(markIOStarted.bind(this), 0);
       this._debugEndTime = void 0 === debugEndTime ? null : debugEndTime;
+      this._debugRequestId = debugRequestId;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._debugChannel = debugChannel;
       this._blockedConsole = null;
@@ -4011,7 +4029,8 @@
                       trackIdx$jscomp$1 = trackIdx$jscomp$0,
                       startTime$jscomp$2 = startTime$jscomp$1,
                       childrenEndTime$jscomp$1 = childrenEndTime$jscomp$0,
-                      error = root.reason;
+                      error = root.reason,
+                      requestId = response._debugRequestId;
                     if (supportsUserTiming) {
                       var env = componentInfo$jscomp$2.env,
                         name = componentInfo$jscomp$2.name,
@@ -4056,7 +4075,13 @@
                             trackGroup: "Server Components \u269b",
                             tooltipText: entryName$jscomp$0 + " Errored",
                             properties: properties
-                          }
+                          },
+                          react: createReactMetadata(
+                            requestId,
+                            "component",
+                            "errored",
+                            env
+                          )
                         }
                       });
                       performance.clearMeasures(measureName);
@@ -4065,7 +4090,8 @@
                     var componentInfo$jscomp$3 = componentInfo$jscomp$1,
                       trackIdx$jscomp$2 = trackIdx$jscomp$0,
                       startTime$jscomp$3 = startTime$jscomp$1,
-                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0;
+                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0,
+                      requestId$jscomp$0 = response._debugRequestId;
                     if (
                       supportsUserTiming &&
                       0 <= childrenEndTime$jscomp$2 &&
@@ -4128,7 +4154,13 @@
                                   track: trackNames[trackIdx$jscomp$2],
                                   trackGroup: "Server Components \u269b",
                                   properties: properties$jscomp$0
-                                }
+                                },
+                                react: createReactMetadata(
+                                  requestId$jscomp$0,
+                                  "component",
+                                  "completed",
+                                  env$jscomp$0
+                                )
                               }
                             }
                           )
@@ -4166,7 +4198,8 @@
                           time,
                           endTime,
                           env$jscomp$1,
-                          thenable.value
+                          thenable.value,
+                          response$jscomp$0._debugRequestId
                         );
                         break;
                       case "rejected":
@@ -4175,7 +4208,9 @@
                           startTime$jscomp$4 = time,
                           endTime$jscomp$0 = endTime,
                           rootEnv = env$jscomp$1,
-                          error$jscomp$0 = thenable.reason;
+                          error$jscomp$0 = thenable.reason,
+                          requestId$jscomp$1 =
+                            response$jscomp$0._debugRequestId;
                         if (supportsUserTiming && 0 < endTime$jscomp$0) {
                           var description = getIODescription(error$jscomp$0),
                             entryName$jscomp$1 =
@@ -4224,7 +4259,13 @@
                                       trackGroup: "Server Components \u269b",
                                       properties: properties$jscomp$1,
                                       tooltipText: tooltipText
-                                    }
+                                    },
+                                    react: createReactMetadata(
+                                      requestId$jscomp$1,
+                                      "await",
+                                      "errored",
+                                      asyncInfo$jscomp$0.env
+                                    )
                                   }
                                 }
                               )
@@ -4248,7 +4289,8 @@
                           time,
                           endTime,
                           env$jscomp$1,
-                          void 0
+                          void 0,
+                          response$jscomp$0._debugRequestId
                         );
                     }
                   } else
@@ -4258,7 +4300,8 @@
                       time,
                       endTime,
                       env$jscomp$1,
-                      void 0
+                      void 0,
+                      response$jscomp$0._debugRequestId
                     );
                 }
               }
@@ -4274,7 +4317,8 @@
                     componentInfo$jscomp$4 = _componentInfo,
                     trackIdx$jscomp$4 = trackIdx$jscomp$6,
                     startTime$jscomp$5 = time,
-                    childrenEndTime$jscomp$3 = childrenEndTime;
+                    childrenEndTime$jscomp$3 = childrenEndTime,
+                    requestId$jscomp$2 = response$jscomp$0._debugRequestId;
                   if (supportsUserTiming) {
                     var env$jscomp$2 = componentInfo$jscomp$4.env,
                       name$jscomp$1 = componentInfo$jscomp$4.name,
@@ -4314,7 +4358,13 @@
                           trackGroup: "Server Components \u269b",
                           tooltipText: entryName$jscomp$2 + " Aborted",
                           properties: properties$jscomp$2
-                        }
+                        },
+                        react: createReactMetadata(
+                          requestId$jscomp$2,
+                          "component",
+                          "aborted",
+                          env$jscomp$2
+                        )
                       }
                     });
                     performance.clearMeasures(measureName$jscomp$1);
@@ -4335,7 +4385,8 @@
                     trackIdx$jscomp$5 = trackIdx$jscomp$6,
                     startTime$jscomp$6 = time,
                     endTime$jscomp$1 = endTime,
-                    rootEnv$jscomp$0 = _env2;
+                    rootEnv$jscomp$0 = _env2,
+                    requestId$jscomp$3 = response$jscomp$0._debugRequestId;
                   if (supportsUserTiming && 0 < endTime$jscomp$1) {
                     var entryName$jscomp$3 =
                         "await " +
@@ -4376,7 +4427,13 @@
                                   ]
                                 ],
                                 tooltipText: tooltipText$jscomp$0
-                              }
+                              },
+                              react: createReactMetadata(
+                                requestId$jscomp$3,
+                                "await",
+                                "aborted",
+                                asyncInfo$jscomp$1.env
+                              )
                             }
                           }
                         )
@@ -4980,8 +5037,10 @@
         environmentName =
           options && options.environmentName ? options.environmentName : void 0,
         debugStartTime =
-          options && null != options.startTime ? options.startTime : void 0;
-      options = options && null != options.endTime ? options.endTime : void 0;
+          options && null != options.startTime ? options.startTime : void 0,
+        debugEndTime =
+          options && null != options.endTime ? options.endTime : void 0;
+      options = options ? options.unstable_requestId : void 0;
       checkEvalAvailabilityOnceDev();
       return new ResponseInstance(
         null,
@@ -4996,8 +5055,9 @@
         replayConsole,
         environmentName,
         debugStartTime,
-        options,
-        debugChannel
+        debugEndTime,
+        debugChannel,
+        options
       )._weakResponse;
     }
     function startReadingFromUniversalStream(
@@ -5355,10 +5415,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-df6aa4ec-20261112",
+      version: "19.3.0-canary-a8342585-20261117",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-df6aa4ec-20261112",
+      reconcilerVersion: "19.3.0-canary-a8342585-20261117",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

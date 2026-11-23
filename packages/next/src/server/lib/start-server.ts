@@ -51,6 +51,10 @@ import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
 import { isCI } from '../ci-info'
+import {
+  restoreSwitchyardConnection,
+  SWITCHYARD_HEADER_OVERHEAD,
+} from './switchyard-connection'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -142,6 +146,43 @@ export interface StartServerOptions {
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   serverFastRefresh?: boolean
+  /**
+   * Set when another process owns the public port and forwards to this
+   * server (see `switchyard.ts`). Runs once this server listens, before the
+   * URLs print, and returns the public address.
+   */
+  beforeStartLog?: (privateServer: PrivateServer) => Promise<PublicServer>
+  /**
+   * Bind again if the OS picks this port for a `port: 0` listener, so a
+   * Switchyard can take it.
+   */
+  avoidPort?: number
+  /** Authenticates client connection metadata from Switchyard. */
+  switchyardToken?: string
+}
+
+/** This server's port and HTTP limits, passed to the public listener. */
+export type PrivateServer = {
+  port: number
+  keepAliveTimeout: number
+  headersTimeout: number
+  requestTimeout: number
+  maxHeaderSize: number
+}
+
+/** The address clients use, when it isn't the one this server listens on. */
+export type PublicServer = {
+  hostname: string | undefined
+  port: number
+  /** Stops accepting connections and resolves once in-flight requests end. */
+  close: () => Promise<void>
+  /**
+   * Gives Switchyard the route table, once the router has loaded the
+   * app. Until then Switchyard sends every request to this Node server.
+   */
+  setRouteTable?: (
+    table: import('./switchyard-route-table').SwitchyardRouteTable
+  ) => void
 }
 
 export async function getRequestHandlers({
@@ -203,6 +244,9 @@ export async function startServer(
     serverFastRefresh,
   } = serverOptions
   let { port } = serverOptions
+  const switchyardToken = serverOptions.switchyardToken
+    ? Buffer.from(serverOptions.switchyardToken)
+    : undefined
 
   process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
@@ -248,6 +292,14 @@ export async function startServer(
 
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
     try {
+      if (
+        switchyardToken &&
+        !restoreSwitchyardConnection(req, switchyardToken)
+      ) {
+        res.writeHead(400, { Connection: 'close' })
+        res.end()
+        return
+      }
       if (handlersPromise) {
         await handlersPromise
         handlersPromise = undefined
@@ -286,13 +338,27 @@ export async function startServer(
         },
         requestListener
       )
-    : http.createServer(requestListener)
+    : http.createServer(
+        {
+          maxHeaderSize: switchyardToken
+            ? http.maxHeaderSize + SWITCHYARD_HEADER_OVERHEAD
+            : undefined,
+        },
+        requestListener
+      )
 
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
   server.on('upgrade', async (req, socket, head) => {
     try {
+      if (
+        switchyardToken &&
+        !restoreSwitchyardConnection(req, switchyardToken)
+      ) {
+        socket.destroy()
+        return
+      }
       await upgradeHandler(req, socket, head)
     } catch (err) {
       socket.destroy()
@@ -332,14 +398,56 @@ export async function startServer(
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-      const formattedHostname =
-        !hostname || actualHostname === '0.0.0.0'
-          ? 'localhost'
-          : actualHostname === '[::]'
-            ? '[::1]'
-            : formatHostname(hostname)
-
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      if (serverOptions.avoidPort && port === serverOptions.avoidPort) {
+        debug(
+          'the OS gave the Node server port %d, which Switchyard needs as its public port; binding the Node server to another port',
+          port
+        )
+        server.close(() => server.listen(0, hostname))
+        return
+      }
+
+      // With Switchyard (`beforeStartLog` set), start it now and switch to
+      // its public address: the URLs printed below, `PORT`, and the hostname
+      // and port the router builds `request.url` from all use the public port,
+      // so the app sees the same values as without Switchyard. Only
+      // `__NEXT_PRIVATE_ORIGIN` keeps the Node server's own address
+      // (`privateAppUrl`), because Node uses it to send requests to itself
+      // (server actions), and those don't need to pass through Switchyard.
+      const privateAppUrl = `http://${actualHostname}:${port}`
+      let publicServer: PublicServer | undefined
+      if (serverOptions.beforeStartLog) {
+        try {
+          publicServer = await serverOptions.beforeStartLog({
+            port,
+            keepAliveTimeout: server.keepAliveTimeout,
+            headersTimeout: server.headersTimeout,
+            requestTimeout: server.requestTimeout,
+            maxHeaderSize: http.maxHeaderSize,
+          })
+        } catch (err) {
+          Log.error(`Failed to start server`)
+          console.error(err)
+          process.exit(1)
+        }
+      }
+      const publicHostname = publicServer ? publicServer.hostname : hostname
+      if (publicServer) {
+        port = publicServer.port
+      }
+      const publicActualHostname = publicServer
+        ? publicHostname
+          ? formatHostname(publicHostname)
+          : '[::]'
+        : actualHostname
+      const formattedHostname =
+        !publicHostname || publicActualHostname === '0.0.0.0'
+          ? 'localhost'
+          : publicActualHostname === '[::]'
+            ? '[::1]'
+            : formatHostname(publicHostname)
 
       if (portRetryCount) {
         const pid = await getProcessIdUsingPort(originalPort)
@@ -355,7 +463,8 @@ export async function startServer(
       }
 
       const networkHostname =
-        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+        publicHostname ??
+        getNetworkHost(isIPv6(publicActualHostname) ? 'IPv6' : 'IPv4')
 
       const protocol = selfSignedCertificate ? 'https' : 'http'
 
@@ -370,7 +479,7 @@ export async function startServer(
       // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
 
-      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+      process.env.__NEXT_PRIVATE_ORIGIN = publicServer ? privateAppUrl : appUrl
 
       // Set experimental HTTPS flag for metadata resolution
       if (selfSignedCertificate) {
@@ -418,6 +527,12 @@ export async function startServer(
 
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
+            //
+            // With Switchyard on, it stops first: it stops accepting and
+            // finishes the requests it already has, which still need Node.
+            // Closing Node's server at the same time would refuse Switchyard's
+            // new connections to Node and turn those requests into 502s.
+            await publicServer?.close()
             await new Promise<void>((res) => {
               server.close((err) => {
                 if (err) console.error(err)
@@ -500,7 +615,7 @@ export async function startServer(
             ? cleanupListeners.add.bind(cleanupListeners)
             : undefined,
           server,
-          hostname,
+          hostname: publicHostname,
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
@@ -511,6 +626,9 @@ export async function startServer(
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
+        if (publicServer?.setRouteTable && initResult.getSwitchyardRouteTable) {
+          publicServer.setRouteTable(initResult.getSwitchyardRouteTable())
+        }
 
         // Log experimental features after config is loaded
         if (isDev) {
@@ -539,13 +657,18 @@ export async function startServer(
               `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
           )
 
-          if (!isCI) {
+          const agentFeedbackConfigured = initResult.agentFeedback === true
+          // A temporary runtime opt-out preserves instructions only while the
+          // project still enables feedback. Explicit disablement must clean up.
+          if (
+            !isCI &&
+            (!agentFeedbackConfigured || !process.env.NEXT_TELEMETRY_DISABLED)
+          ) {
             const { traceGlobals } =
               require('../../trace/shared') as typeof import('../../trace/shared')
             const telemetry = traceGlobals.get('telemetry') as
               | InstanceType<typeof import('../../telemetry/storage').Telemetry>
               | undefined
-            const agentFeedbackConfigured = initResult.agentFeedback === true
             const telemetryEnabled = telemetry?.isEnabled === true
 
             logAgentFileSync(
