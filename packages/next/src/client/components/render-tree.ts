@@ -9,10 +9,8 @@ import {
 } from '../../shared/lib/segment'
 import { HEAD_REQUEST_KEY } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
-import {
-  fetchServerResponse,
-  type PreparedResponses,
-} from './router-reducer/fetch-server-response'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import type { PreparedResponseClaims } from './router-reducer/prepared-response-claims'
 import { dispatchAppRouterAction } from './use-action-queue'
 import {
   ACTION_SERVER_PATCH,
@@ -1430,7 +1428,7 @@ export function spawnDynamicRequests(
   signal: AbortSignal | undefined,
   // Set for the prepare phase of a prepared navigation. See
   // decodePreparedNavigationResponse.
-  preparedResponses: PreparedResponses | null
+  preparedResponseClaims: PreparedResponseClaims | null
 ): void {
   let dynamicRequestTree = navigation.tree.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1467,7 +1465,7 @@ export function spawnDynamicRequests(
     navigationLock,
     map,
     signal,
-    preparedResponses
+    preparedResponseClaims
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1525,7 +1523,7 @@ export function spawnDynamicRequests(
             navigationLock,
             map,
             signal,
-            preparedResponses
+            preparedResponseClaims
           )
         )
       }
@@ -1846,7 +1844,7 @@ async function fetchMissingDynamicData(
   navigationLock: NavigationLock | null,
   map: CacheMap<SegmentCacheEntry>,
   signal: AbortSignal | undefined,
-  preparedResponses: PreparedResponses | null
+  preparedResponseClaims: PreparedResponseClaims | null
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1858,7 +1856,7 @@ async function fetchMissingDynamicData(
       nextUrl,
       isHmrRefresh: freshnessPolicy === FreshnessPolicy.HMRRefresh,
       signal,
-      preparedResponses: preparedResponses ?? undefined,
+      preparedResponseClaims: preparedResponseClaims ?? undefined,
     })
     if (typeof result === 'string') {
       // fetchServerResponse will return an href to indicate that the SPA

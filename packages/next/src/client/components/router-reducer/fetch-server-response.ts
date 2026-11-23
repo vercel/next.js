@@ -40,6 +40,11 @@ import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
+import {
+  holdPreparedResponse,
+  unholdPreparedResponse,
+  type PreparedResponseClaims,
+} from './prepared-response-claims'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -63,14 +68,8 @@ export interface FetchServerResponseOptions {
    * Set for the requests of a prepare phase. See
    * `decodePreparedNavigationResponse`.
    */
-  readonly preparedResponses?: PreparedResponses
+  readonly preparedResponseClaims?: PreparedResponseClaims
 }
-
-/**
- * The responses of a prepare phase that are still streaming. Each entry
- * claims its response for the commit. See `claimPreparedResponses`.
- */
-export type PreparedResponses = Set<() => void>
 
 type SpaFetchServerResponseResult = {
   transportData: PartialTransportData | null
@@ -214,12 +213,15 @@ export async function fetchServerResponse(
     // fields, are decoded by the segment cache instead), so the decode is typed
     // as the live-render variant.
     const flightResponsePromise =
-      process.env.__NEXT_PREPARE_NAVIGATION && options.preparedResponses
+      process.env.__NEXT_PREPARE_NAVIGATION &&
+      options.preparedResponseClaims &&
+      // Once the responses were claimed or released, later ones aren't held.
+      !options.preparedResponseClaims.isClosed
         ? decodePreparedNavigationResponse<DynamicNavigationFlightResponse>(
             responsePromise,
             headers,
             responseChunks,
-            options.preparedResponses
+            options.preparedResponseClaims
           )
         : decodeNavigationResponse<DynamicNavigationFlightResponse>(
             responsePromise,
@@ -555,7 +557,7 @@ function decodeNavigationResponse<T>(
           if (chunks !== null) {
             chunks.push(value)
           }
-          if (recording !== null) {
+          if (recording !== null && !recording.isDiscarded) {
             recording.chunks.push(value)
             wakeRecording(recording)
           }
@@ -590,6 +592,13 @@ type BodyRecording = {
   // Wakes the replay when a chunk arrives or the body ends.
   wake: (() => void) | null
   onEnd: (() => void) | null
+  // Set when nothing will replay the recording, so it stops keeping chunks.
+  isDiscarded: boolean
+}
+
+function discardRecording(recording: BodyRecording) {
+  recording.isDiscarded = true
+  recording.chunks = []
 }
 
 function wakeRecording(recording: BodyRecording) {
@@ -641,7 +650,8 @@ function replayRecording(recording: BodyRecording): ReadableStream<Uint8Array> {
 
 /**
  * Decodes a response of a prepare phase (`router.experimental_prepare()`),
- * which only resolves once the body ends, or once the commit claims it.
+ * which only resolves once the body ends, or once the response is claimed or
+ * released (see `settlePreparedResponses`).
  *
  * Flight wakes whatever waits on a row synchronously, from the task that reads
  * the stream, and that reader traces back to whoever started the decode. A
@@ -651,15 +661,21 @@ function replayRecording(recording: BodyRecording): ReadableStream<Uint8Array> {
  * navigation.
  *
  * So the response decodes right away, which starts loading client modules
- * early, but nothing reads that decode until the body has ended. If the commit
- * claims the response first, it decodes the recorded bytes again from its own
- * task, and the prepare phase continues with that decode instead.
+ * early, but the prepare phase doesn't use that decode until the body has
+ * ended. For an unknown route, nothing from the response reaches the caches
+ * before then. For a known route, the BFCache entries the prepare phase wrote
+ * wait on it as placeholders.
+ *
+ * If the commit claims the response first, the recorded bytes are decoded
+ * again from the commit's task, and the prepare phase continues with that
+ * decode. If any other navigation starts first, the response is released to
+ * its own decode, so its data arrives as it streams.
  */
 function decodePreparedNavigationResponse<T>(
   responsePromise: Promise<RSCResponse>,
   headers: RequestHeaders,
   responseChunks: Array<Uint8Array> | null,
-  preparedResponses: PreparedResponses
+  claims: PreparedResponseClaims
 ): Promise<T> & { _debugInfo?: Array<any> } {
   const recording: BodyRecording = {
     chunks: [],
@@ -667,6 +683,7 @@ function decodePreparedNavigationResponse<T>(
     error: undefined,
     wake: null,
     onEnd: null,
+    isDiscarded: false,
   }
   const firstDecode = decodeNavigationResponse<T>(
     responsePromise,
@@ -684,34 +701,27 @@ function decodePreparedNavigationResponse<T>(
     }
   })
   result.catch(noop)
-  const claim = () => {
-    preparedResponses.delete(claim)
-    // Created in the caller's task, so Flight's reader and every row it
-    // resolves trace back here.
-    settle(createFromNextReadableStream<T>(replayRecording(recording), headers))
+  const settleHeld = (isClaimed: boolean) => {
+    if (isClaimed) {
+      // Created in the caller's task, so Flight's reader and every row it
+      // resolves trace back here.
+      settle(
+        createFromNextReadableStream<T>(replayRecording(recording), headers)
+      )
+    } else {
+      discardRecording(recording)
+      settle(firstDecode)
+    }
   }
-  preparedResponses.add(claim)
+  holdPreparedResponse(claims, settleHeld)
   recording.onEnd = () => {
-    if (preparedResponses.delete(claim)) {
-      // Unclaimed, so nothing replays the recording.
-      recording.chunks = []
+    if (unholdPreparedResponse(claims, settleHeld)) {
+      // Neither claimed nor released, so nothing replays the recording.
+      discardRecording(recording)
       settle(firstDecode)
     }
   }
   return result
-}
-
-/**
- * Claims the responses of a prepare phase that are still streaming for the
- * commit. Call it synchronously from the task that commits, such as a click
- * handler. See `decodePreparedNavigationResponse`.
- */
-export function claimPreparedResponses(
-  preparedResponses: PreparedResponses
-): void {
-  for (const claim of Array.from(preparedResponses)) {
-    claim()
-  }
 }
 
 function noop() {}

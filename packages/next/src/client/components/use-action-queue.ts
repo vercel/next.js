@@ -8,8 +8,10 @@ import React, {
 } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import type { AppRouterActionQueue } from './app-router-instance'
+import { settlePreparedResponses } from './router-reducer/prepared-response-claims'
 import {
   ACTION_HMR_REFRESH,
+  ACTION_NAVIGATE,
   ACTION_REFRESH,
   type AppRouterState,
   type HmrRefreshAction,
@@ -63,6 +65,17 @@ export function dispatchAppRouterAction(action: ReducerActions) {
   if (dispatch === null) {
     throw new Error(
       'Internal Next.js error: Router action dispatched before initialization.'
+    )
+  }
+  if (process.env.__NEXT_PREPARE_NAVIGATION) {
+    // Every navigation settles the responses that prepared navigations are
+    // still holding: the commit of a prepared navigation claims its own, and
+    // anything else releases them. This runs synchronously in the dispatching
+    // task, which for a commit is the click. See settlePreparedResponses.
+    settlePreparedResponses(
+      action.type === ACTION_NAVIGATE && action.preparation !== null
+        ? action.preparation.pendingClaims
+        : null
     )
   }
   dispatch(action)

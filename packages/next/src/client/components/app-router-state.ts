@@ -397,7 +397,7 @@ export function navigateToKnownRoute(
         process.env.__NEXT_PREPARE_NAVIGATION &&
           preparation !== null &&
           freshnessPolicy === FreshnessPolicy.Prepare
-          ? preparation.pendingResponses
+          ? preparation.pendingClaims
           : null
       )
     }
@@ -593,7 +593,7 @@ async function navigateToUnknownRoute(
       const request = fetchServerResponse(url, {
         flightRouterState: dynamicRequestTree,
         nextUrl,
-        preparedResponses: preparation.pendingResponses,
+        preparedResponseClaims: preparation.pendingClaims,
       })
       preparation.inFlightRequest = request
       preparation.inFlightRequestTree = dynamicRequestTree

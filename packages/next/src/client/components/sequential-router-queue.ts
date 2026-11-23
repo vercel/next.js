@@ -40,7 +40,10 @@ import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 import { navigate as navigateAppRouterState } from './app-router-state'
 import { FreshnessPolicy } from './render-tree'
 import { getBFCacheVersion } from './segment-cache/bfcache'
-import { claimPreparedResponses } from './router-reducer/fetch-server-response'
+import {
+  createPreparedResponseClaims,
+  settlePreparedResponses,
+} from './router-reducer/prepared-response-claims'
 
 function getRequiredAppRouterState(): AppRouterState {
   const state = getCurrentAppRouterState()
@@ -172,13 +175,17 @@ export function traverse(
  *
  * Calling `push` or `replace` on the result performs a regular navigation
  * that reuses anything the prepare phase wrote into the BFCache, regardless
- * of stale time. The prepare phase only uses a response once its body has
- * ended. Committing before then claims the response: it's decoded again from
- * the committing task, and the prepare phase continues with that decode (see
- * decodePreparedNavigationResponse). If the prepared navigation is never
- * committed, nothing else happens; the data stays in the
- * BFCache, where a back/forward navigation to an overlapping segment may
- * observe it.
+ * of stale time.
+ *
+ * The prepare phase holds each response until its body ends. Committing
+ * before then claims the response: it's decoded again from the committing
+ * task, and the prepare phase continues with that decode. Any other
+ * navigation, or another call to `prepare`, releases it instead, so its data
+ * arrives as it streams. See decodePreparedNavigationResponse.
+ *
+ * If the prepared navigation is never committed, nothing else happens; the
+ * data stays in the BFCache, where a back/forward navigation to an
+ * overlapping segment may observe it.
  */
 export function prepare(href: string): PreparedNavigation {
   if (isJavaScriptURLString(href)) {
@@ -187,13 +194,17 @@ export function prepare(href: string): PreparedNavigation {
     )
   }
 
+  // Release the responses earlier preparations are still holding, as any
+  // other navigation would.
+  settlePreparedResponses(null)
+
   const preparation: PreparedNavigationRecord = {
     preparedAt: Date.now(),
     bfcacheVersion: getBFCacheVersion(),
     inFlightRequest: null,
     inFlightRequestTree: null,
     completedNavigation: null,
-    pendingResponses: new Set(),
+    pendingClaims: createPreparedResponseClaims(),
   }
 
   // Resolve the URL now, so a relative href is committed against the location
@@ -235,9 +246,9 @@ export function prepare(href: string): PreparedNavigation {
       return
     }
     didCommit = true
-    // Must run synchronously in the task that commits, so the responses that
-    // are still streaming are decoded again from it.
-    claimPreparedResponses(preparation.pendingResponses)
+    // Dispatching the navigation claims the responses that are still
+    // streaming, synchronously, so they're decoded again from this task. See
+    // settlePreparedResponses.
     dispatchNavigation(
       url.href,
       navigateType,
