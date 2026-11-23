@@ -120,8 +120,11 @@ gh api --allow-escape-sequences repos/vercel/next.js/actions/jobs/<job-id>/logs 
   | sed 's/\x1b\[[0-9;]*m//g' > /tmp/job-<job-id>.log
 ```
 
-- Recent `gh` versions require `--allow-escape-sequences` for job logs that
-  contain ANSI escape sequences. Check the file contents before treating a grep miss as evidence.
+- `gh` 2.97 and later refuses to print job logs, which contain ANSI escape
+  sequences, unless you pass `--allow-escape-sequences`. Older `gh` fails on
+  the flag as unknown, so drop it there (`scripts/pr-status.js` checks
+  `gh api --help` for the same reason). Check the file contents before
+  treating a grep miss as evidence.
 - The jobs endpoint can return a completed job's log while other jobs in the
   run are still active.
 - Useful markers:
