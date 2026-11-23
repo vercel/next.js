@@ -386,6 +386,7 @@ impl<'a> Tracker<'a> {
             .context("Go inputs require a disk filesystem")?;
         fs.await?.track_directory(&tracked).await?;
         let before = input_directory(&tracked, path).await?;
+        // DETERMINISM: Recorded and live inventories are compared as BTreeMaps.
         let entries = tracked.raw_read_dir().await?;
         let recorded = match &*entries {
             RawDirectoryContent::NotFound => None,

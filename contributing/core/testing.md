@@ -197,6 +197,23 @@ Suites gated on the `vercel` condition (`// @force-gate vercel`, see [`test/lib/
 NEXT_TEST_DEPLOY_TARGET_VERCEL=1 pnpm test-deploy-turbo test/e2e/app-dir/actions/
 ```
 
+#### Staging Proxy
+
+Staging deployment hostnames route both the test runner's requests and requests that deployed functions make back to their own deployment through the selected staging Proxy. This lets tests such as on-demand revalidation read the same cache that the deployed function updates.
+
+For standard CI deploys, each participating e2e team must have a provisioned `vtest314-e2e-tests-staging-<region>` project for the selected staging region. Each project needs a team-owned Preview Deployment Suffix. Wildcard DNS for the suffix must resolve to the selected staging Proxy, which must serve the deployments over TLS. The staging project's deployment protection and system environment settings should match those of the team's default e2e project.
+
+In the deploy workflow, set `stagingProxyRegion` to a provisioned region such as `iad1`. To run an adapter deploy test locally against IAD1, sign in to the Vercel CLI and use the adapter e2e team.
+
+```bash
+NEXT_TEST_STAGING_PROXY_REGION=iad1 NEXT_ENABLE_ADAPTER=1 \
+  VERCEL_ADAPTER_TEST_TEAM=vtest314-next-adapter-e2e-tests \
+  NEXT_TEST_DEPLOY_TARGET_VERCEL=1 NEXT_TEST_VERSION=canary \
+  pnpm test-deploy-turbo test/e2e/revalidate-reason/revalidate-reason.test.ts
+```
+
+The harness appends `-staging-<region>` to the default project name or the base name supplied through `VERCEL_TEST_PROJECT`. It uses the canonical deployment URL and checks the region in `x-vercel-id` before running the tests.
+
 ## Integration testing outside the repository with local builds
 
 You can locally generate builds for each package in this repository with:

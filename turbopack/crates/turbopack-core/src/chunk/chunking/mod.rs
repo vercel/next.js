@@ -558,8 +558,8 @@ fn build_chunk(
                 }
             })
             .collect(),
-        ResolvedVc::deref_vec(batch_groups),
-        ResolvedVc::deref_vec(component_chunks),
+        batch_groups.into_boxed_slice(),
+        component_chunks.into_boxed_slice(),
     )
 }
 

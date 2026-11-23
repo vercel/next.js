@@ -168,14 +168,25 @@ describe('use-cache-without-experimental-flag', () => {
 
       await waitForRedbox(browser)
 
+      // The dev client recovers from the build error by reloading the page
+      // after the server restarts, and that reload only commits once the
+      // restarted server has compiled the page. Until then, the old document is
+      // still around, and reading from it can block on the pending reload and
+      // then fail when the reload tears it down. So we mark the old document,
+      // and wait for the reload to replace it before asserting on the content.
+      await browser.eval('window.__BUILD_ERROR_DOCUMENT = true')
+
       await next.patchFile(
         'next.config.js',
         `module.exports = ${JSON.stringify(nextConfigWithUseCache)}`,
-        () =>
-          retry(async () => {
+        async () => {
+          await browser.waitForCondition('!window.__BUILD_ERROR_DOCUMENT')
+
+          await retry(async () => {
             expect(await browser.elementByCss('p').text()).toBe('hello world')
             await waitForNoRedbox(browser)
           })
+        }
       )
     })
   }

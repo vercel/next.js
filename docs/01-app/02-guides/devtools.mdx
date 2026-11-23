@@ -1,0 +1,222 @@
+---
+title: How to use Next.js DevTools
+nav_title: DevTools
+description: Use Next.js DevTools to inspect diagnostics, preview loading states, and move or hide the development indicator when it covers your app.
+related:
+  title: Next steps
+  description: Configure the development indicator and inspect your application's behavior.
+  links:
+    - app/api-reference/config/next-config-js/devIndicators
+    - app/guides/instant-navigation
+    - app/guides/debugging
+---
+
+Next.js DevTools helps you inspect errors, route information, and loading states while running `next dev`. Its development indicator appears in the bottom-left corner of your app by default.
+
+## Open DevTools
+
+When you start `next dev`, the **Next.js DevTools button** appears as a circular **N** logo:
+
+<Image
+  srcLight="/docs/light/devtools-guide-idle.png"
+  srcDark="/docs/dark/devtools-guide-idle.png"
+  alt="The default Next.js development indicator, a circular N button"
+  width="52"
+  height="53"
+/>
+
+Click the Next.js DevTools button to open the menu, or drag it to another corner if it covers a control in your app. While Next.js compiles or renders, status text appears beside the button.
+
+## Explore the menu
+
+The DevTools menu gives you access to route information, debugging tools, and Preferences:
+
+<Image
+  srcLight="/docs/light/devtools-guide-menu.png"
+  srcDark="/docs/dark/devtools-guide-menu.png"
+  alt="DevTools menu, from top to bottom: Bundler, Cache Components, Navigation Inspector, Route Info, and Preferences"
+  width="264"
+  height="223"
+/>
+
+The entries shown above, from top to bottom:
+
+| Entry                    | What it does                                                                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bundler**              | Shows the bundler running your app, such as [Turbopack](/docs/app/api-reference/config/next-config-js/turbopack).                                                                                       |
+| **Cache Components**     | Confirms that [Cache Components](/docs/app/getting-started/caching) is enabled.                                                                                                                         |
+| **Navigation Inspector** | Pauses page loads and navigations so you can inspect loading states. See the [Navigation Inspector walkthrough](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools). |
+| **Route Info**           | Shows the current route's layouts and page. Open files in your editor, or preview existing loading, error, and not-found boundaries. Clear the preview to return to normal rendering.                   |
+| **Preferences**          | Opens appearance, indicator visibility, and dev server settings. To hide the indicator, use **Show indicator** here.                                                                                    |
+
+Some entries appear only when relevant, in this order:
+
+- **Diagnostics**, at the top, shows red Issue and amber Insight counts. It opens Issues when there are errors, otherwise Insights. See [Issues and Insights](#issues-and-insights).
+- **Route**, above **Bundler**, shows Static or Dynamic when Cache Components is off. See [Route information](#route-information).
+- **Request Insights**, below **Navigation Inspector**, shows request timelines, server fetches, and cache activity when `experimental.requestInsights` is enabled. Agents can read this data using the [MCP runtime tools](/docs/app/guides/mcp#runtime-tools).
+- **Cache**, above **Route Info**, explains a **Disabled** or **Cold** cache state. Disabled means the load bypassed caches, for example after a hard reload. Cold means the load filled empty caches; reload to see the loading sequence with warm caches.
+
+Navigation Inspector, Request Insights, and Route Info are available in the App Router. Navigation Inspector requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents).
+
+### Route information
+
+Without Cache Components, **Route** shows **Static** for a [prerendered](/docs/app/glossary#prerendering) route or **Dynamic** for a route [rendered at request time](/docs/app/glossary#dynamic-rendering). Click the entry for an explanation, or run [`next build --debug`](/docs/app/api-reference/cli/next#next-build-options) to check the build output.
+
+If you expected a static route:
+
+- **App Router**: Check for [request-time APIs](/docs/app/glossary#request-time-apis) and [uncached data requests](/docs/app/getting-started/fetching-data). When a route needs request-time rendering, use [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`Suspense`](https://react.dev/reference/react/Suspense) to [stream its content](/docs/app/getting-started/linking-and-navigating#streaming).
+- **Pages Router**: Pages using [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) are dynamic.
+
+With [Cache Components](/docs/app/getting-started/caching), the Static/Dynamic entry is hidden because a route can combine prerendered and request-time content. Use Navigation Inspector to inspect its loading states.
+
+## Issues and Insights
+
+The indicator expands when Next.js has something to report. **Issues** shows errors in your app. **Insights** shows guidance, for example when uncached data blocks a navigation in an app with [Cache Components](/docs/app/getting-started/caching).
+
+<Image
+  srcLight="/docs/light/devtools-guide-badge.png"
+  srcDark="/docs/dark/devtools-guide-badge.png"
+  alt="DevTools badge, from left to right: DevTools button, 2 Issues, 1 Insight, and collapse chevron"
+  width="243"
+  height="53"
+/>
+
+Select a count to open its tab in the diagnostics panel. You can also open the panel from **Diagnostics** in the DevTools menu.
+
+> **Good to know:** Next.js [validates navigations](/docs/app/guides/instant-navigation#validate-instant-navigation) in the background, so an Insight can appear after the page is visible. If you're testing for an expected Insight, wait for the **Insights** badge or its message in the browser console. The terminal running `next dev` also logs the message.
+
+### Inside the diagnostics panel
+
+Use the arrows at the top of the panel, or the left and right arrow keys, to move between reports. The top-right corner shows the Next.js version and bundler.
+
+<Image
+  srcLight="/docs/light/devtools-guide-diagnostics.png"
+  srcDark="/docs/dark/devtools-guide-diagnostics.png"
+  alt="An Issue with the failing line highlighted, the Open in Editor button, and the call stack with ignore-listed frames hidden."
+  width="960"
+  height="663"
+/>
+
+DevTools lists runtime Issues in the order it receives them, including unhandled promise rejections in the browser. If several Issues appear together, the first one you see may be a symptom. For example, after a [hydration mismatch](/docs/messages/react-hydration-error), React can render the affected tree again on the client and warn about an inline `<script>`. Fixing the mismatch can clear both messages.
+
+- **Error message and toolbar:** **Copy Error Info** copies the message and any available stack trace and code snippet. The book icon opens related documentation when available. To [debug the server in Chrome](/docs/app/guides/debugging#inspect-server-errors-with-browser-devtools), use the Node.js icon to attach the inspector, then click it to copy the DevTools URL.
+- **Source:** When DevTools can locate the source, it highlights the relevant line. Choose **Open in Editor** to jump to that line in your project. Navigation Insights can also show [fix cards](#fix-cards-in-navigation-insights) below the snippet.
+- **Call Stack:** Each frame shows a function call. Use its editor icon to open the source, or choose **Show** next to the frame count to include ignore-listed calls from dependencies. If an error wraps another error using `cause`, look under **Caused by** for the original message and stack.
+
+#### Fix cards in navigation Insights
+
+When [Instant Navigation validation](/docs/app/guides/instant-navigation#validate-instant-navigation) finds a blocking operation, look for **Ways to fix this** below the source. The cards depend on what blocked the route. For example, if a request needs fresh data, **Stream** lets the rest of the page render while it loads. If you can reuse the result, choose **Cache**.
+
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ]}
+  />
+</FixCardGrid>
+
+Click a card to read its walkthrough. In the panel, **Copy prompt** copies instructions for that fix and the diagnostic details to share with a coding agent. See the [Instant Navigation walkthrough](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks) for an example that uses both streaming and caching, or browse the [validation messages](/docs/messages/instant-navigation-validation).
+
+### Collapse the badge
+
+Click the chevron (‹) at the end of the badge to collapse it to the DevTools button with a diagnostic count:
+
+<Image
+  srcLight="/docs/light/devtools-guide-collapsed.png"
+  srcDark="/docs/dark/devtools-guide-collapsed.png"
+  alt="Collapsed red N badge with a diagnostic count"
+  width="52"
+  height="53"
+/>
+
+The collapsed count includes both Issues and Insights. For example, one Issue and one Insight show a count of **2**. Click the Next.js DevTools button to expand the badge again, then click **Issues** or **Insights** to reopen its tab.
+
+When the idle indicator is [hidden](#show-indicator), **×** replaces the chevron and dismisses the diagnostic badge until a new diagnostic appears. Build errors remain available until you fix them.
+
+## Move the badge
+
+Close any open DevTools panels, then drag the Next.js DevTools button to another corner. You can also choose a corner under [**Position**](#position) in Preferences. To set the starting corner for your project, configure [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators#position).
+
+For browser automation, collapse or move an obstructing badge instead of setting `instant = false`, which disables Instant Navigation validation for the route. For example, in Playwright:
+
+```ts filename="tests/navigation.spec.ts"
+const collapse = page.getByRole('button', { name: 'Collapse badge' })
+if (await collapse.isVisible()) {
+  await collapse.click()
+}
+```
+
+## Preferences
+
+Open **Preferences** from the menu. Each **?** links to the matching section of this guide.
+
+<Image
+  srcLight="/docs/light/devtools-guide-preferences.png"
+  srcDark="/docs/dark/devtools-guide-preferences.png"
+  alt="Preferences panel, with Appearance, Indicator, and Dev server settings"
+  width="528"
+  height="617"
+/>
+
+The settings below follow the panel from top to bottom.
+
+### Theme
+
+Under **Appearance**, choose **System**, **Light**, or **Dark** for DevTools.
+
+### Position
+
+Choose one of the four corners for the badge. Dragging the DevTools button updates the same setting. See [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators#position) to configure the starting corner in `next.config`.
+
+### Size
+
+Choose **Small**, **Medium**, or **Large** to scale the badge and DevTools panels.
+
+### Show indicator
+
+Under **Indicator**, turn off **Show indicator** to hide the idle badge and dismiss the current diagnostics. New errors and Insights still appear, and build errors remain available.
+
+<Image
+  srcLight="/docs/light/devtools-guide-hidden.png"
+  srcDark="/docs/dark/devtools-guide-hidden.png"
+  alt="Indicator hidden confirmation with an Undo button and instructions to restart the dev server"
+  width="345"
+  height="76"
+/>
+
+Click **Undo** in the temporary confirmation to bring the indicator back. You can also use your [recorded shortcut](#keyboard-shortcut) or restart the dev server. If a new diagnostic appears, open **DevTools → Preferences** and turn **Show indicator** back on.
+
+Hiding lasts until the dev server restarts or one day passes. Reload the page after that time to show the indicator again. To hide the idle indicator through configuration, set [`devIndicators: false`](/docs/app/api-reference/config/next-config-js/devIndicators#hide-the-indicator). Change that setting to restore the idle indicator for the project.
+
+### Keyboard shortcut
+
+Use **Shortcut** to show or hide the indicator. Your browser saves the shortcut for this app. If your shortcut no longer works after upgrading Next.js, record it again in **DevTools → Preferences**.
+
+1. Click **Record shortcut**. The field changes to **Press shortcut…**.
+2. Press your preferred key combination. The field displays the keys and briefly shows **Saved**.
+3. Click outside the field. Press the recorded keys to hide the indicator, then press them again to show it.
+
+Click the saved combination to record a replacement, or its **×** to clear it. With no shortcut recorded, the hide confirmation tells you to restart the dev server to restore the indicator.
+
+### Restart dev server
+
+Under **Dev server**, click **Restart** to restart the server from your browser. This keeps the bundler cache.
+
+### Reset bundler cache
+
+Click **Reset** to clear the bundler's filesystem cache and restart the dev server. Use this when stale errors persist or changes don't appear. This option is available for bundlers that support a persistent cache.

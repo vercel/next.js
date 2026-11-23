@@ -4,7 +4,9 @@
 _next/
 __tmp__/
 dist/
-target/
+/target/
+/rspack/target/
+/test/e2e/swc-plugins-env/plugin/target/
 compiled/
 
 # ast-grep snapshots (managed by ast-grep, not prettier)
