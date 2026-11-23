@@ -65,9 +65,18 @@ struct Import {
 struct Declaration {
     pos: String,
     constant: bool,
+    /// The declared type as written, or `None` for an untyped declaration.
+    #[serde(default, rename = "type")]
+    type_name: Option<String>,
     imports: Vec<Import>,
     value: Node,
 }
+
+/// Go's integer types. An integer literal assigned to any of them keeps its value, unlike a
+/// named type such as `time.Duration`, where `30` means 30 nanoseconds rather than seconds.
+const INTEGER_TYPES: &[&str] = &[
+    "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64",
+];
 
 type Fields<'a> = &'a [(&'a str, fn(&Reader, &Node) -> Result<Value, String>)];
 
@@ -245,6 +254,7 @@ pub fn go_entry_config(
             constant,
             imports,
             value,
+            ..
         } = parse(declaration)?;
         let reader = Reader { imports };
         return match &value {
@@ -263,10 +273,21 @@ pub fn go_entry_config(
     let reader = Reader { imports: vec![] };
     let mut config = Map::new();
     if let Some(declaration) = values.get("MaxDuration") {
-        config.insert(
-            "maxDuration".into(),
-            reader.duration(&parse(declaration)?.value)?,
-        );
+        let Declaration {
+            pos,
+            type_name,
+            value,
+            ..
+        } = parse(declaration)?;
+        if let Some(type_name) =
+            type_name.filter(|type_name| !INTEGER_TYPES.contains(&type_name.as_str()))
+        {
+            return Err(format!(
+                "{pos}: MaxDuration is a number of seconds; declare it untyped (const MaxDuration \
+                 = 30) or with an integer type, not {type_name}"
+            ));
+        }
+        config.insert("maxDuration".into(), reader.duration(&value)?);
     }
     Ok(Value::Object(config))
 }
@@ -324,6 +345,18 @@ mod tests {
         go_entry_config(&[], &declarations(entries, "[]"), false)
     }
 
+    /// A route `MaxDuration` declared with an explicit type.
+    fn typed_route(type_name: &str, value: String) -> Result<Value, String> {
+        let declaration = format!(
+            r#"{{"pos":"p.go:1:5","constant":true,"type":"{type_name}","imports":[],"value":{value}}}"#
+        );
+        go_entry_config(
+            &[],
+            &BTreeMap::from([(RcStr::from("MaxDuration"), RcStr::from(declaration))]),
+            false,
+        )
+    }
+
     fn proxy(value: String, imports: &str) -> Result<Value, String> {
         go_entry_config(
             &[],
@@ -373,6 +406,26 @@ mod tests {
                 .unwrap_err()
                 .contains("not a function")
         );
+    }
+
+    #[test]
+    fn checks_the_declared_max_duration_type() {
+        // An integer type keeps the literal's value in seconds.
+        for type_name in ["int", "int64", "uint32"] {
+            assert_eq!(
+                typed_route(type_name, int(30)),
+                Ok(json!({ "maxDuration": 30 }))
+            );
+        }
+        // In Go, `const MaxDuration time.Duration = 30` is 30 nanoseconds, not seconds.
+        for type_name in ["time.Duration", "float64", "(unsupported)"] {
+            let error = typed_route(type_name, int(30)).unwrap_err();
+            assert!(
+                error.contains("number of seconds") && error.contains(type_name),
+                "{error} should reject {type_name}"
+            );
+            assert!(error.starts_with("p.go:"), "{error} should be located");
+        }
     }
 
     #[test]

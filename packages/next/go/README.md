@@ -85,8 +85,9 @@ package main
 const MaxDuration = 30
 ```
 
-`MaxDuration` is a positive integer literal in seconds, as a `const` or `var`.
-When omitted, the deployment platform default applies. `preferredRegion` is
+`MaxDuration` is a positive integer literal in seconds, as a `const` or `var`,
+untyped or with an integer type. `time.Duration` is rejected, because Go reads `30`
+as 30 nanoseconds there. When omitted, the deployment platform default applies. `preferredRegion` is
 deprecated for `route.ts` and not supported for `route.go`.
 
 ### `proxy.go`

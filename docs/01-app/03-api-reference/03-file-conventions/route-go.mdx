@@ -48,7 +48,7 @@ module.exports = {
 
 Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path. Go is required for `next dev` and `next build`. `next start` runs the compiled executables without the Go compiler. Applications without Go handlers do not require Go.
 
-The `next/go` SDK, which `proxy.go` uses for `next.Next` and `next.Rewrite`, ships inside the installed `next` package. Go code that imports it must be in a Go module: create a `go.mod` in the project (for example with `go mod init example.com/app`). Once your Go code imports `next/go`, `next dev` and `next build` add the `require next/go v0.0.0` requirement and a directory replacement that maps it to the installed package (for example `replace next/go => ./node_modules/next/go`). Modules that do not use the SDK are left unchanged. They log the change, like they reconfigure `tsconfig.json`, so Go editors and linters resolve the SDK too. Commit the updated `go.mod`. In a monorepo, `go.mod` can be in the application or at the workspace root, and `next` can be installed anywhere inside [`turbopack.root`](/docs/app/api-reference/config/next-config-js/turbopack#root-directory).
+The `next/go` SDK, which `proxy.go` uses for `next.Next`, `next.Rewrite`, and its configuration, ships inside the installed `next` package. Go code that imports it must be in a Go module: create a `go.mod` in the project (for example with `go mod init example.com/app`). Once your Go code imports `next/go`, `next dev` and `next build` add the `require next/go v0.0.0` requirement and a directory replacement that maps it to the installed package (for example `replace next/go => ./node_modules/next/go`). Modules that do not use the SDK are left unchanged. They log the change, like they reconfigure `tsconfig.json`, so Go editors and linters resolve the SDK too. Commit the updated `go.mod`. In a monorepo, `go.mod` can be in the application or at the workspace root, and `next` can be installed anywhere inside [`turbopack.root`](/docs/app/api-reference/config/next-config-js/turbopack#root-directory).
 
 ## Reference
 
@@ -462,7 +462,7 @@ Like the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-
 const MaxDuration = 30
 ```
 
-`MaxDuration` is a positive integer literal in seconds. Only `route.go` itself is read, statically: calls, references to other values, arithmetic, and environment reads are build errors. The deprecated `preferredRegion` option is not supported.
+`MaxDuration` is a positive integer literal in seconds, declared as a `const` or `var`, untyped or with an integer type such as `int`. A `time.Duration` type is a build error, because Go reads `30` as 30 nanoseconds there. Only `route.go` itself is read, statically: calls, references to other values, arithmetic, and environment reads are build errors. The deprecated `preferredRegion` option is not supported.
 
 Go Route Handlers always execute dynamically. JavaScript exports such as `dynamic`, `revalidate`, `fetchCache`, and `runtime` do not configure Go handlers. ISR, `generateStaticParams`, Server Actions, and React execution are unsupported for Go routes.
 

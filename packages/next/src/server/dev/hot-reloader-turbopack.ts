@@ -27,6 +27,7 @@ import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
+  Issue,
   WrittenEndpoint,
   TurbopackResult,
   Project,
@@ -108,6 +109,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
   formatIssue,
+  getIssueKey,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
   ModuleBuildError,
@@ -1312,10 +1314,15 @@ export async function createHotReloaderTurbopack(
             loadNativeMiddleware: async () => {
               // Turbopack records proxy.go's static Config in the descriptor it
               // just wrote. Source-level static info has no Go matchers.
+              const proxyPath = join(
+                projectPath,
+                opts.isSrcDir ? 'src' : '',
+                'proxy.go'
+              )
               try {
                 const { matchers } = await readGoProxyConfig(
                   join(distDir, 'server', 'middleware.native.json'),
-                  join(projectPath, opts.isSrcDir ? 'src' : '', 'proxy.go'),
+                  proxyPath,
                   nextConfig
                 )
                 serverFields.middleware = {
@@ -1330,7 +1337,30 @@ export async function createHotReloaderTurbopack(
                 opts.fsChecker.middlewareMatcher =
                   getMiddlewareRouteMatcher(matchers)
               } catch (error) {
-                Log.error(error instanceof Error ? error.message : error)
+                // `next build` fails on an invalid Config. In dev, report it as a
+                // compilation error of the proxy entry, which the next successful
+                // compile clears, and match no paths until then. Keeping the
+                // previous matchers would run the proxy on every path on the first
+                // compile, when they are still the default `/:path*`.
+                const message =
+                  error instanceof Error ? error.message : String(error)
+                const issue: Issue = {
+                  severity: 'error',
+                  stage: 'analyze',
+                  filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
+                  title: { type: 'text', value: 'Invalid proxy.go Config' },
+                  description: { type: 'text', value: message },
+                  documentationLink: '',
+                }
+                const key = getEntryKey('root', 'server', 'middleware')
+                const issues = currentEntryIssues.get(key) ?? new Map()
+                issues.set(getIssueKey(issue), issue)
+                currentEntryIssues.set(key, issues)
+                Log.error(message)
+                if (serverFields.middleware?.runtime === 'go') {
+                  serverFields.middleware.matchers = []
+                }
+                opts.fsChecker.middlewareMatcher = getMiddlewareRouteMatcher([])
               }
             },
             propagateServerField: propagateServerField.bind(null, opts),

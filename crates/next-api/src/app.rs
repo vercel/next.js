@@ -75,7 +75,7 @@ use turbopack_core::{
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
     GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_bundle_from_sources, go_declarations, go_source_set,
+    go_bundle_from_sources, go_declarations, go_failure_from_sources, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
@@ -1294,16 +1294,28 @@ impl Endpoint for GoEndpoint {
         let config = match go_entry_config(&analysis.functions, &analysis.values, is_proxy) {
             Ok(config) => config,
             Err(message) => {
-                GoRouteIssue {
-                    path: this.path.clone(),
-                    message: message.into(),
+                // The failure depends on the entry's source, so keep the selection's inputs
+                // for request-side validation: a request right after the fix must not get
+                // this stale failure.
+                let result = go_failure_from_sources(*sources, session, message.into()).await?;
+                if matches!(result.outcome, GoBuildOutcome::Retry) {
+                    bail!("Go route inputs changed during analysis; retry the request")
                 }
-                .resolved_cell()
-                .emit();
+                if let GoBuildOutcome::Failed(message) = &result.outcome {
+                    GoRouteIssue {
+                        path: this.path.clone(),
+                        message: message.clone(),
+                    }
+                    .resolved_cell()
+                    .emit();
+                }
                 return Ok(EndpointOutput {
                     project,
                     output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                    output_paths: EndpointOutputPaths::NativeFailed {
+                        build: Some((*result).clone()),
+                    }
+                    .resolved_cell(),
                 }
                 .cell());
             }

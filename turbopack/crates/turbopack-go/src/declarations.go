@@ -31,11 +31,18 @@ type importSpec struct {
 }
 
 type value struct {
-	Pos      string       `json:"pos"`
-	Constant bool         `json:"constant"`
-	Imports  []importSpec `json:"imports"`
-	Value    node         `json:"value"`
+	Pos      string `json:"pos"`
+	Constant bool   `json:"constant"`
+	// Type is the declared type as written, such as "time.Duration", or empty for an
+	// untyped declaration. A type typeName cannot render is reported as unsupportedType.
+	Type    string       `json:"type,omitempty"`
+	Imports []importSpec `json:"imports"`
+	Value   node         `json:"value"`
 }
+
+// unsupportedType stands in for a declared type that typeName cannot render. It is not a
+// valid Go type name, so it never matches a type a consumer accepts.
+const unsupportedType = "(unsupported)"
 
 type file struct {
 	positions *token.FileSet
@@ -172,9 +179,16 @@ func analyze() error {
 						if len(valueSpec.Names) == 1 && len(valueSpec.Values) == 1 {
 							described = f.describe(valueSpec.Values[0])
 						}
+						declaredType := ""
+						if valueSpec.Type != nil {
+							if declaredType = typeName(valueSpec.Type); declaredType == "" {
+								declaredType = unsupportedType
+							}
+						}
 						encoded, err := json.Marshal(value{
 							Pos:      f.pos(ident),
 							Constant: d.Tok == token.CONST,
+							Type:     declaredType,
 							Imports:  imports,
 							Value:    described,
 						})

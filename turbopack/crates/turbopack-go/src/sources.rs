@@ -218,3 +218,37 @@ pub async fn go_bundle_from_sources(
     result.root = sources.boundary.clone();
     Ok(result.cell())
 }
+
+/// A failure decided from the selected sources alone, before compiling, such as invalid
+/// static configuration in an entrypoint. It carries the selection's observations, so
+/// request-side validation notices when a fix to those sources has not been read yet,
+/// exactly like a compiler failure.
+#[turbo_tasks::function]
+pub async fn go_failure_from_sources(
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    message: RcStr,
+) -> Result<Vc<GoBundleResult>> {
+    let sources = sources.await?;
+    let go_context = &session.await?.go_context;
+    let stale = sources.dirty || !sources.inputs.is_current().await?;
+    if stale {
+        let project = to_sys_path(sources.boundary.clone())
+            .await?
+            .context("Go sources require a disk filesystem")?;
+        Tracker::new(&sources.boundary, &project, go_context)
+            .invalidate()
+            .await?;
+    }
+    Ok(GoBundleResult {
+        outcome: if stale {
+            GoBuildOutcome::Retry
+        } else {
+            GoBuildOutcome::Failed(message)
+        },
+        inputs: sources.inputs.clone(),
+        root: sources.boundary.clone(),
+        session,
+    }
+    .cell())
+}

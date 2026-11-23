@@ -352,7 +352,8 @@ pub enum EndpointOutputPaths {
     },
     NotFound,
     /// Keep failed inputs available to request-side validation, without publishing an executable.
-    /// Configuration failures have no compiler inputs to validate.
+    /// Configuration failures carry the selected sources' inputs; `None` means there is nothing
+    /// to validate.
     NativeFailed {
         build: Option<turbopack_go::GoBundleResult>,
     },
