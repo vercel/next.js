@@ -30,10 +30,13 @@ export const DEFAULT_ROUTE_GO_MAXPROCS = 4
  * Limits (measured in a 2-CPU container on a 15-core host):
  * - os.availableParallelism() counts the quota on Node 22 and 24 (2), not on
  *   Node 20 (15), so on Node 20 such a container gets 4.
- * - Go 1.25 and later count the quota themselves and follow changes while the
- *   process runs; any GOMAXPROCS, this one included, turns that off. With
- *   Node 22 or 24 the result is the same number, fixed at start; with Node 20
- *   it is 4 where Go would have picked 2.
+ * - Go counts the quota itself, and follows changes while the process runs,
+ *   only when the app's go.mod says go 1.25 or later (the containermaxprocs
+ *   and updatemaxprocs GODEBUG defaults), whatever the toolchain. Any
+ *   GOMAXPROCS, this one included, turns that off. For such an app the result
+ *   is the same number on Node 22 or 24, fixed at start; on Node 20 it is 4
+ *   where Go would have picked 2. For apps on go 1.24 or lower, Go ignores
+ *   the quota and this cap is what limits the worker.
  * - A CPU-bound handler can use at most 4 cores per worker, also for requests
  *   that go through Node. __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS
  *   raises it.
