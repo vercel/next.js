@@ -5,6 +5,7 @@ import type { NextConfigComplete, NextConfigRuntime } from '../config-shared'
 import type { setupFsCheck } from './router-utils/filesystem'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { INTERNAL_HEADERS } from './server-ipc/utils'
+import { SWITCHYARD_DIRECT_ENV } from './switchyard-env'
 import { RouteKind } from '../route-kind'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
@@ -56,6 +57,8 @@ export type SwitchyardRouteTableInput = Readonly<{
   useFileSystemPublicRoutes: boolean
   hasMiddleware: boolean
   hasInstrumentation: boolean
+  /** __NEXT_EXPERIMENTAL_SWITCHYARD_DIRECT=0: every request goes to Node. */
+  directOff: boolean
   /** NEXT_PRIVATE_TEST_HEADERS: Node keeps internal headers then. */
   keepsInternalHeaders: boolean
   headers: readonly unknown[]
@@ -157,6 +160,7 @@ export function buildSwitchyardRouteTable(
 function ineligibleReason(
   input: SwitchyardRouteTableInput
 ): string | undefined {
+  if (input.directOff) return `${SWITCHYARD_DIRECT_ENV}=0`
   if (!input.goRoutes) return 'experimental.goRoutes is off'
   if (input.hasMiddleware) return 'proxy'
   if (input.hasInstrumentation) return 'instrumentation'
@@ -285,6 +289,7 @@ export function collectSwitchyardRouteTable(
     hasInstrumentation: fs.existsSync(
       path.join(serverDir, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
     ),
+    directOff: process.env[SWITCHYARD_DIRECT_ENV] === '0',
     keepsInternalHeaders: Boolean(process.env.NEXT_PRIVATE_TEST_HEADERS),
     headers: fsChecker.headers,
     onMatchHeaders: fsChecker.onMatchHeaders,
