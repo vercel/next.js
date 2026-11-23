@@ -421,94 +421,52 @@ struct SplitContext<'a> {
     canonical_order: bool,
 }
 
-/// The key an element (a chunk item, a batch or a batch group) is sorted by: the asset ident of a
-/// representative chunk item, which is the item itself or the first item of the batch / batch
-/// group.
+// The key an element (a chunk item, a batch or a batch group) is sorted by is the asset ident of a
+// representative chunk item: the item itself, or the first item of the batch / batch group.
+
+async fn chunk_item_sort_key(chunk_item: Option<ResolvedVc<Box<dyn ChunkItem>>>) -> Result<RcStr> {
+    Ok(match chunk_item {
+        Some(chunk_item) => chunk_item.asset_ident().to_string().owned().await?,
+        None => RcStr::default(),
+    })
+}
+
+async fn item_sort_key(item: &ChunkItemOrBatchWithInfo) -> Result<RcStr> {
+    Ok(match item {
+        ChunkItemOrBatchWithInfo::ChunkItem { asset_ident, .. } => asset_ident.clone(),
+        ChunkItemOrBatchWithInfo::Batch { batch, .. } => batch_sort_key(**batch).await?,
+    })
+}
+
+async fn batch_sort_key(batch: Vc<ChunkItemBatchWithAsyncModuleInfo>) -> Result<RcStr> {
+    let first = batch.await?.chunk_items.first().map(|item| item.chunk_item);
+    chunk_item_sort_key(first).await
+}
+
+async fn batch_group_sort_key(batch_group: Vc<ChunkItemBatchGroup>) -> Result<RcStr> {
+    Ok(match batch_group.await?.items.first() {
+        Some(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(item)) => {
+            chunk_item_sort_key(Some(item.chunk_item)).await?
+        }
+        Some(&ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)) => batch_sort_key(*batch).await?,
+        None => chunk_item_sort_key(None).await?,
+    })
+}
+
+/// Sorts `elements` by their `keys`.
 ///
 /// The keys of the elements of one chunk are unique: a module is part of at most one element of a
 /// chunk (batches and batch groups are disjoint, see `sort_batch_groups`), and
 /// [`ChunkItem::asset_ident`] must uniquely identify a chunk item at runtime, as it's the source of
-/// its module id. Should two keys still tie, they are ordered by the [`ChunkItem::content_ident`]
-/// of the representative items, which uniquely identifies their content. Elements that tie on both
-/// would be the same item by those contracts, so their relative order can't affect the output.
-struct SortKey {
-    asset_ident: RcStr,
-    chunk_item: Option<ResolvedVc<Box<dyn ChunkItem>>>,
-}
-
-impl SortKey {
-    async fn from_chunk_item(chunk_item: Option<ResolvedVc<Box<dyn ChunkItem>>>) -> Result<Self> {
-        Ok(SortKey {
-            asset_ident: match chunk_item {
-                Some(chunk_item) => chunk_item.asset_ident().to_string().owned().await?,
-                None => RcStr::default(),
-            },
-            chunk_item,
-        })
-    }
-
-    async fn for_item(item: &ChunkItemOrBatchWithInfo) -> Result<Self> {
-        Ok(match item {
-            ChunkItemOrBatchWithInfo::ChunkItem {
-                chunk_item,
-                asset_ident,
-                ..
-            } => SortKey {
-                asset_ident: asset_ident.clone(),
-                chunk_item: Some(chunk_item.chunk_item),
-            },
-            ChunkItemOrBatchWithInfo::Batch { batch, .. } => Self::for_batch(**batch).await?,
-        })
-    }
-
-    async fn for_batch(batch: Vc<ChunkItemBatchWithAsyncModuleInfo>) -> Result<Self> {
-        let first = batch.await?.chunk_items.first().map(|item| item.chunk_item);
-        Self::from_chunk_item(first).await
-    }
-
-    async fn for_batch_group(batch_group: Vc<ChunkItemBatchGroup>) -> Result<Self> {
-        Ok(match batch_group.await?.items.first() {
-            Some(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(item)) => {
-                Self::from_chunk_item(Some(item.chunk_item)).await?
-            }
-            Some(&ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)) => {
-                Self::for_batch(*batch).await?
-            }
-            None => Self::from_chunk_item(None).await?,
-        })
-    }
-}
-
-/// Sorts `elements` by their `keys` (see [`SortKey`]).
-async fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<SortKey>) -> Result<()> {
-    let mut keyed = keys
-        .into_iter()
-        .zip(elements.drain(..))
-        .map(|(key, element)| (key, None::<RcStr>, element))
-        .collect::<Vec<_>>();
-    keyed.sort_by(|(a, ..), (b, ..)| a.asset_ident.cmp(&b.asset_ident));
-    // Break ties (not expected to happen, see `SortKey`) by the content ident, which is only
-    // computed for the tied elements.
-    let mut start = 0;
-    while start < keyed.len() {
-        let end = start
-            + keyed[start..]
-                .iter()
-                .take_while(|(key, ..)| key.asset_ident == keyed[start].0.asset_ident)
-                .count();
-        if end - start > 1 {
-            for (key, content_ident, _) in &mut keyed[start..end] {
-                *content_ident = match key.chunk_item {
-                    Some(chunk_item) => Some(chunk_item.content_ident().to_string().owned().await?),
-                    None => None,
-                };
-            }
-            keyed[start..end].sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
-        }
-        start = end;
-    }
-    elements.extend(keyed.into_iter().map(|(.., element)| element));
-    Ok(())
+/// its module id.
+fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<RcStr>) {
+    let mut keyed = keys.into_iter().zip(elements.drain(..)).collect::<Vec<_>>();
+    keyed.sort_by(|(a, _), (b, _)| a.cmp(b));
+    debug_assert!(
+        keyed.windows(2).all(|pair| pair[0].0 != pair[1].0),
+        "chunk elements must have unique sort keys"
+    );
+    elements.extend(keyed.into_iter().map(|(_, element)| element));
 }
 
 async fn sort_chunk_items(chunk_items: &mut Vec<&'_ ChunkItemOrBatchWithInfo>) -> Result<()> {
@@ -517,10 +475,11 @@ async fn sort_chunk_items(chunk_items: &mut Vec<&'_ ChunkItemOrBatchWithInfo>) -
     }
     let keys = chunk_items
         .iter()
-        .map(|item| SortKey::for_item(item))
+        .map(|item| item_sort_key(item))
         .try_join()
         .await?;
-    sort_canonically(chunk_items, keys).await
+    sort_canonically(chunk_items, keys);
+    Ok(())
 }
 
 /// Sorts the batch groups of a chunk. Their order doesn't affect the generated code: batch groups
@@ -533,10 +492,11 @@ async fn sort_batch_groups(batch_groups: &mut Vec<ResolvedVc<ChunkItemBatchGroup
     }
     let keys = batch_groups
         .iter()
-        .map(|batch_group| SortKey::for_batch_group(**batch_group))
+        .map(|batch_group| batch_group_sort_key(**batch_group))
         .try_join()
         .await?;
-    sort_canonically(batch_groups, keys).await
+    sort_canonically(batch_groups, keys);
+    Ok(())
 }
 
 fn build_chunk(
