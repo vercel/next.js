@@ -2,7 +2,10 @@ import { request, type IncomingHttpHeaders } from 'http'
 import { join } from 'path'
 import { gunzipSync, inflateSync } from 'zlib'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
+import {
+  SWITCHYARD_DIRECT_ENV,
+  SWITCHYARD_ENV,
+} from 'next/dist/server/lib/switchyard-env'
 
 // Only self-hosted next start uses Switchyard. Pausing its Node process
 // after warming the workers proves direct requests do not need Node to run.
@@ -138,6 +141,32 @@ describe('switchyard-go direct path', () => {
     })
     expect(compressed.status).toBe(200)
     expect(compressed.headers.get('content-encoding')).toBe('gzip')
+  })
+
+  it('sends every request through Node with the direct path off', async () => {
+    await next.stop()
+    await next.start({ skipBuild: true, env: { [SWITCHYARD_DIRECT_ENV]: '0' } })
+    try {
+      // Start the worker. Without the variable, the next request would go
+      // straight to it.
+      const { parentPid } = await received('/go/echo')
+      process.kill(parentPid, 'SIGSTOP')
+      const answer = received('/go/echo')
+      try {
+        // Nothing comes back while Node is paused: the request waits for it.
+        const first = await Promise.race([
+          answer.then(() => 'answered'),
+          new Promise((resolve) => setTimeout(resolve, 1000, 'waiting')),
+        ])
+        expect(first).toBe('waiting')
+      } finally {
+        process.kill(parentPid, 'SIGCONT')
+      }
+      expect((await answer).requestURI).toBe('/go/echo')
+    } finally {
+      await next.stop()
+      await next.start({ skipBuild: true })
+    }
   })
 })
 
