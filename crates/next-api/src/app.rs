@@ -36,6 +36,7 @@ use next_core::{
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     pages_structure::PagesDirectoryStructure,
+    polyfills::PolyfillsAsset,
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use smallvec::smallvec;
@@ -1951,15 +1952,14 @@ impl AppEndpoint {
         // Only Pages need a polyfill chunk, Routes handlers don't have any inherent code that runs
         // in the browser.
         let polyfill_output_asset = if matches!(this.ty, AppEndpointType::Page { .. }) {
-            // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
-            let next_package = get_next_package(project.project_path().owned().await?).await?;
-            let polyfill_source =
-                FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js")?);
-
             let polyfill_output_asset = ResolvedVc::upcast(
-                SingleFileEcmascriptOutput::new(
+                PolyfillsAsset::new(
+                    project.project_path().owned().await?,
                     *client_chunking_context,
-                    Vc::upcast(polyfill_source),
+                    project
+                        .client_compile_time_info()
+                        .environment()
+                        .runtime_versions(),
                 )
                 .to_resolved()
                 .await?,
