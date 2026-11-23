@@ -116,7 +116,7 @@ export function createRequestInsightDelta(
   }
 }
 
-export const MAX_LIVE_COMPLETED_REQUEST_INSIGHTS = 100
+export const MAX_LIVE_COMPLETED_REQUEST_INSIGHTS = 500
 
 export function isSameRequestInsightFetch(
   first: RequestInsightFetch,

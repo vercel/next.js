@@ -19,6 +19,7 @@ import {
   type RequestInsightDelta,
   type RequestInsightsSnapshot,
 } from '../shared/request-insights'
+import { getRequestIsRsc } from '../shared/request-insights-summary'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -188,15 +189,31 @@ export function updateRequestInsights(
     return requests
   }
 
+  let latestRsc: string | undefined
+  let latestPage: string | undefined
+  for (
+    let requestIndex = requests.length - 1;
+    requestIndex >= 0;
+    requestIndex--
+  ) {
+    const request = requests[requestIndex]
+    if (request.completedAt === undefined || request.source !== 'page') continue
+    const isRsc = getRequestIsRsc(request)
+    if (isRsc === true && !latestRsc) latestRsc = getRequestInsightKey(request)
+    if (isRsc === false && !latestPage)
+      latestPage = getRequestInsightKey(request)
+    if (latestRsc && latestPage) break
+  }
+
   return requests.filter((request) => {
-    if (
-      request.completedAt === undefined ||
-      completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
-    ) {
-      return true
+    if (request.completedAt === undefined) return true
+    const key = getRequestInsightKey(request)
+    if (key === latestRsc || key === latestPage) return true
+    if (completedCount > MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
+      completedCount--
+      return false
     }
-    completedCount--
-    return false
+    return true
   })
 }
 

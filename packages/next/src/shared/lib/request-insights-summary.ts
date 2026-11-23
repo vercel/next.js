@@ -65,18 +65,6 @@ export type RequestInsightSummary = Omit<
 
 export type RequestInsightListItem = RequestInsight | RequestInsightSummary
 
-export type RequestInsightsHistoryPage = {
-  sessionId: string
-  generation: number
-  requests: RequestInsightSummary[]
-  matchingRequestCount: number
-  totalRequestCount: number
-  optionCounts: Record<RequestInsightFilter, number>
-  liveRequestOverlaps?: RequestInsightSummary[]
-  nextCursor?: string
-  truncated: boolean
-}
-
 export function isRequestInsightSummary(
   request: RequestInsightListItem
 ): request is RequestInsightSummary {
@@ -307,7 +295,7 @@ function getRequestStatusCode(request: RequestInsight): number | undefined {
   )
 }
 
-function getRequestIsRsc(request: RequestInsight): boolean | undefined {
+export function getRequestIsRsc(request: RequestInsight): boolean | undefined {
   return getCanonicalThenAnySpanAttribute(
     request,
     'next.rsc',
