@@ -97,12 +97,15 @@ export const styles = `
 
   @media (max-width: 767px) {
     [data-nextjs-error-overlay-nav] {
+      /* When the tabs and the version pill don't fit on one row, give the
+         wrapped pill its own row with the same spacing as the rest of the
+         header instead of stacking it tight against the tabs and the card. */
       flex-wrap: wrap;
       justify-content: flex-start;
       column-gap: 8px;
-      row-gap: 0;
+      row-gap: 8px;
       box-sizing: border-box;
-      padding: 6px 12px 12px;
+      padding: 10px 12px 12px;
 
       .error-overlay-nav-item {
         max-width: 100%;
