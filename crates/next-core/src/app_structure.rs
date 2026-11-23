@@ -346,6 +346,7 @@ async fn get_directory_tree_internal(
     dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
+    // DETERMINISM: Entries are sorted by full name below before selecting modules and metadata.
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
         // the file watcher might invalidate things in the wrong order,
         // and we have to account for the eventual consistency of turbo-tasks

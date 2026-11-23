@@ -162,6 +162,7 @@ async fn get_pages_structure_for_root_directory(
         let mut children = vec![];
         let mut items = vec![];
 
+        // DETERMINISM: Items and children are sorted below; basename ties produce identical items.
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
             for (name, entry) in entries.iter() {
