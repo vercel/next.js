@@ -40,7 +40,7 @@ describe('adapter dynamic routes (legacy)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "9 entries
+     "15 entries
 
      /legacy/[id]
        ^/_next/data/test\\-build\\-id[/]?/legacy/(?<nxtPid>[^/]+?)\\.json(?:/)?$
@@ -55,21 +55,45 @@ describe('adapter dynamic routes (legacy)', () => {
        ^/_next/data/test\\-build\\-id[/]?/static\\-two\\.json(?:/)?$
        -> /static-two
 
+     /_not-found.rsc
+       ^/_not\\-found\\.rsc(?:/)?$
+       -> /_not-found
+
+     /api/data.rsc
+       ^/api/data\\.rsc(?:/)?$
+       -> /api/data
+
      /blog/[slug]
        ^[/]?/blog/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /blog/[slug]$2?nxtPslug=$nxtPslug
+
+     /blog/[slug].rsc
+       ^[/]?/blog/(?<nxtPslug>[^/]+?)\\.rsc(?:/)?$
+       -> /blog/[slug]?nxtPslug=$nxtPslug
 
      /docs/[lang]/accounts
        ^[/]?/docs/(?<nxtPlang>[^/]+?)/accounts(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /docs/[lang]/accounts$2?nxtPlang=$nxtPlang
 
+     /docs/[lang]/accounts.rsc
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/accounts\\.rsc(?:/)?$
+       -> /docs/[lang]/accounts?nxtPlang=$nxtPlang
+
      /docs/[lang]/functions
        ^[/]?/docs/(?<nxtPlang>[^/]+?)/functions(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /docs/[lang]/functions$2?nxtPlang=$nxtPlang
 
+     /docs/[lang]/functions.rsc
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/functions\\.rsc(?:/)?$
+       -> /docs/[lang]/functions?nxtPlang=$nxtPlang
+
      /docs/[lang]/guide
        ^[/]?/docs/(?<nxtPlang>[^/]+?)/guide(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
        -> /docs/[lang]/guide$2?nxtPlang=$nxtPlang
+
+     /docs/[lang]/guide.rsc
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/guide\\.rsc(?:/)?$
+       -> /docs/[lang]/guide?nxtPlang=$nxtPlang
 
      /legacy/[id].rsc
        ^[/]?/legacy/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$

@@ -25,6 +25,8 @@ Rewrite routes checked after filesystem route matching.
 
 Dynamic matchers generated from route segments such as `[slug]` and catch-all routes.
 
+These routes also route `X.rsc` requests to the App Router function `X`. Next.js does not emit a separate `.rsc` function output, so a `.rsc` request that no prerendered output serves resolves through these routes.
+
 ## `routing.onMatch`
 
 Routes that apply after a successful match, such as immutable cache headers for hashed static assets.

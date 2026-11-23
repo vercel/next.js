@@ -82,7 +82,7 @@ React pages from the `app/` directory:
   type: 'APP_PAGE'
   id: string           // Route identifier
   filePath: string     // Path to the built file
-  pathname: string     // URL pathname. Includes .rsc suffix for RSC routes
+  pathname: string     // URL pathname
   sourcePage: string   // Original relative source file path
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
@@ -100,6 +100,8 @@ React pages from the `app/` directory:
   }
 }
 ```
+
+Each App Router page and route has a single function output. There is no separate `.rsc` function output: `routing.dynamicRoutes` routes an `X.rsc` request to the function `X` when no prerendered `X.rsc` output serves it.
 
 ## App Routes (`outputs.appRoutes`)
 

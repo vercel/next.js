@@ -4,6 +4,7 @@ import { nextTestSetup } from 'e2e-utils'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
 import { RouteKind } from 'next/dist/server/route-kind'
+import { resolveRoutes } from '../../../packages/next-routing/src'
 
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
@@ -592,5 +593,92 @@ describe('adapter-config', () => {
     expect(preferredRegionRoute).toBeDefined()
     expect(preferredRegionRoute?.runtime).toBe('edge')
     expect(preferredRegionRoute?.config.preferredRegion).toEqual(['cdg1'])
+  })
+
+  it('routes .rsc requests to the base function via routing rules', async () => {
+    const {
+      outputs,
+      routing,
+      buildId,
+    }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
+      'build-complete.json'
+    )
+
+    // App functions are emitted once. Routing serves the `.rsc` form.
+    const functionOutputs = [...outputs.appPages, ...outputs.appRoutes]
+    expect(
+      functionOutputs
+        .map((output) => output.pathname)
+        .filter((pathname) => pathname.endsWith('.rsc'))
+    ).toEqual([])
+
+    const functionPathnames = new Set(
+      functionOutputs.map((output) => output.pathname)
+    )
+    const prerenderPathnames = new Set(
+      outputs.prerenders.map((output) => output.pathname)
+    )
+    const pathnames = [
+      ...outputs.appPages,
+      ...outputs.appRoutes,
+      ...outputs.pages,
+      ...outputs.pagesApi,
+      ...outputs.prerenders,
+      ...outputs.staticFiles,
+    ].map((output) => output.pathname)
+
+    const resolve = (pathname: string, candidates = pathnames) =>
+      resolveRoutes({
+        url: new URL(pathname, 'http://localhost'),
+        buildId,
+        basePath: '/docs',
+        requestBody: new ReadableStream(),
+        headers: new Headers({ rsc: '1' }),
+        pathnames: candidates,
+        routes: routing,
+        invokeMiddleware: async () => ({}),
+      })
+
+    // Requests without an `.rsc` output resolve to the function itself.
+    for (const [pathname, expected] of [
+      ['/docs/node-app.rsc', '/docs/node-app'],
+      ['/docs/edge-app.rsc', '/docs/edge-app'],
+      ['/docs/node-route.rsc', '/docs/node-route'],
+      ['/docs/edge-route.rsc', '/docs/edge-route'],
+    ]) {
+      expect(functionPathnames.has(expected)).toBe(true)
+      expect(prerenderPathnames.has(pathname)).toBe(false)
+      expect((await resolve(pathname)).resolvedPathname).toBe(expected)
+    }
+
+    // The root page's `.rsc` form uses the `/index.rsc` pathname. Without a
+    // prerendered output for it, it resolves to the root function.
+    const withoutRootRsc = pathnames.filter(
+      (pathname) => pathname !== '/docs/index.rsc'
+    )
+    expect(functionPathnames.has('/docs')).toBe(true)
+    expect(
+      (await resolve('/docs/index.rsc', withoutRootRsc)).resolvedPathname
+    ).toBe('/docs')
+
+    // A dynamic page without a matching `.rsc` prerender resolves to its
+    // function, and the suffix doesn't leak into the route parameter.
+    const withoutDynamicRsc = pathnames.filter(
+      (pathname) => pathname !== '/docs/node-app/[slug].rsc'
+    )
+    const dynamicResult = await resolve(
+      '/docs/node-app/not-prerendered.rsc',
+      withoutDynamicRsc
+    )
+    expect(dynamicResult.resolvedPathname).toBe('/docs/node-app/[slug]')
+    expect(dynamicResult.resolvedQuery).toEqual(
+      expect.objectContaining({ nxtPslug: 'not-prerendered' })
+    )
+
+    // Prerendered `.rsc` outputs still take precedence.
+    expect(prerenderPathnames.has('/docs/isr-app/first.rsc')).toBe(true)
+    expect((await resolve('/docs/isr-app/first.rsc')).resolvedPathname).toBe(
+      '/docs/isr-app/first.rsc'
+    )
   })
 })
