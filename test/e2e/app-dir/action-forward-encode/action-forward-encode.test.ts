@@ -1,63 +1,89 @@
 /* eslint-disable jest/no-standalone-expect */
-import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
-import { join } from 'path'
+import http from 'http'
+import httpProxy from 'http-proxy'
+import { findPort, retry } from 'next-test-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
+import type { Playwright } from 'e2e-utils'
+
+async function runForwardedAction(browser: Playwright) {
+  await retry(async () => {
+    expect(await browser.elementById('editor').text()).toBe('ready')
+  })
+  await browser.elementById('back').click()
+  await browser.waitForElementByCss('#call-action')
+  await browser.elementById('call-action').click()
+  await retry(async () => {
+    expect(await browser.elementById('call-action').text()).toBe('saved')
+  })
+}
 
 describe('action-forward-encode', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
-  if (skipped) return
+  it('runs an action forwarded from a page that does not bundle it', async () => {
+    // Kept active in deploy mode: the forwarded request crosses the real
+    // deployment ingress instead of the local strict proxy below.
+    const browser = await next.browser('/items/1/edit')
+    await runForwardedAction(browser)
+  })
 
-  let strictServer: any
-  let strictPort: number
+  // The strict ingress simulation needs a local proxy in front of the Next.js
+  // server, which deploy mode cannot provide. The assertion above stays active
+  // in deploy mode to cover the real ingress.
+  if (!isNextDeploy) {
+    let proxyServer: http.Server
+    let proxyPort: number
+    const seenPaths: string[] = []
 
-  beforeAll(async () => {
-    const getPort = require('get-port')
-    const http = require('http')
-    strictPort = await getPort()
-    const appPort = Number(next.appPort)
-
-    strictServer = http.createServer((req: any, res: any) => {
-      if (/[\[\]]/.test(req.url || '')) {
-        res.statusCode = 400
-        res.end('bad path')
-        return
-      }
-      const proxyReq = http.request(
-        {
-          hostname: 'localhost',
-          port: appPort,
-          path: req.url,
-          method: req.method,
-          headers: req.headers,
-        },
-        (proxyRes: any) => {
-          res.writeHead(proxyRes.statusCode, proxyRes.headers)
-          proxyRes.pipe(res)
-        }
-      )
-      proxyReq.on('error', (err: any) => {
-        res.statusCode = 502
-        res.end(String(err))
+    beforeAll(async () => {
+      const proxy = httpProxy.createProxyServer({
+        target: next.url,
       })
-      req.pipe(proxyReq)
+      proxy.on('error', (err) => {
+        console.warn('Failed to proxy', err)
+      })
+
+      // A strict front end such as an AWS Lambda function URL answers 400 to
+      // request paths that still contain literal brackets.
+      const rejectBrackets = (url: string | undefined) =>
+        /[[\]]/.test(url || '')
+
+      proxyServer = http.createServer((req, res) => {
+        if (rejectBrackets(req.url)) {
+          res.statusCode = 400
+          res.end('bad path')
+          return
+        }
+        seenPaths.push(req.url || '')
+        proxy.web(req, res)
+      })
+
+      proxyPort = await findPort()
+      await new Promise<void>((resolve) => {
+        proxyServer.listen(proxyPort, () => resolve())
+      })
     })
 
-    await new Promise<void>((resolve) => {
-      strictServer.listen(strictPort, () => resolve())
+    afterAll(async () => {
+      await new Promise<void>((resolve) => {
+        if (!proxyServer) {
+          resolve()
+          return
+        }
+        proxyServer.close(() => resolve())
+      })
     })
-  })
 
-  afterAll(async () => {
-    await new Promise<void>((resolve) => strictServer?.close(() => resolve()))
-  })
+    it('encodes the forwarded worker route pattern', async () => {
+      const browser = await next.browser('/items/1/edit', {
+        baseUrl: `http://localhost:${proxyPort}`,
+      })
+      await runForwardedAction(browser)
 
-  it('should encode forwarded action pathnames with dynamic segments', async () => {
-    const browser = await next.browser(`http://localhost:${strictPort}/caller`)
-    await browser.elementById('call').click()
-    await check(() => browser.elementById('call').text(), 'ok')
-  })
+      expect(seenPaths).toContain('/items/%5Bid%5D/edit')
+      expect(seenPaths.filter((path) => /[[\]]/.test(path))).toEqual([])
+    })
+  }
 })

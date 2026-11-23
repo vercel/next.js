@@ -1,6 +1,5 @@
 'use server'
 
 export async function saveDraft(id: string, value: string) {
-  console.log('draft-saved:' + id + ':' + value)
-  return { ok: true }
+  return { ok: id === '1' && value === 'hello' }
 }
