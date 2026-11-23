@@ -40,6 +40,7 @@ import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 import { navigate as navigateAppRouterState } from './app-router-state'
 import { FreshnessPolicy } from './render-tree'
 import { getBFCacheVersion } from './segment-cache/bfcache'
+import { claimPreparedResponses } from './router-reducer/fetch-server-response'
 
 function getRequiredAppRouterState(): AppRouterState {
   const state = getCurrentAppRouterState()
@@ -171,8 +172,11 @@ export function traverse(
  *
  * Calling `push` or `replace` on the result performs a regular navigation
  * that reuses anything the prepare phase wrote into the BFCache, regardless
- * of stale time, including data that is still streaming in. If the prepared
- * navigation is never committed, nothing else happens; the data stays in the
+ * of stale time. The prepare phase only uses a response once its body has
+ * ended. Committing before then claims the response: it's decoded again from
+ * the committing task, and the prepare phase continues with that decode (see
+ * decodePreparedNavigationResponse). If the prepared navigation is never
+ * committed, nothing else happens; the data stays in the
  * BFCache, where a back/forward navigation to an overlapping segment may
  * observe it.
  */
@@ -189,6 +193,7 @@ export function prepare(href: string): PreparedNavigation {
     inFlightRequest: null,
     inFlightRequestTree: null,
     completedNavigation: null,
+    pendingResponses: new Set(),
   }
 
   // Resolve the URL now, so a relative href is committed against the location
@@ -221,43 +226,33 @@ export function prepare(href: string): PreparedNavigation {
 
   // A prepared navigation can only be committed once.
   let didCommit = false
+  const commit = (
+    navigateType: 'push' | 'replace',
+    options: NavigateOptions | undefined
+  ) => {
+    if (didCommit) {
+      warnPreparedNavigationAlreadyCommitted(href)
+      return
+    }
+    didCommit = true
+    // Must run synchronously in the task that commits, so the responses that
+    // are still streaming are decoded again from it.
+    claimPreparedResponses(preparation.pendingResponses)
+    dispatchNavigation(
+      url.href,
+      navigateType,
+      options?.scroll === false
+        ? ScrollBehavior.NoScroll
+        : ScrollBehavior.Default,
+      null,
+      options?.transitionTypes,
+      null,
+      preparation
+    )
+  }
   return {
-    push: (options?: NavigateOptions) => {
-      if (didCommit) {
-        warnPreparedNavigationAlreadyCommitted(href)
-        return
-      }
-      didCommit = true
-      dispatchNavigation(
-        url.href,
-        'push',
-        options?.scroll === false
-          ? ScrollBehavior.NoScroll
-          : ScrollBehavior.Default,
-        null,
-        options?.transitionTypes,
-        null,
-        preparation
-      )
-    },
-    replace: (options?: NavigateOptions) => {
-      if (didCommit) {
-        warnPreparedNavigationAlreadyCommitted(href)
-        return
-      }
-      didCommit = true
-      dispatchNavigation(
-        url.href,
-        'replace',
-        options?.scroll === false
-          ? ScrollBehavior.NoScroll
-          : ScrollBehavior.Default,
-        null,
-        options?.transitionTypes,
-        null,
-        preparation
-      )
-    },
+    push: (options?: NavigateOptions) => commit('push', options),
+    replace: (options?: NavigateOptions) => commit('replace', options),
   }
 }
 

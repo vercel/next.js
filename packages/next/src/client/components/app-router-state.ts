@@ -391,7 +391,14 @@ export function navigateToKnownRoute(
         navigateType,
         navigationLock,
         map,
-        signal
+        signal,
+        // Only the prepare phase's requests. A commit's request registered
+        // after the claim would be held until its body ends.
+        process.env.__NEXT_PREPARE_NAVIGATION &&
+          preparation !== null &&
+          freshnessPolicy === FreshnessPolicy.Prepare
+          ? preparation.pendingResponses
+          : null
       )
     }
     return completeSoftNavigation(
@@ -586,6 +593,7 @@ async function navigateToUnknownRoute(
       const request = fetchServerResponse(url, {
         flightRouterState: dynamicRequestTree,
         nextUrl,
+        preparedResponses: preparation.pendingResponses,
       })
       preparation.inFlightRequest = request
       preparation.inFlightRequestTree = dynamicRequestTree

@@ -59,7 +59,18 @@ export interface FetchServerResponseOptions {
   readonly nextUrl: string | null
   readonly isHmrRefresh?: boolean
   readonly signal?: AbortSignal
+  /**
+   * Set for the requests of a prepare phase. See
+   * `decodePreparedNavigationResponse`.
+   */
+  readonly preparedResponses?: PreparedResponses
 }
+
+/**
+ * The responses of a prepare phase that are still streaming. Each entry
+ * claims its response for the commit. See `claimPreparedResponses`.
+ */
+export type PreparedResponses = Set<() => void>
 
 type SpaFetchServerResponseResult = {
   transportData: PartialTransportData | null
@@ -203,18 +214,27 @@ export async function fetchServerResponse(
     // fields, are decoded by the segment cache instead), so the decode is typed
     // as the live-render variant.
     const flightResponsePromise =
-      decodeNavigationResponse<DynamicNavigationFlightResponse>(
-        responsePromise,
-        headers,
-        // Only an HMR refresh can be superseded. Gated to the dev server
-        // (where HMR runs) so the abort handling is eliminated from production
-        // and `--debug-prerender` bundles regardless of the flag.
-        process.env.__NEXT_DEV_SERVER &&
-          process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION
-          ? options.signal
-          : undefined,
-        responseChunks
-      )
+      process.env.__NEXT_PREPARE_NAVIGATION && options.preparedResponses
+        ? decodePreparedNavigationResponse<DynamicNavigationFlightResponse>(
+            responsePromise,
+            headers,
+            responseChunks,
+            options.preparedResponses
+          )
+        : decodeNavigationResponse<DynamicNavigationFlightResponse>(
+            responsePromise,
+            headers,
+            // Only an HMR refresh can be superseded. Gated to the dev server
+            // (where HMR runs) so the abort handling is eliminated from
+            // production and `--debug-prerender` bundles regardless of the
+            // flag.
+            process.env.__NEXT_DEV_SERVER &&
+              process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION
+              ? options.signal
+              : undefined,
+            responseChunks,
+            null
+          )
     const res = await responsePromise
 
     // If the fetch succeeds while we're in the offline state, notify the
@@ -455,7 +475,10 @@ function decodeNavigationResponse<T>(
   // When not null, we also keep each chunk here as it's decoded, so we can
   // cut a shell from them later. We skip this for partial responses, because
   // only a complete prerender has a shell we can use.
-  responseChunks: Array<Uint8Array> | null
+  responseChunks: Array<Uint8Array> | null,
+  // When not null, we also record the body here, so it can be decoded again.
+  // See decodePreparedNavigationResponse.
+  recording: BodyRecording | null
 ): Promise<T> & { _debugInfo?: Array<any> } {
   let closed = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
@@ -498,6 +521,7 @@ function decodeNavigationResponse<T>(
           // throw, and a superseded request's failure is moot regardless of its
           // cause. Only a genuine, non-superseded failure reaches here with
           // `closed` still false; that is the case we surface.
+          endRecording(recording, 'errored', err)
           if (!closed) {
             controller.error(err)
           }
@@ -512,6 +536,7 @@ function decodeNavigationResponse<T>(
         }
         const body = response.body
         if (body === null) {
+          endRecording(recording, 'done')
           controller.close()
           return
         }
@@ -524,10 +549,15 @@ function decodeNavigationResponse<T>(
           return
         }
         if (done) {
+          endRecording(recording, 'done')
           controller.close()
         } else {
           if (chunks !== null) {
             chunks.push(value)
+          }
+          if (recording !== null) {
+            recording.chunks.push(value)
+            wakeRecording(recording)
           }
           controller.enqueue(value)
         }
@@ -536,6 +566,7 @@ function decodeNavigationResponse<T>(
         // controller is already closed and the outcome is moot, so we swallow
         // the rejection unconditionally; only a real, non-superseded read
         // failure (`closed` still false) is surfaced.
+        endRecording(recording, 'errored', err)
         if (!closed) {
           controller.error(err)
         }
@@ -549,6 +580,141 @@ function decodeNavigationResponse<T>(
     allowPartialStream: signal !== undefined,
   }) as Promise<T> & { _debugInfo?: Array<any> }
 }
+
+// A response body, recorded as it's read so it can be decoded again.
+type BodyRecording = {
+  // The chunks that haven't been replayed yet.
+  chunks: Array<Uint8Array>
+  status: 'streaming' | 'done' | 'errored'
+  error: unknown
+  // Wakes the replay when a chunk arrives or the body ends.
+  wake: (() => void) | null
+  onEnd: (() => void) | null
+}
+
+function wakeRecording(recording: BodyRecording) {
+  const wake = recording.wake
+  recording.wake = null
+  wake?.()
+}
+
+function endRecording(
+  recording: BodyRecording | null,
+  status: 'done' | 'errored',
+  error?: unknown
+) {
+  if (recording === null || recording.status !== 'streaming') {
+    return
+  }
+  recording.status = status
+  recording.error = error
+  wakeRecording(recording)
+  const onEnd = recording.onEnd
+  recording.onEnd = null
+  onEnd?.()
+}
+
+// The recorded bytes, then the rest as they arrive. Ends like the body, after
+// every chunk.
+function replayRecording(recording: BodyRecording): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      while (
+        recording.chunks.length === 0 &&
+        recording.status === 'streaming'
+      ) {
+        await new Promise<void>((resolve) => {
+          recording.wake = resolve
+        })
+      }
+      const chunk = recording.chunks.shift()
+      if (chunk !== undefined) {
+        controller.enqueue(chunk)
+      } else if (recording.status === 'errored') {
+        controller.error(recording.error)
+      } else {
+        controller.close()
+      }
+    },
+  })
+}
+
+/**
+ * Decodes a response of a prepare phase (`router.experimental_prepare()`),
+ * which only resolves once the body ends, or once the commit claims it.
+ *
+ * Flight wakes whatever waits on a row synchronously, from the task that reads
+ * the stream, and that reader traces back to whoever started the decode. A
+ * commit that rendered the prepare phase's decode while it streams would wake
+ * React from the prepare phase's task, so the browser wouldn't attribute the
+ * URL change to the click that committed it, and Chrome wouldn't report a soft
+ * navigation.
+ *
+ * So the response decodes right away, which starts loading client modules
+ * early, but nothing reads that decode until the body has ended. If the commit
+ * claims the response first, it decodes the recorded bytes again from its own
+ * task, and the prepare phase continues with that decode instead.
+ */
+function decodePreparedNavigationResponse<T>(
+  responsePromise: Promise<RSCResponse>,
+  headers: RequestHeaders,
+  responseChunks: Array<Uint8Array> | null,
+  preparedResponses: PreparedResponses
+): Promise<T> & { _debugInfo?: Array<any> } {
+  const recording: BodyRecording = {
+    chunks: [],
+    status: 'streaming',
+    error: undefined,
+    wake: null,
+    onEnd: null,
+  }
+  const firstDecode = decodeNavigationResponse<T>(
+    responsePromise,
+    headers,
+    undefined,
+    responseChunks,
+    recording
+  )
+  type Decode = Promise<T> & { _debugInfo?: Array<any> }
+  let settle!: (decode: Decode) => void
+  const result: Decode = new Promise<T>((resolve) => {
+    settle = (decode) => {
+      result._debugInfo = decode._debugInfo
+      resolve(decode)
+    }
+  })
+  result.catch(noop)
+  const claim = () => {
+    preparedResponses.delete(claim)
+    // Created in the caller's task, so Flight's reader and every row it
+    // resolves trace back here.
+    settle(createFromNextReadableStream<T>(replayRecording(recording), headers))
+  }
+  preparedResponses.add(claim)
+  recording.onEnd = () => {
+    if (preparedResponses.delete(claim)) {
+      // Unclaimed, so nothing replays the recording.
+      recording.chunks = []
+      settle(firstDecode)
+    }
+  }
+  return result
+}
+
+/**
+ * Claims the responses of a prepare phase that are still streaming for the
+ * commit. Call it synchronously from the task that commits, such as a click
+ * handler. See `decodePreparedNavigationResponse`.
+ */
+export function claimPreparedResponses(
+  preparedResponses: PreparedResponses
+): void {
+  for (const claim of Array.from(preparedResponses)) {
+    claim()
+  }
+}
+
+function noop() {}
 
 /**
  * Strips the leading isPartial byte from an RSC response stream.

@@ -2,7 +2,10 @@ import type { RootRouteTree } from '../segment-cache/cache'
 import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/decode-server-response'
-import type { FetchServerResponseResult } from './fetch-server-response'
+import type {
+  FetchServerResponseResult,
+  PreparedResponses,
+} from './fetch-server-response'
 import type { FreshnessPolicy } from '../render-tree'
 
 export const ACTION_REFRESH = 'refresh'
@@ -130,6 +133,11 @@ export type PreparedNavigationRecord = {
     debugInfo: Array<unknown> | null
     requestTree: FlightRouterState
   } | null
+  // The prepare phase's responses that are still streaming. The prepare phase
+  // doesn't use them until they end, unless the commit claims them first, which
+  // decodes them again from the commit's task. See
+  // decodePreparedNavigationResponse.
+  pendingResponses: PreparedResponses
 }
 
 /**
