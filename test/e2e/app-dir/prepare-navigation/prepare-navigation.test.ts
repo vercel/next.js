@@ -605,6 +605,40 @@ describe('router.experimental_prepare', () => {
       expect(requests).toHaveLength(1)
     })
 
+    it('does not hold the data of an abandoned preparation from a back/forward navigation', async () => {
+      const { browser, page } = await startBrowser('/streaming-target')
+
+      // Visit the route, so the router knows it, then go back.
+      await pressPrepareLink(page, '/streaming-target')
+      await page.mouse.up()
+      await waitForDataRequest('streaming-shell')
+      resolveData('streaming-shell', 'Streaming target shell')
+      await waitForDataRequest('streaming-late')
+      resolveData('streaming-late', 'Streaming target late section')
+      await browser.waitForElementByCss('#streaming-late')
+      await browser.back()
+      await browser.waitForElementByCss('#hub-a')
+
+      // Prepare the navigation again, and release the press off the link,
+      // which doesn't commit it. The prepare phase writes BFCache entries that
+      // wait on its response.
+      await pressPrepareLink(page, '/streaming-target')
+      await waitForDataRequest('streaming-shell')
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
+      resolveData('streaming-shell', 'Abandoned preparation shell')
+
+      // The forward navigation reuses those entries. It renders the shell as it
+      // streams in, rather than waiting for the abandoned response to end.
+      await browser.forward()
+      expect(
+        await (await browser.waitForElementByCss('#streaming-shell')).text()
+      ).toBe('Abandoned preparation shell')
+      expect(await browser.elementById('streaming-late-fallback').text()).toBe(
+        'Loading late section...'
+      )
+    })
+
     // The proxy doesn't forward the development server's WebSocket.
     // @force-gate !dev
     it('surfaces a stream error the same way a regular navigation does', async () => {
@@ -650,17 +684,19 @@ describe('router.experimental_prepare', () => {
     describe('is reported by Chrome as a soft navigation', () => {
       for (const { scenario, pathname, name, isRouteKnown, holdResponse } of [
         {
-          // The prepare phase usually seeds the route before the commit; the
-          // test doesn't establish it.
-          scenario: 'after the prepared response starts arriving',
+          // The response's headers have arrived, so the commit usually claims
+          // a response with bytes already recorded; the test doesn't establish
+          // it.
+          scenario: 'with bytes already recorded',
           pathname: '/streaming-target',
           name: 'streaming',
           isRouteKnown: false,
           holdResponse: false,
         },
         {
-          // The commit takes over the prepared request.
-          scenario: 'before the prepared response arrives',
+          // The commit claims the response, and takes over the prepared
+          // request, before any bytes arrive.
+          scenario: 'before any bytes arrive',
           pathname: '/streaming-target',
           name: 'streaming',
           isRouteKnown: false,
@@ -669,30 +705,18 @@ describe('router.experimental_prepare', () => {
         {
           // The prepare phase requested the route's dynamic data, and wrote
           // BFCache entries that wait on it.
-          scenario:
-            'after the prepared response starts arriving, for a prefetched route',
+          scenario: 'with bytes already recorded, for a prefetched route',
           pathname: '/streaming-target',
           name: 'streaming',
           isRouteKnown: true,
           holdResponse: false,
         },
         {
-          scenario:
-            'before the prepared response arrives, for a prefetched route',
+          scenario: 'before any bytes arrive, for a prefetched route',
           pathname: '/streaming-target',
           name: 'streaming',
           isRouteKnown: true,
           holdResponse: true,
-        },
-        {
-          // The prepare phase's BFCache entries are still fresh at the commit,
-          // so a regular navigation would reuse them.
-          scenario:
-            'after the prepared response starts arriving, for a page with a dynamic stale time',
-          pathname: '/streaming-stale',
-          name: 'stale',
-          isRouteKnown: false,
-          holdResponse: false,
         },
       ]) {
         it(`when committed ${scenario}`, async () => {
