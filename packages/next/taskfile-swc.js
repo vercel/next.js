@@ -186,38 +186,22 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
     }
   )
 
-  task.plugin('swc_minify', {}, function* (file) {
-    if (
-      file.base.endsWith('.d.ts') ||
-      file.base.endsWith('.json') ||
-      file.base.endsWith('.jsonc') ||
-      file.base.endsWith('.woff2')
-    )
-      return
-
+  // Compiles standalone browser scripts (e.g. the individual polyfills) down to ES5, so they can run
+  // in any browser regardless of how the bundler that includes them is configured.
+  task.plugin('swc_es5', {}, function* (file) {
     /** @type {import('@swc/core').Options} */
     const options = {
-      minify: true,
+      filename: file.base,
+      swcrc: false,
+      configFile: false,
+      isModule: false,
       jsc: {
-        minify: {
-          mangle: true,
-          compress: true,
-        },
+        target: 'es5',
+        parser: { syntax: 'ecmascript' },
       },
     }
 
-    const source = file.data.toString('utf-8')
-    const output = yield transform(source, options)
-
-    if (output.map) {
-      const map = `${file.base}.map`
-      this._.files.push({
-        base: map,
-        dir: file.dir,
-        data: Buffer.from(output.map),
-      })
-    }
-
+    const output = yield transform(file.data.toString('utf-8'), options)
     file.data = Buffer.from(output.code)
   })
 }

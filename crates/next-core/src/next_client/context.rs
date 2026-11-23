@@ -18,7 +18,7 @@ use turbopack_core::{
         SourceMapSourceType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, RuntimeVersions},
     free_var_references,
     issue::IssueSeverity,
     module_graph::{
@@ -151,6 +151,7 @@ pub async fn get_client_resolve_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    runtime_versions: Vc<RuntimeVersions>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map = get_next_client_import_map(
         project_path.clone(),
@@ -171,6 +172,7 @@ pub async fn get_client_resolve_options_context(
     let concurrent_router_queue = *next_config.enable_concurrent_router_queue().await?;
     let next_client_resolved_map = get_next_client_resolved_map(
         project_path.clone(),
+        runtime_versions,
         *mode.await?,
         expose_testing_api,
         concurrent_router_queue,
@@ -243,6 +245,7 @@ pub async fn get_client_module_options_context(
         mode,
         next_config,
         *execution_context,
+        env.runtime_versions(),
     );
 
     let tsconfig_path = next_config
@@ -747,6 +750,7 @@ pub async fn get_client_runtime_entries(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    runtime_versions: Vc<RuntimeVersions>,
 ) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
     let resolve_options_context = get_client_resolve_options_context(
@@ -755,6 +759,7 @@ pub async fn get_client_runtime_entries(
         mode,
         next_config,
         execution_context,
+        runtime_versions,
     );
 
     if mode.await?.is_development() {

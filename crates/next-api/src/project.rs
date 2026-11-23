@@ -2003,6 +2003,9 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                self.client_compile_time_info()
+                    .environment()
+                    .runtime_versions(),
             ),
             Layer::new_with_user_friendly_name(rcstr!("service-worker"), rcstr!("Service Worker")),
         )))
