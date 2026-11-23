@@ -109,7 +109,7 @@ export async function UpdatedAt() {
 
 #### Alternative: `await connection()`
 
-The error suggests [`await connection()`](/docs/app/api-reference/functions/connection) to wait for an incoming request. Outside a cache scope, you can use it instead of `await io()` under the same parent `<Suspense>` boundary. Unlike `connection()`, `io()` also works inside `"use cache"` scopes and Client Components.
+Use [`await connection()`](/docs/app/api-reference/functions/connection) to wait for an incoming request. Outside a cache scope, you can use it instead of `await io()` under the same parent `<Suspense>` boundary. Unlike `connection()`, `io()` also works inside `"use cache"` scopes and Client Components.
 
 ```jsx filename="app/dashboard/updated-at.js"
 import { connection } from 'next/server'
