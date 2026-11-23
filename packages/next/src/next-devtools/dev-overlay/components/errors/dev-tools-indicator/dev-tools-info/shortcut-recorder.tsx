@@ -2,7 +2,6 @@ import type { JSX } from 'react'
 import { useState, useRef } from 'react'
 import { css } from '../../../../utils/css'
 
-const SUCCESS_SHOW_DELAY_MS = 180
 const SUCCESS_FADE_DELAY_MS = 1000
 
 const modifierKeys = ['Meta', 'Control', 'Ctrl', 'Alt', 'Option', 'Shift']
@@ -14,8 +13,7 @@ export function ShortcutRecorder({
   value: string[] | null
   onChange: (value: string | null) => void
 }) {
-  const [pristine, setPristine] = useState(true)
-  const [show, setShow] = useState(false)
+  const [recording, setRecording] = useState(false)
   const [keys, setKeys] = useState<string[]>(value ?? [])
   const [success, setSuccess] = useState<boolean>(false)
   const timeoutRef = useRef<number | null>(null)
@@ -23,116 +21,52 @@ export function ShortcutRecorder({
   const hasShortcut = Boolean(value) || keys.length > 0
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
-    // Don't handle events from the Clear button
-    if (e.target !== buttonRef.current) return
-    if (e.key === 'Tab') return
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-
-    if (!show) {
-      setShow(true)
-    }
-
-    // Reset current shortcut on first key press
-    // if this is a fresh recording session
-    if (pristine) {
-      setKeys([])
-      setPristine(false)
-    }
-
-    function handleValidation(next: string[]) {
-      timeoutRef.current = window.setTimeout(() => {
-        setSuccess(true)
-        onChange(next.join('+'))
-        timeoutRef.current = window.setTimeout(() => {
-          setShow(false)
-        }, SUCCESS_FADE_DELAY_MS)
-      }, SUCCESS_SHOW_DELAY_MS)
-    }
+    if (!recording || e.target !== buttonRef.current || e.key === 'Tab') return
 
     e.preventDefault()
     e.stopPropagation()
 
-    setKeys((prev) => {
-      // Don't add duplicate keys
-      if (prev.includes(e.code) || prev.includes(e.key)) return prev
+    const next: string[] = []
+    if (e.metaKey) next.push('Meta')
+    if (e.ctrlKey) next.push('Control')
+    if (e.altKey) next.push('Alt')
+    if (e.shiftKey) next.push('Shift')
 
-      /**
-       * Why are we using `e.code` for non-modifier keys?
-       *
-       * Consider this keybind: Alt + L
-       *
-       * If we capture `e.key` here then it will correspond to an awkward symbol (¬)
-       * because pressing Alt + L creates this symbol.
-       *
-       * While `e.code` will give us `KeyL` as the value which we also later use in
-       * `useShortcuts()` to match the keybind correctly without relying on modifier symbols.
-       */
-      // Handle non-modifier keys (action keys)
-      if (!modifierKeys.includes(e.key)) {
-        // Replace existing non-modifier key if present
-        const existingNonModifierIndex = prev.findIndex(
-          (key) => !modifierKeys.includes(key)
-        )
-        if (existingNonModifierIndex !== -1) {
-          const next = [...prev]
-          next[existingNonModifierIndex] = e.code
-          handleValidation(next)
-          return next
-        }
-        // Add new non-modifier key at the end
-        const next = [...prev, e.code]
-        handleValidation(next)
-        return next
-      }
+    // Wait for an action key before saving. Physical key codes also work
+    // when a modifier changes the character, such as Option+L on macOS.
+    if (modifierKeys.includes(e.key)) {
+      setKeys(next)
+      return
+    }
 
-      // Handle modifier keys
-      const next = [...prev]
-
-      // Find the correct position for the modifier key based on predefined order
-      const keyOrderIndex = modifierKeys.indexOf(e.key)
-      let insertIndex = 0
-
-      // Find where to insert by checking existing modifier keys
-      for (let i = 0; i < next.length; i++) {
-        if (modifierKeys.includes(next[i])) {
-          const existingOrderIndex = modifierKeys.indexOf(next[i])
-          if (keyOrderIndex < existingOrderIndex) {
-            insertIndex = i
-            break
-          }
-          insertIndex = i + 1
-        } else {
-          // Stop at first non-modifier key
-          break
-        }
-      }
-
-      next.splice(insertIndex, 0, e.key)
-      handleValidation(next)
-      return next
-    })
+    next.push(e.code)
+    setKeys(next)
+    onChange(next.join('+'))
+    setRecording(false)
+    setSuccess(true)
+    timeoutRef.current = window.setTimeout(() => {
+      setSuccess(false)
+    }, SUCCESS_FADE_DELAY_MS)
   }
 
   function clear() {
     buttonRef.current?.focus()
     setKeys([])
     setSuccess(false)
-    setTimeout(() => {
-      setShow(true)
-    })
+    setRecording(true)
     onChange(null)
   }
 
   function onBlur() {
-    setSuccess(false)
-    setShow(false)
-    setPristine(true)
+    setRecording(false)
+    if (!success) setKeys(value ?? [])
   }
 
   function onStart() {
-    // Clear out timeouts for hiding the tooltip after success
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setShow(true)
+    setKeys([])
+    setSuccess(false)
+    setRecording(true)
     buttonRef.current?.focus()
   }
 
@@ -140,16 +74,22 @@ export function ShortcutRecorder({
     <div className="shortcut-recorder">
       <button
         className="shortcut-recorder-button"
+        id="indicator-shortcut"
+        aria-labelledby="indicator-shortcut-label"
         ref={buttonRef}
         onClick={onStart}
         onFocus={onStart}
         onBlur={onBlur}
         onKeyDown={handleKeyDown}
         data-has-shortcut={hasShortcut}
-        data-shortcut-recorder="true"
+        data-shortcut-recorder={recording ? 'true' : undefined}
       >
-        {!hasShortcut ? (
-          'Record Shortcut'
+        {/* Recording and saved states are shown inside the button so the
+            layout never shifts. */}
+        {recording && keys.length === 0 ? (
+          <span className="shortcut-recorder-hint">Press shortcut…</span>
+        ) : !hasShortcut ? (
+          'Record shortcut'
         ) : (
           <div className="shortcut-recorder-keys">
             {keys.map((key) => (
@@ -157,57 +97,40 @@ export function ShortcutRecorder({
             ))}
           </div>
         )}
-        {hasShortcut && (
-          <div
-            className="shortcut-recorder-clear-button"
-            role="button"
-            onClick={clear}
-            onFocus={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                clear()
-                e.stopPropagation()
-              }
-            }}
-            aria-label="Clear shortcut"
-            tabIndex={0}
-          >
-            <IconCross />
-          </div>
+        {success && !recording ? (
+          <span className="shortcut-recorder-saved" aria-hidden>
+            Saved
+          </span>
+        ) : (
+          hasShortcut &&
+          !recording && (
+            <div
+              className="shortcut-recorder-clear-button"
+              role="button"
+              onClick={clear}
+              onFocus={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  clear()
+                  e.stopPropagation()
+                }
+              }}
+              aria-label="Clear shortcut"
+              tabIndex={0}
+            >
+              <IconCross />
+            </div>
+          )
         )}
       </button>
-      <div className="shortcut-recorder-tooltip" data-show={show}>
-        <div className="shortcut-recorder-status">
-          <div
-            className="shortcut-recorder-status-icon"
-            data-success={success}
-          />
-          {success ? 'Shortcut set' : 'Recording'}
-        </div>
-        <BottomArrow />
-      </div>
+      <span className="shortcut-recorder-status-message" role="status">
+        {recording ? 'Recording…' : success ? 'Shortcut saved' : null}
+      </span>
     </div>
   )
 }
 
-function BottomArrow() {
-  return (
-    <svg
-      fill="none"
-      height="6"
-      viewBox="0 0 14 6"
-      width="14"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M13.8284 0H0.17157C0.702003 0 1.21071 0.210714 1.58578 0.585787L5.58578 4.58579C6.36683 5.36684 7.63316 5.36683 8.41421 4.58579L12.4142 0.585786C12.7893 0.210714 13.298 0 13.8284 0Z"
-        fill="var(--background)"
-      />
-    </svg>
-  )
-}
-
-function Kbd({ children }: { children: string }) {
+export function Kbd({ children }: { children: string }) {
   function renderKey(key: string) {
     switch (key) {
       case 'Meta':
@@ -283,7 +206,7 @@ function parseKeyCode(code: string | JSX.Element) {
     // Add more as needed
   }
 
-  if (codeToKeyMap[code]) {
+  if (Object.prototype.hasOwnProperty.call(codeToKeyMap, code)) {
     return codeToKeyMap[code]
   }
 
@@ -337,9 +260,9 @@ function IconCross() {
 export const SHORTCUT_RECORDER_STYLES = css`
   .shortcut-recorder {
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-end;
     position: relative;
     font-family: var(--font-stack-sans);
 
@@ -425,62 +348,31 @@ export const SHORTCUT_RECORDER_STYLES = css`
     }
   }
 
+  /* Announced to screen readers; the visible state is inside the button. */
+  .shortcut-recorder-status-message {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .shortcut-recorder-hint {
+    color: var(--color-gray-900);
+  }
+
+  .shortcut-recorder-saved {
+    font-size: var(--size-13);
+    color: var(--color-gray-900);
+  }
+
   .shortcut-recorder-keys {
     pointer-events: none;
     user-select: none;
     display: flex;
     align-items: center;
     gap: 2px;
-  }
-
-  .shortcut-recorder-tooltip {
-    --gap: 8px;
-    --background: var(--color-gray-1000);
-    background: var(--background);
-    color: var(--color-background-100);
-    font-size: var(--size-14);
-    padding: 4px 8px;
-    border-radius: 8px;
-    position: absolute;
-    bottom: calc(100% + var(--gap));
-    text-align: center;
-    opacity: 0;
-    scale: 0.96;
-    white-space: nowrap;
-    user-select: none;
-    transition:
-      opacity 150ms var(--timing-swift),
-      scale 150ms var(--timing-swift);
-
-    &[data-show='true'] {
-      opacity: 1;
-      scale: 1;
-    }
-
-    svg {
-      position: absolute;
-      transform: translateX(-50%);
-      bottom: -6px;
-      left: 50%;
-    }
-
-    .shortcut-recorder-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .shortcut-recorder-status-icon {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: var(--color-red-700);
-
-      &[data-success='true'] {
-        background: var(--color-green-700);
-      }
-    }
   }
 `
 
