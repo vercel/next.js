@@ -27,6 +27,16 @@ export default function Page() {
           </PrepareLink>
         </li>
         <li>
+          <PrepareLink href="/streaming-stale">
+            Prepare link to streaming page with a dynamic stale time
+          </PrepareLink>
+        </li>
+        <li>
+          <LinkAccordion href="/streaming-target">
+            Prefetch streaming target
+          </LinkAccordion>
+        </li>
+        <li>
           <PrepareLink href="/streaming-error">
             Prepare link to streaming error
           </PrepareLink>

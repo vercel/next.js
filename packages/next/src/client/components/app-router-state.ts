@@ -159,8 +159,7 @@ function navigateImpl(
     process.env.__NEXT_PREPARE_NAVIGATION &&
     preparation !== null &&
     freshnessPolicy === FreshnessPolicy.CommitPrepared &&
-    preparation.completedNavigation !== null &&
-    isServerResponseStreaming(preparation.completedNavigation.fetchResult)
+    isPreparedResponseStreaming(preparation, currentFlightRouterState)
   ) {
     // The prepare phase seeded this route from a response that's still
     // streaming. Take the unknown-route path, which decodes the response again
@@ -312,6 +311,17 @@ export function navigateToKnownRoute(
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
   if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    freshnessPolicy === FreshnessPolicy.CommitPrepared &&
+    preparation !== null &&
+    isPreparedDynamicRequestPending(preparation)
+  ) {
+    // The BFCache entries the prepare phase wrote are still waiting on its
+    // response, and would wake React from the prepare phase's decode. Take
+    // over its request instead. See CommitPreparedReplay.
+    freshnessPolicy = FreshnessPolicy.CommitPreparedReplay
+  }
+  if (
     process.env.NODE_ENV !== 'production' &&
     process.env.__NEXT_CACHE_COMPONENTS &&
     // The prepare phase isn't associated with a link. The link tracked for
@@ -424,7 +434,8 @@ export function navigateToKnownRoute(
         navigateType,
         navigationLock,
         map,
-        signal
+        signal,
+        preparation
       )
     }
     return completeSoftNavigation(
@@ -537,6 +548,7 @@ async function navigateToUnknownRoute(
     case FreshnessPolicy.Default:
     case FreshnessPolicy.Prepare:
     case FreshnessPolicy.CommitPrepared:
+    case FreshnessPolicy.CommitPreparedReplay:
     case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Gesture:
       dynamicRequestTree = currentFlightRouterState
@@ -552,41 +564,58 @@ async function navigateToUnknownRoute(
       break
   }
 
+  let result: FetchServerResponseResult
   // Set when this commit decodes the prepared response again, because it was
   // still streaming. See replayServerResponse.
-  let replayedResult: FetchServerResponseResult | null = null
-  if (
-    process.env.__NEXT_PREPARE_NAVIGATION &&
-    preparation !== null &&
-    freshnessPolicy === FreshnessPolicy.CommitPrepared
-  ) {
-    // This is a prepared navigation, but we didn't find a matching route in
-    // the route cache. This can sometimes happen if the previous route was
-    // evicted since the preparation began, but there's only one place where
-    // it happens in practice: the InliningHintsStale case, which the server
-    // sends to indicate that the prefetching hints cannot be trusted. A
-    // proper fix would allow the route to be marked invalid for a prefetch
-    // without marking it invalid for a regular navigation.
+  let isReplayed = false
+  if (!process.env.__NEXT_PREPARE_NAVIGATION || preparation === null) {
+    result = await fetchServerResponse(url, {
+      flightRouterState: dynamicRequestTree,
+      nextUrl,
+    })
+  } else if (freshnessPolicy === FreshnessPolicy.Prepare) {
+    // This is the prepare phase of `router.experimental_prepare()`. It exposes
+    // its request on the record, so that a commit that starts before the
+    // response arrives can take it over instead of fetching again. Only one of
+    // the two phases processes the response.
+    const request = fetchServerResponse(url, {
+      flightRouterState: dynamicRequestTree,
+      nextUrl,
+      // The commit may need to decode the response again.
+      keepBytes: true,
+    })
+    preparation.inFlightRequest = request
+    preparation.inFlightRequestTree = dynamicRequestTree
+    result = await request
+    if (preparation.inFlightRequest !== request) {
+      // Only a commit clears the request before its response arrives, so the
+      // commit took it over and processes the response itself. The result of
+      // the prepare phase is discarded, so it doesn't matter what state is
+      // returned.
+      return state
+    }
+    preparation.inFlightRequest = null
+    preparation.inFlightRequestTree = null
+  } else {
+    // This is the commit of a prepared navigation, but we didn't find a
+    // matching route in the route cache. This can sometimes happen if the
+    // previous route was evicted since the preparation began, but there's only
+    // one place where it happens in practice: the InliningHintsStale case,
+    // which the server sends to indicate that the prefetching hints cannot be
+    // trusted. A proper fix would allow the route to be marked invalid for a
+    // prefetch without marking it invalid for a regular navigation.
     //
     // For now, we allow whichever route was fetched during prepare to be
     // passed straight through to the rest of the navigation algorithm. This
     // is essentially what would happen during a regular navigation anyway; in
     // this case it's just been decomposed into two separate stages.
     //
-    // TODO: Remove this whole branch once we get rid of the InliningHintsStale
-    // mechanism. Refer to that code for more background.
-    const completed = preparation.completedNavigation
-    preparation.completedNavigation = null
-    if (
-      completed !== null &&
-      // Same conditions as taking over an in-flight request: the response was
-      // made against the current tree, and the BFCache wasn't invalidated.
-      completed.requestTree === dynamicRequestTree &&
-      preparation.bfcacheVersion === getBFCacheVersion()
-    ) {
-      if (isServerResponseStreaming(completed.fetchResult)) {
-        replayedResult = await replayServerResponse(completed.fetchResult)
-      } else {
+    // TODO: Remove the completed-navigation case once we get rid of the
+    // InliningHintsStale mechanism. Refer to that code for more background.
+    const prepared = takePreparedResponse(preparation, dynamicRequestTree)
+    if (prepared !== null && prepared.completed !== null) {
+      const completed = prepared.completed
+      if (!isServerResponseStreaming(completed.fetchResult)) {
         return navigateToKnownRoute(
           now,
           state,
@@ -608,62 +637,43 @@ async function navigateToUnknownRoute(
           preparation
         )
       }
-    }
-  }
-
-  let result: FetchServerResponseResult
-  if (replayedResult !== null) {
-    result = replayedResult
-  } else if (!process.env.__NEXT_PREPARE_NAVIGATION || preparation === null) {
-    result = await fetchServerResponse(url, {
-      flightRouterState: dynamicRequestTree,
-      nextUrl,
-    })
-  } else {
-    // This is a prepared navigation (`router.experimental_prepare()`). The
-    // prepare phase exposes its request on the record, so that a commit that
-    // starts before the response arrives can take it over instead of fetching
-    // again. Only one of the two phases processes the response.
-    if (freshnessPolicy === FreshnessPolicy.Prepare) {
-      const request = fetchServerResponse(url, {
-        flightRouterState: dynamicRequestTree,
-        nextUrl,
-        // The commit may need to decode the response again.
-        keepBytes: true,
-      })
-      preparation.inFlightRequest = request
-      preparation.inFlightRequestTree = dynamicRequestTree
-      result = await request
-      if (preparation.inFlightRequest !== request) {
-        // Only a commit clears the request before its response arrives, so
-        // the commit took it over and processes the response itself. The
-        // result of the prepare phase is discarded, so it doesn't matter what
-        // state is returned.
-        return state
+      // The prepare phase already learned the route and wrote the response
+      // into the cache. Only the decode is repeated.
+      const replayed = await replayServerResponse(completed.fetchResult)
+      if (replayed.revealAfter !== null) {
+        await replayed.revealAfter
       }
-      preparation.inFlightRequest = null
-      preparation.inFlightRequestTree = null
-    } else if (
-      preparation.inFlightRequest !== null &&
-      // The prepared request was made against the tree at the time it
-      // started. If the tree has changed since, or the BFCache was
-      // invalidated, the response is no longer usable.
-      preparation.inFlightRequestTree === dynamicRequestTree &&
-      preparation.bfcacheVersion === getBFCacheVersion()
-    ) {
-      // This is the commit, and the prepare phase is still waiting on its
-      // response. Take over its request instead of issuing another one.
-      const request = preparation.inFlightRequest
-      preparation.inFlightRequest = null
-      preparation.inFlightRequestTree = null
-      result = await request
+      return navigateToKnownRoute(
+        now,
+        state,
+        url,
+        completed.canonicalUrl,
+        createSeedFromResponse(now, currentFlightRouterState, replayed),
+        currentUrl,
+        currentRenderedSearch,
+        currentRoot,
+        FreshnessPolicy.CommitPreparedReplay,
+        nextUrl,
+        scrollBehavior,
+        navigateType,
+        navigationLock,
+        map,
+        replayed.debugInfo,
+        null,
+        undefined,
+        preparation
+      )
+    }
+    if (prepared !== null) {
+      // The prepare phase is still waiting on its response. Take over its
+      // request instead of issuing another one.
+      result = await prepared.request
       if (isServerResponseStreaming(result)) {
-        replayedResult = await replayServerResponse(result)
-        result = replayedResult
+        result = await replayServerResponse(result)
+        isReplayed = true
       }
     } else {
-      // This is the commit, and there's no usable prepared request to take
-      // over.
+      // There's no usable prepared request to take over.
       result = await fetchServerResponse(url, {
         flightRouterState: dynamicRequestTree,
         nextUrl,
@@ -677,37 +687,20 @@ async function navigateToUnknownRoute(
   }
 
   const {
-    transportData,
     canonicalUrl,
     renderedSearch,
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
-    dynamicStaleTime,
     isResponsePartial,
     flightResponse,
     responseChunks,
     debugInfo,
   } = result
 
-  // Since the response format of dynamic requests and prefetches is slightly
-  // different, we'll need to massage the data a bit. Create FlightRouterState
-  // tree that simulates what we'd receive as the result of a prefetch.
-  const navigationSeed = createNavigationSeed(
+  const navigationSeed = createSeedFromResponse(
     now,
     currentFlightRouterState,
-    transportData,
-    // Navigation responses stream in incrementally, so their vary params
-    // can't be drained here — and nothing consumes them from a navigation
-    // seed (only segment-cache writes read vary params, and those decode
-    // their own, buffered, payloads).
-    null,
-    isResponsePartial,
-    // Navigation responses always include the param values in the tree, so
-    // there's no pathname to parse them from (nor a need to).
-    null,
-    renderedSearch,
-    null,
-    dynamicStaleTime
+    result
   )
 
   // Learn the route pattern so we can predict it for future navigations.
@@ -797,10 +790,7 @@ async function navigateToUnknownRoute(
     currentUrl,
     currentRenderedSearch,
     currentRoot,
-    // A commit that decoded the response again renders from that decode, like
-    // a regular navigation, rather than from what the prepare phase wrote into
-    // the BFCache.
-    replayedResult !== null ? FreshnessPolicy.Default : freshnessPolicy,
+    isReplayed ? FreshnessPolicy.CommitPreparedReplay : freshnessPolicy,
     nextUrl,
     scrollBehavior,
     navigateType,
@@ -815,6 +805,103 @@ async function navigateToUnknownRoute(
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined,
     preparation
+  )
+}
+
+// Creates the seed for a navigation from a dynamic response. Since the
+// response format of dynamic requests and prefetches is slightly different,
+// this creates a tree that simulates what we'd receive from a prefetch.
+function createSeedFromResponse(
+  now: number,
+  currentFlightRouterState: FlightRouterState,
+  result: Exclude<FetchServerResponseResult, string>
+): NavigationSeed {
+  return createNavigationSeed(
+    now,
+    currentFlightRouterState,
+    result.transportData,
+    // Navigation responses stream in incrementally, so their vary params
+    // can't be drained here — and nothing consumes them from a navigation
+    // seed (only segment-cache writes read vary params, and those decode
+    // their own, buffered, payloads).
+    null,
+    result.isResponsePartial,
+    // Navigation responses always include the param values in the tree, so
+    // there's no pathname to parse them from (nor a need to).
+    null,
+    result.renderedSearch,
+    null,
+    result.dynamicStaleTime
+  )
+}
+
+// Whether the prepare phase fetched this route, made its request against
+// `requestTree`, and has processed the response while its body is still
+// streaming. The commit then takes the unknown-route path to decode the
+// response again. Doesn't take the response; see takePreparedResponse.
+function isPreparedResponseStreaming(
+  preparation: PreparedNavigationRecord,
+  requestTree: FlightRouterState
+): boolean {
+  const completed = preparation.completedNavigation
+  return (
+    completed !== null &&
+    completed.requestTree === requestTree &&
+    preparation.bfcacheVersion === getBFCacheVersion() &&
+    isServerResponseStreaming(completed.fetchResult)
+  )
+}
+
+// For the commit of a prepared navigation to a route that the prepare phase
+// fetched, takes what the prepare phase has: its processed response, if it
+// arrived, or its request, if it hasn't. Either is only usable if it was made
+// against the commit's tree and the BFCache wasn't invalidated since. Clears
+// both from the record.
+function takePreparedResponse(
+  preparation: PreparedNavigationRecord,
+  requestTree: FlightRouterState
+):
+  | {
+      completed: NonNullable<PreparedNavigationRecord['completedNavigation']>
+      request: null
+    }
+  | { completed: null; request: Promise<FetchServerResponseResult> }
+  | null {
+  const { completedNavigation, inFlightRequest, inFlightRequestTree } =
+    preparation
+  preparation.completedNavigation = null
+  preparation.inFlightRequest = null
+  preparation.inFlightRequestTree = null
+  if (preparation.bfcacheVersion !== getBFCacheVersion()) {
+    return null
+  }
+  if (
+    completedNavigation !== null &&
+    completedNavigation.requestTree === requestTree
+  ) {
+    return { completed: completedNavigation, request: null }
+  }
+  if (inFlightRequest !== null && inFlightRequestTree === requestTree) {
+    return { completed: null, request: inFlightRequest }
+  }
+  return null
+}
+
+// Whether the prepare phase's request for a route's dynamic data hasn't
+// finished arriving, and the BFCache entries it fills in are still usable.
+function isPreparedDynamicRequestPending(
+  preparation: PreparedNavigationRecord
+): boolean {
+  const dynamicRequest = preparation.dynamicRequest
+  if (
+    dynamicRequest === null ||
+    preparation.bfcacheVersion !== getBFCacheVersion()
+  ) {
+    return false
+  }
+  return (
+    dynamicRequest.result === null ||
+    isServerResponseStreaming(dynamicRequest.result)
   )
 }
 

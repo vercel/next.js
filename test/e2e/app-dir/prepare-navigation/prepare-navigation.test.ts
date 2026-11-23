@@ -459,6 +459,7 @@ describe('router.experimental_prepare', () => {
       const server = http.createServer((req, res) => {
         const isTarget =
           req.headers['rsc'] === '1' &&
+          req.headers['next-router-prefetch'] === undefined &&
           new URL(req.url!, app).pathname === pathname
         const upstream = http.request(
           {
@@ -505,8 +506,10 @@ describe('router.experimental_prepare', () => {
       }
     }
 
-    // Waits two frames, so the transition the click started has rendered and
-    // suspended on the response, and the response arrives after it.
+    // Waits two frames, which is usually long enough for the click's
+    // transition to render and suspend on the response. If it isn't, the shell
+    // arrives first and the test can pass without exercising a late-arriving
+    // response.
     async function waitForTwoFrames(page: Playwright.Page) {
       await page.evaluate(
         () =>
@@ -514,6 +517,19 @@ describe('router.experimental_prepare', () => {
             requestAnimationFrame(() => requestAnimationFrame(resolve))
           )
       )
+    }
+
+    // Prefetches the route with its link, so the router knows the route
+    // before the navigation is prepared.
+    async function prefetchRoute(page: Playwright.Page, pathname: string) {
+      const prefetched = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === pathname &&
+          !!response.request().headers()['next-router-prefetch']
+      )
+      await page.click(`input[data-link-accordion="${pathname}"]`)
+      await (await prefetched).finished()
+      await page.click(`input[data-link-accordion="${pathname}"]`)
     }
 
     async function waitForDataRequest(key: string) {
@@ -632,44 +648,89 @@ describe('router.experimental_prepare', () => {
     // enabled. The proxy doesn't forward the development server's WebSocket.
     // @force-gate !dev
     describe('is reported by Chrome as a soft navigation', () => {
-      for (const { scenario, holdResponse } of [
-        // The prepare phase has seeded the route from the response.
+      for (const { scenario, pathname, name, isRouteKnown, holdResponse } of [
         {
-          scenario: 'after the prepared response arrives',
+          // The prepare phase has seeded the route from its response.
+          scenario: 'after the prepared response starts arriving',
+          pathname: '/streaming-target',
+          name: 'streaming',
+          isRouteKnown: false,
           holdResponse: false,
         },
-        // The commit takes over the prepared request.
         {
+          // The commit takes over the prepared request.
           scenario: 'before the prepared response arrives',
+          pathname: '/streaming-target',
+          name: 'streaming',
+          isRouteKnown: false,
           holdResponse: true,
+        },
+        {
+          // The prepare phase requested the route's dynamic data, and wrote
+          // BFCache entries that wait on it.
+          scenario:
+            'after the prepared response starts arriving, for a prefetched route',
+          pathname: '/streaming-target',
+          name: 'streaming',
+          isRouteKnown: true,
+          holdResponse: false,
+        },
+        {
+          scenario:
+            'before the prepared response arrives, for a prefetched route',
+          pathname: '/streaming-target',
+          name: 'streaming',
+          isRouteKnown: true,
+          holdResponse: true,
+        },
+        {
+          // The prepare phase's BFCache entries are still fresh at the commit,
+          // so a regular navigation would reuse them.
+          scenario:
+            'after the prepared response starts arriving, for a page with a dynamic stale time',
+          pathname: '/streaming-stale',
+          name: 'stale',
+          isRouteKnown: false,
+          holdResponse: false,
         },
       ]) {
         it(`when committed ${scenario}`, async () => {
-          const proxy = await startProxy('/streaming-target', { holdResponse })
+          const proxy = await startProxy(pathname, { holdResponse })
           const chrome = await chromium.launch({
             headless: !!process.env.HEADLESS,
-            args: ['--enable-features=SoftNavigationHeuristics'],
+            // Playwright passes its own `--enable-features`, which a second
+            // one would replace.
+            args: ['--enable-blink-features=SoftNavigationHeuristics'],
           })
           try {
             const page = await chrome.newPage()
+            page.on('console', (message) => {
+              console.log(`Browser ${message.type()}: ${message.text()}`)
+            })
+            page.on('pageerror', (error) => {
+              console.log(`Browser page error: ${error.message}`)
+            })
             await page.goto(proxy.url)
             await page.waitForFunction(() => '__NEXT_HYDRATED' in window)
 
+            if (isRouteKnown) {
+              await prefetchRoute(page, pathname)
+            }
             const responseArrived = page.waitForResponse(
               (response) =>
-                new URL(response.url()).pathname === '/streaming-target'
+                new URL(response.url()).pathname === pathname &&
+                !response.request().headers()['next-router-prefetch']
             )
-            await pressPrepareLink(page, '/streaming-target')
-            await waitForDataRequest('streaming-shell')
+            await pressPrepareLink(page, pathname)
+            await waitForDataRequest(`${name}-shell`)
             if (!holdResponse) {
               await responseArrived
             }
             await page.mouse.up()
             proxy.release()
             await responseArrived
-            // The shell streams in only after the commit has suspended on it.
             await waitForTwoFrames(page)
-            resolveData('streaming-shell', 'Streaming target shell')
+            resolveData(`${name}-shell`, 'Streaming shell')
             await page.locator('#streaming-shell').waitFor()
 
             await retry(async () => {
@@ -679,7 +740,7 @@ describe('router.experimental_prepare', () => {
                     .getEntriesByType('soft-navigation')
                     .map((entry) => new URL(entry.name).pathname)
                 )
-              ).toEqual(['/streaming-target'])
+              ).toEqual([pathname])
             })
           } finally {
             await chrome.close()

@@ -612,8 +612,9 @@ export function isServerResponseStreaming(
  * React is then woken outside the task that's rendering. For example, the
  * browser doesn't attribute the URL change of a prepared navigation to the
  * click that committed it, so Chrome doesn't report it as a soft navigation.
- * This decode reads each chunk by awaiting a native promise from the caller's
- * task, so the rows it decodes wake React from there.
+ * This decode receives each chunk through a promise it awaits itself, so those
+ * continuations keep the caller's task attribution, and so do the rows it
+ * decodes.
  */
 export async function replayServerResponse(
   result: SpaFetchServerResponseResult

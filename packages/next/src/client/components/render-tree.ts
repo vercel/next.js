@@ -9,10 +9,16 @@ import {
 } from '../../shared/lib/segment'
 import { HEAD_REQUEST_KEY } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
-import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import {
+  fetchServerResponse,
+  isServerResponseStreaming,
+  replayServerResponse,
+  type FetchServerResponseResult,
+} from './router-reducer/fetch-server-response'
 import { dispatchAppRouterAction } from './use-action-queue'
 import {
   ACTION_SERVER_PATCH,
+  type PreparedNavigationRecord,
   type ServerPatchAction,
 } from './router-reducer/router-reducer-types'
 import { isNavigatingToNewRootLayout } from './router-reducer/is-navigating-to-new-root-layout'
@@ -108,8 +114,15 @@ export const enum FreshnessPolicy {
   // The commit phase of `router.experimental_prepare()`. A fresh navigation,
   // like Default, except that like HistoryTraversal it reads from the BFCache
   // regardless of stale time — but only entries written since the prepare
-  // phase started (`preparedAt`).
+  // phase started (`preparedAt`). If a response the prepare phase fetched is
+  // still streaming, the commit uses CommitPreparedReplay instead.
   CommitPrepared,
+  // The commit phase of `router.experimental_prepare()`, when a response the
+  // prepare phase fetched hasn't finished arriving. Behaves like Default, and
+  // skips the BFCache entries the prepare phase wrote, which read from the
+  // prepare phase's decode of that response. The commit decodes the response
+  // again instead. See replayServerResponse.
+  CommitPreparedReplay,
 }
 
 const enum NavigationTaskStatus {
@@ -417,6 +430,7 @@ function updateRenderTreeOnNavigation(
     case FreshnessPolicy.Default:
     case FreshnessPolicy.Prepare:
     case FreshnessPolicy.CommitPrepared:
+    case FreshnessPolicy.CommitPreparedReplay:
     case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Hydration:
     case FreshnessPolicy.Gesture:
@@ -458,6 +472,7 @@ function updateRenderTreeOnNavigation(
       case FreshnessPolicy.Default:
       case FreshnessPolicy.Prepare:
       case FreshnessPolicy.CommitPrepared:
+      case FreshnessPolicy.CommitPreparedReplay:
       case FreshnessPolicy.Gesture: {
         // If the existing data didn't read any of the params that changed, we
         // can keep using it. Refreshes always fetch new data, and back/forward
@@ -732,6 +747,7 @@ function accumulateScrollRef(
     case FreshnessPolicy.Default:
     case FreshnessPolicy.Prepare:
     case FreshnessPolicy.CommitPrepared:
+    case FreshnessPolicy.CommitPreparedReplay:
     case FreshnessPolicy.Gesture:
     case FreshnessPolicy.RefreshAll:
     case FreshnessPolicy.HMRRefresh:
@@ -1100,7 +1116,8 @@ function createRenderTreeForSegment(
       // Intentional fallthrough
     }
     case FreshnessPolicy.Default:
-    case FreshnessPolicy.Prepare: {
+    case FreshnessPolicy.Prepare:
+    case FreshnessPolicy.CommitPreparedReplay: {
       // Check BFCache during regular navigations. The entry's staleAt
       // determines whether it's still fresh. This is used when
       // staleTimes.dynamic is configured globally or when a page exports
@@ -1109,15 +1126,13 @@ function createRenderTreeForSegment(
         now,
         tree.varyPath
       )
-      // A prepared commit that decoded the response again renders from its
-      // own seed (Default), not from what the prepare phase wrote, which reads
-      // from the prepare phase's decode. See replayServerResponse.
-      const isWrittenSincePrepared =
-        freshness === FreshnessPolicy.Default &&
+      // Skip what the prepare phase wrote. See CommitPreparedReplay.
+      const isWrittenByPreparePhase =
+        freshness === FreshnessPolicy.CommitPreparedReplay &&
         preparedAt !== null &&
         bfcacheEntry !== null &&
         bfcacheEntry.navigatedAt >= preparedAt
-      if (bfcacheEntry !== null && !isWrittenSincePrepared) {
+      if (bfcacheEntry !== null && !isWrittenByPreparePhase) {
         // A regular navigation that happens to read cached data is still a
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
@@ -1432,7 +1447,10 @@ export function spawnDynamicRequests(
   // The segment cache map this navigation is bound to. See `segmentCacheMap`
   // in cache.ts.
   map: CacheMap<SegmentCacheEntry>,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  // Set during both phases of a prepared navigation. Null for all other
+  // navigations.
+  preparation: PreparedNavigationRecord | null
 ): void {
   let dynamicRequestTree = navigation.tree.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1468,7 +1486,8 @@ export function spawnDynamicRequests(
     routeCacheEntry,
     navigationLock,
     map,
-    signal
+    signal,
+    preparation
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1525,7 +1544,9 @@ export function spawnDynamicRequests(
             routeCacheEntry,
             navigationLock,
             map,
-            signal
+            signal,
+            // Only the primary request is shared with the prepare phase.
+            null
           )
         )
       }
@@ -1845,19 +1866,22 @@ async function fetchMissingDynamicData(
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   navigationLock: NavigationLock | null,
   map: CacheMap<SegmentCacheEntry>,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  preparation: PreparedNavigationRecord | null
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
   seed: NavigationSeed | null
 }> {
   try {
-    const result = await fetchServerResponse(url, {
-      flightRouterState: dynamicRequestTree,
+    const result = await fetchDynamicResponse(
+      url,
+      dynamicRequestTree,
       nextUrl,
-      isHmrRefresh: freshnessPolicy === FreshnessPolicy.HMRRefresh,
+      freshnessPolicy,
       signal,
-    })
+      preparation
+    )
     if (typeof result === 'string') {
       // fetchServerResponse will return an href to indicate that the SPA
       // navigation failed. For example, if the server triggered a hard
@@ -1991,6 +2015,55 @@ async function fetchMissingDynamicData(
       seed: null,
     }
   }
+}
+
+// Fetches a navigation's dynamic data. The prepare phase of a prepared
+// navigation keeps its request on the record, and a commit that starts before
+// that response has finished arriving takes it over instead of fetching again.
+async function fetchDynamicResponse(
+  url: URL,
+  dynamicRequestTree: FlightRouterState,
+  nextUrl: string | null,
+  freshnessPolicy: FreshnessPolicy,
+  signal: AbortSignal | undefined,
+  preparation: PreparedNavigationRecord | null
+): Promise<FetchServerResponseResult> {
+  const options = {
+    flightRouterState: dynamicRequestTree,
+    nextUrl,
+    isHmrRefresh: freshnessPolicy === FreshnessPolicy.HMRRefresh,
+    signal,
+  }
+  if (process.env.__NEXT_PREPARE_NAVIGATION && preparation !== null) {
+    if (freshnessPolicy === FreshnessPolicy.Prepare) {
+      const request = fetchServerResponse(url, { ...options, keepBytes: true })
+      const dynamicRequest: NonNullable<
+        PreparedNavigationRecord['dynamicRequest']
+      > = { request, requestTree: dynamicRequestTree, result: null }
+      preparation.dynamicRequest = dynamicRequest
+      request.then((result) => {
+        dynamicRequest.result = result
+      }, noop)
+      return request
+    }
+    if (freshnessPolicy === FreshnessPolicy.CommitPreparedReplay) {
+      const dynamicRequest = preparation.dynamicRequest
+      preparation.dynamicRequest = null
+      // The prepared request was made against the tree at the time it
+      // started. If the commit needs different data, fetch it instead.
+      if (
+        dynamicRequest !== null &&
+        JSON.stringify(dynamicRequest.requestTree) ===
+          JSON.stringify(dynamicRequestTree)
+      ) {
+        const result = await dynamicRequest.request
+        return isServerResponseStreaming(result)
+          ? replayServerResponse(result)
+          : result
+      }
+    }
+  }
+  return fetchServerResponse(url, options)
 }
 
 function writeDynamicDataIntoNavigationTask(

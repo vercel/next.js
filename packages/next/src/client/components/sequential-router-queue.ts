@@ -170,8 +170,9 @@ export function traverse(
  * BFCache.
  *
  * Calling `push` or `replace` on the result performs a regular navigation
- * that reuses anything the prepare phase wrote into the BFCache, regardless
- * of stale time, including data that is still streaming in. If the prepared
+ * that reuses what the prepare phase wrote into the BFCache, regardless of
+ * stale time. If a response the prepare phase fetched is still streaming, the
+ * commit decodes that response again instead. If the prepared
  * navigation is never committed, nothing else happens; the data stays in the
  * BFCache, where a back/forward navigation to an overlapping segment may
  * observe it.
@@ -189,6 +190,7 @@ export function prepare(href: string): PreparedNavigation {
     inFlightRequest: null,
     inFlightRequestTree: null,
     completedNavigation: null,
+    dynamicRequest: null,
   }
 
   // Resolve the URL now, so a relative href is committed against the location
