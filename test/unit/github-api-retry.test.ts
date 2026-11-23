@@ -2,11 +2,11 @@
 // scripts/github-utils/retry.js and its callers, scripts/github-utils/signed-commit.js
 // and scripts/pr-ci-comment.mjs. Fetch and sleep are stubbed, so no network is
 // used and no real backoff time passes.
-import { spawnSync } from 'node:child_process'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   DEFAULT_MAX_ATTEMPTS,
   fetchWithRetry,
@@ -386,6 +386,8 @@ describe('signed-commit createTreeFromLocalCommit', () => {
   })
 
   it('caps concurrent blob uploads and keeps the tree order', async () => {
+    const totalBlobs = 21
+    let started = 0
     let inFlight = 0
     let maxInFlight = 0
     let blobCount = 0
@@ -395,10 +397,21 @@ describe('signed-commit createTreeFromLocalCommit', () => {
         treeBody = body
         return { sha: 'tree-sha' }
       }
+      const index = started++
       inFlight++
       maxInFlight = Math.max(maxInFlight, inFlight)
+      // Hold each upload until the pool is full (or no more uploads can
+      // start), so the peak does not depend on how fast `git` runs.
+      const deadline = Date.now() + 10_000
+      while (
+        inFlight < BLOB_UPLOAD_CONCURRENCY &&
+        started < totalBlobs &&
+        Date.now() < deadline
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 1))
+      }
       // Finish out of order, so the tree order cannot come from completion order.
-      await new Promise((resolve) => setTimeout(resolve, 21 - blobCount))
+      await new Promise((resolve) => setTimeout(resolve, totalBlobs - index))
       const sha = `blob-${blobCount++}`
       inFlight--
       return { sha }
@@ -492,13 +505,17 @@ describe('pr-ci-comment.mjs', () => {
 
     const result = spawnSync(
       process.execPath,
-      ['--import', stub, 'scripts/pr-ci-comment.mjs'],
+      // `--import` takes a URL, and an absolute Windows path is not one.
+      ['--import', pathToFileURL(stub).href, 'scripts/pr-ci-comment.mjs'],
       {
         cwd: repoRoot,
         encoding: 'utf8',
         env: {
           NODE_ENV: 'test',
           PATH: process.env.PATH,
+          // Windows processes need these to start reliably.
+          SystemRoot: process.env.SystemRoot,
+          TEMP: process.env.TEMP,
           GITHUB_TOKEN: 'test-token',
           GITHUB_EVENT_PATH: eventPath,
           GITHUB_API_URL: 'https://api.github.test',
