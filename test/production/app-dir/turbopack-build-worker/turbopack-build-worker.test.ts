@@ -33,8 +33,8 @@ describe('turbopack-build-worker', () => {
     disableAutoSkewProtection: true,
   })
 
-  async function readTrace(): Promise<TraceEvent[]> {
-    const content = await readFile(join(next.testDir, '.next/trace'), 'utf8')
+  async function readTrace(file = '.next/trace'): Promise<TraceEvent[]> {
+    const content = await readFile(join(next.testDir, file), 'utf8')
     return content
       .split('\n')
       .filter(Boolean)
@@ -91,6 +91,19 @@ describe('turbopack-build-worker', () => {
       // Persistence happens during shutdown, so this is only present when the
       // build waited for the worker to finish persisting before ending it.
       expect(ancestors('turbopack-persistence')).toEqual(
+        expect.arrayContaining(['turbopack-build-worker', 'next-build'])
+      )
+    })
+
+    it('should keep the parents of the build worker spans in the filtered build trace', async () => {
+      const events = await readTrace('.next/trace-build')
+      const ids = new Set(events.map((e) => e.id))
+      expect(
+        events.filter((e) => e.parentId !== undefined && !ids.has(e.parentId))
+      ).toEqual([])
+      expect(
+        getAncestorNames(events, findEvent(events, 'turbopack-persistence'))
+      ).toEqual(
         expect.arrayContaining(['turbopack-build-worker', 'next-build'])
       )
     })
