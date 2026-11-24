@@ -38,6 +38,7 @@ const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
 type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = Readonly<{
   requestId?: string
+  parentRequestId?: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -102,6 +103,7 @@ class InMemoryRequestInsightsStore {
     const insight = this.getOrCreateRequest(
       {
         requestId: span.requestId,
+        parentRequestId: span.parentRequestId,
         kind: span.requestInsightKind,
         source: span.requestInsightSource,
         proxyStatus: span.requestInsightProxyStatus,
@@ -313,6 +315,7 @@ class InMemoryRequestInsightsStore {
       }
       insight = {
         requestId,
+        parentRequestId: identity.parentRequestId,
         kind: getRequestInsightKind(identity),
         source: getRequestInsightSource(identity),
         proxyStatus: identity.proxyStatus,
@@ -329,6 +332,8 @@ class InMemoryRequestInsightsStore {
     }
 
     insight.htmlRequestId = identity.htmlRequestId ?? insight.htmlRequestId
+    insight.parentRequestId =
+      identity.parentRequestId ?? insight.parentRequestId
     this.updateClassification(insight, identity)
     insight.route = insight.route ?? identity.route
     insight.url = insight.url ?? sanitizeUrl(identity.url)
@@ -353,11 +358,11 @@ class InMemoryRequestInsightsStore {
     insight: RequestInsight,
     fetch: RequestInsightFetch
   ): boolean {
-    if (
-      insight.fetches.some((existingFetch) =>
-        isSameRequestInsightFetch(existingFetch, fetch)
-      )
-    ) {
+    const existingFetch = insight.fetches.find((candidate) =>
+      isSameRequestInsightFetch(candidate, fetch)
+    )
+    if (existingFetch) {
+      existingFetch.parentSpanId ??= fetch.parentSpanId
       return false
     }
 
@@ -434,6 +439,8 @@ export function registerRequestInsightsExporter(): void {
 }
 
 function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
+  const preserveAttributes =
+    span.attributes?.['next.span_category'] === 'opentelemetry'
   return {
     name: sanitizeSpanName(span),
     startTime: span.startTime ?? span.timestamp,
@@ -442,9 +449,9 @@ function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
     traceId: span.traceId,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
-    attributes: sanitizeSpanAttributes(span.attributes),
-    links: sanitizeSpanLinks(span.links),
-    events: sanitizeSpanEvents(span.events),
+    attributes: sanitizeSpanAttributes(span.attributes, preserveAttributes),
+    links: sanitizeSpanLinks(span.links, preserveAttributes),
+    events: sanitizeSpanEvents(span.events, preserveAttributes),
     error: span.error,
   }
 }
@@ -561,6 +568,7 @@ function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {
   }
 
   return {
+    parentSpanId: span.parentSpanId,
     url: sanitizeUrl(getStringAttribute(attributes['http.url']) ?? span.url),
     method: getStringAttribute(attributes['http.method']),
     statusCode: getNumberAttribute(attributes['http.status_code']),
@@ -610,7 +618,8 @@ function getCurrentTimestamp(): number {
 }
 
 function sanitizeSpanAttributes(
-  attributes: SpanStoreRecord['attributes']
+  attributes: SpanStoreRecord['attributes'],
+  preserveAll = false
 ): SpanStoreRecord['attributes'] {
   if (!attributes) {
     return undefined
@@ -622,12 +631,13 @@ function sanitizeSpanAttributes(
       ? getSanitizedFetchSpanName(attributes)
       : undefined
   for (const [key, value] of Object.entries(attributes)) {
-    if (!SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
+    if (!preserveAll && !SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
       continue
     }
 
-    sanitized[key] =
-      key === 'http.url'
+    sanitized[key] = preserveAll
+      ? value
+      : key === 'http.url'
         ? sanitizeUrlAttribute(value)
         : key === 'next.span_name' && sanitizedFetchSpanName
           ? sanitizedFetchSpanName
@@ -657,20 +667,22 @@ function getSanitizedFetchSpanName(
 }
 
 function sanitizeSpanEvents(
-  events: SpanStoreRecord['events']
+  events: SpanStoreRecord['events'],
+  preserveAttributes = false
 ): SpanStoreRecord['events'] {
   return events?.map((event) => ({
     ...event,
-    attributes: sanitizeSpanAttributes(event.attributes),
+    attributes: sanitizeSpanAttributes(event.attributes, preserveAttributes),
   }))
 }
 
 function sanitizeSpanLinks(
-  links: SpanStoreRecord['links']
+  links: SpanStoreRecord['links'],
+  preserveAttributes = false
 ): SpanStoreRecord['links'] {
   return links?.map((link) => ({
     ...link,
-    attributes: sanitizeSpanAttributes(link.attributes),
+    attributes: sanitizeSpanAttributes(link.attributes, preserveAttributes),
   }))
 }
 

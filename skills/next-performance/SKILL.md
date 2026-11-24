@@ -1,9 +1,10 @@
 ---
 name: next-performance
 description: >
-  Diagnose Next.js performance. Use for slow or intermittent App Router
-  requests, browser startup or navigation, excessive client JavaScript, or an
-  unknown server-versus-browser bottleneck.
+  Slow Next.js app: load as the first step, before measuring anything yourself.
+  Use when a route or request is slow or intermittent (including monorepo apps
+  the user names without saying Next.js), browser startup or navigation is
+  slow, client JavaScript is heavy, or the slow side is unknown.
 ---
 
 # Next.js performance
@@ -13,17 +14,10 @@ Default: diagnose. Edit only on explicit request.
 ## Route the bottleneck
 
 - **Server request:** For slow or intermittent App Router requests, keep the
-  current development server running and run first:
-
-  ```bash
-  ./node_modules/.bin/next experimental-request-insights --help
-  ```
-
-  Follow it. If Request Insights is disabled, remove
-  `experimental.requestInsights: false` from `next.config`, restart the same
-  development command, wait until it is ready, and reproduce the affected
-  request once. Inspect that request. State that an unrecorded original
-  request cannot be recovered.
+  current development server running. Reproduce the affected request, then use
+  its local `next experimental-request-insights list` to find the page or API
+  request and `get` to inspect it. Pass `--url` if lockfile discovery cannot
+  find a custom dev server. The server retains up to 500 completed requests.
 
 - **Browser:** For slow startup or navigation, or excess client JavaScript, use
   `next-bundle-optimizer` in audit mode. If unavailable, install it:

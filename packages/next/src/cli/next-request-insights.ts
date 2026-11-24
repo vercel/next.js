@@ -27,6 +27,7 @@ export type NextRequestInsightsOptions = {
   requestId?: string
   kind?: RequestInsightKind
   route?: string
+  sort?: 'newest' | 'start'
   view?: 'list'
 }
 
@@ -38,7 +39,6 @@ export async function nextRequestInsights(
     ? parseDevServerUrl(options.url)
     : await discoverDevServerUrl(directory)
   const endpoint = new URL(REQUEST_INSIGHTS_DEV_ENDPOINT, devServerUrl)
-
   const response = await fetch(endpoint).catch((error) => {
     printAndExit(
       `Failed to reach ${endpoint.toString()}: ${error instanceof Error ? error.message : String(error)}`,
@@ -75,7 +75,12 @@ export async function nextRequestInsights(
       ? data.requests.filter((request) => matchesRoute(request, route))
       : data.requests
     const limit = options.limit ?? DEFAULT_REQUEST_LIMIT
-    const visibleRequests = requests.slice(-limit).reverse()
+    const visibleRequests =
+      options.sort === 'start'
+        ? [...requests]
+            .sort((first, second) => first.startTime - second.startTime)
+            .slice(0, limit)
+        : requests.slice(-limit).reverse()
     if (options.json) {
       console.log(
         JSON.stringify(
@@ -85,7 +90,12 @@ export async function nextRequestInsights(
         )
       )
     } else {
-      printRequestList(visibleRequests, requests.length)
+      printRequestList(
+        visibleRequests,
+        requests.length,
+        data.requests,
+        options.sort === 'start'
+      )
     }
     return
   }
@@ -102,7 +112,7 @@ export async function nextRequestInsights(
   }
 
   if (selectedRequest) {
-    printRequestDetails(selectedRequest)
+    printRequestDetails(selectedRequest, data.requests)
     return
   }
 
@@ -114,7 +124,7 @@ export async function nextRequestInsights(
 
   const limit = options.limit ?? DEFAULT_REQUEST_LIMIT
   const visibleRequests = requests.slice(-limit).reverse()
-  printRequestList(visibleRequests, requests.length)
+  printRequestList(visibleRequests, requests.length, data.requests)
 }
 
 function summarizeListRequest(request: RequestInsight) {
@@ -139,11 +149,18 @@ function summarizeListRequest(request: RequestInsight) {
 
 function printRequestList(
   visibleRequests: RequestInsight[],
-  totalRequests: number
+  totalRequests: number,
+  retainedRequests: RequestInsight[],
+  timeline = false
 ): void {
   console.log(
     `Showing ${visibleRequests.length} of ${totalRequests} retained requests (newest first).`
   )
+
+  const firstStart = Math.min(
+    ...retainedRequests.map((request) => request.startTime)
+  )
+  const displayIds = getUniqueDisplayIds(retainedRequests)
 
   for (const request of visibleRequests) {
     const route = request.route ?? request.url ?? request.requestId
@@ -153,8 +170,21 @@ function printRequestList(
       `${kind === 'instant-insights' ? `Instant Insights · ${route}` : route} ${duration} ${request.status ?? 'pending'}`
     )
     console.log(
-      `  kind ${kind} request ${shortId(request.requestId)} page ${shortId(request.htmlRequestId)}`
+      `  kind ${kind} id ${displayIds.get(request) ?? request.requestId} page ${shortId(request.htmlRequestId)}`
     )
+    if (request.parentRequestId) {
+      console.log(`  parent ${request.parentRequestId}`)
+    }
+    if (timeline) {
+      const start = request.startTime - firstStart
+      const end =
+        typeof request.durationMs === 'number'
+          ? start + request.durationMs
+          : undefined
+      console.log(
+        `  timeline +${formatDuration(start)} to ${end === undefined ? 'pending' : `+${formatDuration(end)}`}`
+      )
+    }
 
     const visibleFetches = request.fetches.slice(0, DEFAULT_FETCH_LIMIT)
     if (visibleFetches.length < request.fetches.length) {
@@ -201,7 +231,12 @@ function findRequest(
   const matchedIds = new Set(matches.map((request) => request.requestId))
   if (matchedIds.size > 1) {
     return exitWithError(
-      `Request ID prefix "${id}" is ambiguous (${matchedIds.size} matches).`
+      `Request ID prefix "${id}" is ambiguous (${matchedIds.size} matches).\nCandidates:\n${matches
+        .map(
+          (request) =>
+            `  ${request.requestId} ${getRequestInsightKind(request)} ${request.route ?? request.url ?? '-'}`
+        )
+        .join('\n')}`
     )
   }
   // Instant Insights entries share the request ID of the request they validated.
@@ -211,13 +246,29 @@ function findRequest(
   )
 }
 
-function printRequestDetails(request: RequestInsight): void {
+function printRequestDetails(
+  request: RequestInsight,
+  retainedRequests: RequestInsight[]
+): void {
   const route = request.route ?? request.url ?? request.requestId
   console.log(
     `${route} ${formatDuration(request.durationMs)} ${request.status}`
   )
   console.log(`  request ${request.requestId}`)
   console.log(`  page ${request.htmlRequestId}`)
+  if (request.parentRequestId) {
+    console.log(`  parent ${request.parentRequestId}`)
+  }
+
+  const overlaps = getOverlappingRequests(request, retainedRequests)
+  if (overlaps.length > 0) {
+    console.log('  Overlapping requests:')
+    for (const overlap of overlaps) {
+      console.log(
+        `    ${formatDuration(overlap.durationMs)} ${getRequestInsightKind(overlap.request)} ${overlap.request.requestId} ${overlap.request.route ?? overlap.request.url ?? '-'}`
+      )
+    }
+  }
 
   if (request.spans.length === 0) {
     console.log('  No spans recorded.')
@@ -244,23 +295,41 @@ function printRequestDetails(request: RequestInsight): void {
       )
     }
   }
+
+  const shellWait = request.spans.find(
+    (span) =>
+      span.attributes?.['next.span_type'] === 'AppRender.waitShellReady' ||
+      span.name === 'AppRender.waitShellReady'
+  )
+  if (
+    typeof shellWait?.durationMs === 'number' &&
+    shellWait.durationMs >= 100 &&
+    shellWait.durationMs >= (request.durationMs ?? 0) / 2
+  ) {
+    console.log(
+      '  Shell readiness dominates this request. Component-level timing is not currently captured.'
+    )
+  }
 }
 
 async function discoverDevServerUrl(directory?: string): Promise<URL> {
   const projectDir = getProjectDir(directory)
-  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, projectDir)
-  const lockfilePath = path.join(projectDir, config.distDir, 'lock')
+  const defaultLockfilePath = path.join(projectDir, '.next', 'lock')
+  const defaultServerUrl = readDevServerUrl(defaultLockfilePath)
+  if (defaultServerUrl) return defaultServerUrl
+
+  let lockfilePath = defaultLockfilePath
+  try {
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, projectDir)
+    lockfilePath = path.join(projectDir, config.distDir, 'lock')
+  } catch {
+    // Discovery must not fail because application config has side effects.
+  }
   const deadline = Date.now() + DEV_SERVER_DISCOVERY_TIMEOUT_MS
 
   while (Date.now() < deadline) {
-    const lockfileContent = readLockfileContent(lockfilePath)
-    const serverInfo = lockfileContent
-      ? parseDevServerInfo(lockfileContent)
-      : undefined
-
-    if (serverInfo && typeof serverInfo.appUrl === 'string') {
-      return parseDevServerUrl(serverInfo.appUrl)
-    }
+    const serverUrl = readDevServerUrl(lockfilePath)
+    if (serverUrl) return serverUrl
 
     await new Promise((resolve) =>
       setTimeout(resolve, DEV_SERVER_DISCOVERY_RETRY_MS)
@@ -270,6 +339,16 @@ async function discoverDevServerUrl(directory?: string): Promise<URL> {
   return exitWithError(
     `Unable to discover a running Next.js dev server from ${lockfilePath}. Start next dev or pass --url.`
   )
+}
+
+function readDevServerUrl(lockfilePath: string): URL | undefined {
+  const lockfileContent = readLockfileContent(lockfilePath)
+  const serverInfo = lockfileContent
+    ? parseDevServerInfo(lockfileContent)
+    : undefined
+  return serverInfo && typeof serverInfo.appUrl === 'string'
+    ? parseDevServerUrl(serverInfo.appUrl)
+    : undefined
 }
 
 function exitWithError(message: string): never {
@@ -346,4 +425,53 @@ function shortId(id: string | undefined): string {
   }
 
   return id.length > 8 ? id.slice(0, 8) : id
+}
+
+function getUniqueDisplayIds(
+  requests: RequestInsight[]
+): Map<RequestInsight, string> {
+  const result = new Map<RequestInsight, string>()
+  for (const request of requests) {
+    let length = Math.min(8, request.requestId.length)
+    while (
+      length < request.requestId.length &&
+      !isUniqueRequestPrefix(requests, request, length)
+    ) {
+      length++
+    }
+    result.set(request, request.requestId.slice(0, length))
+  }
+  return result
+}
+
+function isUniqueRequestPrefix(
+  requests: RequestInsight[],
+  request: RequestInsight,
+  length: number
+): boolean {
+  const prefix = request.requestId.slice(0, length)
+  return !requests.some(
+    (candidate) =>
+      candidate !== request && candidate.requestId.startsWith(prefix)
+  )
+}
+
+function getOverlappingRequests(
+  request: RequestInsight,
+  requests: RequestInsight[]
+): Array<{ request: RequestInsight; durationMs: number }> {
+  const requestEnd = request.startTime + (request.durationMs ?? 0)
+  return requests
+    .filter((candidate) => candidate !== request)
+    .map((candidate) => {
+      const candidateEnd = candidate.startTime + (candidate.durationMs ?? 0)
+      return {
+        request: candidate,
+        durationMs:
+          Math.min(requestEnd, candidateEnd) -
+          Math.max(request.startTime, candidate.startTime),
+      }
+    })
+    .filter((overlap) => overlap.durationMs > 0)
+    .sort((first, second) => second.durationMs - first.durationMs)
 }

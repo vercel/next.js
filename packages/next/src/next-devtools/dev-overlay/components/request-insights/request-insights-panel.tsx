@@ -872,12 +872,7 @@ function RequestDetails({
         <div className="request-insights-diagnosis">{diagnosis}</div>
       ) : null}
 
-      <Trace
-        items={traceItems}
-        key={getRequestInsightKey(request)}
-        request={request}
-      />
-
+      <Trace items={traceItems} request={request} />
       <FetchTable fetches={request.fetches} />
     </div>
   )
@@ -936,6 +931,7 @@ function Trace({
   const [contextMenuItemId, setContextMenuItemId] = useState<string | null>(
     null
   )
+  const [inspectedItemId, setInspectedItemId] = useState<string | null>(null)
   const [activeTraceRow, setActiveTraceRow] = useState<HTMLElement | null>(null)
   const [isTraceFocused, setIsTraceFocused] = useState(false)
   const [isTraceTooltipOpen, setIsTraceTooltipOpen] = useState(false)
@@ -949,11 +945,13 @@ function Trace({
   const displayedItemId =
     contextMenuItemId ??
     hoveredItemId ??
-    (isTraceFocused ? items[safeActiveItemIndex]?.id : null)
+    (isTraceFocused ? items[safeActiveItemIndex]?.id : null) ??
+    inspectedItemId
   const displayedItemIndex = items.findIndex(
     (item) => item.id === displayedItemId
   )
   const activeItem = items[displayedItemIndex] ?? items[safeActiveItemIndex]
+  const inspectedItem = items.find((item) => item.id === inspectedItemId)
   const activeItemDescription = activeItem
     ? getTraceItemDescription(activeItem, range)
     : null
@@ -990,6 +988,20 @@ function Trace({
         return
       }
 
+      if (event.key === 'Escape' && inspectedItemId !== null) {
+        event.preventDefault()
+        setInspectedItemId(null)
+        return
+      }
+      if (
+        (event.key === 'Enter' || event.key === ' ') &&
+        safeActiveItemIndex !== -1
+      ) {
+        event.preventDefault()
+        setInspectedItemId(items[safeActiveItemIndex].id)
+        return
+      }
+
       const nextIndex = getTraceNavigationIndex(
         activeItemIndex,
         items.length,
@@ -1004,7 +1016,7 @@ function Trace({
       setHoveredItemId(null)
       setActiveItemId(items[nextIndex]?.id ?? null)
     },
-    [activeItemIndex, items]
+    [activeItemIndex, inspectedItemId, items, safeActiveItemIndex]
   )
   const handleTracePointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -1015,6 +1027,7 @@ function Trace({
 
       const row = target.closest<HTMLElement>('[data-trace-index]')
       if (row === null || !event.currentTarget.contains(row)) {
+        setHoveredItemId(null)
         return
       }
 
@@ -1045,6 +1058,7 @@ function Trace({
       <div className="request-insights-trace-viewport">
         <div
           className="request-insights-trace"
+          data-inspector-open={inspectedItem !== undefined || undefined}
           onPointerLeave={() => setHoveredItemId(null)}
           onPointerMove={handleTracePointerMove}
         >
@@ -1123,10 +1137,15 @@ function Trace({
                       }
                       className="request-insights-span-row"
                       data-active={index === displayedItemIndex || undefined}
+                      data-category={item.category}
                       data-kind={item.kind}
                       data-trace-item-id={item.id}
                       data-trace-index={index}
                       id={`${traceId}-item-${index}`}
+                      onClick={() => {
+                        setActiveItemId(item.id)
+                        setInspectedItemId(item.id)
+                      }}
                       onContextMenu={() => setActiveItemId(item.id)}
                       ref={
                         index === displayedItemIndex
@@ -1142,15 +1161,27 @@ function Trace({
                         <span className="request-insights-span-label">
                           <span
                             className="request-insights-span-marker"
+                            data-category={item.category}
                             data-kind={item.kind}
                             data-status={item.status}
                           />
-                          <span>{item.label}</span>
+                          <span className="request-insights-span-title">
+                            {item.label}
+                          </span>
+                          {item.attributeLabel ? (
+                            <span
+                              className="request-insights-span-attribute-label"
+                              title={item.attributeLabel}
+                            >
+                              {item.attributeLabel}
+                            </span>
+                          ) : null}
                         </span>
                       </span>
                       <span className="request-insights-span-track">
                         <span
                           className="request-insights-span-bar"
+                          data-category={item.category}
                           data-status={item.status}
                           style={{
                             left: `${position.left}%`,
@@ -1167,10 +1198,118 @@ function Trace({
               })}
             </div>
           </Tooltip>
+          {inspectedItem ? (
+            <TraceInspector
+              item={inspectedItem}
+              onClose={() => setInspectedItemId(null)}
+              range={range}
+            />
+          ) : null}
         </div>
       </div>
     </div>
   )
+}
+
+function TraceInspector({
+  item,
+  onClose,
+  range,
+}: {
+  item: TraceItem
+  onClose: () => void
+  range: ReturnType<typeof getTraceRange>
+}) {
+  const position = getTracePosition(item, range)
+  const attributes = Object.entries(item.attributes ?? {}).sort(([a], [b]) =>
+    a.localeCompare(b)
+  )
+
+  return (
+    <div
+      aria-label={`Span details for ${item.fullLabel ?? item.label}`}
+      className="request-insights-trace-inspector"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          onClose()
+        }
+      }}
+      role="region"
+    >
+      <div className="request-insights-trace-inspector-header">
+        <div>
+          <strong>{item.fullLabel ?? item.label}</strong>
+          <span>
+            {getTraceCategoryLabel(item.category)} · +
+            {formatDuration(position.offsetMs)} ·{' '}
+            {formatDuration(item.durationMs)}
+            {' · '}
+            {item.status}
+          </span>
+        </div>
+        <button
+          aria-label="Close span details"
+          className="request-insights-trace-inspector-close"
+          onClick={onClose}
+          type="button"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      {item.traceId || item.spanId || item.parentSpanId ? (
+        <dl className="request-insights-trace-inspector-metadata">
+          {item.traceId ? (
+            <>
+              <dt>Trace ID</dt>
+              <dd>{item.traceId}</dd>
+            </>
+          ) : null}
+          {item.spanId ? (
+            <>
+              <dt>Span ID</dt>
+              <dd>{item.spanId}</dd>
+            </>
+          ) : null}
+          {item.parentSpanId ? (
+            <>
+              <dt>Parent span ID</dt>
+              <dd>{item.parentSpanId}</dd>
+            </>
+          ) : null}
+        </dl>
+      ) : null}
+      <div className="request-insights-trace-inspector-attributes">
+        <strong>Attributes ({attributes.length})</strong>
+        {attributes.length > 0 ? (
+          <dl>
+            {attributes.map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{formatSpanAttributeValue(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <span className="request-insights-muted">No attributes</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function formatSpanAttributeValue(
+  value: NonNullable<TraceItem['attributes']>[string]
+) {
+  return Array.isArray(value) ? JSON.stringify(value) : String(value)
+}
+
+function getTraceCategoryLabel(category: TraceItem['category']): string {
+  return category === 'nextjs'
+    ? 'Next.js'
+    : category === 'opentelemetry'
+      ? 'OpenTelemetry'
+      : 'Application'
 }
 
 function TraceSpanContextMenu({
@@ -1217,7 +1356,7 @@ function TraceSpanContextMenu({
               <div className="request-insights-context-preview">
                 <strong title={label}>{label}</strong>
                 <span>
-                  {item.category === 'nextjs' ? 'Next.js' : 'Application'} ·{' '}
+                  {getTraceCategoryLabel(item.category)} ·{' '}
                   {formatDuration(item.durationMs)} · {item.status}
                 </span>
                 <code title={spanId}>{spanId}</code>
@@ -1353,6 +1492,7 @@ function getRequestOverview(request: RequestInsight) {
     statusCode,
     statusLabel: statusCode ?? request.status,
     kind: getRequestInsightSummaryTypeLabel(request),
+    fetchCount: request.fetches.length,
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',

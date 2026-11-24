@@ -506,13 +506,6 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
-    if (
-      (dev || process.env.__NEXT_DEV_SERVER) &&
-      this.nextConfig.experimental.requestInsights !== false
-    ) {
-      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    }
-
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(

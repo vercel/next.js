@@ -202,8 +202,10 @@ export async function traceLocalSpan<T>(
 }
 
 export type LocalSpanRecorder = {
+  captureLocalSpanRecorder: typeof captureLocalSpanRecorder
   createLocalSpan: typeof createLocalSpan
   getActiveLocalSpan: typeof getActiveLocalSpan
+  getCurrentRequestIdentity: typeof getCurrentRequestIdentity
   getLocalParentSpan: typeof getLocalParentSpan
   getOpenTelemetrySpan: typeof getOpenTelemetrySpan
   isLocalRecordingSpan: typeof isLocalRecordingSpan
@@ -231,8 +233,10 @@ function getLocalSpanRecorderApi({
   sinkOnly: boolean
 }): LocalSpanRecorder {
   return {
+    captureLocalSpanRecorder,
     createLocalSpan,
     getActiveLocalSpan,
+    getCurrentRequestIdentity,
     getLocalParentSpan,
     getOpenTelemetrySpan,
     isLocalRecordingSpan,
@@ -262,8 +266,9 @@ function getLocalSpanAsyncStorage() {
   }>('local-span-storage')
 }
 
-type RequestIdentity = {
+export type RequestIdentity = {
   requestId?: string
+  parentRequestId?: string
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus
@@ -487,6 +492,7 @@ class LocalRecordingSpan implements Span {
         spanId: this.spanContextValue.spanId,
         parentSpanId: this.parentSpanId,
         requestId: this.requestIdentity.requestId,
+        parentRequestId: this.requestIdentity.parentRequestId,
         requestInsightKind: this.requestIdentity.requestInsightKind,
         requestInsightSource: this.requestIdentity.requestInsightSource,
         requestInsightProxyStatus:
@@ -671,7 +677,7 @@ function getSpanStoreExceptionAttributes(
   return Object.keys(attributes).length > 0 ? attributes : undefined
 }
 
-function getCurrentRequestIdentity(): RequestIdentity {
+export function getCurrentRequestIdentity(): RequestIdentity {
   try {
     const { getRequestInsightsIdentity } =
       require('./request-insights-identity') as typeof import('./request-insights-identity')
@@ -687,6 +693,7 @@ function getCurrentRequestIdentity(): RequestIdentity {
 
     return {
       requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+      parentRequestId: requestInsightsIdentity?.parentRequestId,
       requestInsightKind: requestInsightsIdentity?.kind,
       requestInsightSource: requestInsightsIdentity?.source,
       requestInsightProxyStatus: requestInsightsIdentity?.proxyStatus,

@@ -656,7 +656,6 @@ export interface ExperimentalConfig {
    * without an external OTEL collector. Enabled by default; set to `false` to
    * disable recording, the dev tools panel, and the CLI endpoint.
    */
-  requestInsights?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -2725,7 +2724,6 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
-    | 'requestInsights'
     | 'externalBrowserRuntime'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2799,7 +2797,6 @@ export function getNextConfigRuntime(
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
-    requestInsights: ex.requestInsights,
     externalBrowserRuntime: ex.externalBrowserRuntime,
 
     goRoutes: ex.goRoutes,

@@ -148,6 +148,16 @@ describe('request insights trace viewer', () => {
     })
     const api = createRequest({ requestId: 'api', source: 'app-route' })
     const asset = createRequest({ requestId: 'asset', source: 'asset' })
+    const otel = createRequest({
+      requestId: 'otel',
+      spans: [
+        {
+          name: 'database query',
+          startTime: 100,
+          attributes: { 'next.span_category': 'opentelemetry' },
+        },
+      ],
+    })
 
     expect(getRequestInsightRowType(page, true).label).toBe('Page load')
     expect(getRequestInsightRowType(rsc).label).toBe('RSC')
@@ -167,11 +177,21 @@ describe('request insights trace viewer', () => {
       getRequestInsightFilterResult([page, rsc, api, asset], ['source:asset'])
         .requests
     ).toEqual([asset])
-    const summaries = [page, rsc, api, asset].map(summarizeRequestInsight)
+    expect(
+      getRequestInsightFilterResult(
+        [page, rsc, api, asset, otel],
+        ['activity:opentelemetry']
+      ).requests
+    ).toEqual([otel])
+    const summaries = [page, rsc, api, asset, otel].map(summarizeRequestInsight)
     expect(
       getRequestInsightFilterResult(summaries, ['source:page', 'cache:miss'])
         .requests
     ).toEqual([summaries[0]])
+    expect(
+      getRequestInsightFilterResult(summaries, ['activity:opentelemetry'])
+        .requests
+    ).toEqual([summaries[4]])
   })
 
   it('only marks the exact initial document request as the page load', () => {
@@ -683,7 +703,7 @@ describe('request insights trace viewer', () => {
     )
   })
 
-  it('uses exactly Next.js and Application categories', () => {
+  it('distinguishes Next.js, application, and OpenTelemetry spans', () => {
     const request = createRequest({
       spans: [
         {
@@ -708,19 +728,49 @@ describe('request insights trace viewer', () => {
           name: 'custom database span',
           startTime: 120,
           durationMs: 10,
+          attributes: {
+            'next.span_category': 'opentelemetry',
+            'db.operation.name': 'SELECT',
+          },
+        },
+        {
+          name: 'flag',
+          startTime: 130,
+          durationMs: 5,
+          attributes: {
+            'next.span_category': 'opentelemetry',
+            'feature_flag.key': 'checkout-redesign',
+            'feature_flag.result.variant': 'treatment',
+          },
         },
       ],
     })
 
     expect(
-      getTraceItems(request, true).map(({ label, category }) => ({
-        label,
-        category,
-      }))
+      getTraceItems(request, true).map(
+        ({ label, category, attributeLabel }) => ({
+          label,
+          category,
+          attributeLabel,
+        })
+      )
     ).toEqual([
-      { label: 'render', category: 'nextjs' },
-      { label: 'generate metadata /', category: 'application' },
-      { label: 'custom database span', category: 'application' },
+      { label: 'render', category: 'nextjs', attributeLabel: undefined },
+      {
+        label: 'generate metadata /',
+        category: 'application',
+        attributeLabel: undefined,
+      },
+      {
+        label: 'custom database span',
+        category: 'opentelemetry',
+        attributeLabel: 'SELECT',
+      },
+      {
+        label: 'flag',
+        category: 'opentelemetry',
+        attributeLabel: 'checkout-redesign = treatment',
+      },
     ])
   })
 

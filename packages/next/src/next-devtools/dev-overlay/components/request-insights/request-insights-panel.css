@@ -721,7 +721,18 @@
 }
 
 .request-insights-trace {
+  display: flex;
+  max-height: min(560px, 70vh);
   min-width: 560px;
+  flex-direction: column;
+}
+
+.request-insights-trace-rows {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .request-insights-trace-header,
@@ -787,11 +798,6 @@
   text-align: right;
 }
 
-.request-insights-trace-rows {
-  display: flex;
-  flex-direction: column;
-}
-
 .request-insights-trace-rows:focus-visible {
   outline: var(--focus-ring);
   outline-offset: -1px;
@@ -800,6 +806,7 @@
 .request-insights-span-row {
   min-height: 28px;
   border-bottom: 1px solid var(--color-gray-300);
+  cursor: pointer;
 }
 
 .request-insights-span-row[data-active='true'] {
@@ -822,8 +829,7 @@
 }
 
 .request-insights-span-name[data-react-source-link]:hover
-  .request-insights-span-label
-  > span:last-child {
+  .request-insights-span-title {
   color: var(--color-gray-1000);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -836,9 +842,26 @@
   min-width: 0;
 }
 
-.request-insights-span-label > span:last-child,
+.request-insights-span-title,
 .request-insights-fetch-url > span:first-child {
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-insights-span-attribute-label {
+  max-width: 140px;
+  min-width: 0;
+  padding: 1px 5px;
+  overflow: hidden;
+  flex: 0 1 auto;
+  border-radius: 999px;
+  background: var(--color-gray-300);
+  color: var(--color-gray-900);
+  font-family: var(--font-mono);
+  font-size: var(--size-11);
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -853,6 +876,10 @@
 
 .request-insights-span-marker[data-kind='fetch'] {
   background: var(--color-purple-700);
+}
+
+.request-insights-span-marker[data-category='opentelemetry'] {
+  background: var(--color-green-800);
 }
 
 .request-insights-span-row .request-insights-span-marker[data-status='error'] {
@@ -894,8 +921,116 @@
   background: var(--color-purple-700);
 }
 
+.request-insights-span-bar[data-category='opentelemetry'] {
+  background: var(--color-green-800);
+}
+
 .request-insights-span-row .request-insights-span-bar[data-status='error'] {
   background: var(--color-red-800);
+}
+
+.request-insights-trace-inspector {
+  min-height: 150px;
+  max-height: min(240px, 35vh);
+  padding: 10px 12px;
+  overflow: auto;
+  flex: 0 1 auto;
+  border-top: 1px solid var(--color-gray-500);
+  background: var(--color-background-100);
+  color: var(--color-gray-900);
+  font-size: var(--size-12);
+}
+
+.request-insights-trace-inspector-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.request-insights-trace-inspector-header > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.request-insights-trace-inspector-header strong {
+  overflow: hidden;
+  color: var(--color-gray-1000);
+  font-size: var(--size-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-insights-trace-inspector-header span {
+  color: var(--color-gray-800);
+}
+
+.request-insights-trace-inspector-close {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-gray-900);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.request-insights-trace-inspector-close:hover {
+  background: var(--color-gray-300);
+  color: var(--color-gray-1000);
+}
+
+.request-insights-trace-inspector-close:focus-visible {
+  outline: var(--focus-ring);
+}
+
+.request-insights-trace-inspector-metadata,
+.request-insights-trace-inspector-attributes dl {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+}
+
+.request-insights-trace-inspector-metadata {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+}
+
+.request-insights-trace-inspector-metadata dt,
+.request-insights-trace-inspector-attributes dt {
+  color: var(--color-gray-800);
+}
+
+.request-insights-trace-inspector-metadata dd,
+.request-insights-trace-inspector-attributes dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.request-insights-trace-inspector-attributes {
+  margin-top: 12px;
+}
+
+.request-insights-trace-inspector-attributes > strong {
+  color: var(--color-gray-1000);
+}
+
+.request-insights-trace-inspector-attributes dl > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 4px 0;
+  border-top: 1px solid var(--color-gray-300);
 }
 
 .request-insights-fetch-table {

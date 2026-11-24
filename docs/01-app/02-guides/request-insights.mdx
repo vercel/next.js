@@ -14,9 +14,9 @@ This guide walks through a typical performance audit workflow that you can apply
 
 ## Example
 
-Suppose a request to `/reports` takes several seconds. We'll record the request, find it in the development overlay, and inspect its timeline.
+Suppose a request to `/reports` takes several seconds. We'll find it in the development overlay and inspect its timeline.
 
-### Step 1: Record the slow request
+### Step 1: Reproduce the slow request
 
 Request Insights is available whenever you run the development server:
 
@@ -27,6 +27,8 @@ next dev
 It powers both the **Request Insights** panel in the development overlay and the `next experimental-request-insights` CLI. To turn it off, set `experimental.requestInsights` to `false` in `next.config.js` and restart the development server.
 
 Open `http://localhost:3000/reports` and reproduce the slowdown. Request Insights retains the completed request in the current development session.
+
+The development server retains up to 500 completed requests, including the latest RSC and HTML page requests.
 
 ### Step 2: Find the request in the overlay
 
@@ -50,6 +52,10 @@ In this example, `ResolveMetadata.generateMetadata` contains a 3.53-second `/met
 
 Spans can overlap or contain other spans. Their position and nesting distinguish nested work from separate delays. For fetches, the panel also shows the URL, cache status, and duration.
 
+Time not covered by a child span belongs to its nearest visible parent. A gap between routing and rendering appears under `route to render`. Compilation for a rewrite destination appears as `compile route` with the destination route.
+
+The `request` kind is browser or server request work. The `instant-insights` kind is a development validation render started for a parent request. Validation renders execute in the same development server and can overlap with, and add contention to, page or API requests. Request details list overlapping work and the amount of shared time.
+
 Component intervals are elapsed render time. They do not prove that the component used the CPU for the entire interval. Inspect source only after the timeline has localized the slow operation.
 
 If rendering dominates but the timeline does not identify the responsible function, collect a CPU profile. A CPU profile is not needed in this example because the timeline already attributes 3.54 seconds to metadata generation.
@@ -62,6 +68,12 @@ Request Insights also provides a CLI for terminal workflows and automation. List
 next experimental-request-insights list --route /reports
 ```
 
+To inspect concurrency in chronological order, include relative start and end times:
+
+```bash
+next experimental-request-insights list --sort start
+```
+
 Then inspect the matching request using its full ID or an unambiguous prefix:
 
 ```bash
@@ -72,7 +84,7 @@ Add `--json` to `get` for the complete request with span attributes, or to `list
 
 ## Next steps
 
-You can now record a slow development request, inspect it in the development overlay, and use the CLI for terminal workflows or automation.
+You can now inspect a slow development request in the development overlay and use the CLI for terminal workflows or automation.
 
 Next, learn how to:
 

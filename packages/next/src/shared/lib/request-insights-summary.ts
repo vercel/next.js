@@ -18,6 +18,7 @@ export type RequestInsightFilter =
   | 'representation:unknown'
   | 'activity:proxy'
   | 'activity:instant-insights'
+  | 'activity:opentelemetry'
   | 'status:error'
   | 'status:http-4xx'
   | 'status:http-5xx'
@@ -39,6 +40,7 @@ export const REQUEST_INSIGHT_FILTERS: readonly RequestInsightFilter[] = [
   'representation:unknown',
   'activity:proxy',
   'activity:instant-insights',
+  'activity:opentelemetry',
   'status:error',
   'status:http-4xx',
   'status:http-5xx',
@@ -60,6 +62,7 @@ export type RequestInsightSummary = Omit<
   isRsc?: boolean
   hasError: boolean
   hasProxyActivity: boolean
+  hasOpenTelemetryActivity: boolean
   cacheStatuses: Array<'hit' | 'miss' | 'skip'>
 }
 
@@ -87,6 +90,7 @@ export function summarizeRequestInsight(
 
   return {
     requestId: request.requestId,
+    parentRequestId: request.parentRequestId,
     kind: request.kind,
     source: request.source,
     proxyStatus: request.proxyStatus,
@@ -112,6 +116,9 @@ export function summarizeRequestInsight(
           span.attributes?.['next.span_type'] ===
           REQUEST_INSIGHT_PROXY_SPAN_TYPE
       ),
+    hasOpenTelemetryActivity: request.spans.some(
+      (span) => span.attributes?.['next.span_category'] === 'opentelemetry'
+    ),
     cacheStatuses: [...cacheStatuses],
   }
 }
@@ -171,6 +178,16 @@ export function hasRequestInsightProxyActivity(
         )
 }
 
+export function hasRequestInsightOpenTelemetryActivity(
+  request: RequestInsightListItem
+): boolean {
+  return isRequestInsightSummary(request)
+    ? request.hasOpenTelemetryActivity
+    : request.spans.some(
+        (span) => span.attributes?.['next.span_category'] === 'opentelemetry'
+      )
+}
+
 export function getRequestInsightCacheStatuses(
   request: RequestInsightListItem
 ): readonly string[] {
@@ -226,6 +243,9 @@ export function getRequestInsightTags(
   }
   if (getRequestInsightKind(request) === 'instant-insights') {
     tags.add('activity:instant-insights')
+  }
+  if (hasRequestInsightOpenTelemetryActivity(request)) {
+    tags.add('activity:opentelemetry')
   }
 
   if (hasRequestInsightError(request)) {

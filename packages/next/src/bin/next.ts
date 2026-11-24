@@ -763,6 +763,11 @@ requestInsights
   .option('--json', 'Output request summaries as JSON.')
   .option('--route <route>', 'Match a route template or request URL pathname.')
   .addOption(
+    new Option('--sort <order>', 'Sort requests by newest or start time.')
+      .choices(['newest', 'start'])
+      .default('newest')
+  )
+  .addOption(
     new Option('--limit <count>', 'Maximum number of requests to return.')
       .argParser(parseValidPositiveInteger)
       .default(10)

@@ -72,7 +72,6 @@ import { isCI } from '../ci-info'
 import {
   completeRequestInsight,
   getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
   recordRequestInsightSource,
 } from './trace/request-insights'
 import {
@@ -83,6 +82,8 @@ import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
 import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
 import { waitForResponseToFinish } from '../app-render/wait-for-response'
+import { getTracer } from './trace/tracer'
+import { RouterSpan } from './trace/constants'
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
@@ -349,8 +350,7 @@ export async function initialize(opts: {
       // reference to it.
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
-      },
-      developmentConfig.experimental.requestInsights !== false
+      }
     )
 
     development = {
@@ -375,18 +375,15 @@ export async function initialize(opts: {
     }
 
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights !== false) {
-        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-        filterInvalidDevRequestIdHeaders(req.headers)
-        const identity = resolveRequestInsightsIdentity({
-          previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
-          requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
-          htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
-          url: req.url,
-          createRequestId: nanoid,
-        })
-        addRequestMeta(req, 'requestInsightsIdentity', identity)
-      }
+      filterInvalidDevRequestIdHeaders(req.headers)
+      const identity = resolveRequestInsightsIdentity({
+        previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+        requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+        htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+        url: req.url,
+        createRequestId: nanoid,
+      })
+      addRequestMeta(req, 'requestInsightsIdentity', identity)
 
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
@@ -417,20 +414,6 @@ export async function initialize(opts: {
           res.end(JSON.stringify({ error: 'Method not allowed' }))
           return
         }
-        if (
-          config.experimental.requestInsights === false ||
-          !isRequestInsightsEnabled()
-        ) {
-          res.statusCode = 404
-          res.end(
-            JSON.stringify({
-              error:
-                'Request Insights is disabled by experimental.requestInsights = false.',
-            })
-          )
-          return
-        }
-
         const endpointUrl = new URL(req.url, 'http://next.local')
         const view = endpointUrl.searchParams.get('view')
         if (process.env.__NEXT_DEV_SERVER) {
@@ -610,18 +593,26 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, req.headers)
 
       try {
-        const initResult =
-          await renderServer?.instance?.initialize(renderServerOpts)
-        try {
-          await initResult?.requestHandler(req, res)
-        } catch (err) {
-          if (err instanceof NoFallbackError) {
-            await handleRequest(handleIndex + 1)
-            return
+        return await getTracer().trace(
+          RouterSpan.invokeRender,
+          {
+            spanName: 'route to render',
+            attributes: { 'next.route': invokePath },
+          },
+          async () => {
+            const initResult =
+              await renderServer?.instance?.initialize(renderServerOpts)
+            try {
+              await initResult?.requestHandler(req, res)
+            } catch (err) {
+              if (err instanceof NoFallbackError) {
+                await handleRequest(handleIndex + 1)
+                return
+              }
+              throw err
+            }
           }
-          throw err
-        }
-        return
+        )
       } catch (e) {
         // If the client aborts before we can receive a response object (when
         // the headers are flushed), then we can early exit without further
@@ -811,14 +802,12 @@ export async function initialize(opts: {
         }
 
         try {
-          if (config.experimental.requestInsights !== false) {
-            const requestInsightsIdentity = getRequestMeta(
-              req,
-              'requestInsightsIdentity'
-            )
-            if (requestInsightsIdentity) {
-              recordRequestInsightSource(requestInsightsIdentity, 'asset')
-            }
+          const requestInsightsIdentity = getRequestMeta(
+            req,
+            'requestInsightsIdentity'
+          )
+          if (requestInsightsIdentity) {
+            recordRequestInsightSource(requestInsightsIdentity, 'asset')
           }
           return await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
@@ -1045,7 +1034,7 @@ export async function initialize(opts: {
     try {
       return await requestHandlerInner(req, res)
     } finally {
-      if (opts.dev && config.experimental.requestInsights !== false) {
+      if (opts.dev) {
         const identity = getRequestMeta(req, 'requestInsightsIdentity')
         if (identity) {
           void waitForResponseToFinish(res).then(() => {

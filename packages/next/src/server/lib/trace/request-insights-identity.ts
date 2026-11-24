@@ -14,6 +14,7 @@ export type RequestInsightsIdentity = Readonly<{
   // This is a server-owned storage key. Browser-provided IDs are only used by
   // the development debug channel and must never become Request Insights keys.
   requestId: string
+  parentRequestId?: string
   debugRequestId?: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
