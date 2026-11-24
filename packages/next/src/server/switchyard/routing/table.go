@@ -25,6 +25,7 @@ type Table struct {
 	// Why the app gets no direct routes; empty when it does.
 	reason         string
 	maxHeaderBytes int
+	compress       bool
 	nodePrefixes   []string
 	// Request headers (canonical names) whose presence sends a request to
 	// Node, because a rule Node runs before routing reads them.
@@ -66,6 +67,7 @@ type tableJSON struct {
 	} `json:"contract"`
 	Reason         string            `json:"reason"`
 	MaxHeaderBytes int               `json:"maxHeaderBytes"`
+	Compress       bool              `json:"compress"`
 	NodePrefixes   []string          `json:"nodePrefixes"`
 	NodeHeaders    []string          `json:"nodeRequestHeaders"`
 	NodeExact      []string          `json:"nodeExact"`
@@ -94,6 +96,7 @@ func Load(data []byte) (*Table, error) {
 	}
 	t := &Table{
 		maxHeaderBytes: raw.MaxHeaderBytes,
+		compress:       raw.Compress,
 		nodePrefixes:   raw.NodePrefixes,
 		nodeHeaders:    make([]string, len(raw.NodeHeaders)),
 		nodeExact:      make(map[string]struct{}, len(raw.NodeExact)),

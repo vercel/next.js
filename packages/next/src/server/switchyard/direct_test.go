@@ -306,6 +306,9 @@ func TestAnEmptyBodyOfUnknownLengthGetsContentLengthZero(t *testing.T) {
 		// Sends the headers chunked, then no body.
 		w.(http.Flusher).Flush()
 	})
+	// In an app with compression on, Node's middleware sends this chunked
+	// (TestAnEmptyBodyOfUnknownLengthGoesOutChunked).
+	fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(strings.Replace(testTable, `"compress":true`, `"compress":false`, 1))})
 	res := fx.raw(t, "GET /api/echo HTTP/1.1")
 	// Node sends the headers with the first chunk or at the end, so an
 	// empty body goes out with Content-Length: 0.
@@ -397,5 +400,25 @@ func TestApplyGoneSkipsWorkersWithoutAToken(t *testing.T) {
 	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
 	if f.state.Load().workers["/api/echo/route"] == nil {
 		t.Error("a gone removed a worker with no token")
+	}
+}
+
+func TestDirectCompressionVary(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Vary", "Origin")
+		if r.URL.Query().Get("case") == "no-transform" {
+			w.Header().Add("Cache-Control", "public")
+			w.Header().Add("Cache-Control", "no-transform")
+		}
+		io.WriteString(w, `{}`)
+	})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.Contains(res, "Vary: Origin, Accept-Encoding\r\n") {
+		t.Fatalf("compression Vary missing: %q", res)
+	}
+	res = fx.raw(t, "GET /api/echo?case=no-transform HTTP/1.1")
+	if !strings.Contains(res, "Vary: Origin\r\n") || strings.Contains(res, "Accept-Encoding") {
+		t.Fatalf("ignored no-transform in repeated Cache-Control: %q", res)
 	}
 }
