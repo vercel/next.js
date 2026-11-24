@@ -1355,10 +1355,11 @@ async fn analyze_ecmascript_module_internal(
                         .await?;
 
                     if usage == ValueUsage::Escapes
-                        && prop.as_str() == Some("env")
+                        && could_be_env_key(&prop)
                         && !analysis.has_runtime_env_var_reference_all()
                     {
-                        // e.g. `foo(process.env)` or `const key = 'env'; foo(process[key])`
+                        // e.g. `foo(process.env)`, `const key = 'env'; foo(process[key])` or
+                        // `foo(process[cond ? 'env' : 'argv'])`
                         let value = JsValue::member(
                             arena.get_or_default(),
                             obj.clone_in(arena.get_or_default()),
@@ -1401,7 +1402,7 @@ async fn analyze_ecmascript_module_internal(
                         .await?;
 
                     if target_escapes
-                        && prop.as_str() == Some("env")
+                        && could_be_env_key(&prop)
                         && !analysis.has_runtime_env_var_reference_all()
                     {
                         // e.g. `const { env } = process` or `const { env: { ...rest } } = process`
@@ -1809,6 +1810,15 @@ fn add_argument_effects<'a>(
     }
 }
 
+/// Whether the (linked) property key could be `'env'`.
+fn could_be_env_key(prop: &JsValue<'_>) -> bool {
+    match prop {
+        JsValue::Alternatives { values, .. } => values.iter().any(could_be_env_key),
+        JsValue::Tenary(_, _, cons, alt) => could_be_env_key(cons) || could_be_env_key(alt),
+        _ => prop.as_str() == Some("env"),
+    }
+}
+
 /// Whether `value` (a linked value) could be `process.env`.
 fn could_be_process_env(value: &JsValue<'_>, state: &AnalysisState<'_>) -> bool {
     value
@@ -2172,6 +2182,16 @@ where
                 && could_be_process_env(&link(this).await?, state)
             {
                 add_existence_check(analysis, linked_args().await?.first());
+            }
+            return Ok(());
+        }
+        WellKnownFunctionKind::ValueOf => {
+            // `process.env.valueOf()` returns `process.env` itself
+            if !analysis.has_runtime_env_var_reference_all()
+                && let Some(this) = this
+                && could_be_process_env(&link(this).await?, state)
+            {
+                analysis.set_runtime_env_var_reference_all();
             }
             return Ok(());
         }

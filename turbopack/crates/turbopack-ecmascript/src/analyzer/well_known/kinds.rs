@@ -219,6 +219,8 @@ pub enum WellKnownFunctionKind<'a> {
     HasOwnProperty,
     /// `Object.prototype.propertyIsEnumerable`, analyzed like [`Self::HasOwnProperty`].
     PropertyIsEnumerable,
+    /// `Object.prototype.valueOf`, which returns its receiver.
+    ValueOf,
     /// `Object.hasOwn(obj, key)`.
     ObjectHasOwn,
     /// `Function.prototype.call`. `func.call(thisArg, ...args)` calls its own receiver `func`, with
@@ -371,6 +373,10 @@ impl WellKnownFunctionKind<'_> {
             Self::PropertyIsEnumerable => (
                 "Object.prototype.propertyIsEnumerable".to_string(),
                 "The standard Object.prototype.propertyIsEnumerable method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/propertyIsEnumerable",
+            ),
+            Self::ValueOf => (
+                "Object.prototype.valueOf".to_string(),
+                "The standard Object.prototype.valueOf method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/valueOf",
             ),
             Self::ObjectHasOwn => (
                 "Object.hasOwn".to_string(),
