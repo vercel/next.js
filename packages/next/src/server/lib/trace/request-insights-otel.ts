@@ -1,4 +1,5 @@
-import type { LocalSpanRecorder, RequestIdentity } from './local-span-recorder'
+import type { LocalSpanRecorder } from './local-span-recorder'
+import type { RequestIdentity } from './request-insights-span-recorder'
 import type {
   SpanStoreAttributeValue,
   SpanStoreAttributes,
