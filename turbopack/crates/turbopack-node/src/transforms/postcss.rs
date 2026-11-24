@@ -30,7 +30,7 @@ use crate::{
     execution_context::ExecutionContext,
     transforms::{
         util::{EmittedAsset, emitted_assets_to_virtual_sources},
-        webpack::{WebpackLoaderContext, evaluate_webpack_loader},
+        webpack::{SourceContentEncoding, WebpackLoaderContext, evaluate_webpack_loader},
     },
 };
 
@@ -492,18 +492,6 @@ impl PostCssTransformedAsset {
             .cell());
         };
 
-        let source_content = self.source.content();
-        let AssetContent::File(file) = *source_content.await? else {
-            bail!("PostCSS transform only support transforming files");
-        };
-        let FileContent::Content(content) = &*file.await? else {
-            return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
-            }
-            .cell());
-        };
-        let content = content.content().to_str()?;
         let evaluate_context = self.evaluate_context;
         let source_map = self.source_map;
 
@@ -546,14 +534,15 @@ impl PostCssTransformedAsset {
             cwd: project_path.clone(),
             env: *env,
             node_backend: *node_backend,
-            context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             evaluate_context: self.evaluate_context,
             module_graph,
             resolve_options_context: None,
             asset_context: self.asset_context,
+            source: self.source,
+            source_encoding: SourceContentEncoding::Text,
+            // The source content is prepended by `evaluate_webpack_loader`.
             args: vec![
-                EvaluateArg::Vc(ResolvedVc::cell(content.into())),
                 css_path,
                 EvaluateArg::Vc(ResolvedVc::cell(source_map.into())),
             ],

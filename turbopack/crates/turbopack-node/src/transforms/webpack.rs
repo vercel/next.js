@@ -459,32 +459,6 @@ impl WebpackLoadersProcessedAsset {
                 env,
                 node_backend,
             } = &*transform.execution_context.await?;
-            let source_content = self.source.content();
-            let AssetContent::File(file) = *source_content.await? else {
-                bail!("Webpack Loaders transform only support transforming files");
-            };
-            let FileContent::Content(file_content) = &*file.await? else {
-                return Ok(ProcessWebpackLoadersResult {
-                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
-                        .resolved_cell(),
-                    assets: Vec::new(),
-                    source_map: FileContent::NotFound.resolved_cell(),
-                }
-                .cell());
-            };
-
-            // If the content is not a valid string (e.g. binary file), handle the error and pass a
-            // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
-            let content: JsonValue = match file_content.content().to_str() {
-                Ok(utf8_str) => utf8_str.to_string().into(),
-                Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
-                    "binary".to_string(),
-                    JsonValue::from(
-                        base64::engine::general_purpose::STANDARD
-                            .encode(file_content.content().to_bytes()),
-                    ),
-                )))),
-            };
             let evaluate_context = transform.evaluate_context;
 
             let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
@@ -531,14 +505,15 @@ impl WebpackLoadersProcessedAsset {
                 cwd: project_path.clone(),
                 env: *env,
                 node_backend: *node_backend,
-                context_source_for_issue: self.source,
                 chunking_context: *chunking_context,
                 evaluate_context: transform.evaluate_context,
                 module_graph,
                 resolve_options_context: Some(transform.resolve_options_context),
                 asset_context: self.asset_context,
+                source: self.source,
+                source_encoding: SourceContentEncoding::TextOrBinary,
+                // The source content is prepended by `evaluate_webpack_loader`.
                 args: vec![
-                    EvaluateArg::Vc(ResolvedVc::cell(content)),
                     EvaluateArg::Path(resource_fs_path.clone()),
                     // We need to pass the query string to the loader
                     EvaluateArg::Vc(ResolvedVc::cell(source_ident.query.to_string().into())),
@@ -602,10 +577,70 @@ impl WebpackLoadersProcessedAsset {
     }
 }
 
+/// How the content of the transformed source is passed to the evaluated JavaScript.
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Encode, Decode)]
+pub(super) enum SourceContentEncoding {
+    /// A string. Content that isn't valid UTF-8 is an error.
+    Text,
+    /// A string, or `{ binary: <base64> }` for content that isn't valid UTF-8 (e.g. images), so
+    /// that the loaders receive a `Buffer` instead.
+    TextOrBinary,
+}
+
+/// Reads the content of `source` as the first argument for the evaluated JavaScript, or `null`
+/// when the file doesn't exist.
+///
+/// [`evaluate_webpack_loader`] reads this strongly consistent right before running the loaders.
+/// The evaluation also depends on files the loaders read or stat, which can include the
+/// transformed file itself (loader-runner always reports it, and loaders may stat it). A change to
+/// that file can therefore re-run the evaluation directly. An eventually consistent read of the
+/// source content could still return the previous content at that point, and the loaders would
+/// run with it. Loaders that cache by the file's mtime would then keep that stale result.
+#[turbo_tasks::function(operation, root)]
+async fn source_content_arg_operation(
+    source: ResolvedVc<Box<dyn Source>>,
+    encoding: SourceContentEncoding,
+) -> Result<Vc<JsonValue>> {
+    let AssetContent::File(file) = *source.content().await? else {
+        bail!("Webpack loaders and PostCSS transforms only support transforming files");
+    };
+    let FileContent::Content(file_content) = &*file.await? else {
+        return Ok(Vc::cell(JsonValue::Null));
+    };
+    let content = file_content.content();
+    Ok(Vc::cell(match (content.to_str(), encoding) {
+        (Ok(text), _) => text.into_owned().into(),
+        (Err(err), SourceContentEncoding::Text) => return Err(err),
+        (Err(_), SourceContentEncoding::TextOrBinary) => {
+            JsonValue::Object(JsonMap::from_iter(std::iter::once((
+                "binary".to_string(),
+                JsonValue::from(
+                    base64::engine::general_purpose::STANDARD.encode(content.to_bytes()),
+                ),
+            ))))
+        }
+    }))
+}
+
+/// Runs the loaders on the content of `webpack_loader_context.source`, which is passed to the
+/// JavaScript before `webpack_loader_context.args`. Returns `None` when the source doesn't exist
+/// or when an error was emitted as an issue.
 #[turbo_tasks::function]
 pub(super) async fn evaluate_webpack_loader(
-    webpack_loader_context: WebpackLoaderContext,
+    mut webpack_loader_context: WebpackLoaderContext,
 ) -> Result<Vc<Option<RcStr>>> {
+    let content_op = source_content_arg_operation(
+        webpack_loader_context.source,
+        webpack_loader_context.source_encoding,
+    );
+    if content_op.read_strongly_consistent().await?.is_null() {
+        return Ok(Vc::cell(None));
+    }
+    webpack_loader_context.args.insert(
+        0,
+        EvaluateArg::Vc(content_op.connect().to_resolved().await?),
+    );
     custom_evaluate(webpack_loader_context).await
 }
 
@@ -734,12 +769,16 @@ pub(super) struct WebpackLoaderContext {
     pub(super) cwd: FileSystemPath,
     pub(super) env: ResolvedVc<Box<dyn ProcessEnv>>,
     pub(super) node_backend: ResolvedVc<Box<dyn NodeBackend>>,
-    pub(super) context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub(super) module_graph: ResolvedVc<ModuleGraph>,
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub(super) evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     pub(super) resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub(super) asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    /// The source being transformed. Its content is passed as the first argument (see
+    /// [`evaluate_webpack_loader`]), and issues are reported for it.
+    pub(super) source: ResolvedVc<Box<dyn Source>>,
+    pub(super) source_encoding: SourceContentEncoding,
+    /// Arguments passed after the source content.
     pub(super) args: Vec<EvaluateArg>,
     pub(super) additional_invalidation: ResolvedVc<Completion>,
     /// Names of the loaders being applied to the source, in pipeline order.
@@ -804,7 +843,7 @@ impl EvaluateContext for WebpackLoaderContext {
     }
 
     fn context_source_for_issue(&self) -> ResolvedVc<Box<dyn Source>> {
-        self.context_source_for_issue
+        self.source
     }
 
     fn keep_alive(&self) -> bool {
@@ -818,7 +857,7 @@ impl EvaluateContext for WebpackLoaderContext {
     async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
-            source: IssueSource::from_source_only(self.context_source_for_issue),
+            source: IssueSource::from_source_only(self.source),
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
@@ -869,15 +908,14 @@ impl EvaluateContext for WebpackLoaderContext {
                             .map(|p| loader_path(&self.cwd, p))
                             .try_join()
                             .await?;
-                        build_files_changed(build_file_paths, *self.context_source_for_issue)
-                            .await?;
+                        build_files_changed(build_file_paths, *self.source).await?;
                         Ok::<_, anyhow::Error>(())
                     };
                     let build_dependency_request_subscriptions = async {
                         build_dependency_requests_changed(
                             self.cwd.clone(),
                             build_dependency_requests,
-                            *self.context_source_for_issue,
+                            *self.source,
                         )
                         .await?;
                         Ok::<_, anyhow::Error>(())
@@ -902,7 +940,7 @@ impl EvaluateContext for WebpackLoaderContext {
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
-                    source: IssueSource::from_source_only(self.context_source_for_issue),
+                    source: IssueSource::from_source_only(self.source),
                     error,
                     severity,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
@@ -989,7 +1027,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     request_vc,
                     EcmaScriptModulesReferenceSubType::ImportModule,
                     ResolveErrorMode::Error,
-                    Some(IssueSource::from_source_only(self.context_source_for_issue)),
+                    Some(IssueSource::from_source_only(self.source)),
                 )
                 .await?;
 
@@ -1123,7 +1161,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 .collect();
 
             EvaluateErrorLoggingIssue {
-                source: IssueSource::from_source_only(self.context_source_for_issue),
+                source: IssueSource::from_source_only(self.source),
                 logging: logs,
                 severity: if has_errors {
                     IssueSeverity::Error
