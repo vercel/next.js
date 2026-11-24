@@ -666,9 +666,27 @@ program
       'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
   )
+  .addOption(
+    new Option(
+      '--ci [policy]',
+      'Set up scheduled GitHub upgrades with the security or latest policy.'
+    ).conflicts(['agent', 'revision', 'internalNudgeId'])
+  )
   // Keep nudge attribution available to agents without exposing it in public help.
   .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
+    if (options.ci !== undefined) {
+      const { setupUpgradeCI } = await import('../lib/upgrade/setup-ci.js')
+      const result = await setupUpgradeCI({
+        directory: directory ?? '.',
+        policy: options.ci,
+      })
+      if (result.status === 'blocked' || result.status === 'failed') {
+        process.exitCode = 1
+      }
+      return
+    }
+
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(
       directory,
