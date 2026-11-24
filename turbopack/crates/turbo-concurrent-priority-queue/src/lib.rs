@@ -26,9 +26,17 @@
 //!
 //! # Home shards and steal pressure
 //!
-//! Every shard counts its *steal pressure*: steals from it minus pops from it, never below `0`. A
-//! high value (at least `STEAL_PRESSURE_THRESHOLD`) means other threads keep stealing from the
-//! shard while nobody pops from it, e.g. because its home thread is busy elsewhere.
+//! Every shard counts its *steal pressure*, a heuristic for how much other threads use it compared
+//! to the threads whose home it is. It doesn't track which threads call the shard home.
+//! - A steal from the shard adds `1`. So does a push (or a nonempty `push_many`) to it or a pop
+//!   from it by a thread whose home it is *not*.
+//! - Such a push or pop by a thread whose home it is halves it.
+//! - A thread that makes it its home (see below) resets it to `0`.
+//!
+//! A high value (at least `STEAL_PRESSURE_THRESHOLD`) means other threads used the shard many times
+//! since a thread whose home it is last did, e.g. because that thread is busy elsewhere or moved
+//! its home away. A thread that keeps using its home shard keeps its pressure low: each of its uses
+//! halves it.
 //!
 //! - A pop locks its home shard. If that is busy, it tries shards whose bit is set in the state
 //!   word (they may have items at `highest`; the pop revalidates under the lock), and blocks on its
@@ -36,10 +44,11 @@
 //! - A push locks its home shard. If that is busy, it tries other shards, and blocks on its home
 //!   shard after a bounded number of attempts.
 //! - A thread that uses a shard other than its home for a push or pop only moves its home there
-//!   when that shard has high steal pressure.
+//!   when that shard has high steal pressure, and then resets it.
 //! - Instead of stealing from a victim with high steal pressure, a thread moves its home to the
-//!   victim and pops from it directly: the victim's own thread isn't popping it, so the thief takes
-//!   over the shard instead of moving half of it again and again.
+//!   victim, resets its steal pressure and pops from it directly: the shard's home threads have
+//!   probably stopped using it, so the thief takes it over instead of moving half of it again and
+//!   again. The reset makes the next thief steal from the shard instead of also taking it over.
 //!
 //! # The state word
 //!
@@ -105,8 +114,8 @@
 //!   `j` whose bit is set. If `j` has `highest`, move half (rounded up) of its items at that
 //!   priority, the newest ones, to shard `i`, publish `i`, then clear bit `j` if `j` no longer has
 //!   `highest`. If `j` has high steal pressure, pop from `j` instead (like a pop from `j`, with the
-//!   same bit maintenance) and make `j` the thread's home. If `j` doesn't have `highest`, clear its
-//!   spurious bit.
+//!   same bit maintenance), make `j` the thread's home and reset its steal pressure. If `j` doesn't
+//!   have `highest`, clear its spurious bit.
 //! - **Search:** a pop that sees `(highest > 0, not searching, bits == 0)` takes the search lock
 //!   and re-reads the word. If it still needs a search, the holder:
 //!   1. starts it: `(highest, 0, 0)` → `(0, SEARCHING, 0)`. By I2 no shard has `highest` any more,
@@ -245,7 +254,7 @@ const SEARCHING: u64 = 1 << SHARD_COUNT;
 const HIGHEST_SHIFT: u32 = 32;
 /// How many shards a thread tries with `try_lock` before it blocks on a lock.
 const TRY_LOCK_ATTEMPTS: usize = 4;
-/// The steal pressure (steals minus pops) from which a shard is taken over by a thread that wants
+/// The steal pressure (see the crate docs) from which a shard is taken over by a thread that wants
 /// to steal from it, or that happens to use it, instead of being stolen from. See the crate docs.
 const STEAL_PRESSURE_THRESHOLD: u32 = 64;
 /// Bytes allocated up front for each of a shard's buffers (priority heap, priority map, spare item
@@ -333,7 +342,9 @@ fn next_shard(index: usize) -> usize {
 struct Shard<P, T> {
     buckets: FxHashMap<P, Vec<T>>,
     heap: BinaryHeap<P>,
-    /// Steals from this shard minus pops from it, saturating at `0`.
+    /// Raised by steals and by uses by threads whose home this shard isn't, halved by every use by
+    /// a thread whose home it is, reset when a thread makes it its home. A heuristic, see the
+    /// crate docs.
     steal_pressure: u32,
     /// The (empty) `Vec` of the last priority that ran empty, reused for the next new priority.
     spare: Vec<T>,
@@ -363,9 +374,19 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> Shard<P, T> {
         self.top_rank().map_or(0, |rank| u64::from(rank) + 1)
     }
 
-    /// Whether other threads keep stealing from this shard while nobody pops from it.
+    /// Whether other threads used this shard many times since a thread whose home it is last did.
     fn has_high_steal_pressure(&self) -> bool {
         self.steal_pressure >= STEAL_PRESSURE_THRESHOLD
+    }
+
+    /// Updates the steal pressure for a push or pop by a thread whose home this shard is
+    /// (`is_home`), or by another thread. See the crate docs.
+    fn record_use(&mut self, is_home: bool) {
+        self.steal_pressure = if is_home {
+            self.steal_pressure / 2
+        } else {
+            self.steal_pressure.saturating_add(1)
+        };
     }
 
     fn top_rank(&self) -> Option<u32> {
@@ -406,10 +427,10 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> Shard<P, T> {
         }
     }
 
-    /// Removes the newest item of the top priority, and lowers the steal pressure.
+    /// Removes the newest item of the top priority. The caller updates the steal pressure (see
+    /// [`Shard::record_use`]).
     fn pop_top(&mut self) -> Option<(P, T)> {
         let priority = self.heap.peek()?.clone();
-        self.steal_pressure = self.steal_pressure.saturating_sub(1);
         let bucket = self.buckets.get_mut(&priority).unwrap();
         let item = bucket.pop().unwrap();
         if bucket.is_empty() {
@@ -524,8 +545,8 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
         }
         for _ in 1..TRY_LOCK_ATTEMPTS {
             let index = random_shard();
-            if let Some(guard) = self.shards[index].shard.try_lock() {
-                Self::visit_shard(home, index, &guard);
+            if let Some(mut guard) = self.shards[index].shard.try_lock() {
+                Self::visit_shard(home, index, &mut guard);
                 return (index, guard);
             }
         }
@@ -551,8 +572,8 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
                 if candidates & shard_bit(current) == 0 {
                     continue;
                 }
-                if let Some(guard) = self.shards[current].shard.try_lock() {
-                    Self::visit_shard(home, current, &guard);
+                if let Some(mut guard) = self.shards[current].shard.try_lock() {
+                    Self::visit_shard(home, current, &mut guard);
                     return (current, guard);
                 }
                 attempts += 1;
@@ -565,11 +586,18 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
     }
 
     /// Called when a thread uses shard `index` (whose lock it holds) instead of its `home` shard:
-    /// it only moves its home there when that shard has high steal pressure.
-    fn visit_shard(home: usize, index: usize, shard: &Shard<P, T>) {
+    /// it only moves its home there when that shard has high steal pressure, which it then resets.
+    fn visit_shard(home: usize, index: usize, shard: &mut Shard<P, T>) {
         if index != home && shard.has_high_steal_pressure() {
             set_thread_shard(index);
+            shard.steal_pressure = 0;
         }
+    }
+
+    /// Updates the steal pressure of shard `index`, whose lock the caller holds, for a push or pop
+    /// by this thread.
+    fn record_use(&self, index: usize, shard: &mut Shard<P, T>) {
+        shard.record_use(index == thread_shard());
     }
 
     /// Stores the published top rank of shard `index`, whose lock the caller holds, if it changed.
@@ -588,6 +616,7 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
     pub fn push(&self, priority: P, item: T) {
         let (index, mut shard) = self.lock_some_shard();
         shard.push(priority, item);
+        self.record_use(index, &mut shard);
         self.store_top(index, &shard);
         self.publish(index, &shard);
     }
@@ -607,6 +636,7 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
         for (priority, item) in items {
             shard.push(priority, item);
         }
+        self.record_use(index, &mut shard);
         self.store_top(index, &shard);
         self.publish(index, &shard);
     }
@@ -800,6 +830,7 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
                 // `highest` was raised after `verified` was verified: the item's priority was the
                 // highest at that point, during this pop.
                 let (priority, item) = shard.pop_top().unwrap();
+                self.record_use(index, shard);
                 self.store_top(index, shard);
                 return ShardPop::Item(priority, item);
             }
@@ -807,6 +838,7 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
             return ShardPop::NotHighest;
         }
         let (priority, item) = shard.pop_top().unwrap();
+        self.record_use(index, shard);
         self.store_top(index, shard);
         // An empty shard that was filled by pushes keeps its bit (I2): the next push to it likely
         // has the same rank. One filled by a steal clears it, see `Shard::filled_by_push`.
@@ -847,6 +879,7 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
             }
             if victim.has_high_steal_pressure() {
                 set_thread_shard(victim_index);
+                victim.steal_pressure = 0;
                 // `highest` was just verified on the victim, under its lock.
                 return match self.pop_locked(victim_index, &mut victim, Some(highest)) {
                     ShardPop::Item(priority, item) => Some((priority, item)),

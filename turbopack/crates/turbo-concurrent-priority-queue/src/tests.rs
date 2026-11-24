@@ -541,23 +541,28 @@ fn set_steal_pressure<T>(q: &Queue<T>, index: usize, pressure: u32) {
     q.shards[index].shard.lock().steal_pressure = pressure;
 }
 
-/// A steal from a shard raises its steal pressure, every pop from it lowers it (not below 0).
+/// A steal from a shard and a push or pop by a thread whose home it isn't raise its steal
+/// pressure by 1; a push or pop by its home thread halves it.
 #[test]
-fn steal_pressure_counts_steals_minus_pops() {
+fn steal_pressure_counts_foreign_uses_and_halves_on_home_use() {
     let q: Queue<u32> = Queue::new();
     on_shard(0, || (0..10).for_each(|item| q.push(5, item)));
     assert_eq!(steal_pressure(&q, 0), 0);
+    // Shard 1 steals 5 items from shard 0 and pops one of them from its own home.
     on_shard(1, || q.pop()).unwrap();
     assert_eq!(steal_pressure(&q, 0), 1, "one steal");
-    assert_eq!(
-        steal_pressure(&q, 1),
-        0,
-        "popping lowers the thief's counter"
-    );
+    assert_eq!(steal_pressure(&q, 1), 0, "a home pop");
+    set_steal_pressure(&q, 0, 40);
     on_shard(0, || q.pop()).unwrap();
-    assert_eq!(steal_pressure(&q, 0), 0);
-    on_shard(0, || q.pop()).unwrap();
-    assert_eq!(steal_pressure(&q, 0), 0, "saturates at 0");
+    assert_eq!(steal_pressure(&q, 0), 20, "a home pop halves it");
+    on_shard(0, || q.push(5, 10));
+    assert_eq!(steal_pressure(&q, 0), 10, "a home push halves it");
+    // Uses by a thread whose home is another shard (via a forced shard lock).
+    let (index, mut shard) = on_shard(0, || q.lock_some_shard());
+    assert_eq!(index, 0);
+    on_shard(2, || q.record_use(index, &mut shard));
+    drop(shard);
+    assert_eq!(steal_pressure(&q, 0), 11, "a foreign use adds 1");
 }
 
 /// A victim needs a high steal pressure before a thief takes it over.
@@ -566,8 +571,9 @@ fn steal_pressure_threshold_is_64() {
     assert_eq!(STEAL_PRESSURE_THRESHOLD, 64);
 }
 
-/// Instead of stealing from a shard with high steal pressure, a thread makes that shard its home
-/// and pops from it directly; nothing is moved.
+/// Instead of stealing from a shard with high steal pressure, a thread makes that shard its home,
+/// resets its steal pressure and pops from it directly; nothing is moved. The next thief then
+/// steals from it instead of taking it over too.
 #[test]
 fn high_steal_pressure_victim_becomes_home() {
     let q: Queue<u32> = Queue::new();
@@ -582,11 +588,10 @@ fn high_steal_pressure_victim_becomes_home() {
     assert_eq!(home, 0, "the thread switched its home to the victim");
     assert_eq!(shard_len(&q, 0), 9, "nothing was moved out of the victim");
     assert_eq!(shard_len(&q, 1), 1, "the thief's shard is unchanged");
-    assert_eq!(
-        steal_pressure(&q, 0),
-        STEAL_PRESSURE_THRESHOLD - 1,
-        "a pop, not a steal"
-    );
+    assert_eq!(steal_pressure(&q, 0), 0, "reset by the takeover");
+    on_shard(2, || q.pop()).unwrap();
+    assert_eq!(shard_len(&q, 0), 4, "the next thief stole half");
+    assert_eq!(steal_pressure(&q, 0), 1);
 }
 
 /// Below the threshold, a thread still steals half.
@@ -645,6 +650,7 @@ fn busy_home_push_switches_only_to_high_pressure_shard() {
         "moved home to the high pressure shard it pushed to"
     );
     assert!(shard_len(&q, home) > 0);
+    assert_eq!(steal_pressure(&q, home), 0, "reset by the home switch");
 }
 
 /// A pop with a busy home shard pops from a shard whose bit is set (it has items) and keeps its
@@ -657,7 +663,37 @@ fn busy_home_pop_uses_shard_with_items() {
     assert_eq!(popped, Some(7));
     assert_eq!(home, 0, "the home shard is kept");
     assert!(all_shards_empty(&q));
-    assert_eq!(steal_pressure(&q, 3), 0, "a direct pop, not a steal");
+    assert_eq!(
+        steal_pressure(&q, 3),
+        1,
+        "a direct pop by a non-home thread, not a steal"
+    );
+}
+
+/// Total steal pressure of shards `1..`, for pushes that land on some other shard than a busy shard
+/// 0.
+fn foreign_pressure<T>(q: &Queue<T>) -> u32 {
+    (1..SHARD_COUNT).map(|index| steal_pressure(q, index)).sum()
+}
+
+/// A push or nonempty `push_many` that lands on another shard because the home is busy raises that
+/// shard's steal pressure by 1 (once per batch). On its home, a nonempty `push_many` halves the
+/// pressure once, and an empty one leaves it unchanged.
+#[test]
+fn pushes_update_steal_pressure() {
+    let q: Arc<Queue<u32>> = Arc::new(Queue::new());
+    let ((), home) = with_busy_home(&q, |q| q.push(1, 1));
+    assert_eq!(home, 0);
+    assert_eq!(foreign_pressure(&q), 1, "a foreign push");
+    let ((), home) = with_busy_home(&q, |q| q.push_many([(1, 2), (1, 3)]));
+    assert_eq!(home, 0);
+    assert_eq!(foreign_pressure(&q), 2, "a foreign batch counts once");
+
+    set_steal_pressure(&q, 5, 40);
+    on_shard(5, || q.push_many([(1, 4), (1, 5)]));
+    assert_eq!(steal_pressure(&q, 5), 20, "a home batch halves once");
+    on_shard(5, || q.push_many(std::iter::empty()));
+    assert_eq!(steal_pressure(&q, 5), 20, "an empty batch locks nothing");
 }
 
 /// Many threads push, pop, steal and search concurrently over many rounds. Checks that every item
