@@ -746,7 +746,7 @@
 }
 
 .request-insights-tab-panel {
-  /* Keep a few rows visible at minimum panel height; .request-insights-details scrolls instead */
+  /* Details pane scrolls instead of collapsing rows */
   min-height: 160px;
   overflow: auto;
   flex: 1 1 auto;

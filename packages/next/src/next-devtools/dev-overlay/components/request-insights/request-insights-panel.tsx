@@ -1025,7 +1025,9 @@ function RequestDetails({
         role="tablist"
       >
         <button
-          aria-controls={`${tabsId}-trace-panel`}
+          aria-controls={
+            activeTab === 'trace' ? `${tabsId}-trace-panel` : undefined
+          }
           aria-selected={activeTab === 'trace'}
           className="request-insights-tab"
           id={`${tabsId}-trace-tab`}
@@ -1039,7 +1041,9 @@ function RequestDetails({
           Trace · {traceItems.length}
         </button>
         <button
-          aria-controls={`${tabsId}-fetches-panel`}
+          aria-controls={
+            activeTab === 'fetches' ? `${tabsId}-fetches-panel` : undefined
+          }
           aria-selected={activeTab === 'fetches'}
           className="request-insights-tab"
           id={`${tabsId}-fetches-tab`}
