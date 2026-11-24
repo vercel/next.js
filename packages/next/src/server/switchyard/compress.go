@@ -21,7 +21,17 @@ import (
 //   - Which types count as compressible is decided by compressibleType below,
 //     not by the middleware's MIME database.
 //   - gzhttp waits for the first 1 KiB of a body of unknown length before it
-//     decides; the middleware compresses such a body whatever its size.
+//     decides, and sends an empty one with Content-Length: 0; the middleware
+//     compresses such a body whatever its size, and sends an empty one
+//     chunked.
+//   - gzhttp compresses whenever the client names gzip; the middleware
+//     sends identity when the client prefers it ("gzip;q=0.5, identity"),
+//     and reads "*" as gzip, which this gzhttp version doesn't (its
+//     AcceptWildcards option needs v1.20, which needs Go 1.25).
+//   - gzhttp leaves any Content-Encoding alone; the middleware treats
+//     "identity" as none and compresses.
+//   - gzhttp sends each compressed chunk as the worker flushes it; the
+//     middleware holds it in zlib until more output is ready.
 //
 // What stays as in the middleware: no compression for HEAD, for a response
 // that already has a Content-Encoding, for Cache-Control: no-transform, or

@@ -235,6 +235,16 @@ describe('switchyard-go', () => {
     })
   })
 
+  // With Switchyard on, a request whose route.go worker is running goes to
+  // it directly, and the response is compressed by gzhttp, whose choices
+  // differ from Node's middleware in places (listed in switchyard/compress.go).
+  const direct = process.env[SWITCHYARD_ENV] === '1'
+  /** Every Vary line, joined as one value. */
+  function vary(res: RawResponse): string | undefined {
+    const lines = res.headers.filter(([key]) => key === 'vary')
+    return lines.length ? lines.map(([, value]) => value).join(', ') : undefined
+  }
+
   describe('the response the client gets', () => {
     it.each([
       ['json', true],
@@ -251,22 +261,26 @@ describe('switchyard-go', () => {
         await send(target)
         const res = await send(target)
         expect(getHeader(res, 'vary')).toBe(
-          varies ? 'Accept-Encoding' : undefined
+          varies || direct ? 'Accept-Encoding' : undefined
         )
       }
     )
 
     it('preserves existing Vary fields and respects no-transform', async () => {
-      for (const [query, expected] of [
-        ['vary=Origin', 'Origin, Accept-Encoding'],
-        ['vary=accept-encoding', 'accept-encoding'],
-        ['vary=wildcard', '*'],
-        ['cacheControl=no-transform', undefined],
+      for (const [query, node, gzhttp] of [
+        ['vary=Origin', 'Origin, Accept-Encoding', 'Accept-Encoding, Origin'],
+        [
+          'vary=accept-encoding',
+          'accept-encoding',
+          'Accept-Encoding, accept-encoding',
+        ],
+        ['vary=wildcard', '*', 'Accept-Encoding, *'],
+        ['cacheControl=no-transform', undefined, 'Accept-Encoding'],
       ]) {
         const target = `/go/compress?size=2048&${query}`
         await send(target)
         const res = await send(target)
-        expect(getHeader(res, 'vary')).toBe(expected)
+        expect(vary(res)).toBe(direct ? gzhttp : node)
       }
     })
 
@@ -406,6 +420,10 @@ describe('switchyard-go', () => {
   // twice: the first starts the route's worker through Node, the second may
   // go to the worker directly.
   describe('compression', () => {
+    // With Switchyard on, start the route's worker first, so both requests
+    // below go to it directly.
+    beforeAll(() => send('/go/compress?size=1'))
+
     /** Sends the request twice and checks both answers the same way. */
     async function twice(
       target: string,
@@ -429,26 +447,29 @@ describe('switchyard-go', () => {
       }
     }
 
-    it.each([
+    // The third column is gzhttp's choice where it differs from the
+    // middleware's (gzip only, no "*", and no preference for identity).
+    it.each<[string, string | undefined, (string | undefined)?]>([
       ['gzip', 'gzip'],
-      ['deflate', 'deflate'],
+      ['deflate', 'deflate', undefined],
       ['gzip, deflate, br, zstd', 'gzip'],
       ['deflate, gzip', 'gzip'],
       // The middleware picks gzip over deflate whenever gzip is acceptable.
       ['deflate;q=1, gzip;q=0.5', 'gzip'],
       ['GZIP', 'gzip'],
-      ['*', 'gzip'],
-      ['deflate, *;q=0', 'deflate'],
+      ['*', 'gzip', undefined],
+      ['deflate, *;q=0', 'deflate', undefined],
       ['br, zstd', undefined],
       ['identity', undefined],
       ['x-gzip', undefined],
       ['gzip;q=0', undefined],
-      ['gzip;q=0.5, identity', undefined],
+      ['gzip;q=0.5, identity', undefined, 'gzip'],
       ['gzip; q=0.5, identity;q=0.4', 'gzip'],
       ['*;q=0', undefined],
     ])(
       'picks the encoding for Accept-Encoding: %s',
-      async (accept, expected) => {
+      async (accept, node, ...gzhttp) => {
+        const expected = direct && gzhttp.length ? gzhttp[0] : node
         await twice(
           '/go/compress?size=2048',
           [`Accept-Encoding: ${accept}`],
@@ -468,7 +489,10 @@ describe('switchyard-go', () => {
       ['size=1023', undefined, '1023', undefined],
       ['size=1024', 'gzip', undefined, 'chunked'],
       ['size=5&chunked=1', 'gzip', undefined, 'chunked'],
-      ['size=0&chunked=1', undefined, undefined, 'chunked'],
+      // gzhttp sends an empty body of unknown length with Content-Length: 0.
+      direct
+        ? ['size=0&chunked=1', undefined, '0', undefined]
+        : ['size=0&chunked=1', undefined, undefined, 'chunked'],
       ['size=0', undefined, '0', undefined],
     ])(
       'applies the 1 KiB threshold to %s',
@@ -492,17 +516,23 @@ describe('switchyard-go', () => {
       // Node could count it, whatever the client accepts.
       for (const query of ['', '&type=png']) {
         await twice(`/go/compress?size=0&chunked=1${query}`, [], (res) => {
-          expect(getHeader(res, 'content-length')).toBeUndefined()
-          expect(getHeader(res, 'transfer-encoding')).toBe('chunked')
+          // gzhttp sends it with Content-Length: 0 instead.
+          expect(getHeader(res, 'content-length')).toBe(
+            direct ? '0' : undefined
+          )
+          expect(getHeader(res, 'transfer-encoding')).toBe(
+            direct ? undefined : 'chunked'
+          )
           expect(res.body.length).toBe(0)
         })
       }
     })
 
     it('leaves a response the middleware skips as the worker sent it', async () => {
-      for (const [query, vary] of [
-        ['type=png', undefined],
-        ['cacheControl=no-transform', undefined],
+      for (const [query, varies] of [
+        // gzhttp adds Vary to these too.
+        ['type=png', direct ? 'Accept-Encoding' : undefined],
+        ['cacheControl=no-transform', direct ? 'Accept-Encoding' : undefined],
         ['encoding=br', 'Accept-Encoding'],
         ['status=204', 'Accept-Encoding'],
       ]) {
@@ -510,7 +540,7 @@ describe('switchyard-go', () => {
           `/go/compress?size=2048&${query}`,
           ['Accept-Encoding: gzip'],
           (res) => {
-            expect(getHeader(res, 'vary')).toBe(vary)
+            expect(getHeader(res, 'vary')).toBe(varies)
             expect(getHeader(res, 'content-encoding')).toBe(
               query === 'encoding=br' ? 'br' : undefined
             )
@@ -540,9 +570,14 @@ describe('switchyard-go', () => {
         ['Accept-Encoding: gzip'],
         (res) => {
           expect(res.status).toBe(404)
-          expect(getHeader(res, 'content-encoding')).toBe('gzip')
+          // gzhttp leaves any Content-Encoding as the worker sent it.
+          expect(getHeader(res, 'content-encoding')).toBe(
+            direct ? 'identity' : 'gzip'
+          )
           expect(getHeader(res, 'etag')).toBe('"compress-etag"')
-          expect(getHeader(res, 'content-length')).toBeUndefined()
+          expect(getHeader(res, 'content-length')).toBe(
+            direct ? '2048' : undefined
+          )
           expect(decoded(res)).toBe('x'.repeat(2048))
         }
       )
@@ -562,11 +597,13 @@ describe('switchyard-go', () => {
     it('holds a streamed chunk in the compressor until more output is ready', async () => {
       // The middleware never flushes zlib between chunks, so the client gets
       // only the 10-byte gzip header until the handler sends enough, or ends.
+      // gzhttp sends the compressed chunk as the worker flushes it.
       for (let i = 0; i < 2; i++) {
         const first = await firstChunk(Number(next.appPort), '/go/stream', {
           'Accept-Encoding': 'gzip',
         })
-        expect(first.length).toBe(10)
+        if (direct) expect(first.length).toBeGreaterThan(10)
+        else expect(first.length).toBe(10)
         expect([...first.subarray(0, 4)]).toEqual([0x1f, 0x8b, 8, 0])
       }
     })
