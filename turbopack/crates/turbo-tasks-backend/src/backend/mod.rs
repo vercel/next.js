@@ -251,8 +251,9 @@ pub struct TurboTasksBackend {
 
     storage: Storage,
 
-    /// Tasks known to be immutable, so that reads of them don't need to lock the reader. See
-    /// [`KnownImmutable`].
+    /// Tasks known to be immutable, so that keyed refinement of a dependency on one of them
+    /// doesn't need to lock the reader and the task together. Reads record the immutable tasks
+    /// they find. See [`KnownImmutable`].
     known_immutable: KnownImmutable,
 
     /// Coordinates the operation/snapshot/GC interleaving protocol. See
@@ -569,7 +570,7 @@ impl TurboTasksBackend {
         self.backing_storage.roots().unwrap_or_default()
     }
 
-    /// Whether `task` is known to be immutable, i.e. reads of it don't lock the reader task.
+    /// Whether `task` is in the set of tasks known to be immutable (see [`KnownImmutable`]).
     #[doc(hidden)]
     pub fn known_immutable_for_testing(&self, task: TaskId) -> bool {
         self.known_immutable.contains(task)
