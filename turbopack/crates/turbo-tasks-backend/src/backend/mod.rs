@@ -631,27 +631,31 @@ impl TurboTasksBackend {
             }
             TaskError::TaskChain(chain) => {
                 let task_id = chain.last().unwrap();
-                let error = {
-                    let task = ctx.task(*task_id, TaskDataCategory::Meta);
-                    if let Some(OutputValue::Error(error)) = task.get_output() {
-                        Some(error.clone())
-                    } else {
-                        None
+                // Eventual consistency (or GC) will cause errors to no longer be available
+                fn make_missing_error_error(hint: &'static str) -> TurboTasksExecutionError {
+                    TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
+                        message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Owned(format!(
+                            "Error no longer available: {hint}"
+                        ))),
+                        location: None,
+                        kind: Default::default(),
+                    }))
+                }
+                // When recovering a chain, eventual consistency means that the task can be missing
+                // and it might also not be an error any more, handle both.
+                let error = if let Some(task) = ctx.try_task(*task_id, TaskDataCategory::Meta) {
+                    match task.get_output() {
+                        Some(OutputValue::Error(error)) => {
+                            let error = error.clone();
+                            drop(task);
+                            self.task_error_to_turbo_tasks_execution_error(&error, ctx)
+                        }
+                        _ => make_missing_error_error("not errored"),
                     }
+                } else {
+                    make_missing_error_error("task missing, likely garbage collected")
                 };
-                let error = error.map_or_else(
-                    || {
-                        // Eventual consistency will cause errors to no longer be available
-                        TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
-                            message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(
-                                "Error no longer available",
-                            )),
-                            location: None,
-                            kind: Default::default(),
-                        }))
-                    },
-                    |e| self.task_error_to_turbo_tasks_execution_error(&e, ctx),
-                );
+
                 let mut current_error = error;
                 for &task_id in chain.iter().rev() {
                     current_error =
