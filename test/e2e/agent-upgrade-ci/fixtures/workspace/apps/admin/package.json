@@ -1,0 +1,13 @@
+{
+  "name": "scheduled-upgrade-fixture-admin",
+  "private": true,
+  "scripts": {
+    "build": "next build"
+  },
+  "dependencies": {
+    "next": "catalog:",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "upgrade-shared": "workspace:*"
+  }
+}

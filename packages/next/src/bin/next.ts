@@ -759,6 +759,26 @@ internal
     process.stdout.write(`${JSON.stringify(result)}\n`)
   })
 
+internal
+  .command('agent-upgrade-model', { hidden: true })
+  .argument('<agent>', 'The scheduled upgrade agent: codex or claude.')
+  .argument('<cli>', 'The agent CLI to query.')
+  .action(async (agent: string, cli: string) => {
+    if (agent !== 'codex' && agent !== 'claude') {
+      process.exitCode = 1
+      return
+    }
+    const { getDefaultHarnessModel } = await import(
+      '../lib/upgrade/model-discovery.js'
+    )
+    try {
+      const model = await getDefaultHarnessModel(agent, cli, process.cwd())
+      process.stdout.write(`${JSON.stringify({ model })}\n`)
+    } catch {
+      process.exitCode = 1
+    }
+  })
+
 // Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
 internal
   .command('report-agent-upgrade', { hidden: true })

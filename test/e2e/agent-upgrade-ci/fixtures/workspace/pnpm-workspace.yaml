@@ -1,0 +1,9 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+catalog:
+  next: 16.1.6
+
+allowBuilds:
+  sharp: false

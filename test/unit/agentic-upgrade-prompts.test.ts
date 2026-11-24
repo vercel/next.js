@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { resolve } from 'path'
+import { join, resolve } from 'path'
 import {
   access,
   cp,
@@ -169,6 +169,8 @@ describe('agentic upgrade prompts', () => {
   const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
   const originalExpectedCliVersion =
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+  const originalScheduledTarget = process.env.__NEXT_AGENT_UPGRADE_CI_TARGET
+  const originalScheduledHandoff = process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
   const originalFetch = global.fetch
   const originalExitCode = process.exitCode
 
@@ -212,6 +214,9 @@ describe('agentic upgrade prompts', () => {
     })
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_TARGET
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES
     global.fetch = jest.fn()
     process.exitCode = undefined
 
@@ -269,6 +274,86 @@ describe('agentic upgrade prompts', () => {
     while (restoreDescriptors.length > 0) {
       restoreDescriptors.pop()?.()
     }
+    if (originalScheduledTarget === undefined) {
+      delete process.env.__NEXT_AGENT_UPGRADE_CI_TARGET
+    } else {
+      process.env.__NEXT_AGENT_UPGRADE_CI_TARGET = originalScheduledTarget
+    }
+    if (originalScheduledHandoff === undefined) {
+      delete process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
+    } else {
+      process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = originalScheduledHandoff
+    }
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES
+  })
+
+  it('writes the pinned scheduled handoff to a new result file', async () => {
+    const handoffPath = resolve('/tmp/next-upgrade-handoff.json')
+    const guides = resolve('/tmp/next-upgrade-guides')
+    process.env.__NEXT_AGENT_UPGRADE_CI_TARGET = '16.3.5'
+    process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = handoffPath
+    process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES = guides
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+
+    const handoff = jest
+      .mocked(writeFile)
+      .mock.calls.find(([path]) => path === handoffPath)
+    expect(handoff?.[2]).toEqual({ flag: 'wx' })
+    const { targetVersion, prompt } = JSON.parse(String(handoff?.[1]))
+    expect(targetVersion).toBe('16.3.5')
+    expect(prompt).toContain('leave the verified changes there')
+    // The guides go where the workflow's agent user can read them.
+    expect(prompt).toContain(
+      JSON.stringify(join(guides, 'upgrade', 'shared.md'))
+    )
+    expect(mkdtemp).toHaveBeenCalledTimes(0)
+    expect(cliSelect).toHaveBeenCalledTimes(0)
+    expect(process.env.__NEXT_AGENT_UPGRADE_CI_TARGET).toBeUndefined()
+    expect(process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF).toBeUndefined()
+    expect(process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES).toBeUndefined()
+  })
+
+  it('refuses a scheduled handoff if the target changed', async () => {
+    process.env.__NEXT_AGENT_UPGRADE_CI_TARGET = '16.3.4'
+    process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = resolve(
+      '/tmp/next-upgrade-handoff.json'
+    )
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+
+    expect(writeFile).toHaveBeenCalledTimes(0)
+    expect(mkdtemp).toHaveBeenCalledTimes(0)
+    expect(process.exitCode).toBe(1)
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      expect.stringContaining('no longer matches')
+    )
+  })
+
+  it('refuses a scheduled handoff without a guide directory', async () => {
+    process.env.__NEXT_AGENT_UPGRADE_CI_TARGET = '16.3.5'
+    process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = resolve(
+      '/tmp/next-upgrade-handoff.json'
+    )
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+
+    expect(writeFile).toHaveBeenCalledTimes(0)
+    expect(mkdtemp).toHaveBeenCalledTimes(0)
+    expect(process.exitCode).toBe(1)
   })
 
   it.each([

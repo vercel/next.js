@@ -1,0 +1,5 @@
+{
+  "name": "scheduled-upgrade-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.9.1"
+}
