@@ -1184,6 +1184,31 @@ impl<'a> Analyzer<'a, '_> {
         self.effects.push(effect);
     }
 
+    /// Evaluates the object of an `Effect::Member`. An optional chain object (`a?.b` in
+    /// `a?.b.c` or `a?.b?.c`) is `a.b` or `undefined`, so that e.g. `process?.env?.FOO` is a read
+    /// of `FOO`. This is not done in [`EvalContext::eval`], where the `undefined` alternative would
+    /// e.g. turn `require(a?.b)` into a request for `"undefined"`.
+    fn eval_member_obj(&self, obj: &Expr) -> JsValue<'a> {
+        if let Expr::OptChain(OptChainExpr { base, .. }) = unparen(obj)
+            && let OptChainBase::Member(member) = &**base
+        {
+            let prop = match &member.prop {
+                MemberProp::Ident(prop) => prop.sym.clone().into(),
+                MemberProp::Computed(ComputedPropName { expr, .. }) => {
+                    self.eval_context.eval(self.arena, expr)
+                }
+                MemberProp::PrivateName(_) => return self.eval_context.eval(self.arena, obj),
+            };
+            let member = JsValue::member(self.arena, self.eval_member_obj(&member.obj), prop);
+            JsValue::alternatives(BumpVec::from_iter_in(
+                self.arena,
+                [member, JsValue::Constant(ConstantValue::Undefined)],
+            ))
+        } else {
+            self.eval_context.eval(self.arena, obj)
+        }
+    }
+
     fn collect_effects(&mut self, visit: impl FnOnce(&mut Self)) -> BumpBox<'a, [Effect<'a>]> {
         let prev_effects = take(&mut self.effects);
         visit(self);
@@ -1984,10 +2009,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let obj_value = BumpBox::new_in(
-            self.eval_context.eval(self.arena, &member_expr.obj),
-            self.arena,
-        );
+        let obj_value = BumpBox::new_in(self.eval_member_obj(&member_expr.obj), self.arena);
         let prop_value = match &member_expr.prop {
             // TODO avoid clone
             MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),

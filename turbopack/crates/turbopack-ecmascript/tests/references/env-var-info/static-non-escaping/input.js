@@ -14,6 +14,7 @@ console.log(
   globalThis.process?.env?.FOO14,
   process?.env.FOO15,
   process.env?.FOO16,
+  globalThis?.process?.env?.FOO17,
   !process?.env,
   typeof process?.env === 'object'
 )

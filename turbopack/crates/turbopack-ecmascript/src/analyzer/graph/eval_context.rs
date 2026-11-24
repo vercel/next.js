@@ -380,31 +380,6 @@ impl EvalContext {
                 JsValue::member(arena, obj, prop)
             }
 
-            // `a?.b` is `a.b`, or `undefined` if `a` (or an earlier part of the chain) is nullish
-            Expr::OptChain(OptChainExpr { base, .. }) => {
-                let member = match &**base {
-                    OptChainBase::Member(MemberExpr {
-                        obj,
-                        prop: MemberProp::Ident(prop),
-                        ..
-                    }) => JsValue::member(arena, self.eval(arena, obj), prop.sym.clone().into()),
-                    OptChainBase::Member(MemberExpr {
-                        obj,
-                        prop: MemberProp::Computed(computed),
-                        ..
-                    }) => JsValue::member(
-                        arena,
-                        self.eval(arena, obj),
-                        self.eval(arena, &computed.expr),
-                    ),
-                    _ => return JsValue::unknown_empty(true, rcstr!("unsupported expression")),
-                };
-                JsValue::alternatives(BumpVec::from_iter_in(
-                    arena,
-                    [member, JsValue::Constant(ConstantValue::Undefined)],
-                ))
-            }
-
             Expr::New(NewExpr { callee, args, .. }) => {
                 let args = args.as_deref().unwrap_or(&[]);
                 // We currently do not handle spreads.
