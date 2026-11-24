@@ -1,7 +1,10 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import z from 'next/dist/compiled/zod'
 import { summarizeRequestInsight } from '../../../shared/lib/request-insights-summary'
-import { getRequestInsightsSnapshot } from '../../lib/trace/request-insights'
+import {
+  getRequestInsightsSnapshot,
+  isRequestInsightsEnabled,
+} from '../../lib/trace/request-insights'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 const DEFAULT_REQUEST_LIMIT = 20
@@ -21,6 +24,20 @@ export function registerGetRequestInsightsTool(server: McpServer) {
     },
     async (request) => {
       mcpTelemetryTracker.recordToolCall('mcp/get_request_insights')
+
+      if (!isRequestInsightsEnabled()) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error:
+                  'Request Insights is disabled by experimental.requestInsights = false.',
+              }),
+            },
+          ],
+        }
+      }
 
       const snapshot = getRequestInsightsSnapshot()
       const memoryRequests = snapshot.requests.filter((insight) => {

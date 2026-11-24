@@ -191,6 +191,20 @@ describe('span recording', () => {
     expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
   })
 
+  it('honors the experimental.requestInsights opt-out', () => {
+    const original = process.env.__NEXT_REQUEST_INSIGHTS
+    try {
+      process.env.__NEXT_DEV_SERVER = 'true'
+      delete process.env.__NEXT_REQUEST_INSIGHTS
+      expect(isRequestInsightsEnabled()).toBe(true)
+      process.env.__NEXT_REQUEST_INSIGHTS = 'false'
+      expect(isRequestInsightsEnabled()).toBe(false)
+    } finally {
+      if (original === undefined) delete process.env.__NEXT_REQUEST_INSIGHTS
+      else process.env.__NEXT_REQUEST_INSIGHTS = original
+    }
+  })
+
   it('captures the destination before a stream resumes in another context', () => {
     const first: SpanStoreRecord[] = []
     const second: SpanStoreRecord[] = []

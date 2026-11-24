@@ -159,7 +159,13 @@ export function isLocalSpanRecordingEnabled(): boolean {
 }
 
 export function isRequestInsightsEnabled(): boolean {
-  return Boolean(process.env.__NEXT_DEV_SERVER)
+  const value = process.env.__NEXT_REQUEST_INSIGHTS
+  // define-env inlines a boolean into bundled code; the router sets a string.
+  return (
+    Boolean(process.env.__NEXT_DEV_SERVER) &&
+    value !== 'false' &&
+    (value as unknown) !== false
+  )
 }
 
 function getCurrentTimestamp(): number {
