@@ -1354,21 +1354,6 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    if usage == ValueUsage::Escapes
-                        && could_be_env_key(&prop)
-                        && !analysis.has_runtime_env_var_reference_all()
-                    {
-                        // e.g. `foo(process.env)`, `const key = 'env'; foo(process[key])` or
-                        // `foo(process[cond ? 'env' : 'argv'])`
-                        let value = JsValue::member(
-                            arena.get_or_default(),
-                            obj.clone_in(arena.get_or_default()),
-                            atom!("env").into(),
-                        );
-                        set_runtime_all_if_process_env(value, &analysis_state, &mut analysis)
-                            .await?;
-                    }
-
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
                         analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
@@ -1380,9 +1365,7 @@ async fn analyze_ecmascript_module_internal(
                         span,
                         &analysis_state,
                         &mut analysis,
-                        MembershipType::Member {
-                            in_truthiness_context: usage == ValueUsage::Truthiness,
-                        },
+                        MembershipType::Member { usage },
                     )
                     .await?;
                     if !replaced {
@@ -3835,7 +3818,7 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
 }
 
 enum MembershipType {
-    Member { in_truthiness_context: bool },
+    Member { usage: ValueUsage },
     In,
 }
 
@@ -3929,28 +3912,57 @@ async fn handle_membership<'a>(
         // Not inlined, potentially register as runtime env var.
         if could_be_process_env(&obj, state) {
             match ty {
-                MembershipType::In => {
+                MembershipType::In
+                | MembershipType::Member {
+                    usage: ValueUsage::Truthiness,
+                } => {
                     analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
                 }
-                MembershipType::Member {
-                    in_truthiness_context,
-                } => {
-                    if in_truthiness_context {
-                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
-                    } else {
-                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
-                    }
+                MembershipType::Member { .. } => {
+                    analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                 }
             }
             return Ok(false);
         }
-    } else if !analysis.has_runtime_env_var_reference_all()
-        && could_be_process_env(&link_obj.await?, state)
-    {
-        // `process.env[unknown]` or `unknown in process.env`
-        analysis.set_runtime_env_var_reference_all();
+        if prop == "env" && !analysis.has_runtime_env_var_reference_all() {
+            // e.g. `foo(process.env)`
+            set_runtime_all_if_process_escapes(&obj, &ty, state, analysis).await?;
+        }
+    } else if !analysis.has_runtime_env_var_reference_all() {
+        let obj = link_obj.await?;
+        if could_be_process_env(&obj, state) {
+            // `process.env[unknown]` or `unknown in process.env`
+            analysis.set_runtime_env_var_reference_all();
+        } else if could_be_env_key(&prop) {
+            // e.g. `const key = 'env'; foo(process[key])` or
+            // `foo(process[cond ? 'env' : 'argv'])`
+            set_runtime_all_if_process_escapes(&obj, &ty, state, analysis).await?;
+        }
     }
     Ok(false)
+}
+
+/// Marks the module as potentially reading all env vars if `obj.env` (the member access `ty`, `obj`
+/// is linked) could be `process.env` and escapes.
+async fn set_runtime_all_if_process_escapes<'a>(
+    obj: &JsValue<'a>,
+    ty: &MembershipType,
+    state: &AnalysisState<'a>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if matches!(
+        ty,
+        MembershipType::Member {
+            usage: ValueUsage::Escapes
+        }
+    ) {
+        // Link `obj.env` instead of checking `obj` for `process`, the linker normalizes e.g.
+        // `globalThis.process.env` to `process.env`.
+        let arena = state.arena.get_or_default();
+        let value = JsValue::member(arena, obj.clone_in(arena), atom!("env").into());
+        set_runtime_all_if_process_env(value, state, analysis).await?;
+    }
+    Ok(())
 }
 
 async fn handle_typeof<'a>(
