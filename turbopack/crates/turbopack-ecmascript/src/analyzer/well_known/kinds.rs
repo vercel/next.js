@@ -292,12 +292,14 @@ impl WellKnownFunctionKind<'_> {
     /// compile time.
     ///
     /// Older browsers lack some of these (e.g. no `URL` constructor or `Object.assign` in IE11, no
-    /// `SharedWorker` in older Safari), and Node.js lacks the browser ones (`Worker`,
-    /// `SharedWorker`). See [`WellKnownObjectKind::is_optional_global`] for the global objects.
+    /// `Object.hasOwn` before ES2022, no `SharedWorker` in older Safari), and Node.js lacks the
+    /// browser ones (`Worker`, `SharedWorker`). See [`WellKnownObjectKind::is_optional_global`]
+    /// for the global objects.
     pub fn is_optional_global(&self) -> bool {
         matches!(
             self,
             Self::ObjectAssign
+                | Self::ObjectHasOwn
                 | Self::URLConstructor
                 | Self::WorkerConstructor
                 | Self::SharedWorkerConstructor

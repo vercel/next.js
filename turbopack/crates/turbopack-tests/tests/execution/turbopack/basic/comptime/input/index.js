@@ -509,6 +509,39 @@ it('should keep Object.assign existence checks as runtime checks', () => {
   })
 })
 
+it('should keep Object.hasOwn existence checks as runtime checks', () => {
+  // `Object.hasOwn` doesn't exist in older browsers.
+  const check = () => {
+    let exists = false
+    if (Object.hasOwn) {
+      exists = true
+    }
+    let globalExists = false
+    if (globalThis.Object.hasOwn) {
+      globalExists = true
+    }
+    return [
+      exists,
+      Object.hasOwn ? 'yes' : 'no',
+      (Object.hasOwn ?? 'fallback') === 'fallback',
+      globalExists,
+      globalThis.Object.hasOwn ? 'yes' : 'no',
+      (globalThis.Object.hasOwn ?? 'fallback') === 'fallback',
+    ]
+  }
+
+  const hasOwn = () => {}
+  expect({
+    undefined: withProperty(Object, 'hasOwn', undefined, check),
+    deleted: withProperty(Object, 'hasOwn', DELETED, check),
+    present: withProperty(Object, 'hasOwn', hasOwn, check),
+  }).toEqual({
+    undefined: [false, 'no', true, false, 'no', true],
+    deleted: [false, 'no', true, false, 'no', true],
+    present: [true, 'yes', false, true, 'yes', false],
+  })
+})
+
 it('should evaluate process.turbopack through globalThis and global', () => {
   if (!globalThis.process.turbopack) {
     require('fail')
