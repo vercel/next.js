@@ -448,6 +448,17 @@ describe('switchyard', () => {
   })
 
   describe('response headers', () => {
+    it('passes hop-by-hop headers the app sets on to the client', async () => {
+      const res = await rawRequest(
+        Number(next.appPort),
+        `GET /api/hop HTTP/1.1\r\nHost: localhost:${next.appPort}`
+      )
+      expect(res.status).toBe(426)
+      expect(getHeader(res, 'upgrade')).toBe('example/2')
+      expect(getHeader(res, 'proxy-authenticate')).toBe('Basic realm="shop"')
+      expect(getHeader(res, 'x-listed')).toBe('listed')
+    })
+
     it('sends no date header when the app turns it off', async () => {
       const res = await rawRequest(
         Number(next.appPort),

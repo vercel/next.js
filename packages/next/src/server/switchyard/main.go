@@ -385,7 +385,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// responses of unknown length). -1 writes each chunk to the client as
 		// soon as Node sends it, as without Switchyard.
 		FlushInterval: -1,
-		Transport:     newClientTransport(upstream, upstreamIdle),
+		Transport:     nodeResponseTransport{newClientTransport(upstream, upstreamIdle)},
 		// The proxy copies each response body through a buffer. Without a
 		// pool it allocates a new 32 KB buffer per response, most of what
 		// Switchyard allocates, and Go's garbage collector then spends CPU
@@ -397,6 +397,13 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// read those bytes as the next request. Close the connection after
 		// such a response instead of reusing it.
 		ModifyResponse: func(res *http.Response) error {
+			// Put back the hop-by-hop headers the proxy removed and Node sends
+			// its client (nodeResponseTransport).
+			if node, ok := res.Request.Context().Value(nodeResponseKey{}).(*nodeResponse); ok {
+				for name, values := range node.hopHeaders {
+					res.Header[name] = values
+				}
+			}
 			if body, ok := res.Request.Context().Value(requestBodyKey{}).(*requestBody); ok && !body.readToEnd.Load() {
 				res.Header.Set("Connection", "close")
 			}
@@ -463,6 +470,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
+		r = r.WithContext(context.WithValue(r.Context(), nodeResponseKey{}, &nodeResponse{hopHeaders: nil}))
 		proxy.ServeHTTP(&clientWriter{ResponseWriter: w, sentInformational: false}, r)
 	})
 }
@@ -555,6 +563,37 @@ type bufferedConn struct {
 }
 
 func (c *bufferedConn) Read(p []byte) (int, error) { return c.reader.Read(p) }
+
+type nodeResponseKey struct{}
+
+// nodeResponse is what Switchyard keeps from Node's response before Go's
+// proxy changes it.
+type nodeResponse struct {
+	// The hop-by-hop headers Node sends its client, which the proxy removes.
+	hopHeaders http.Header
+}
+
+// nodeResponseTransport keeps, in the request's nodeResponse, the parts of
+// Node's response that Go's proxy removes before ModifyResponse runs.
+//
+// Node parity: Node's server sends its client every header the app set,
+// Proxy-Authenticate on a 407 or Upgrade on a 426 included.
+type nodeResponseTransport struct {
+	next http.RoundTripper
+}
+
+func (t nodeResponseTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	res, err := t.next.RoundTrip(r)
+	if err == nil {
+		if node, ok := r.Context().Value(nodeResponseKey{}).(*nodeResponse); ok {
+			node.hopHeaders = keepHopHeaders(res.Header)
+			// Node adds its own Keep-Alive to a keep-alive response, about its
+			// connection to Switchyard; not passed on for now.
+			delete(node.hopHeaders, "Keep-Alive")
+		}
+	}
+	return res, err
+}
 
 type requestBodyKey struct{}
 
