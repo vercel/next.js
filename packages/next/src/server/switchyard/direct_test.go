@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/klauspost/compress/gzhttp"
 )
 
 // directFixture is Switchyard with a stub Node and a stub route.go worker.
@@ -431,14 +433,16 @@ func TestAnEmptyBodyOfUnknownLengthGetsContentLengthZero(t *testing.T) {
 		// Sends the headers chunked, then no body.
 		w.(http.Flusher).Flush()
 	})
-	// In an app with compression on, Node's middleware sends this chunked
-	// (TestAnEmptyBodyOfUnknownLengthGoesOutChunked).
-	fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(strings.Replace(testTable, `"compress":true`, `"compress":false`, 1))})
-	res := fx.raw(t, "GET /api/echo HTTP/1.1")
 	// Node sends the headers with the first chunk or at the end, so an
-	// empty body goes out with Content-Length: 0.
-	if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
-		t.Errorf("response %q", res)
+	// empty body goes out with Content-Length: 0. With compression on,
+	// Node's middleware sends it chunked instead; through gzhttp it gets
+	// Content-Length: 0 too.
+	for _, compress := range []string{`"compress":true`, `"compress":false`} {
+		fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(strings.Replace(testTable, `"compress":true`, compress, 1))})
+		res := fx.raw(t, "GET /api/echo HTTP/1.1\r\nAccept-Encoding: gzip")
+		if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
+			t.Errorf("%s: response %q", compress, res)
+		}
 	}
 }
 
@@ -553,14 +557,17 @@ func TestDirectCompressionVary(t *testing.T) {
 			w.Header().Add("Cache-Control", "public")
 			w.Header().Add("Cache-Control", "no-transform")
 		}
-		io.WriteString(w, `{}`)
+		// Above the 1 KiB threshold, so only no-transform keeps it as it is.
+		io.WriteString(w, `{"padding":"`+strings.Repeat("x", 2048)+`"}`)
 	})
-	res := fx.raw(t, "GET /api/echo HTTP/1.1")
-	if !strings.Contains(res, "Vary: Origin, Accept-Encoding\r\n") {
-		t.Fatalf("compression Vary missing: %q", res)
+	// gzhttp adds its Vary as a line of its own, where Node's middleware
+	// writes one line, "Origin, Accept-Encoding": the same to a cache.
+	res := fx.raw(t, "GET /api/echo HTTP/1.1\r\nAccept-Encoding: gzip")
+	if !strings.Contains(res, "Content-Encoding: gzip\r\n") || !strings.Contains(res, "Vary: Accept-Encoding\r\n") || !strings.Contains(res, "Vary: Origin\r\n") {
+		t.Fatalf("Vary lines: %q", res)
 	}
-	res = fx.raw(t, "GET /api/echo?case=no-transform HTTP/1.1")
-	if !strings.Contains(res, "Vary: Origin\r\n") || strings.Contains(res, "Accept-Encoding") {
+	res = fx.raw(t, "GET /api/echo?case=no-transform HTTP/1.1\r\nAccept-Encoding: gzip")
+	if strings.Contains(res, "Content-Encoding") || strings.Contains(res, gzhttp.HeaderNoCompression) {
 		t.Fatalf("ignored no-transform in repeated Cache-Control: %q", res)
 	}
 }
