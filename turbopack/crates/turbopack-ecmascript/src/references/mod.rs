@@ -2190,7 +2190,8 @@ where
         }
         WellKnownFunctionKind::ValueOf => {
             // `process.env.valueOf()` returns `process.env` itself
-            if !analysis.has_runtime_env_var_reference_all()
+            if !new
+                && !analysis.has_runtime_env_var_reference_all()
                 && let Some(this) = this
                 && could_be_process_env(&link(this).await?, state)
             {
