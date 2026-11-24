@@ -352,8 +352,10 @@ describe('switchyard process', () => {
         )
         try {
           const response = once(socket, 'data')
+          // Twice the limit: Switchyard measures complete headers as Node
+          // does, and stops reading incomplete ones a few KB past the limit.
           socket.write(
-            `GET / HTTP/1.1\r\nHost: localhost\r\nX-Large: ${'a'.repeat(limit)}`
+            `GET / HTTP/1.1\r\nHost: localhost\r\nX-Large: ${'a'.repeat(2 * limit)}`
           )
           const [data] = await response
           expect(data.toString()).toMatch(/^HTTP\/1\.1 431 /)

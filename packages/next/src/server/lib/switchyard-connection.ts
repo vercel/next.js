@@ -8,6 +8,18 @@ export const SWITCHYARD_CONNECTION_HEADER = 'x-nextjs-switchyard-connection'
 // has been enforced. Keep it out of the application's header budget.
 export const SWITCHYARD_HEADER_OVERHEAD = 256
 
+// How many header lines Node's server reads from a request when
+// server.maxHeadersCount isn't set (MAX_HEADER_PAIRS in Node's
+// lib/_http_common.js counts names and values, 2000 entries). Switchyard
+// refuses requests with more, so Node never drops any of them.
+export const NODE_MAX_HEADER_LINES = 1000
+
+// The header-line limit of the Node server behind Switchyard: the public
+// limit plus room for the headers Switchyard adds (the connection metadata,
+// X-Forwarded-For and -Port, and a few Go writes itself), so those are never
+// among the headers Node drops.
+export const SWITCHYARD_PRIVATE_MAX_HEADER_LINES = NODE_MAX_HEADER_LINES + 16
+
 /** Restore the TCP peer before routing or upgrading a proxied request. */
 export function restoreSwitchyardConnection(
   req: IncomingMessage,
@@ -15,7 +27,11 @@ export function restoreSwitchyardConnection(
 ): boolean {
   const peer = req.headers[SWITCHYARD_CONNECTION_HEADER]
   // Node can also call its private listener directly (e.g. server actions).
-  if (peer === undefined) return true
+  // A request that filled Node's header-line limit may have had the metadata
+  // dropped along with the lines past it, so it isn't taken as one of those.
+  if (peer === undefined) {
+    return req.rawHeaders.length < 2 * SWITCHYARD_PRIVATE_MAX_HEADER_LINES
+  }
 
   delete req.headers[SWITCHYARD_CONNECTION_HEADER]
   for (let i = req.rawHeaders.length - 2; i >= 0; i -= 2) {

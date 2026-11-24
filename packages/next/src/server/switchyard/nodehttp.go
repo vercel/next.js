@@ -1,8 +1,8 @@
 package main
 
 // Node parity: what Node's HTTP server shows the app and sends the client,
-// where Go's server and proxy differ. Shared by the paths that answer for
-// Node.
+// and the request headers it accepts, where Go's server and proxy differ.
+// Shared by the paths that answer for Node.
 
 import (
 	"net/http"
@@ -50,4 +50,97 @@ func restoreHopHeaders(out, in http.Header) {
 	for _, name := range connectionNames(in) {
 		restore(name)
 	}
+}
+
+// nodeHeaderBytes counts header bytes the way Node's HTTP parser does
+// (TrackHeader in Node's src/node_http_parser.cc): the variable part of the
+// first line (a request's URL, a response's reason phrase) plus every
+// header's name and value, without separators or line endings. Node refuses a
+// message once the count reaches its limit (--max-http-header-size).
+//
+// Go's parser moves two headers out of the header map, so they are passed
+// separately: Transfer-Encoding (transferEncoding) and Trailer (the names in
+// trailer).
+func nodeHeaderBytes(first string, header http.Header, transferEncoding []string, trailer http.Header) int {
+	n := len(first)
+	for name, values := range header {
+		for _, value := range values {
+			n += len(name) + len(value)
+		}
+	}
+	if len(transferEncoding) > 0 {
+		n += len("Transfer-Encoding") + len(strings.Join(transferEncoding, ", "))
+	}
+	if len(trailer) > 0 {
+		n += len("Trailer") + len(", ")*(len(trailer)-1)
+		for name := range trailer {
+			n += len(name)
+		}
+	}
+	return n
+}
+
+// nodeHeaderLines counts header lines, the unit of Node's limit on how many
+// headers it reads (server.maxHeadersCount), with the same two headers passed
+// separately as for nodeHeaderBytes.
+func nodeHeaderLines(header http.Header, transferEncoding []string, trailer http.Header) int {
+	n := 0
+	for _, values := range header {
+		n += len(values)
+	}
+	if len(transferEncoding) > 0 {
+		n++
+	}
+	if len(trailer) > 0 {
+		n++
+	}
+	return n
+}
+
+// nodeRequestHeaders measures a request's headers as Node would. Go's server
+// also takes Host out of the header map (into r.Host).
+func nodeRequestHeaders(r *http.Request) (bytes, lines int) {
+	bytes = nodeHeaderBytes(r.RequestURI, r.Header, r.TransferEncoding, r.Trailer)
+	lines = nodeHeaderLines(r.Header, r.TransferEncoding, r.Trailer)
+	if r.Host != "" {
+		bytes += len("Host") + len(r.Host)
+		lines++
+	}
+	return bytes, lines
+}
+
+// Node's answer to a request whose headers are over its limit, byte for byte
+// (requestHeaderFieldsTooLargeResponse in Node's lib/_http_server.js).
+const nodeHeaderFieldsTooLarge = "HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n"
+
+// withNodeHeaderLimits refuses, as Node does, a request whose headers reach
+// maxBytes by Node's count, before it goes anywhere.
+//
+// It also refuses a request with more than maxLines header lines. Node reads
+// only the first maxLines and drops the rest without an answer. Switchyard
+// can't drop the same ones, because Go's parser doesn't keep the order of
+// different headers, so it answers the same 431 instead. Node's own limit on
+// its connection to Switchyard is set higher, so the headers Switchyard adds
+// always reach Node.
+func withNodeHeaderLimits(next http.Handler, maxBytes, maxLines int) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if bytes, lines := nodeRequestHeaders(r); bytes >= maxBytes || lines > maxLines {
+			refuseHeaderFields(w)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// refuseHeaderFields writes Node's 431 and closes the connection.
+func refuseHeaderFields(w http.ResponseWriter) {
+	conn, rw, err := http.NewResponseController(w).Hijack()
+	if err != nil {
+		w.Header().Set("Connection", "close")
+		w.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
+		return
+	}
+	defer conn.Close()
+	rw.WriteString(nodeHeaderFieldsTooLarge)
+	rw.Flush()
 }

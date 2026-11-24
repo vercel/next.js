@@ -71,6 +71,7 @@ export async function startSwitchyard(
         privatePort: privateServer.port,
         token,
         maxHeaderBytes: privateServer.maxHeaderSize,
+        maxHeaderLines: privateServer.maxHeaderLines,
         // Every value Switchyard uses comes from Node, so it has no defaults
         // of its own: client keep-alive as without Switchyard (--keepAliveTimeout
         // or Node's), Node's header and request timeouts, and a pool idle time
@@ -95,6 +96,7 @@ function spawnSwitchyard(
     privatePort: number
     token: string
     maxHeaderBytes: number
+    maxHeaderLines: number
     idleTimeoutMs: number
     headerTimeoutMs: number
     requestTimeoutMs: number
@@ -119,6 +121,8 @@ function spawnSwitchyard(
       String(options.upstreamIdleMs),
       '--max-header-bytes',
       String(options.maxHeaderBytes),
+      '--max-header-lines',
+      String(options.maxHeaderLines),
     ],
     {
       stdio: ['pipe', 'pipe', 'inherit'],
