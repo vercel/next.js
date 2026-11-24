@@ -1,0 +1,23 @@
+name: Next.js upgrade
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  upgrade:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: vercel/next.js/.github/workflows/next-upgrade.yml@__NEXT_UPGRADE_WORKFLOW_SHA__
+    with:
+      targets: __NEXT_UPGRADE_TARGETS__
+      supporting-paths: __NEXT_UPGRADE_SUPPORTING_PATHS__
+      agent-auth: __NEXT_UPGRADE_AGENT_AUTH__
+      telemetry-disabled: __NEXT_UPGRADE_TELEMETRY_DISABLED__
+    secrets:
+      agent-credential: ${{ secrets.NEXT_UPGRADE_AGENT_API_KEY }}
+      publish-token: ${{ secrets.NEXT_UPGRADE_PUBLISH_TOKEN }}

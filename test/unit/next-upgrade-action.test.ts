@@ -11,6 +11,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { load } from 'js-yaml'
 
 const sourceRoot = resolve(__dirname, '../..')
 const actionRoot = join(sourceRoot, '.github/actions/next-upgrade')
@@ -22,6 +23,18 @@ const sourceVersion = '16.1.6'
 const targetVersion = '16.2.0'
 const selectedApps = ['apps/web', 'apps/admin']
 const supportingPaths = ['packages/shared']
+
+type Workflow = {
+  jobs: Record<string, { with?: Record<string, unknown> }>
+}
+
+function readYaml(path: string) {
+  return load(readFileSync(path, 'utf8')) as Workflow
+}
+
+function workflowExpression(expression: string) {
+  return ['${', '{ ', expression, ' }}'].join('')
+}
 
 function git(cwd: string, ...args: string[]) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
@@ -35,6 +48,119 @@ function runScript<T>(script: string, input: unknown, cwd: string): T {
   )
   return JSON.parse(output) as T
 }
+
+describe('scheduled Next.js upgrade workflow', () => {
+  it('pins the reusable workflow and isolates the preparation credential', () => {
+    const template = readYaml(join(actionRoot, 'workflow.template.yml'))
+    const workflow = readYaml(
+      join(sourceRoot, '.github/workflows/next-upgrade.yml')
+    )
+    const checkout = expect.objectContaining({
+      with: expect.objectContaining({
+        repository: workflowExpression('job.workflow_repository'),
+        ref: workflowExpression('job.workflow_sha'),
+        'persist-credentials': false,
+        'sparse-checkout': expect.stringContaining(
+          '.github/actions/next-upgrade/'
+        ),
+      }),
+    })
+    const installNext = expect.objectContaining({
+      run: 'node install-next.mjs',
+      env: expect.objectContaining({
+        WORKFLOW_SHA: workflowExpression('job.workflow_sha'),
+        PREVIEW_PACKAGE: workflowExpression('inputs.preview-package'),
+      }),
+    })
+    expect(template).toMatchObject({
+      jobs: {
+        upgrade: {
+          uses: 'vercel/next.js/.github/workflows/next-upgrade.yml@__NEXT_UPGRADE_WORKFLOW_SHA__',
+          secrets: {
+            'agent-credential': workflowExpression(
+              'secrets.NEXT_UPGRADE_AGENT_API_KEY'
+            ),
+            'publish-token': workflowExpression(
+              'secrets.NEXT_UPGRADE_PUBLISH_TOKEN'
+            ),
+          },
+        },
+      },
+    })
+    // Setup never writes the test-only inputs.
+    expect(Object.keys(template.jobs.upgrade.with!).sort()).toEqual([
+      'agent-auth',
+      'supporting-paths',
+      'targets',
+      'telemetry-disabled',
+    ])
+    expect(workflow).toMatchObject({
+      jobs: {
+        prepare: {
+          permissions: { contents: 'read' },
+          steps: expect.arrayContaining([
+            checkout,
+            installNext,
+            expect.objectContaining({
+              env: expect.objectContaining({
+                NEXT_UPGRADE_AGENT_CREDENTIAL: workflowExpression(
+                  'secrets.agent-credential'
+                ),
+                NEXT_UPGRADE_MODEL: workflowExpression('inputs.model'),
+                NEXT_UPGRADE_AGENT_USER: 'next-upgrade-agent',
+              }),
+            }),
+            // The agent runs as a user without sudo or access to the runner.
+            expect.objectContaining({
+              run: expect.stringMatching(
+                /^sudo useradd .*--no-create-home .*next-upgrade-agent$/
+              ),
+            }),
+          ]),
+        },
+        publish: {
+          needs: 'prepare',
+          permissions: { contents: 'write', 'pull-requests': 'write' },
+          steps: expect.arrayContaining([
+            checkout,
+            expect.objectContaining({
+              run: 'node install-next.mjs',
+              env: expect.objectContaining({ NEXT_UPGRADE_DEPS_ONLY: 'true' }),
+            }),
+            expect.objectContaining({
+              env: expect.objectContaining({
+                GH_TOKEN: workflowExpression(
+                  'secrets.publish-token || github.token'
+                ),
+                NEXT_UPGRADE_PUBLISH_TOKEN_PROVIDED: workflowExpression(
+                  "secrets.publish-token != ''"
+                ),
+              }),
+            }),
+          ]),
+        },
+      },
+    })
+    // The job with write access never installs the Next.js package.
+    expect(JSON.stringify(workflow.jobs.publish)).not.toContain(
+      'PREVIEW_PACKAGE'
+    )
+    const serialized = JSON.stringify(workflow)
+    expect(serialized.match(/secrets\.agent-credential/g)).toHaveLength(1)
+    expect(serialized.match(/secrets\.publish-token/g)).toHaveLength(2)
+    expect(JSON.stringify(workflow.jobs.prepare)).not.toContain('publish-token')
+    // Consumer runs use the published package and never build the monorepo.
+    expect(serialized).not.toMatch(/pnpm install|turbo|taskr/)
+    // Preparation runs the consumer's pnpm through Corepack.
+    expect(workflow.jobs.prepare).toMatchObject({
+      steps: expect.arrayContaining([
+        expect.objectContaining({
+          run: expect.stringContaining('corepack enable'),
+        }),
+      ]),
+    })
+  })
+})
 
 // The workflow only runs on Linux runners.
 // @force-gate !windows

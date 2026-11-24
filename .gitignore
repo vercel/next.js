@@ -18,6 +18,7 @@ rustc-ice-*.txt
 # dependencies
 node_modules
 package-lock.json
+!.github/actions/next-upgrade/package-lock.json
 yarn.lock
 !/yarn.lock
 test/node_modules
