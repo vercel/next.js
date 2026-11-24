@@ -1540,6 +1540,40 @@ fn go_route_id_collisions<'a>(ids: &[&'a str]) -> Vec<(&'a str, &'a str)> {
     collisions
 }
 
+/// The output ID that an adapter executable selects for an `x-matched-path` value, as
+/// `nextGoMatchedPathID` in `templates/go_routes_adapter_main.go` computes it. It mirrors the
+/// steps the Next.js server applies to the header (`denormalizePagePath`): backslashes become
+/// slashes, `/index` becomes `/`, and a static `/index/...` loses its `/index` prefix.
+fn go_matched_path_id(value: &str) -> String {
+    let value = value.replace('\\', "/");
+    if value == "/index" {
+        return "/".to_owned();
+    }
+    let dynamic = value
+        .split('/')
+        .skip(1)
+        .any(|segment| segment.len() >= 3 && segment.starts_with('[') && segment.ends_with(']'));
+    match value.strip_prefix("/index") {
+        Some(rest) if rest.starts_with('/') && !dynamic => rest.to_owned(),
+        _ => value,
+    }
+}
+
+/// Groups of distinct Go route IDs that `x-matched-path` normalization maps to one value, such
+/// as `/index/docs` and `/docs`, or `/a\b` and `/a/b`. The platform sends each output's own ID
+/// in `x-matched-path`, so such an ID would select another output, or one value would name
+/// several outputs. Every ID in a group is rejected at build time.
+fn go_matched_path_collisions<'a>(ids: &[&'a str]) -> Vec<(String, Vec<&'a str>)> {
+    let mut groups: BTreeMap<String, Vec<&'a str>> = BTreeMap::new();
+    for &id in ids {
+        groups.entry(go_matched_path_id(id)).or_default().push(id);
+    }
+    groups
+        .into_iter()
+        .filter(|(_, ids)| ids.len() > 1)
+        .collect()
+}
+
 /// Virtual directory of the adapter entrypoint that serves every route, relative to the Go
 /// module root. It lies outside every `internal` tree.
 const GO_ROUTES_ENTRYPOINT_DIRECTORY: &str = "_next_go_main_routes";
@@ -1775,9 +1809,10 @@ struct GoRoutesBundle {
 /// endpoint reads this task, so Go compiles once, and every route output references the same
 /// executable. Issues are attributed to the route files.
 ///
-/// The executable never selects a route by path. With an adapter, the adapter selects the output
-/// per process or per request (`go_routes_adapter_main.go`). With `next start`, Next.js routes
-/// the request and names the selected route in an authenticated header (`go_routes_main.go`).
+/// The executable never selects a route by path. With an adapter, each request selects its output
+/// from the platform's `x-matched-path` header, unless the adapter pins one output or names its own
+/// routing header (`go_routes_adapter_main.go`). With `next start`, Next.js routes the request and
+/// names the selected route in an authenticated header (`go_routes_main.go`).
 #[turbo_tasks::function]
 async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBundle>> {
     let failed = |build: Option<turbopack_go::GoBundleResult>| {
@@ -1843,6 +1878,38 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
                          that selects a route by its percent-encoded route ID, so these two \
                          routes cannot be told apart reliably. Rename the folder so that its name \
                          contains no percent-encoded characters."
+                    )
+                    .into(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+        }
+        return Ok(failed(None));
+    }
+    // Adapter executables select a route from x-matched-path by default.
+    let adapter = is_adapter_build(project).await?;
+    let collisions = if adapter {
+        go_matched_path_collisions(&ids)
+    } else {
+        vec![]
+    };
+    if !collisions.is_empty() {
+        for (selected, colliding) in collisions {
+            let list = colliding.join(", ");
+            for (path, package) in &packages {
+                if !colliding.contains(&package.route_id.as_str()) {
+                    continue;
+                }
+                GoRouteIssue {
+                    path: path.clone(),
+                    message: format!(
+                        "The Go routes {list} all select the Go route {selected} from the \
+                         x-matched-path header. Adapter builds compile every route.go into one \
+                         executable that selects a route from x-matched-path the way the Next.js \
+                         server does, which reads /index as / and drops a leading /index from a \
+                         static path, so these routes cannot be told apart. Rename the folders so \
+                         that no route is a /index spelling of another."
                     )
                     .into(),
                 }
@@ -1964,7 +2031,6 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
     aliased.sort_by(|(_, a), (_, b)| a.route_id.cmp(&b.route_id));
     // Next.js authenticates requests to a `next start` worker and replaces client-supplied
     // x-next-internal-* headers. Adapter servers receive requests from the platform instead.
-    let adapter = is_adapter_build(project).await?;
     let trust_internal_headers = !adapter;
     let mut imports = vec![];
     let mut table = vec![];
@@ -4037,6 +4103,54 @@ mod tests {
         // Escapes that decode to no other route, or not at all, are allowed.
         assert!(
             go_route_id_collisions(&["/x/[id]", "/y/%5Bid%5D", "/x/%zz", "/日本語"]).is_empty()
+        );
+    }
+
+    #[test]
+    fn go_matched_path_ids_follow_the_next_server() {
+        for (value, expected) in [
+            ("/", "/"),
+            ("/index", "/"),
+            ("/index/docs", "/docs"),
+            ("/index/index", "/index"),
+            ("/index/[id]", "/index/[id]"),
+            ("/index/docs/[...slug]", "/index/docs/[...slug]"),
+            ("/indexes", "/indexes"),
+            ("/docs/index", "/docs/index"),
+            ("\\index\\docs", "/docs"),
+            ("/a\\b", "/a/b"),
+            ("/catch/[id]", "/catch/[id]"),
+            ("/café a 100%", "/café a 100%"),
+            ("/x/%5Bid%5D", "/x/%5Bid%5D"),
+        ] {
+            assert_eq!(go_matched_path_id(value), expected, "{value}");
+        }
+    }
+
+    #[test]
+    fn go_matched_path_rejects_ids_that_select_another_route() {
+        assert_eq!(
+            go_matched_path_collisions(&["/docs", "/index/docs", "/a/b", "/a\\b", "/[id]"]),
+            [
+                ("/a/b".to_owned(), vec!["/a/b", "/a\\b"]),
+                ("/docs".to_owned(), vec!["/docs", "/index/docs"]),
+            ]
+        );
+        assert_eq!(
+            go_matched_path_collisions(&["/", "/index"]),
+            [("/".to_owned(), vec!["/", "/index"])]
+        );
+        // Percent-encoding is not decoded, and dynamic /index paths keep their prefix.
+        assert!(
+            go_matched_path_collisions(&[
+                "/",
+                "/x/[id]",
+                "/x/%5Bid%5D",
+                "/index/[id]",
+                "/[id]",
+                "/café"
+            ])
+            .is_empty()
         );
     }
 

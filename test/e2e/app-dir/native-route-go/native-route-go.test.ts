@@ -931,6 +931,23 @@ func GET(w http.ResponseWriter, r *http.Request) {
 `
         )
       }
+      // A root route.go, which x-matched-path names as / (or /index). It
+      // replaces the root page, since both cannot serve /.
+      await next.deleteFile('app/page.tsx')
+      await next.patchFile(
+        'app/route.go',
+        `package route
+
+import (
+\t"encoding/json"
+\t"net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tjson.NewEncoder(w).Encode(map[string]string{"route": "app"})
+}
+`
+      )
       // A route below app/internal is only importable from below app, so the
       // shared executable must still reach it. It imports app/internal too.
       await next.patchFile(
@@ -976,6 +993,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
       ).toBe(true)
       expect(goOutputs.map((output) => output.pathname).sort()).toEqual(
         [
+          '/adapter-base',
           '/adapter-base/adapter-optional/[[...slug]]',
           '/adapter-base/adapter-optional/fixed',
           '/adapter-base/adapter-special/café a 100%',
@@ -1226,6 +1244,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
           { params: null },
         ],
         ['/native/[id]', '/adapter-base/native/one', { id: 'one' }],
+        ['/', '/adapter-base', { route: 'app' }],
         [
           '/internal/health',
           '/adapter-base/internal/health',
@@ -1276,16 +1295,124 @@ func GET(w http.ResponseWriter, r *http.Request) {
           ).status
         ).toBe(400)
       })
-      for (const routeId of [null, '/not-a-go-output']) {
-        await expect(
-          withStandaloneRoute(nativeOutput, async () => {}, routeId)
-        ).rejects.toThrow('requires __NEXT_GO_ROUTE set to its output.id')
-      }
+      await expect(
+        withStandaloneRoute(nativeOutput, async () => {}, '/not-a-go-output')
+      ).rejects.toThrow(
+        'requires __NEXT_GO_ROUTE to be the output.id of a Go output'
+      )
 
-      // One process can serve every Go output when the platform supplies the
-      // selected output ID in a routing header that clients cannot set, as
-      // x-matched-path is on Vercel.
-      const routeHeader = { __NEXT_GO_ROUTE_HEADER: 'x-matched-path' }
+      // Without configuration, one process serves every Go output and selects
+      // each request's output from x-matched-path, which the platform sets
+      // from its routing decision and clients cannot set (Vercel's proxy drops
+      // client values). It is read as the Next.js server reads it: the
+      // pathname's UTF-8 bytes without basePath, not percent-encoded, with
+      // /index read as /.
+      await withStandaloneRoute(
+        nativeOutput,
+        async (port) => {
+          const invoke = (path: string, matched?: string | readonly string[]) =>
+            fetchViaHTTP(`http://127.0.0.1:${port}`, path, undefined, {
+              headers: {
+                ...(matched === undefined
+                  ? {}
+                  : {
+                      // Send the UTF-8 bytes, as the platform does.
+                      'x-matched-path': (typeof matched === 'string'
+                        ? [matched]
+                        : matched
+                      )
+                        .map((value) =>
+                          Buffer.from(value, 'utf8').toString('latin1')
+                        )
+                        .join(', '),
+                    }),
+                // Client-supplied private metadata never selects an output.
+                'x-next-internal-go-route': '%2Fcatch%2Fstatic',
+              },
+            })
+          for (const [matched, path, expected] of [
+            [
+              '/catch/static',
+              '/adapter-base/catch/static',
+              { route: 'app/catch/static' },
+            ],
+            [
+              '/catch/[id]',
+              '/adapter-base/catch/one',
+              { route: 'app/catch/[id]', id: 'one' },
+            ],
+            // The routing decision wins over the pathname.
+            [
+              '/catch/[id]',
+              '/adapter-base/catch/%73tatic',
+              { route: 'app/catch/[id]', id: 'static' },
+            ],
+            ['/catch/[...slug]', '/adapter-base/catch/one/two', ['one', 'two']],
+            ['/', '/adapter-base', { route: 'app' }],
+            ['/index', '/adapter-base', { route: 'app' }],
+            [
+              '/index/catch/static',
+              '/adapter-base/catch/static',
+              { route: 'app/catch/static' },
+            ],
+            ['/native/[id]', '/adapter-base/native/one', { id: 'one' }],
+            // Non-ASCII characters and a literal % in the route ID.
+            [
+              '/adapter-special/café a 100%',
+              '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+              { path: '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25' },
+            ],
+          ] as const) {
+            const response = await invoke(path, matched)
+            expect(response.status).toBeLessThan(300)
+            const body = await response.json()
+            if (Array.isArray(expected)) {
+              expect(body).toEqual(expected)
+            } else {
+              expect(body).toMatchObject(expected)
+            }
+          }
+          for (const [matched, path] of [
+            // No header, or a combined repeated value, selects nothing; the
+            // pathname never selects a handler.
+            [undefined, '/adapter-base/catch/static'],
+            [['/catch/static', '/catch/static'], '/adapter-base/catch/static'],
+            // basePath is not part of x-matched-path.
+            ['/adapter-base/catch/static', '/adapter-base/catch/static'],
+            // The value is not percent-decoded.
+            ['/catch/%5Bid%5D', '/adapter-base/catch/one'],
+            [
+              '/adapter-special/caf%C3%A9%20a%20100%25',
+              '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+            ],
+            ['/not-a-go-output', '/adapter-base/catch/static'],
+            // The selected handler still requires its own pathname.
+            ['/catch/static', '/adapter-base/catch/one'],
+          ] as const) {
+            expect((await invoke(path, matched)).status).toBe(404)
+          }
+          // Bytes that are not UTF-8 select nothing.
+          expect(
+            (
+              await fetchViaHTTP(
+                `http://127.0.0.1:${port}`,
+                '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+                undefined,
+                {
+                  headers: {
+                    'x-matched-path': '/adapter-special/caf\u00e9 a 100%',
+                  },
+                }
+              )
+            ).status
+          ).toBe(404)
+        },
+        null
+      )
+
+      // An adapter can instead name its own routing header, which carries the
+      // selected output ID percent-encoded and is decoded exactly once.
+      const routeHeader = { __NEXT_GO_ROUTE_HEADER: 'x-go-output-id' }
       await withStandaloneRoute(
         nativeOutput,
         async (port) => {
@@ -1328,7 +1455,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
             ],
           ] as const) {
             const response = await invoke(path, {
-              'x-matched-path': matched,
+              'x-go-output-id': matched,
               'x-next-internal-go-route': '/catch/static',
             })
             expect(response.status).toBeLessThan(300)
@@ -1349,7 +1476,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
             expect(
               (
                 await invoke('/adapter-base/catch/one', {
-                  'x-matched-path': matched,
+                  'x-go-output-id': matched,
                 })
               ).status
             ).toBe(404)
@@ -1357,7 +1484,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
           expect(
             (
               await invoke('/adapter-base/catch/static', {
-                'x-matched-path': '/not-a-go-output',
+                'x-go-output-id': '/not-a-go-output',
               })
             ).status
           ).toBe(404)
@@ -1365,7 +1492,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
           expect(
             (
               await invoke('/adapter-base/native/one/two', {
-                'x-matched-path': '/native/[id]',
+                'x-go-output-id': '/native/[id]',
               })
             ).status
           ).toBe(404)
@@ -1911,6 +2038,46 @@ func GET(w http.ResponseWriter, r *http.Request) {}
       )
     } finally {
       await next.deleteFile('app/collide')
+    }
+  })
+  it('rejects Go routes that x-matched-path cannot tell apart in adapter builds', async () => {
+    // Adapter executables read x-matched-path as the Next.js server does,
+    // which drops a leading /index from a static path. /index/collide/docs
+    // would then select /collide/docs, a different handler than the one the
+    // platform routed to.
+    const config = await next.readFile('next.config.ts')
+    const source = `package route
+
+import "net/http"
+
+func GET(w http.ResponseWriter, r *http.Request) {}
+`
+    try {
+      await next.patchFile(
+        'next.config.ts',
+        config.replace(
+          'experimental:',
+          `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
+        )
+      )
+      await next.patchFile('app/collide/docs/route.go', source)
+      await next.patchFile('app/index/collide/docs/route.go', source)
+      const result = await next.runCommand(['build', '--turbopack'], {
+        env: {
+          IS_WEBPACK_TEST: '',
+          IS_TURBOPACK_TEST: '1',
+          NEXT_RSPACK: '',
+          NEXT_TEST_USE_RSPACK: '',
+        },
+      })
+      expect(result.exitCode).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain(
+        'all select the Go route /collide/docs from the x-matched-path header'
+      )
+    } finally {
+      await next.patchFile('next.config.ts', config)
+      await next.deleteFile('app/collide')
+      await next.deleteFile('app/index')
     }
   })
   it('diagnoses conflicting Go and TS handlers', async () => {

@@ -8,15 +8,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 	// __NEXT_GO_ROUTE_IMPORTS__
 )
 
 func main() {
-	// The adapter selects and authorizes an output before invoking its server.
+	// The platform selects and authorizes an output before invoking the server.
 	// Requests never select a handler by re-matching their pathname against the
-	// compiled routes. The process either binds to one output at startup, or,
-	// when one deployed function serves every Go output, reads the selected
-	// output from a routing header that the platform sets and clients cannot.
+	// compiled routes. The process binds to one output at startup, reads the
+	// output from a routing header the adapter names, or, by default, reads it
+	// from x-matched-path as the Next.js server does. See nextGoSelectHandler.
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
 	}
@@ -50,15 +51,19 @@ func main() {
 	}
 }
 
-const nextGoRouteRequirement = "route.go adapter server requires __NEXT_GO_ROUTE set to its output.id, " +
-	"or __NEXT_GO_ROUTE_HEADER set to a routing header that the platform sets to the selected output.id"
+const nextGoRouteRequirement = "route.go adapter server requires __NEXT_GO_ROUTE to be the output.id of a Go output in this build"
 
-// __NEXT_GO_ROUTE is the exact output ID. A routing header carries the output ID
-// percent-encoded (see nextGoLookupRoute).
-
-// nextGoSelectHandler reads trusted process configuration from the adapter.
-// __NEXT_GO_ROUTE binds the process to one output. __NEXT_GO_ROUTE_HEADER names
-// a request header that carries the selected output ID on each request.
+// nextGoSelectHandler reads trusted process configuration from the adapter, in
+// this order:
+//
+//   - __NEXT_GO_ROUTE binds the process to the output with exactly that ID.
+//   - __NEXT_GO_ROUTE_HEADER names a request header that carries the selected
+//     output ID percent-encoded (see nextGoLookupRoute).
+//   - Otherwise each request selects its output from x-matched-path, which the
+//     platform sets from its routing decision and clients cannot set, as the
+//     Next.js server reads it in minimal mode (see nextGoMatchedPathID).
+//
+// A request that selects no output gets a 404. The pathname never selects one.
 func nextGoSelectHandler(routes map[string]http.HandlerFunc) http.HandlerFunc {
 	selected, hasSelected := os.LookupEnv("__NEXT_GO_ROUTE")
 	header, hasHeader := os.LookupEnv("__NEXT_GO_ROUTE_HEADER")
@@ -68,11 +73,80 @@ func nextGoSelectHandler(routes map[string]http.HandlerFunc) http.HandlerFunc {
 	if hasHeader {
 		return nextGoHeaderHandler(routes, header)
 	}
-	handler, ok := routes[selected]
-	if !hasSelected || !ok {
-		panic(nextGoRouteRequirement)
+	if hasSelected {
+		handler, ok := routes[selected]
+		if !ok {
+			panic(nextGoRouteRequirement)
+		}
+		return handler
 	}
-	return handler
+	return nextGoMatchedPathHandler(routes)
+}
+
+// nextGoMatchedPathHandler selects the output named by x-matched-path. The
+// platform must set the header from its routing decision and drop any value the
+// client sent, as Vercel's proxy does and as the Next.js server assumes in
+// minimal mode.
+func nextGoMatchedPathHandler(routes map[string]http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		values := r.Header.Values("X-Matched-Path")
+		if len(values) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		id, ok := nextGoMatchedPathID(values[0])
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		handler, ok := routes[id]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		handler(w, r)
+	}
+}
+
+// nextGoMatchedPathID maps an x-matched-path value to an output ID with the
+// steps the Next.js server applies before it looks up the matched route
+// (packages/next/src/server/base-server.ts, the x-matched-path branch of
+// handleRequestImpl). Steps that cannot address an App Router route handler
+// are left out. The build rejects Go outputs whose IDs these steps would map to
+// one value, so a value names at most one output, and every output ID maps to
+// itself (go_matched_path_collisions in next-api's app.rs).
+//
+//   - fixMojibake: the header carries the pathname's UTF-8 bytes, not
+//     percent-encoding, and Go reads header bytes as is. Node replaces invalid
+//     UTF-8 with U+FFFD, which would map many values to one, so such a value
+//     selects nothing instead.
+//   - denormalizePagePath: backslashes become slashes, /index becomes /, and a
+//     static /index/... loses its /index prefix.
+//
+// basePath is not stripped: platforms set x-matched-path without it.
+func nextGoMatchedPathID(value string) (string, bool) {
+	if !utf8.ValidString(value) {
+		return "", false
+	}
+	value = strings.ReplaceAll(value, `\`, "/")
+	if value == "/index" {
+		return "/", true
+	}
+	if strings.HasPrefix(value, "/index/") && !nextGoIsDynamicRoute(value) {
+		return value[len("/index"):], true
+	}
+	return value, true
+}
+
+// nextGoIsDynamicRoute matches isDynamicRoute in strict mode: some segment is a
+// whole [param], [...param] or [[...param]].
+func nextGoIsDynamicRoute(route string) bool {
+	for _, segment := range strings.Split(route, "/")[1:] {
+		if len(segment) >= 3 && segment[0] == '[' && segment[len(segment)-1] == ']' {
+			return true
+		}
+	}
+	return false
 }
 
 func nextGoHeaderHandler(routes map[string]http.HandlerFunc, header string) http.HandlerFunc {
