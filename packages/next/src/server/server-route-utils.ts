@@ -1,3 +1,4 @@
+import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 
@@ -7,7 +8,10 @@ import { stringify as stringifyQs } from 'querystring'
 // since initial query values are decoded by querystring.parse
 // we need to re-encode them here but still allow passing through
 // values from rewrites/redirects
-export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
+export const stringifyQuery = (
+  req: BaseNextRequest | IncomingMessage,
+  query: ParsedUrlQuery
+) => {
   const initialQuery = getRequestMeta(req, 'initQuery') || {}
   const initialQueryValues = Object.values(initialQuery)
 

@@ -1,3 +1,4 @@
+import type { RouteURL } from '../../../shared/lib/router/utils/route-url'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { PrerenderResult } from '../../render-result'
@@ -37,7 +38,6 @@ import {
 import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/interception-routes'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
-import type { UrlWithParsedQuery } from 'url'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
@@ -152,16 +152,18 @@ export class AppPageRouteModule extends RouteModule<
 
   public normalizeUrl(
     req: IncomingMessage | BaseNextRequest,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: RouteURL
   ) {
-    if (this.normalizers.segmentPrefetchRSC.match(parsedUrl.pathname || '/')) {
+    if (
+      this.normalizers.segmentPrefetchRSC.match(parsedUrl.url.pathname || '/')
+    ) {
       const result = this.normalizers.segmentPrefetchRSC.extract(
-        parsedUrl.pathname || '/'
+        parsedUrl.url.pathname || '/'
       )
       if (!result) return false
 
       const { originalPathname, segmentPath } = result
-      parsedUrl.pathname = originalPathname
+      parsedUrl.url.pathname = originalPathname
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
@@ -171,9 +173,9 @@ export class AppPageRouteModule extends RouteModule<
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
       addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
-    } else if (this.normalizers.rsc.match(parsedUrl.pathname || '/')) {
-      parsedUrl.pathname = this.normalizers.rsc.normalize(
-        parsedUrl.pathname || '/',
+    } else if (this.normalizers.rsc.match(parsedUrl.url.pathname || '/')) {
+      parsedUrl.url.pathname = this.normalizers.rsc.normalize(
+        parsedUrl.url.pathname || '/',
         true
       )
 
@@ -186,7 +188,7 @@ export class AppPageRouteModule extends RouteModule<
     // Minimal adapters can bypass base-server request normalization and invoke
     // route modules directly, so derive RSC/prefetch metadata from headers.
     applyAppPageRscRequestMetaFromHeaders(req)
-    normalizeAppPageRequestUrl(req, parsedUrl.pathname || '/')
+    normalizeAppPageRequestUrl(req, parsedUrl.url.pathname || '/')
   }
 
   public render(

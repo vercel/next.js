@@ -53,7 +53,6 @@ import type { PathnameNormalizer } from './normalizers/request/pathname-normaliz
 import type { InstrumentationModule } from './instrumentation/types'
 
 import * as path from 'path'
-import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import { isRSCRequestHeader } from './lib/is-rsc-request'
 import { isNonHtmlSecFetchDest } from './lib/is-non-html-sec-fetch-dest'
@@ -90,9 +89,11 @@ import {
 } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
 import {
-  parseUrl,
-  parseUrl as parseUrlUtil,
-} from '../shared/lib/router/utils/parse-url'
+  parseRouteURL,
+  formatRouteURL,
+  normalizeRouteURL,
+  type RouteURL,
+} from '../shared/lib/router/utils/route-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
@@ -210,7 +211,7 @@ export type RouteHandler<
 > = (
   req: ServerRequest,
   res: ServerResponse,
-  parsedUrl: NextUrlWithParsedQuery
+  parsedUrl: RouteURL
 ) => PromiseLike<boolean> | boolean
 
 /**
@@ -312,7 +313,7 @@ export interface BaseRequestHandler<
   (
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl?: NextUrlWithParsedQuery | undefined
+    parsedUrl?: RouteURL | NextUrlWithParsedQuery | undefined
   ): Promise<void> | void
 }
 
@@ -408,7 +409,7 @@ export default abstract class Server<
     | undefined
   protected abstract attachRequestMeta(
     req: ServerRequest,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: RouteURL
   ): void
   protected abstract hasPage(pathname: string): Promise<boolean>
 
@@ -682,16 +683,16 @@ export default abstract class Server<
     _res,
     parsedUrl
   ) => {
-    if (!parsedUrl.pathname) return false
+    if (!parsedUrl.url.pathname) return false
 
-    if (this.normalizers.segmentPrefetchRSC?.match(parsedUrl.pathname)) {
+    if (this.normalizers.segmentPrefetchRSC?.match(parsedUrl.url.pathname)) {
       const result = this.normalizers.segmentPrefetchRSC.extract(
-        parsedUrl.pathname
+        parsedUrl.url.pathname
       )
       if (!result) return false
 
       const { originalPathname, segmentPath } = result
-      parsedUrl.pathname = originalPathname
+      parsedUrl.url.pathname = originalPathname
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
@@ -701,9 +702,9 @@ export default abstract class Server<
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
       addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
-    } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.rsc.normalize(
-        parsedUrl.pathname,
+    } else if (this.normalizers.rsc?.match(parsedUrl.url.pathname)) {
+      parsedUrl.url.pathname = this.normalizers.rsc.normalize(
+        parsedUrl.url.pathname,
         true
       )
 
@@ -743,9 +744,9 @@ export default abstract class Server<
     }
 
     if (req.url) {
-      const parsed = parseUrl(req.url)
-      parsed.pathname = parsedUrl.pathname
-      req.url = formatUrl(parsed)
+      const parsed = parseRouteURL(req.url)
+      parsed.url.pathname = parsedUrl.url.pathname
+      req.url = formatRouteURL(parsed)
     }
 
     return false
@@ -754,7 +755,7 @@ export default abstract class Server<
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
     async (req, res, parsedUrl) => {
       const middleware = await this.getMiddleware()
-      const params = matchNextDataPathname(parsedUrl.pathname)
+      const params = matchNextDataPathname(parsedUrl.url.pathname)
 
       // ignore for non-next data URLs
       if (!params || !params.path) {
@@ -836,7 +837,7 @@ export default abstract class Server<
         }
       }
 
-      parsedUrl.pathname = pathname
+      parsedUrl.url.pathname = pathname
       addRequestMeta(req, 'isNextDataReq', true)
 
       return false
@@ -892,7 +893,7 @@ export default abstract class Server<
   public async handleRequest(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: RouteURL | NextUrlWithParsedQuery
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
@@ -1072,9 +1073,10 @@ export default abstract class Server<
   private async handleRequestImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl?: NextUrlWithParsedQuery
+    input?: RouteURL | NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      let parsedUrl = input ? normalizeRouteURL(input) : undefined
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
       patchSetHeaderWithCookieSupport(
@@ -1101,18 +1103,11 @@ export default abstract class Server<
           throw new Error('Invariant: url can not be undefined')
         }
 
-        parsedUrl = parseUrl(req.url)
+        parsedUrl = parseRouteURL(req.url)
       }
 
-      if (!parsedUrl.pathname) {
+      if (!parsedUrl.url.pathname) {
         throw new Error("Invariant: pathname can't be empty")
-      }
-
-      // Parse the querystring ourselves if the user doesn't handle querystring parsing
-      if (typeof parsedUrl.query === 'string') {
-        parsedUrl.query = Object.fromEntries(
-          new URLSearchParams(parsedUrl.query)
-        )
       }
 
       // Update the `x-forwarded-*` headers.
@@ -1139,19 +1134,22 @@ export default abstract class Server<
       if (finished) return
 
       const domainLocale = this.i18nProvider?.detectDomainLocale(
-        getHostname(parsedUrl, req.headers)
+        getHostname(
+          parsedUrl.kind === 'absolute' ? parsedUrl.url : {},
+          req.headers
+        )
       )
 
       const defaultLocale =
         domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
       addRequestMeta(req, 'defaultLocale', defaultLocale)
 
-      const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
-      const pathnameInfo = getNextPathnameInfo(url.pathname, {
+      const requestUrl = parseRouteURL(req.url.replace(/^\/+/, '/'))
+      const pathnameInfo = getNextPathnameInfo(requestUrl.url.pathname, {
         nextConfig: this.nextConfig,
         i18nProvider: this.i18nProvider,
       })
-      url.pathname = pathnameInfo.pathname
+      requestUrl.url.pathname = pathnameInfo.pathname
 
       if (pathnameInfo.basePath) {
         req.url = removePathPrefix(req.url!, this.nextConfig.basePath)
@@ -1169,8 +1167,8 @@ export default abstract class Server<
             if (req.url.match(/^\/index($|\?)/)) {
               req.url = req.url.replace(/^\/index/, '/')
             }
-            parsedUrl.pathname =
-              parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+            parsedUrl.url.pathname =
+              parsedUrl.url.pathname === '/index' ? '/' : parsedUrl.url.pathname
           }
 
           // x-matched-path is the source of truth, it tells what page
@@ -1322,18 +1320,18 @@ export default abstract class Server<
             caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
           })
 
-          // Ensure parsedUrl.pathname includes locale before processing
+          // Ensure parsedUrl.url.pathname includes locale before processing
           // rewrites or they won't match correctly.
           if (defaultLocale && !pathnameInfo.locale) {
-            parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
+            parsedUrl.url.pathname = `/${defaultLocale}${parsedUrl.url.pathname}`
           }
 
           // Store a copy of `parsedUrl.query` before calling handleRewrites.
           // Since `handleRewrites` might add new queries to `parsedUrl.query`.
           const originQueryParams = { ...parsedUrl.query }
 
-          const pathnameBeforeRewrite = parsedUrl.pathname
-          const { rewriteParams, rewrittenParsedUrl } = utils.handleRewrites(
+          const pathnameBeforeRewrite = parsedUrl.url.pathname
+          const { rewriteParams, rewrittenParsedUrl } = utils.handleRewritesURL(
             req,
             parsedUrl
           )
@@ -1344,13 +1342,13 @@ export default abstract class Server<
           // same normalized key from causing issues.
           const rewrittenQueryParams = { ...rewrittenParsedUrl.query }
           const didRewrite =
-            pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
+            pathnameBeforeRewrite !== rewrittenParsedUrl.url.pathname
 
-          if (didRewrite && rewrittenParsedUrl.pathname) {
+          if (didRewrite && rewrittenParsedUrl.url.pathname) {
             addRequestMeta(
               req,
               'rewrittenPathname',
-              rewrittenParsedUrl.pathname
+              rewrittenParsedUrl.url.pathname
             )
           }
 
@@ -1579,8 +1577,8 @@ export default abstract class Server<
             }
           }
 
-          parsedUrl.pathname = matchedPath
-          url.pathname = parsedUrl.pathname
+          parsedUrl.url.pathname = matchedPath
+          requestUrl.url.pathname = parsedUrl.url.pathname
 
           // For Pages Router routes, use the normalized queryParams from
           // handleRewrites to ensure catch-all routes get proper array values.
@@ -1607,7 +1605,7 @@ export default abstract class Server<
       addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
 
       if (pathnameInfo.locale) {
-        req.url = formatUrl(url)
+        req.url = formatRouteURL(requestUrl)
       }
 
       // If we aren't in minimal mode or there is no locale in the query
@@ -1705,12 +1703,12 @@ export default abstract class Server<
           addRequestMeta(req, 'locale', invokePathnameInfo.locale)
         }
 
-        if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
-          parsedUrl.pathname = parsedMatchedPath.pathname
+        if (parsedUrl.url.pathname !== parsedMatchedPath.pathname) {
+          parsedUrl.url.pathname = parsedMatchedPath.pathname
           addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
         const pathnameNoBasePath = removePathPrefix(
-          parsedUrl.pathname,
+          parsedUrl.url.pathname,
           this.nextConfig.basePath || ''
         )
         const normalizeResult = normalizeLocalePath(
@@ -1724,10 +1722,10 @@ export default abstract class Server<
         // The resolver already selected an App route using this literal
         // pathname, so keep its locale segment for App Router param parsing.
         if (getRequestMeta(req, 'didMatchLocalePrefixedPath')) {
-          parsedUrl.pathname = pathnameNoBasePath
+          parsedUrl.url.pathname = pathnameNoBasePath
           removeRequestMeta(req, 'localeInferredFromDefault')
         } else {
-          parsedUrl.pathname = normalizeResult.pathname
+          parsedUrl.url.pathname = normalizeResult.pathname
         }
 
         for (const key of Object.keys(parsedUrl.query)) {
@@ -1778,8 +1776,8 @@ export default abstract class Server<
 
       // ensure we strip the basePath when not using an invoke header
       if (!useMatchedPathHeader && pathnameInfo.basePath) {
-        parsedUrl.pathname = removePathPrefix(
-          parsedUrl.pathname,
+        parsedUrl.url.pathname = removePathPrefix(
+          parsedUrl.url.pathname,
           pathnameInfo.basePath
         )
       }
@@ -2201,7 +2199,7 @@ export default abstract class Server<
   protected async run(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: RouteURL
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
       this.runImpl(req, res, parsedUrl)
@@ -2211,7 +2209,7 @@ export default abstract class Server<
   private async runImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: RouteURL
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
@@ -2318,11 +2316,18 @@ export default abstract class Server<
     res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
-    parsedUrl?: NextUrlWithParsedQuery,
+    parsedUrl?: RouteURL | NextUrlWithParsedQuery,
     internalRender = false
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.render, async () =>
-      this.renderImpl(req, res, pathname, query, parsedUrl, internalRender)
+      this.renderImpl(
+        req,
+        res,
+        pathname,
+        query,
+        parsedUrl ? normalizeRouteURL(parsedUrl) : undefined,
+        internalRender
+      )
     )
   }
 
@@ -2362,7 +2367,7 @@ export default abstract class Server<
     res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
-    parsedUrl?: NextUrlWithParsedQuery,
+    parsedUrl?: RouteURL,
     internalRender = false
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
@@ -2601,7 +2606,7 @@ export default abstract class Server<
     // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
-    let urlPathname = parseUrl(req.url || '').pathname || '/'
+    let urlPathname = parseRouteURL(req.url || '/').url.pathname || '/'
 
     let resolvedUrlPathname =
       getRequestMeta(req, 'rewrittenPathname') || urlPathname
@@ -2937,8 +2942,10 @@ export default abstract class Server<
     const request = isNodeNextRequest(req) ? req.originalRequest : req
     const response = isNodeNextResponse(res) ? res.originalResponse : res
 
-    const parsedInitUrl = parseUrl(getRequestMeta(req, 'initURL') || req.url)
-    let initPathname = parsedInitUrl.pathname || '/'
+    const parsedInitUrl = parseRouteURL(
+      getRequestMeta(req, 'initURL') || req.url
+    )
+    let initPathname = parsedInitUrl.url.pathname || '/'
 
     for (const normalizer of [
       this.normalizers.segmentPrefetchRSC,
@@ -2953,7 +2960,7 @@ export default abstract class Server<
     // literal dynamic route ('/[slug]') instead of actual URL, so overwriting to initPathname
     // will transform back the resolved url to the dynamic route pathname.
     if (!(this.minimalMode && isErrorPathname)) {
-      request.url = `${initPathname}${parsedInitUrl.search || ''}`
+      request.url = `${initPathname}${parsedInitUrl.url.search || ''}`
     }
 
     // propagate the request context for dev
@@ -3576,10 +3583,14 @@ export default abstract class Server<
   public async render404(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
+    parsedUrl?: RouteURL | Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url)
+    const route = parsedUrl
+      ? normalizeRouteURL(parsedUrl)
+      : parseRouteURL(req.url)
+    const { pathname } = route.url
+    const { query } = route
 
     // Ensure the locales are provided on the request meta.
     if (this.nextConfig.i18n) {

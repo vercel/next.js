@@ -29,7 +29,6 @@ import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 import type { AppPageModule } from './route-modules/app-page/module'
@@ -59,7 +58,10 @@ import {
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
-import { parseUrl } from '../shared/lib/router/utils/parse-url'
+import {
+  parseRouteURL,
+  type RouteURL,
+} from '../shared/lib/router/utils/route-url'
 import * as Log from '../build/output/log'
 
 import type {
@@ -597,8 +599,10 @@ export default class NextNodeServer extends BaseServer<
     }
     // The module supports minimal mode, load the minimal module.
     // Restore original URL as the handler handles it's own parsing
-    const parsedInitUrl = parseUrl(getRequestMeta(req, 'initURL') || req.url)
-    req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
+    const parsedInitUrl = parseRouteURL(
+      getRequestMeta(req, 'initURL') || req.url
+    )
+    req.url = `${parsedInitUrl.url.pathname}${parsedInitUrl.url.search || ''}`
 
     const loader = new NodeModuleLoader()
     // Dev definitions retain source filenames for watcher bookkeeping. API
@@ -884,7 +888,10 @@ export default class NextNodeServer extends BaseServer<
     res,
     parsedUrl
   ) => {
-    if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
+    if (
+      !parsedUrl.url.pathname ||
+      !parsedUrl.url.pathname.startsWith('/_next/image')
+    ) {
       return false
     }
     // Ignore if its a middleware request
@@ -1035,7 +1042,8 @@ export default class NextNodeServer extends BaseServer<
     res,
     parsedUrl
   ) => {
-    let { pathname, query } = parsedUrl
+    let { pathname } = parsedUrl.url
+    const { query } = parsedUrl
     if (!pathname) {
       throw new Error('Invariant: pathname is undefined')
     }
@@ -1345,7 +1353,7 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse | ServerResponse,
     pathname: string,
     query?: NextParsedUrlQuery,
-    parsedUrl?: NextUrlWithParsedQuery,
+    parsedUrl?: RouteURL | NextUrlWithParsedQuery,
     internal = false
   ): Promise<void> {
     return super.render(
@@ -1489,7 +1497,7 @@ export default class NextNodeServer extends BaseServer<
   public async render404(
     req: NodeNextRequest | IncomingMessage,
     res: NodeNextResponse | ServerResponse,
-    parsedUrl?: NextUrlWithParsedQuery,
+    parsedUrl?: RouteURL | NextUrlWithParsedQuery,
     setHeaders?: boolean
   ): Promise<void> {
     return super.render404(
@@ -1705,8 +1713,8 @@ export default class NextNodeServer extends BaseServer<
   protected async runMiddleware(params: {
     request: NodeNextRequest
     response: NodeNextResponse
-    parsedUrl: ParsedUrl
-    parsed: NextUrlWithParsedQuery
+    parsedUrl: RouteURL
+    parsed: RouteURL
     onWarning?: (warning: Error) => void
   }) {
     if (process.env.NEXT_MINIMAL) {
@@ -1738,7 +1746,7 @@ export default class NextNodeServer extends BaseServer<
 
       url = `${getRequestMeta(params.request, 'initProtocol')}://${
         this.fetchHostname || 'localhost'
-      }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+      }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.url.pathname}${
         query ? `?${query}` : ''
       }`
     }
@@ -1925,14 +1933,14 @@ export default class NextNodeServer extends BaseServer<
     }
 
     const initUrl = getRequestMeta(req, 'initURL')!
-    const parsedUrl = parseUrl(initUrl)
-    const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
+    const parsedUrl = parseRouteURL(initUrl)
+    const pathnameInfo = getNextPathnameInfo(parsedUrl.url.pathname, {
       nextConfig: this.nextConfig,
       i18nProvider: this.i18nProvider,
     })
 
-    parsedUrl.pathname = pathnameInfo.pathname
-    const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
+    parsedUrl.url.pathname = pathnameInfo.pathname
+    const normalizedPathname = removeTrailingSlash(parsed.url.pathname || '')
     let maybeDecodedPathname = normalizedPathname
 
     try {
@@ -2008,14 +2016,14 @@ export default class NextNodeServer extends BaseServer<
 
       if (err instanceof DecodeError) {
         res.statusCode = 400
-        await this.renderError(err, req, res, parsed.pathname || '')
+        await this.renderError(err, req, res, parsed.url.pathname || '')
         return true
       }
 
       const error = getProperError(err)
       console.error(error)
       res.statusCode = 500
-      await this.renderError(error, req, res, parsed.pathname || '')
+      await this.renderError(error, req, res, parsed.url.pathname || '')
       return true
     }
 
@@ -2086,7 +2094,7 @@ export default class NextNodeServer extends BaseServer<
 
   protected attachRequestMeta(
     req: NodeNextRequest,
-    parsedUrl: NextUrlWithParsedQuery,
+    parsedUrl: RouteURL,
     isUpgradeReq?: boolean
   ) {
     // Injected in base-server.ts

@@ -79,6 +79,14 @@ async function main() {
       }
     }
 
+    if (req.url === '/custom-url-overrides') {
+      const parsedUrl = parse('/stale?ignored=yes', true)
+      parsedUrl.pathname = '/dynamic-dashboard'
+      parsedUrl.query = { q: 'hello world', item: ['one', 'two'] }
+      parsedUrl.search = null
+      return handleNextRequests(req, res, parsedUrl)
+    }
+
     if (/custom-url-with-request-handler/.test(req.url)) {
       return handleNextRequests(req, res, parse('/dashboard', true))
     }

@@ -127,6 +127,20 @@ describe('prepareDestinationURL', () => {
     expect(parsedDestination.query).toEqual({ q: 'hello' })
   })
 
+  it('interpolates opaque redirect URLs without relying on pathname setters', () => {
+    const { parsedDestination } = prepareDestinationURL({
+      destination: 'mailto::user@example.org?subject=:subject#compose',
+      params: { user: 'jane', subject: 'hello' },
+      query: {},
+      appendParamsToQuery: false,
+    })
+    if (parsedDestination.kind !== 'absolute')
+      throw new Error('Expected absolute destination')
+    expect(parsedDestination.url.href).toBe(
+      'mailto:jane@example.org?subject=hello#compose'
+    )
+  })
+
   it.each(['bad host', 'host/other', 'host:123'])(
     'rejects an invalid interpolated hostname: %s',
     (sub) => {

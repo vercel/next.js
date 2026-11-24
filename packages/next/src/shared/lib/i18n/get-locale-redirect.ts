@@ -3,7 +3,11 @@ import type { I18NConfig } from '../../../server/config-shared'
 import { acceptLanguage } from '../../../server/accept-header'
 import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { detectDomainLocale } from './detect-domain-locale'
-import { formatUrl } from '../router/utils/format-url'
+import {
+  cloneRouteURL,
+  formatRouteURL,
+  type RouteURL,
+} from '../router/utils/route-url'
 import { getCookieParser } from '../../../server/api-utils/get-cookie-parser'
 
 interface Options {
@@ -16,7 +20,7 @@ interface Options {
     trailingSlash?: boolean
   }
   pathLocale?: string
-  urlParsed: { hostname?: string | null; pathname: string }
+  urlParsed: RouteURL
 }
 
 function getLocaleFromCookie(
@@ -78,7 +82,7 @@ export function getLocaleRedirect({
   if (
     nextConfig.i18n &&
     nextConfig.i18n.localeDetection !== false &&
-    denormalizePagePath(urlParsed.pathname) === '/'
+    denormalizePagePath(urlParsed.url.pathname) === '/'
   ) {
     const preferredLocale = getAcceptPreferredLocale(nextConfig.i18n, headers)
     const detectedLocale = detectLocale({
@@ -106,12 +110,11 @@ export function getLocaleRedirect({
     }
 
     if (detectedLocale.toLowerCase() !== defaultLocale.toLowerCase()) {
-      return formatUrl({
-        ...urlParsed,
-        pathname: `${nextConfig.basePath || ''}/${detectedLocale}${
-          nextConfig.trailingSlash ? '/' : ''
-        }`,
-      })
+      const redirect = cloneRouteURL(urlParsed)
+      redirect.url.pathname = `${nextConfig.basePath || ''}/${detectedLocale}${
+        nextConfig.trailingSlash ? '/' : ''
+      }`
+      return formatRouteURL(redirect)
     }
   }
 }

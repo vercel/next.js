@@ -1,4 +1,10 @@
 import {
+  cloneRouteURL,
+  formatRouteURL,
+  fromLegacyURL,
+  parseRouteURL,
+} from 'next/dist/shared/lib/router/utils/route-url'
+import {
   cloneRelativeURL,
   formatRelativeURL,
   parseRequestPath,
@@ -49,5 +55,47 @@ describe('relative request URLs', () => {
     const url = tryParseRequestURL('https://example.org/a?x=1')!
     expect(formatRelativeURL(url)).toBe('/a?x=1')
     expect(tryParseRequestURL('http://[')).toBeUndefined()
+  })
+})
+
+describe('routing URL compatibility', () => {
+  it('keeps routing-only parameters out of an existing search string', () => {
+    const route = parseRouteURL('/article?item=one&item=two')
+    route.query.slug = 'article'
+    expect(formatRouteURL(route)).toBe('/article?item=one&item=two')
+    route.url.search = ''
+    expect(formatRouteURL(route)).toBe(
+      '/article?item=one&item=two&slug=article'
+    )
+  })
+
+  it('isolates both URL mutations and query arrays when cloning routing state', () => {
+    const route = parseRouteURL('/original?item=one&item=two')
+    const copy = cloneRouteURL(route)
+    copy.url.pathname = '/rewritten'
+    copy.url.searchParams.set('item', 'three')
+    if (Array.isArray(copy.query.item)) copy.query.item.push('four')
+    expect(formatRouteURL(route)).toBe('/original?item=one&item=two')
+    expect(route.query.item).toEqual(['one', 'two'])
+  })
+
+  it('accepts a legacy query without a pathname at public render boundaries', () => {
+    expect(formatRouteURL(fromLegacyURL({ query: { q: 'value' } }))).toBe(
+      '/?q=value'
+    )
+    expect(formatRouteURL(fromLegacyURL({ query: {} }))).toBe('/')
+  })
+
+  it('preserves a legacy raw query while deriving effective query values', () => {
+    const route = fromLegacyURL({
+      pathname: '/target',
+      href: '/stale',
+      search: '',
+      query: 'item=first&item=last&space=a%20b',
+    })
+    expect(formatRouteURL(route)).toBe(
+      '/target?item=first&item=last&space=a%20b'
+    )
+    expect(route.query).toEqual({ item: 'last', space: 'a b' })
   })
 })

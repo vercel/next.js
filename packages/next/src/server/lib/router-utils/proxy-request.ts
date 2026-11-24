@@ -1,8 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Socket } from 'net'
-import type { NextUrlWithParsedQuery } from '../../request-meta'
+import type { RouteURL } from '../../../shared/lib/router/utils/route-url'
 
-import url from 'url'
 import { stringifyQuery } from '../../server-route-utils'
 import { Duplex } from 'stream'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
@@ -10,24 +9,17 @@ import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-res
 export async function proxyRequest(
   req: IncomingMessage,
   res: ServerResponse | Duplex,
-  parsedUrl: NextUrlWithParsedQuery,
+  parsedUrl: RouteURL,
   upgradeHead?: Buffer,
   reqBody?: any,
   proxyTimeout?: number | null
 ) {
-  const { query } = parsedUrl
-  // TODO(as-any): pre-existing cast, not yet reviewed
-  // eslint-disable-next-line @next/internal/no-as-any
-  delete (parsedUrl as any).query
-  // TODO(as-any): pre-existing cast, not yet reviewed
-  // eslint-disable-next-line @next/internal/no-as-any
-  parsedUrl.search = stringifyQuery(req as any, query)
+  if (parsedUrl.kind !== 'absolute') {
+    throw new Error('Invariant: a proxy destination must be absolute')
+  }
+  const target = new URL(parsedUrl.url.href)
+  target.search = stringifyQuery(req, parsedUrl.query)
 
-  // Keep in mind that a WHATWG URL's hostname and the parsedUrl's hostname
-  // are not strictly equal due to lowercasing, IDN translation, IPv4 and IPv6 normalization, etc.
-  // We just make sure this is a valid URL since httpxy would only parse it
-  // lazily on the `web()`/`ws()` call.
-  const target = new URL(url.format(parsedUrl))
   const { ProxyServer } =
     require('next/dist/compiled/httpxy') as typeof import('next/dist/compiled/httpxy')
 

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
+import type { RouteURL } from '../shared/lib/router/utils/route-url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
@@ -305,7 +305,7 @@ export interface RequestMeta {
   render404?: (
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery,
+    parsedUrl?: RouteURL,
     setHeaders?: boolean
   ) => Promise<void>
 
@@ -495,7 +495,8 @@ interface LegacyUrlWithParsedQuery extends LegacyUrl {
   query: ParsedUrlQuery
 }
 
-// TODO: Remove in favor of WHATWG URLs
+// Legacy URL shape accepted at public/custom-server boundaries. Internal routing
+// uses RouteURL with native WHATWG URL components.
 export interface NextUrlWithParsedQuery extends LegacyUrlWithParsedQuery {
   query: NextParsedUrlQuery
 }

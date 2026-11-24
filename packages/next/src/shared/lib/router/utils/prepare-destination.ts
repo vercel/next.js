@@ -327,7 +327,18 @@ export function prepareDestinationURL(args: {
       parsedDestination.url.username = previous.username
       parsedDestination.url.password = previous.password
     }
-    parsedDestination.url.pathname = pathname
+    if (
+      parsedDestination.kind === 'absolute' &&
+      !parsedDestination.url.href.startsWith(
+        '/',
+        parsedDestination.url.protocol.length
+      )
+    ) {
+      // Opaque URLs (e.g. mailto:) do not support the pathname setter.
+      parsedDestination.url = new URL(parsedDestination.url.protocol + pathname)
+    } else {
+      parsedDestination.url.pathname = pathname
+    }
     parsedDestination.url.hash = `${hash ? '#' : ''}${hash || ''}`
     parsedDestination.url.search = destSearch
       ? compileNonPath(destSearch, args.params)

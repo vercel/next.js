@@ -1,5 +1,6 @@
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from './parse-url'
+import type { DeepReadonly } from '../../deep-readonly'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextUrlWithParsedQuery } from '../../../../server/request-meta'
 import {
@@ -55,22 +56,52 @@ export function cloneRouteURL(route: RouteURL): RouteURL {
 
 /** Serialize the routing state using the existing search-over-query precedence. */
 export function formatRouteURL(route: RouteURL): string {
-  const copy = cloneRouteURL(route)
-  copy.url.search =
+  const search =
     route.url.search || urlQueryToSearchParams(route.query).toString()
-  copy.url.hash = route.url.hash
-  return copy.kind === 'relative' ? formatRelativeURL(copy.url) : copy.url.href
+  if (route.kind === 'absolute') {
+    const url = new URL(route.url.href)
+    url.search = search
+    url.hash = route.url.hash
+    return url.href
+  }
+  const url = cloneRelativeURL(route.url)
+  url.search = search
+  url.hash = route.url.hash
+  return formatRelativeURL(url)
 }
 
 /** Adapt a custom server's legacy URL once at the request boundary. */
-export function fromLegacyURL(legacy: NextUrlWithParsedQuery): RouteURL {
+export type LegacyRouteURL = Partial<Omit<NextUrlWithParsedQuery, 'query'>> & {
+  query: ParsedUrlQuery | string | null
+}
+
+export function normalizeRouteURL(input: RouteURL | LegacyRouteURL): RouteURL {
+  return 'url' in input ? input : fromLegacyURL(input)
+}
+
+export function fromLegacyURL(legacy: DeepReadonly<LegacyRouteURL>): RouteURL {
   // formatUrl reads the individual fields, so a stale href never overrides a
   // custom server's pathname/search. Its query overrides are preserved below.
-  const route = parseRouteURL(formatUrl(legacy))
-  route.query =
-    typeof legacy.query === 'string'
-      ? Object.fromEntries(new URLSearchParams(legacy.query))
-      : { ...legacy.query }
+  const query: ParsedUrlQuery = {}
+  if (typeof legacy.query === 'string') {
+    Object.assign(query, Object.fromEntries(new URLSearchParams(legacy.query)))
+  } else {
+    for (const [key, value] of Object.entries(legacy.query || {})) {
+      query[key] =
+        typeof value === 'string' || value === undefined ? value : [...value]
+    }
+  }
+  const formatted = formatUrl({
+    ...legacy,
+    query: typeof legacy.query === 'string' ? legacy.query : query,
+  })
+  // Public render404 callers can provide only a query, without a pathname.
+  const route = parseRouteURL(
+    !formatted || formatted.startsWith('?') || formatted.startsWith('#')
+      ? '/' + formatted
+      : formatted
+  )
+  route.query = query
   return route
 }
 

@@ -1,10 +1,9 @@
+import type { RouteURL } from '../../shared/lib/router/utils/route-url'
 import type { FindComponentsResult, NodeRequestHandler } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
 import type { Params } from '../request/params'
-import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
@@ -390,8 +389,8 @@ export default class DevServer extends Server {
   async runMiddleware(params: {
     request: NodeNextRequest
     response: NodeNextResponse
-    parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
+    parsedUrl: RouteURL
+    parsed: RouteURL
     middlewareList: MiddlewareRoutingItem[]
   }) {
     try {
@@ -443,7 +442,7 @@ export default class DevServer extends Server {
       }
 
       response.statusCode = 500
-      await this.renderError(err, request, response, parsedUrl.pathname)
+      await this.renderError(err, request, response, parsedUrl.url.pathname)
       return { finished: true }
     }
   }
@@ -551,7 +550,7 @@ export default class DevServer extends Server {
   public async handleRequest(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: RouteURL | NextUrlWithParsedQuery
   ): Promise<void> {
     const span = trace('handle-request', undefined, { url: req.url })
     const result = await span.traceAsyncFn(async () => {
@@ -574,7 +573,7 @@ export default class DevServer extends Server {
   async run(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: RouteURL
   ): Promise<void> {
     await this.ready?.promise
 
@@ -582,14 +581,17 @@ export default class DevServer extends Server {
     let originalPathname: string | null = null
 
     // TODO: see if we can remove this in the future
-    if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
+    if (basePath && pathHasPrefix(parsedUrl.url.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      originalPathname = parsedUrl.pathname
-      parsedUrl.pathname = removePathPrefix(parsedUrl.pathname || '/', basePath)
+      originalPathname = parsedUrl.url.pathname
+      parsedUrl.url.pathname = removePathPrefix(
+        parsedUrl.url.pathname || '/',
+        basePath
+      )
     }
 
-    const { pathname } = parsedUrl
+    const { pathname } = parsedUrl.url
 
     if (pathname!.startsWith('/_next')) {
       if (fs.existsSync(pathJoin(this.publicDir, '_next'))) {
@@ -600,7 +602,7 @@ export default class DevServer extends Server {
     if (originalPathname) {
       // restore the path before continuing so that custom-routes can accurately determine
       // if they should match against the basePath or not
-      parsedUrl.pathname = originalPathname
+      parsedUrl.url.pathname = originalPathname
     }
     try {
       return await super.run(req, res, parsedUrl)
