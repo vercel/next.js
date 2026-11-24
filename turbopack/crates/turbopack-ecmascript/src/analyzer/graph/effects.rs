@@ -316,10 +316,12 @@ impl<'a> Effect<'a> {
 /// How the value of an expression is used.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ValueUsage {
-    /// Only used to access keys, which is analyzed by separate effects: as a member object
-    /// (`<value>.x`, `<value>[key]`), the right side of `in`, or the source of an object
+    /// Doesn't expose any keys beyond those analyzed by separate effects: as a member object
+    /// (`<value>.x`, `<value>[key]`), the right side of `in`, the source of an object
     /// destructuring pattern without rest (`const { x, [key]: y } = <value>`, where every
-    /// property, including computed ones, gets a `DestructuredMember` effect).
+    /// property, including computed ones, gets a `DestructuredMember` effect), or only inspected
+    /// without running user code (`typeof <value>`, `<value> === x`, `<value> == null`,
+    /// `<value> && x`).
     Access,
     /// Only coerced to a boolean: `if (<value>)`, `!<value>`, `Boolean(<value>)`, ...
     Truthiness,

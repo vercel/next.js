@@ -1416,14 +1416,16 @@ async fn analyze_ecmascript_module_internal(
 
                     // This is only used for env var tracking. The more robust solution would be
                     // an `Effect::Ident` but that would be even more expensive.
-                    let obj = analysis_state
-                        .link_value(take(&mut *obj), ImportAttributes::empty_ref())
-                        .await?;
+                    // Intentionally not awaited because it's only needed in some cases
+                    let obj =
+                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
                     if let Some(prop) = prop.as_str() {
-                        if could_be_process_env(&obj, &analysis_state) {
+                        if is_process_env(&obj.await?, &analysis_state.var_graph) {
                             analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
-                    } else if is_process_env(&obj, &analysis_state.var_graph) {
+                    } else if !analysis.has_runtime_env_var_reference_all()
+                        && is_process_env(&obj.await?, &analysis_state.var_graph)
+                    {
                         // `const { [unknown]: value } = process.env`
                         analysis.set_runtime_env_var_reference_all();
                     }
@@ -3895,16 +3897,7 @@ async fn handle_membership<'a>(
         }
 
         // Not inlined, potentially register as runtime env var.
-        if obj_name.iter().flatten().any(|(name, reassigned)| {
-            !reassigned
-                && matches!(
-                    name.0.as_slice(),
-                    [
-                        DefinableNameSegmentRef::Name("process"),
-                        DefinableNameSegmentRef::Name("env")
-                    ]
-                )
-        }) {
+        if is_process_env(&obj, &state.var_graph) {
             match ty {
                 MembershipType::In => {
                     analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
@@ -3921,7 +3914,9 @@ async fn handle_membership<'a>(
             }
             return Ok(false);
         }
-    } else if is_process_env(&link_obj.await?, &state.var_graph) {
+    } else if !analysis.has_runtime_env_var_reference_all()
+        && is_process_env(&link_obj.await?, &state.var_graph)
+    {
         // `process.env[unknown]` or `unknown in process.env`
         analysis.set_runtime_env_var_reference_all();
     }

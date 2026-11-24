@@ -391,7 +391,7 @@
                             ),
                         ],
                         span: 57..81,
-                        usage: Escapes,
+                        usage: Access,
                     },
                     Conditional {
                         condition: Binary(

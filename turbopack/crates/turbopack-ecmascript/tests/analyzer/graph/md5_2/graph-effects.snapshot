@@ -1172,7 +1172,7 @@
                             ),
                         ],
                         span: 306..322,
-                        usage: Escapes,
+                        usage: Access,
                     },
                     Conditional {
                         condition: Logical(

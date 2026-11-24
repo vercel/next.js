@@ -916,10 +916,66 @@ fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Ma
     } else if member_access_parent(ast_path).is_some()
         || is_object_destructuring_source_without_rest(ast_path)
         || is_obj_in(ast_path)
+        || is_only_inspected(ast_path, unresolved_mark)
     {
         ValueUsage::Access
     } else {
         ValueUsage::Escapes
+    }
+}
+
+/// Whether the current expression's value can't flow out and no user code can run on it, so no
+/// key can be read from it: `typeof <value>`, `void <value>`, `<value> === x`, `<value> !== x`,
+/// `<value> == null` (and `!= null`, `== undefined`, `== void 0`), or the left side of
+/// `<value> && x` (which only becomes the result when falsy). Loose equality with other operands
+/// is excluded: it can call `valueOf`/`toString`/`Symbol.toPrimitive` on the value.
+fn is_only_inspected(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Mark) -> bool {
+    for parent in ast_path.iter().rev() {
+        return match parent {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
+                continue;
+            }
+            AstParentNodeRef::UnaryExpr(expr, UnaryExprField::Arg) => {
+                matches!(expr.op, UnaryOp::TypeOf | UnaryOp::Void)
+            }
+            AstParentNodeRef::BinExpr(expr, field @ (BinExprField::Left | BinExprField::Right)) => {
+                match expr.op {
+                    BinaryOp::EqEqEq | BinaryOp::NotEqEq => true,
+                    BinaryOp::EqEq | BinaryOp::NotEq => {
+                        let other = if matches!(field, BinExprField::Left) {
+                            &expr.right
+                        } else {
+                            &expr.left
+                        };
+                        is_nullish_literal(other, unresolved_mark)
+                    }
+                    BinaryOp::LogicalAnd if matches!(field, BinExprField::Left) => true,
+                    // Other logical operands can become the result, so they inherit their
+                    // consumer's usage.
+                    BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing => {
+                        continue;
+                    }
+                    _ => false,
+                }
+            }
+            // A selected ternary branch becomes the ternary's result.
+            AstParentNodeRef::CondExpr(_, CondExprField::Cons | CondExprField::Alt) => continue,
+            _ => false,
+        };
+    }
+    false
+}
+
+/// `null`, the global `undefined`, or `void <expr>`.
+fn is_nullish_literal(expr: &Expr, unresolved_mark: Mark) -> bool {
+    match expr {
+        Expr::Lit(Lit::Null(_)) => true,
+        Expr::Ident(ident) => is_global(ident, "undefined", unresolved_mark),
+        Expr::Unary(UnaryExpr {
+            op: UnaryOp::Void, ..
+        }) => true,
+        Expr::Paren(paren) => is_nullish_literal(&paren.expr, unresolved_mark),
+        _ => false,
     }
 }
 

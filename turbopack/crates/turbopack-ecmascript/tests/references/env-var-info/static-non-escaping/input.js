@@ -28,6 +28,39 @@ if (globalThis.process.env && env) {
   console.log('ok')
 }
 
+// Inspecting `process.env` itself without running user code can't read any key
+const isProd = process.env && process.env.FOO9 === 'production'
+const isObj = typeof process.env === 'object'
+const hasEnvVariables = typeof process.env !== 'undefined'
+const notNull = process.env != null
+const isUndefined = process.env === undefined
+function getEnv() {
+  if (process.env === void 0) {
+    return {}
+  }
+  return process.env.FOO10
+}
+const platform =
+  typeof process === 'object' && process
+    ? (typeof process.env === 'object' && process.env && process.env.FOO11) ||
+      process.platform
+    : 'posix'
+const limit =
+  (typeof process !== 'undefined' &&
+    typeof process.env !== 'undefined' &&
+    process.env.FOO12) ||
+  7000
+console.log(
+  isProd,
+  isObj,
+  hasEnvVariables,
+  notNull,
+  isUndefined,
+  getEnv,
+  platform,
+  limit
+)
+
 // These aren't the global `process`
 function shadowedParam(process) {
   return foo(process.env)
