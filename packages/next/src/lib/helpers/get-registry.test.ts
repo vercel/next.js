@@ -8,8 +8,11 @@ jest.mock('child_process', () => {
   const execFileMock = jest.fn()
   // `promisify(execFile)` uses this custom implementation, which returns a
   // promise carrying the spawned `child`.
-  ;(execFileMock as any)[actualPromisify.custom] = jest.fn()
-  return { execFile: execFileMock }
+  return {
+    execFile: Object.assign(execFileMock, {
+      [actualPromisify.custom]: jest.fn(),
+    }),
+  }
 })
 jest.mock('os', () => ({
   ...jest.requireActual('os'),
@@ -22,7 +25,9 @@ jest.mock('../../server/lib/utils', () => ({
   getFormattedNodeOptionsWithoutInspect: () => '',
 }))
 
-const execFileAsync = (execFile as any)[promisify.custom] as jest.Mock
+const execFileAsync = (
+  execFile as typeof execFile & { [promisify.custom]: jest.Mock }
+)[promisify.custom]
 const setPriorityMock = setPriority as jest.Mock
 
 function mockConfigGetRegistry(stdout: string, pid: number | undefined = 1234) {
