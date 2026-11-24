@@ -1473,23 +1473,25 @@ impl Visit for Analyzer<'_> {
     /// - new URL(/* turbopackIgnore: true */ url, import.meta.url)
     ///
     /// The same applies when the constructor is accessed through the global object, e.g.
-    /// `new globalThis.URL(/* turbopackIgnore: true */ url, import.meta.url)`. Only unresolved
-    /// identifiers (globals) are considered, not local variables shadowing them.
+    /// `new globalThis.URL(/* turbopackIgnore: true */ url, import.meta.url)`. There, the object
+    /// must be the global (an unresolved identifier), not a local variable shadowing it. A bare
+    /// `URL`/`Worker` may still be a local alias of the global constructor (e.g.
+    /// `const URL = globalThis.URL`), so it isn't checked.
     fn visit_new_expr(&mut self, n: &NewExpr) {
         if let Some(comments) = self.comments {
-            let is_global = |ident: &Ident, names: &[&str]| {
-                names.contains(&&*ident.sym) && is_unresolved(ident, self.unresolved_mark)
-            };
+            let is_constructor_name = |sym: &Atom| sym == "Worker" || sym == "URL";
             let callee_span = match &*n.callee {
-                Expr::Ident(ident) if is_global(ident, &["Worker", "URL"]) => Some(n.span),
+                Expr::Ident(Ident { sym, .. }) if is_constructor_name(sym) => Some(n.span),
                 Expr::Member(MemberExpr {
                     obj,
                     prop: MemberProp::Ident(IdentName { sym, .. }),
                     ..
-                }) if (sym == "Worker" || sym == "URL")
+                }) if is_constructor_name(sym)
                     && matches!(
                         &**obj,
-                        Expr::Ident(ident) if is_global(ident, &["globalThis", "global"])
+                        Expr::Ident(ident)
+                            if (ident.sym == "globalThis" || ident.sym == "global")
+                                && is_unresolved(ident, self.unresolved_mark)
                     ) =>
                 {
                     Some(n.span)
