@@ -12,7 +12,7 @@ const { evaluateEffortGate } = require('../../evals/lib/effort-gate')
 function run(
   args: string[],
   collectorStatus = 0,
-  skillTokens = 50,
+  skillTokens: number | null = 50,
   skillStatus = 'passed'
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-metrics-'))
@@ -187,6 +187,32 @@ describe('normal eval metrics workflow', () => {
 })
 
 describe('effort gate', () => {
+  it('leaves samples without token counts out of the median', () => {
+    expect(
+      evaluateEffortGate(
+        [
+          { inputTokens: 100, status: 'passed' },
+          { inputTokens: null, status: 'failed' },
+        ],
+        [
+          { inputTokens: 60, status: 'passed' },
+          { inputTokens: 60, status: 'passed' },
+        ],
+        [
+          { inputTokens: null, status: 'failed' },
+          { inputTokens: null, status: 'failed' },
+        ]
+      )
+    ).toMatchObject({
+      passed: false,
+      baselineMedian: 100,
+      agentsMdReduction: 0.4,
+      skillsMedian: null,
+      skillsReduction: null,
+      baselinePasses: 1,
+    })
+  })
+
   it('averages the middle values for an even sample count', () => {
     const samples = (inputTokens: number[]) =>
       inputTokens.map((tokens) => ({ inputTokens: tokens, status: 'passed' }))
@@ -300,10 +326,14 @@ describe('effort gate', () => {
   it.each([
     ['token reduction', 80, 'passed'],
     ['pass rate', 70, 'failed'],
+    ['token count', null, 'failed'],
   ])('fails when the skill misses the %s gate', (_, tokens, status) => {
     const { root, exitCode } = run(['--effort-gate'], 0, tokens, status)
     try {
       expect(exitCode).toBe(1)
+      expect(
+        fs.readdirSync(path.join(root, 'evals/results/effort-gate'))
+      ).toHaveLength(1)
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }
@@ -367,17 +397,6 @@ describe('saved eval effort', () => {
             output_tokens: 2,
           },
         })
-      )
-      execFileSync(
-        process.execPath,
-        [
-          '--import=tsx',
-          'evals/metrics/report.mjs',
-          'collect',
-          path.join(root, 'uncollected'),
-          'effort',
-        ],
-        { cwd: repository }
       )
       const results = JSON.parse(
         execFileSync(

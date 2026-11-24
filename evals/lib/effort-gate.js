@@ -6,6 +6,14 @@ function median(values) {
     : sorted[middle]
 }
 
+// Crashed or timed-out runs have no token count; they still count against the pass rate.
+function medianTokens(samples) {
+  const tokens = samples
+    .map((sample) => sample.inputTokens)
+    .filter((value) => Number.isFinite(value) && value > 0)
+  return tokens.length === 0 ? null : median(tokens)
+}
+
 function evaluateEffortGate(
   baseline,
   agentsMd,
@@ -21,20 +29,15 @@ function evaluateEffortGate(
       'Effort gate requires equal, non-empty baseline, agents-md, and skill samples'
     )
   }
-  if (
-    [...baseline, ...agentsMd, ...skills].some(
-      (sample) =>
-        !Number.isFinite(sample.inputTokens) || sample.inputTokens <= 0
-    )
-  ) {
-    throw new Error('Effort gate requires positive input token counts')
-  }
-
-  const baselineMedian = median(baseline.map((sample) => sample.inputTokens))
-  const agentsMdMedian = median(agentsMd.map((sample) => sample.inputTokens))
-  const skillsMedian = median(skills.map((sample) => sample.inputTokens))
-  const agentsMdReduction = 1 - agentsMdMedian / baselineMedian
-  const skillsReduction = 1 - skillsMedian / baselineMedian
+  const baselineMedian = medianTokens(baseline)
+  const agentsMdMedian = medianTokens(agentsMd)
+  const skillsMedian = medianTokens(skills)
+  const reduction = (value) =>
+    value === null || baselineMedian === null
+      ? null
+      : 1 - value / baselineMedian
+  const agentsMdReduction = reduction(agentsMdMedian)
+  const skillsReduction = reduction(skillsMedian)
   const baselinePasses = baseline.filter(
     (sample) => sample.status === 'passed'
   ).length
@@ -47,7 +50,9 @@ function evaluateEffortGate(
 
   return {
     passed:
-      skillsPasses >= baselinePasses && skillsReduction >= minimumReduction,
+      skillsReduction !== null &&
+      skillsPasses >= baselinePasses &&
+      skillsReduction >= minimumReduction,
     baselineMedian,
     agentsMdMedian,
     skillsMedian,

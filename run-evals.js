@@ -641,6 +641,8 @@ function main() {
       'Page measurement failed. Eval scores are unchanged; retry the collector on the saved run.'
     )
   let effortGateFailed = false
+  const percent = (value) =>
+    value === null ? 'n/a' : `${(value * 100).toFixed(1)}%`
   if (argv.effortGate && !result.error && result.status === 0) {
     const gate = evaluateEffortGate(
       samples.baseline,
@@ -653,24 +655,33 @@ function main() {
           .map(({ status, inputTokens }) => `${inputTokens} (${status})`)
           .join(', ')}`
       )
-      const diagnosticFirst = samples[variant].filter(
-        (sample) => sample.collector?.requestInsightsBeforeProjectInspection
-      ).length
-      const searchedDocs = samples[variant].filter(
-        (sample) => sample.collector?.bundledDocsSearches?.length
-      ).length
-      const readDocs = samples[variant].filter(
-        (sample) => sample.collector?.bundledDocsReads?.length
-      ).length
-      console.log(
-        `${variant} Request Insights before project inspection: ${diagnosticFirst}/${gate.sampleCount}`
-      )
-      console.log(
-        `${variant} bundled docs searched/read: ${searchedDocs}/${gate.sampleCount}, ${readDocs}/${gate.sampleCount}`
-      )
+      // Only collectors that inspect the transcript report these fields.
+      if (
+        samples[variant].some(
+          (sample) =>
+            sample.collector &&
+            'requestInsightsBeforeProjectInspection' in sample.collector
+        )
+      ) {
+        const diagnosticFirst = samples[variant].filter(
+          (sample) => sample.collector?.requestInsightsBeforeProjectInspection
+        ).length
+        const searchedDocs = samples[variant].filter(
+          (sample) => sample.collector?.bundledDocsSearches?.length
+        ).length
+        const readDocs = samples[variant].filter(
+          (sample) => sample.collector?.bundledDocsReads?.length
+        ).length
+        console.log(
+          `${variant} Request Insights before project inspection: ${diagnosticFirst}/${gate.sampleCount}`
+        )
+        console.log(
+          `${variant} bundled docs searched/read: ${searchedDocs}/${gate.sampleCount}, ${readDocs}/${gate.sampleCount}`
+        )
+      }
     }
     console.log(
-      `Effort gate: baseline median ${gate.baselineMedian}, agents-md median ${gate.agentsMdMedian}, skills median ${gate.skillsMedian}; reduction vs baseline ${(gate.agentsMdReduction * 100).toFixed(1)}% agents-md, ${(gate.skillsReduction * 100).toFixed(1)}% skills; pass rate ${gate.baselinePasses}/${gate.sampleCount} baseline, ${gate.agentsMdPasses}/${gate.sampleCount} agents-md, ${gate.skillsPasses}/${gate.sampleCount} skills`
+      `Effort gate: baseline median ${gate.baselineMedian}, agents-md median ${gate.agentsMdMedian}, skills median ${gate.skillsMedian}; reduction vs baseline ${percent(gate.agentsMdReduction)} agents-md, ${percent(gate.skillsReduction)} skills; pass rate ${gate.baselinePasses}/${gate.sampleCount} baseline, ${gate.agentsMdPasses}/${gate.sampleCount} agents-md, ${gate.skillsPasses}/${gate.sampleCount} skills`
     )
     const reportDirectory = path.join(EVALS_DIR, 'results', 'effort-gate')
     fs.mkdirSync(reportDirectory, { recursive: true })
