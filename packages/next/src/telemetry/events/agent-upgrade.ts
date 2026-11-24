@@ -8,6 +8,7 @@ export type AgentUpgradeOrigin =
   | 'human_nudge'
   | 'agent_manual'
   | 'agent_nudge'
+  | 'github_action'
 
 export type AgentUpgradeHandoffMethod =
   | 'existing_agent'
@@ -118,4 +119,34 @@ export function eventAgentUpgradeCIInstallResult(fields: {
   durationMs: number
 }) {
   return event('NEXT_AGENT_UPGRADE_CI_INSTALL_RESULT', fields)
+}
+
+type AgentUpgradeCITrigger = 'schedule' | 'manual'
+
+export function eventAgentUpgradeCIRunStarted(fields: {
+  runId: string
+  trigger: AgentUpgradeCITrigger
+  targetCount: number
+}) {
+  return event('NEXT_AGENT_UPGRADE_CI_RUN_STARTED', fields)
+}
+
+export function eventAgentUpgradeCIRunResult(fields: {
+  runId: string
+  trigger: AgentUpgradeCITrigger
+  durationMs: number
+  noUpgrade: number
+  existingDrafts: number
+  newDrafts: number
+  blocked: number
+  failed: number
+  failureStage:
+    | 'preflight'
+    | 'assessment'
+    | 'execution'
+    | 'verification'
+    | 'publishing'
+    | null
+}) {
+  return event('NEXT_AGENT_UPGRADE_CI_RUN_RESULT', fields)
 }

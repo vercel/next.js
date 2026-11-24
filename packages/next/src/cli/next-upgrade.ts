@@ -252,13 +252,16 @@ export async function spawnNextUpgrade(
       if (!inheritedRunId || invalidRunId) {
         const agentProduct = await getAgentName()
         const nudge = invalidRunId || invalidNudgeId ? null : nudgeSource
-        const origin = nudge
-          ? nudge.recipient === 'agent'
-            ? 'agent_nudge'
-            : 'human_nudge'
-          : agentProduct
-            ? 'agent_manual'
-            : 'human_manual'
+        const origin =
+          scheduledTarget !== undefined
+            ? 'github_action'
+            : nudge
+              ? nudge.recipient === 'agent'
+                ? 'agent_nudge'
+                : 'human_nudge'
+              : agentProduct
+                ? 'agent_manual'
+                : 'human_manual'
         telemetry.record(
           eventAgentUpgradeRunStarted({
             runId,

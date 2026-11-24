@@ -53,6 +53,9 @@ jobs:
     outputs:
       base-sha: ${{ steps.base.outputs.sha }}
       default-branch: ${{ steps.branch.outputs.name }}
+      telemetry-id: ${{ steps.telemetry.outputs.id }}
+      telemetry-started-at: ${{ steps.telemetry.outputs.started-at }}
+      telemetry-attempt: ${{ steps.telemetry.outputs.attempt }}
     steps:
       - name: Check whether Actions can create pull requests
         env:
@@ -108,6 +111,21 @@ jobs:
           PREVIEW_PACKAGE: ${{ inputs.preview-package }}
           GH_TOKEN: ${{ inputs.preview-package && github.token || '' }}
         run: node install-next.mjs
+      - name: Record upgrade run start
+        id: telemetry
+        if: ${{ !inputs.telemetry-disabled }}
+        continue-on-error: true
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          NEXT_UPGRADE_TARGETS: ${{ inputs.targets }}
+        run: |
+          set -euo pipefail
+          export NEXT_UPGRADE_TELEMETRY_RUN_ID="$(node -p "require('node:crypto').randomUUID()")"
+          export NEXT_UPGRADE_TELEMETRY_STARTED_AT="$(node -p 'Date.now()')"
+          echo "id=$NEXT_UPGRADE_TELEMETRY_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "started-at=$NEXT_UPGRADE_TELEMETRY_STARTED_AT" >> "$GITHUB_OUTPUT"
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          node report-telemetry.mjs start
       - name: Enable the consumer's package manager
         run: |
           set -euo pipefail
@@ -153,6 +171,15 @@ jobs:
           path: ${{ runner.temp }}/next-upgrade-candidates/
           if-no-files-found: error
           retention-days: 1
+      - name: Record preparation failure
+        if: ${{ failure() && steps.telemetry.outputs.id != '' }}
+        continue-on-error: true
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          NEXT_UPGRADE_TARGETS: ${{ inputs.targets }}
+          NEXT_UPGRADE_TELEMETRY_RUN_ID: ${{ steps.telemetry.outputs.id }}
+          NEXT_UPGRADE_TELEMETRY_STARTED_AT: ${{ steps.telemetry.outputs.started-at }}
+        run: node report-telemetry.mjs prepare-failed
 
   publish:
     needs: prepare
@@ -207,3 +234,72 @@ jobs:
           NEXT_UPGRADE_PUBLISH_TOKEN_PROVIDED: ${{ secrets.publish-token != '' }}
           GH_TOKEN: ${{ secrets.publish-token || github.token }}
         run: node next-source/.github/actions/next-upgrade/publish-upgrade.mjs
+      - name: Upload the publication result
+        if: ${{ !cancelled() }}
+        # Only telemetry reads this result, so a failed upload must not fail
+        # a job whose drafts were published.
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-upgrade-publish-result
+          path: ${{ runner.temp }}/next-upgrade-publish-result.json
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # Telemetry runs without repository access or consumer code.
+  report:
+    needs: [prepare, publish]
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.telemetry-id != '' }}
+    # Reporting can never fail the run.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Check out the pinned workflow scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: next-source
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/actions/next-upgrade/
+            packages/next/package.json
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Install the pinned Next.js package
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          PREVIEW_PACKAGE: ${{ inputs.preview-package }}
+          GH_TOKEN: ${{ inputs.preview-package && github.token || '' }}
+        run: node install-next.mjs
+      - name: Download the publication result
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: next-upgrade-publish-result
+          path: ${{ runner.temp }}
+      - name: Record upgrade run result
+        continue-on-error: true
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          NEXT_UPGRADE_TARGETS: ${{ inputs.targets }}
+          NEXT_UPGRADE_PUBLISH_RESULT: ${{ runner.temp }}/next-upgrade-publish-result.json
+          NEXT_UPGRADE_TELEMETRY_RUN_ID: ${{ needs.prepare.outputs.telemetry-id }}
+          NEXT_UPGRADE_TELEMETRY_STARTED_AT: ${{ needs.prepare.outputs.telemetry-started-at }}
+          NEXT_UPGRADE_TELEMETRY_ATTEMPT: ${{ needs.prepare.outputs.telemetry-attempt }}
+        run: |
+          set -euo pipefail
+          if [ "$NEXT_UPGRADE_TELEMETRY_ATTEMPT" != "$GITHUB_RUN_ATTEMPT" ]; then
+            # Rerunning failed jobs reuses prepare's outputs, so report this attempt with its own ID.
+            export NEXT_UPGRADE_TELEMETRY_RUN_ID="$(node -p "require('node:crypto').randomUUID()")"
+            export NEXT_UPGRADE_TELEMETRY_STARTED_AT="$(node -p 'Date.now()')"
+            node report-telemetry.mjs start
+          fi
+          node report-telemetry.mjs result

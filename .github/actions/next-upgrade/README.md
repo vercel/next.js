@@ -13,6 +13,6 @@ Preparation uses the pinned Next.js CLI to assess locked versions and to prepare
 Regular verification uses the independent pnpm workspace fixture, real local Git, and a mock GitHub API. Run:
 
 ```bash
-pnpm exec jest --runInBand test/unit/next-upgrade-action.test.ts
+pnpm exec jest --runInBand test/unit/next-upgrade-action.test.ts test/unit/agent-upgrade-ci-telemetry.test.ts
 pnpm test-dev-turbo test/e2e/agent-upgrade-ci/agent-upgrade-ci.test.ts
 ```
