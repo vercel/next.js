@@ -6,4 +6,26 @@ function BlockingWidget() {
   return readCurrentTime()
 }
 
-module.exports = { BlockingWidget }
+function TimestampWidget() {
+  return Date.now()
+}
+
+function RandomWidget() {
+  return Math.random()
+}
+
+function WebCryptoWidget() {
+  return crypto.getRandomValues(new Uint8Array(1))[0]
+}
+
+function NodeCryptoWidget() {
+  return require('node:crypto').randomUUID()
+}
+
+module.exports = {
+  BlockingWidget,
+  TimestampWidget,
+  RandomWidget,
+  WebCryptoWidget,
+  NodeCryptoWidget,
+}
