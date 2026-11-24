@@ -432,6 +432,33 @@ console.log(JSON.stringify({ ...result, messages }))
       expect(result.outcomes).toEqual([
         { paths: ['apps/admin', 'apps/web'], status: 'prepared' },
       ])
+      const remote = join(directory, 'remote.git')
+      git(directory, 'init', '--bare', remote)
+      git(root, 'push', remote, 'HEAD:refs/heads/main')
+      const publisher = `
+import { pathToFileURL } from 'node:url'
+const { modulePath, ...input } = JSON.parse(process.argv[1])
+const { publishUpgradeCandidates } = await import(pathToFileURL(modulePath).href)
+const github = async (method, endpoint, body) =>
+  method === 'GET' ? [] : { title: body.title, draft: true, html_url: 'https://github.com/example/consumer/pull/4' }
+console.log(JSON.stringify(await publishUpgradeCandidates({ ...input, github })))
+`
+      expect(
+        runScript<{ outcomes: { status: string }[] }>(
+          publisher,
+          {
+            modulePath: join(actionRoot, 'publish-upgrade.mjs'),
+            root,
+            artifactDirectory,
+            targets: selectedApps.map((path) => ({ path, policy: 'latest' })),
+            supportingPaths: [...supportingPaths, 'packages/ui'],
+            repository: 'example/consumer',
+            baseBranch: 'main',
+            gitRemote: remote,
+          },
+          root
+        ).outcomes
+      ).toEqual([expect.objectContaining({ status: 'new_draft' })])
     },
     180_000
   )
@@ -463,7 +490,7 @@ console.log(JSON.stringify({ ...result, messages }))
     ])
   }, 180_000)
 
-  it('prepares one group patch with only the shared catalog and lockfile changes', () => {
+  it('prepares and publishes one group patch and recovers after a failed draft request', () => {
     const targets = selectedApps.map((path) => ({ path, policy: 'latest' }))
     const result = prepare({
       targets,
@@ -489,7 +516,272 @@ console.log(JSON.stringify({ ...result, messages }))
       ])
     )
     expect(git(root, 'apply', '--numstat', patch)).not.toContain('apps/docs')
+
+    const remote = join(directory, 'remote.git')
+    git(directory, 'init', '--bare', remote)
+    git(root, 'push', remote, 'HEAD:refs/heads/main')
+    const url = 'https://github.com/example/consumer/pull/2'
+    const branchPattern = new RegExp(
+      `^next-upgrade/${candidate.id}-[0-9a-f]{12}$`
+    )
+    const publisher = `
+import { execFileSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+const { modulePath, url, ...input } = JSON.parse(process.argv[1])
+const { publishUpgradeCandidates } = await import(pathToFileURL(modulePath).href)
+let pull
+const drafts = []
+const attempts = []
+const github = async (method, endpoint, body) => {
+  if (method === 'GET' && endpoint.startsWith('/repos/example/consumer/pulls?')) {
+    return pull ? [pull] : []
+  }
+  if (method !== 'POST' || endpoint !== '/repos/example/consumer/pulls') {
+    throw new Error('Unexpected GitHub request')
+  }
+  drafts.push(body)
+  if (drafts.length === 1) {
+    throw new Error('Simulated GitHub failure after pushing the branch')
+  }
+  const sha = execFileSync('git', ['rev-parse', body.head], { cwd: input.gitRemote, encoding: 'utf8' }).trim()
+  pull = { ...body, head: { sha, ref: body.head, repo: { full_name: 'example/consumer' } }, base: { ref: body.base }, html_url: url }
+  return pull
+}
+const artifact = JSON.parse(readFileSync(join(input.artifactDirectory, 'index.json'), 'utf8'))
+const patchPath = join(input.artifactDirectory, artifact.candidates[0].id + '.patch')
+const validPatch = readFileSync(patchPath)
+writeFileSync(patchPath, Buffer.concat([validPatch, Buffer.from([
+  // Inside an approved app, so only the protected .github rule rejects it.
+  'diff --git a/apps/web/.github/workflows/unapproved.yml b/apps/web/.github/workflows/unapproved.yml',
+  'new file mode 100644',
+  '--- /dev/null',
+  '+++ b/apps/web/.github/workflows/unapproved.yml',
+  '@@ -0,0 +1 @@',
+  '+name: unapproved',
+  '',
+].join('\\n'))]))
+attempts.push(await publishUpgradeCandidates({ ...input, github }))
+writeFileSync(patchPath, validPatch)
+const git = (...args) => execFileSync('git', args, { cwd: input.gitRemote, encoding: 'utf8' }).trim()
+const base = git('rev-parse', 'main')
+const advanced = git(
+  '-c', 'user.name=Upgrade test', '-c', 'user.email=upgrade-fixture@example.com',
+  '-c', 'commit.gpgsign=false', 'commit-tree', base + '^{tree}',
+  '-p', base, '-m', 'Advance the default branch',
+)
+git('update-ref', 'refs/heads/main', advanced, base)
+attempts.push(await publishUpgradeCandidates({ ...input, github }))
+git('update-ref', 'refs/heads/main', base, advanced)
+// Leftover branches from earlier candidates must not block publication.
+const id = artifact.candidates[0].id
+git('update-ref', 'refs/heads/next-upgrade/' + id, advanced)
+git('update-ref', 'refs/heads/next-upgrade/' + id + '-000000000000', advanced)
+for (let run = 0; run < 3; run++) {
+  // The first draft request falls back to GITHUB_TOKEN; the retry has a publication token.
+  attempts.push(await publishUpgradeCandidates({ ...input, github, publishTokenProvided: run > 0 }))
+}
+console.log(JSON.stringify({ drafts, attempts }))
+`
+    const publication = runScript<{
+      drafts: { body: string; head: string }[]
+      attempts: { outcomes: { status: string; url?: string }[] }[]
+    }>(
+      publisher,
+      {
+        modulePath: join(actionRoot, 'publish-upgrade.mjs'),
+        root,
+        artifactDirectory,
+        targets,
+        supportingPaths,
+        repository: 'example/consumer',
+        baseBranch: 'main',
+        gitRemote: remote,
+        url,
+      },
+      root
+    )
+    expect(publication.drafts).toHaveLength(2)
+    expect(publication.drafts[1]).toMatchObject({
+      title: `Upgrade Next.js to ${targetVersion}`,
+      body: expect.stringContaining(
+        `<!-- next-upgrade-candidate:${candidate.id} -->`
+      ),
+      base: 'main',
+      head: expect.stringMatching(branchPattern),
+      draft: true,
+    })
+    const ciNote =
+      'GitHub does not start pull request workflows for drafts opened with `GITHUB_TOKEN`'
+    expect(publication.drafts[0]).toMatchObject({
+      body: expect.stringContaining(ciNote),
+    })
+    expect(publication.drafts[1]).toMatchObject({
+      body: expect.not.stringContaining(ciNote),
+    })
+    expect(publication.attempts.map(({ outcomes }) => outcomes[0])).toEqual([
+      expect.objectContaining({
+        status: 'failed',
+        failureStage: 'verification',
+      }),
+      expect.objectContaining({
+        status: 'failed',
+        failureStage: 'publishing',
+      }),
+      expect.objectContaining({ status: 'failed', failureStage: 'publishing' }),
+      expect.objectContaining({ status: 'new_draft', url }),
+      expect.objectContaining({ status: 'existing_draft', url }),
+    ])
+    expect(
+      git(
+        remote,
+        'diff',
+        '--name-only',
+        'main',
+        (publication.drafts[1] as { head: string }).head
+      ).split('\n')
+    ).toEqual(['pnpm-lock.yaml', 'pnpm-workspace.yaml'])
   }, 180_000)
+
+  it.each([
+    ['opens a draft from a GitHub-signed commit', true],
+    ['refuses a commit GitHub did not sign', false],
+  ])(
+    '%s through the GitHub API',
+    (_, signed) => {
+      const targets = [{ path: 'apps/docs', policy: 'latest' }]
+      const [candidate] = prepare({
+        targets,
+        approvedSupportingPaths: [],
+        applyUpgrade: true,
+        independent: true,
+      }).candidates
+      git(
+        root,
+        'remote',
+        'add',
+        'origin',
+        'https://github.com/example/consumer.git'
+      )
+      const publisher = `
+import { execFileSync } from 'node:child_process'
+import { rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+const { modulePath, signed, ...input } = JSON.parse(process.argv[1])
+const { publishUpgradeCandidates } = await import(pathToFileURL(modulePath).href)
+const git = (args, options = {}) => execFileSync('git', args, { cwd: input.root, encoding: 'utf8', ...options }).trim()
+const base = git(['rev-parse', 'HEAD'])
+const refs = new Map([['refs/heads/main', base]])
+const commits = new Map()
+const requests = []
+const drafts = []
+const prefix = '/repos/example/consumer'
+const github = async (method, endpoint, body) => {
+  requests.push(method + ' ' + endpoint.split('?')[0])
+  if (method === 'GET' && endpoint.startsWith(prefix + '/git/matching-refs/')) {
+    const ref = 'refs/' + endpoint.slice((prefix + '/git/matching-refs/').length)
+    return refs.has(ref) ? [{ ref, object: { sha: refs.get(ref) } }] : []
+  }
+  if (method === 'POST' && endpoint === prefix + '/git/refs') {
+    refs.set(body.ref, body.sha)
+    return { ref: body.ref, object: { sha: body.sha } }
+  }
+  if (method === 'POST' && endpoint === '/graphql') {
+    const { branch, expectedHeadOid, message, fileChanges } = body.variables.input
+    const ref = 'refs/heads/' + branch.branchName
+    if (refs.get(ref) !== expectedHeadOid || branch.repositoryNameWithOwner !== 'example/consumer') {
+      return { errors: [{ message: 'Unexpected head' }] }
+    }
+    // Build the tree GitHub would commit from the base and the file changes.
+    const index = join(input.root, '.git', 'mock-index')
+    const env = { ...process.env, GIT_INDEX_FILE: index }
+    git(['read-tree', expectedHeadOid], { env })
+    for (const { path, contents } of fileChanges.additions) {
+      const blob = git(['hash-object', '-w', '--stdin'], { input: Buffer.from(contents, 'base64') })
+      git(['update-index', '--add', '--cacheinfo', '100644,' + blob + ',' + path], { env })
+    }
+    for (const { path } of fileChanges.deletions) {
+      git(['update-index', '--force-remove', path], { env })
+    }
+    const tree = git(['write-tree'], { env })
+    rmSync(index)
+    const text = message.headline + '\\n\\n' + message.body
+    const oid = git(['-c', 'user.name=GitHub', '-c', 'user.email=noreply@github.com', '-c', 'commit.gpgsign=false', 'commit-tree', tree, '-p', expectedHeadOid, '-m', text])
+    commits.set(oid, { tree, parent: expectedHeadOid, text })
+    refs.set(ref, oid)
+    return { data: { createCommitOnBranch: { commit: {
+      oid,
+      tree: { oid: tree },
+      signature: signed ? { isValid: true, state: 'VALID' } : { isValid: false, state: 'UNSIGNED' },
+    } } } }
+  }
+  if (method === 'GET' && endpoint.startsWith(prefix + '/pulls?')) {
+    return drafts
+  }
+  if (method === 'POST' && endpoint === prefix + '/pulls') {
+    const draft = { ...body, draft: true, html_url: 'https://github.com/example/consumer/pull/3', head: { ref: body.head, sha: refs.get('refs/heads/' + body.head), repo: { full_name: 'example/consumer' } }, base: { ref: body.base } }
+    drafts.push(draft)
+    return draft
+  }
+  throw new Error('Unexpected GitHub request ' + method + ' ' + endpoint)
+}
+const result = await publishUpgradeCandidates({ ...input, github })
+console.log(JSON.stringify({ result, requests, drafts }))
+`
+      const publication = runScript<{
+        result: { outcomes: { status: string; failureStage?: string }[] }
+        requests: string[]
+        drafts: { head: { ref: string } }[]
+      }>(
+        publisher,
+        {
+          modulePath: join(actionRoot, 'publish-upgrade.mjs'),
+          root,
+          artifactDirectory,
+          targets,
+          supportingPaths: [],
+          repository: 'example/consumer',
+          baseBranch: 'main',
+          signed,
+        },
+        root
+      )
+      if (signed) {
+        expect(publication.result.outcomes).toEqual([
+          expect.objectContaining({ status: 'new_draft' }),
+        ])
+        expect(publication.drafts).toEqual([
+          expect.objectContaining({
+            draft: true,
+            head: expect.objectContaining({
+              ref: expect.stringMatching(
+                new RegExp(`^next-upgrade/${candidate.id}-[0-9a-f]{12}$`)
+              ),
+            }),
+          }),
+        ])
+        expect(publication.requests).toEqual(
+          expect.arrayContaining([
+            'POST /repos/example/consumer/git/refs',
+            'POST /graphql',
+            'POST /repos/example/consumer/pulls',
+          ])
+        )
+      } else {
+        expect(publication.result.outcomes).toEqual([
+          {
+            paths: ['apps/docs'],
+            status: 'failed',
+            failureStage: 'publishing',
+          },
+        ])
+        expect(publication.drafts).toEqual([])
+      }
+    },
+    180_000
+  )
 })
 
 const builtNext = require.resolve('next/dist/bin/next')
