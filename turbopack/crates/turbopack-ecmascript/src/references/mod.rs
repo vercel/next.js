@@ -1421,11 +1421,11 @@ async fn analyze_ecmascript_module_internal(
                     let obj =
                         analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
                     if let Some(prop) = prop.as_str() {
-                        if is_process_env(&obj.await?, &analysis_state.var_graph) {
+                        if could_be_process_env(&obj.await?, &analysis_state) {
                             analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
                     } else if !analysis.has_runtime_env_var_reference_all()
-                        && is_process_env(&obj.await?, &analysis_state.var_graph)
+                        && could_be_process_env(&obj.await?, &analysis_state)
                     {
                         // `const { [unknown]: value } = process.env`
                         analysis.set_runtime_env_var_reference_all();
@@ -2154,13 +2154,13 @@ where
     };
     // Records an existence check of the env var `key` (linked): an unknown key could check any
     // env var
-    let add_existence_check =
-        |analysis: &mut AnalyzeEcmascriptModuleResultBuilder, key: Option<&JsValue<'a>>| {
-            match key.and_then(|key| key.as_str()) {
-                Some(key) => analysis.add_runtime_env_var_reference_existence(RcStr::from(key)),
-                None => analysis.set_runtime_env_var_reference_all(),
-            }
-        };
+    let add_existence_check = |analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+                               key: Option<&JsValue<'a>>| {
+        match key.and_then(|key| key.as_str()) {
+            Some(key) => analysis.add_runtime_env_var_reference_existence(RcStr::from(key)),
+            None => analysis.set_runtime_env_var_reference_all(),
+        }
+    };
 
     // Env var existence checks. These are also tracked in alternatives, as they don't generate
     // code.
@@ -2168,7 +2168,10 @@ where
         WellKnownFunctionKind::ObjectHasOwn => {
             // `Object.hasOwn(process.env, key)`
             let args = linked_args().await?;
-            if args.first().is_some_and(|obj| could_be_process_env(obj, state)) {
+            if args
+                .first()
+                .is_some_and(|obj| could_be_process_env(obj, state))
+            {
                 add_existence_check(analysis, args.get(1));
             }
             return Ok(());
@@ -3923,7 +3926,7 @@ async fn handle_membership<'a>(
         }
 
         // Not inlined, potentially register as runtime env var.
-        if is_process_env(&obj, &state.var_graph) {
+        if could_be_process_env(&obj, state) {
             match ty {
                 MembershipType::In => {
                     analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
@@ -3941,7 +3944,7 @@ async fn handle_membership<'a>(
             return Ok(false);
         }
     } else if !analysis.has_runtime_env_var_reference_all()
-        && is_process_env(&link_obj.await?, &state.var_graph)
+        && could_be_process_env(&link_obj.await?, state)
     {
         // `process.env[unknown]` or `unknown in process.env`
         analysis.set_runtime_env_var_reference_all();
@@ -4150,26 +4153,8 @@ fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource 
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
 }
 
-/// Whether the linked `value` is (potentially) the `process.env` object.
-fn is_process_env(value: &JsValue<'_>, var_graph: &VarGraph<'_>) -> bool {
-    value
-        .get_definable_name(Some(var_graph))
-        .iter()
-        .flatten()
-        .any(|(name, reassigned)| {
-            !reassigned
-                && matches!(
-                    name.0.as_slice(),
-                    [
-                        DefinableNameSegmentRef::Name("process"),
-                        DefinableNameSegmentRef::Name("env")
-                    ]
-                )
-        })
-}
-
 /// Links `value` and marks the module as potentially reading all env vars if it's `process.env`,
-/// see [`is_process_env`].
+/// see [`could_be_process_env`].
 async fn set_runtime_all_if_process_env<'a>(
     value: JsValue<'a>,
     state: &AnalysisState<'a>,
@@ -4178,7 +4163,7 @@ async fn set_runtime_all_if_process_env<'a>(
     let value = state
         .link_value(value, ImportAttributes::empty_ref())
         .await?;
-    if is_process_env(&value, &state.var_graph) {
+    if could_be_process_env(&value, state) {
         analysis.set_runtime_env_var_reference_all();
     }
     Ok(())
