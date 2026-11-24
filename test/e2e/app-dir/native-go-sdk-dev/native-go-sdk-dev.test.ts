@@ -28,9 +28,11 @@ var _ next.ProxyOptions
 func Message() string { return "sdk" }
 `
     )
+    // The first compile after the edit fails until go.mod requires next/go,
+    // then Turbopack compiles again.
     await retry(async () => {
       expect(await (await next.fetch('/hello')).text()).toBe('sdk')
-    })
+    }, 60_000)
     const goMod = await next.readFile('go.mod')
     expect(goMod).toMatch(/^require next\/go v0\.0\.0$/m)
     expect(goMod).toMatch(/^replace next\/go => \.\/\S+\/next\/go$/m)

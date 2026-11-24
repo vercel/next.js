@@ -189,11 +189,10 @@ afterEach(async () => {
     }
   })
 
-  it.each(['vendor', 'testdata'])(
+  it.each(['vendor'])(
     'detects imports in a route folder named %s',
     async (folder) => {
-      // Go gives vendor a meaning only at a module root and skips testdata only
-      // in wildcard patterns; Turbopack compiles routes in either.
+      // Go gives vendor a meaning only at a module root.
       const dir = await temporaryDirectory()
       await writeModule(dir, 'example.com/app')
       const route = join(dir, 'app', folder)
@@ -209,6 +208,19 @@ afterEach(async () => {
       expect(() => build(route, ['route.go'])).not.toThrow()
     }
   )
+
+  it('skips testdata like go mod tidy', async () => {
+    // A requirement only testdata needs would be removed by go mod tidy.
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'app/api/route.go'), PLAIN)
+    await write(join(dir, 'app/testdata/fixture/main.go'), PROXY)
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).not.toMatch(/next\/go/)
+  })
 
   it("skips a module's vendor directory", async () => {
     const dir = await temporaryDirectory()

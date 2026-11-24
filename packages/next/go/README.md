@@ -67,8 +67,9 @@ replacement, always at the installed Next.js version, without downloads or
 - **No module:** Go cannot resolve `next/go` outside a module, so `next dev` and
   `next build` warn about Go files that import it without a `go.mod`.
 - **Go version:** the SDK declares `go 1.21`, so modules with a `go 1.21` line or
-  newer can use it, even though Next.js requires a Go 1.24 toolchain. Builds do not
-  update `go.mod`, so raise an older `go` line to at least 1.21.
+  newer can use it, even though Next.js requires a Go 1.24 toolchain. Next.js does
+  not change the `go` line, and Go does not raise it in `-mod=readonly` builds, so
+  raise an older `go` line to at least 1.21.
 - **Package name:** the package is named `next`. In middleware that already has a
   `next http.Handler` parameter, import it under another name, such as
   `nextgo "next/go"`.

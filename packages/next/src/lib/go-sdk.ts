@@ -87,9 +87,9 @@ function ancestorModule(dir: string, rootDir: string): string | undefined {
 
 /**
  * Finds the Go package directories in the project, and the modules nested in
- * it. Skips `.` and `_` prefixes like Go's `./...`, a module's `vendor`
- * directory, `node_modules`, the build output, and symlinks, which Turbopack
- * rejects as Go sources.
+ * it. Skips what Go's `./...` skips (`.` and `_` prefixes, `testdata`, a
+ * module's `vendor` directory), plus `node_modules`, the build output, and
+ * symlinks, which Turbopack rejects as Go sources.
  */
 async function scanProject(
   dir: string,
@@ -107,9 +107,10 @@ async function scanProject(
       continue
     }
     let hasGo = false
-    // Go only gives vendor a meaning at a module root. Elsewhere, and for
-    // testdata, which Go skips only in wildcard patterns, a folder of that name
-    // can hold a route that Turbopack compiles, such as app/vendor/route.go.
+    // Go only gives vendor a meaning at a module root; elsewhere, such as
+    // app/vendor/route.go, it is an ordinary package. testdata is skipped like
+    // Go's `./...` and `all` do, so go mod tidy would drop a requirement that
+    // only testdata needs.
     const isModuleRoot = entries.some(
       (entry) => entry.isFile() && entry.name === 'go.mod'
     )
@@ -123,6 +124,7 @@ async function scanProject(
         !name.startsWith('.') &&
         !name.startsWith('_') &&
         name !== 'node_modules' &&
+        name !== 'testdata' &&
         !(name === 'vendor' && isModuleRoot)
       ) {
         const child = path.join(current, name)

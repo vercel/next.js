@@ -107,6 +107,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
   formatIssue,
+  getIssueKey,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
   ModuleBuildError,
@@ -710,14 +711,31 @@ export async function createHotReloaderTurbopack(
   }, 500)
 
   const goSdk = goSdkOptions(projectPath, distDir, nextConfig)
-  // Every written Go endpoint is a Turbopack (re)compile, which happens when
-  // any of its tracked inputs change, including imported packages outside the
-  // route directories that the dev server's file watcher sees. A source there
-  // can start importing next/go, so keep the go.mod mapping current. When
-  // nothing needs changing this writes nothing, so it cannot loop; when it adds
-  // the requirement, Turbopack sees the go.mod change and recompiles.
-  function syncGoSdk() {
-    if (nextConfig.experimental.goRoutes) void ensureGoSdkQueued(goSdk)
+  // The last written state of each Go endpoint: its descriptor, or none when
+  // compilation failed, and its issues.
+  const goEndpointStates = new Map<EntryKey, string>()
+  // Turbopack recompiles a Go endpoint when any of its tracked inputs change,
+  // including imported packages outside the route directories that the dev
+  // server's file watcher sees. A source there can start importing next/go,
+  // which then fails to compile until go.mod requires it. Keep the go.mod
+  // mapping current whenever an endpoint's result changes. Endpoints are also
+  // written for requests that recompile nothing, so unchanged results are
+  // skipped. Syncing writes nothing when nothing needs changing, so it cannot
+  // loop; when it adds the requirement, Turbopack sees go.mod change.
+  function syncGoSdkIfChanged(
+    key: EntryKey,
+    result: TurbopackResult<WrittenEndpoint>
+  ) {
+    if (!nextConfig.experimental.goRoutes || result.value.type !== 'native') {
+      return
+    }
+    const state = [
+      result.value.entryPath ?? '',
+      ...result.issues.map(getIssueKey),
+    ].join('\0')
+    if (goEndpointStates.get(key) === state) return
+    goEndpointStates.set(key, state)
+    void ensureGoSdkQueued(goSdk)
   }
 
   // Server HMR supports App Router entries on the Node.js runtime.
@@ -743,10 +761,7 @@ export async function createHotReloaderTurbopack(
       force?: boolean
     } = {}
   ): boolean {
-    if (writtenEndpoint.type === 'native') {
-      syncGoSdk()
-      return false
-    }
+    if (writtenEndpoint.type === 'native') return false
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         // We ignore source maps
@@ -1318,6 +1333,7 @@ export async function createHotReloaderTurbopack(
           hooks: {
             handleWrittenEndpoint: (id, result, forceDeleteCache) => {
               currentWrittenEntrypoints.set(id, result.value)
+              syncGoSdkIfChanged(id, result)
               return clearRequireCache(id, result.value, {
                 force: forceDeleteCache,
               })
@@ -2211,6 +2227,7 @@ export async function createHotReloaderTurbopack(
                   subscribeToChanges: subscribeToClientChanges,
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
+                    syncGoSdkIfChanged(id, result)
                     assetMapper.setPathsForKey(id, result.value.clientPaths)
                     serverAssetMapper.setPathsForKey(
                       id,
@@ -2296,6 +2313,7 @@ export async function createHotReloaderTurbopack(
                 handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result.value)
+                  syncGoSdkIfChanged(id, result)
                   assetMapper.setPathsForKey(id, result.value.clientPaths)
                   serverAssetMapper.setPathsForKey(
                     id,
