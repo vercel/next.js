@@ -26,11 +26,11 @@ use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
 use crate::{
     embed_js::embed_file_path,
-    evaluate::{EvaluateArg, get_evaluate_entries},
+    evaluate::{EvaluateArg, SourceContentEncoding, get_evaluate_entries},
     execution_context::ExecutionContext,
     transforms::{
         util::{EmittedAsset, emitted_assets_to_virtual_sources},
-        webpack::{SourceContentEncoding, WebpackLoaderContext, evaluate_webpack_loader},
+        webpack::{WebpackLoaderContext, evaluate_webpack_loader},
     },
 };
 
@@ -534,15 +534,17 @@ impl PostCssTransformedAsset {
             cwd: project_path.clone(),
             env: *env,
             node_backend: *node_backend,
+            context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             evaluate_context: self.evaluate_context,
             module_graph,
             resolve_options_context: None,
             asset_context: self.asset_context,
-            source: self.source,
-            source_encoding: SourceContentEncoding::Text,
-            // The source content is prepended by `evaluate_webpack_loader`.
             args: vec![
+                EvaluateArg::SourceContent {
+                    source: self.source,
+                    encoding: SourceContentEncoding::Text,
+                },
                 css_path,
                 EvaluateArg::Vc(ResolvedVc::cell(source_map.into())),
             ],
