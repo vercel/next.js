@@ -13,10 +13,10 @@ use std::{
 };
 
 use pin_project_lite::pin_project;
-use turbo_concurrent_priority_queue::ConcurrentPriorityQueue;
 pub use turbo_concurrent_priority_queue::QueuePriority;
+use turbo_concurrent_priority_queue::{ConcurrentPriorityQueue, MAX_SHARD_COUNT};
 
-use crate::FxDashMap;
+use crate::{FxDashMap, parallel::available_parallelism};
 
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
@@ -73,8 +73,13 @@ struct Queue<P, T: Claimable> {
 
 impl<P: Clone + Ord + Hash + QueuePriority, T: Claimable> Queue<P, T> {
     fn new() -> Self {
+        // One shard per thread that runs tasks: `available_parallelism` is what turbo-tasks sizes
+        // its work for (and honours `TURBO_TASKS_AVAILABLE_PARALLELISM`).
+        let shard_count = available_parallelism()
+            .map_or(1, |parallelism| parallelism.get())
+            .min(MAX_SHARD_COUNT);
         Self {
-            keys: ConcurrentPriorityQueue::new(),
+            keys: ConcurrentPriorityQueue::with_shards(shard_count),
             claimable: FxDashMap::default(),
             #[cfg(feature = "inline_execution_stats")]
             pushes: std::sync::atomic::AtomicU64::new(0),

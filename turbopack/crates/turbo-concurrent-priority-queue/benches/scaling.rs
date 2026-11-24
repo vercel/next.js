@@ -5,6 +5,10 @@
 //! `ConcurrentQueue` (lock-free, but no priority order at all, so it is a throughput reference
 //! rather than a drop-in alternative).
 //!
+//! [`ConcurrentPriorityQueue`] runs as `sharded`, with one shard per worker thread (the number of
+//! shards it is meant to be used with), and as `sharded_fixed31`, with [`MAX_SHARD_COUNT`] shards
+//! whatever the thread count, to show what sizing the shard count to the threads changes.
+//!
 //! The benchmark uses one worker thread per available core ([`thread::available_parallelism`],
 //! which respects the process's CPU affinity). To measure scaling, run it several times with
 //! different core counts, e.g. `taskset -c 0,2,4,6 cargo bench ...` for 4 cores (on machines with
@@ -63,7 +67,7 @@ use std::{
 use concurrent_queue::ConcurrentQueue;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use parking_lot::Mutex;
-use turbo_concurrent_priority_queue::ConcurrentPriorityQueue;
+use turbo_concurrent_priority_queue::{ConcurrentPriorityQueue, MAX_SHARD_COUNT};
 
 /// Items per iteration of every workload (all threads together): `fill` pushes exactly this many,
 /// `drain` and `mixed*` pop exactly this many.
@@ -84,7 +88,8 @@ const RANDOM_LEN: usize = 1 << 14;
 /// The operations the benchmarks need, implemented by every compared queue.
 trait BenchQueue: Sync {
     const NAME: &'static str;
-    fn new() -> Self;
+    /// Creates an empty queue that `threads` threads will use.
+    fn new(threads: usize) -> Self;
     fn push(&self, priority: u32, item: u64);
     fn pop(&self) -> Option<u64>;
 }
@@ -92,8 +97,8 @@ trait BenchQueue: Sync {
 impl BenchQueue for ConcurrentPriorityQueue<u32, u64> {
     const NAME: &'static str = "sharded";
 
-    fn new() -> Self {
-        ConcurrentPriorityQueue::new()
+    fn new(threads: usize) -> Self {
+        ConcurrentPriorityQueue::with_shards(threads.clamp(1, MAX_SHARD_COUNT))
     }
 
     fn push(&self, priority: u32, item: u64) {
@@ -102,6 +107,25 @@ impl BenchQueue for ConcurrentPriorityQueue<u32, u64> {
 
     fn pop(&self) -> Option<u64> {
         ConcurrentPriorityQueue::pop(self).map(|(_, item)| item)
+    }
+}
+
+/// [`ConcurrentPriorityQueue`] with [`MAX_SHARD_COUNT`] shards, independent of the thread count.
+struct ShardedFixed(ConcurrentPriorityQueue<u32, u64>);
+
+impl BenchQueue for ShardedFixed {
+    const NAME: &'static str = "sharded_fixed31";
+
+    fn new(_threads: usize) -> Self {
+        ShardedFixed(ConcurrentPriorityQueue::with_shards(MAX_SHARD_COUNT))
+    }
+
+    fn push(&self, priority: u32, item: u64) {
+        self.0.push(priority, item);
+    }
+
+    fn pop(&self) -> Option<u64> {
+        self.0.pop().map(|(_, item)| item)
     }
 }
 
@@ -137,7 +161,7 @@ struct MutexHeap(Mutex<BinaryHeap<HeapEntry>>);
 impl BenchQueue for MutexHeap {
     const NAME: &'static str = "mutex_heap";
 
-    fn new() -> Self {
+    fn new(_threads: usize) -> Self {
         MutexHeap(Mutex::new(BinaryHeap::new()))
     }
 
@@ -163,7 +187,7 @@ struct MutexVecHeap(Mutex<VecHeap>);
 impl BenchQueue for MutexVecHeap {
     const NAME: &'static str = "mutex_vec_heap";
 
-    fn new() -> Self {
+    fn new(_threads: usize) -> Self {
         MutexVecHeap(Mutex::new(VecHeap::default()))
     }
 
@@ -198,7 +222,7 @@ struct Unordered(ConcurrentQueue<(u32, u64)>);
 impl BenchQueue for Unordered {
     const NAME: &'static str = "concurrent_queue";
 
-    fn new() -> Self {
+    fn new(_threads: usize) -> Self {
         Unordered(ConcurrentQueue::unbounded())
     }
 
@@ -493,7 +517,7 @@ impl Drop for ExitOnPanic {
 
 /// Runs `iters` iterations with `threads` worker threads and returns the measured time.
 fn run<Q: BenchQueue>(workload: Workload, mix: Mix, threads: usize, iters: u64) -> Duration {
-    let queue = Q::new();
+    let queue = Q::new(threads);
     let start = Barrier::new(threads + 1);
     let end = Barrier::new(threads + 1);
     let idle = AtomicUsize::new(0);
@@ -550,7 +574,7 @@ fn run<Q: BenchQueue>(workload: Workload, mix: Mix, threads: usize, iters: u64) 
 /// that its random bits spread the items over all 128 `uniform128` priorities.
 fn check_fan_totals() {
     for fan in Fan::ALL {
-        let queue = MutexStack::new();
+        let queue = MutexStack::new(1);
         let mut random = Random::new(SETUP_THREAD);
         prefill(&queue, Workload::Fan(fan), Mix::Single, &mut random);
         let prefilled = queue.0.lock().clone();
@@ -587,7 +611,7 @@ struct MutexStack(Mutex<Vec<u64>>);
 impl BenchQueue for MutexStack {
     const NAME: &'static str = "mutex_stack";
 
-    fn new() -> Self {
+    fn new(_threads: usize) -> Self {
         MutexStack(Mutex::new(Vec::new()))
     }
 
@@ -613,8 +637,8 @@ fn check_uniform_priorities() {
 }
 
 /// Checks on one thread that a strictly ordered queue pops every item, highest priority first.
-fn check_strict_order<Q: BenchQueue>() {
-    let queue = Q::new();
+fn check_strict_order<Q: BenchQueue>(threads: usize) {
+    let queue = Q::new(threads);
     for index in 0..4096 {
         let item = item(SETUP_THREAD, index);
         queue.push(Mix::Uniform128.priority(item), item);
@@ -668,13 +692,15 @@ fn scaling(c: &mut Criterion) {
         },
         "mutex_heap: the item value must not affect the order"
     );
-    check_strict_order::<ConcurrentPriorityQueue<u32, u64>>();
-    check_strict_order::<MutexHeap>();
-    check_strict_order::<MutexVecHeap>();
     // One worker thread per available core; vary the core count from the outside (see the module
     // docs).
     let threads = thread::available_parallelism().map_or(1, |n| n.get());
+    check_strict_order::<ConcurrentPriorityQueue<u32, u64>>(threads);
+    check_strict_order::<ShardedFixed>(threads);
+    check_strict_order::<MutexHeap>(threads);
+    check_strict_order::<MutexVecHeap>(threads);
     bench_impl::<ConcurrentPriorityQueue<u32, u64>>(c, threads);
+    bench_impl::<ShardedFixed>(c, threads);
     bench_impl::<MutexHeap>(c, threads);
     bench_impl::<MutexVecHeap>(c, threads);
     bench_impl::<Unordered>(c, threads);
