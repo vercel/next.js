@@ -98,7 +98,6 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    issue::IssueSource,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
@@ -450,8 +449,8 @@ pub struct EnvVarInfo {
     pub runtime: OrderedAutoMap<RcStr, EnvVarAccessMode>,
     /// Set if the module potentially references all environment variables (because of a
     /// non-statically analyzable `process.env` access, e.g. `process.env[key]` or passing
-    /// `process.env` to a function). Points to the first such access.
-    pub runtime_all: Option<IssueSource>,
+    /// `process.env` to a function).
+    pub runtime_all: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]

@@ -247,7 +247,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     has_direct_eval: bool,
 
     env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
-    env_var_info_runtime_all: Option<IssueSource>,
+    env_var_info_runtime_all: bool,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -272,7 +272,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             cjs_static_exports: None,
             has_direct_eval: false,
             env_var_info_runtime: Default::default(),
-            env_var_info_runtime_all: None,
+            env_var_info_runtime_all: false,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -394,15 +394,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Marks the module as potentially reading all runtime environment variables (because of a
-    /// non-statically analyzable `process.env` access). Only the first location is kept.
-    pub fn set_runtime_env_var_reference_all(&mut self, issue_source: IssueSource) {
-        if self.env_var_info_runtime_all.is_none() {
-            self.env_var_info_runtime_all = Some(issue_source);
-        }
+    /// non-statically analyzable `process.env` access).
+    pub fn set_runtime_env_var_reference_all(&mut self) {
+        self.env_var_info_runtime_all = true;
     }
 
     pub fn has_runtime_env_var_reference_all(&self) -> bool {
-        self.env_var_info_runtime_all.is_some()
+        self.env_var_info_runtime_all
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -1372,7 +1370,7 @@ async fn analyze_ecmascript_module_internal(
                             )
                             .await?;
                         if is_process_env(&value, &analysis_state.var_graph) {
-                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                            analysis.set_runtime_env_var_reference_all();
                         }
                     }
 
@@ -1399,7 +1397,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::DestructuredMember {
                     mut obj,
                     mut prop,
-                    span,
+                    span: _,
                     target_escapes,
                 } => {
                     // TODO add an inlining codegen here
@@ -1424,7 +1422,7 @@ async fn analyze_ecmascript_module_internal(
                             )
                             .await?;
                         if is_process_env(&value, &analysis_state.var_graph) {
-                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                            analysis.set_runtime_env_var_reference_all();
                         }
                     }
 
@@ -1434,7 +1432,7 @@ async fn analyze_ecmascript_module_internal(
                             .await?;
                         if is_process_env(&obj, &analysis_state.var_graph) {
                             // `const { [unknown]: value } = process.env`
-                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                            analysis.set_runtime_env_var_reference_all();
                         }
                     } else if let Some(prop) = prop.as_str() {
                         // This is only used for env var tracking. The more robust solution would be
@@ -1483,7 +1481,7 @@ async fn analyze_ecmascript_module_internal(
                     export,
                     member,
                     ast_path,
-                    span,
+                    span: _,
                     usage,
                 } => {
                     if usage == ValueUsage::Escapes
@@ -1502,7 +1500,7 @@ async fn analyze_ecmascript_module_internal(
                             )
                             .await?;
                         if is_process_env(&value, &analysis_state.var_graph) {
-                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                            analysis.set_runtime_env_var_reference_all();
                         }
                     }
 
@@ -3847,11 +3845,7 @@ async fn handle_membership<'a>(
         let obj = link_obj.await?;
         if is_process_env(&obj, &state.var_graph) {
             // `process.env[unknown]` or `unknown in process.env`
-            analysis.set_runtime_env_var_reference_all(IssueSource::from_swc_offsets(
-                state.source,
-                span.lo.to_u32(),
-                span.hi.to_u32(),
-            ));
+            analysis.set_runtime_env_var_reference_all();
         }
         return Ok(false);
     };
