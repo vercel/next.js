@@ -426,6 +426,12 @@ export function decodeBufferedResponse<T>(
   buffer: Uint8Array,
   headers: RequestHeaders | undefined
 ): Promise<T> {
+  if (buffer.byteLength === 0) {
+    // An empty buffer has no root row, so under `allowPartialStream: true`
+    // Flight would halt chunk 0 forever instead of settling. Reject so
+    // callers settle any pending cache entries instead of deadlocking.
+    return Promise.reject(new Error('Empty RSC response'))
+  }
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(buffer)

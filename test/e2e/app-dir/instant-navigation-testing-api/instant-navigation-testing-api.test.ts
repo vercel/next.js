@@ -1316,6 +1316,74 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
       expect(await fallback.count()).toBe(0)
     })
   })
+
+  it('does not hang when a runtime prefetch aborts on sync IO during PrefetchRuntime', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#sync-io-prefetch-runtime-link')
+
+      const title = page.locator(
+        '[data-testid="sync-io-prefetch-runtime-title"]'
+      )
+      await title.waitFor({ state: 'visible' })
+      expect(await title.textContent()).toContain('Sync IO Prefetch Runtime')
+      expect(new URL(page.url()).pathname).toBe(
+        '/sync-io-prefetch-runtime/hello'
+      )
+
+      // Runtime content rendered before the sync IO abort is still written into
+      // the cache and shown immediately.
+      const runtimeMarker = page.locator('[data-testid="runtime-marker"]')
+      await runtimeMarker.waitFor({ state: 'visible' })
+      expect(await runtimeMarker.textContent()).toContain('runtime ready')
+
+      // The component that hit Date.now() after awaiting params was aborted
+      // during the runtime prefetch, so its Suspense fallback is shown until
+      // the live navigation completes.
+      const fallback = page.locator(
+        '[data-testid="sync-io-prefetch-runtime-fallback"]'
+      )
+      await fallback.waitFor({ state: 'visible' })
+      expect(
+        await page
+          .locator('[data-testid="sync-io-prefetch-runtime-value"]')
+          .count()
+      ).toBe(0)
+    })
+
+    // After exiting the instant scope, the dynamic value streams in normally.
+    const value = page.locator('[data-testid="sync-io-prefetch-runtime-value"]')
+    await value.waitFor({ state: 'visible' })
+    expect(await value.textContent()).toMatch(/slug: hello, timestamp: \d+/)
+  })
+
+  it('does not hang when a runtime prefetch aborts on sync IO during ShellRuntime', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#sync-io-shell-runtime-link')
+
+      const title = page.locator('[data-testid="sync-io-shell-runtime-title"]')
+      await title.waitFor({ state: 'visible' })
+      expect(await title.textContent()).toContain('Sync IO Shell Runtime')
+      expect(new URL(page.url()).pathname).toBe('/sync-io-shell-runtime')
+
+      const fallback = page.locator(
+        '[data-testid="sync-io-shell-runtime-fallback"]'
+      )
+      await fallback.waitFor({ state: 'visible' })
+      expect(
+        await page
+          .locator('[data-testid="sync-io-shell-runtime-value"]')
+          .count()
+      ).toBe(0)
+    })
+
+    const value = page.locator('[data-testid="sync-io-shell-runtime-value"]')
+    await value.waitFor({ state: 'visible' })
+    expect(await value.textContent()).toMatch(/timestamp: \d+/)
+  })
 })
 
 // A route with no static shell — `cookies()` read outside any <Suspense>, no

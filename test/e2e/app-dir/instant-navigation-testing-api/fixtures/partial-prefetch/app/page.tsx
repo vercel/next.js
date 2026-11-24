@@ -13,6 +13,20 @@ export default function HomePage() {
       <Link href="/dynamic-params/hello" prefetch={true} id="full-link">
         Full prefetch link
       </Link>
+      <Link
+        href="/sync-io-prefetch-runtime/hello"
+        prefetch={true}
+        id="sync-io-prefetch-runtime-link"
+      >
+        Sync IO prefetch runtime link
+      </Link>
+      <Link
+        href="/sync-io-shell-runtime"
+        prefetch={true}
+        id="sync-io-shell-runtime-link"
+      >
+        Sync IO shell runtime link
+      </Link>
     </div>
   )
 }
