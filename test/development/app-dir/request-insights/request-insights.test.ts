@@ -1174,6 +1174,10 @@ describe('request insights', () => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
         const panel = root?.querySelector('.request-insights-details')
         return {
+          activeTab:
+            panel
+              ?.querySelector('[role="tab"][aria-selected="true"]')
+              ?.textContent?.trim() ?? '',
           text: panel?.textContent ?? '',
           paramsLabel:
             panel?.querySelector('.request-insights-params-trigger')
@@ -1191,14 +1195,40 @@ describe('request insights', () => {
 
       expect(details.text).toContain('/products/blue?query=redacted')
       expect(details.text).toContain('Route /products/[id]')
+      expect(details.activeTab).toMatch(/^Trace/)
       expect(details.paramsLabel).toBe('Params id')
-      expect(details.fetchOrigins).toContain('Same origin')
+      expect(details.fetchOrigins).toEqual([])
       expect(
         details.fetchTraceLabels.some((label) => label.includes('Same origin'))
       ).toBe(true)
       expect(details.text).not.toContain('Q2_SECRET_SENTINEL')
     })
 
+    await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      root
+        ?.querySelector<HTMLButtonElement>('.request-insights-overview-chip')
+        ?.click()
+    })
+
+    await retry(async () => {
+      const details = await browser.eval(() => {
+        const panel = document
+          .querySelector('nextjs-portal')
+          ?.shadowRoot?.querySelector('.request-insights-details')
+        return {
+          activeTab:
+            panel
+              ?.querySelector('[role="tab"][aria-selected="true"]')
+              ?.textContent?.trim() ?? '',
+          fetchOrigins: Array.from(
+            panel?.querySelectorAll('.request-insights-fetch-origin') ?? []
+          ).map((element) => element.textContent ?? ''),
+        }
+      })
+      expect(details.activeTab).toMatch(/^Fetches/)
+      expect(details.fetchOrigins).toContain('Same origin')
+    })
     const requestHeader = await browser.eval(() => {
       const root = document.querySelector('nextjs-portal')?.shadowRoot
       const copyButton = root?.querySelector<HTMLButtonElement>(
