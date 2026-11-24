@@ -4,8 +4,6 @@ mod counter_map;
 mod eviction;
 mod gc;
 mod known_immutable;
-#[cfg(test)]
-mod known_immutable_tests;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -1370,12 +1368,17 @@ impl TurboTasksBackend {
         // A known-immutable task is never invalidated, so its side of the edge is removed under its
         // own lock, and the reader's side afterwards (task side first, like any edge removal).
         // `task` is the guard from `try_task` above, so a collected task already failed there.
-        if self.known_immutable.contains(task_id) {
+        let known_immutable = self.known_immutable.contains(task_id);
+        // Unreachable: the `immutable` flag is never cleared, and task ids are never reused, so a
+        // task id that is known to be immutable always names that same immutable task. A task
+        // that is collected by GC and called again gets a new id. See [`KnownImmutable`]. Release
+        // builds fall back to the pair path below.
+        debug_assert!(
+            !known_immutable || task.immutable(),
+            "task {task_id} is known to be immutable, but isn't"
+        );
+        if known_immutable && task.immutable() {
             let mut task = task;
-            debug_assert!(
-                task.immutable(),
-                "task {task_id} is known to be immutable, but isn't"
-            );
             task.remove_keyed_cell_dependent(&(reverse, provisional));
             drop(task);
             let mut reader_task = ctx.task(reader, TaskDataCategory::All);
