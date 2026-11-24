@@ -100,7 +100,7 @@ impl GoBuild {
             .resolve()
             .strongly_consistent()
             .await?;
-        let fs = fs.await?;
+        let fs = fs.await?.inner().await?;
         if self.go_context.is_cancelled() {
             return Ok(());
         }
@@ -120,7 +120,7 @@ impl GoBuild {
             .resolve()
             .strongly_consistent()
             .await?;
-        fs.await?.stop_watching().await;
+        fs.await?.inner().await?.stop_watching().await;
         self.go_context.stop_module_cache_watching().await?;
 
         Ok(())

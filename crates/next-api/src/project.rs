@@ -596,7 +596,11 @@ async fn prepare_project_container_state(
             output_file_system: output_fs_op,
         }));
     let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
-    let project_fs = project_fs_op.read_strongly_consistent().await?;
+    let project_fs = project_fs_op
+        .read_strongly_consistent()
+        .await?
+        .inner()
+        .await?;
 
     let config_file_name = config_json
         .get("configFileName")
@@ -642,13 +646,15 @@ async fn prepare_project_container_state(
     if enable_watch {
         project_fs.start_watching().await?;
         for op in &additional_file_systems {
-            let fs = op.read_strongly_consistent().await?;
+            let fs = op.read_strongly_consistent().await?.inner().await?;
             fs.start_watching().await?;
         }
     } else {
         project_fs.invalidate_with_reason(invalidation_reason);
         for op in &additional_file_systems {
             op.read_strongly_consistent()
+                .await?
+                .inner()
                 .await?
                 .invalidate_with_reason(invalidation_reason);
         }
@@ -658,6 +664,8 @@ async fn prepare_project_container_state(
     // other process modified or deleted files.
     output_fs_op
         .read_strongly_consistent()
+        .await?
+        .inner()
         .await?
         .invalidate_with_reason(invalidation_reason);
 
@@ -747,7 +755,7 @@ async fn disk_file_system_map_operation(
         .chain(additional_file_systems)
         .map(async |operation| {
             let fs = operation.connect().to_resolved().await?;
-            Ok((PathBuf::from(&**fs.await?.root().await?), fs))
+            Ok((PathBuf::from(fs.await?.inner().await?.root()), fs))
         })
         .try_join()
         .await?;

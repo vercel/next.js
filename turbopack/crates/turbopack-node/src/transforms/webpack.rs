@@ -247,6 +247,8 @@ async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath>
     let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(cwd.fs)
         .context("webpack loader working directory must be on a disk filesystem")?;
     fs.await?
+        .inner()
+        .await?
         .try_from_sys_path_across_roots(fs, Path::new(path), cwd)
         .await?
         .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))

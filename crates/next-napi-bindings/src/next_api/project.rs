@@ -66,8 +66,8 @@ use turbo_tasks_backend::{BackingStorageOptions, db_invalidation::invalidation_r
 #[cfg(windows)]
 use turbo_tasks_fs::windows::to_verbatim_with_case_folded_disk;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr, invalidation,
-    util::uri_from_file,
+    DiskFileSystemInner, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr,
+    invalidation, util::uri_from_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 use turbo_unix_path::{get_relative_path_to, unix_to_sys};
@@ -1340,7 +1340,7 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     }
 
     #[turbo_tasks::value(cell = "new", eq = "manual")]
-    struct ProjectInfo(Option<FileSystemPath>, DiskFileSystem);
+    struct ProjectInfo(Option<FileSystemPath>, DiskFileSystemInner);
 
     #[turbo_tasks::function(operation, root)]
     async fn project_info_operation(
@@ -1350,8 +1350,8 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
         let app_dir = find_app_dir(project.project_path().owned().await?)
             .owned()
             .await?;
-        let project_fs = project.project_fs().owned().await?;
-        Ok(ProjectInfo(app_dir, project_fs).cell())
+        let project_fs = project.project_fs().await?.inner().await?;
+        Ok(ProjectInfo(app_dir, (*project_fs).clone()).cell())
     }
     let ProjectInfo(app_dir, project_fs) = &*project_info_operation(container)
         .read_strongly_consistent()
@@ -1363,7 +1363,7 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     // Use `to_sys_path_raw` (not `to_sys_path`): these paths are compared against the invalidator
     // map keys inside `invalidate_path_and_children_with_reason`, which use the internal (verbatim
     // on Windows) representation.
-    let app_dir_sys_path = project_fs.to_sys_path_raw(app_dir).await?;
+    let app_dir_sys_path = project_fs.to_sys_path_raw(app_dir);
     let paths_to_invalidate = deferred_invalidation_dirs
         .into_iter()
         .map(|dir| {
@@ -2604,8 +2604,9 @@ async fn get_source_map_rope(
     let output_fs = project.output_fs().to_resolved().await?;
     let Some(fs_path) = output_fs
         .await?
-        .try_from_sys_path(output_fs, sys_path, None)
+        .inner()
         .await?
+        .try_from_sys_path(output_fs, sys_path, None)
     else {
         // The path is outside of the filesystem root
         return Ok(FileContent::NotFound.cell());

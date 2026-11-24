@@ -101,6 +101,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
          "turbo_tasks_env::uppercase_env_map",
+         "turbo_tasks_fs::disk::DiskFileSystemInner::new_internal",
        ]
       `)
     }, 600_000)
@@ -236,6 +237,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
          "turbo_tasks_env::uppercase_env_map",
+         "turbo_tasks_fs::disk::DiskFileSystemInner::new_internal",
          "turbopack_node::evaluate::common_node_env",
          "turbopack_node::evaluate::create_evaluate_pool_assets_operation",
          "turbopack_node::evaluate::get_evaluate_pool",

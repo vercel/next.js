@@ -51,7 +51,7 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbo
 
 pub(crate) use crate::{
     content::FileComparison,
-    disk::{DiskFileSystemInner, format_absolute_fs_path},
+    disk::{DiskFileSystemState, format_absolute_fs_path},
     error::AnyhowWrapper,
 };
 pub use crate::{
@@ -59,7 +59,7 @@ pub use crate::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
         LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
     },
-    disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
+    disk::{DiskFileSystem, DiskFileSystemInner, canonicalize_to_rcstr, validate_path_length},
     fs_map::DiskFileSystemMap,
     null_fs::NullFileSystem,
     path::{
@@ -255,7 +255,7 @@ impl DirectoryContent {
 
 pub async fn to_sys_path(path: FileSystemPath) -> Result<Option<PathBuf>> {
     if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs) {
-        let sys_path = fs.await?.to_sys_path(&path).await?;
+        let sys_path = fs.await?.inner().await?.to_sys_path(&path);
         return Ok(Some(sys_path));
     }
 

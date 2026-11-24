@@ -4,12 +4,12 @@ use tokio::{runtime::Handle, sync::RwLock};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{InvalidationReason, TurboTasksApi};
 
-use crate::{DiskFileSystemInner, invalidator_map::InvalidatorMap, watcher::DiskWatcher};
+use crate::{DiskFileSystemState, invalidator_map::InvalidatorMap, watcher::DiskWatcher};
 
-/// The subset of [`DiskFileSystemInner`] that [`DiskWatcher`] needs in order to invalidate tasks
+/// The subset of [`DiskFileSystemState`] that [`DiskWatcher`] needs in order to invalidate tasks
 /// when the filesystem changes.
 ///
-/// The watcher goes through this trait rather than through [`DiskFileSystemInner`] directly so that
+/// The watcher goes through this trait rather than through [`DiskFileSystemState`] directly so that
 /// it can be exercised in unit tests without building a whole
 /// [`DiskFileSystem`][crate::DiskFileSystem], which can only be constructed from inside a
 /// turbo-tasks task.
@@ -32,13 +32,13 @@ pub(crate) trait DiskFileSystemWatcherApi: Send + Sync + 'static {
     );
 }
 
-impl DiskFileSystemWatcherApi for DiskFileSystemInner {
+impl DiskFileSystemWatcherApi for DiskFileSystemState {
     fn name(&self) -> &RcStr {
         &self.name
     }
 
     fn root_path(&self) -> &Path {
-        self.watcher_root_path()
+        self.root_path()
     }
 
     fn watcher(&self) -> &DiskWatcher {

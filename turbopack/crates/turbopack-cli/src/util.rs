@@ -77,7 +77,7 @@ pub async fn project_fs(
         DiskFileSystemMap::empty(),
     );
     if watch {
-        disk_fs.await?.start_watching().await?;
+        disk_fs.await?.inner().await?.start_watching().await?;
     }
     Ok(Vc::upcast(disk_fs))
 }

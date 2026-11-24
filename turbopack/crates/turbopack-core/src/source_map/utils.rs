@@ -12,7 +12,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, turbofmt};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath, rope::Rope};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskFileSystemInner, FileContent, FileSystemPath, rope::Rope,
+};
 use url::Url;
 
 use crate::{SOURCE_URL_PROTOCOL_STR, source_map::structured::StructuredSourceMap};
@@ -103,7 +105,7 @@ pub async fn resolve_source_map_sources(
     };
 
     let disk_fs_vc = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs_vc);
-    let disk_fs = OnceLock::<ReadRef<DiskFileSystem>>::new();
+    let disk_fs = OnceLock::<ReadRef<DiskFileSystemInner>>::new();
 
     let resolve_source =
         async |source_url: &mut String, source_content: Option<&mut Option<Box<RawValue>>>| {
@@ -126,11 +128,11 @@ pub async fn resolve_source_map_sources(
                 // We have an absolute URL, try to parse it as a `file://` URL
                 if let Ok(sys_path) = original_source_url_obj.to_file_path() {
                     if let Some(disk_fs_vc) = disk_fs_vc {
-                        let disk_fs =
-                            get_or_try_init(&disk_fs, async || Ok(disk_fs_vc.await?)).await?;
-                        disk_fs
-                            .try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
-                            .await?
+                        let disk_fs = get_or_try_init(&disk_fs, async || {
+                            Ok(disk_fs_vc.await?.inner().await?)
+                        })
+                        .await?;
+                        disk_fs.try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
                     } else {
                         None
                     }
@@ -310,14 +312,15 @@ pub async fn absolute_fileify_source_map(
     // The absolute root of the filesystem is needed here, so read the whole filesystem.
     let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_path.fs)
         .context("Expected the chunking context to have a DiskFileSystem")?
+        .await?
+        .inner()
         .await?;
-    let context_root = context_fs.root().await?;
     transform_relative_files(map, &prefix, |src_rest| {
         let path = context_path.join(src_rest)?;
 
         // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
         // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
-        let sys_path = DiskFileSystem::to_sys_path_with_root(context_root, &path);
+        let sys_path = context_fs.to_sys_path(&path);
         Ok(Url::from_file_path(&sys_path)
             .map_err(|()| {
                 anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")

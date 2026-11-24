@@ -125,7 +125,7 @@ impl Session {
         let fs = self.fs;
         self.tt
             .run_once(async move {
-                fs.await?.invalidate();
+                fs.await?.inner().await?.invalidate();
                 Ok(())
             })
             .await
@@ -398,7 +398,7 @@ async fn module_root_package_creation_and_replacement_invalidate_discovery() -> 
     session
         .tt
         .run_once(async move {
-            fs.await?.start_watching().await?;
+            fs.await?.inner().await?.start_watching().await?;
             Ok(())
         })
         .await?;
@@ -445,7 +445,7 @@ async fn module_root_package_creation_and_replacement_invalidate_discovery() -> 
     session
         .tt
         .run_once(async move {
-            fs.await?.stop_watching().await;
+            fs.await?.inner().await?.stop_watching().await;
             Ok(())
         })
         .await?;
@@ -738,7 +738,7 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
                 .resolve()
                 .strongly_consistent()
                 .await?;
-            fs.await?.start_watching().await?;
+            fs.await?.inner().await?.start_watching().await?;
             Ok(fs)
         })
         .await?;
@@ -876,7 +876,7 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
     session
         .tt
         .run_once(async move {
-            cache_fs.await?.stop_watching().await;
+            cache_fs.await?.inner().await?.stop_watching().await;
             Ok(())
         })
         .await?;

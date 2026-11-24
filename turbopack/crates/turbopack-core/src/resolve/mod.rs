@@ -3773,7 +3773,12 @@ mod tests {
                 r#"{ "exports": { ".": { "default": "./b.js", "import": "./a.mjs" } } }"#,
             )
             .unwrap();
-            fs_operation.read_strongly_consistent().await?.invalidate();
+            fs_operation
+                .read_strongly_consistent()
+                .await?
+                .inner()
+                .await?
+                .invalidate();
 
             let conditions = exports_conditions_operation(fs)
                 .read_strongly_consistent()
