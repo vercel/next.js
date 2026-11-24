@@ -1496,54 +1496,10 @@ impl Issue for GoRouteIssue {
     }
 }
 
-/// Decodes `%XX` escapes exactly once, as Go's `url.PathUnescape` does when a production Go
-/// executable reads the route header. Returns `None` where Go fails: an invalid escape, or a
-/// result that is not UTF-8 and so cannot be a route ID.
-fn go_path_unescape(value: &str) -> Option<String> {
-    let bytes = value.as_bytes();
-    let mut decoded = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' {
-            let hex = bytes.get(index + 1..index + 3)?;
-            if !hex.iter().all(u8::is_ascii_hexdigit) {
-                return None;
-            }
-            decoded.push(u8::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()?);
-            index += 3;
-        } else {
-            decoded.push(bytes[index]);
-            index += 1;
-        }
-    }
-    String::from_utf8(decoded).ok()
-}
-
-/// Pairs `(spelled, decoded)` of distinct Go route IDs where decoding `spelled` once yields
-/// `decoded`, such as a literal `/x/%5Bid%5D` folder beside a dynamic `/x/[id]` route.
-///
-/// A production executable selects a route by its percent-encoded ID and decodes the header
-/// exactly once, so Next.js and conforming adapters always select the right route. An adapter
-/// that sent `spelled` without encoding it would select `decoded` instead, a different handler
-/// than the one it authorized, so such IDs are rejected at build time.
-fn go_route_id_collisions<'a>(ids: &[&'a str]) -> Vec<(&'a str, &'a str)> {
-    let known: std::collections::BTreeSet<&str> = ids.iter().copied().collect();
-    let mut collisions = vec![];
-    for &id in ids {
-        if let Some(decoded) = go_path_unescape(id)
-            && decoded != id
-            && let Some(&other) = known.get(decoded.as_str())
-        {
-            collisions.push((id, other));
-        }
-    }
-    collisions
-}
-
-/// The output ID that an adapter executable selects for an `x-matched-path` value, as
-/// `nextGoMatchedPathID` in `templates/go_routes_adapter_main.go` computes it. It mirrors the
-/// steps the Next.js server applies to the header (`denormalizePagePath`): backslashes become
-/// slashes, `/index` becomes `/`, and a static `/index/...` loses its `/index` prefix.
+/// The route ID that a production executable selects for an `x-matched-path` value, as
+/// `nextGoMatchedPathID` in `templates/go_routes_select.go` computes it. It mirrors the steps the
+/// Next.js server applies to the header (`denormalizePagePath`): backslashes become slashes,
+/// `/index` becomes `/`, and a static `/index/...` loses its `/index` prefix.
 fn go_matched_path_id(value: &str) -> String {
     let value = value.replace('\\', "/");
     if value == "/index" {
@@ -1559,19 +1515,51 @@ fn go_matched_path_id(value: &str) -> String {
     }
 }
 
-/// Groups of distinct Go route IDs that `x-matched-path` normalization maps to one value, such
-/// as `/index/docs` and `/docs`, or `/a\b` and `/a/b`. The platform sends each output's own ID
-/// in `x-matched-path`, so such an ID would select another output, or one value would name
-/// several outputs. Every ID in a group is rejected at build time.
-fn go_matched_path_collisions<'a>(ids: &[&'a str]) -> Vec<(String, Vec<&'a str>)> {
-    let mut groups: BTreeMap<String, Vec<&'a str>> = BTreeMap::new();
+/// Go route IDs that no `x-matched-path` value can select, each with the reason. Next.js, or the
+/// platform, sends a route's own ID in `x-matched-path`, so every ID must be a valid header value
+/// that the executable reads back as itself:
+///
+/// - HTTP drops control characters and trims a trailing space or tab from header values.
+/// - Normalization must leave the ID unchanged. Otherwise the ID would select another route, such
+///   as `/index/docs` selecting `/docs`, or nothing.
+///
+/// Every remaining ID maps to itself, so distinct IDs never select the same route.
+fn go_matched_path_issues<'a>(ids: &[&'a str]) -> Vec<(&'a str, String)> {
+    let known: std::collections::BTreeSet<&str> = ids.iter().copied().collect();
+    let mut issues = vec![];
     for &id in ids {
-        groups.entry(go_matched_path_id(id)).or_default().push(id);
+        if id.chars().any(|c| c.is_ascii_control()) || id.ends_with(' ') {
+            issues.push((
+                id,
+                format!(
+                    "The Go route {id:?} cannot be selected, because its path contains a control \
+                     character or ends with a space, which an HTTP header cannot carry. \
+                     Production builds compile every route.go into one executable that selects a \
+                     route from its path in the x-matched-path header. Rename the folder."
+                ),
+            ));
+            continue;
+        }
+        let selected = go_matched_path_id(id);
+        if selected != id {
+            let target = if known.contains(selected.as_str()) {
+                format!("the Go route {selected}, a different route")
+            } else {
+                format!("{selected}, which is not a Go route")
+            };
+            issues.push((
+                id,
+                format!(
+                    "The Go route {id} cannot be selected, because the x-matched-path header \
+                     reads {id} as {target}. Production builds compile every route.go into one \
+                     executable that selects a route from x-matched-path the way the Next.js \
+                     server does, which reads /index as /, drops a leading /index from a static \
+                     path, and reads backslashes as slashes. Rename the folder."
+                ),
+            ));
+        }
     }
-    groups
-        .into_iter()
-        .filter(|(_, ids)| ids.len() > 1)
-        .collect()
+    issues
 }
 
 /// Virtual directory of the adapter entrypoint that serves every route, relative to the Go
@@ -1863,58 +1851,19 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
         .iter()
         .map(|(_, package)| package.route_id.as_str())
         .collect::<Vec<_>>();
-    let collisions = go_route_id_collisions(&ids);
-    if !collisions.is_empty() {
-        for (spelled, decoded) in collisions {
+    // Every production executable selects a route from x-matched-path.
+    let issues = go_matched_path_issues(&ids);
+    if !issues.is_empty() {
+        for (id, message) in issues {
             for (path, package) in &packages {
-                if package.route_id != spelled && package.route_id != decoded {
-                    continue;
+                if package.route_id == id {
+                    GoRouteIssue {
+                        path: path.clone(),
+                        message: message.clone().into(),
+                    }
+                    .resolved_cell()
+                    .emit();
                 }
-                GoRouteIssue {
-                    path: path.clone(),
-                    message: format!(
-                        "The Go route {spelled} is the percent-encoded spelling of the Go route \
-                         {decoded}. Production builds compile every route.go into one executable \
-                         that selects a route by its percent-encoded route ID, so these two \
-                         routes cannot be told apart reliably. Rename the folder so that its name \
-                         contains no percent-encoded characters."
-                    )
-                    .into(),
-                }
-                .resolved_cell()
-                .emit();
-            }
-        }
-        return Ok(failed(None));
-    }
-    // Adapter executables select a route from x-matched-path by default.
-    let adapter = is_adapter_build(project).await?;
-    let collisions = if adapter {
-        go_matched_path_collisions(&ids)
-    } else {
-        vec![]
-    };
-    if !collisions.is_empty() {
-        for (selected, colliding) in collisions {
-            let list = colliding.join(", ");
-            for (path, package) in &packages {
-                if !colliding.contains(&package.route_id.as_str()) {
-                    continue;
-                }
-                GoRouteIssue {
-                    path: path.clone(),
-                    message: format!(
-                        "The Go routes {list} all select the Go route {selected} from the \
-                         x-matched-path header. Adapter builds compile every route.go into one \
-                         executable that selects a route from x-matched-path the way the Next.js \
-                         server does, which reads /index as / and drops a leading /index from a \
-                         static path, so these routes cannot be told apart. Rename the folders so \
-                         that no route is a /index spelling of another."
-                    )
-                    .into(),
-                }
-                .resolved_cell()
-                .emit();
             }
         }
         return Ok(failed(None));
@@ -2030,7 +1979,9 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
     }
     aliased.sort_by(|(_, a), (_, b)| a.route_id.cmp(&b.route_id));
     // Next.js authenticates requests to a `next start` worker and replaces client-supplied
-    // x-next-internal-* headers. Adapter servers receive requests from the platform instead.
+    // x-matched-path and x-next-internal-* headers. Adapter servers receive requests from the
+    // platform instead.
+    let adapter = is_adapter_build(project).await?;
     let trust_internal_headers = !adapter;
     let mut imports = vec![];
     let mut table = vec![];
@@ -2044,6 +1995,12 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
             serde_json::to_string(&package.route_id)?
         ));
     }
+    generated.insert(
+        RcStr::from(format!(
+            "{GO_ROUTES_ENTRYPOINT_DIRECTORY}/zz_next_select.go"
+        )),
+        RcStr::from(include_str!("templates/go_routes_select.go")),
+    );
     generated.insert(
         RcStr::from(format!("{GO_ROUTES_ENTRYPOINT_DIRECTORY}/main.go")),
         RcStr::from(
@@ -4067,46 +4024,6 @@ mod tests {
     }
 
     #[test]
-    fn go_route_ids_decode_exactly_once_like_go() {
-        assert_eq!(go_path_unescape("/x/[id]").as_deref(), Some("/x/[id]"));
-        assert_eq!(go_path_unescape("/x/%5Bid%5D").as_deref(), Some("/x/[id]"));
-        assert_eq!(
-            go_path_unescape("%2Fx%2F%255Bid%255D").as_deref(),
-            Some("/x/%5Bid%5D")
-        );
-        assert_eq!(
-            go_path_unescape("%2F%E6%97%A5%E6%9C%AC%E8%AA%9E").as_deref(),
-            Some("/日本語")
-        );
-        assert_eq!(go_path_unescape("/a+b").as_deref(), Some("/a+b"));
-        // Go rejects these, so they select no route.
-        for invalid in ["/x/%zz", "/x/%5", "/x/%", "/x/%+5", "/x/%FF", "/x/%e6%97"] {
-            assert_eq!(go_path_unescape(invalid), None, "{invalid}");
-        }
-    }
-
-    #[test]
-    fn go_route_ids_reject_a_literal_percent_spelling_of_another_route() {
-        // A public dynamic route and a literal folder spelled as its encoded ID.
-        assert_eq!(
-            go_route_id_collisions(&["/x/[id]", "/x/%5Bid%5D", "/health"]),
-            [("/x/%5Bid%5D", "/x/[id]")]
-        );
-        assert_eq!(
-            go_route_id_collisions(&["/x/%255Bid%255D", "/x/%5Bid%5D"]),
-            [("/x/%255Bid%255D", "/x/%5Bid%5D")]
-        );
-        assert_eq!(
-            go_route_id_collisions(&["/caf%C3%A9", "/café", "/%5Fprivate"]),
-            [("/caf%C3%A9", "/café")]
-        );
-        // Escapes that decode to no other route, or not at all, are allowed.
-        assert!(
-            go_route_id_collisions(&["/x/[id]", "/y/%5Bid%5D", "/x/%zz", "/日本語"]).is_empty()
-        );
-    }
-
-    #[test]
     fn go_matched_path_ids_follow_the_next_server() {
         for (value, expected) in [
             ("/", "/"),
@@ -4128,30 +4045,44 @@ mod tests {
     }
 
     #[test]
-    fn go_matched_path_rejects_ids_that_select_another_route() {
+    fn go_matched_path_rejects_ids_that_cannot_select_themselves() {
+        let rejected = |ids: &[&str]| {
+            go_matched_path_issues(ids)
+                .into_iter()
+                .map(|(id, _)| id.to_owned())
+                .collect::<Vec<_>>()
+        };
         assert_eq!(
-            go_matched_path_collisions(&["/docs", "/index/docs", "/a/b", "/a\\b", "/[id]"]),
-            [
-                ("/a/b".to_owned(), vec!["/a/b", "/a\\b"]),
-                ("/docs".to_owned(), vec!["/docs", "/index/docs"]),
-            ]
+            rejected(&["/docs", "/index/docs", "/a/b", "/a\\b", "/[id]"]),
+            ["/index/docs", "/a\\b"]
         );
+        assert_eq!(rejected(&["/", "/index"]), ["/index"]);
+        // An ID that would select nothing is rejected too.
+        assert_eq!(rejected(&["/index/only"]), ["/index/only"]);
         assert_eq!(
-            go_matched_path_collisions(&["/", "/index"]),
-            [("/".to_owned(), vec!["/", "/index"])]
+            rejected(&["/tab\tname", "/new\nline", "/trailing ", "/inner space"]),
+            ["/tab\tname", "/new\nline", "/trailing "]
         );
         // Percent-encoding is not decoded, and dynamic /index paths keep their prefix.
         assert!(
-            go_matched_path_collisions(&[
+            rejected(&[
                 "/",
                 "/x/[id]",
                 "/x/%5Bid%5D",
                 "/index/[id]",
                 "/[id]",
-                "/café"
+                "/café a 100%",
+                "/日本語",
             ])
             .is_empty()
         );
+        let messages = go_matched_path_issues(&["/docs", "/index/docs", "/index/only"]);
+        assert!(
+            messages[0]
+                .1
+                .contains("as the Go route /docs, a different route")
+        );
+        assert!(messages[1].1.contains("as /only, which is not a Go route"));
     }
 
     #[test]

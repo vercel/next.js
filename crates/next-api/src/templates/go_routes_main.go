@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 	// __NEXT_GO_ROUTE_IMPORTS__
@@ -16,8 +15,8 @@ import (
 func main() {
 	// One worker serves every route.go of a production build. Next.js routes each
 	// request, including rewrites and proxy.ts, and names the selected route in
-	// x-next-internal-go-route, percent-encoded. Requests never select a handler
-	// by pathname.
+	// x-matched-path, as Vercel's routing does for adapter builds. Requests never
+	// select a handler by pathname.
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
 	}
@@ -34,32 +33,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// Next.js authenticates every request with this worker's token and replaces
-	// client-supplied x-next-internal-* headers before forwarding, so the route
-	// header is trusted once the token matches.
+	// Next.js, or Switchyard, authenticates every request with this worker's
+	// token and replaces client-supplied x-matched-path and x-next-internal-*
+	// headers before forwarding, so x-matched-path is trusted once the token
+	// matches.
+	selectRoute := nextGoMatchedPathHandler(routes)
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("x-next-internal-go-token")), []byte(token)) != 1 {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
-		selected := r.Header.Values("x-next-internal-go-route")
-		if len(selected) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		// Next.js sends encodeURIComponent(route ID), so any ID is a valid header
-		// value. Decode it exactly once and match only the decoded ID.
-		id, err := url.PathUnescape(selected[0])
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		handler, ok := routes[id]
-		if !ok {
-			http.NotFound(w, r)
-			return
-		}
-		handler(w, r)
+		selectRoute(w, r)
 	})}
 	shutdownDone := make(chan struct{})
 	go func() {

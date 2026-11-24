@@ -181,13 +181,23 @@ describe('native route runtime', () => {
 
   it('serves every route of a shared executable from one worker and names the route', async () => {
     let token = ''
-    const received: Array<{ route: unknown; url?: string }> = []
+    const received: Array<{ route: string[]; url?: string }> = []
     const worker = http.createServer((req, res) => {
       expect(req.headers['x-next-internal-go-token']).toBe(token)
-      received.push({
-        route: req.headers['x-next-internal-go-route'],
-        url: req.url,
-      })
+      // Every x-matched-path field line in any letter case, as the UTF-8
+      // text of its bytes.
+      const route: string[] = []
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        if (req.rawHeaders[i].toLowerCase() === 'x-matched-path') {
+          route.push(
+            Buffer.from(req.rawHeaders[i + 1], 'latin1').toString('utf8')
+          )
+        }
+        expect(req.rawHeaders[i].toLowerCase()).not.toBe(
+          'x-next-internal-go-route'
+        )
+      }
+      received.push({ route, url: req.url })
       res.end('ok')
     })
     await new Promise<void>((resolve) => worker.listen(0, '127.0.0.1', resolve))
@@ -212,6 +222,8 @@ describe('native route runtime', () => {
     const routes: Record<string, [page: string, route: string]> = {
       '/users/1': ['/(group)/users/[id]/route', '/users/[id]'],
       '/health': ['/health/route', '/health'],
+      '/catch/one/two': ['/catch/[...slug]/route', '/catch/[...slug]'],
+      '/': ['/route', '/'],
       // Route IDs that are not valid header values as is.
       '/%E6%97%A5%E6%9C%AC%E8%AA%9E': ['/日本語/route', '/日本語'],
       // A literal folder named %5Bid%5D beside a dynamic [id] folder. Its ID is
@@ -255,6 +267,8 @@ describe('native route runtime', () => {
         '/users/1',
         '/health',
         '/users/1',
+        '/catch/one/two',
+        '/',
         '/%E6%97%A5%E6%9C%AC%E8%AA%9E',
         '/users/%255Bid%255D',
       ]) {
@@ -262,45 +276,79 @@ describe('native route runtime', () => {
           `http://127.0.0.1:${frontPort}${pathname}`,
           {
             // A client cannot choose the route.
-            headers: { 'x-next-internal-go-route': '/health' },
+            headers: {
+              'x-matched-path': '/health, /health',
+              'x-next-internal-go-route': '/health',
+            },
           }
         )
         expect(response.status).toBe(200)
         await response.text()
       }
+      // Repeated field lines in other letter cases are replaced too.
+      await new Promise<void>((resolve, reject) => {
+        const req = http.request(
+          {
+            host: '127.0.0.1',
+            port: frontPort,
+            path: '/users/1',
+            // A raw header list keeps repeated fields and their letter case,
+            // and replaces Node's defaults, including Host. Node accepts it,
+            // though its types only list a header object.
+            headers: [
+              'Host',
+              `127.0.0.1:${frontPort}`,
+              'X-Matched-Path',
+              '/health',
+              'x-matched-path',
+              '/health',
+              'X-MATCHED-PATH',
+              '/health',
+            ] as unknown as http.OutgoingHttpHeaders,
+          },
+          (res) => {
+            let body = ''
+            res.on('data', (chunk) => (body += chunk))
+            res.on('end', () => {
+              try {
+                expect([res.statusCode, body]).toEqual([200, 'ok'])
+                resolve()
+              } catch (error) {
+                reject(error)
+              }
+            })
+          }
+        )
+        req.on('error', reject)
+        req.end()
+      })
       expect(spawn).toHaveBeenCalledTimes(1)
-      // The route header carries encodeURIComponent(route ID), which the Go
-      // executable decodes exactly once.
+      // Next.js names the routed handler's exact route ID in x-matched-path,
+      // once, as its UTF-8 bytes, as Vercel's routing does.
       expect(received).toEqual([
-        { route: '%2Fusers%2F%5Bid%5D', url: '/users/1' },
-        { route: '%2Fhealth', url: '/health' },
-        { route: '%2Fusers%2F%5Bid%5D', url: '/users/1' },
-        {
-          route: '%2F%E6%97%A5%E6%9C%AC%E8%AA%9E',
-          url: '/%E6%97%A5%E6%9C%AC%E8%AA%9E',
-        },
-        { route: '%2Fusers%2F%255Bid%255D', url: '/users/%255Bid%255D' },
+        { route: ['/users/[id]'], url: '/users/1' },
+        { route: ['/health'], url: '/health' },
+        { route: ['/users/[id]'], url: '/users/1' },
+        { route: ['/catch/[...slug]'], url: '/catch/one/two' },
+        { route: ['/'], url: '/' },
+        { route: ['/日本語'], url: '/%E6%97%A5%E6%9C%AC%E8%AA%9E' },
+        { route: ['/users/%5Bid%5D'], url: '/users/%255Bid%255D' },
+        { route: ['/users/[id]'], url: '/users/1' },
       ])
-      expect(
-        received.map(({ route }) => decodeURIComponent(route as string))
-      ).toEqual([
-        '/users/[id]',
-        '/health',
-        '/users/[id]',
-        '/日本語',
-        '/users/%5Bid%5D',
-      ])
-      // Switchyard sets the announced value on requests as is.
+      // Switchyard sets the announced route ID as x-matched-path itself.
       expect(
         events.flatMap((event) =>
           event.event === 'worker' ? [[event.page, event.route]] : []
         )
       ).toEqual([
-        ['/(group)/users/[id]/route', '%2Fusers%2F%5Bid%5D'],
-        ['/health/route', '%2Fhealth'],
-        ['/日本語/route', '%2F%E6%97%A5%E6%9C%AC%E8%AA%9E'],
-        ['/users/%5Bid%5D/route', '%2Fusers%2F%255Bid%255D'],
+        ['/(group)/users/[id]/route', '/users/[id]'],
+        ['/health/route', '/health'],
+        ['/catch/[...slug]/route', '/catch/[...slug]'],
+        ['/route', '/'],
+        ['/日本語/route', '/日本語'],
+        ['/users/%5Bid%5D/route', '/users/%5Bid%5D'],
       ])
+      expect(events.some((event) => 'routeHeader' in event)).toBe(false)
     } finally {
       observeNativeRouteWorkers(() => {})
       child.exitCode = 0

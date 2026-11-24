@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -23,14 +24,14 @@ func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"goExact":{"/api/echo":"/api/echo/route"}}`)})
 	f.apply(controlMessage{Event: "worker", Page: "/api/echo/route",
 		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret",
-		RouteHeader: "x-next-internal-go-route", Route: "%2Fapi%2Fecho"})
+		Route: "/api/echo"})
 	s := f.state.Load()
 	if s.table == nil {
 		t.Fatal("no table")
 	}
 	up := s.workers["/api/echo/route"]
 	if up == nil || up.address != "127.0.0.1:51300" || up.tokenHeader != "X-Next-Internal-Go-Token" ||
-		up.routeHeader != "X-Next-Internal-Go-Route" || len(up.route) != 1 || up.route[0] != "%2Fapi%2Fecho" {
+		len(up.route) != 1 || up.route[0] != "/api/echo" {
 		t.Fatalf("worker %+v", up)
 	}
 
@@ -89,5 +90,41 @@ func TestApplyGoneSkipsWorkersWithoutAToken(t *testing.T) {
 	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
 	if f.state.Load().workers["/api/echo/route"] == nil {
 		t.Error("a gone removed a worker with no token")
+	}
+}
+
+func TestWorkerHeadersReplaceEveryClientRoutingValue(t *testing.T) {
+	for _, route := range []string{"/api/[id]", "/catch/[...slug]", "/", "/café a 100%", "/日本語"} {
+		up := &goUpstream{tokenHeader: "X-Next-Internal-Go-Token", token: []string{"secret"}, route: routeValue(route)}
+		// What a client can send: repeated values, other letter cases (kept as
+		// given by code that writes the map directly) and forged private
+		// metadata.
+		h := http.Header{
+			"X-Matched-Path":           {"/admin", "/other"},
+			"x-matched-path":           {"/admin"},
+			"X-MATCHED-PATH":           {"/admin"},
+			"X-Next-Internal-Go-Token": {"forged"},
+			"X-Next-Internal-Go-Route": {"%2Fadmin"},
+			"x-next-internal-anything": {"forged"},
+			"X-Matched-Path-Other":     {"kept"},
+			"Accept":                   {"text/plain"},
+		}
+		up.setWorkerHeaders(h)
+		want := http.Header{
+			"X-Matched-Path":           {route},
+			"X-Next-Internal-Go-Token": {"secret"},
+			"X-Matched-Path-Other":     {"kept"},
+			"Accept":                   {"text/plain"},
+		}
+		if !reflect.DeepEqual(h, want) {
+			t.Errorf("%s: headers %v, want %v", route, h, want)
+		}
+	}
+	// A development worker serves one route and gets no x-matched-path.
+	up := &goUpstream{tokenHeader: "X-Next-Internal-Go-Token", token: []string{"secret"}, route: routeValue("")}
+	h := http.Header{"X-Matched-Path": {"/admin"}}
+	up.setWorkerHeaders(h)
+	if _, ok := h["X-Matched-Path"]; ok || len(h) != 1 {
+		t.Errorf("development worker headers %v", h)
 	}
 }

@@ -11,9 +11,9 @@ import (
 )
 
 // Each route package contains only its own route pattern. Production
-// executables contain every route package and select one by its route ID:
-// adapters bind it at startup or set it in a platform-controlled header, and
-// next start sends it in an authenticated header after routing.
+// executables contain every route package and select one by its route ID, which
+// the platform, or Next.js under next start, sends in x-matched-path after
+// routing. Adapters can also bind one route at startup.
 const nextGoRoutePattern = "__NEXT_GO_ROUTE_PATTERN__"
 
 type nextGoParamsKey struct{}
@@ -106,9 +106,9 @@ func nextGoHandler() http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		// Public requests cannot provide the private self-hosted transport metadata.
+		// Handlers do not see the private transport and routing metadata.
 		r.Header.Del("x-next-internal-go-token")
-		r.Header.Del("x-next-internal-go-route")
+		r.Header.Del("x-matched-path")
 		for name, values := range params {
 			r.SetPathValue(name, strings.Join(values, "/"))
 		}

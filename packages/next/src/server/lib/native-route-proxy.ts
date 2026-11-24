@@ -38,15 +38,19 @@ function distinctHeaders(message: IncomingMessage): Record<string, string[]> {
 }
 
 /**
- * Encodes a route ID as the value of the header that selects it in a production
- * Go executable. Route IDs can contain characters that are invalid in header
- * values, such as non-ASCII folder names, and "%" in literal folder names. The
- * executable decodes the value exactly once, so every route ID has exactly one
- * spelling: the dynamic /x/[id] is sent as %2Fx%2F%5Bid%5D, and a literal
- * /x/%5Bid%5D folder as %2Fx%2F%255Bid%255D.
+ * The header that names the route a production Go executable serves, as
+ * Vercel's routing sets it for the Next.js server in minimal mode.
  */
-export function encodeNativeRouteId(route: string): string {
-  return encodeURIComponent(route)
+export const NATIVE_ROUTE_HEADER = 'x-matched-path'
+
+/**
+ * The x-matched-path value that selects a route ID: its UTF-8 bytes, not
+ * percent-encoded, as the platform sends it and as the executable reads it. A
+ * Node header value is written as one byte per character, so each byte is
+ * given as one character.
+ */
+export function nativeRouteHeaderValue(route: string): string {
+  return Buffer.from(route, 'utf8').toString('latin1')
 }
 
 /** Forwards an admitted request to an authenticated worker's HTTP listener. */
@@ -57,8 +61,9 @@ export function proxyNativeRequest(
   target: { port: number; agent: Agent; token: string },
   route: string
 ): Promise<void> {
-  // Discard client-supplied internal Next.js headers.
-  // Authenticate forwarded requests with this Go worker's token.
+  // Discard client-supplied internal Next.js headers and routing metadata: the
+  // executable selects its handler from x-matched-path, which only this proxy
+  // may set. Authenticate forwarded requests with this Go worker's token.
   // Use normalized headers so proxy.ts request-header mutations are respected.
   const rawValues = distinctHeaders(req)
   const connection = String(req.headers.connection || '').toLowerCase()
@@ -67,11 +72,13 @@ export function proxyNativeRequest(
     : undefined
   const headers: typeof req.headers = Object.create(null)
   for (const name in req.headers) {
+    const lowerName = name.toLowerCase()
     if (
       !Object.hasOwn(req.headers, name) ||
-      HOP_BY_HOP_HEADERS.has(name) ||
-      connectionHeaders?.has(name) ||
-      name.startsWith('x-next-internal-')
+      HOP_BY_HOP_HEADERS.has(lowerName) ||
+      connectionHeaders?.has(lowerName) ||
+      lowerName.startsWith('x-next-internal-') ||
+      lowerName === NATIVE_ROUTE_HEADER
     ) {
       continue
     }
@@ -96,7 +103,7 @@ export function proxyNativeRequest(
   }
   headers['x-next-internal-go-token'] = target.token
   // A production executable serves every route.go and selects this route.
-  headers['x-next-internal-go-route'] = encodeNativeRouteId(route)
+  headers[NATIVE_ROUTE_HEADER] = nativeRouteHeaderValue(route)
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
       hostname: '127.0.0.1',

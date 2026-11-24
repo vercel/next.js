@@ -5,15 +5,9 @@ import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
 import { join, relative, isAbsolute } from 'path'
 import { PassThrough, Readable, pipeline, type Transform } from 'stream'
 import { createBrotliDecompress, createUnzip } from 'zlib'
-import { encodeNativeRouteId, proxyNativeRequest } from './native-route-proxy'
+import { proxyNativeRequest } from './native-route-proxy'
 
 const noop = () => {}
-
-/**
- * Names the route.go route a request is for. A production build's executable
- * serves every route and selects the handler from this authenticated header.
- */
-const NATIVE_ROUTE_HEADER = 'x-next-internal-go-route'
 
 /** A route's descriptor: its executable, and its route ID within it. */
 interface NativeTarget {
@@ -91,10 +85,10 @@ export type NativeRouteWorkerEvent =
       tokenHeader: string
       token: string
       /**
-       * Header that names the route a request is for, and its value for page:
-       * the route ID encoded by encodeNativeRouteId, to be sent as is.
+       * The route ID that selects page in the worker's executable. Send it as
+       * the x-matched-path value, as its UTF-8 bytes, replacing every value the
+       * client sent.
        */
-      routeHeader?: string
       route?: string
     }>
   // token identifies the worker: a new worker can get an exited one's port.
@@ -363,12 +357,7 @@ export class NativeRouteManager {
         address: `127.0.0.1:${worker.port}`,
         tokenHeader: 'x-next-internal-go-token',
         token: worker.token,
-        ...(route === undefined
-          ? {}
-          : {
-              routeHeader: NATIVE_ROUTE_HEADER,
-              route: encodeNativeRouteId(route),
-            }),
+        ...(route === undefined ? {} : { route }),
       })
     }
     return { worker, route }
