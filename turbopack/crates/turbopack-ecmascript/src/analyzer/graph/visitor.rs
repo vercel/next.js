@@ -907,8 +907,11 @@ fn destructuring_target_escapes(target: &Pat) -> bool {
 /// How the value of the current expression (or identifier) is used, see [`ValueUsage`].
 fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Mark) -> ValueUsage {
     // A member in an optional chain (`a?.b`) is wrapped in `OptChainBase`/`OptChainExpr`, so look
-    // at how the whole `Expr::OptChain` is used instead.
-    let ast_path = match &ast_path[..] {
+    // at how the whole `Expr::OptChain` is used instead. This is only done for the checks that
+    // don't need the value of the optional chain, or get it through [`Analyzer::eval_member_obj`]:
+    // the `in` and destructuring effects evaluate an optional chain to unknown, so `key in a?.b`
+    // and `const { x } = a?.b` stay escapes.
+    let opt_chain_path = match &ast_path[..] {
         [
             rest @ ..,
             AstParentNodeRef::Expr(_, ExprField::OptChain),
@@ -917,12 +920,12 @@ fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Ma
         ] => &ast_path[..rest.len() + 1],
         ast_path => ast_path,
     };
-    if is_in_boolean_context(ast_path, unresolved_mark) {
+    if is_in_boolean_context(opt_chain_path, unresolved_mark) {
         ValueUsage::Truthiness
-    } else if member_access_parent(ast_path).is_some()
+    } else if member_access_parent(opt_chain_path).is_some()
         || is_object_destructuring_source_without_rest(ast_path)
         || is_obj_in(ast_path)
-        || is_only_inspected(ast_path, unresolved_mark)
+        || is_only_inspected(opt_chain_path, unresolved_mark)
     {
         ValueUsage::Access
     } else {
