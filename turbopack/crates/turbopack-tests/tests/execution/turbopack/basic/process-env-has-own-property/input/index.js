@@ -39,6 +39,26 @@ it('should check env var existence at runtime', () => {
   })
 })
 
+it('should check env var existence with equivalent forms', () => {
+  withCleanEnv(() => {
+    const check = () => [
+      Object.hasOwn(process.env, 'TURBOPACK_TEST_HAS_OWN_PROPERTY_KEY'),
+      Object.prototype.hasOwnProperty.call(
+        process.env,
+        'TURBOPACK_TEST_HAS_OWN_PROPERTY_KEY'
+      ),
+      process.env.hasOwnProperty.call(
+        env,
+        'TURBOPACK_TEST_HAS_OWN_PROPERTY_KEY'
+      ),
+      process.env.propertyIsEnumerable('TURBOPACK_TEST_HAS_OWN_PROPERTY_KEY'),
+    ]
+    expect(check()).toEqual([false, false, false, false])
+    process.env[KEY] = ''
+    expect(check()).toEqual([true, true, true, true])
+  })
+})
+
 it('should check env var existence with a dynamic key', () => {
   withCleanEnv(() => {
     // Not statically known to the analyzer

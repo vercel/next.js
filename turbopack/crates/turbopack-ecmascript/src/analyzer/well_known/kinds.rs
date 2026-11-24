@@ -7,6 +7,8 @@ use crate::analyzer::{ConstantString, JsValue, RequireContextValue};
 pub enum WellKnownObjectKind {
     /// The `Object` global variable.
     ObjectConstructor,
+    /// `Object.prototype`.
+    ObjectPrototype,
     /// The `globalThis` global object.
     GlobalThis,
     /// The Node.js `global` object (an alias of `globalThis`).
@@ -82,6 +84,7 @@ impl WellKnownObjectKind {
                 "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
             ),
             Self::ObjectConstructor => ("Object", "The global Object constructor"),
+            Self::ObjectPrototype => ("Object.prototype", "The prototype of plain objects"),
             Self::GlobalThis => (
                 "globalThis",
                 "The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis",
@@ -210,8 +213,17 @@ pub enum WellKnownFunctionKind<'a> {
     OsPlatform,
     OsEndianness,
     ProcessCwd,
-    /// `process.env.hasOwnProperty(key)`, an env var existence check.
-    ProcessEnvHasOwnProperty,
+    /// `Object.prototype.hasOwnProperty`. What it checks depends on the receiver (`this`), so it
+    /// is only analyzed when called with a known receiver: `obj.hasOwnProperty(key)` or
+    /// `hasOwnProperty.call(obj, key)`.
+    HasOwnProperty,
+    /// `Object.prototype.propertyIsEnumerable`, analyzed like [`Self::HasOwnProperty`].
+    PropertyIsEnumerable,
+    /// `Object.hasOwn(obj, key)`.
+    ObjectHasOwn,
+    /// `Function.prototype.call`. The function it calls is its receiver, so it is only analyzed
+    /// when called as `func.call(this, ...args)`.
+    FunctionCall,
     NodePreGypFind,
     NodeGypBuild,
     NodeBindings,
@@ -350,9 +362,21 @@ impl WellKnownFunctionKind<'_> {
                 "os.endianness".to_string(),
                 "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
             ),
-            Self::ProcessEnvHasOwnProperty => (
-                "process.env.hasOwnProperty".to_string(),
-                "Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty",
+            Self::HasOwnProperty => (
+                "Object.prototype.hasOwnProperty".to_string(),
+                "The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty",
+            ),
+            Self::PropertyIsEnumerable => (
+                "Object.prototype.propertyIsEnumerable".to_string(),
+                "The standard Object.prototype.propertyIsEnumerable method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/propertyIsEnumerable",
+            ),
+            Self::ObjectHasOwn => (
+                "Object.hasOwn".to_string(),
+                "The standard Object.hasOwn method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn",
+            ),
+            Self::FunctionCall => (
+                "Function.prototype.call".to_string(),
+                "The standard Function.prototype.call method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/call",
             ),
             Self::ProcessCwd => (
                 "process.cwd".to_string(),

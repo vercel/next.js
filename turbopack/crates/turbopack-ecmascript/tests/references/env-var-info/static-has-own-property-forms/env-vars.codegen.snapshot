@@ -1,0 +1,14 @@
+runtime: [
+    "hasOwnProperty",
+    "propertyIsEnumerable",
+]
+runtime_existence: [
+    "FOO_OBJECT_HAS_OWN",
+    "FOO_OBJECT_HAS_OWN_EXTRACTED",
+    "FOO_PROTOTYPE_CALL",
+    "FOO_METHOD_CALL",
+    "FOO_DESTRUCTURED_CALL",
+    "FOO_ENUMERABLE",
+    "FOO_ENUMERABLE_CALL",
+    "COMMA_CALL_THROWS",
+]

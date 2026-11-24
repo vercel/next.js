@@ -4196,13 +4196,10 @@ a#454 = (???*0* | ???*1*)
 - *1* ???*2*["call"](b)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *2* ???*3*["toString"]
-  ⚠️  unknown object
+- *2* Object.prototype*3*["toString"]
+  ⚠️  unsupported property on Object.prototype
   ⚠️  This value might have side effects
-- *3* Object*4*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *4* Object: The global Object constructor
+- *3* Object.prototype: The prototype of plain objects
 
 a#455 = ???*0*
 - *0* arguments[0]
@@ -19669,14 +19666,8 @@ ik = (...) => undefined
 
 il = (...) => undefined
 
-ja = ???*0*
-- *0* ???*1*["hasOwnProperty"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* Object*2*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *2* Object: The global Object constructor
+ja = Object.prototype.hasOwnProperty*0*
+- *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
 
 jb = (...) => undefined
 

@@ -1251,6 +1251,16 @@ async fn analyze_ecmascript_module_internal(
                     }
 
                     let (args, mut argument_effects) = process_effect_args(args);
+                    if !new {
+                        handle_env_var_existence_member_call(
+                            &obj,
+                            &func,
+                            &args,
+                            &analysis_state,
+                            &mut analysis,
+                        )
+                        .await?;
+                    }
                     handle_call(
                         &ast_path,
                         span,
@@ -1758,6 +1768,88 @@ fn add_argument_effects<'a>(
     }
 }
 
+/// The possible values of `value`: the alternatives, or `value` itself.
+fn value_alternatives<'b, 'a>(value: &'b JsValue<'a>) -> &'b [JsValue<'a>] {
+    match value {
+        JsValue::Alternatives { values, .. } => values,
+        _ => std::slice::from_ref(value),
+    }
+}
+
+fn is_own_property_check(func: &JsValue<'_>) -> bool {
+    matches!(
+        func,
+        JsValue::WellKnownFunction(
+            WellKnownFunctionKind::HasOwnProperty | WellKnownFunctionKind::PropertyIsEnumerable
+        )
+    )
+}
+
+/// Whether `value` (a linked value) could be `process.env`.
+fn could_be_process_env(value: &JsValue<'_>) -> bool {
+    value_alternatives(value).iter().any(|v| {
+        matches!(
+            v,
+            JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessEnv)
+        )
+    })
+}
+
+/// Records env var existence checks whose meaning depends on the receiver of the call:
+/// `process.env.hasOwnProperty(key)` and `hasOwnProperty.call(process.env, key)` (also for
+/// `propertyIsEnumerable`, which is the same for env vars). A call without a receiver, like
+/// `const { hasOwnProperty } = process.env; hasOwnProperty(key)`, doesn't check `process.env`.
+/// (`(0, process.env.hasOwnProperty)(key)` is still handled, as the effects don't distinguish it
+/// from a member call.)
+async fn handle_env_var_existence_member_call<'a>(
+    obj: &JsValue<'a>,
+    func: &JsValue<'a>,
+    unlinked_args: &[JsValue<'a>],
+    state: &AnalysisState<'a>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    let link = |value: &JsValue<'a>| {
+        state.link_value(
+            value.clone_in(state.arena.get_or_default()),
+            ImportAttributes::empty_ref(),
+        )
+    };
+    let funcs = value_alternatives(func);
+    // The object that is checked, and the key
+    let (checked_obj, key) = if funcs.iter().any(is_own_property_check) {
+        (obj, unlinked_args.first())
+    } else if funcs.iter().any(|f| {
+        matches!(
+            f,
+            JsValue::WellKnownFunction(WellKnownFunctionKind::FunctionCall)
+        )
+    }) {
+        // `func.call(this, ...args)` calls the receiver `func`
+        let called = link(obj).await?;
+        if !value_alternatives(&called)
+            .iter()
+            .any(is_own_property_check)
+        {
+            return Ok(());
+        }
+        let [this, rest @ ..] = unlinked_args else {
+            return Ok(());
+        };
+        (this, rest.first())
+    } else {
+        return Ok(());
+    };
+    if !could_be_process_env(&link(checked_obj).await?) {
+        return Ok(());
+    }
+    if let Some(key) = key
+        && let Some(key) = link(key).await?.as_str()
+    {
+        analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+    }
+    Ok(())
+}
+
 async fn handle_call<'a>(
     ast_path: &[AstParentKind],
     span: Span,
@@ -2060,10 +2152,13 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
-    if let WellKnownFunctionKind::ProcessEnvHasOwnProperty = func {
-        // An env var existence check. This is also tracked in alternatives, as it doesn't
-        // generate code.
-        if let Some(key) = linked_args().await?.first().and_then(|key| key.as_str()) {
+    if let WellKnownFunctionKind::ObjectHasOwn = func {
+        // `Object.hasOwn(process.env, key)` is an env var existence check. This is also tracked
+        // in alternatives, as it doesn't generate code.
+        if let [obj, key, ..] = &linked_args().await?[..]
+            && could_be_process_env(obj)
+            && let Some(key) = key.as_str()
+        {
             analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
         }
         return Ok(());

@@ -1,7 +1,7 @@
 2 -> 3 free var = FreeVar(process)
 
-0 -> 4 typeof = typeof((process.env.hasOwnProperty*0* | ???*1*))
-- *0* process.env.hasOwnProperty: Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+0 -> 4 typeof = typeof((Object.prototype.hasOwnProperty*0* | ???*1*))
+- *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
 - *1* process.env*2*["hasOwnProperty"]
   ⚠️  could also be an env var
 - *2* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
@@ -10,8 +10,8 @@
 
 9 -> 10 free var = FreeVar(process)
 
-0 -> 11 conditional = (process.env.hasOwnProperty*0* | ???*1*)
-- *0* process.env.hasOwnProperty: Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+0 -> 11 conditional = (Object.prototype.hasOwnProperty*0* | ???*1*)
+- *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
 - *1* process.env*2*["hasOwnProperty"]
   ⚠️  could also be an env var
 - *2* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
