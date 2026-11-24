@@ -128,10 +128,9 @@ pub async fn resolve_source_map_sources(
                 // We have an absolute URL, try to parse it as a `file://` URL
                 if let Ok(sys_path) = original_source_url_obj.to_file_path() {
                     if let Some(disk_fs_vc) = disk_fs_vc {
-                        let disk_fs = get_or_try_init(&disk_fs, async || {
-                            Ok(disk_fs_vc.await?.inner().await?)
-                        })
-                        .await?;
+                        let disk_fs =
+                            get_or_try_init(&disk_fs, async || disk_fs_vc.await?.inner().await)
+                                .await?;
                         disk_fs.try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
                     } else {
                         None
