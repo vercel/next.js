@@ -40,16 +40,18 @@ describe.each([false, true])('partialPrefetching: %s', (partialPrefetching) => {
       })
       expect(revalidation.status).toBe(200)
 
-      let updated: string
+      // A fresh response does not mean revalidation has settled. Retry both
+      // reads together so cache reuse is checked against the current value.
       await retry(async () => {
         const $ = await next.render$('/otel-span-end/item/built')
-        updated = $('#cached').text()
+        const updated = $('#cached').text()
         expect(updated).toMatch(/^built: /)
         expect(updated).not.toBe(cached)
         expect($('#request').text()).toBe('Request-time content')
+
+        const again = await next.render$('/otel-span-end/item/built')
+        expect(again('#cached').text()).toBe(updated)
       })
-      const again = await next.render$('/otel-span-end/item/built')
-      expect(again('#cached').text()).toBe(updated!)
 
       for (const kind of ['manual', 'active']) {
         const $ = await next.render$(`/otel-span-end/item/${kind}`)
