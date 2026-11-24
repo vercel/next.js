@@ -40,6 +40,21 @@ describe('build-node-env-development', () => {
     expect(exitCode).toBe(0)
   })
 
+  it('should build in production mode with a non-standard NODE_ENV', async () => {
+    next.env.NODE_ENV = 'abc'
+    try {
+      const { exitCode, cliOutput } = await next.build()
+
+      expect(cliOutput).toContain(
+        `"NODE_ENV" is set to "abc", but \`next build\` creates a production build by default. Using NODE_ENV=production for this build.`
+      )
+      expect(cliOutput).not.toContain('Error occurred prerendering page')
+      expect(exitCode).toBe(0)
+    } finally {
+      next.env.NODE_ENV = 'development'
+    }
+  })
+
   it('should not override NODE_ENV=test', async () => {
     next.env.NODE_ENV = 'test'
     try {
