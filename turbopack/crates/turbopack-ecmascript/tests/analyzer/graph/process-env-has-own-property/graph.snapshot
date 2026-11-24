@@ -78,6 +78,77 @@
         ),
     ),
     (
+        "hasOwn",
+        Function(
+            2,
+            418,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "hasOwnCond",
+        Tenary(
+            6,
+            Member(
+                3,
+                FreeVar(
+                    "Object",
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "hasOwn",
+                        ),
+                    ),
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "native",
+                    ),
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "fallback",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "hasOwnFallback",
+        Logical(
+            5,
+            Or,
+            [
+                Member(
+                    3,
+                    FreeVar(
+                        "Object",
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "hasOwn",
+                            ),
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        "hasOwn",
+                        #3,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
         "method",
         Member(
             5,

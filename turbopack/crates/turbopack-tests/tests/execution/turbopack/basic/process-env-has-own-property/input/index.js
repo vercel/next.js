@@ -83,3 +83,16 @@ it('should not constant-fold process.env.hasOwnProperty', () => {
     expect(process.env.hasOwnProperty ? 'truthy' : 'falsy').toBe('truthy')
   })
 })
+
+it('should not constant-fold Object.hasOwn feature checks', () => {
+  // `Object.hasOwn` is missing in older runtimes
+  const descriptor = Object.getOwnPropertyDescriptor(Object, 'hasOwn')
+  delete Object.hasOwn
+  try {
+    expect(Object.hasOwn ? 'native' : 'fallback').toBe('fallback')
+    expect(typeof (Object.hasOwn || null)).toBe('object')
+  } finally {
+    Object.defineProperty(Object, 'hasOwn', descriptor)
+  }
+  expect(Object.hasOwn ? 'native' : 'fallback').toBe('native')
+})

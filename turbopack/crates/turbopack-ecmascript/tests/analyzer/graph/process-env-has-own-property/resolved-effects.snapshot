@@ -20,3 +20,14 @@
 
 0 -> 15 member call = process.env*0*["hasOwnProperty"]("FOO")
 - *0* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+16 -> 17 free var = FreeVar(Object)
+
+0 -> 18 conditional = (Object.hasOwn*0* | ???*1*)
+- *0* Object.hasOwn: The standard Object.hasOwn method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn
+- *1* Object*2*["hasOwn"]
+  ⚠️  might not be supported by the runtime
+  ⚠️  This value might have side effects
+- *2* Object: The global Object constructor
+
+19 -> 20 free var = FreeVar(Object)

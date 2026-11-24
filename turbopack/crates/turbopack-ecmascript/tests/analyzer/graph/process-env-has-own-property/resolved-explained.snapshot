@@ -15,6 +15,22 @@ has = (???*0* | ???*2*)
   ⚠️  could also be an env var
 - *4* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
 
+hasOwn = (...) => undefined
+
+hasOwnCond = ((Object.hasOwn*0* | ???*1*) ? "native" : "fallback")
+- *0* Object.hasOwn: The standard Object.hasOwn method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn
+- *1* Object*2*["hasOwn"]
+  ⚠️  might not be supported by the runtime
+  ⚠️  This value might have side effects
+- *2* Object: The global Object constructor
+
+hasOwnFallback = (Object.hasOwn*0* | ???*1* | (...) => undefined){truthy}
+- *0* Object.hasOwn: The standard Object.hasOwn method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn
+- *1* Object*2*["hasOwn"]
+  ⚠️  might not be supported by the runtime
+  ⚠️  This value might have side effects
+- *2* Object: The global Object constructor
+
 method = (Object.prototype.hasOwnProperty*0* | ???*1*)
 - *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
 - *1* process.env*2*["hasOwnProperty"]

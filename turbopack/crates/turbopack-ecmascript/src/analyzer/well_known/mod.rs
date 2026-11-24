@@ -960,7 +960,23 @@ async fn well_known_object_member<'a>(
 fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
     match prop.as_str() {
         Some("assign") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
-        Some("hasOwn") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectHasOwn),
+        Some("hasOwn") => JsValue::alternatives(BumpVec::from_iter_in(
+            arena,
+            [
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectHasOwn),
+                // `Object.hasOwn` is missing in older runtimes, so feature checks like
+                // `Object.hasOwn || fallback` must not be folded
+                JsValue::unknown(
+                    JsValue::member(
+                        arena,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
+                        prop,
+                    ),
+                    true,
+                    rcstr!("might not be supported by the runtime"),
+                ),
+            ],
+        )),
         Some("prototype") => JsValue::WellKnownObject(WellKnownObjectKind::ObjectPrototype),
         _ => JsValue::unknown(
             JsValue::member(

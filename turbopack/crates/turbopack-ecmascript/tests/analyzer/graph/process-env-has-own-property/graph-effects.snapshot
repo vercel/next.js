@@ -835,4 +835,252 @@
         in_try: false,
         new: false,
     },
+    Member {
+        obj: FreeVar(
+            "Object",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "hasOwn",
+                ),
+            ),
+        ),
+        base_effects: [
+            FreeVar {
+                var: "Object",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            4,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Cond,
+                    ),
+                    CondExpr(
+                        Test,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 340..346,
+            },
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 340..353,
+        in_truthiness_context: true,
+    },
+    Conditional {
+        condition: Member(
+            3,
+            FreeVar(
+                "Object",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "hasOwn",
+                    ),
+                ),
+            ),
+        ),
+        kind: Ternary {
+            then: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    AstPathId(
+                        16,
+                    ),
+                ),
+            },
+            else: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    AstPathId(
+                        17,
+                    ),
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+        ],
+        span: 340..377,
+    },
+    Member {
+        obj: FreeVar(
+            "Object",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "hasOwn",
+                ),
+            ),
+        ),
+        base_effects: [
+            FreeVar {
+                var: "Object",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            5,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Bin,
+                    ),
+                    BinExpr(
+                        Left,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 401..407,
+            },
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 401..414,
+        in_truthiness_context: false,
+    },
 ]
