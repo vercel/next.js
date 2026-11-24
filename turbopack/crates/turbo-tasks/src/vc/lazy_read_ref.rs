@@ -84,7 +84,7 @@ where
             return;
         }
         // Refining the provisional dependency to no hashed dependencies at all removes it.
-        with_turbo_tasks(|tt| {
+        if let Err(error) = with_turbo_tasks(|tt| {
             tt.refine_provisional_cell_dependency(
                 task,
                 index,
@@ -92,7 +92,10 @@ where
                 dependency.id,
                 &FxHashSet::default(),
             )
-        });
+        }) {
+            // The cell's task was garbage collected while this execution used it.
+            dependency.fail_execution(error);
+        }
     }
 }
 
