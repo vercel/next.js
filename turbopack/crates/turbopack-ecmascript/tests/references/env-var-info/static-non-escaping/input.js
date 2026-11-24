@@ -31,6 +31,10 @@ for ({ FOO18 } = process.env; FOO18; ) {
 foo(process)
 console.log(process.env.FOO7)
 
+// Parenthesized member objects (also what TypeScript casts like `(process.env as any).X` become)
+// prettier-ignore
+console.log((process.env).FOO19, ((process.env))['FOO20'], (process?.env).FOO21)
+
 // Truthiness checks of `process.env` itself can't read any key
 if (process.env) {
   console.log(process.env.FOO8)

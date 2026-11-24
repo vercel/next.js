@@ -922,7 +922,7 @@ fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Ma
     };
     if is_in_boolean_context(opt_chain_path, unresolved_mark) {
         ValueUsage::Truthiness
-    } else if member_access_parent(opt_chain_path).is_some()
+    } else if is_member_obj(opt_chain_path)
         || is_object_destructuring_source_without_rest(ast_path)
         || is_obj_in(ast_path)
         || is_only_inspected(opt_chain_path, unresolved_mark)
@@ -1048,6 +1048,20 @@ fn is_result_discarded(ast_path: &[AstParentNodeRef<'_>]) -> bool {
             | AstParentNodeRef::ForStmt(_, ForStmtField::Init | ForStmtField::Update) => {
                 return true;
             }
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Whether the current expression is the object of a member expression: `<obj>.<prop>`,
+/// `<obj>[<expr>]`, or with parentheses `(<obj>).<prop>` (which TypeScript casts like
+/// `(<obj> as any).<prop>` also become).
+fn is_member_obj(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::MemberExpr(_, MemberExprField::Obj) => return true,
             _ => return false,
         }
     }
