@@ -617,11 +617,7 @@ async fn compute_subtree_content_hash(
                             "  '{}': {}{}{}{}",
                             m.ident().await?.path.to_string_ref().await?,
                             data.path_code_hash,
-                            if data
-                                .env_var_info
-                                .as_ref()
-                                .is_some_and(|e| e.runtime_all.is_some())
-                            {
+                            if data.env_var_info.as_ref().is_some_and(|e| e.runtime_all) {
                                 if data.ignore_runtime_all {
                                     ""
                                 } else {
@@ -669,8 +665,7 @@ async fn compute_subtree_content_hash(
         for (_, data) in &data {
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
-                if !data.ignore_runtime_all && env.runtime_all.is_some() && !has_dynamic_env_access
-                {
+                if !data.ignore_runtime_all && env.runtime_all && !has_dynamic_env_access {
                     has_dynamic_env_access = true;
                 }
                 for (name, mode) in &env.runtime {
