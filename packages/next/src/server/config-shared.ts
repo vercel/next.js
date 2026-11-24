@@ -655,7 +655,6 @@ export interface ExperimentalConfig {
    * the local framework spans needed to explain App Router request, render,
    * fetch, and cache behavior without requiring an external OTEL collector.
    */
-  requestInsights?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -2541,7 +2540,6 @@ export const defaultConfig = Object.freeze({
     fullySpecified: false,
     swcTraceProfiling: false,
     forceSwcTransforms: false,
-    requestInsights: false,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
@@ -2725,7 +2723,6 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
-    | 'requestInsights'
     | 'externalBrowserRuntime'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2799,7 +2796,6 @@ export function getNextConfigRuntime(
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
-    requestInsights: ex.requestInsights,
     externalBrowserRuntime: ex.externalBrowserRuntime,
 
     goRoutes: ex.goRoutes,

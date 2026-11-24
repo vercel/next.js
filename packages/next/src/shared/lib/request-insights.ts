@@ -19,6 +19,7 @@ export type RequestInsightProxyStatus = 'matched' | 'bypassed'
 
 export type RequestInsightIdentity = Readonly<{
   requestId: string
+  parentRequestId?: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -58,6 +59,7 @@ export type RequestInsightSpan = {
 }
 
 export type RequestInsightFetch = {
+  parentSpanId?: string
   url?: string
   method?: string
   statusCode?: number
@@ -70,6 +72,7 @@ export type RequestInsightFetch = {
 
 export type RequestInsight = {
   requestId: string
+  parentRequestId?: string
   kind?: RequestInsightKind
   source: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -116,7 +119,7 @@ export function createRequestInsightDelta(
   }
 }
 
-export const MAX_LIVE_COMPLETED_REQUEST_INSIGHTS = 100
+export const MAX_LIVE_COMPLETED_REQUEST_INSIGHTS = 500
 
 export function isSameRequestInsightFetch(
   first: RequestInsightFetch,

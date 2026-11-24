@@ -464,10 +464,6 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
   )
-  .option(
-    '--experimental-request-insights',
-    'Record App Router request timelines for diagnostics.'
-  )
   .addOption(
     new Option(
       '--internal-trace [level]',
@@ -489,9 +485,6 @@ program
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
         process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
-      }
-      if (options.experimentalRequestInsights) {
-        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
       }
       if (options.internalTrace) {
         process.env.NEXT_TURBOPACK_TRACING =
@@ -770,6 +763,11 @@ requestInsights
   .option('--url <url>', 'Override automatic dev server discovery.')
   .option('--json', 'Output request summaries as JSON.')
   .option('--route <route>', 'Match a route template or request URL pathname.')
+  .addOption(
+    new Option('--sort <order>', 'Sort requests by newest or start time.')
+      .choices(['newest', 'start'])
+      .default('newest')
+  )
   .addOption(
     new Option('--limit <count>', 'Maximum number of requests to return.')
       .argParser(parseValidPositiveInteger)

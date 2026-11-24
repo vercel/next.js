@@ -22,7 +22,6 @@ import {
 import {
   getRequestInsightFetchCount,
   getRequestInsightSpanCount,
-  isRequestInsightSummary,
   type RequestInsightListItem,
 } from '../../../shared/request-insights-summary'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
@@ -64,10 +63,6 @@ import {
   getTraceRange,
   type TraceItem,
 } from './trace-viewer'
-import {
-  loadRequestInsightDetail,
-  useRequestInsightsHistory,
-} from './request-insights-history'
 import './request-insights-panel.css'
 
 const CopyErrorContext = createContext<(error: string | null) => void>(() => {})
@@ -100,15 +95,10 @@ export function RequestInsightsPanel() {
   const toggleFilter = (filter: RequestInsightFilter) => {
     setActiveFilters((filters) => toggleRequestInsightFilter(filters, filter))
   }
-  const history = useRequestInsightsHistory({
-    activeFilters,
-    liveRequests: state.requestInsights,
-    showInternal: showInternalInList,
-  })
   const [pausedRequests, setPausedRequests] = useState<
-    readonly RequestInsightListItem[] | null
+    readonly RequestInsight[] | null
   >(null)
-  const requests = pausedRequests ?? history.unfilteredRequests
+  const requests = pausedRequests ?? state.requestInsights
   const isPaused = pausedRequests !== null
   const filterResult = useMemo(
     () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
@@ -132,41 +122,10 @@ export function RequestInsightsPanel() {
     visibleRequests,
     selectedRequestKey
   )
-  const selectedListItem =
-    visibleRequests.find(
+  const selectedRequest =
+    requests.find(
       (request) => getRequestInsightKey(request) === activeRequestKey
     ) ?? null
-  const [historicalRequest, setHistoricalRequest] = useState<{
-    key: string
-    request: RequestInsight
-  } | null>(null)
-  useEffect(() => {
-    if (!selectedListItem || !isRequestInsightSummary(selectedListItem)) {
-      return
-    }
-
-    const controller = new AbortController()
-    const key = getRequestInsightKey(selectedListItem)
-    void loadRequestInsightDetail(selectedListItem, controller.signal)
-      .then((request) => {
-        if (request) {
-          setHistoricalRequest({ key, request })
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          console.error('Failed to load Request Insights detail', error)
-        }
-      })
-    return () => controller.abort()
-  }, [selectedListItem])
-  const selectedRequest = selectedListItem
-    ? isRequestInsightSummary(selectedListItem)
-      ? historicalRequest?.key === getRequestInsightKey(selectedListItem)
-        ? historicalRequest.request
-        : null
-      : selectedListItem
-    : null
   const initialRequestId = self.__next_r
   const internalRequests = useMemo(
     () => requests.filter((request) => isInternalRequestInsight(request)),
@@ -177,15 +136,9 @@ export function RequestInsightsPanel() {
     : internalRequests.filter((request) => request.status === 'error').length
   // Only offer the internal-activity toggle once the session has captured
   // internal activity to reveal.
-  const showInternalToggle =
-    internalRequests.length > 0 ||
-    history.optionCounts['activity:instant-insights'] > 0
+  const showInternalToggle = internalRequests.length > 0
 
-  if (
-    requests.length === 0 &&
-    history.totalRequestCount === 0 &&
-    !history.loading
-  ) {
+  if (requests.length === 0) {
     return (
       <div className="request-insights-empty">
         Request insights will appear after the next App Router request.
@@ -213,9 +166,7 @@ export function RequestInsightsPanel() {
               activeFilters={activeFilters}
               onReset={() => setActiveFilters([])}
               onToggle={toggleFilter}
-              optionCounts={
-                isPaused ? filterResult.optionCounts : history.optionCounts
-              }
+              optionCounts={filterResult.optionCounts}
               shadowRoot={shadowRoot}
             />
             <div className="request-insights-settings">
@@ -247,7 +198,7 @@ export function RequestInsightsPanel() {
                         closeOnClick={false}
                         onCheckedChange={(checked) =>
                           setPausedRequests(
-                            checked ? [...history.unfilteredRequests] : null
+                            checked ? [...state.requestInsights] : null
                           )
                         }
                       >
@@ -310,28 +261,11 @@ export function RequestInsightsPanel() {
         {activeFilters.length > 0 ? (
           <div className="request-insights-filter-status">
             <span>
-              {isPaused
-                ? filterResult.matchingRequestCount
-                : history.matchingRequestCount}{' '}
-              of{' '}
-              {isPaused
-                ? filterResult.totalRequestCount
-                : history.totalRequestCount}{' '}
-              requests
+              {filterResult.matchingRequestCount} of{' '}
+              {filterResult.totalRequestCount} requests
             </span>
             <button onClick={() => setActiveFilters([])} type="button">
               Reset
-            </button>
-          </div>
-        ) : null}
-        {!isPaused && history.hasNewer ? (
-          <div className="request-insights-filter-status">
-            <button
-              disabled={history.loading}
-              onClick={history.loadNewer}
-              type="button"
-            >
-              Load newer requests
             </button>
           </div>
         ) : null}
@@ -356,9 +290,7 @@ export function RequestInsightsPanel() {
             activeRequestKey={activeRequestKey}
             contextMenuRequestKey={contextMenuRequestKey}
             entries={listEntries}
-            hasMore={!isPaused && history.hasMore}
             initialRequestId={initialRequestId}
-            loading={history.loading}
             onContextMenuOpenChange={(requestKey, open) => {
               setContextMenuRequestKey((openRequestKey) => {
                 if (open) {
@@ -367,20 +299,14 @@ export function RequestInsightsPanel() {
                 return openRequestKey === requestKey ? null : openRequestKey
               })
             }}
-            onLoadMore={history.loadMore}
             onSelect={setSelectedRequestKey}
             shadowRoot={shadowRoot}
-            truncated={history.truncated}
           />
         )}
       </div>
 
       {selectedRequest ? (
         <RequestDetails request={selectedRequest} verbose={verbose} />
-      ) : selectedListItem ? (
-        <div className="request-insights-details-loading">
-          Loading request details…
-        </div>
       ) : null}
     </div>
   )
@@ -392,26 +318,18 @@ function VirtualRequestList({
   activeRequestKey,
   contextMenuRequestKey,
   entries,
-  hasMore,
   initialRequestId,
-  loading,
   onContextMenuOpenChange,
-  onLoadMore,
   onSelect,
   shadowRoot,
-  truncated,
 }: {
   activeRequestKey: string | null
   contextMenuRequestKey: string | null
   entries: readonly RequestListEntry[]
-  hasMore: boolean
   initialRequestId: string | undefined
-  loading: boolean
   onContextMenuOpenChange: (requestKey: string, open: boolean) => void
-  onLoadMore: () => void
   onSelect: (requestKey: string) => void
   shadowRoot: ShadowRoot
-  truncated: boolean
 }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const scrollbarDragRef = useRef<{
@@ -444,8 +362,7 @@ function VirtualRequestList({
     Math.ceil((scrollTop + viewportHeight) / REQUEST_ROW_HEIGHT) +
       REQUEST_ROW_OVERSCAN
   )
-  const footerHeight = loading || hasMore || truncated ? 32 : 0
-  const contentHeight = entries.length * REQUEST_ROW_HEIGHT + footerHeight
+  const contentHeight = entries.length * REQUEST_ROW_HEIGHT
   const maxScrollTop = Math.max(0, contentHeight - viewportHeight)
   const scrollbarTrackHeight = Math.max(
     0,
@@ -477,16 +394,6 @@ function VirtualRequestList({
       startScrollTop + (pointerDelta / scrollbarThumbTravel) * maxScrollTop
   }
 
-  useEffect(() => {
-    if (
-      hasMore &&
-      !loading &&
-      viewportHeight > entries.length * REQUEST_ROW_HEIGHT
-    ) {
-      onLoadMore()
-    }
-  }, [entries.length, hasMore, loading, onLoadMore, viewportHeight])
-
   return (
     <div
       aria-label="Requests"
@@ -497,14 +404,6 @@ function VirtualRequestList({
           return
         }
         setScrollTop(viewport.scrollTop)
-        if (
-          hasMore &&
-          !loading &&
-          viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <
-            REQUEST_ROW_HEIGHT * 4
-        ) {
-          onLoadMore()
-        }
       }}
       ref={viewportRef}
       role="region"
@@ -542,22 +441,6 @@ function VirtualRequestList({
               </div>
             )
           })}
-        {footerHeight > 0 ? (
-          <div
-            className="request-insights-history-status"
-            style={{
-              transform: `translateY(${entries.length * REQUEST_ROW_HEIGHT}px)`,
-            }}
-          >
-            {loading
-              ? 'Loading earlier requests…'
-              : hasMore
-                ? 'Scroll to load earlier requests'
-                : truncated
-                  ? 'Older requests were discarded to keep history within 50 MB.'
-                  : null}
-          </div>
-        ) : null}
       </div>
       {maxScrollTop > 0 ? (
         <div
@@ -989,12 +872,7 @@ function RequestDetails({
         <div className="request-insights-diagnosis">{diagnosis}</div>
       ) : null}
 
-      <Trace
-        items={traceItems}
-        key={getRequestInsightKey(request)}
-        request={request}
-      />
-
+      <Trace items={traceItems} request={request} />
       <FetchTable fetches={request.fetches} />
     </div>
   )
@@ -1053,6 +931,7 @@ function Trace({
   const [contextMenuItemId, setContextMenuItemId] = useState<string | null>(
     null
   )
+  const [inspectedItemId, setInspectedItemId] = useState<string | null>(null)
   const [activeTraceRow, setActiveTraceRow] = useState<HTMLElement | null>(null)
   const [isTraceFocused, setIsTraceFocused] = useState(false)
   const [isTraceTooltipOpen, setIsTraceTooltipOpen] = useState(false)
@@ -1066,11 +945,13 @@ function Trace({
   const displayedItemId =
     contextMenuItemId ??
     hoveredItemId ??
-    (isTraceFocused ? items[safeActiveItemIndex]?.id : null)
+    (isTraceFocused ? items[safeActiveItemIndex]?.id : null) ??
+    inspectedItemId
   const displayedItemIndex = items.findIndex(
     (item) => item.id === displayedItemId
   )
   const activeItem = items[displayedItemIndex] ?? items[safeActiveItemIndex]
+  const inspectedItem = items.find((item) => item.id === inspectedItemId)
   const activeItemDescription = activeItem
     ? getTraceItemDescription(activeItem, range)
     : null
@@ -1107,6 +988,20 @@ function Trace({
         return
       }
 
+      if (event.key === 'Escape' && inspectedItemId !== null) {
+        event.preventDefault()
+        setInspectedItemId(null)
+        return
+      }
+      if (
+        (event.key === 'Enter' || event.key === ' ') &&
+        safeActiveItemIndex !== -1
+      ) {
+        event.preventDefault()
+        setInspectedItemId(items[safeActiveItemIndex].id)
+        return
+      }
+
       const nextIndex = getTraceNavigationIndex(
         activeItemIndex,
         items.length,
@@ -1121,7 +1016,7 @@ function Trace({
       setHoveredItemId(null)
       setActiveItemId(items[nextIndex]?.id ?? null)
     },
-    [activeItemIndex, items]
+    [activeItemIndex, inspectedItemId, items, safeActiveItemIndex]
   )
   const handleTracePointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -1132,6 +1027,7 @@ function Trace({
 
       const row = target.closest<HTMLElement>('[data-trace-index]')
       if (row === null || !event.currentTarget.contains(row)) {
+        setHoveredItemId(null)
         return
       }
 
@@ -1162,6 +1058,7 @@ function Trace({
       <div className="request-insights-trace-viewport">
         <div
           className="request-insights-trace"
+          data-inspector-open={inspectedItem !== undefined || undefined}
           onPointerLeave={() => setHoveredItemId(null)}
           onPointerMove={handleTracePointerMove}
         >
@@ -1240,10 +1137,15 @@ function Trace({
                       }
                       className="request-insights-span-row"
                       data-active={index === displayedItemIndex || undefined}
+                      data-category={item.category}
                       data-kind={item.kind}
                       data-trace-item-id={item.id}
                       data-trace-index={index}
                       id={`${traceId}-item-${index}`}
+                      onClick={() => {
+                        setActiveItemId(item.id)
+                        setInspectedItemId(item.id)
+                      }}
                       onContextMenu={() => setActiveItemId(item.id)}
                       ref={
                         index === displayedItemIndex
@@ -1259,15 +1161,27 @@ function Trace({
                         <span className="request-insights-span-label">
                           <span
                             className="request-insights-span-marker"
+                            data-category={item.category}
                             data-kind={item.kind}
                             data-status={item.status}
                           />
-                          <span>{item.label}</span>
+                          <span className="request-insights-span-title">
+                            {item.label}
+                          </span>
+                          {item.attributeLabel ? (
+                            <span
+                              className="request-insights-span-attribute-label"
+                              title={item.attributeLabel}
+                            >
+                              {item.attributeLabel}
+                            </span>
+                          ) : null}
                         </span>
                       </span>
                       <span className="request-insights-span-track">
                         <span
                           className="request-insights-span-bar"
+                          data-category={item.category}
                           data-status={item.status}
                           style={{
                             left: `${position.left}%`,
@@ -1284,10 +1198,118 @@ function Trace({
               })}
             </div>
           </Tooltip>
+          {inspectedItem ? (
+            <TraceInspector
+              item={inspectedItem}
+              onClose={() => setInspectedItemId(null)}
+              range={range}
+            />
+          ) : null}
         </div>
       </div>
     </div>
   )
+}
+
+function TraceInspector({
+  item,
+  onClose,
+  range,
+}: {
+  item: TraceItem
+  onClose: () => void
+  range: ReturnType<typeof getTraceRange>
+}) {
+  const position = getTracePosition(item, range)
+  const attributes = Object.entries(item.attributes ?? {}).sort(([a], [b]) =>
+    a.localeCompare(b)
+  )
+
+  return (
+    <div
+      aria-label={`Span details for ${item.fullLabel ?? item.label}`}
+      className="request-insights-trace-inspector"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          onClose()
+        }
+      }}
+      role="region"
+    >
+      <div className="request-insights-trace-inspector-header">
+        <div>
+          <strong>{item.fullLabel ?? item.label}</strong>
+          <span>
+            {getTraceCategoryLabel(item.category)} · +
+            {formatDuration(position.offsetMs)} ·{' '}
+            {formatDuration(item.durationMs)}
+            {' · '}
+            {item.status}
+          </span>
+        </div>
+        <button
+          aria-label="Close span details"
+          className="request-insights-trace-inspector-close"
+          onClick={onClose}
+          type="button"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      {item.traceId || item.spanId || item.parentSpanId ? (
+        <dl className="request-insights-trace-inspector-metadata">
+          {item.traceId ? (
+            <>
+              <dt>Trace ID</dt>
+              <dd>{item.traceId}</dd>
+            </>
+          ) : null}
+          {item.spanId ? (
+            <>
+              <dt>Span ID</dt>
+              <dd>{item.spanId}</dd>
+            </>
+          ) : null}
+          {item.parentSpanId ? (
+            <>
+              <dt>Parent span ID</dt>
+              <dd>{item.parentSpanId}</dd>
+            </>
+          ) : null}
+        </dl>
+      ) : null}
+      <div className="request-insights-trace-inspector-attributes">
+        <strong>Attributes ({attributes.length})</strong>
+        {attributes.length > 0 ? (
+          <dl>
+            {attributes.map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{formatSpanAttributeValue(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <span className="request-insights-muted">No attributes</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function formatSpanAttributeValue(
+  value: NonNullable<TraceItem['attributes']>[string]
+) {
+  return Array.isArray(value) ? JSON.stringify(value) : String(value)
+}
+
+function getTraceCategoryLabel(category: TraceItem['category']): string {
+  return category === 'nextjs'
+    ? 'Next.js'
+    : category === 'opentelemetry'
+      ? 'OpenTelemetry'
+      : 'Application'
 }
 
 function TraceSpanContextMenu({
@@ -1334,7 +1356,7 @@ function TraceSpanContextMenu({
               <div className="request-insights-context-preview">
                 <strong title={label}>{label}</strong>
                 <span>
-                  {item.category === 'nextjs' ? 'Next.js' : 'Application'} ·{' '}
+                  {getTraceCategoryLabel(item.category)} ·{' '}
                   {formatDuration(item.durationMs)} · {item.status}
                 </span>
                 <code title={spanId}>{spanId}</code>
@@ -1470,6 +1492,7 @@ function getRequestOverview(request: RequestInsight) {
     statusCode,
     statusLabel: statusCode ?? request.status,
     kind: getRequestInsightSummaryTypeLabel(request),
+    fetchCount: request.fetches.length,
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',

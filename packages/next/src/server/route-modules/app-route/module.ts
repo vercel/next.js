@@ -111,7 +111,7 @@ type AppRouteRequestInsightsRuntime = {
 let appRouteRequestInsightsRuntime: AppRouteRequestInsightsRuntime | undefined
 
 function markAppRouteRequestSource(): void {
-  if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+  if (process.env.__NEXT_DEV_SERVER) {
     if (!appRouteRequestInsightsRuntime) {
       const { getRequestInsightsIdentity } =
         require('../../lib/trace/request-insights-identity') as typeof import('../../lib/trace/request-insights-identity')

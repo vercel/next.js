@@ -2613,7 +2613,7 @@ async function prepareAppPageRender(
 
   let requestId: string
   let htmlRequestId: string
-  const requestInsightsIdentity = process.env.__NEXT_REQUEST_INSIGHTS
+  const requestInsightsIdentity = process.env.__NEXT_DEV_SERVER
     ? getRequestInsightsIdentity()
     : undefined
 
@@ -5125,8 +5125,11 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
+  const parentRequestId =
+    getRequestInsightsIdentity()?.requestId ?? ctx.requestId
   const identity = {
-    requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+    requestId: await generateRenderRequestId(ctx.url.href),
+    parentRequestId,
     kind: 'instant-insights' as const,
     htmlRequestId: ctx.htmlRequestId,
     url: ctx.url.href,

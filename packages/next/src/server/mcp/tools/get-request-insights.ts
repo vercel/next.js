@@ -1,12 +1,7 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import z from 'next/dist/compiled/zod'
-import type { RequestInsight } from '../../../shared/lib/request-insights'
 import { summarizeRequestInsight } from '../../../shared/lib/request-insights-summary'
-import {
-  getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
-  readRequestInsightsHistory,
-} from '../../lib/trace/request-insights'
+import { getRequestInsightsSnapshot } from '../../lib/trace/request-insights'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 const DEFAULT_REQUEST_LIMIT = 20
@@ -18,7 +13,7 @@ export function registerGetRequestInsightsTool(server: McpServer) {
     'get_request_insights',
     {
       description:
-        'List recent Request Insights or inspect a request by ID, including completed requests that have left the in-memory window. Useful for debugging slow renders, server fetches, cache behavior, and request timelines without an external OTEL collector. Requires next dev --experimental-request-insights.',
+        'List recent Request Insights or inspect a retained request by ID. Useful for debugging slow renders, server fetches, cache behavior, and request timelines without an external OTEL collector.',
       inputSchema: {
         requestId: z.string().optional(),
         htmlRequestId: z.string().optional(),
@@ -26,20 +21,6 @@ export function registerGetRequestInsightsTool(server: McpServer) {
     },
     async (request) => {
       mcpTelemetryTracker.recordToolCall('mcp/get_request_insights')
-
-      if (!isRequestInsightsEnabled()) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                error:
-                  'Request Insights is not enabled. Restart next dev with --experimental-request-insights.',
-              }),
-            },
-          ],
-        }
-      }
 
       const snapshot = getRequestInsightsSnapshot()
       const memoryRequests = snapshot.requests.filter((insight) => {
@@ -75,25 +56,10 @@ export function registerGetRequestInsightsTool(server: McpServer) {
         }
       }
 
-      const journalRequests = await readRequestInsightsHistory({
-        requestId: request.requestId,
-        htmlRequestId: request.htmlRequestId,
-        limit:
-          request.htmlRequestId !== undefined
-            ? RELATED_REQUEST_LIMIT + 1
-            : undefined,
-      })
-      const requestsByKey = new Map(
-        journalRequests.map((insight) => [getRequestKey(insight), insight])
-      )
-      for (const insight of memoryRequests) {
-        requestsByKey.set(getRequestKey(insight), insight)
-      }
-      const allRequests = Array.from(requestsByKey.values())
-      let truncated = allRequests.length > RELATED_REQUEST_LIMIT
+      let truncated = memoryRequests.length > RELATED_REQUEST_LIMIT
       const requests = request.htmlRequestId
-        ? allRequests.slice(-RELATED_REQUEST_LIMIT)
-        : allRequests
+        ? memoryRequests.slice(-RELATED_REQUEST_LIMIT)
+        : memoryRequests
       if (request.htmlRequestId) {
         while (
           requests.length > 1 &&
@@ -112,14 +78,7 @@ export function registerGetRequestInsightsTool(server: McpServer) {
             text: JSON.stringify(
               {
                 requests,
-                source:
-                  requests.length === 0
-                    ? 'none'
-                    : memoryRequests.length > 0 && journalRequests.length > 0
-                      ? 'memory-and-journal'
-                      : memoryRequests.length > 0
-                        ? 'memory'
-                        : 'journal',
+                source: requests.length === 0 ? 'none' : 'memory',
                 truncated,
               },
               null,
@@ -130,8 +89,4 @@ export function registerGetRequestInsightsTool(server: McpServer) {
       }
     }
   )
-}
-
-function getRequestKey(request: Pick<RequestInsight, 'requestId' | 'kind'>) {
-  return `${request.kind ?? 'request'}:${request.requestId}`
 }

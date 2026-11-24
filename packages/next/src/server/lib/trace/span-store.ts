@@ -37,6 +37,7 @@ export type SpanStoreRecord = {
   spanId?: string
   parentSpanId?: string
   requestId?: string
+  parentRequestId?: string
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus
@@ -158,16 +159,7 @@ export function isLocalSpanRecordingEnabled(): boolean {
 }
 
 export function isRequestInsightsEnabled(): boolean {
-  if (!process.env.__NEXT_DEV_SERVER) {
-    return false
-  }
-
-  const value = process.env.__NEXT_REQUEST_INSIGHTS
-  return isEnabledEnvValue(value)
-}
-
-function isEnabledEnvValue(value: string | undefined): boolean {
-  return value === '1' || value === 'true' || (value as unknown) === true
+  return Boolean(process.env.__NEXT_DEV_SERVER)
 }
 
 function getCurrentTimestamp(): number {

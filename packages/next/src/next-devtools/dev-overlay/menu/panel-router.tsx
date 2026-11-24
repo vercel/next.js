@@ -148,7 +148,7 @@ const MenuPanel = () => {
             },
           },
         isAppRouter &&
-          !!process.env.__NEXT_REQUEST_INSIGHTS && {
+          !!process.env.__NEXT_DEV_SERVER && {
             title: 'Inspect recent App Router requests.',
             label: 'Request Insights',
             value: <ChevronRight />,
@@ -371,7 +371,7 @@ export const PanelRouter = () => {
         </PanelRoute>
       )}
 
-      {isAppRouter && !!process.env.__NEXT_REQUEST_INSIGHTS && (
+      {isAppRouter && !!process.env.__NEXT_DEV_SERVER && (
         <PanelRoute name="request-insights">
           <DynamicPanel
             containerProps={{ className: 'request-insights-panel-container' }}

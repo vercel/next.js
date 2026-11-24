@@ -16,7 +16,6 @@ import {
   type SpanStoreRecord,
 } from './span-store'
 
-const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 
 function restoreEnv(name: string, value: string | undefined) {
@@ -30,11 +29,9 @@ function restoreEnv(name: string, value: string | undefined) {
 describe('span recording', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
-    delete process.env.__NEXT_REQUEST_INSIGHTS
   })
 
   afterEach(() => {
-    restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
     setSpanRecorderForTest(undefined)
     setLocalSpanExporter(undefined)
@@ -69,7 +66,7 @@ describe('span recording', () => {
   })
 
   it('forwards request spans directly to request insights', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     registerRequestInsightsExporter()
     startRequestInsight({ requestId: 'req_1' })
 
@@ -100,7 +97,7 @@ describe('span recording', () => {
   })
 
   it('scopes forwarded span recording without retaining it locally', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     const records: SpanStoreRecord[] = []
 
     runWithLocalSpanSink(
@@ -184,7 +181,6 @@ describe('span recording', () => {
   it('does not record spans outside the dev server', () => {
     const recorder = jest.fn()
     delete process.env.__NEXT_DEV_SERVER
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     setSpanRecorderForTest(recorder)
 
     expect(isRequestInsightsEnabled()).toBe(false)
@@ -239,11 +235,5 @@ describe('span recording', () => {
     })
 
     expect(() => recordSpan({ name: 'render' })).not.toThrow()
-  })
-
-  it('treats boolean define-env request insights values as enabled', () => {
-    ;(process.env.__NEXT_REQUEST_INSIGHTS as unknown) = true
-
-    expect(isRequestInsightsEnabled()).toBe(true)
   })
 })
