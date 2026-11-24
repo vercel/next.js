@@ -2,11 +2,14 @@
 //!
 //! Reading an immutable task needs no dependency edges, as an immutable task can never be
 //! invalidated. Checking that requires the task lock, though. This set tells before locking:
-//! refining a keyed dependency on a known-immutable task locks the task and the reader one after
-//! the other instead of together (see `refine_provisional_cell_dependency`). Reads don't consult
-//! the set: they lock the task first anyway, check its flag, and upgrade to a pair lock only for
-//! a mutable task (see `lock_task_and_optional_reader`). A read that finds the task immutable adds
-//! it to the set.
+//! - cell reads, which lock the reader first (see `try_read_task_cell`), skip the reader task
+//!   entirely when the task being read is known to be immutable;
+//! - refining a keyed dependency on a known-immutable task skips marking the keys on the reader
+//!   (see `refine_provisional_cell_dependency`).
+//!
+//! Output reads don't consult the set: they lock the task first anyway, check its flag, and
+//! upgrade to a pair lock only for a mutable task (see `lock_task_and_optional_reader`). A read
+//! that finds the task immutable adds it to the set.
 //!
 //! A task id is only added after its `immutable` flag was set under the task lock (or restored
 //! with it). The set may miss immutable tasks (false negatives are fine: refinement then takes the
@@ -23,9 +26,10 @@
 //! under its known-immutable id: GC marks the collected task `deleted` and removes it from
 //! `task_cache` (persisting a tombstone), so calling the same task again allocates a new task id,
 //! which is only added to this set once it's immutable itself. The bit of the collected id stays
-//! set. That's harmless, as nothing can execute or read that id anymore: reads and refinement open
-//! it with `try_task`, which returns `None` for a deleted or missing task, before the set is
-//! consulted.
+//! set. That's harmless, as nothing can execute or read that id anymore: a cell read or
+//! refinement that hits the stale bit skips only the reader-side marking, and still opens the
+//! task with `try_task`, which returns `None` for a deleted or missing task, before it touches the
+//! task or returns a value. Output reads open the task with `try_task` and don't consult the set.
 
 use std::{
     ptr::null_mut,
