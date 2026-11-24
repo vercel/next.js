@@ -310,12 +310,6 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     width: 100%;
   }
 
-  @media (min-width: 576px) {
-    .preferences-container {
-      width: 420px;
-    }
-  }
-
   .preference-group {
     padding: 4px 0 12px;
     border-bottom: 1px solid var(--color-gray-400);
