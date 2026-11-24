@@ -60,7 +60,7 @@ pub enum SourceContentEncoding {
 /// An argument passed to the evaluated JavaScript.
 ///
 /// All arguments of an evaluation are converted to JSON together and read strongly consistent
-/// right before the evaluation runs, see [`evaluated_args_operation`].
+/// right before the evaluation runs.
 #[turbo_tasks::task_input]
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub enum EvaluateArg {
