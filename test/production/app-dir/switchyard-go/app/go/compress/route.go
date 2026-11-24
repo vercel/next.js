@@ -9,7 +9,9 @@ import (
 // GET answers with a body of `size` bytes ("x" repeated), shaped by the
 // query so tests can reach each choice Node's compression middleware makes:
 //
-//	type=png          a type that isn't compressible (default JSON)
+//	type=T            png, text, svg, customjson (a +json type) or unknown
+//	                  instead of JSON
+//	vary=V            a Vary header of V ("wildcard" for *)
 //	length=N          a Content-Length header of N instead of Go's own
 //	chunked=1         no Content-Length: headers are flushed before the body
 //	parts=N           the body N times, flushed after each
@@ -20,11 +22,23 @@ import (
 func GET(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	size, _ := strconv.Atoi(q.Get("size"))
-	typ := "application/json"
-	if q.Get("type") == "png" {
-		typ = "image/png"
+	typ := map[string]string{
+		"png":        "image/png",
+		"text":       "text/plain",
+		"svg":        "image/svg+xml",
+		"customjson": "application/x-switchyard-go+json",
+		"unknown":    "application/x-switchyard-go",
+	}[q.Get("type")]
+	if typ == "" {
+		typ = "application/json"
 	}
 	w.Header().Set("Content-Type", typ)
+	if vary := q.Get("vary"); vary != "" {
+		if vary == "wildcard" {
+			vary = "*"
+		}
+		w.Header().Set("Vary", vary)
+	}
 	if length := q.Get("length"); length != "" {
 		w.Header().Set("Content-Length", length)
 	}
