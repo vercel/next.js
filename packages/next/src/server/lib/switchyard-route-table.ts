@@ -208,9 +208,11 @@ export function patternOf(page: string): PatternEntry[] | undefined {
       pattern.push(segment)
       continue
     }
-    // getSegmentParam reads "[a][b]" as one parameter named "a][b"; the
-    // router reads parameter a followed by the literal "[b]".
-    if (/[[\]]/.test(param.paramName)) return undefined
+    // getSegmentParam reads "[a][b]" as one parameter named "a][b", and "[]"
+    // as a parameter with an empty name; the router reads the first as
+    // parameter a followed by the literal "[b]", and the second as the
+    // literal "[]".
+    if (!param.paramName || /[[\]]/.test(param.paramName)) return undefined
     if (param.paramType === 'dynamic') {
       pattern.push({ param: param.paramName })
     } else if (
