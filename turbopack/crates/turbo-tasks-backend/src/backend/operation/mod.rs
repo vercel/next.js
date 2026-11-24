@@ -1225,7 +1225,7 @@ impl<'e> ExecuteContext<'e> {
     #[track_caller]
     pub fn task_pair_upgrade(
         &mut self,
-        mut task: TaskGuard<'e>,
+        task: TaskGuard<'e>,
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (TaskGuard<'e>, TaskGuard<'e>) {
@@ -1235,10 +1235,14 @@ impl<'e> ExecuteContext<'e> {
             && task2.flags.is_restored(category)
         {
             self.task_lock_counter.acquire_second();
+            // `category` only exists with debug assertions, so only rebind `task` as mutable
+            // there; a `mut` parameter would be unused in release builds.
             #[cfg(debug_assertions)]
-            {
+            let task = {
+                let mut task = task;
                 task.category = category;
-            }
+                task
+            };
             let task2 = TaskGuard::new(task2, task_id2, category, self.task_lock_counter.clone());
             return (task, task2);
         }
