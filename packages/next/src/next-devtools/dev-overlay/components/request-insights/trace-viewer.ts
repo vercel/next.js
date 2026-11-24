@@ -7,11 +7,14 @@ import { getFetchUrlPresentation } from './fetch-label'
 
 export type TraceItem = {
   id: string
+  traceId?: string
   spanId?: string
   parentSpanId?: string
   spanType?: string
-  category: 'nextjs' | 'application'
+  category: 'nextjs' | 'application' | 'opentelemetry'
   label: string
+  attributeLabel?: string
+  attributes?: RequestInsightSpan['attributes']
   fullLabel?: string
   startTime: number
   durationMs?: number
@@ -56,6 +59,18 @@ type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 const FETCH_SPAN_TYPE = 'AppRender.fetch'
 const LOAD_COMPONENTS_SPAN_TYPE = 'LoadComponents.loadComponents'
 const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
+const ATTRIBUTE_LABEL_KEYS = [
+  'feature_flag.key',
+  'db.query.summary',
+  'query',
+  'http.route',
+  'db.operation.name',
+  'rpc.method',
+  'messaging.destination.name',
+  'gen_ai.request.model',
+  'code.function.name',
+  'graphql.operation.name',
+] as const
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   MIDDLEWARE_SPAN_TYPE,
@@ -188,14 +203,19 @@ function getSpanTraceItem(
   index: number
 ): UnnestedTraceItem {
   const type = span.attributes?.['next.span_type']
+  const category = getSpanCategory(span)
 
   return {
     id: `span:${span.spanId ?? index}:${span.startTime}`,
+    traceId: span.traceId,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     spanType: typeof type === 'string' ? type : undefined,
-    category: getSpanCategory(span),
+    category,
     label: getSpanLabel(span),
+    attributeLabel:
+      category === 'opentelemetry' ? getSpanAttributeLabel(span) : undefined,
+    attributes: span.attributes,
     startTime: span.startTime,
     durationMs: span.durationMs,
     status: span.status ?? 'pending',
@@ -219,11 +239,17 @@ function getFetchTraceItem(
 
   return {
     id: `fetch:${matchingSpan?.spanId ?? fetch.index ?? index}:${startTime}`,
+    traceId: matchingSpan?.traceId,
     spanId: matchingSpan?.spanId,
     parentSpanId: matchingSpan?.parentSpanId,
     spanType: FETCH_SPAN_TYPE,
     category: matchingSpan ? getSpanCategory(matchingSpan) : 'application',
     label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
+    attributeLabel:
+      matchingSpan && getSpanCategory(matchingSpan) === 'opentelemetry'
+        ? getSpanAttributeLabel(matchingSpan)
+        : undefined,
+    attributes: matchingSpan?.attributes,
     fullLabel: `${method} ${url.fullUrl}`,
     startTime,
     durationMs: fetch.durationMs ?? matchingSpan?.durationMs,
@@ -366,9 +392,15 @@ function getFetchIndex(span: RequestInsightSpan): number | undefined {
   return typeof index === 'number' ? index : undefined
 }
 
-function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
+function getSpanCategory(
+  span: RequestInsightSpan
+): 'nextjs' | 'application' | 'opentelemetry' {
   const category = span.attributes?.['next.span_category']
-  if (category === 'nextjs' || category === 'application') {
+  if (
+    category === 'nextjs' ||
+    category === 'application' ||
+    category === 'opentelemetry'
+  ) {
     return category
   }
 
@@ -379,6 +411,29 @@ function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
   return typeof span.attributes?.['next.span_type'] === 'string'
     ? 'nextjs'
     : 'application'
+}
+
+function getSpanAttributeLabel(span: RequestInsightSpan): string | undefined {
+  for (const key of ATTRIBUTE_LABEL_KEYS) {
+    const value = span.attributes?.[key]
+    if (typeof value !== 'string' || value.length === 0) {
+      continue
+    }
+    const normalizedValue = value.replace(/\s+/g, ' ').trim()
+    if (normalizedValue.length === 0) {
+      continue
+    }
+    if (key === 'feature_flag.key') {
+      const variant = span.attributes?.['feature_flag.result.variant']
+      const normalizedVariant =
+        typeof variant === 'string' ? variant.replace(/\s+/g, ' ').trim() : ''
+      return normalizedVariant.length > 0
+        ? `${normalizedValue} = ${normalizedVariant}`
+        : normalizedValue
+    }
+    return normalizedValue
+  }
+  return undefined
 }
 
 function getSpanLabel(span: RequestInsightSpan): string {

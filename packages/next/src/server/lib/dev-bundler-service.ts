@@ -30,8 +30,7 @@ export class DevBundlerService {
 
   constructor(
     private readonly bundler: DevBundler,
-    private readonly handler: WorkerRequestHandler,
-    requestInsightsEnabled: boolean
+    private readonly handler: WorkerRequestHandler
   ) {
     this.appIsrManifestInner = new LRUCache(
       8_000,
@@ -48,35 +47,33 @@ export class DevBundlerService {
       hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
-    if (requestInsightsEnabled) {
-      const sent = new WeakMap<
-        RequestInsight,
-        { spanOffset: number; fetchOffset: number }
-      >()
-      this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
-        let offsets = sent.get(insight)
-        if (!offsets) {
-          offsets = { spanOffset: 0, fetchOffset: 0 }
-          sent.set(insight, offsets)
-        }
-        do {
-          const delta = createRequestInsightDelta(
-            insight,
-            offsets.spanOffset,
-            offsets.fetchOffset
-          )
-          offsets.spanOffset += delta.spans.length
-          offsets.fetchOffset += delta.fetches.length
-          hotReloader.send({
-            type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
-            insight: delta,
-          })
-        } while (
-          offsets.spanOffset < insight.spans.length ||
-          offsets.fetchOffset < insight.fetches.length
+    const sent = new WeakMap<
+      RequestInsight,
+      { spanOffset: number; fetchOffset: number }
+    >()
+    this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
+      let offsets = sent.get(insight)
+      if (!offsets) {
+        offsets = { spanOffset: 0, fetchOffset: 0 }
+        sent.set(insight, offsets)
+      }
+      do {
+        const delta = createRequestInsightDelta(
+          insight,
+          offsets.spanOffset,
+          offsets.fetchOffset
         )
-      })
-    }
+        offsets.spanOffset += delta.spans.length
+        offsets.fetchOffset += delta.fetches.length
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+          insight: delta,
+        })
+      } while (
+        offsets.spanOffset < insight.spans.length ||
+        offsets.fetchOffset < insight.fetches.length
+      )
+    })
   }
 
   public close: NextJsHotReloaderInterface['close'] = () => {

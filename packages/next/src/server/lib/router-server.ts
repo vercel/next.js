@@ -71,10 +71,7 @@ import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
 import { isCI } from '../ci-info'
 import {
   completeRequestInsight,
-  getRequestInsightsHistory,
   getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
-  readRequestInsightsHistory,
   recordRequestInsightSource,
 } from './trace/request-insights'
 import {
@@ -85,12 +82,8 @@ import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
 import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
 import { waitForResponseToFinish } from '../app-render/wait-for-response'
-import {
-  REQUEST_INSIGHT_FILTERS,
-  type RequestInsightFilter,
-} from '../../shared/lib/request-insights-summary'
-import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../shared/lib/request-insights'
-
+import { getTracer } from './trace/tracer'
+import { RouterSpan } from './trace/constants'
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
@@ -129,11 +122,6 @@ function getErrorMessage(error: unknown): string {
   }
 
   return deobfuscateText(String(error))
-}
-
-function parseRequestInsightsHistoryLimit(value: string | null): number {
-  const parsed = value === null ? NaN : Number.parseInt(value, 10)
-  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 200) : 100
 }
 
 export type RenderServer = Pick<
@@ -362,11 +350,7 @@ export async function initialize(opts: {
       // reference to it.
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
-      },
-      Boolean(
-        developmentConfig.experimental.requestInsights ||
-          isRequestInsightsEnabled()
-      )
+      }
     )
 
     development = {
@@ -391,18 +375,15 @@ export async function initialize(opts: {
     }
 
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights || isRequestInsightsEnabled()) {
-        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-        filterInvalidDevRequestIdHeaders(req.headers)
-        const identity = resolveRequestInsightsIdentity({
-          previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
-          requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
-          htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
-          url: req.url,
-          createRequestId: nanoid,
-        })
-        addRequestMeta(req, 'requestInsightsIdentity', identity)
-      }
+      filterInvalidDevRequestIdHeaders(req.headers)
+      const identity = resolveRequestInsightsIdentity({
+        previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+        requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+        htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+        url: req.url,
+        createRequestId: nanoid,
+      })
+      addRequestMeta(req, 'requestInsightsIdentity', identity)
 
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
@@ -422,83 +403,14 @@ export async function initialize(opts: {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res.setHeader('Cache-Control', 'private, no-store')
-        if (
-          !config.experimental.requestInsights &&
-          !isRequestInsightsEnabled()
-        ) {
-          res.statusCode = 404
-          res.end(
-            JSON.stringify({
-              error:
-                'Request Insights is not enabled. Restart next dev with --experimental-request-insights.',
-            })
-          )
+        if (req.method !== 'GET') {
+          res.statusCode = 405
+          res.end(JSON.stringify({ error: 'Method not allowed' }))
           return
         }
-
         const endpointUrl = new URL(req.url, 'http://next.local')
         const view = endpointUrl.searchParams.get('view')
         if (process.env.__NEXT_DEV_SERVER) {
-          if (view === 'history') {
-            const liveRequestKeys =
-              endpointUrl.searchParams.getAll('liveRequestKey')
-            if (liveRequestKeys.length > MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
-              res.statusCode = 400
-              res.end(
-                JSON.stringify({ error: 'Too many live Request Insights keys' })
-              )
-              return
-            }
-            const filterValues = endpointUrl.searchParams.getAll('filter')
-            const filters = filterValues.filter(
-              (filter): filter is RequestInsightFilter =>
-                REQUEST_INSIGHT_FILTERS.includes(filter as RequestInsightFilter)
-            )
-            if (filters.length !== filterValues.length) {
-              res.statusCode = 400
-              res.end(
-                JSON.stringify({ error: 'Invalid Request Insights filter' })
-              )
-              return
-            }
-            try {
-              const history = await getRequestInsightsHistory({
-                cursor: endpointUrl.searchParams.get('cursor') ?? undefined,
-                filters,
-                liveRequestKeys,
-                limit: parseRequestInsightsHistoryLimit(
-                  endpointUrl.searchParams.get('limit')
-                ),
-                showInternal:
-                  endpointUrl.searchParams.get('showInternal') === '1',
-              })
-              if (!history) {
-                res.statusCode = 503
-                res.end(
-                  JSON.stringify({
-                    error: 'Request Insights history is not ready',
-                  })
-                )
-                return
-              }
-              res.statusCode = 200
-              res.end(JSON.stringify(history))
-            } catch (error) {
-              if (
-                error instanceof Error &&
-                error.name === 'StaleRequestInsightsHistoryCursorError'
-              ) {
-                res.statusCode = 409
-                res.end(
-                  JSON.stringify({ error: 'Request Insights session changed' })
-                )
-                return
-              }
-              throw error
-            }
-            return
-          }
-
           if (view === 'detail') {
             const requestId = endpointUrl.searchParams.get('requestId')
             const kindValue = endpointUrl.searchParams.get('kind')
@@ -531,28 +443,24 @@ export async function initialize(opts: {
               return
             }
 
-            const [request] = await readRequestInsightsHistory({
-              requestId,
-              kind,
-              limit: 1,
-              indexedOnly: true,
-            })
-            res.statusCode = request ? 200 : 404
-            res.end(
-              JSON.stringify(
-                request ? { request } : { error: 'Request insight not found' }
-              )
-            )
+            res.statusCode = 404
+            res.end(JSON.stringify({ error: 'Request insight not found' }))
             return
           }
-        } else if (view === 'history' || view === 'detail') {
+        } else if (view === 'detail') {
           res.statusCode = 404
           res.end(JSON.stringify({ error: 'Request Insights is dev-only' }))
           return
         }
 
-        res.statusCode = 200
-        res.end(JSON.stringify(getRequestInsightsSnapshot()))
+        res.statusCode = view === 'history' ? 404 : 200
+        res.end(
+          JSON.stringify(
+            view === 'history'
+              ? { error: 'Request Insights history is unavailable' }
+              : getRequestInsightsSnapshot()
+          )
+        )
         return
       }
     }
@@ -679,18 +587,26 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, req.headers)
 
       try {
-        const initResult =
-          await renderServer?.instance?.initialize(renderServerOpts)
-        try {
-          await initResult?.requestHandler(req, res)
-        } catch (err) {
-          if (err instanceof NoFallbackError) {
-            await handleRequest(handleIndex + 1)
-            return
+        return await getTracer().trace(
+          RouterSpan.invokeRender,
+          {
+            spanName: 'route to render',
+            attributes: { 'next.route': invokePath },
+          },
+          async () => {
+            const initResult =
+              await renderServer?.instance?.initialize(renderServerOpts)
+            try {
+              await initResult?.requestHandler(req, res)
+            } catch (err) {
+              if (err instanceof NoFallbackError) {
+                await handleRequest(handleIndex + 1)
+                return
+              }
+              throw err
+            }
           }
-          throw err
-        }
-        return
+        )
       } catch (e) {
         // If the client aborts before we can receive a response object (when
         // the headers are flushed), then we can early exit without further
@@ -880,17 +796,12 @@ export async function initialize(opts: {
         }
 
         try {
-          if (
-            config.experimental.requestInsights ||
-            isRequestInsightsEnabled()
-          ) {
-            const requestInsightsIdentity = getRequestMeta(
-              req,
-              'requestInsightsIdentity'
-            )
-            if (requestInsightsIdentity) {
-              recordRequestInsightSource(requestInsightsIdentity, 'asset')
-            }
+          const requestInsightsIdentity = getRequestMeta(
+            req,
+            'requestInsightsIdentity'
+          )
+          if (requestInsightsIdentity) {
+            recordRequestInsightSource(requestInsightsIdentity, 'asset')
           }
           return await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
@@ -1117,10 +1028,7 @@ export async function initialize(opts: {
     try {
       return await requestHandlerInner(req, res)
     } finally {
-      if (
-        opts.dev &&
-        (config.experimental.requestInsights || isRequestInsightsEnabled())
-      ) {
+      if (opts.dev) {
         const identity = getRequestMeta(req, 'requestInsightsIdentity')
         if (identity) {
           void waitForResponseToFinish(res).then(() => {

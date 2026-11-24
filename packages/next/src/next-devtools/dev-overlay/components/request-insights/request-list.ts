@@ -55,11 +55,12 @@ export function getRequestListEntries(
   const parentRequestIds = new Set<string>()
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
-      const internal = internalByRequestId.get(request.requestId)
+      const parentRequestId = request.parentRequestId ?? request.requestId
+      const internal = internalByRequestId.get(parentRequestId)
       if (internal) {
         internal.push(request)
       } else {
-        internalByRequestId.set(request.requestId, [request])
+        internalByRequestId.set(parentRequestId, [request])
       }
     } else {
       parentRequestIds.add(request.requestId)
@@ -69,7 +70,7 @@ export function getRequestListEntries(
   const entries: RequestListEntry[] = []
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
-      if (!parentRequestIds.has(request.requestId)) {
+      if (!parentRequestIds.has(request.parentRequestId ?? request.requestId)) {
         entries.push({ request, nested: false })
       }
       continue

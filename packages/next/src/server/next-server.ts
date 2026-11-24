@@ -103,7 +103,6 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import { BubbledError, getTracer } from './lib/trace/tracer'
-import { isRequestInsightsEnabled } from './lib/trace/span-store'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -232,16 +231,6 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    if (
-      (isDev || process.env.__NEXT_DEV_SERVER) &&
-      (this.nextConfig.experimental.requestInsights ||
-        isRequestInsightsEnabled())
-    ) {
-      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    } else {
-      delete process.env.__NEXT_REQUEST_INSIGHTS
-    }
-
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache({
         minimalMode: this.minimalMode,

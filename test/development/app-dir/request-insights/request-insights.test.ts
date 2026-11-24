@@ -6,10 +6,10 @@ import {
   toggleDevToolsIndicatorPopover,
   waitForNoRedbox,
 } from 'next-test-utils'
-import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from 'next/dist/shared/lib/request-insights'
 
 type RequestInsight = {
   requestId: string
+  parentRequestId?: string
   kind?: 'request' | 'instant-insights'
   source:
     | 'page'
@@ -37,6 +37,15 @@ type RequestInsight = {
     durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
+    events?: Array<{
+      name: string
+      attributes?: Record<string, string | number | boolean>
+    }>
+    links?: Array<{
+      traceId: string
+      spanId: string
+      attributes?: Record<string, string | number | boolean>
+    }>
   }>
   fetches: Array<{
     durationMs: number
@@ -50,9 +59,7 @@ type RequestInsight = {
 describe('request insights', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    startArgs: ['--experimental-request-insights'],
   })
-
   function createRequest(index: number, fetchCount = 0): RequestInsight {
     return {
       requestId: `request-${index}`,
@@ -193,84 +200,188 @@ describe('request insights', () => {
     })
   })
 
-  it('loads completed requests from session history and fetches details lazily', async () => {
-    const response = await next.fetch('/api/proxied-page?history-endpoint=1')
+  it('records spans from a custom OpenTelemetry processor', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    const response = await next.fetch('/api/otel-span')
+    expect(await response.json()).toEqual({ autoFactoryAvailable: true })
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.route === '/api/otel-span' &&
+          !existingRequestIds.has(candidate.requestId) &&
+          candidate.kind !== 'instant-insights'
+      )
+
+      expect(request?.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'redis GET',
+            traceId: '00000000000000000000000000000001',
+            spanId: '0000000000000001',
+            parentSpanId: '0000000000000002',
+            durationMs: 5,
+            attributes: expect.objectContaining({
+              'db.operation.name': 'GET',
+              'db.pool.idle': 3,
+              query: 'GET account:123',
+            }),
+            events: [
+              expect.objectContaining({
+                attributes: { 'db.event.detail': 'cache miss' },
+              }),
+            ],
+            links: [
+              expect.objectContaining({
+                attributes: { 'db.link.role': 'replica' },
+              }),
+            ],
+          }),
+        ])
+      )
+      expect(request?.spans.map((span) => span.name)).not.toContain(
+        'duplicate Next.js span'
+      )
+    })
+
+    const browser = await next.browser('/')
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="activity:opentelemetry"]'
+      )
+      .click()
+
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find((candidate) => candidate.textContent?.includes('/api/otel-span'))
+        row?.click()
+        return {
+          rowCount: root?.querySelectorAll('.request-insights-row').length,
+          selected: row !== undefined,
+        }
+      })
+      expect(state).toEqual({ rowCount: 1, selected: true })
+    })
+
+    await retry(async () => {
+      const colors = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const color = (category: string) => {
+          const marker = root?.querySelector<HTMLElement>(
+            `.request-insights-span-marker[data-category="${category}"]`
+          )
+          return marker ? getComputedStyle(marker).backgroundColor : null
+        }
+        return {
+          nextjs: color('nextjs'),
+          opentelemetry: color('opentelemetry'),
+        }
+      })
+      expect(colors.nextjs).not.toBeNull()
+      expect(colors.opentelemetry).not.toBeNull()
+      expect(colors.opentelemetry).not.toBe(colors.nextjs)
+    })
+
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = root?.querySelector<HTMLElement>(
+          '.request-insights-span-row[data-category="opentelemetry"]'
+        )
+        row?.click()
+        return {
+          label: row?.querySelector('.request-insights-span-attribute-label')
+            ?.textContent,
+          inspectorOpen:
+            root
+              ?.querySelector('.request-insights-trace')
+              ?.getAttribute('data-inspector-open') === 'true',
+          inspectorText:
+            root?.querySelector('.request-insights-trace-inspector')
+              ?.textContent ?? '',
+        }
+      })
+      expect(state.label).toBe('GET account:123')
+      expect(state.inspectorOpen).toBe(true)
+      expect(state.inspectorText).toContain('db.pool.idle')
+      expect(state.inspectorText).toContain('GET account:123')
+    })
+
+    await browser
+      .elementByCss('.request-insights-trace-inspector-close')
+      .click()
+    await retry(async () => {
+      expect(
+        await browser.eval(() => {
+          const root = document.querySelector('nextjs-portal')?.shadowRoot
+          return root?.querySelector('.request-insights-trace-inspector')
+        })
+      ).toBeNull()
+    })
+  })
+
+  it('loads retained request details from memory', async () => {
+    const before = (await next
+      .fetch('/_next/development/request-insights')
+      .then((response) => response.json())) as { requests: RequestInsight[] }
+    const previousIds = new Set(
+      before.requests.map(({ requestId }) => requestId)
+    )
+    const response = await next.fetch('/api/proxied-page?memory-detail=1')
     expect(response.status).toBe(200)
 
     await retry(async () => {
-      const historyResponse = await next.fetch(
-        '/_next/development/request-insights?view=history&limit=1&showInternal=1'
+      const snapshotResponse = await next.fetch(
+        '/_next/development/request-insights'
       )
-      expect(historyResponse.headers.get('cache-control')).toBe(
-        'private, no-store'
-      )
-      const history = (await historyResponse.json()) as {
-        requests: Array<{
-          requestId: string
-          kind?: 'request' | 'instant-insights'
-          completedAt?: number
-          spanCount: number
-        }>
-        nextCursor?: string
-        sessionId: string
+      const snapshot = (await snapshotResponse.json()) as {
+        requests: RequestInsight[]
       }
-      expect(history.sessionId).toEqual(expect.any(String))
-      expect(history.requests).toHaveLength(1)
-      expect(history.requests[0]).toEqual(
-        expect.objectContaining({
-          completedAt: expect.any(Number),
-          spanCount: expect.any(Number),
-        })
+      const request = snapshot.requests.find(
+        (entry) =>
+          !previousIds.has(entry.requestId) &&
+          entry.kind === 'request' &&
+          entry.url?.includes('/api/proxied-page')
       )
-
-      const summary = history.requests[0]
-      for (const kind of ['request', 'instant-insights']) {
-        const missing = await next.fetch(
-          `/_next/development/request-insights?view=detail&requestId=missing-detail-id&kind=${kind}`
-        )
-        expect(missing.status).toBe(404)
-        expect(await missing.json()).toEqual({
-          error: 'Request insight not found',
-        })
-      }
+      expect(request).toBeDefined()
       const detailResponse = await next.fetch(
-        `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(summary.requestId)}&kind=${summary.kind ?? 'request'}`
+        `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(request!.requestId)}`
       )
       expect(detailResponse.status).toBe(200)
-      const detail = (await detailResponse.json()) as {
-        request: RequestInsight
-      }
-      expect(detail.request.requestId).toBe(summary.requestId)
-      expect(detail.request.spans.length).toBe(summary.spanCount)
+      expect((await detailResponse.json()).request).toEqual(request)
     })
-  })
 
-  it('returns a conflict for a history cursor from an old session', async () => {
-    const cursor = Buffer.from(
-      JSON.stringify({
-        sessionId: 'old-session',
-        generation: 0,
-        beforeSequence: 1,
-      })
-    ).toString('base64url')
-    const response = await next.fetch(
-      `/_next/development/request-insights?view=history&cursor=${cursor}`
-    )
-    expect(response.status).toBe(409)
-  })
-
-  it('rejects history overlap lookups larger than the completed live window', async () => {
-    const params = new URLSearchParams({ view: 'history' })
-    for (let index = 0; index <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; index++) {
-      params.append('liveRequestKey', `request:${index}`)
-    }
-    const response = await next.fetch(
-      `/_next/development/request-insights?${params}`
-    )
-    expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({
-      error: 'Too many live Request Insights keys',
-    })
+    expect(
+      (await next.fetch('/_next/development/request-insights?view=history'))
+        .status
+    ).toBe(404)
+    expect(
+      (
+        await next.fetch('/_next/development/request-insights?action=on', {
+          method: 'POST',
+        })
+      ).status
+    ).toBe(405)
   })
 
   it('records route module loading and preparation spans', async () => {
@@ -510,7 +621,7 @@ describe('request insights', () => {
       const request = routeInsights.find(
         (item) =>
           (item.kind === undefined || item.kind === 'request') &&
-          item.requestId === instantInsights?.requestId
+          item.requestId === instantInsights?.parentRequestId
       )
 
       expect(instantInsights).toEqual(
@@ -521,6 +632,7 @@ describe('request insights', () => {
         })
       )
       expect(instantInsights?.htmlRequestId).toBe(request?.htmlRequestId)
+      expect(instantInsights?.parentRequestId).toBe(request?.requestId)
       const rootSpans = instantInsights?.spans.filter(
         (span) =>
           span.attributes?.['next.span_type'] === 'AppRender.instantInsights' &&
@@ -1204,6 +1316,22 @@ describe('request insights', () => {
       ).toBe(true)
       expect(details.text).not.toContain('Q2_SECRET_SENTINEL')
     })
+
+    const snapshot = (await next
+      .fetch('/_next/development/request-insights')
+      .then((response) => response.json())) as { requests: RequestInsight[] }
+    const request = snapshot.requests.find(
+      (candidate) =>
+        candidate.url === '/products/blue?query=redacted' &&
+        candidate.kind !== 'instant-insights'
+    )
+    expect(request?.fetches.length).toBeGreaterThan(0)
+    expect(request?.fetches.every((fetch) => fetch.parentSpanId)).toBe(true)
+    expect(
+      request?.fetches.every((fetch) =>
+        request.spans.some((span) => span.spanId === fetch.parentSpanId)
+      )
+    ).toBe(true)
 
     const requestHeader = await browser.eval(() => {
       const root = document.querySelector('nextjs-portal')?.shadowRoot
@@ -1973,6 +2101,46 @@ describe('request insights', () => {
 
     expect(result.code).toBe(1)
     expect(result.stderr).toContain(message)
+  })
+
+  it('prints unique IDs, timeline offsets, overlaps, and ambiguity candidates', async () => {
+    const first = {
+      ...createRequest(1),
+      requestId: 'TDKQ5iNL-first',
+      startTime: 100,
+      durationMs: 50,
+    }
+    const second = {
+      ...createRequest(2),
+      requestId: 'TDKQ5iNL-second',
+      parentRequestId: first.requestId,
+      kind: 'instant-insights' as const,
+      startTime: 125,
+      durationMs: 50,
+    }
+    const listed = await runWithResponse({ requests: [second, first] }, [
+      'list',
+      '--sort',
+      'start',
+    ])
+    expect(listed.result.stdout).toContain('id TDKQ5iNL-')
+    expect(listed.result.stdout).toContain('timeline +0ms to +50ms')
+
+    const inspected = await runWithResponse({ requests: [first, second] }, [
+      'get',
+      first.requestId,
+    ])
+    expect(inspected.result.stdout).toContain(
+      `25ms instant-insights ${second.requestId}`
+    )
+
+    const ambiguous = await runWithResponse({ requests: [first, second] }, [
+      'get',
+      'TDKQ5iNL',
+    ])
+    expect(ambiguous.result.code).toBe(1)
+    expect(ambiguous.result.stderr).toContain(first.requestId)
+    expect(ambiguous.result.stderr).toContain(second.requestId)
   })
 
   it.each(['localhost:3000', 'https://[', 'ftp://localhost:3000'])(
