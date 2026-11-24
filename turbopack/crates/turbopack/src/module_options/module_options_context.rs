@@ -85,6 +85,9 @@ pub struct WebpackLoadersOptions {
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
     pub target: ResolvedVc<RcStr>,
     pub mode: RcStr,
+    /// Compiler owning emitted files, used by the embedder to choose their output directory.
+    /// `None` discards emitted files.
+    pub emitted_files_scope: Option<RcStr>,
 }
 
 pub enum WebpackLoaderBuiltinConditionSetMatch {

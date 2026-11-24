@@ -132,6 +132,17 @@ impl WebpackLoaderBuiltinConditionSet for NextWebpackLoaderBuiltinConditionSet {
     }
 }
 
+/// Names the compiler that owns files emitted by loaders and PostCSS plugins.
+pub fn emitted_files_scope(builtin_conditions: &BTreeSet<WebpackLoaderBuiltinCondition>) -> RcStr {
+    if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser) {
+        rcstr!("client")
+    } else if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Node) {
+        rcstr!("server")
+    } else {
+        rcstr!("edge")
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct OptionWebpackLoadersOptions(Option<ResolvedVc<WebpackLoadersOptions>>);
 
@@ -162,6 +173,7 @@ pub async fn webpack_loader_options(
         rcstr!("production")
     };
 
+    let scope = emitted_files_scope(&builtin_conditions);
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
             rules: ResolvedVc::cell(rules),
@@ -171,6 +183,7 @@ pub async fn webpack_loader_options(
                 .await?,
             target,
             mode,
+            emitted_files_scope: Some(scope),
         }
         .resolved_cell(),
     )))

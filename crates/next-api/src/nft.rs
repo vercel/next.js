@@ -7,30 +7,34 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    Completion, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemEntryType, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
+    asset::Asset,
     chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph},
+    output::OutputAsset,
     raw_module::RawModule,
     reference::DynamicTraceReference,
 };
 
-use crate::project::Project;
+use crate::project::{Project, loader_emitted_assets};
 
 #[turbo_tasks::value]
 pub struct EndpointTraceResult {
     pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
     pub includes: Vec<FileSystemPath>,
     pub module_idents: ResolvedVc<TracedModuleDataIdents>,
+    pub emitted_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -55,6 +59,56 @@ impl EndpointTraceResult {
     }
 }
 
+#[turbo_tasks::function]
+async fn endpoint_modules(
+    module_graph: Vc<ModuleGraph>,
+    entry_modules: Vc<Modules>,
+) -> Result<Vc<Modules>> {
+    let mut modules = FxIndexSet::default();
+    module_graph.await?.traverse_edges_dfs(
+        entry_modules.await?.iter().copied(),
+        &mut (),
+        |_, target, _| {
+            modules.insert(target);
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+        false,
+    )?;
+    Ok(Vc::cell(modules.into_iter().collect()))
+}
+
+/// Reads source content to collect files emitted by transforms.
+#[turbo_tasks::function(operation, root)]
+async fn read_module_sources_operation(
+    modules: ResolvedVc<Modules>,
+    exclude_glob: Option<ResolvedVc<Glob>>,
+) -> Result<Vc<Completion>> {
+    let exclude_glob = match exclude_glob {
+        Some(glob) => Some(glob.await?),
+        None => None,
+    };
+    modules
+        .await?
+        .iter()
+        .map(async |module| {
+            // Traced modules can point to files that the endpoint explicitly excludes.
+            if let Some(glob) = &exclude_glob
+                && glob.matches(&module.ident().await?.path.path)
+            {
+                return Ok(());
+            }
+            if let Some(source) = *module.source().await? {
+                source.content().await?;
+            }
+            Ok(())
+        })
+        .try_join()
+        .await?;
+    Ok(Completion::new())
+}
+
 /// Traces the files an endpoint needs at runtime.
 ///
 /// `traced_entries` are modules that have to be traced even though nothing in `entry_modules`
@@ -77,15 +131,15 @@ pub async fn trace_endpoint(
         let output_file_tracing_includes = next_config
             .output_file_tracing_includes(project_path.clone())
             .await?;
+        let exclude_glob =
+            *tracing_exclude_glob(page_name.clone(), project_path.clone(), next_config).await?;
 
         // Collect referenced assets and externals from module graph
         let all_modules = traced_modules_for_entries(
             *module_graph,
             entry_modules,
             traced_entries,
-            tracing_exclude_glob(page_name.clone(), project_path.clone(), next_config)
-                .await?
-                .map(|v| *v),
+            exclude_glob.map(|v| *v),
             Some(next_config.config_file_path(project_path.clone())),
         )
         .await?;
@@ -163,10 +217,21 @@ pub async fn trace_endpoint(
             Default::default()
         };
 
+        // The module graph can be shared by the whole app, so only read this endpoint's modules.
+        let sources = read_module_sources_operation(
+            endpoint_modules(*module_graph, entry_modules)
+                .to_resolved()
+                .await?,
+            exclude_glob,
+        );
+        sources.connect().await?;
+        let emitted_assets = loader_emitted_assets(*project, sources).await?;
+
         Ok(EndpointTraceResult {
             modules,
             includes,
             module_idents,
+            emitted_assets,
         }
         .cell())
     }
