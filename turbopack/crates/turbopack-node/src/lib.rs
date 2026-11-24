@@ -39,7 +39,7 @@ pub fn worker_threads_backend() -> Vc<Box<dyn backend::NodeBackend>> {
 }
 
 /// The number of idle Node.js processes and worker threads across all pools. Without watching,
-/// the pools are closed after building the module graph (see [`backend::NodeBackend::close`]),
+/// the pools are closed after building the module graph (see `NodeBackend::close`),
 /// so this is 0 from then on.
 pub fn idle_node_process_count() -> usize {
     let count = 0;
