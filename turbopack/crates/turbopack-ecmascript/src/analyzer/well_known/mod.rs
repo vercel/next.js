@@ -757,7 +757,9 @@ fn well_known_function_member<'a>(
             JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
         (
-            WellKnownFunctionKind::HasOwnProperty | WellKnownFunctionKind::PropertyIsEnumerable,
+            WellKnownFunctionKind::HasOwnProperty
+            | WellKnownFunctionKind::PropertyIsEnumerable
+            | WellKnownFunctionKind::ValueOf,
             Some("call"),
         ) => JsValue::WellKnownFunction(WellKnownFunctionKind::FunctionCall),
         #[allow(unreachable_patterns)]
@@ -1279,6 +1281,7 @@ fn object_prototype_method<'a>(prop: &str) -> Option<WellKnownFunctionKind<'a>> 
     match prop {
         "hasOwnProperty" => Some(WellKnownFunctionKind::HasOwnProperty),
         "propertyIsEnumerable" => Some(WellKnownFunctionKind::PropertyIsEnumerable),
+        "valueOf" => Some(WellKnownFunctionKind::ValueOf),
         _ => None,
     }
 }

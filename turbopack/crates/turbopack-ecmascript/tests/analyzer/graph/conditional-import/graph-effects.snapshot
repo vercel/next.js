@@ -334,7 +334,7 @@
                                     ),
                                 ],
                                 span: 57..68,
-                                in_truthiness_context: false,
+                                usage: Access,
                             },
                         ],
                         ast_path: [
@@ -391,7 +391,7 @@
                             ),
                         ],
                         span: 57..81,
-                        in_truthiness_context: false,
+                        usage: Access,
                     },
                     Conditional {
                         condition: Binary(
@@ -742,6 +742,7 @@
                             ),
                         ],
                         span: 354..355,
+                        usage: Escapes,
                     },
                 ],
                 range: Exact(
@@ -795,6 +796,7 @@
                             ),
                         ],
                         span: 368..369,
+                        usage: Escapes,
                     },
                 ],
                 range: Exact(
@@ -1037,5 +1039,6 @@
             ),
         ],
         span: 453..454,
+        usage: Escapes,
     },
 ]

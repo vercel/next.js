@@ -12,6 +12,7 @@
             ),
         ),
         span: 108..114,
+        target_escapes: true,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -72,6 +73,7 @@
             ),
         ],
         span: 117..122,
+        usage: Escapes,
     },
     Unreachable {
         start_ast_path: [
@@ -132,6 +134,7 @@
             ),
         ),
         span: 54..59,
+        target_escapes: true,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -187,6 +190,7 @@
             ),
         ],
         span: 62..67,
+        usage: Escapes,
     },
     Unreachable {
         start_ast_path: [

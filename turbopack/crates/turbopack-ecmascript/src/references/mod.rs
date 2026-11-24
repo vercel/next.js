@@ -106,7 +106,7 @@ use crate::{
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
         WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
-        graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
+        graph::{ConditionalKind, Effect, EffectArg, ValueUsage, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap},
         linker::link,
         parse_require_context,
@@ -247,6 +247,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     has_direct_eval: bool,
 
     env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    env_var_info_runtime_all: bool,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -271,6 +272,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             cjs_static_exports: None,
             has_direct_eval: false,
             env_var_info_runtime: Default::default(),
+            env_var_info_runtime_all: false,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -389,6 +391,16 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .entry(runtime_env)
             // Only set if it hasn't been set to Read already.
             .or_insert(EnvVarAccessMode::Existence);
+    }
+
+    /// Marks the module as potentially reading all runtime environment variables (because of a
+    /// non-statically analyzable `process.env` access).
+    pub fn set_runtime_env_var_reference_all(&mut self) {
+        self.env_var_info_runtime_all = true;
+    }
+
+    pub fn has_runtime_env_var_reference_all(&self) -> bool {
+        self.env_var_info_runtime_all
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -511,6 +523,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
                     runtime: self.env_var_info_runtime.into(),
+                    runtime_all: self.env_var_info_runtime_all,
                 }
                 .resolved_cell(),
             },
@@ -1335,15 +1348,15 @@ async fn analyze_ecmascript_module_internal(
                     base_effects,
                     ast_path,
                     span,
-                    in_truthiness_context,
+                    usage,
                 } => {
-                    // Intentionally not awaited because `handle_member` reads this only when needed
-                    let obj =
-                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
-
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
+
+                    // Intentionally not awaited because `handle_member` reads this only when needed
+                    let obj =
+                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
 
                     let replaced = handle_membership(
                         &ast_path,
@@ -1352,9 +1365,7 @@ async fn analyze_ecmascript_module_internal(
                         span,
                         &analysis_state,
                         &mut analysis,
-                        MembershipType::Member {
-                            in_truthiness_context,
-                        },
+                        MembershipType::Member { usage },
                     )
                     .await?;
                     if !replaced {
@@ -1365,23 +1376,42 @@ async fn analyze_ecmascript_module_internal(
                     mut obj,
                     mut prop,
                     span: _,
+                    target_escapes,
                 } => {
                     // TODO add an inlining codegen here
 
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
-                    if let Some(prop) = prop.as_str() {
-                        // This is only used for env var tracking. The more robust solution would be
-                        // an `Effect::Ident` but that would be even more
-                        // expensive.
-                        let obj = analysis_state
-                            .link_value(take(&mut *obj), ImportAttributes::empty_ref())
-                            .await?;
 
-                        if could_be_process_env(&obj, &analysis_state) {
+                    if target_escapes
+                        && could_be_env_key(&prop)
+                        && !analysis.has_runtime_env_var_reference_all()
+                    {
+                        // e.g. `const { env } = process` or `const { env: { ...rest } } = process`
+                        let value = JsValue::member(
+                            arena.get_or_default(),
+                            obj.clone_in(arena.get_or_default()),
+                            atom!("env").into(),
+                        );
+                        set_runtime_all_if_process_env(value, &analysis_state, &mut analysis)
+                            .await?;
+                    }
+
+                    // This is only used for env var tracking. The more robust solution would be
+                    // an `Effect::Ident` but that would be even more expensive.
+                    // Intentionally not awaited because it's only needed in some cases
+                    let obj =
+                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
+                    if let Some(prop) = prop.as_str() {
+                        if could_be_process_env(&obj.await?, &analysis_state) {
                             analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
+                    } else if !analysis.has_runtime_env_var_reference_all()
+                        && could_be_process_env(&obj.await?, &analysis_state)
+                    {
+                        // `const { [unknown]: value } = process.env`
+                        analysis.set_runtime_env_var_reference_all();
                     }
                 }
                 Effect::In {
@@ -1419,7 +1449,22 @@ async fn analyze_ecmascript_module_internal(
                     member,
                     ast_path,
                     span: _,
+                    usage,
                 } => {
+                    if usage == ValueUsage::Escapes
+                        && export.as_deref() == Some("env")
+                        && !analysis.has_runtime_env_var_reference_all()
+                    {
+                        // e.g. `import { env } from 'process'; foo(env)`
+                        let value = eval_context.imports.get_import_for_idx(
+                            arena.get_or_default(),
+                            esm_reference_index,
+                            export.clone().map(Into::into),
+                        );
+                        set_runtime_all_if_process_env(value, &analysis_state, &mut analysis)
+                            .await?;
+                    }
+
                     let Some(r) = import_references.get(esm_reference_index) else {
                         continue;
                     };
@@ -1745,6 +1790,15 @@ fn add_argument_effects<'a>(
 ) {
     for effects in argument_effects.into_iter().rev() {
         add_effects(queue_stack, BumpVec::from(effects));
+    }
+}
+
+/// Whether the (linked) property key could be `'env'`.
+fn could_be_env_key(prop: &JsValue<'_>) -> bool {
+    match prop {
+        JsValue::Alternatives { values, .. } => values.iter().any(could_be_env_key),
+        JsValue::Tenary(_, _, cons, alt) => could_be_env_key(cons) || could_be_env_key(alt),
+        _ => prop.as_str() == Some("env"),
     }
 }
 
@@ -2081,17 +2135,27 @@ where
             ImportAttributes::empty_ref(),
         )
     };
+    // Records an existence check of the env var `key` (linked): an unknown key could check any
+    // env var
+    let add_existence_check = |analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+                               key: Option<&JsValue<'a>>| {
+        match key.and_then(|key| key.as_str()) {
+            Some(key) => analysis.add_runtime_env_var_reference_existence(RcStr::from(key)),
+            None => analysis.set_runtime_env_var_reference_all(),
+        }
+    };
 
     // Env var existence checks. These are also tracked in alternatives, as they don't generate
     // code.
     match func {
         WellKnownFunctionKind::ObjectHasOwn => {
             // `Object.hasOwn(process.env, key)`
-            if let [obj, key, ..] = &linked_args().await?[..]
-                && could_be_process_env(obj, state)
-                && let Some(key) = key.as_str()
+            let args = linked_args().await?;
+            if args
+                .first()
+                .is_some_and(|obj| could_be_process_env(obj, state))
             {
-                analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+                add_existence_check(analysis, args.get(1));
             }
             return Ok(());
         }
@@ -2102,9 +2166,19 @@ where
             if !new
                 && let Some(this) = this
                 && could_be_process_env(&link(this).await?, state)
-                && let Some(key) = linked_args().await?.first().and_then(|key| key.as_str())
             {
-                analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+                add_existence_check(analysis, linked_args().await?.first());
+            }
+            return Ok(());
+        }
+        WellKnownFunctionKind::ValueOf => {
+            // `process.env.valueOf()` returns `process.env` itself
+            if !new
+                && !analysis.has_runtime_env_var_reference_all()
+                && let Some(this) = this
+                && could_be_process_env(&link(this).await?, state)
+            {
+                analysis.set_runtime_env_var_reference_all();
             }
             return Ok(());
         }
@@ -3744,7 +3818,7 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
 }
 
 enum MembershipType {
-    Member { in_truthiness_context: bool },
+    Member { usage: ValueUsage },
     In,
 }
 
@@ -3762,6 +3836,10 @@ async fn handle_membership<'a>(
         let is_prop_cache = prop == "cache";
 
         let obj = link_obj.await?;
+        if prop == "env" && !analysis.has_runtime_env_var_reference_all() {
+            // e.g. `foo(process.env)`
+            set_runtime_all_if_process_escapes(&obj, &ty, state, analysis).await?;
+        }
         let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
         if let [obj_name] = &*obj_name {
@@ -3836,34 +3914,55 @@ async fn handle_membership<'a>(
         }
 
         // Not inlined, potentially register as runtime env var.
-        if obj_name.iter().flatten().any(|(name, reassigned)| {
-            !reassigned
-                && matches!(
-                    name.0.as_slice(),
-                    [
-                        DefinableNameSegmentRef::Name("process"),
-                        DefinableNameSegmentRef::Name("env")
-                    ]
-                )
-        }) {
+        if could_be_process_env(&obj, state) {
             match ty {
-                MembershipType::In => {
+                MembershipType::In
+                | MembershipType::Member {
+                    usage: ValueUsage::Truthiness,
+                } => {
                     analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
                 }
-                MembershipType::Member {
-                    in_truthiness_context,
-                } => {
-                    if in_truthiness_context {
-                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
-                    } else {
-                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
-                    }
+                MembershipType::Member { .. } => {
+                    analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                 }
             }
             return Ok(false);
         }
+    } else if !analysis.has_runtime_env_var_reference_all() {
+        let obj = link_obj.await?;
+        if could_be_process_env(&obj, state) {
+            // `process.env[unknown]` or `unknown in process.env`
+            analysis.set_runtime_env_var_reference_all();
+        } else if could_be_env_key(&prop) {
+            // e.g. `const key = 'env'; foo(process[key])` or
+            // `foo(process[cond ? 'env' : 'argv'])`
+            set_runtime_all_if_process_escapes(&obj, &ty, state, analysis).await?;
+        }
     }
     Ok(false)
+}
+
+/// Marks the module as potentially reading all env vars if `obj.env` (the member access `ty`, `obj`
+/// is linked) could be `process.env` and escapes.
+async fn set_runtime_all_if_process_escapes<'a>(
+    obj: &JsValue<'a>,
+    ty: &MembershipType,
+    state: &AnalysisState<'a>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if matches!(
+        ty,
+        MembershipType::Member {
+            usage: ValueUsage::Escapes
+        }
+    ) {
+        // Link `obj.env` instead of checking `obj` for `process`, the linker normalizes e.g.
+        // `globalThis.process.env` to `process.env`.
+        let arena = state.arena.get_or_default();
+        let value = JsValue::member(arena, obj.clone_in(arena), atom!("env").into());
+        set_runtime_all_if_process_env(value, state, analysis).await?;
+    }
+    Ok(())
 }
 
 async fn handle_typeof<'a>(
@@ -4065,6 +4164,22 @@ async fn handle_free_var_reference(
 
 fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
+}
+
+/// Links `value` and marks the module as potentially reading all env vars if it's `process.env`,
+/// see [`could_be_process_env`].
+async fn set_runtime_all_if_process_env<'a>(
+    value: JsValue<'a>,
+    state: &AnalysisState<'a>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    let value = state
+        .link_value(value, ImportAttributes::empty_ref())
+        .await?;
+    if could_be_process_env(&value, state) {
+        analysis.set_runtime_env_var_reference_all();
+    }
+    Ok(())
 }
 
 async fn analyze_amd_define(
