@@ -4,6 +4,7 @@ runtime: [
     "FOO2",
     "FOO4",
     "FOO5",
+    "FOO6",
 ]
 runtime_existence: [
     "FOO3",
