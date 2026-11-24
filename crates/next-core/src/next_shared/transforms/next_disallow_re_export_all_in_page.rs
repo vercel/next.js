@@ -23,9 +23,9 @@ pub async fn get_next_disallow_export_all_in_page_rule(
     Ok(ModuleRule::new(
         module_rule_match_pages_page_file(enable_mdx_rs, pages_dir),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(Box::default()),
+            main: ResolvedVc::cell(Box::default()),
+            postprocess: ResolvedVc::cell(vec![transformer].into_boxed_slice()),
         }],
     ))
 }

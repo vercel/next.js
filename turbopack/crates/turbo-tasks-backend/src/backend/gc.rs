@@ -203,7 +203,10 @@ impl TurboTasksBackend {
         let mut roots = self
             .backing_storage
             .roots()
-            .expect("reading gc roots should not fail")
+            .unwrap_or_else(|e| {
+                self.backing_storage
+                    .panic_on_read_error("reading gc roots should not fail", e)
+            })
             .into_iter()
             .collect::<FxHashMap<TaskId, TtlCounter>>();
         let roots_before = roots.clone();
@@ -253,7 +256,7 @@ impl TurboTasksBackend {
                     return ControlFlow::Continue(());
                 }
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
+                let mut ctx = ExecuteContext::new_for_gc(turbo_tasks, phase, &collector);
                 // `All` restores Data so `capture_all_edges` below can read the
                 // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -306,7 +309,7 @@ impl TurboTasksBackend {
         let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut ctx = ExecuteContext::new_for_gc(turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
             queue.execute(&mut ctx);

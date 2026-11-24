@@ -906,25 +906,82 @@ export function applyOwnerStack(error: Error): Error {
     }
 
     if (ownerStack) {
-      let stack = ownerStack
-
-      if (error.stack) {
-        const frames: string[] = []
-
-        for (const frame of error.stack.split('\n').slice(1)) {
-          if (frame.includes('react_stack_bottom_frame')) {
-            break
-          }
-
-          frames.push(frame)
-        }
-
-        stack = '\n' + frames.join('\n') + stack
-      }
-
-      error.stack = error.name + ': ' + error.message + stack
+      defineStackWithOwnerStack(error, ownerStack)
     }
   }
 
   return error
+}
+
+/**
+ * Appends `ownerStack` to `error.stack`, deferring the work until `stack` is
+ * first read when the engine allows it.
+ *
+ * Many of the errors that `applyOwnerStack` is called on are created
+ * speculatively (e.g. the `"use cache"` timeout error is created for every call
+ * of a cached function) and are almost never read. Formatting the stack is the
+ * expensive part, and V8 defers it until `stack` is read. Reading `error.stack`
+ * eagerly here would defeat that. So we replace it with a getter that formats
+ * the stack and appends the owner stack on first read.
+ */
+function defineStackWithOwnerStack(error: Error, ownerStack: string): void {
+  const descriptor = Object.getOwnPropertyDescriptor(error, 'stack')
+  const getNativeStack = descriptor?.get
+
+  // Since V8 12 (Node.js 22), `stack` is an own accessor property that formats
+  // the captured frames on first read. Older engines define it as a data
+  // property, and reading its descriptor has already formatted it, so there
+  // is nothing to defer.
+  if (!descriptor || !getNativeStack || !descriptor.configurable) {
+    error.stack = appendOwnerStack(error, error.stack, ownerStack)
+    return
+  }
+
+  const defineStackValue = (value: unknown) => {
+    Object.defineProperty(error, 'stack', {
+      value,
+      writable: true,
+      configurable: true,
+      enumerable: descriptor.enumerable,
+    })
+  }
+
+  Object.defineProperty(error, 'stack', {
+    configurable: true,
+    enumerable: descriptor.enumerable,
+    get() {
+      const stack = appendOwnerStack(
+        error,
+        getNativeStack.call(error),
+        ownerStack
+      )
+      defineStackValue(stack)
+      return stack
+    },
+    set: defineStackValue,
+  })
+}
+
+function appendOwnerStack(
+  error: Error,
+  stack: string | undefined,
+  ownerStack: string
+): string {
+  let frames = ownerStack
+
+  if (stack) {
+    const ownFrames: string[] = []
+
+    for (const frame of stack.split('\n').slice(1)) {
+      if (frame.includes('react_stack_bottom_frame')) {
+        break
+      }
+
+      ownFrames.push(frame)
+    }
+
+    frames = '\n' + ownFrames.join('\n') + frames
+  }
+
+  return error.name + ': ' + error.message + frames
 }

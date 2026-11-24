@@ -78,13 +78,41 @@ fn init() {
 
     use napi::bindgen_prelude::create_custom_tokio_runtime;
     use tokio::runtime::Builder;
-    use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
+    use turbo_tasks::{
+        PersistentCacheUnreadablePanic, panic_hooks::handle_panic, parallel::available_parallelism,
+    };
     use turbo_tasks_malloc::TurboMalloc;
     use turbopack_trace_utils::tokio_workers;
+
+    // The Rust std shipped with our nightly no longer runs the constructor that enables LSE
+    // atomics, so every atomic falls back to LL/SC and Turbopack is up to 3x slower on many-core
+    // arm64 machines. Do the same CPU check here. The check keeps CPUs without LSE on LL/SC.
+    #[cfg(all(
+        target_arch = "aarch64",
+        target_os = "linux",
+        target_feature = "outline-atomics",
+        not(target_feature = "lse"),
+    ))]
+    if std::arch::is_aarch64_feature_detected!("lse") {
+        unsafe extern "C" {
+            // Defined in compiler-builtins. Sets the flag its outline atomics check.
+            fn __rust_enable_lse();
+        }
+        unsafe { __rust_enable_lse() };
+    }
 
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {
         handle_panic(info);
+        // Report this before the panic unwinds: turbo-tasks may abort the process right after.
+        // (The default hook would also only print `Box<dyn Any>` for this payload.)
+        if let Some(panic) = info
+            .payload()
+            .downcast_ref::<PersistentCacheUnreadablePanic>()
+        {
+            next_api::turbopack_ctx::report_persistent_cache_unreadable(&panic.message);
+            return;
+        }
         prev_hook(info);
     }));
 

@@ -225,7 +225,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some(CLIENT_MERGE_TAG),
+                    Some(CLIENT_MERGE_TAG.clone()),
                     rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
@@ -235,7 +235,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some(SSR_MERGE_TAG),
+                    Some(SSR_MERGE_TAG.clone()),
                     rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()

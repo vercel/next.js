@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, ShrinkToFit, Vc};
 
 use crate::{
     chunk::available_chunk_groups::AvailableChunkGroups,
@@ -82,7 +82,6 @@ impl AvailabilityInfo {
             return Ok(false);
         };
         let available_chunk_groups = available_chunk_groups.await?;
-        let chunk_group_info = module_graph.chunk_group_info().await?;
         let module = match item {
             ChunkableModuleOrBatch::Module(module) => ResolvedVc::upcast(module),
             // All modules of a batch have the same chunk groups, so the first one is
@@ -94,10 +93,13 @@ impl AvailabilityInfo {
             ChunkableModuleOrBatch::None(_) => return Ok(false),
         };
         let available = available_chunk_groups.chunk_groups(module_graph)?;
-        Ok(chunk_group_info
-            .module_chunk_groups
-            .await?
+        // A keyed read of the one module's chunk groups, so this neither depends on the whole
+        // `ChunkGroupInfo` nor on the chunk groups of other modules.
+        Ok(module_graph
+            .chunk_group_info()
+            .module_chunk_groups()
             .get(&module)
+            .await?
             .is_some_and(|groups| !groups.is_disjoint(available)))
     }
 
@@ -171,11 +173,14 @@ impl AvailabilityInfo {
         let available_chunk_groups = match self.available_chunk_groups {
             Some(available_chunk_groups) => {
                 let available_chunk_groups = available_chunk_groups.await?;
-                let canonical =
+                let mut canonical =
                     relevant.canonicalize(available_chunk_groups.chunk_groups(module_graph)?);
                 if canonical.is_zero() {
                     None
                 } else {
+                    // The set is stored as a task input, but the set operations in `canonicalize`
+                    // can leave leading and trailing zero blocks.
+                    canonical.shrink_to_fit();
                     Some(
                         AvailableChunkGroups::from_chunk_groups(*module_graph, canonical)
                             .to_resolved()

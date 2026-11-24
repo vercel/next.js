@@ -523,6 +523,23 @@ impl TurboTasksExecutionError {
             source: Some(self),
         }))
     }
+
+    /// Finds the panic that caused this error, if that panic was caused by the persistent cache
+    /// being unreadable (see [`crate::PersistentCacheUnreadablePanic`]).
+    pub fn persistent_cache_unreadable_panic(&self) -> Option<&TurboTasksPanic> {
+        let mut current = self;
+        loop {
+            let source = match current {
+                TurboTasksExecutionError::Panic(panic) => {
+                    return panic.is_persistent_cache_unreadable().then_some(&**panic);
+                }
+                TurboTasksExecutionError::Error(error) => &error.source,
+                TurboTasksExecutionError::TaskContext(context_error) => &context_error.source,
+                TurboTasksExecutionError::LocalTaskContext(context_error) => &context_error.source,
+            };
+            current = source.as_ref()?;
+        }
+    }
 }
 
 impl Error for TurboTasksExecutionError {
@@ -683,17 +700,24 @@ pub trait Backend: Sized + Sync + Send {
     /// [`CellKeyKind::Hash`][crate::CellKeyKind::Hash] dependencies on each of the `key_hashes`, in
     /// a single operation. With no `key_hashes`, the dependency is removed.
     ///
+    /// `key_hashes` must not contain duplicates. It can be iterated multiple times (by cloning
+    /// the iterator), so an implementation can process them in several passes without buffering
+    /// them.
+    ///
     /// Must only be called from within the same execution of `reader` that created the
     /// dependency.
+    ///
+    /// Fails when `task` no longer exists because it was garbage collected while `reader` was
+    /// executing. The caller fails that execution with the error.
     fn refine_provisional_cell_dependency(
         &self,
         task: TaskId,
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<Self>,
-    );
+    ) -> Result<()>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -708,8 +732,9 @@ pub trait Backend: Sized + Sync + Send {
     /// backend may drop it to free memory. A later read of a dropped cell recomputes the owning
     /// task, like after a `final_read_hint` read.
     ///
-    /// The task must exist. The cell content doesn't need to be present (e.g. it was already
-    /// dropped); this never reads or recomputes it.
+    /// The cell content doesn't need to be present (e.g. it was already dropped); this never
+    /// reads or recomputes it. Fails, like a read would, when the task no longer exists because it
+    /// was garbage collected.
     ///
     /// This doesn't track any dependency. The default implementation does nothing.
     fn drop_task_cell_content_hint(
@@ -717,7 +742,8 @@ pub trait Backend: Sized + Sync + Send {
         _task_id: TaskId,
         _cell: CellId,
         _turbo_tasks: &TurboTasks<Self>,
-    ) {
+    ) -> Result<()> {
+        Ok(())
     }
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so

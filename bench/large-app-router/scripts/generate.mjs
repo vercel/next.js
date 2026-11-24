@@ -3,10 +3,11 @@
 //
 // The output is deterministic: the same arguments always produce
 // byte-identical files. Everything this script writes (app/, components/,
-// lib/) is gitignored and removed before regenerating.
+// lib/, traced-assets/) is gitignored and removed before regenerating.
 //
 // Usage:
 //   node scripts/generate.mjs [--routes 5000] [--components 3000] [--seed 1]
+//                             [--traced-files 1000]
 //
 // See README.md for details.
 import fs from 'node:fs'
@@ -21,6 +22,7 @@ const { values: args } = parseArgs({
     routes: { type: 'string', default: '5000' },
     components: { type: 'string', default: '3000' },
     seed: { type: 'string', default: '1' },
+    'traced-files': { type: 'string', default: '1000' },
     help: { type: 'boolean', short: 'h', default: false },
   },
 })
@@ -32,24 +34,31 @@ Options:
   --routes <n>      Number of page routes (default: 5000)
   --components <n>  Size of the shared component library (default: 3000)
   --seed <n>        PRNG seed (default: 1)
+  --traced-files <n>
+                    Number of asset files in traced-assets/ that the root
+                    layout reads through a dynamic path, so every page's
+                    .nft.json traces all of them (default: 1000, 0 disables)
 
 Derived sizes: sections = routes / 50, utility modules = components / 4,
 route handlers = routes / 10.`)
   process.exit(0)
 }
 
-function positiveInt(name) {
+function integerArg(name, min) {
   const n = Number(args[name])
-  if (!Number.isInteger(n) || n <= 0) {
-    console.error(`--${name} must be a positive integer, got ${args[name]}`)
+  if (args[name].trim() === '' || !Number.isSafeInteger(n) || n < min) {
+    console.error(
+      `--${name} must be a ${min > 0 ? 'positive' : 'non-negative'} integer, got ${args[name]}`
+    )
     process.exit(1)
   }
   return n
 }
 
-const ROUTES = positiveInt('routes')
-const COMPONENTS = positiveInt('components')
-const SEED = positiveInt('seed')
+const ROUTES = integerArg('routes', 1)
+const COMPONENTS = integerArg('components', 1)
+const SEED = integerArg('seed', 1)
+const TRACED_FILES = integerArg('traced-files', 0)
 const SECTIONS = Math.max(1, Math.round(ROUTES / 50))
 const UTILS = Math.max(8, Math.round(COMPONENTS / 4))
 const API_ROUTES = Math.max(1, Math.round(ROUTES / 10))
@@ -174,7 +183,7 @@ function write(rel, content) {
   fileCount++
 }
 
-for (const dir of ['app', 'components', 'lib']) {
+for (const dir of ['app', 'components', 'lib', 'traced-assets']) {
   fs.rmSync(path.join(ROOT, dir), { recursive: true, force: true })
 }
 
@@ -487,10 +496,29 @@ export function Nav() {
 `
 )
 
+// traced-assets/: files the root layout reads through a dynamic path. Output
+// file tracing can't tell which file is read, so it includes the whole
+// directory in the .nft.json of every page below the root layout. This makes
+// the number of traced files per endpoint configurable independently of the
+// number of endpoints (--routes), which is what drives the cost of tracing.
+// The contents don't use the PRNG, so other files are unaffected.
+for (let i = 0; i < TRACED_FILES; i++) {
+  write(
+    `traced-assets/a${i}.txt`,
+    `traced asset ${i} of ${TRACED_FILES}\n` +
+      Array.from(
+        { length: 4 },
+        (_, n) =>
+          `${WORDS[(i + n) % WORDS.length]} ${(i * 2654435761 + n) >>> 0}`
+      ).join('\n') +
+      '\n'
+  )
+}
+
 write(
   'app/layout.tsx',
   `
-import type { Metadata } from 'next'
+${TRACED_FILES ? `import fs from 'node:fs'\nimport path from 'node:path'\n` : ''}import type { Metadata } from 'next'
 import './globals.css'
 import styles from './layout.module.css'
 import { Nav } from './nav'
@@ -499,11 +527,22 @@ export const metadata: Metadata = {
   title: { default: 'Large App Router benchmark', template: '%s | Large App Router benchmark' },
   description: 'Generated application used to benchmark Next.js builds.',
 }
-
+${
+  TRACED_FILES
+    ? `
+// The file name is only known at runtime, so output file tracing includes the
+// whole traced-assets/ directory in every page that uses this layout.
+function readTracedAsset(index: number): string {
+  const name = 'a' + (index % ${TRACED_FILES}) + '.txt'
+  return fs.readFileSync(path.join(process.cwd(), 'traced-assets', name), 'utf8')
+}
+`
+    : ''
+}
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
+${TRACED_FILES ? `  const asset = readTracedAsset(${SEED})\n` : ''}  return (
     <html lang="en">
-      <body className={styles.shell}>
+      <body className={styles.shell}${TRACED_FILES ? ' data-asset-length={asset.length}' : ''}>
         <header className={styles.header}>
           <Nav />
         </header>
@@ -789,6 +828,7 @@ const summary = {
   utilityModules: UTILS,
   routeHandlers: API_ROUTES,
   dynamicImports: dynamicImportCount,
+  tracedFiles: TRACED_FILES,
   files: fileCount,
 }
 console.log('Generated large-app-router:')

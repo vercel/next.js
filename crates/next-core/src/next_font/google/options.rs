@@ -286,6 +286,44 @@ mod tests {
     }
 
     #[test]
+    fn test_respects_adjust_font_fallback_false() -> Result<()> {
+        let data: FontData = parse_json_with_source_context(
+            r#"
+            {
+                "ABeeZee": {
+                    "weights": ["variable"],
+                    "styles": ["normal", "italic"]
+                }
+            }
+            "#,
+        )?;
+
+        // The swc transform serializes the options object as-is, so the key is camelCase.
+        let request: NextFontRequest = parse_json_with_source_context(
+            r#"
+            {
+                "import": "ABeeZee",
+                "path": "index.js",
+                "variableName": "abeezee",
+                "arguments": [{
+                    "fallback": ["system-ui", "Arial"],
+                    "adjustFontFallback": false
+                }]
+            }
+            "#,
+        )?;
+
+        let options = options_from_request(&request, &data)?;
+        assert!(!options.adjust_font_fallback);
+        assert_eq!(
+            options.fallback,
+            Some(vec![rcstr!("system-ui"), rcstr!("Arial")])
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn test_errors_when_no_weights_chosen_no_variable() -> Result<()> {
         let data: FontData = parse_json_with_source_context(
             r#"

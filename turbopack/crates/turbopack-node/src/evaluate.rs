@@ -314,6 +314,8 @@ pub(crate) async fn get_evaluate_pool(
                 env.read(name.into()).await?;
             }
 
+            // INVALIDATION: In this mode, only the Node.js environment variables tracked above
+            // should invalidate the pool, not changes to unrelated environment variables.
             env.read_all().untracked().await?
         }
     };

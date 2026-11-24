@@ -191,6 +191,8 @@ fn setup_prefilled_db(config: &DbConfig, id: &str) -> Result<(TempDir, Vec<Box<[
     let keys = prefill_database(tempdir.path(), config)?;
     // Measure disk usage of the database and print it for informational purposes.
     let entry_count = scaled(config.entry_count);
+    // This is std::path::Path::read_dir, not turbo_tasks_fs.
+    // ast-grep-ignore: read-dir-determinism-comment
     let db_size = tempdir
         .path()
         .read_dir()?
@@ -208,8 +210,8 @@ fn setup_prefilled_db(config: &DbConfig, id: &str) -> Result<(TempDir, Vec<Box<[
 }
 
 fn prepare_db_for_benchmarking(db: &TurboPersistence<SerialScheduler, 1>) {
+    // SST files stay open: they were opened eagerly in the background when the database opened.
     db.clear_block_caches();
-    db.prepare_all_sst_caches();
 }
 
 fn iter_batched_with_init<'a, T, O>(
@@ -687,6 +689,8 @@ fn setup_prefilled_multi_value_db(
     let tempdir = tempfile::tempdir()?;
     let keys = prefill_multi_value_database(tempdir.path(), config)?;
     let entry_count = scaled(config.entry_count);
+    // This is std::path::Path::read_dir, not turbo_tasks_fs.
+    // ast-grep-ignore: read-dir-determinism-comment
     let db_size = tempdir
         .path()
         .read_dir()?

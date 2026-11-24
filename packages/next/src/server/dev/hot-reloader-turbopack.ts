@@ -1,5 +1,5 @@
 import type { Socket } from 'net'
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
 import { join, extname, relative, isAbsolute, sep } from 'path'
@@ -32,7 +32,6 @@ import type {
   Project,
   Entrypoints,
   NodeJsPartialHmrUpdate,
-  ServerHmrVersion,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -177,6 +176,10 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
 
+// How long a server component change observed outside of an update waits for
+// that update's start before it is announced on its own.
+const SERVER_COMPONENT_CHANGES_FALLBACK_MS = 100
+
 const TURBOPACK_OUTPUT_DIRS = [
   join('static', 'chunks'),
   join('static', 'media'),
@@ -213,37 +216,6 @@ declare global {
     | undefined
 }
 
-/**
- * Collects the output chunk paths touched by a partial HMR update. Both
- * single-chunk `EcmascriptMergedUpdate`s and `ChunkListUpdate`s (which nest
- * per-chunk deltas inside `merged`) are flattened so the manifest cache can be
- * invalidated for every affected chunk after a successful apply.
- */
-function collectUpdatedChunkPaths(
-  instruction: NodeJsPartialHmrUpdate['instruction']
-): string[] {
-  const paths = new Set<string>()
-  if (instruction.type === 'EcmascriptMergedUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-  } else if (instruction.type === 'ChunkListUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-    for (const merged of instruction.merged ?? []) {
-      for (const chunkPath of Object.keys(merged.chunks ?? {})) {
-        paths.add(chunkPath)
-      }
-    }
-  } else {
-    throw new Error(
-      `[Server HMR] unreachable: unknown HMR instruction type ${(instruction as { type: string }).type}`
-    )
-  }
-  return Array.from(paths)
-}
-
 function setupServerHmr(
   project: Project,
   {
@@ -255,15 +227,15 @@ function setupServerHmr(
   }
 ) {
   let pending = Promise.resolve()
-  // Each pull snapshots only the requested endpoint's entries. Keep independent
-  // baselines so building one route does not discard another route's version.
-  const versions = new Map<string, ServerHmrVersion>()
+  // What the server runtimes have loaded lives in Turbopack, which diffs each
+  // requested route against it.
   let needsReEvaluation = false
 
-  async function recover() {
+  async function recover(entryPaths: string[]) {
     try {
       await reEvaluateAllModulesExpensive()
-      versions.clear()
+      // The requested route loads from scratch next.
+      await project.resetServerHmrState(entryPaths)
       needsReEvaluation = false
     } catch (error) {
       console.error('[Server HMR] Re-evaluating modules failed:', error)
@@ -273,22 +245,15 @@ function setupServerHmr(
   function apply(entryPaths: string[]): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
-        await recover()
+        await recover(entryPaths)
         return
       }
 
       try {
-        const versionKey = [...entryPaths].sort().join('\0')
         // `issues` is intentionally dropped: this pull scans project-wide chunk
         // lists, so its issues may belong to an unrelated or removed route, and
         // endpoint writes already report route-scoped issues.
-        const { value: update } = await project.getServerHmrUpdate(
-          versions.get(versionKey),
-          entryPaths
-        )
-        if (update.version) {
-          versions.set(versionKey, update.version)
-        }
+        const { value: update } = await project.getServerHmrUpdate(entryPaths)
         switch (update.kind) {
           case 'none':
             return
@@ -296,20 +261,24 @@ function setupServerHmr(
             const handlers = globalThis.__turbopack_server_hmr_handlers__
             if (!handlers || handlers.size === 0) return
 
-            const payload: NodeJsPartialHmrUpdate = {
-              type: 'partial',
-              instruction: update.instruction,
-            }
             if (typeof __turbopack_server_hmr_apply__ === 'function') {
               try {
-                __turbopack_server_hmr_apply__(payload)
-                mirrorModuleStateToDevValidationWorker({
-                  type: 'apply',
-                  update: payload,
-                })
+                // Each update targets one runtime directory, so it is routed
+                // only to its own runtime.
+                for (const instruction of update.updates) {
+                  const payload: NodeJsPartialHmrUpdate = {
+                    type: 'partial',
+                    instruction,
+                  }
+                  __turbopack_server_hmr_apply__(payload)
+                  mirrorModuleStateToDevValidationWorker({
+                    type: 'apply',
+                    update: payload,
+                  })
+                }
 
-                const updatedChunkPaths = collectUpdatedChunkPaths(
-                  update.instruction
+                const updatedChunkPaths = update.updates.flatMap(
+                  (instruction) => Object.keys(instruction.chunks ?? {})
                 )
                 if (updatedChunkPaths.length > 0) {
                   await onApplied(updatedChunkPaths)
@@ -334,16 +303,22 @@ function setupServerHmr(
       }
 
       needsReEvaluation = true
-      await recover()
+      await recover(entryPaths)
     })
     pending = applyPromise
     return applyPromise
   }
 
   function reset(): Promise<void> {
-    const resetState = () => {
-      versions.clear()
+    const resetState = async () => {
       needsReEvaluation = false
+      try {
+        await project.resetServerHmrState()
+      } catch (error) {
+        // Keep the queue usable; the next pull re-evaluates everything instead.
+        needsReEvaluation = true
+        console.error('[Server HMR] Clearing the loaded state failed:', error)
+      }
     }
     const resetPromise = pending.then(resetState, resetState)
     pending = resetPromise
@@ -926,6 +901,7 @@ export async function createHotReloaderTurbopack(
 
   let updateInProgress = false
   let pendingServerComponentChanges = false
+  let pendingServerComponentChangesTimeout: NodeJS.Timeout | undefined
 
   // Tell browsers to refetch RSC (soft refresh, not full page reload).
   // Skip while there are outstanding compilation errors: an RSC refetch would
@@ -942,9 +918,24 @@ export async function createHotReloaderTurbopack(
   // Each announcement makes every client refetch its page, so an update's
   // changes are announced once, on the update's end.
   function handleServerComponentChanges() {
-    if (updateInProgress) {
-      pendingServerComponentChanges = true
-    } else {
+    pendingServerComponentChanges = true
+    // Change events and update start/end messages are delivered separately,
+    // so a change can be observed before its update's start. Wait for the
+    // update's end, but don't lose the change if no update follows (it was
+    // observed after its update's end).
+    if (!updateInProgress && !pendingServerComponentChangesTimeout) {
+      pendingServerComponentChangesTimeout = setTimeout(
+        flushServerComponentChanges,
+        SERVER_COMPONENT_CHANGES_FALLBACK_MS
+      )
+    }
+  }
+
+  function flushServerComponentChanges() {
+    clearTimeout(pendingServerComponentChangesTimeout)
+    pendingServerComponentChangesTimeout = undefined
+    if (pendingServerComponentChanges) {
+      pendingServerComponentChanges = false
       notifyServerComponentChanges()
     }
   }
@@ -1258,6 +1249,8 @@ export async function createHotReloaderTurbopack(
       previousRouteKeys = new Set(routes.keys())
 
       await handleEntrypoints({
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         entrypoints: entrypoints as any,
 
         currentEntrypoints,
@@ -1328,16 +1321,8 @@ export async function createHotReloaderTurbopack(
 
   await mkdir(join(distDir, 'server'), { recursive: true })
   await mkdir(join(distDir, 'static', buildId), { recursive: true })
-  await writeFile(
-    join(distDir, 'package.json'),
-    JSON.stringify(
-      {
-        type: 'commonjs',
-      },
-      null,
-      2
-    )
-  )
+  // The `package.json` of the distDir (ensuring commonjs handling) is written
+  // by Turbopack when creating the project.
 
   const middlewares = [
     getOverlayMiddleware({
@@ -1678,6 +1663,7 @@ export async function createHotReloaderTurbopack(
           clientIssues,
           messages: new Map(),
           turbopackUpdates: [],
+          hmrVersionChecked: false,
           subscriptions,
         })
 
@@ -1820,19 +1806,29 @@ export async function createHotReloaderTurbopack(
 
           // Turbopack messages
           switch (parsedData.type) {
-            case 'turbopack-subscribe':
+            case 'turbopack-subscribe': {
+              // Check the version once per connection, on its first versioned subscription. That
+              // catches updates missed through stale HTML or a dropped connection. Later mismatches
+              // are skipped, since lazily compiling a chunk list advances the version without the
+              // client missing an update.
+              const state = clientStates.get(client)
               if (
                 parsedData.hmrVersion !== undefined &&
-                parsedData.hmrVersion !== String(clientHmrVersion)
+                state &&
+                !state.hmrVersionChecked
               ) {
-                sendToClient(client, {
-                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-                  data: 'HMR hash mismatch',
-                })
-                break
+                state.hmrVersionChecked = true
+                if (parsedData.hmrVersion !== String(clientHmrVersion)) {
+                  sendToClient(client, {
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+                    data: 'HMR hash mismatch',
+                  })
+                  break
+                }
               }
               subscribeToClientHmrEvents(client, parsedData.path)
               break
+            }
 
             case 'turbopack-unsubscribe':
               unsubscribeFromClientHmrEvents(client, parsedData.path)
@@ -2101,6 +2097,8 @@ export async function createHotReloaderTurbopack(
       if (!definition) {
         if (inputPage === '/middleware') return
         if (inputPage === '/src/middleware') return
+        if (inputPage === '/proxy') return
+        if (inputPage === '/src/proxy') return
         if (inputPage === '/instrumentation') return
         if (inputPage === '/src/instrumentation') return
       }
@@ -2302,6 +2300,10 @@ export async function createHotReloaderTurbopack(
       // Report MCP telemetry if MCP server is enabled
       recordMcpTelemetry(opts.telemetry)
 
+      clearTimeout(pendingServerComponentChangesTimeout)
+      pendingServerComponentChangesTimeout = undefined
+      pendingServerComponentChanges = false
+
       for (const wsClient of [
         ...clientsWithoutHtmlRequestId,
         ...clientsByHtmlRequestId.values(),
@@ -2334,6 +2336,9 @@ export async function createHotReloaderTurbopack(
       switch (updateMessage.updateType) {
         case 'start': {
           updateInProgress = true
+          // The update's end announces any pending changes.
+          clearTimeout(pendingServerComponentChangesTimeout)
+          pendingServerComponentChangesTimeout = undefined
           pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
             hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
           })
@@ -2349,10 +2354,7 @@ export async function createHotReloaderTurbopack(
         case 'end': {
           updateInProgress = false
           pendingBuilding.cancel()
-          if (pendingServerComponentChanges) {
-            pendingServerComponentChanges = false
-            notifyServerComponentChanges()
-          }
+          flushServerComponentChanges()
           sendEnqueuedMessages()
 
           function addToErrorsMap(

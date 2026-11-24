@@ -38,6 +38,7 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 - `packages/eslint-plugin-next/` - ESLint rules for Next.js
 - `packages/font/` - `next/font` implementation
 - `packages/third-parties/` - Third-party script integrations
+- `packages/next-mcp/` - `@next/mcp`, MCP servers from App Router route handlers
 
 ### README files
 
@@ -160,20 +161,6 @@ pnpm new-test --args true my-feature e2e
 pnpm new-test --args false my-util unit
 ```
 
-**Analyzing test output efficiently:**
-
-Never re-run the same test suite with different grep filters. Capture output once to a file, then read from it:
-
-```bash
-# Run once, save everything
-HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts > /tmp/test-output.log 2>&1
-
-# Then analyze without re-running
-grep "●" /tmp/test-output.log            # Failed test names
-grep -A5 "Error:" /tmp/test-output.log   # Error details
-tail -5 /tmp/test-output.log             # Summary
-```
-
 ## Writing Tests
 
 **Test writing expectations:**
@@ -261,12 +248,14 @@ pnpm types             # TypeScript type checking
 
 Type-check with the repo's own commands. `pnpm typescript` runs `tsc --noEmit` against the root `tsconfig.json`, which includes `scripts/**/*.js` and loads this repo's type augmentations. A hand-rolled `tsconfig` pointed at a single file misses those augmentations and will report clean while CI fails. For example `NodeJS.ProcessEnv` is declared in `packages/next/types/global.d.ts` with `NODE_ENV` required, so a plain `Record<string, string>` is not a valid `env` for an `execa` call.
 
-## PR Status (CI Failures and Reviews)
+Don't add `as any` casts; `@next/internal/no-as-any` rejects them. Fix the type, narrow the value with a runtime check, or use `satisfies`. Switching to `as unknown as T` or `@ts-expect-error` hides the same problem. If a cast is truly unavoidable, disable the rule for that line, with one or more comment lines directly above saying why:
 
-Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or
-PR status. It contains the `scripts/pr-status.js` commands, prioritization,
-review-thread workflow, and CI reproduction guidance. See
-`.agents/skills/pr-status-triage/SKILL.md`.
+```ts
+// React's Flight client exports this as `any`.
+// eslint-disable-next-line @next/internal/no-as-any
+```
+
+A trailing `// eslint-disable-line` takes the reason after `--` instead. `@next/internal/require-disable-reason` rejects a missing or vague reason. Existing casts carry a `// TODO(as-any): pre-existing cast, not yet reviewed` line; don't copy that marker onto new code. When you fix a cast, delete both the disable comment and its reason (unused disable comments fail lint; the reason line does not, so it's on you).
 
 ## GitHub Pull Requests
 
@@ -281,6 +270,46 @@ Fork PRs are external contributions created by pushing commits to any fork repos
 
 You must inform the user that you are not allowed to write pull request descriptions for external contributions. Refer to the guidelines in `.github/pull_request_template.md`.
 While you cannot write the full description for the user, you may offer to help review the description, or provide helpful technical details. You can provide them a link to the GitHub URL to create the PR.
+
+### PR Descriptions
+
+The structure of a PR description comes from `.github/pull_request_template.md`. Read it before writing one. These rules apply to every PR description an agent is allowed to write (see above: never for fork PRs):
+
+- Keep the description minimal, but write it so that someone not on the team can understand the PR.
+- Use the template's `### What?`, `### Why?` and `### How?` sections. Explain the "what" from the end-user or developer perspective, and only cover implementation details in "How?" when they are not obvious from the diff. Include "Why?" unless the change is small and self-explanatory.
+- Link the GitHub issues (`Fixes #number`) and, when you know the Linear issue, the Linear issue (`Closes NEXT-xxx`). Don't invent issue numbers.
+- When linking to a Slack thread, share the details of the conclusion rather than only the link.
+- Add review comments on the PR where needed to explain the logic behind a change to the reviewer.
+- Don't copy the template's HTML comment, or the contributor checklists, into the description.
+
+In addition to the template, agents must **always add a `### Verification` section** after the template sections, listing how the change was verified:
+
+- Commands that were run and passed, and any manual verification steps.
+- Anything that was not run, with the reason (e.g. ``Not run: `pnpm test-start-turbo test/...` (needs deploy credentials)``).
+- Omit trivial commands that CI already covers (e.g. `pnpm build`). If the PR changes a test, don't repeat the command that runs it, but do list existing tests you used to confirm behavior didn't change.
+
+Example:
+
+```markdown
+### What?
+
+<what changed>
+
+### Why?
+
+<motivation>
+
+### How?
+
+<implementation notes, if not obvious from the diff>
+
+Fixes #<number>
+
+### Verification
+
+- `pnpm test-dev-turbo test/e2e/...` (existing test, confirms behavior is unchanged)
+- Not run: `<command>` (<reason>)
+```
 
 ### Adopting a Fork PR
 
@@ -336,8 +365,6 @@ You must inform the user that you are not allowed to create issues/discussions/c
 <!--When writing full PR/Issue/Discussion descriptions, commit messages, or leaving comments on pull requests, you MUST include the following HTML comment at the bottom of the description or comment: <!-- NEXT_JS_LLM -->
 
 ## Key Directories (Quick Reference)
-
-See [Codebase structure](#codebase-structure) above for detailed explanations.
 
 - `packages/next/src/` - Main Next.js source code
 - `packages/next/src/server/` - Server runtime (most changes happen here)
@@ -397,8 +424,9 @@ provider, ask the user to make it available or unlock it before continuing.
 
 Use skills for conditional, deep workflows. Keep baseline iteration/build/test policy in this file.
 
-- `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
+- `$pr-status-triage` - use whenever asked about CI failures, PR reviews, or PR status (incl. reading canary CI)
 - `$create-pr` - branch, commit, push, and draft PR creation workflow
+- `$rebase-pr` - rebase a PR onto canary or restack dependent PRs safely
 - `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
 - `$backport-pr` - cherry-pick merged PRs from `canary` to `releases/lts/active` or `releases/lts/maintenance`
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
@@ -407,37 +435,16 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
+- `$rust-turbopack` - Rust/Turbopack build, test, snapshot, and benchmarking workflow (cargo, nextest, UPDATE=1, clippy, Miri, wasi)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
+- `$run-tests` - test bootstrap in a fresh checkout, CI env matching, fixture gitignore traps, flaky-test reproduction
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
-
-## Context-Efficient Workflows
-
-**Reading large files** (>500 lines, e.g. `app-render.tsx`):
-
-- Grep first to find relevant line numbers, then read targeted ranges with `offset`/`limit`
-- Never re-read the same section of a file without code changes in between
-- For generated files (`dist/`, `node_modules/`, `.next/`): search only, don't read
-
-**Build & test output:**
-
-- Capture to file once, then analyze: e.g. `pnpm build 2>&1 | tee /tmp/build.log`
-- Don't re-run the same test command without code changes; re-analyze saved output instead
-
-**Batch edits before building:**
-
-- Group related edits across files, then run one build, not build-per-edit
-- Use `pnpm --filter=next types` (~10s) to check type errors without full rebuild
-
-**External API calls (gh, curl):**
-
-- Save response to variable or file: `JOBS=$(gh api ...) && echo "$JOBS" | jq '...'`
-- Don't re-fetch the same API data to analyze from different angles
 
 ## Commit and PR Style
 
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
 - Keep commit messages concise and descriptive
-- PR descriptions should focus on what changed and why
+- PR descriptions follow the What?/Why?/How? structure of `.github/pull_request_template.md`, plus a Verification section (see [PR Descriptions](#pr-descriptions))
 - Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
 
 **Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):
@@ -481,24 +488,11 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 - Keep `require()` behind compile-time `if/else` branches for DCE (avoid early-return/throw patterns).
 - In edge builds, force feature flags that gate Node-only imports to `false` in `define-env.ts`.
 - `react-server-dom-webpack/*` imports must stay in `entry-base.ts`; consume via component module exports elsewhere.
+- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
 
 ### Test Gotchas
 
-- **Cache components enables PPR by default**: When `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. Dedicated `ppr-full/` and `ppr/` test suites are mostly `describe.skip` (migrating to cache components). To test PPR codepaths, run normal app-dir e2e tests with `__NEXT_CACHE_COMPONENTS=true` rather than looking for explicit PPR test suites.
-- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
-- Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
-- Don't rely on exact log messages - filter by content patterns, find sequences not positions
-- **Snapshot tests vary by env flags**: Tests with inline snapshots can produce different output depending on env flags. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
-- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
-- **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences such as `IS_WEBPACK_TEST=1` can change bundler selection and snapshot output, so use the CI command and mode when verifying module resolution fixes.
-- **Showing full stack traces**: Set `__NEXT_SHOW_IGNORE_LISTED=true` to disable the ignore-list filtering in dev server error output. By default, Next.js collapses internal frames to `at ignore-listed frames`, which hides useful context when debugging framework internals. Defined in `packages/next/src/server/patch-error-inspect.ts`.
-- **Router act tests must use LinkAccordion to control prefetches**: Always use `LinkAccordion` to control when prefetches happen inside `act` scopes. Never use `browser.back()` to return to a page where accordion links are already visible — BFCache restores state and triggers uncontrolled re-prefetches. See `$router-act` for full patterns.
-
-### Rust/Cargo
-
-- cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
-- **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
-- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`) — prefer `crate::`-rooted paths. This makes imports consistent and easier to grep for.
+Test-writing gotchas (PPR under cache components, mode-specific setup, log assertions, stack traces, router act tests) are in `test/AGENTS.md`. Running tests outside the happy path (fresh-checkout bootstrap, CI env flags, smoke tests, flaky tests, ignored fixture files) is in `$run-tests`.
 
 ### Node.js Source Maps
 

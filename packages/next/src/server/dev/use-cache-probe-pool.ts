@@ -5,10 +5,9 @@ import type {
   probeUseCache,
 } from './use-cache-probe-worker'
 
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../../lib/worker/index'
 import { setUseCacheProbe } from '../use-cache/use-cache-probe-globals'
 import { onCacheInvalidation } from './require-cache'
-import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { needsExperimentalReact } from '../../lib/needs-experimental-react'
 
 interface InstallOptions {
@@ -81,10 +80,6 @@ export function installUseCacheProbe(options: InstallOptions): void {
     if (pool) {
       return pool
     }
-    // Strip `--inspect` from any inherited `NODE_OPTIONS` so the worker doesn't
-    // fight the parent for the same debug port.
-    const probeNodeOptions = getFormattedNodeOptionsWithoutInspect()
-
     // The worker is shipped as four pre-bundled dev-only artifacts —
     // {webpack,turbopack} × {stable,experimental} — so the bundler aliases and
     // react-server layer resolve correctly at Next-build time. Pick the
@@ -97,31 +92,20 @@ export function installUseCacheProbe(options: InstallOptions): void {
       `next/dist/compiled/next-server/use-cache-probe-worker${turbo}${channel}.runtime.dev.js`
     )
     const worker = new Worker(workerPath, {
+      workerName: "Next.js 'use cache' probe worker",
       maxRetries: 0,
-      // jest-worker has no per-task scaling: once the pool is created, all
-      // `numWorkers` workers are alive until pool teardown. Set to absorb
-      // the realistic case of a single dev request fanning out into
-      // multiple concurrent `'use cache'` invocations that each hit the
-      // probe threshold.
-      // TODO: replace with on-demand scaling once
-      // https://github.com/vercel/next.js/pull/90532 lands — workers can
-      // then spawn lazily and shrink back when idle.
-      numWorkers: 4,
+      // Workers are spawned on demand as concurrent probes arrive, up to this
+      // limit, to absorb the realistic case of a single dev request fanning
+      // out into multiple concurrent `'use cache'` invocations that each hit
+      // the probe threshold. Spawned workers stay alive until pool teardown.
+      maxWorkers: 4,
       enableWorkerThreads: nextConfig.experimental.workerThreads,
-      // Listing the methods explicitly tells jest-worker to skip the discovery
-      // `require()` it would otherwise do in the parent process. The bundle has
-      // the full RSC pipeline embedded — loading it in the parent would eagerly
-      // initialize bindings that should only run in the isolated worker.
+      // The worker module is only ever loaded in the worker, never `require()`d
+      // in the parent process. The bundle has the full RSC pipeline embedded —
+      // loading it in the parent would eagerly initialize bindings that should
+      // only run in the isolated worker.
       exposedMethods: ['probeUseCache'],
-      forkOptions: {
-        env: {
-          ...process.env,
-          NODE_OPTIONS: probeNodeOptions,
-        },
-      },
     }) as Worker & ProbePool
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
     pool = worker
     return worker
   }
@@ -132,10 +116,12 @@ export function installUseCacheProbe(options: InstallOptions): void {
       return
     }
     pool = undefined
-    await current.end().catch(() => {
+    try {
+      await current.shutdown()
+    } catch {
       // The worker process will exit on its own when nothing else holds it
-      // open; a failed `.end()` here just means we couldn't wait cleanly.
-    })
+      // open; a failed `.shutdown()` here just means we couldn't wait cleanly.
+    }
   }
 
   const runProbe = async (msg: ProbeMessage): Promise<boolean> => {

@@ -13,9 +13,7 @@ use next_api::{
 };
 use serde::Serialize;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{
-    Effects, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
-};
+use turbo_tasks::{Effects, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -91,7 +89,7 @@ async fn route_entries(
         let bootstrap = client
             .bootstrap_modules
             .iter()
-            .map(|module| module.ident().to_string().owned())
+            .map(|module| module.ident_string().owned())
             .try_join()
             .await?
             .into_iter()
@@ -99,20 +97,20 @@ async fn route_entries(
         let server = client
             .server_modules
             .iter()
-            .map(|module| module.ident().to_string().owned())
+            .map(|module| module.ident_string().owned())
             .try_join()
             .await?
             .into_iter()
             .collect::<FxIndexSet<_>>();
         let owner = if let Some(module) = client.server_modules.first() {
-            Some(module.ident().to_string().owned().await?)
+            Some(module.ident_string().owned().await?)
         } else {
             None
         };
         let mut seen_references = FxIndexSet::default();
         let mut references = vec![];
         for reference in &client.references {
-            let module_ident = reference.module.ident().to_string().owned().await?;
+            let module_ident = reference.module.ident_string().owned().await?;
             if !seen_references.insert((module_ident.clone(), reference.kind.clone())) {
                 continue;
             }
@@ -129,7 +127,7 @@ async fn route_entries(
         let mut seen = FxIndexSet::default();
         let mut attached = false;
         for module in entries.all_modules() {
-            let module_ident = module.ident().to_string().owned().await?;
+            let module_ident = module.ident_string().owned().await?;
             if !seen.insert(module_ident.clone()) {
                 continue;
             }

@@ -3,6 +3,8 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use rustc_hash::FxHashSet;
+
 use crate::{
     CellId, ReadRef, TaskId,
     manager::{ProvisionalReadDependency, with_turbo_tasks},
@@ -82,15 +84,18 @@ where
             return;
         }
         // Refining the provisional dependency to no hashed dependencies at all removes it.
-        with_turbo_tasks(|tt| {
+        if let Err(error) = with_turbo_tasks(|tt| {
             tt.refine_provisional_cell_dependency(
                 task,
                 index,
                 dependency.reader,
                 dependency.id,
-                &mut std::iter::empty(),
+                &FxHashSet::default(),
             )
-        });
+        }) {
+            // The cell's task was garbage collected while this execution used it.
+            dependency.fail_execution(error);
+        }
     }
 }
 

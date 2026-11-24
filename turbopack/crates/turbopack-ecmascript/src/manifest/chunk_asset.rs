@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    async_chunk::proxy::{LazyCompilationProxyModule, lazy_compilation_state},
+    async_chunk::proxy::LazyCompilationProxyModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         data::EcmascriptChunkData, ecmascript_chunk_item,
@@ -174,10 +174,6 @@ impl ManifestAsyncModule {
     }
 }
 
-fn manifest_chunk_reference_description() -> RcStr {
-    rcstr!("manifest chunk")
-}
-
 #[turbo_tasks::value_impl]
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
@@ -187,7 +183,7 @@ impl Module for ManifestAsyncModule {
             .ident()
             .owned()
             .await?
-            .with_modifier(manifest_chunk_reference_description());
+            .with_modifier(rcstr!("manifest chunk"));
         // Requesting the manifest chunk of a lazily compiled dynamic import is what activates it,
         // so the key has to survive into the file name, and the path is the only part of an ident
         // that appears there literally. It must not move to the proxy's own ident, which also
@@ -273,14 +269,12 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
     async fn chunk_item_output_assets(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         // An unactivated proxy has no references, so the chunk list would name nothing
         if let Some(proxy) =
             ResolvedVc::try_downcast_type::<LazyCompilationProxyModule>(self.await?.inner)
-            && !lazy_compilation_state(proxy.await?.key.clone())
-                .await?
-                .is_active()
+            && !proxy.await?.is_active_in(module_graph).await?
         {
             return Ok(self.chunk_group());
         }

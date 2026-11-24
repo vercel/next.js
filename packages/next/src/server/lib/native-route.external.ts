@@ -1,10 +1,56 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
-import { Agent, type IncomingMessage, type ServerResponse } from 'http'
+import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
 import { join, relative, isAbsolute } from 'path'
-import type { Readable } from 'stream'
+import { PassThrough, Readable, pipeline, type Transform } from 'stream'
+import { createBrotliDecompress, createUnzip } from 'zlib'
 import { proxyNativeRequest } from './native-route-proxy'
+
+const noop = () => {}
+
+// The middleware response pipeline expects decoded bytes and removes the
+// encoded body's Content-Encoding and Content-Length headers.
+// TODO: Remove this decoder once terminal middleware responses can pass through
+// their original encoded body with Content-Encoding and Content-Length intact,
+// avoiding decompression here and potential recompression downstream.
+function decodeMiddlewareBody(response: IncomingMessage): Readable {
+  const contentEncoding = response.headers['content-encoding']
+  if (!contentEncoding) return response
+  const encodings = contentEncoding.split(',')
+  if (encodings.length > 5) {
+    throw new Error('Native middleware response has too many Content-Encodings')
+  }
+  const decoders: Array<() => Transform> = []
+  for (let i = encodings.length - 1; i >= 0; i--) {
+    const encoding = encodings[i].trim().toLowerCase()
+    switch (encoding) {
+      case '':
+      case 'identity':
+        break
+      case 'gzip':
+      case 'x-gzip':
+      case 'deflate':
+      case 'x-deflate':
+        decoders.push(createUnzip)
+        break
+      case 'br':
+        decoders.push(createBrotliDecompress)
+        break
+      default:
+        throw new Error(
+          `Unsupported native middleware Content-Encoding: ${encoding}`
+        )
+    }
+  }
+  if (decoders.length === 0) return response
+  const decoded = new PassThrough()
+  pipeline(
+    [response, ...decoders.map((createDecoder) => createDecoder()), decoded],
+    noop
+  )
+  return decoded
+}
 
 interface Worker {
   child: ChildProcess
@@ -14,6 +60,47 @@ interface Worker {
   active: number
   retired: boolean
   killTimer: ReturnType<typeof setTimeout> | undefined
+  /** Pages already reported to the worker observer. */
+  announced: Set<string>
+}
+
+/**
+ * What NativeRouteManager reports about its workers: a worker is ready to
+ * serve a page, or a worker takes no new requests (it exited, or is being
+ * retired). Switchyard (switchyard.ts) uses this to send
+ * route.go requests to workers itself.
+ */
+export type NativeRouteWorkerEvent =
+  | Readonly<{
+      event: 'worker'
+      page: string
+      address: string
+      tokenHeader: string
+      token: string
+    }>
+  // token identifies the worker: a new worker can get an exited one's port.
+  | Readonly<{ event: 'gone'; address: string; token: string }>
+
+let workerObserver: ((event: NativeRouteWorkerEvent) => void) | undefined
+
+/**
+ * Registers the one observer of every NativeRouteManager's workers, replacing
+ * any earlier one. Pass undefined to stop observing.
+ */
+export function observeNativeRouteWorkers(
+  observer: ((event: NativeRouteWorkerEvent) => void) | undefined
+) {
+  workerObserver = observer
+}
+
+function reportGone(worker: Worker) {
+  if (worker.announced.size === 0) return
+  worker.announced.clear()
+  workerObserver?.({
+    event: 'gone',
+    address: `127.0.0.1:${worker.port}`,
+    token: worker.token,
+  })
 }
 
 /** Owns worker activation and lifetime, never compilation or filesystem watching. */
@@ -83,6 +170,7 @@ export class NativeRouteManager {
       active: 0,
       retired: false,
       killTimer: undefined,
+      announced: new Set(),
     }
     try {
       worker.port = await new Promise<number>((resolve, reject) => {
@@ -149,6 +237,7 @@ export class NativeRouteManager {
     )
     child.once('exit', () => {
       worker.retired = true
+      reportGone(worker)
       worker.agent.destroy()
       clearTimeout(worker.killTimer)
       this.allWorkers.delete(worker)
@@ -169,6 +258,7 @@ export class NativeRouteManager {
 
   private retire(worker: Worker) {
     worker.retired = true
+    reportGone(worker)
     worker.killTimer ??= setTimeout(() => worker.child.kill('SIGKILL'), 21_000)
     worker.killTimer.unref()
     if (worker.active === 0) {
@@ -177,13 +267,7 @@ export class NativeRouteManager {
     }
   }
 
-  async invoke(
-    page: string,
-    entry: string,
-    req: IncomingMessage,
-    res: ServerResponse,
-    url: string
-  ): Promise<void> {
+  private async getWorker(page: string, entry: string): Promise<Worker> {
     if (this.closed) throw new Error('Next.js server is closing')
     // Development output can change between requests; production output cannot.
     let executable = this.dev ? undefined : this.executablePaths.get(entry)
@@ -227,6 +311,27 @@ export class NativeRouteManager {
       this.workers.delete(previous)
       old?.then((value) => this.retire(value)).catch(() => {})
     }
+    if (workerObserver && !worker.announced.has(page)) {
+      worker.announced.add(page)
+      workerObserver({
+        event: 'worker',
+        page,
+        address: `127.0.0.1:${worker.port}`,
+        tokenHeader: 'x-next-internal-go-token',
+        token: worker.token,
+      })
+    }
+    return worker
+  }
+
+  async invoke(
+    page: string,
+    entry: string,
+    req: IncomingMessage,
+    res: ServerResponse,
+    url: string
+  ): Promise<void> {
+    const worker = await this.getWorker(page, entry)
     // Disconnects during descriptor resolution or startup predate the
     // transport listeners below. Do not dispatch those requests to Go.
     if (req.aborted || res.destroyed) return
@@ -237,6 +342,128 @@ export class NativeRouteManager {
       worker.active--
       if (worker.retired) this.retire(worker)
     }
+  }
+
+  /**
+   * Return a response to Next's middleware adapter without finishing the client
+   * response. `originalUrl` is the URL before the adapter's proxy.ts
+   * normalization: proxy.go applies its own, stricter normalization.
+   */
+  async invokeMiddleware(
+    entry: string,
+    req: Request,
+    originalUrl: string = req.url
+  ): Promise<Response> {
+    req.signal.throwIfAborted()
+    const worker = await this.getWorker('/_middleware', entry)
+    req.signal.throwIfAborted()
+    const url = new URL(req.url)
+    const target = new URL(originalUrl)
+    const headers: Record<string, string> = Object.create(null)
+    for (const [name, value] of req.headers) {
+      if (
+        name.startsWith('x-next-internal-') ||
+        name === 'connection' ||
+        name === 'transfer-encoding' ||
+        name === 'content-length' ||
+        name === 'keep-alive' ||
+        name === 'expect'
+      )
+        continue
+      headers[name] = value
+    }
+    headers.host = req.headers.get('host') || url.host
+    headers['x-forwarded-proto'] = url.protocol.slice(0, -1)
+    headers['x-next-internal-go-token'] = worker.token
+    headers['x-next-internal-go-rewrite-host'] = url.host
+    // The cloned body has no known length. Node does not default to chunked
+    // encoding for every method (including DELETE and OPTIONS).
+    if (req.body) headers['transfer-encoding'] = 'chunked'
+    worker.active++
+    return new Promise<Response>((resolve, reject) => {
+      let upstream: ReturnType<typeof request> | undefined
+      let finished = false
+      const finish = () => {
+        if (finished) return
+        finished = true
+        req.signal.removeEventListener('abort', abort)
+        worker.active--
+        if (worker.retired) this.retire(worker)
+      }
+      const abort = () => upstream?.destroy(req.signal.reason)
+      try {
+        const connection = request({
+          hostname: '127.0.0.1',
+          port: worker.port,
+          agent: worker.agent,
+          method: req.method,
+          // Forward the URL exactly, including an empty query.
+          path: target.href.slice(target.origin.length).split('#', 1)[0],
+          headers,
+        })
+        upstream = connection
+        req.signal.addEventListener('abort', abort, { once: true })
+        if (req.signal.aborted) abort()
+        connection.once('error', (error) => {
+          finish()
+          reject(error)
+        })
+        connection.once('response', (response) => {
+          response.once('close', finish)
+          response.once('error', finish)
+          response.once('end', finish)
+          try {
+            const responseHeaders = new Headers()
+            for (let i = 0; i < response.rawHeaders.length; i += 2) {
+              const name = response.rawHeaders[i]
+              if (
+                /^(connection|transfer-encoding|keep-alive|content-length|content-encoding)$/i.test(
+                  name
+                )
+              )
+                continue
+              responseHeaders.append(name, response.rawHeaders[i + 1])
+            }
+            const status = response.statusCode || 502
+            const noBody =
+              req.method === 'HEAD' ||
+              [204, 205, 304].includes(status) ||
+              responseHeaders.has('x-middleware-next') ||
+              responseHeaders.has('x-middleware-rewrite') ||
+              (status >= 300 && status < 400 && responseHeaders.has('location'))
+            if (noBody) response.resume()
+            resolve(
+              new Response(
+                noBody
+                  ? null
+                  : (Readable.toWeb(
+                      decodeMiddlewareBody(response)
+                    ) as ReadableStream<Uint8Array>),
+                { status, headers: responseHeaders }
+              )
+            )
+          } catch (error) {
+            response.destroy()
+            finish()
+            reject(error)
+          }
+        })
+        if (req.body) {
+          const body = Readable.fromWeb(
+            req.body as import('stream/web').ReadableStream<Uint8Array>
+          )
+          body.once('error', (error) => connection.destroy(error))
+          connection.once('error', () => body.destroy())
+          body.pipe(connection)
+        } else {
+          connection.end()
+        }
+      } catch (error) {
+        upstream?.destroy()
+        finish()
+        reject(error)
+      }
+    })
   }
 
   reconcile(pages: ReadonlySet<string>) {

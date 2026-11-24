@@ -318,3 +318,10 @@ Per cell at defaults: ~18 VMs (8 measurement + build/snapshot VMs),
 ~1-2h wall-clock cold, ~30-60 min warm. A/A calibration and
 confirmation runs are extra cells. VMs are billed to the configured
 team — for anything beyond a single PR check, confirm scope first.
+
+## Related Skills
+
+- `$rust-turbopack` (`benchmarking.md`) - local Turbopack / `next build`
+  compile-time, persistent-cache, memory and Criterion benchmarks with
+  locally built native bindings (dirty-tree cache disable, per-arm `.next`,
+  RSS roles)

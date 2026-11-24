@@ -120,8 +120,8 @@ use crate::{
     additional_roots::{
         AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
     },
-    aggregate_hmr::ServerHmrChunkLists,
-    app::{AppProject, OptionAppProject},
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrLoadedState},
+    app::{AppProject, CLIENT_TRANSITION_NAME, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -469,6 +469,8 @@ pub struct ProjectContainer {
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    /// What the server runtimes have loaded, for server HMR.
+    server_hmr_loaded_state: State<ServerHmrLoadedState>,
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
@@ -493,6 +495,7 @@ impl ProjectContainer {
             options_state: State::new(None),
             file_systems_state: State::new(None),
             additional_roots_state: State::new(Vec::new()),
+            server_hmr_loaded_state: State::new(ServerHmrLoadedState::default()),
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
@@ -500,6 +503,12 @@ impl ProjectContainer {
 }
 
 impl ProjectContainer {
+    /// What the server runtimes have loaded, for server HMR. It must be cleared whenever all
+    /// server modules are re-evaluated.
+    pub fn server_hmr_loaded_state(&self) -> &State<ServerHmrLoadedState> {
+        &self.server_hmr_loaded_state
+    }
+
     /// Attach process-local cleanup after resolving the container. Shutdown hooks must not be
     /// task inputs: making the container transient also prevents its project graph from persisting.
     pub fn register_shutdown_hooks(&self, shutdown: &crate::shutdown::ShutdownHooks) {
@@ -573,7 +582,7 @@ async fn prepare_project_container_state(
     let root_path_op = project_root_path_operation(container_vc);
 
     let project_fs_op = disk_file_system_operation(
-        PROJECT_FILESYSTEM_NAME,
+        PROJECT_FILESYSTEM_NAME.clone(),
         root_path_op,
         denied_paths,
         watcher_config,
@@ -1283,8 +1292,9 @@ impl Project {
                 .turbopack_remove_unused_imports(next_mode)
                 .await?,
             include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
-            include_traced: *self.should_write_nft_manifests().await?,
+            include_traced: *self.should_trace().await?,
             include_binding_usage: self.next_mode().await?.is_production(),
+            force_activated: false,
         })
     }
 }
@@ -1334,6 +1344,26 @@ impl Project {
             .join(&this.project_path)?
             .join(&this.dist_dir)?
             .cell())
+    }
+
+    /// Writes the files in the node root (dist dir) that don't belong to any entrypoint:
+    /// - `turbopack`: an empty marker file signaling that the output was produced by Turbopack.
+    /// - `package.json`: ensures CommonJS handling of the files in the dist dir, even when the
+    ///   project's `package.json` has `"type": "module"`.
+    ///
+    /// The writes are emitted as effects, which need to be applied by the caller.
+    #[turbo_tasks::function]
+    pub async fn write_dist_dir_files(self: Vc<Self>) -> Result<Vc<()>> {
+        let node_root = self.node_root().await?;
+        let marker = node_root
+            .join("turbopack")?
+            .write(FileContent::Content(File::from(rcstr!(""))).cell());
+        let package_json = node_root
+            .join("package.json")?
+            .write(FileContent::Content(File::from(rcstr!(r#"{"type": "commonjs"}"#))).cell());
+        marker.await?;
+        package_json.await?;
+        Ok(Vc::cell(()))
     }
 
     #[turbo_tasks::function]
@@ -1444,11 +1474,36 @@ impl Project {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
     }
 
+    /// Whether `.nft.json` file-trace manifests should be emitted for server entrypoints.
+    ///
+    /// This only controls writing the manifests; whether the tracing work itself is performed is
+    /// controlled by [`Project::should_trace`].
     #[turbo_tasks::function]
     pub(super) async fn should_write_nft_manifests(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.mode.await?.is_production()
                 && *self.next_config.output().await? != Some(OutputType::Export),
+        ))
+    }
+
+    /// Whether file tracing should be performed: server code analysis creates `Traced` references
+    /// for file accesses (`trace_file_references`), externals are traced
+    /// (`enable_externals_tracing`), and module graphs follow `Traced` edges (`include_traced`).
+    ///
+    /// This is separate from [`Project::should_write_nft_manifests`] so that tracing can be enabled
+    /// without emitting `.nft.json` files: tracing is performed in production builds, and in
+    /// development when `experimental.turbopackFileTracingForDev` is enabled (never with
+    /// `output: 'export'`).
+    #[turbo_tasks::function]
+    pub(super) async fn should_trace(&self) -> Result<Vc<bool>> {
+        if *self.next_config.output().await? == Some(OutputType::Export) {
+            return Ok(Vc::cell(false));
+        }
+        let mode = self.mode.await?;
+        Ok(Vc::cell(
+            mode.is_production()
+                || (mode.is_development()
+                    && *self.next_config.turbopack_file_tracing_for_dev().await?),
         ))
     }
 
@@ -1890,6 +1945,7 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
+            external_browser_runtime: self.next_config().enable_external_browser_runtime(),
             per_page_module_graph: self.per_page_module_graph(),
             lazy_dynamic_imports: self
                 .next_config()
@@ -1908,6 +1964,7 @@ impl Project {
             chunking_min_chunk_size: turbopack_chunking.min_chunk_size,
             chunking_max_chunk_count_per_group: turbopack_chunking.max_chunk_count_per_group,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_chunk_size,
             chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
             generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
@@ -2008,6 +2065,7 @@ impl Project {
                     .await?,
             chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -2051,6 +2109,11 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_max_chunk_size: self
+                .next_config()
+                .turbopack_chunking()
+                .await?
+                .max_server_chunk_size,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -2382,7 +2445,7 @@ impl Project {
         };
 
         Ok(Entrypoints {
-            routes,
+            routes: routes.into(),
             middleware,
             instrumentation,
             pages_document_endpoint,
@@ -2402,11 +2465,11 @@ impl Project {
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
-            app_project.map(|_| AppProject::client_transition_name());
+            app_project.map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2468,11 +2531,11 @@ impl Project {
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
-            app_project.map(|_| AppProject::client_transition_name());
+            app_project.map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2501,7 +2564,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
-                *self.should_write_nft_manifests().await?,
+                *self.should_trace().await?,
                 self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
@@ -2520,10 +2583,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
+    pub(crate) async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
-            middleware_files(self.next_config().page_extensions()),
+            middleware_files(
+                self.next_config().page_extensions(),
+                self.next_config().go_routes(),
+            ),
             // our callers do not care about affecting sources
             false,
         ))
@@ -2535,13 +2601,19 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
+        if fs_path.file_name() == "proxy.go" {
+            return Ok(crate::app::go_proxy_endpoint(
+                self.to_resolved().await?,
+                fs_path.clone(),
+            ));
+        }
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
-            .map(|_| AppProject::client_transition_name());
+            .map(|_| CLIENT_TRANSITION_NAME.clone());
 
         let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
         let config = parse_segment_config_from_source(
@@ -2583,13 +2655,12 @@ impl Project {
             .await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|_| AppProject::client_transition_name());
+        let ecmascript_client_reference_transition_name =
+            app_project.as_ref().map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2618,7 +2689,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
-                *self.should_write_nft_manifests().await?,
+                *self.should_trace().await?,
                 self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
@@ -2648,13 +2719,12 @@ impl Project {
             .await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|_| AppProject::client_transition_name());
+        let ecmascript_client_reference_transition_name =
+            app_project.as_ref().map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2782,7 +2852,7 @@ impl Project {
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
-            .map(|_| AppProject::client_transition_name());
+            .map(|_| CLIENT_TRANSITION_NAME.clone());
 
         let instrumentation_asset_context = if is_edge {
             self.edge_instrumentation_context()
@@ -2919,7 +2989,7 @@ impl Project {
         }
     }
 
-    /// Server entry chunks shared by all pull baselines.
+    /// Server entry chunk lists that server HMR pulls select from.
     #[turbo_tasks::function]
     pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
         let Some(map) = self.await?.versioned_content_map else {
@@ -3251,22 +3321,26 @@ async fn whole_app_module_graph_operation(
         );
 
         if !span.is_disabled() {
+            // INVALIDATION: This count is only used for tracing
             let base_module_count = base_single_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_module_count = additional_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
             span.record("modules", *base_module_count + *additional_module_count);
+            // INVALIDATION: This count is only used for tracing
             let base_edge_count = base_single_module_graph
                 .connect()
                 .edge_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_edge_count = additional_module_graph
                 .connect()
                 .edge_count()

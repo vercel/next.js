@@ -150,9 +150,9 @@ pub(crate) fn get_ecma_transform_rule(
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(preprocess),
-            main: ResolvedVc::cell(main),
-            postprocess: ResolvedVc::cell(postprocess),
+            preprocess: ResolvedVc::cell(preprocess.into_boxed_slice()),
+            main: ResolvedVc::cell(main.into_boxed_slice()),
+            postprocess: ResolvedVc::cell(postprocess.into_boxed_slice()),
         }],
     )
 }

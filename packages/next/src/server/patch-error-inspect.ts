@@ -662,6 +662,8 @@ export function patchErrorInspectNodeJS(
     return workUnitAsyncStorage.exit(() => {
       const newError = sourceMapError(this, inspectOptions)
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const originalCustomInspect = (newError as any)[inspectSymbol]
       // Prevent infinite recursion.
       // { customInspect: false } would result in `error.cause` not using our inspect.
@@ -676,6 +678,8 @@ export function patchErrorInspectNodeJS(
           depth: getInspectDepth(newError, depth),
         })
       } finally {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(newError as any)[inspectSymbol] = originalCustomInspect
       }
     })
@@ -699,6 +703,8 @@ export function patchErrorInspectEdgeLite(
     return workUnitAsyncStorage.exit(() => {
       const newError = sourceMapError(this, {})
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const originalCustomInspect = (newError as any)[inspectSymbol]
       // Prevent infinite recursion.
       Object.defineProperty(newError, inspectSymbol, {
@@ -709,6 +715,8 @@ export function patchErrorInspectEdgeLite(
       try {
         return format(newError)
       } finally {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(newError as any)[inspectSymbol] = originalCustomInspect
       }
     })

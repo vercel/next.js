@@ -26,9 +26,7 @@ use crate::{
     utils::{StringifyJs, StringifyModuleId},
 };
 
-fn modifier() -> RcStr {
-    rcstr!("loader")
-}
+static MODIFIER: RcStr = rcstr!("loader");
 
 /// The manifest loader module is shipped in the same chunk that uses the dynamic
 /// `import()` expression.
@@ -73,7 +71,7 @@ impl ManifestLoaderModule {
             .ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc())
     }
 }
@@ -87,7 +85,7 @@ impl Module for ManifestLoaderModule {
             .module_ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc())
     }
 
@@ -154,12 +152,12 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
 
         if chunks_server_data.is_empty() {
             // No chunks need to be loaded and thus the module is already available,
-            // so we can just require the module.
+            // so we can just import the module.
             writedoc!(
                 code,
                 r#"
-                    {TURBOPACK_EXPORT_VALUE}(() => {{
-                        return Promise.resolve().then(() => {TURBOPACK_REQUIRE}({dynamic_id}));
+                    {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                        return Promise.resolve().then(() => parentImport({dynamic_id}));
                     }});
                 "#,
                 dynamic_id = StringifyModuleId(&dynamic_id),
@@ -243,7 +241,7 @@ impl ManifestLoaderModule {
             .content_ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc())
     }
 }

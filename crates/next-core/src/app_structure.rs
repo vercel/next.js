@@ -8,8 +8,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OrderedAutoSet, ResolvedVc, TryJoinIterExt,
-    ValueDefault, ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, OrderedAutoMap, OrderedAutoSet, ResolvedVc,
+    TryJoinIterExt, ValueDefault, ValueToStringRef, Vc, debug::ValueDebugFormat, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
@@ -17,7 +17,7 @@ use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledSt
 use crate::{
     mode::NextMode,
     next_app::{
-        AppPage, AppPath, PageSegment, PageType,
+        AppPage, AppPageError, AppPath, PageSegment, PageType,
         metadata::{
             GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
             match_local_metadata_file, normalize_metadata_route,
@@ -346,6 +346,7 @@ async fn get_directory_tree_internal(
     dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
+    // DETERMINISM: Entries are sorted by full name below before selecting modules and metadata.
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
         // the file watcher might invalidate things in the wrong order,
         // and we have to account for the eventual consistency of turbo-tasks
@@ -365,6 +366,12 @@ async fn get_directory_tree_internal(
     let mut metadata_apple = Vec::new();
     let mut metadata_open_graph = Vec::new();
     let mut metadata_twitter = Vec::new();
+
+    // `read_dir` returns entries in the filesystem's order, which differs between filesystems.
+    // Iterate them sorted by name, so the result doesn't depend on the filesystem, e.g. which of
+    // `route.go` and `route.ts` handles the route when both exist.
+    let mut entries = entries.iter().collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|(name, _)| *name);
 
     for (basename, entry) in entries {
         let entry = entry.clone().resolve_symlink().await?;
@@ -486,8 +493,8 @@ async fn get_directory_tree_internal(
 pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
+    /// Boxed because a list storage keeps its entries inline, which a recursive type can't do.
+    pub parallel_routes: OrderedAutoMap<RcStr, Box<AppPageLoaderTree>>,
     pub modules: AppDirModules,
     pub global_metadata: ResolvedVc<GlobalMetadata>,
     /// For dynamic segments, contains the list of static sibling segments that
@@ -543,7 +550,7 @@ impl AppPageLoaderTree {
             || self
                 .parallel_routes
                 .values()
-                .any(AppPageLoaderTree::contains_catchall_page)
+                .any(|tree| tree.contains_catchall_page())
     }
 
     fn is_builtin_not_found_default(&self, builtin_default: &FileSystemPath) -> bool {
@@ -737,9 +744,7 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<AppPath, Entrypoint>,
-);
+pub struct Entrypoints(OrderedAutoMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -1191,7 +1196,7 @@ async fn directory_tree_to_entrypoints(
         .resolved_cell()
         .emit();
     }
-    Ok(Vc::cell(retained_entrypoints))
+    Ok(Vc::cell(retained_entrypoints.into()))
 }
 
 #[turbo_tasks::value]
@@ -1856,7 +1861,7 @@ async fn directory_tree_to_loader_tree_internal(
     let mut tree = AppPageLoaderTree {
         page: app_page.clone(),
         segment: directory_name.clone(),
-        parallel_routes: FxIndexMap::default(),
+        parallel_routes: OrderedAutoMap::default(),
         modules: modules.without_leaves(),
         global_metadata: global_metadata.to_resolved().await?,
         static_siblings,
@@ -1874,10 +1879,10 @@ async fn directory_tree_to_loader_tree_internal(
     {
         tree.parallel_routes.insert(
             rcstr!("children"),
-            AppPageLoaderTree {
+            Box::new(AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: rcstr!("__PAGE__"),
-                parallel_routes: FxIndexMap::default(),
+                parallel_routes: OrderedAutoMap::default(),
                 modules: AppDirModules {
                     page: Some(page),
                     metadata: modules.metadata,
@@ -1885,7 +1890,7 @@ async fn directory_tree_to_loader_tree_internal(
                 },
                 global_metadata: global_metadata.to_resolved().await?,
                 static_siblings: Vec::new(),
-            },
+            }),
         );
     }
 
@@ -1908,8 +1913,12 @@ async fn directory_tree_to_loader_tree_internal(
         // When constructing the app_page fails (e. g. due to limitations of the order),
         // we only want to emit the error when there are actual pages below that
         // directory.
-        if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
-            illegal_path_error = Some(e);
+        match child_app_page.push_str(&normalize_underscore(subdir_name)) {
+            Ok(()) => {}
+            // Routes nested inside a catch-all segment can never be matched, so they can't be
+            // part of this loader tree. `directory_tree_to_entrypoints_internal` reports them.
+            Err(AppPageError::SegmentAfterCatchAll { .. }) => continue,
+            Err(e) => illegal_path_error = Some(e),
         }
 
         // The recursive call returns `None` without any side effects when the child can't
@@ -1936,7 +1945,7 @@ async fn directory_tree_to_loader_tree_internal(
         };
 
         if let Some(illegal_path) = subtree.as_ref().and(illegal_path_error) {
-            return Err(illegal_path);
+            return Err(illegal_path.into());
         }
 
         if let Some(subtree) = subtree {
@@ -1983,7 +1992,7 @@ async fn directory_tree_to_loader_tree_internal(
                     missing_defaults.push((app_page.clone(), key.into()));
                 }
 
-                tree.parallel_routes.insert(key.into(), subtree);
+                tree.parallel_routes.insert(key.into(), Box::new(subtree));
                 continue;
             }
 
@@ -2002,10 +2011,11 @@ async fn directory_tree_to_loader_tree_internal(
                         || current_tree.get_specificity() < subtree.get_specificity())
                 {
                     tree.parallel_routes
-                        .insert(rcstr!("children"), subtree.clone());
+                        .insert(rcstr!("children"), Box::new(subtree.clone()));
                 }
             } else {
-                tree.parallel_routes.insert(rcstr!("children"), subtree);
+                tree.parallel_routes
+                    .insert(rcstr!("children"), Box::new(subtree));
             }
         } else if let Some(key) = parallel_route_key {
             bail!(
@@ -2065,7 +2075,9 @@ async fn directory_tree_to_loader_tree_internal(
 
             tree.parallel_routes.insert(
                 key.clone(),
-                retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?,
+                Box::new(
+                    retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?,
+                ),
             );
         }
     }
@@ -2103,7 +2115,8 @@ async fn directory_tree_to_loader_tree_internal(
             )
             .await?
         };
-        tree.parallel_routes.insert(rcstr!("children"), children);
+        tree.parallel_routes
+            .insert(rcstr!("children"), Box::new(children));
     }
 
     Ok(Some(tree))
@@ -2157,7 +2170,7 @@ async fn synthetic_default_route_tree(
     Ok(AppPageLoaderTree {
         page: app_page,
         segment: rcstr!("__DEFAULT__"),
-        parallel_routes: FxIndexMap::default(),
+        parallel_routes: OrderedAutoMap::default(),
         modules: AppDirModules {
             default: Some(default),
             ..Default::default()
@@ -2325,12 +2338,30 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         .chain(twitter.iter().cloned().map(MetadataItem::from))
         .chain(open_graph.iter().cloned().map(MetadataItem::from))
     {
-        let app_page = app_page.clone_push_str(&get_metadata_route_name(meta.clone()).await?)?;
+        let route_name = get_metadata_route_name(meta.clone()).await?;
+        let metadata_page = match app_page.clone_push_str(&route_name) {
+            Ok(metadata_page) => metadata_page,
+            // A metadata file inside a catch-all segment would create a route like
+            // `/[...slug]/opengraph-image`, which can never be matched. Report it instead of
+            // failing the whole app.
+            Err(AppPageError::SegmentAfterCatchAll { catch_all, .. }) => {
+                let (MetadataItem::Static { path } | MetadataItem::Dynamic { path }) = &meta;
+                NestedInCatchAllSegmentIssue {
+                    path: path.clone(),
+                    catch_all_segment: catch_all.to_string().into(),
+                    metadata_route: Some(format!("{app_page}/{route_name}").into()),
+                }
+                .resolved_cell()
+                .emit();
+                continue;
+            }
+            Err(err) => return Err(err.into()),
+        };
 
         add_app_metadata_route(
             app_dir.clone(),
             &mut result,
-            normalize_metadata_route(app_page)?,
+            normalize_metadata_route(metadata_page)?,
             meta,
             root_params,
         );
@@ -2409,53 +2440,58 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let not_found_tree = AppPageLoaderTree {
             page: app_page.clone(),
             segment: directory_name.clone(),
-            parallel_routes: fxindexmap! {
-                rcstr!("children") => AppPageLoaderTree {
+            parallel_routes: OrderedAutoMap::from_iter([(
+                rcstr!("children"),
+                Box::new(AppPageLoaderTree {
                     page: app_page.clone(),
                     segment: rcstr!("/_not-found"),
-                    parallel_routes: fxindexmap! {
-                        rcstr!("children") => AppPageLoaderTree {
+                    parallel_routes: OrderedAutoMap::from_iter([(
+                        rcstr!("children"),
+                        Box::new(AppPageLoaderTree {
                             // Keep the root identity so the synthetic leaf does not contribute
                             // runtime or deployment config, matching webpack's layout inheritance.
                             page: app_page.clone(),
                             segment: rcstr!("__PAGE__"),
-                            parallel_routes: FxIndexMap::default(),
+                            parallel_routes: OrderedAutoMap::default(),
                             modules: if use_global_not_found {
                                 // if global-not-found.js is present:
                                 // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
                                     // page is built-in/empty-stub
-                                    page: Some(get_next_package(app_dir.clone())
-                                        .await?
-                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    page: Some(
+                                        get_next_package(app_dir.clone())
+                                            .await?
+                                            .join("dist/client/components/builtin/empty-stub.js")?,
                                     ),
                                     ..Default::default()
                                 }
                             } else {
                                 // if global-not-found.js is not present:
-                                // we search if we can compose root layout with the root not-found.js;
+                                // we search if we can compose root layout with the root
+                                // not-found.js;
                                 AppDirModules {
                                     page: match modules.not_found {
                                         Some(v) => Some(v),
-                                        None => Some(get_next_package(app_dir.clone())
-                                            .await?
-                                            .join("dist/client/components/builtin/not-found.js")?,
-                                        ),
+                                        None => {
+                                            Some(get_next_package(app_dir.clone()).await?.join(
+                                                "dist/client/components/builtin/not-found.js",
+                                            )?)
+                                        }
                                     },
                                     ..Default::default()
                                 }
                             },
                             global_metadata,
                             static_siblings: Vec::new(),
-                        }
-                    },
+                        }),
+                    )]),
                     modules: AppDirModules {
                         ..Default::default()
                     },
                     global_metadata,
                     static_siblings: Vec::new(),
-                },
-            },
+                }),
+            )]),
             modules: AppDirModules {
                 // `global-not-found.js` does not need a layout since it's included.
                 // Skip it if it's present.
@@ -2506,20 +2542,22 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
-                parallel_routes: fxindexmap! {
-                    rcstr!("children") => AppPageLoaderTree {
+                parallel_routes: OrderedAutoMap::from_iter([(
+                    rcstr!("children"),
+                    Box::new(AppPageLoaderTree {
                         page: app_page.clone(),
                         segment: rcstr!("__PAGE__"),
-                        parallel_routes: FxIndexMap::default(),
+                        parallel_routes: OrderedAutoMap::default(),
                         modules: AppDirModules {
-                            page: Some(next_package
-                                .join("dist/client/components/builtin/app-error.js")?),
+                            page: Some(
+                                next_package.join("dist/client/components/builtin/app-error.js")?,
+                            ),
                             ..Default::default()
                         },
                         global_metadata,
                         static_siblings: Vec::new(),
-                    }
-                },
+                    }),
+                )]),
                 // global-error is needed for getGlobalErrorStyles to work during rendering.
                 // Use user's custom global-error if defined, otherwise builtin fallback.
                 modules: AppDirModules {
@@ -2559,8 +2597,29 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // When constructing the app_page fails (e. g. due to limitations of the order),
                 // we only want to emit the error when there are actual pages below that
                 // directory.
-                if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
-                    illegal_path = Some(e);
+                match child_app_page.push_str(&normalize_underscore(subdir_name)) {
+                    Ok(()) => {}
+                    // A segment after a catch-all segment can never be matched. Report the
+                    // directory (once, at the topmost invalid level) if it contains any
+                    // entrypoints, and skip it instead of failing the whole app.
+                    Err(AppPageError::SegmentAfterCatchAll { catch_all, .. }) => {
+                        if *directory_tree_has_entrypoints(*subdirectory).await? {
+                            let directory = if app_page.is_root() {
+                                subdir_name.to_string()
+                            } else {
+                                format!("{}/{subdir_name}", &app_page.to_string()[1..])
+                            };
+                            NestedInCatchAllSegmentIssue {
+                                path: app_dir.join(&directory)?,
+                                catch_all_segment: catch_all.to_string().into(),
+                                metadata_route: None,
+                            }
+                            .resolved_cell()
+                            .emit();
+                        }
+                        return Ok(None);
+                    }
+                    Err(e) => illegal_path = Some(e),
                 }
 
                 let map = directory_tree_to_entrypoints_internal(
@@ -2581,7 +2640,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 if let Some(illegal_path) = illegal_path
                     && !map.is_empty()
                 {
-                    return Err(illegal_path);
+                    return Err(illegal_path.into());
                 }
 
                 let mut loader_trees = Vec::new();
@@ -2605,13 +2664,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         }
                     }
                 }
-                Ok((map, loader_trees))
+                Ok(Some((map, loader_trees)))
             }
         })
         .try_join()
         .await?;
 
-    for (map, loader_trees) in subdirectories.iter() {
+    for (map, loader_trees) in subdirectories.iter().flatten() {
         let mut i = 0;
         for (_, entrypoint) in map.iter() {
             match entrypoint {
@@ -2662,7 +2721,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             }
         }
     }
-    Ok(Vc::cell(result))
+    Ok(Vc::cell(result.into()))
 }
 
 /// Returns the global metadata for an app directory.
@@ -2671,10 +2730,13 @@ pub async fn get_global_metadata(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<GlobalMetadata>> {
+    // DETERMINISM: Sorting full filenames makes metadata-category overwrites deterministic.
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")
     };
     let mut metadata = GlobalMetadata::default();
+    let mut entries = entries.iter().collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|(name, _)| *name);
 
     for (basename, entry) in entries {
         let DirectoryEntry::File(file) = entry else {
@@ -2738,4 +2800,135 @@ impl Issue for DirectoryTreeIssue {
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some((*self.message.await?).clone()))
     }
+}
+
+/// Emitted for a route (a page, a route handler or a metadata file) that is nested inside a
+/// catch-all segment. A catch-all segment matches all remaining segments of the URL, so such a
+/// route can never be matched.
+#[turbo_tasks::value(shared)]
+struct NestedInCatchAllSegmentIssue {
+    /// The metadata file, or the directory containing the nested routes.
+    path: FileSystemPath,
+    /// The catch-all segment, e.g. `[...slug]` or `[[...slug]]`.
+    catch_all_segment: RcStr,
+    /// The metadata route that would be created, or `None` when `path` is a directory.
+    metadata_route: Option<RcStr>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for NestedInCatchAllSegmentIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(if self.metadata_route.is_some() {
+                rcstr!("Metadata file ")
+            } else {
+                rcstr!("Routes in ")
+            }),
+            StyledString::Code(self.path.path.clone()),
+            StyledString::Text(if self.metadata_route.is_some() {
+                rcstr!(" can't be used inside the catch-all segment ")
+            } else {
+                rcstr!(" can't be nested inside the catch-all segment ")
+            }),
+            StyledString::Code(self.catch_all_segment.clone()),
+        ]))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let catch_all_segment = StyledString::Code(self.catch_all_segment.clone());
+        Ok(Some(StyledString::Line(
+            if let Some(metadata_route) = &self.metadata_route {
+                vec![
+                    StyledString::Text(rcstr!(
+                        "A catch-all segment must be the last segment of a route, so the metadata \
+                         route "
+                    )),
+                    StyledString::Code(metadata_route.clone()),
+                    StyledString::Text(rcstr!(
+                        " can never be matched. Serve the file from a Route Handler outside of \
+                         the catch-all segment "
+                    )),
+                    catch_all_segment,
+                    StyledString::Text(rcstr!(
+                        " instead. For images, reference that Route Handler with "
+                    )),
+                    StyledString::Code(rcstr!("generateMetadata")),
+                    StyledString::Text(rcstr!(" (for example ")),
+                    StyledString::Code(rcstr!("openGraph.images")),
+                    StyledString::Text(rcstr!(", ")),
+                    StyledString::Code(rcstr!("twitter.images")),
+                    StyledString::Text(rcstr!(" or ")),
+                    StyledString::Code(rcstr!("icons")),
+                    StyledString::Text(rcstr!(").")),
+                ]
+            } else {
+                vec![
+                    StyledString::Text(rcstr!(
+                        "A catch-all segment must be the last segment of a route, so pages, route \
+                         handlers and metadata files nested inside the catch-all segment "
+                    )),
+                    catch_all_segment,
+                    StyledString::Text(rcstr!(
+                        " can never be matched. Move them outside of the catch-all segment."
+                    )),
+                ]
+            },
+        )))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments"
+        )
+    }
+}
+
+/// Returns whether the directory tree contains a file that creates an entrypoint (a page, a route
+/// handler or a metadata file), at any depth.
+#[turbo_tasks::function]
+async fn directory_tree_has_entrypoints(directory_tree: Vc<DirectoryTree>) -> Result<Vc<bool>> {
+    let DirectoryTree {
+        subdirectories,
+        modules,
+    } = &*directory_tree.await?;
+    let Metadata {
+        icon,
+        apple,
+        twitter,
+        open_graph,
+        sitemap,
+        base_page: _,
+    } = &modules.metadata;
+
+    if modules.page.is_some()
+        || modules.route.is_some()
+        || !icon.is_empty()
+        || !apple.is_empty()
+        || !twitter.is_empty()
+        || !open_graph.is_empty()
+        || sitemap.is_some()
+    {
+        return Ok(Vc::cell(true));
+    }
+
+    for subdirectory in subdirectories.values() {
+        if *directory_tree_has_entrypoints(**subdirectory).await? {
+            return Ok(Vc::cell(true));
+        }
+    }
+
+    Ok(Vc::cell(false))
 }
