@@ -2,14 +2,14 @@
 //!
 //! Reading an immutable task needs no dependency edges, as an immutable task can never be
 //! invalidated. Checking that requires the task lock, though. This set tells before locking:
-//! - reads of a known-immutable task lock only that task, and other reads lock the task and the
-//!   reader together right away, instead of first locking the task alone to check its flag (see
-//!   `lock_task_and_optional_reader`);
-//! - refining a keyed dependency on a known-immutable task locks the task and the reader one after
-//!   the other instead of together (see `refine_provisional_cell_dependency`).
+//! refining a keyed dependency on a known-immutable task locks the task and the reader one after
+//! the other instead of together (see `refine_provisional_cell_dependency`). Reads don't consult
+//! the set: they lock the task first anyway, check its flag, and upgrade to a pair lock only for
+//! a mutable task (see `lock_task_and_optional_reader`). A read that finds the task immutable adds
+//! it to the set.
 //!
 //! A task id is only added after its `immutable` flag was set under the task lock (or restored
-//! with it). The set may miss immutable tasks (false negatives are fine: the reader then takes the
+//! with it). The set may miss immutable tasks (false negatives are fine: refinement then takes the
 //! normal path, which re-checks the flag under the task lock), but it must never contain a task
 //! that isn't immutable. That holds because:
 //! - the `immutable` flag only ever changes from `false` to `true`, and eviction and restore keep
@@ -23,8 +23,9 @@
 //! under its known-immutable id: GC marks the collected task `deleted` and removes it from
 //! `task_cache` (persisting a tombstone), so calling the same task again allocates a new task id,
 //! which is only added to this set once it's immutable itself. The bit of the collected id stays
-//! set. That's harmless, as nothing can execute or read that id anymore: reads open it with
-//! `try_task`, which returns `None` for a deleted or missing task.
+//! set. That's harmless, as nothing can execute or read that id anymore: reads and refinement open
+//! it with `try_task`, which returns `None` for a deleted or missing task, before the set is
+//! consulted.
 
 use std::{
     ptr::null_mut,

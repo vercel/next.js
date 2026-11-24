@@ -1282,54 +1282,14 @@ impl<'e> ExecuteContext<'e> {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (TaskGuard<'e>, TaskGuard<'e>) {
-        // `task_pair` is always a `MustExist` open (both endpoints of an existing edge).
-        self.open_task_pair(task_id1, task_id2, category, TaskAccess::MustExist)
-            .expect("a MustExist open either yields both tasks or panics")
-    }
-
-    /// Like [`Self::task_pair`], but the first task may legitimately be gone, like
-    /// [`Self::try_task`]: returns `None` if it is (missing, or soft-deleted). The second task must
-    /// exist.
-    ///
-    /// This lets a reader lock the task it reads together with itself directly, instead of first
-    /// checking with [`Self::try_task`] that the task still exists.
-    pub fn try_task_pair(
-        &mut self,
-        task_id1: TaskId,
-        task_id2: TaskId,
-        category: TaskDataCategory,
-    ) -> Option<(TaskGuard<'e>, TaskGuard<'e>)> {
-        self.open_task_pair(task_id1, task_id2, category, TaskAccess::AllowMissing)
-    }
-
-    /// Opens two tasks under a single lock acquisition. The first task is opened with `access1`
-    /// (`MustExist` or `AllowMissing`), the second always `MustExist`.
-    fn open_task_pair(
-        &mut self,
-        task_id1: TaskId,
-        task_id2: TaskId,
-        category: TaskDataCategory,
-        access1: TaskAccess,
-    ) -> Option<(TaskGuard<'e>, TaskGuard<'e>)> {
-        debug_assert_ne!(access1, TaskAccess::MaybeCreate);
         self.task_lock_counter.acquire_multiple(2);
-        let gone = |this: &mut Self| {
-            this.task_lock_counter.release();
-            this.task_lock_counter.release();
-            None
-        };
 
-        // Each task is restored on its own with the pair lock dropped, then the pair is re-locked;
-        // if eviction cleared a category in between, the loop restores it again.
-        let accesses = [(task_id1, access1), (task_id2, TaskAccess::MustExist)];
+        // `task_pair` is always a `MustExist` open (both endpoints of an existing edge). Each task
+        // is restored on its own with the pair lock dropped, then the pair is re-locked; if
+        // eviction cleared a category in between, the loop restores it again.
+        let ids = [task_id1, task_id2];
         let (task1, task2) = loop {
             let (task1, task2) = self.backend().storage.access_pair_mut(task_id1, task_id2);
-            if access1 == TaskAccess::AllowMissing && task1.flags.deleted() {
-                // Treat a deleted task under AllowMissing as missing, like `open_task`.
-                drop(task1);
-                drop(task2);
-                return gone(self);
-            }
             let restored = [
                 task1.flags.is_restored(category),
                 task2.flags.is_restored(category),
@@ -1340,18 +1300,18 @@ impl<'e> ExecuteContext<'e> {
             drop(task1);
             drop(task2);
 
-            for ((task_id, access), restored) in accesses.into_iter().zip(restored) {
+            for (task_id, restored) in ids.into_iter().zip(restored) {
                 if restored {
                     continue;
                 }
                 let task = self.backend().storage.access_entry_mut(task_id);
                 if !self.can_restore(task_id) {
-                    // Discard the entry the pair lookup created for it (`MustExist` then panics).
-                    handle_missing_task(task, task_id, access, "task_pair");
-                    return gone(self);
+                    // Discard the entry the pair lookup created for it before panicking.
+                    handle_missing_task(task, task_id, TaskAccess::MustExist, "task_pair");
+                    unreachable!("MustExist must panic after discarding a missing task");
                 }
                 let (task, outcome) = self
-                    .restore_task(task_id, category, task, access)
+                    .restore_task(task_id, category, task, TaskAccess::MustExist)
                     .unwrap_or_else(|e| {
                         self.backend().backing_storage.panic_on_read_error(
                             format_args!("Failed to restore {category:?} for task {task_id}"),
@@ -1360,17 +1320,17 @@ impl<'e> ExecuteContext<'e> {
                     });
                 // Decide under the guard that may hold an empty read.
                 if outcome.missing_on_disk {
-                    handle_missing_task(task, task_id, access, "task_pair");
-                    return gone(self);
+                    handle_missing_task(task, task_id, TaskAccess::MustExist, "task_pair");
+                    unreachable!("MustExist must panic after discarding a missing task");
                 }
                 drop(task);
             }
         };
 
-        Some((
+        (
             TaskGuard::new(task1, task_id1, category, self.task_lock_counter.clone()),
             TaskGuard::new(task2, task_id2, category, self.task_lock_counter.clone()),
-        ))
+        )
     }
 
     pub fn schedule_task(&self, task: &TaskGuard<'e>, parent_priority: TaskPriority) {
@@ -2655,171 +2615,6 @@ mod must_exist_tests {
         // Matches `try_task`.
         let mut ctx = ExecuteContext::new(&tt);
         assert!(ctx.try_task(data_only, TaskDataCategory::All).is_none());
-    }
-
-    /// Whether `try_task_pair(task, reader)` yields both tasks.
-    fn try_pair(tt: &TurboTasks<TurboTasksBackend>, task: TaskId, reader: TaskId) -> bool {
-        let mut ctx = ExecuteContext::new(tt);
-        ctx.try_task_pair(task, reader, TaskDataCategory::All)
-            .map(|(task_guard, reader_guard)| {
-                assert_eq!((task_guard.id(), reader_guard.id()), (task, reader));
-            })
-            .is_some()
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn try_task_pair_missing_task_is_none_and_leaves_no_leftovers() {
-        let reader = persistent(1);
-        let missing = persistent(2);
-        let (tt, _dir) = persisted_tasks(&[reader]);
-        assert!(!try_pair(&tt, missing, reader));
-        assert_no_leftovers(&tt, reader, missing);
-        // Also with the noop storage, where nothing exists on disk.
-        let tt = backend();
-        resident(&tt, reader, TaskDataCategory::All);
-        assert!(!try_pair(&tt, missing, reader));
-        assert_no_leftovers(&tt, reader, missing);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn try_task_pair_missing_transient_task_is_none_and_leaves_no_entry() {
-        let tt = backend();
-        let reader = persistent(1);
-        let missing = TaskId::new(TRANSIENT_TASK_BIT | 2).unwrap();
-        resident(&tt, reader, TaskDataCategory::All);
-        restore_lookup_counts::reset();
-        assert!(!try_pair(&tt, missing, reader));
-        // Transient tasks are never looked up on disk.
-        assert_eq!(restore_lookup_counts::get(), (0, 0));
-        assert_no_leftovers(&tt, reader, missing);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn try_task_pair_deleted_task_is_none() {
-        let tt = backend();
-        let reader = persistent(1);
-        let deleted = persistent(2);
-        resident(&tt, reader, TaskDataCategory::All);
-        resident(&tt, deleted, TaskDataCategory::All);
-        tt.backend()
-            .storage
-            .access_mut(deleted)
-            .flags
-            .set_deleted(true);
-        assert!(!try_pair(&tt, deleted, reader));
-        // Like `try_task`, a soft-deleted task is left in place.
-        assert!(has_entry(&tt, deleted));
-        assert_unpinned(&tt, reader);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn try_task_pair_partial_category_is_none() {
-        let reader = persistent(1);
-        let data_only = persistent(2);
-        let (tt, _dir) = persisted_tasks_with(&[reader], &[data_only]);
-        assert!(!try_pair(&tt, data_only, reader));
-        assert_no_leftovers(&tt, reader, data_only);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn try_task_pair_restores_paged_out_tasks() {
-        let ids = [persistent(1), persistent(2)];
-        let (tt, _dir) = persisted_tasks(&ids);
-        assert!(try_pair(&tt, ids[0], ids[1]));
-        for id in ids {
-            let task = tt.backend().storage.access_mut(id);
-            assert!(task.flags.is_restored(TaskDataCategory::All));
-            assert_eq!(task.gc_transient_ref_count(), 0);
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
-    async fn try_task_pair_rejects_missing_reader() {
-        let tt = backend();
-        let present = persistent(1);
-        let missing = persistent(2);
-        resident(&tt, present, TaskDataCategory::All);
-        let msg = catch_missing_task_panic(|| {
-            let mut ctx = ExecuteContext::new(&tt);
-            let _ = ctx.try_task_pair(present, missing, TaskDataCategory::All);
-        });
-        assert!(msg.contains("task_pair, MustExist"), "{msg}");
-        assert_no_leftovers(&tt, present, missing);
-    }
-
-    /// What `lock_task_and_optional_reader(task, Some(reader))` yields: `None` if the task is gone,
-    /// otherwise whether a reader guard was returned.
-    fn lock_for_read(
-        tt: &TurboTasks<TurboTasksBackend>,
-        task: TaskId,
-        reader: TaskId,
-    ) -> Option<bool> {
-        let mut ctx = ExecuteContext::new(tt);
-        crate::backend::lock_task_and_optional_reader(
-            &mut ctx,
-            &tt.backend().known_immutable,
-            task,
-            Some(reader),
-        )
-        .map(|(_, reader)| reader.is_some())
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(feature = "verify_immutable", ignore)]
-    async fn known_immutable_read_doesnt_open_the_reader() {
-        let tt = backend();
-        let task = persistent(1);
-        // Opening this missing reader would panic.
-        let missing_reader = persistent(2);
-        resident(&tt, task, TaskDataCategory::All);
-        tt.backend()
-            .storage
-            .access_mut(task)
-            .flags
-            .set_immutable(true);
-        tt.backend().known_immutable.insert(task);
-        assert_eq!(lock_for_read(&tt, task, missing_reader), Some(false));
-        assert_no_leftovers(&tt, task, missing_reader);
-    }
-
-    /// A stale bit of a task that is gone (collected by GC) doesn't make reads of it succeed or
-    /// recreate it.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn known_immutable_read_of_a_missing_task_is_none() {
-        let tt = backend();
-        let reader = persistent(1);
-        let missing = persistent(2);
-        resident(&tt, reader, TaskDataCategory::All);
-        for known_immutable in [false, true] {
-            if known_immutable {
-                tt.backend().known_immutable.insert(missing);
-            }
-            assert_eq!(lock_for_read(&tt, missing, reader), None);
-            assert_no_leftovers(&tt, reader, missing);
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn known_immutable_read_of_a_deleted_task_is_none() {
-        for known_immutable in [false, true] {
-            let tt = backend();
-            let reader = persistent(1);
-            let deleted = persistent(2);
-            resident(&tt, reader, TaskDataCategory::All);
-            resident(&tt, deleted, TaskDataCategory::All);
-            let mut storage = tt.backend().storage.access_mut(deleted);
-            storage.flags.set_immutable(true);
-            storage.flags.set_deleted(true);
-            drop(storage);
-            if known_immutable {
-                tt.backend().known_immutable.insert(deleted);
-            }
-            assert_eq!(lock_for_read(&tt, deleted, reader), None);
-            // Like `try_task`, the soft-deleted task is left in place.
-            assert!(has_entry(&tt, deleted));
-            assert_unpinned(&tt, reader);
-        }
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -3,8 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 //! A task restored from persistence with its `immutable` flag is known to be immutable again (as
-//! soon as it's restored), so reads of it don't lock the reader task, and register no dependency
-//! edges.
+//! soon as it's restored), and reads of it register no dependency edges.
 
 mod util;
 
