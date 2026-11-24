@@ -1,0 +1,60 @@
+{
+  "name": "@next/mcp",
+  "version": "16.5.0-canary.42",
+  "description": "Turn ordinary Next.js route handlers into secure, stateless MCP servers",
+  "keywords": [
+    "next",
+    "next.js",
+    "mcp",
+    "model context protocol"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-mcp"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "default": "./dist/auth.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "default": "./dist/tools.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "auth.d.ts",
+    "tools.d.ts",
+    "NOTICE",
+    "license.md",
+    "vendor-licenses"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json",
+    "dev": "tsc -d -w -p tsconfig.json",
+    "typescript": "tsc --noEmit -p tsconfig.json",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "@standard-schema/spec": "1.1.0"
+  },
+  "devDependencies": {
+    "next": "workspace:*",
+    "typescript": "6.0.2"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0"
+  }
+}
