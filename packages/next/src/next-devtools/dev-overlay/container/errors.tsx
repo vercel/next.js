@@ -9,6 +9,14 @@ import { VulnerabilityInsight } from '../components/vulnerability-insight/vulner
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
+import {
+  isSyncIOError,
+  isSyncIOClientError,
+} from '../../../shared/lib/errors/sync-io'
+export {
+  isSyncIOError,
+  isSyncIOClientError,
+} from '../../../shared/lib/errors/sync-io'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
@@ -418,21 +426,6 @@ const SYNC_IO_APIS = [
   'crypto.getRandomValues()',
   'crypto.randomUUID()',
 ]
-
-const SYNC_IO_DOCS_PATTERN =
-  /https:\/\/nextjs\.org\/docs\/messages\/blocking-prerender-(random|current-time|crypto)(-client)?/
-
-// Discriminate sync IO errors via the docs URL embedded in the user-facing
-// message by `createSyncIOError`, `createSyncIORuntimeError`, and
-// `createSyncIOClientError`.
-export function isSyncIOError(message: string): boolean {
-  return SYNC_IO_DOCS_PATTERN.test(message)
-}
-
-export function isSyncIOClientError(message: string): boolean {
-  const match = SYNC_IO_DOCS_PATTERN.exec(message)
-  return match !== null && match[2] === '-client'
-}
 
 // Detects Instant Insights emitted during navigation validation. Body errors
 // identify the navigation in their message. `prefetch()` and

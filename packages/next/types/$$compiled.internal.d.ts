@@ -580,6 +580,9 @@ declare module 'next/dist/compiled/@next/font/dist/google' {
 declare module 'next/dist/compiled/@next/font/dist/local' {
   export * from '@next/font/local'
 }
+declare module 'next/dist/compiled/babel/parser' {
+  export { parse } from '@babel/parser'
+}
 declare module 'next/dist/compiled/babel/traverse' {
   import traverse from '@babel/traverse'
   export default traverse

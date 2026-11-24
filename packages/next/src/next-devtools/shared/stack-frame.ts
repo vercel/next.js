@@ -1,3 +1,5 @@
+import { getErrorSource } from '../../shared/lib/error-source'
+import { isSyncIOError } from '../../shared/lib/errors/sync-io'
 import type {
   OriginalStackFrameResponse,
   OriginalStackFrameResponseResult,
@@ -81,10 +83,12 @@ function getOriginalStackFrame(
 
 export async function getOriginalStackFrames(
   frames: readonly StackFrame[],
-  type: 'server' | 'edge-server' | null,
+  error: Error,
   isAppDir: boolean
 ): Promise<readonly OriginalStackFrame[]> {
+  const type = getErrorSource(error)
   const req: OriginalStackFramesRequest = {
+    showJsxImport: isSyncIOError(error.message) || undefined,
     frames,
     isServer: type === 'server',
     isEdgeServer: type === 'edge-server',

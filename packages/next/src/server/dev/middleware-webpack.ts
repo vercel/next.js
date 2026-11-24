@@ -16,6 +16,7 @@ import {
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
   type StackFrame,
+  type CodeFrameRenderOptions,
   type IgnorableStackFrame,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
@@ -182,17 +183,6 @@ function findOriginalSourcePositionAndContentFromCompilation(
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
 }
 
-/**
- * Code frame rendering options. The defaults match terminal consumers; only
- * the overlay HTTP path opts in to always-on colors and the wide max width.
- */
-type CodeFrameOptions = {
-  /** Defaults to `process.stdout.isTTY`. */
-  colors?: boolean
-  /** Defaults to the dev server's terminal width. */
-  maxWidth?: number
-}
-
 export async function createOriginalStackFrame({
   ignoredByDefault,
   source,
@@ -207,7 +197,7 @@ export async function createOriginalStackFrame({
   rootDirectory: string
   frame: StackFrame
   errorMessage?: string
-  codeFrameOptions?: CodeFrameOptions
+  codeFrameOptions?: CodeFrameRenderOptions
 }): Promise<OriginalStackFrameResponse | null> {
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (() => {
@@ -275,10 +265,11 @@ export async function createOriginalStackFrame({
     originalStackFrame: traced,
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
-        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent, {
-          colors: codeFrameOptions?.colors,
-          maxWidth: codeFrameOptions?.maxWidth,
-        })
+        originalCodeFrame = getOriginalCodeFrame(
+          traced,
+          sourceContent,
+          codeFrameOptions
+        )
       }
       return originalCodeFrame
     },
@@ -415,7 +406,7 @@ export async function getOriginalStackFrames({
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
-  codeFrameOptions?: CodeFrameOptions
+  codeFrameOptions?: CodeFrameRenderOptions
 }): Promise<OriginalStackFramesResponse> {
   const frameResponses = await Promise.all(
     frames.map(
@@ -471,7 +462,7 @@ async function getOriginalStackFrame({
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
-  codeFrameOptions?: CodeFrameOptions
+  codeFrameOptions?: CodeFrameRenderOptions
 }): Promise<OriginalStackFrameResponse> {
   const filename = frame.file ?? ''
   const source = await getSource(frame, {
@@ -604,9 +595,13 @@ export function getOverlayMiddleware(options: {
       })
 
       try {
-        const { frames, isServer, isEdgeServer, isAppDirectory } = JSON.parse(
-          body
-        ) as OriginalStackFramesRequest
+        const {
+          frames,
+          isServer,
+          isEdgeServer,
+          isAppDirectory,
+          showJsxImport,
+        } = JSON.parse(body) as OriginalStackFramesRequest
 
         return middlewareResponse.json(
           res,
@@ -625,6 +620,7 @@ export function getOverlayMiddleware(options: {
               // is irrelevant.
               colors: true,
               maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+              showJsxImport: showJsxImport === true,
             },
           })
         )

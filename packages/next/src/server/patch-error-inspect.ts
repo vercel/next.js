@@ -11,7 +11,11 @@ import {
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
-import type { IgnorableStackFrame } from '../next-devtools/server/shared'
+import type {
+  CodeFrameRenderOptions,
+  IgnorableStackFrame,
+} from '../next-devtools/server/shared'
+import { isSyncIOError } from '../shared/lib/errors/sync-io'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim, italic, stdoutIsTerminal } from '../lib/picocolors'
 
@@ -53,7 +57,7 @@ function bundlerFindSourceMapPayload(
 type CodeFrameRenderer = (
   frame: IgnorableStackFrame,
   source: string | null,
-  colors: boolean
+  options: CodeFrameRenderOptions
 ) => string | null
 
 // The code-frame renderer is stored on `globalThis` rather than in a module
@@ -75,7 +79,8 @@ export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
 function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colors: boolean = stdoutIsTerminal
+  colors: boolean = stdoutIsTerminal,
+  showJsxImport: boolean
 ): string | null {
   const codeFrameRenderer = (globalThis as GlobalWithCodeFrameRenderer)[
     CODE_FRAME_RENDERER
@@ -84,7 +89,7 @@ function getOriginalCodeFrame(
     // No renderer available - gracefully degrade
     return null
   }
-  return codeFrameRenderer(frame, source, colors)
+  return codeFrameRenderer(frame, source, { colors, showJsxImport })
 }
 
 type SourceMapCache = Map<
@@ -283,7 +288,8 @@ function ignoreListAnonymousStackFramesIfSandwiched(
 function getSourcemappedFrameIfPossible(
   frame: SourcemappableStackFrame,
   sourceMapCache: SourceMapCache,
-  inspectOptions: util.InspectOptions
+  inspectOptions: util.InspectOptions,
+  showJsxImport: boolean
 ): {
   stack: IgnorableStackFrame
   code: string | null
@@ -469,7 +475,8 @@ function getSourcemappedFrameIfPossible(
         codeFrame = getOriginalCodeFrame(
           originalFrame,
           sourceContent,
-          inspectOptions.colors
+          inspectOptions.colors,
+          showJsxImport
         )
       }
       return codeFrame
@@ -510,6 +517,7 @@ function parseAndSourceMap(
     stack: IgnorableStackFrame
     code: string | null
   }> = []
+  const showJsxImport = isSyncIOError(error.message)
   let sourceFrame: null | string = null
   for (const frame of unsourcemappedStack) {
     if (frame.file === null) {
@@ -529,7 +537,8 @@ function parseAndSourceMap(
         // We narrowed this earlier by bailing if `frame.file` is null.
         frame as SourcemappableStackFrame,
         sourceMapCache,
-        inspectOptions
+        inspectOptions,
+        showJsxImport
       )
       sourceMappedFrames.push(sourcemappedFrame)
 

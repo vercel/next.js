@@ -1,7 +1,6 @@
 import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
 import { getOriginalStackFrames } from '../../shared/stack-frame'
 import type { OriginalStackFrame } from '../../shared/stack-frame'
-import { getErrorSource } from '../../../shared/lib/error-source'
 import { parseStack } from '../../../server/lib/parse-stack'
 import React from 'react'
 
@@ -58,11 +57,7 @@ export function getErrorByType(
       type: event.type,
       // createMemoizedPromise dedups calls to getOriginalStackFrames
       frames: createMemoizedPromise(async () => {
-        return await getOriginalStackFrames(
-          event.frames,
-          getErrorSource(event.error),
-          isAppDir
-        )
+        return await getOriginalStackFrames(event.frames, event.error, isAppDir)
       }),
       cause: getCauseChain(event.error, isAppDir),
       aggregateErrors: getAggregateErrors(event.error, isAppDir),
@@ -76,11 +71,7 @@ export function getErrorByType(
       type: event.type,
       // createMemoizedPromise dedups calls to getOriginalStackFrames
       frames: createMemoizedPromise(async () => {
-        return await getOriginalStackFrames(
-          event.frames,
-          getErrorSource(event.error),
-          isAppDir
-        )
+        return await getOriginalStackFrames(event.frames, event.error, isAppDir)
       }),
       cause: getCauseChain(event.error, isAppDir),
     }
@@ -102,11 +93,7 @@ function getCauseChain(
     return {
       error: cause,
       frames: createMemoizedPromise(async () => {
-        return await getOriginalStackFrames(
-          frames,
-          getErrorSource(cause),
-          isAppDir
-        )
+        return await getOriginalStackFrames(frames, cause, isAppDir)
       }),
       cause: getCauseChain(cause, isAppDir, depth + 1),
       aggregateErrors: getAggregateErrors(cause, isAppDir, depth + 1),
@@ -115,11 +102,7 @@ function getCauseChain(
     return {
       error: cause,
       frames: createMemoizedPromise(async () => {
-        return await getOriginalStackFrames(
-          frames,
-          getErrorSource(cause),
-          isAppDir
-        )
+        return await getOriginalStackFrames(frames, cause, isAppDir)
       }),
       cause: getCauseChain(cause, isAppDir, depth + 1),
     }
@@ -147,11 +130,7 @@ function getAggregateErrors(
       readyErrors.push({
         error: childError,
         frames: createMemoizedPromise(async () => {
-          return await getOriginalStackFrames(
-            frames,
-            getErrorSource(childError),
-            isAppDir
-          )
+          return await getOriginalStackFrames(frames, childError, isAppDir)
         }),
         cause: getCauseChain(childError, isAppDir, depth + 1),
         aggregateErrors: getAggregateErrors(childError, isAppDir, depth + 1),
@@ -161,11 +140,7 @@ function getAggregateErrors(
       readyErrors.push({
         error: childError,
         frames: createMemoizedPromise(async () => {
-          return await getOriginalStackFrames(
-            frames,
-            getErrorSource(childError),
-            isAppDir
-          )
+          return await getOriginalStackFrames(frames, childError, isAppDir)
         }),
         cause: getCauseChain(childError, isAppDir, depth + 1),
       })

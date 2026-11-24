@@ -1,4 +1,5 @@
 import { codeFrameColumns } from '../../shared/lib/errors/code-frame'
+import { getJsxImportLocation } from './jsx-import-location'
 import { stdoutIsTerminal } from '../../lib/picocolors'
 import type { StackFrame } from '../../server/lib/parse-stack'
 import { ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric } from '../../server/lib/source-maps'
@@ -14,6 +15,7 @@ export interface OriginalStackFramesRequest {
   isServer: boolean
   isEdgeServer: boolean
   isAppDirectory: boolean
+  showJsxImport?: boolean
 }
 
 export type OriginalStackFramesResponse = OriginalStackFrameResponseResult[]
@@ -26,7 +28,9 @@ export interface OriginalStackFrameResponse {
   originalCodeFrame: string | null
 }
 
-type CodeFrameRenderOptions = {
+export type CodeFrameRenderOptions = {
+  showJsxImport?: boolean
+  /** Defaults to the terminal settings. The overlay opts into wide, colored frames. */
   colors?: boolean
   maxWidth?: number
 }
@@ -73,33 +77,42 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
 export function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colorsOrOptions: boolean | CodeFrameRenderOptions = stdoutIsTerminal
+  {
+    colors = stdoutIsTerminal,
+    maxWidth,
+    showJsxImport,
+  }: CodeFrameRenderOptions = {}
 ): string | null {
   if (!source || frame.line1 == null) {
     return null
   }
 
-  const { colors, maxWidth } =
-    typeof colorsOrOptions === 'boolean'
-      ? { colors: colorsOrOptions, maxWidth: undefined }
-      : {
-          colors: colorsOrOptions.colors ?? stdoutIsTerminal,
-          maxWidth: colorsOrOptions.maxWidth,
-        }
-
-  return (
-    codeFrameColumns(
-      source,
-      {
-        start: {
-          line: frame.line1,
-          column: frame.column1 ?? undefined,
-        },
-      },
-      {
-        color: colors,
-        maxWidth,
-      }
-    ) ?? null
+  const options = { color: colors, maxWidth }
+  const codeFrame = codeFrameColumns(
+    source,
+    { start: { line: frame.line1, column: frame.column1 ?? undefined } },
+    options
   )
+  if (!codeFrame || frame.ignored || !showJsxImport) return codeFrame ?? null
+
+  const imported = getJsxImportLocation(source, frame.line1, frame.column1)
+  // The default frame already shows two lines above and three below.
+  if (
+    !imported ||
+    (imported.line >= frame.line1 - 2 && imported.line <= frame.line1 + 3)
+  ) {
+    return codeFrame
+  }
+  const importFrame = codeFrameColumns(
+    source,
+    { start: imported },
+    {
+      ...options,
+      linesAbove: 0,
+      linesBelow: 0,
+    }
+  )
+  return importFrame
+    ? `${codeFrame}\n\nImported here:\n${importFrame}`
+    : codeFrame
 }
