@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process'
 import {
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,6 +42,13 @@ const response = (value) => ({ status: 0, stdout: JSON.stringify(value), stderr:
 const missing = () => ({ status: 1, stdout: '', stderr: 'gh: Not Found (HTTP 404)' })
 Module._load = function (request, parent, isMain) {
   const actual = load.call(this, request, parent, isMain)
+  // Stand in for the telemetry transport so opt-out is checked on what would be sent.
+  if (parent?.filename.endsWith('telemetry/storage.js') && request.endsWith('/post-telemetry-payload')) {
+    return { postNextTelemetryPayload: async ({ events }) => {
+      fs.appendFileSync(config.requests, JSON.stringify({ telemetry: events }) + '\\n')
+      if (config.telemetryFails) throw new Error('Transport unavailable')
+    } }
+  }
   // Setup's menus come from the helper it shares with next upgrade --agent.
   if (parent?.filename.endsWith('choose-option.js') && request.endsWith('/cli-select')) {
     return async ({ values }) => {
@@ -184,6 +193,8 @@ function runSetup({
   draftFailure = false,
   tagMissing = false,
   annotatedTag = false,
+  telemetry = false,
+  telemetryFails = false,
   nonInteractive = false,
   registeredSecrets = [],
   pasted = [],
@@ -202,6 +213,8 @@ function runSetup({
   draftFailure?: boolean
   tagMissing?: boolean
   annotatedTag?: boolean
+  telemetry?: boolean
+  telemetryFails?: boolean
   nonInteractive?: boolean
   registeredSecrets?: string[]
   pasted?: string[]
@@ -236,6 +249,7 @@ function runSetup({
       draftFailure,
       tagMissing,
       annotatedTag,
+      telemetryFails,
       nonInteractive,
       registeredSecrets,
       pasted,
@@ -253,7 +267,10 @@ function runSetup({
       env: {
         ...process.env,
         NODE_ENV: 'production',
-        NEXT_TELEMETRY_DISABLED: '1',
+        // CI keeps telemetry preferences in the test directory.
+        CI: '1',
+        NEXT_TELEMETRY_DISABLED: telemetry ? '' : '1',
+        NEXT_TELEMETRY_DEBUG: '',
         UPGRADE_SETUP_TEST: config,
       },
     }
@@ -269,6 +286,7 @@ function runSetup({
     secrets: entries.flatMap((entry) => (entry.secret ? [entry.secret] : [])),
     opened: entries.flatMap((entry) => (entry.opened ? [entry.opened] : [])),
     localAgent: entries.filter((entry) => entry.localAgent),
+    telemetry: entries.flatMap((entry) => entry.telemetry ?? []),
   }
 }
 
@@ -512,6 +530,184 @@ describe('next upgrade --ci', () => {
     expect(result.requests.every(({ body }) => body === null)).toBe(true)
   })
 
+  it.each([
+    [
+      'records setup start and outcome',
+      { telemetry: true, envOptOut: false, telemetryFails: false },
+    ],
+    [
+      'honors NEXT_TELEMETRY_DISABLED',
+      { telemetry: false, envOptOut: false, telemetryFails: false },
+    ],
+    [
+      'honors a .env opt-out',
+      { telemetry: true, envOptOut: true, telemetryFails: false },
+    ],
+    [
+      'keeps the result when the transport fails',
+      { telemetry: true, envOptOut: false, telemetryFails: true },
+    ],
+  ])('%s', (_, { telemetry, envOptOut, telemetryFails }) => {
+    copySingleApp(directory)
+    if (envOptOut) {
+      writeFileSync(join(directory, '.env'), 'NEXT_TELEMETRY_DISABLED=1\n')
+    }
+    const result = runSetup({
+      directory,
+      choices: ['codex-ai-gateway-api-key', 'publish'],
+      telemetry,
+      telemetryFails,
+    })
+    expect(result.status).toBe(0)
+    expect(result.output).toContain(setupUrl)
+    const commit = result.requests.find(
+      ({ endpoint }) => endpoint === 'graphql'
+    )
+    const [{ contents }] = commit.body.variables.input.fileChanges.additions
+    // Scheduled runs inherit the opt-out that setup sees.
+    expect(load(Buffer.from(contents, 'base64').toString())).toMatchObject({
+      jobs: {
+        upgrade: { with: { 'telemetry-disabled': !telemetry || envOptOut } },
+      },
+    })
+    if (!telemetry || envOptOut) {
+      expect(result.telemetry).toEqual([])
+      return
+    }
+    expect(result.telemetry).toEqual([
+      {
+        eventName: 'NEXT_AGENT_UPGRADE_CI_INSTALL_STARTED',
+        fields: { schemaVersion: 1, installId: expect.any(String) },
+      },
+      {
+        eventName: 'NEXT_AGENT_UPGRADE_CI_INSTALL_RESULT',
+        fields: {
+          schemaVersion: 1,
+          installId: result.telemetry[0].fields.installId,
+          outcome: 'draft_created',
+          durationMs: expect.any(Number),
+        },
+      },
+    ])
+  })
+
+  it('treats a symlinked .env file as an opt-out without reading it', () => {
+    copySingleApp(directory)
+    const outside = mkdtempSync(join(tmpdir(), 'next-upgrade-ci-env-'))
+    try {
+      // The target has no opt-out, so reading it would enable telemetry.
+      writeFileSync(join(outside, 'env'), 'OTHER=1\n')
+      symlinkSync(join(outside, 'env'), join(directory, '.env'))
+      const result = runSetup({
+        directory,
+        choices: ['codex-ai-gateway-api-key', 'publish'],
+        telemetry: true,
+      })
+      expect(result.status).toBe(0)
+      const commit = result.requests.find(
+        ({ endpoint }) => endpoint === 'graphql'
+      )
+      const [{ contents }] = commit.body.variables.input.fileChanges.additions
+      expect(load(Buffer.from(contents, 'base64').toString())).toMatchObject({
+        jobs: { upgrade: { with: { 'telemetry-disabled': true } } },
+      })
+      expect(result.telemetry).toEqual([])
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps setup telemetry settings out of the project', () => {
+    copySingleApp(directory)
+    const outside = mkdtempSync(join(tmpdir(), 'next-upgrade-ci-conf-'))
+    try {
+      // In CI, telemetry would keep its settings in .next/cache/config.json.
+      writeFileSync(join(outside, 'config.json'), '{}')
+      mkdirSync(join(directory, '.next/cache'), { recursive: true })
+      symlinkSync(
+        join(outside, 'config.json'),
+        join(directory, '.next/cache/config.json')
+      )
+      const result = runSetup({
+        directory,
+        choices: ['codex-ai-gateway-api-key', 'publish'],
+        telemetry: true,
+      })
+      expect(result.status).toBe(0)
+      expect(result.telemetry).toHaveLength(2)
+      expect(readFileSync(join(outside, 'config.json'), 'utf8')).toBe('{}')
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('reads an empty NEXT_TELEMETRY_DISABLED in .env as no opt-out', () => {
+    copySingleApp(directory)
+    writeFileSync(
+      join(directory, '.env'),
+      'NEXT_TELEMETRY_DISABLED=\nNEXT_PUBLIC_API_URL=https://example.com\n'
+    )
+    const result = runSetup({
+      directory,
+      choices: ['codex-ai-gateway-api-key', 'publish'],
+      telemetry: true,
+    })
+    expect(result.status).toBe(0)
+    const commit = result.requests.find(
+      ({ endpoint }) => endpoint === 'graphql'
+    )
+    const [{ contents }] = commit.body.variables.input.fileChanges.additions
+    expect(load(Buffer.from(contents, 'base64').toString())).toMatchObject({
+      jobs: { upgrade: { with: { 'telemetry-disabled': false } } },
+    })
+  })
+
+  it('honors a .env opt-out in any selected app, with or without a policy', () => {
+    cpSync(fixture, directory, { recursive: true })
+    // Only the second app opts out, and setup runs with an explicit policy.
+    writeFileSync(
+      join(directory, 'apps/web/.env'),
+      'NEXT_TELEMETRY_DISABLED=1\n'
+    )
+    const result = runSetup({
+      directory,
+      choices: [
+        '[ ] apps/admin',
+        '[ ] apps/web',
+        'continue',
+        'codex-ai-gateway-api-key',
+        'publish',
+      ],
+      telemetry: true,
+    })
+    expect(result.status).toBe(0)
+    const commit = result.requests.find(
+      ({ endpoint }) => endpoint === 'graphql'
+    )
+    const [{ contents }] = commit.body.variables.input.fileChanges.additions
+    expect(load(Buffer.from(contents, 'base64').toString())).toMatchObject({
+      jobs: { upgrade: { with: { 'telemetry-disabled': true } } },
+    })
+    // Setup applies the same decision to its own events.
+    expect(result.telemetry).toEqual([])
+  })
+
+  it('honors a selected app opt-out when setup stops after app selection', () => {
+    cpSync(fixture, directory, { recursive: true })
+    writeFileSync(
+      join(directory, 'apps/web/.env'),
+      'NEXT_TELEMETRY_DISABLED=1\n'
+    )
+    const result = runSetup({
+      directory,
+      choices: ['[ ] apps/admin', '[ ] apps/web', 'continue', '__cancel__'],
+      telemetry: true,
+    })
+    expect(result.status).toBe(0)
+    expect(result.output).not.toContain(setupUrl)
+    expect(result.telemetry).toEqual([])
+  })
+
   it('stops for a project without a pnpm lockfile', () => {
     cpSync(join(fixture, 'apps/docs'), directory, { recursive: true })
     const result = runSetup({ directory })
@@ -556,6 +752,7 @@ describe('next upgrade --ci', () => {
       const result = setup({
         choices: ['paste', 'paste'],
         pasted: [agentKey, publishToken],
+        telemetry: true,
       })
       expect(result.status).toBe(0)
       expect(result.secrets).toEqual([
@@ -568,6 +765,7 @@ describe('next upgrade --ci', () => {
       // The values appear nowhere else.
       for (const value of [agentKey, publishToken]) {
         expect(result.output).not.toContain(value)
+        expect(JSON.stringify(result.telemetry)).not.toContain(value)
         expect(JSON.stringify(result.requests)).not.toContain(value)
       }
     })
