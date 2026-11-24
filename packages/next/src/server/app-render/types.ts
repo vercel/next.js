@@ -231,6 +231,14 @@ export interface RenderOptsPartial {
    */
   prefetchHints?: Record<string, PrefetchHints>
 
+  /**
+   * Build-time only: prefetch hints from a more specific prerender of this
+   * route (matching what prefetch-hints.json will record). Passed to fallback
+   * shells so their inlining decisions and emitted segment files match the
+   * route's manifest instead of being re-measured on a suspended shell.
+   */
+  routePrefetchHints?: PrefetchHints
+
   /** Parameters whose novel values are rejected by routing. */
   notFoundParams?: readonly string[]
 
