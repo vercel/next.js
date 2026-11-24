@@ -516,6 +516,71 @@ mod tests {
         .unwrap();
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_absolute_fileify_source_map() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let sys_root = if cfg!(windows) {
+                Path::new(r"C:\fake\root")
+            } else {
+                Path::new(r"/fake/root")
+            };
+
+            #[turbo_tasks::function(operation, root)]
+            async fn fileify_operation(root: RcStr) -> anyhow::Result<Vc<Vec<RcStr>>> {
+                let context_path = DiskFileSystem::new(rcstr!("mock"), Vc::cell(root))
+                    .root()
+                    .owned()
+                    .await?;
+                let map = StructuredSourceMap::from_json(&source_map_rope(
+                    /* source_root */ None,
+                    [
+                        &*format!("{SOURCE_URL_PROTOCOL_STR}///[mock]/a.js"),
+                        &*format!("{SOURCE_URL_PROTOCOL_STR}///[mock]/dir/b.js"),
+                        // duplicates are converted the same way
+                        &*format!("{SOURCE_URL_PROTOCOL_STR}///[mock]/a.js"),
+                        // sources on other filesystems and non-file URLs are preserved
+                        &*format!("{SOURCE_URL_PROTOCOL_STR}///[other]/c.js"),
+                        "https://example.com/d.js",
+                    ],
+                ))?;
+                let absolute = absolute_fileify_source_map(&map, context_path).await?;
+                let json: SourceMapJson = serde_json::from_str(&absolute.to_rope().to_str()?)?;
+                Ok(Vc::cell(
+                    json.sources
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|source| RcStr::from(source.unwrap_or_default()))
+                        .collect(),
+                ))
+            }
+
+            let sources = fileify_operation(RcStr::from(sys_root.to_str().unwrap()))
+                .read_strongly_consistent()
+                .await?;
+            let file_url = |path: &str| -> RcStr {
+                String::from(Url::from_file_path(sys_root.join(path)).unwrap()).into()
+            };
+            assert_eq!(
+                *sources,
+                vec![
+                    file_url("a.js"),
+                    file_url(&Path::new("dir").join("b.js").to_string_lossy()),
+                    file_url("a.js"),
+                    RcStr::from(format!("{SOURCE_URL_PROTOCOL_STR}///[other]/c.js")),
+                    rcstr!("https://example.com/d.js"),
+                ]
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     /// Maps without sources referencing the context filesystem must be left unchanged without
     /// reading that filesystem, so it does not even need to be a [`DiskFileSystem`].
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
