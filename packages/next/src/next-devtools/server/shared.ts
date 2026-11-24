@@ -87,32 +87,42 @@ export function getOriginalCodeFrame(
     return null
   }
 
-  const options = { color: colors, maxWidth }
+  const line = frame.line1
+  const imported =
+    showJsxImport && !frame.ignored
+      ? getJsxImportLocation(source, line, frame.column1)
+      : undefined
+
+  // Expand the normal source window to include the import. The JSX usage
+  // remains the only marked location.
+  const above = 2
+  const below = 3
   const codeFrame = codeFrameColumns(
     source,
-    { start: { line: frame.line1, column: frame.column1 ?? undefined } },
-    options
-  )
-  if (!codeFrame || frame.ignored || !showJsxImport) return codeFrame ?? null
-
-  const imported = getJsxImportLocation(source, frame.line1, frame.column1)
-  // The default frame already shows two lines above and three below.
-  if (
-    !imported ||
-    (imported.line >= frame.line1 - 2 && imported.line <= frame.line1 + 3)
-  ) {
-    return codeFrame
-  }
-  const importFrame = codeFrameColumns(
-    source,
-    { start: imported },
+    { start: { line, column: frame.column1 ?? undefined } },
     {
-      ...options,
-      linesAbove: 0,
-      linesBelow: 0,
+      color: colors,
+      maxWidth,
+      linesAbove: imported ? Math.max(above, line - imported.startLine) : above,
+      linesBelow: imported ? Math.max(below, imported.endLine - line) : below,
     }
   )
-  return importFrame
-    ? `${codeFrame}\n\nImported here:\n${importFrame}`
-    : codeFrame
+  if (!codeFrame || !imported) return codeFrame ?? null
+
+  // For distant imports, omit the intervening rows instead of printing most
+  // of the file. Keep the renderer's original line numbers and highlighting.
+  const precedes = imported.endLine < line
+  const gap = precedes
+    ? line - above - imported.endLine - 1
+    : imported.startLine - line - below - 1
+  if (gap <= 3) return codeFrame
+
+  const rows = codeFrame.split('\n')
+  const importHeight = imported.endLine - imported.startLine + 1
+  rows.splice(
+    precedes ? importHeight : rows.length - importHeight - gap,
+    gap,
+    '    …'
+  )
+  return rows.join('\n')
 }

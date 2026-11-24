@@ -13,9 +13,8 @@ describe('dependency-import-code-frame', () => {
   })
 
   function expectImportFrame(output: string) {
-    expect(output).toMatch(/>\s*6\s*\|\s*<BlockingWidget \/>/)
     expect(output).toMatch(
-      /Imported here:\s*>\s*1\s*\|\s*import \{ BlockingWidget \} from 'external-time'/
+      /(?:^|\n)\s*1\s*\|\s*import \{ BlockingWidget \} from 'external-time'[\s\S]*?>\s*6\s*\|\s*<BlockingWidget \/>\s*\n\s*\|\s*\^/
     )
     expect(output).not.toContain('node_modules/external-time/index.js')
   }

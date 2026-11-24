@@ -6,7 +6,7 @@ export function getJsxImportLocation(
   source: string,
   line: number,
   column: number | null
-): { line: number; column: number } | undefined {
+): { startLine: number; endLine: number } | undefined {
   // Some source maps contain entire generated bundles. Parsing those just to
   // enrich an error frame can be more expensive than rendering the error.
   if (!column || source.length > 64 * 1024) return
@@ -25,7 +25,7 @@ export function getJsxImportLocation(
       sourceType: 'module',
       plugins: ['jsx', 'typescript'],
     })
-    let location: { line: number; column: number } | undefined
+    let location: { startLine: number; endLine: number } | undefined
     traverse(ast, {
       JSXOpeningElement(path) {
         const { loc, name } = path.node
@@ -43,10 +43,10 @@ export function getJsxImportLocation(
         const specifier = declaration.node.source
         // A relative import already points into the app. Show where an
         // external component entered the file without resolving the package.
-        if (!/^[@\w]/.test(specifier.value) || !specifier.loc) return
+        if (!/^[@\w]/.test(specifier.value) || !declaration.node.loc) return
         location = {
-          line: specifier.loc.start.line,
-          column: specifier.loc.start.column + 1,
+          startLine: declaration.node.loc.start.line,
+          endLine: declaration.node.loc.end.line,
         }
       },
     })
