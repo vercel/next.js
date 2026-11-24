@@ -2055,7 +2055,9 @@ async fn project_server_hmr_snapshot_operation(
     project: ResolvedVc<Project>,
     entry_paths: Vec<RcStr>,
 ) -> Result<Vc<ServerHmrSnapshot>> {
-    let chunk_lists = project.server_hmr_chunks_for_entries(entry_paths).await?;
+    let chunk_lists = project
+        .server_hmr_chunks_for_entries(entry_paths.into_iter().collect())
+        .await?;
     let route = ServerHmrRouteModules::from_chunk_lists(chunk_lists.as_slice())
         .await?
         .cell()

@@ -2,6 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, GcRoot, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State,
@@ -115,10 +116,9 @@ impl VersionedContentMap {
     pub async fn server_hmr_chunks_in_path(
         self: Vc<Self>,
         root: FileSystemPath,
-        entry_paths: Vec<RcStr>,
+        entry_paths: FrozenSet<RcStr>,
     ) -> Result<Vc<ServerHmrChunkLists>> {
         let this = self.await?;
-        let entry_paths: FxHashSet<RcStr> = entry_paths.into_iter().collect();
         // `State::get` returns a lock guard, which can't be held across the
         // awaits below, so snapshot the keys and release it.
         let paths: Vec<FileSystemPath> = {

@@ -47,6 +47,7 @@ use next_core::{
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
+use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
@@ -2993,7 +2994,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn server_hmr_chunks_for_entries(
         self: Vc<Self>,
-        entry_paths: Vec<RcStr>,
+        entry_paths: FrozenSet<RcStr>,
     ) -> Result<Vc<ServerHmrChunkLists>> {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
