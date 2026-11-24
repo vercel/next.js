@@ -193,6 +193,7 @@ describe('request insights', () => {
         )
       ).toEqual(
         expect.arrayContaining([
+          'Router.invokeRender',
           'BaseServer.handleRequest',
           'AppRender.getBodyResult',
         ])

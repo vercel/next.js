@@ -80,7 +80,10 @@ import {
 } from '../../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
-import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+} from './trace/request-insights-identity'
 import { waitForResponseToFinish } from '../app-render/wait-for-response'
 import { getTracer } from './trace/tracer'
 import { RouterSpan } from './trace/constants'
@@ -592,8 +595,14 @@ export async function initialize(opts: {
 
       debug('invokeRender', req.url, req.headers)
 
-      try {
-        return await getTracer().trace(
+      // The identity scope is otherwise first entered in BaseServer, inside
+      // this span, which would leave the span without a request ID.
+      const requestInsightsIdentity = getRequestMeta(
+        req,
+        'requestInsightsIdentity'
+      )
+      const traceRender = () =>
+        getTracer().trace(
           RouterSpan.invokeRender,
           {
             spanName: 'route to render',
@@ -613,6 +622,11 @@ export async function initialize(opts: {
             }
           }
         )
+
+      try {
+        return await (requestInsightsIdentity
+          ? runWithRequestInsightsIdentity(requestInsightsIdentity, traceRender)
+          : traceRender())
       } catch (e) {
         // If the client aborts before we can receive a response object (when
         // the headers are flushed), then we can early exit without further
