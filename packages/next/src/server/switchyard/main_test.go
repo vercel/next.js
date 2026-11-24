@@ -1682,6 +1682,44 @@ func TestCapsConnectionsToNodeDialedAtOnce(t *testing.T) {
 
 // A connection to Node that has been upgraded (to a WebSocket, say) leaves
 // HTTP, so it gives its slot back while the tunnel stays open.
+// A client may send its first bytes in the same packet as the upgrade
+// request, before Node's 101 arrives; Go's server has read them by then.
+func TestKeepsBytesSentWithAnUpgradeRequest(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+		buf.Flush()
+		first := make([]byte, 4)
+		if _, err := io.ReadFull(buf, first); err != nil {
+			t.Error(err)
+			return
+		}
+		io.WriteString(buf, "ECHO "+string(first))
+		buf.Flush()
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET /socket HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\nPING")
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, nil)
+	if err != nil || res.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("upgrade: %v %v", res, err)
+	}
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	echo := make([]byte, len("ECHO PING"))
+	if _, err := io.ReadFull(reader, echo); err != nil || string(echo) != "ECHO PING" {
+		t.Fatalf("tunnel read %q, %v; want %q", echo, err, "ECHO PING")
+	}
+}
+
 func TestUpgradedConnectionsGiveTheirSlotBack(t *testing.T) {
 	previous := maxKeptUpstreams
 	maxKeptUpstreams = 1
