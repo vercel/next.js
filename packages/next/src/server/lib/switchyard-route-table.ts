@@ -106,6 +106,32 @@ function ineligibleReason(
 
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 
+/** What collectSwitchyardRouteTable reads from the router's file lookup. */
+export type SwitchyardFsChecker = Pick<
+  FsChecker,
+  | 'getMiddlewareMatchers'
+  | 'headers'
+  | 'redirects'
+  | 'rewrites'
+  | 'publicFolderItems'
+  | 'appFiles'
+  | 'pageFiles'
+  | 'getRouteDefinition'
+>
+
+/** What collectSwitchyardRouteTable reads from the app's config. */
+export type SwitchyardConfig = Pick<
+  NextConfigComplete | NextConfigRuntime,
+  | 'distDir'
+  | 'basePath'
+  | 'i18n'
+  | 'trailingSlash'
+  | 'compress'
+  | 'useFileSystemPublicRoutes'
+> & {
+  experimental: Pick<NextConfigRuntime['experimental'], 'goRoutes'>
+}
+
 /**
  * Builds Switchyard's route table from what the router loaded at
  * startup, so Switchyard and Node route from the same data.
@@ -113,8 +139,8 @@ type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 export function collectSwitchyardRouteTable(
   opts: Readonly<{
     dir: string
-    config: NextConfigComplete | NextConfigRuntime
-    fsChecker: FsChecker
+    config: SwitchyardConfig
+    fsChecker: SwitchyardFsChecker
   }>
 ): SwitchyardRouteTable {
   const { config, fsChecker } = opts

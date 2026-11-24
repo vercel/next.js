@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "declaration": true,
+    "stripInternal": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "src/**/*.test.ts"]
+}

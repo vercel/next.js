@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/cycle-shared-chunk/input/index.js"],"sourcesContent":["// Two chunk groups that enter the same import cycle (ring-a -> ring-b -> ring-c -> ring-a)\n// at different modules. Both need the same set of modules, but reach them in a different\n// order, which must not result in two copies of the shared chunk.\nimport('./entry-a').then(({ a }) => console.log(a()))\nimport('./entry-b').then(({ b }) => console.log(b()))\n"],"names":["then","a","console","log","b"],"mappings":"AAAA,2FAA2F;AAC3F,yFAAyF;AACzF,kEAAkE;AAClE,iKAAoBA,IAAI,CAAC,CAAC,EAAEC,CAAC,EAAE,GAAKC,QAAQC,GAAG,CAACF;AAChD,iKAAoBD,IAAI,CAAC,CAAC,EAAEI,CAAC,EAAE,GAAKF,QAAQC,GAAG,CAACC"}}]
+}

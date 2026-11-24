@@ -161,7 +161,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         reader: TaskId,
         id: u32,
         key_hashes: &FxHashSet<u64>,
-    );
+    ) -> Result<()>;
 
     /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
     /// completed, returns the [`RawVc`] the local task points to.
@@ -211,7 +211,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     ) -> Result<TypedCellContent>;
 
     /// See [`Backend::drop_task_cell_content_hint`].
-    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId);
+    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId) -> Result<()>;
 
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(
@@ -977,6 +977,11 @@ struct CurrentTaskStateInner {
     /// execution that haven't been dropped within this execution yet. When it isn't zero at the
     /// end of the execution, completing it panics (see [`PROVISIONAL_READ_REF_LEAKED`]).
     alive_provisional_read_refs: AtomicU32,
+    /// An error a drop of a [`KeyedReadRef`](crate::KeyedReadRef) /
+    /// [`LazyReadRef`](crate::LazyReadRef) of this execution ran into (see
+    /// [`ProvisionalReadDependency::fail_execution`]). A drop can't return it, so the execution
+    /// fails with it when it completes.
+    deferred_error: Mutex<Option<anyhow::Error>>,
     state: RwLock<CurrentTaskState>,
 }
 
@@ -996,6 +1001,7 @@ impl CurrentTaskStateHandle {
                 current_task_id: state.task_id,
                 provisional_read_counter: AtomicU32::new(0),
                 alive_provisional_read_refs: AtomicU32::new(0),
+                deferred_error: Mutex::new(None),
                 state: RwLock::new(state),
             }),
         }
@@ -1056,6 +1062,20 @@ impl ProvisionalReadDependency {
             execution
                 .alive_provisional_read_refs
                 .fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Fails the creating execution with `error` when it completes, unless it fails anyway. For
+    /// errors of a [`KeyedReadRef`](crate::KeyedReadRef) / [`LazyReadRef`](crate::LazyReadRef)
+    /// drop, which can't return them. Only called within the creating execution. The first error
+    /// is kept.
+    pub(crate) fn fail_execution(&self, error: anyhow::Error) {
+        if let Some(execution) = self.execution.upgrade() {
+            execution
+                .deferred_error
+                .lock()
+                .unwrap()
+                .get_or_insert(error);
         }
     }
 
@@ -1917,6 +1937,16 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     Ok(Err(err)) => Err(err.into()),
                                     Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                                 };
+                                // A `KeyedReadRef` / `LazyReadRef` drop that failed fails the
+                                // execution (see `ProvisionalReadDependency::fail_execution`).
+                                // All drops of this execution happened above, as local tasks
+                                // were awaited.
+                                let deferred_error = CURRENT_TASK_STATE
+                                    .with(|ts| ts.inner.deferred_error.lock().unwrap().take());
+                                let result = match (result, deferred_error) {
+                                    (Ok(_), Some(error)) => Err(error.into()),
+                                    (result, _) => result,
+                                };
 
                                 let finished_state = this.finish_current_task_state();
                                 let (
@@ -2254,7 +2284,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         reader: TaskId,
         id: u32,
         key_hashes: &FxHashSet<u64>,
-    ) {
+    ) -> Result<()> {
         self.backend.refine_provisional_cell_dependency(
             task,
             index,
@@ -2274,7 +2304,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .try_read_own_task_cell(current_task, index, self)
     }
 
-    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId) {
+    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId) -> Result<()> {
         self.backend.drop_task_cell_content_hint(task, index, self)
     }
 
