@@ -756,6 +756,10 @@ fn well_known_function_member<'a>(
         (WellKnownFunctionKind::Import, Some("meta")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
+        (
+            WellKnownFunctionKind::HasOwnProperty | WellKnownFunctionKind::PropertyIsEnumerable,
+            Some("call"),
+        ) => JsValue::WellKnownFunction(WellKnownFunctionKind::FunctionCall),
         #[allow(unreachable_patterns)]
         (kind, _) => {
             return (
@@ -807,6 +811,46 @@ async fn well_known_object_member<'a>(
         }
         WellKnownObjectKind::NodeProcessModule | WellKnownObjectKind::NodeProcessModuleDefault => {
             node_process_member(arena, kind, prop, compile_time_info).await?
+        }
+        WellKnownObjectKind::NodeProcessEnv => {
+            let method = prop.as_str().and_then(object_prototype_method);
+            match method {
+                Some(func) => {
+                    let arena = arena.get_or_default();
+                    JsValue::alternatives(BumpVec::from_iter_in(
+                        arena,
+                        [
+                            JsValue::WellKnownFunction(func),
+                            // An env var with the same name would shadow the method
+                            JsValue::unknown(
+                                JsValue::member(arena, JsValue::WellKnownObject(kind), prop),
+                                false,
+                                rcstr!("could also be an env var"),
+                            ),
+                        ],
+                    ))
+                }
+                None => {
+                    return Ok((
+                        JsValue::member(
+                            arena.get_or_default(),
+                            JsValue::WellKnownObject(kind),
+                            prop,
+                        ),
+                        Modified::No,
+                    ));
+                }
+            }
+        }
+        WellKnownObjectKind::ObjectPrototype => {
+            match prop.as_str().and_then(object_prototype_method) {
+                Some(func) => JsValue::WellKnownFunction(func),
+                None => JsValue::unknown(
+                    JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
+                    true,
+                    rcstr!("unsupported property on Object.prototype"),
+                ),
+            }
         }
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeExpressApp => express(arena.get_or_default(), prop),
@@ -916,6 +960,24 @@ async fn well_known_object_member<'a>(
 fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
     match prop.as_str() {
         Some("assign") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+        Some("hasOwn") => JsValue::alternatives(BumpVec::from_iter_in(
+            arena,
+            [
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectHasOwn),
+                // `Object.hasOwn` is missing in older runtimes, so feature checks like
+                // `Object.hasOwn || fallback` must not be folded
+                JsValue::unknown(
+                    JsValue::member(
+                        arena,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
+                        prop,
+                    ),
+                    true,
+                    rcstr!("might not be supported by the runtime"),
+                ),
+            ],
+        )),
+        Some("prototype") => JsValue::WellKnownObject(WellKnownObjectKind::ObjectPrototype),
         _ => JsValue::unknown(
             JsValue::member(
                 arena,
@@ -1209,6 +1271,16 @@ async fn node_process_member<'a>(
             rcstr!("unsupported property on Node.js process object"),
         ),
     })
+}
+
+/// The `Object.prototype` methods that are modeled as well-known functions. They are also
+/// inherited by `process.env` (unless there is an env var with that name).
+fn object_prototype_method<'a>(prop: &str) -> Option<WellKnownFunctionKind<'a>> {
+    match prop {
+        "hasOwnProperty" => Some(WellKnownFunctionKind::HasOwnProperty),
+        "propertyIsEnumerable" => Some(WellKnownFunctionKind::PropertyIsEnumerable),
+        _ => None,
+    }
 }
 
 fn node_pre_gyp<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {

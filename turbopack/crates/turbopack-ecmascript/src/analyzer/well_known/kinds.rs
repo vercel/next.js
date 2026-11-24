@@ -7,6 +7,8 @@ use crate::analyzer::{ConstantString, JsValue, RequireContextValue};
 pub enum WellKnownObjectKind {
     /// The `Object` global variable.
     ObjectConstructor,
+    /// `Object.prototype`.
+    ObjectPrototype,
     /// The `globalThis` global object.
     GlobalThis,
     /// The Node.js `global` object (an alias of `globalThis`).
@@ -82,6 +84,7 @@ impl WellKnownObjectKind {
                 "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
             ),
             Self::ObjectConstructor => ("Object", "The global Object constructor"),
+            Self::ObjectPrototype => ("Object.prototype", "The prototype of plain objects"),
             Self::GlobalThis => (
                 "globalThis",
                 "The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis",
@@ -210,6 +213,19 @@ pub enum WellKnownFunctionKind<'a> {
     OsPlatform,
     OsEndianness,
     ProcessCwd,
+    /// `Object.prototype.hasOwnProperty`. What it checks depends on the receiver (`this`), so it
+    /// is only analyzed when called with a known receiver: `obj.hasOwnProperty(key)` or
+    /// `hasOwnProperty.call(obj, key)`.
+    HasOwnProperty,
+    /// `Object.prototype.propertyIsEnumerable`, analyzed like [`Self::HasOwnProperty`].
+    PropertyIsEnumerable,
+    /// `Object.hasOwn(obj, key)`.
+    ObjectHasOwn,
+    /// `Function.prototype.call`. `func.call(thisArg, ...args)` calls its own receiver `func`, with
+    /// the first argument as `this`. So it is only analyzed in a member call (including
+    /// `(0, func).call(thisArg, ...args)`), not when detached: `const call = func.call; call(...)`
+    /// throws.
+    FunctionCall,
     NodePreGypFind,
     NodeGypBuild,
     NodeBindings,
@@ -347,6 +363,22 @@ impl WellKnownFunctionKind<'_> {
             Self::OsEndianness => (
                 "os.endianness".to_string(),
                 "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
+            ),
+            Self::HasOwnProperty => (
+                "Object.prototype.hasOwnProperty".to_string(),
+                "The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty",
+            ),
+            Self::PropertyIsEnumerable => (
+                "Object.prototype.propertyIsEnumerable".to_string(),
+                "The standard Object.prototype.propertyIsEnumerable method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/propertyIsEnumerable",
+            ),
+            Self::ObjectHasOwn => (
+                "Object.hasOwn".to_string(),
+                "The standard Object.hasOwn method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn",
+            ),
+            Self::FunctionCall => (
+                "Function.prototype.call".to_string(),
+                "The standard Function.prototype.call method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/call",
             ),
             Self::ProcessCwd => (
                 "process.cwd".to_string(),
