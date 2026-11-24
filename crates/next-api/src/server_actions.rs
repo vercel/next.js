@@ -619,7 +619,7 @@ async fn compute_subtree_content_hash(
                             data.path_code_hash,
                             if data.env_var_info.as_ref().is_some_and(|e| e.runtime_all) {
                                 if data.ignore_runtime_all {
-                                    ""
+                                    " with ignored dynamic env access"
                                 } else {
                                     " with dynamic env access"
                                 }
