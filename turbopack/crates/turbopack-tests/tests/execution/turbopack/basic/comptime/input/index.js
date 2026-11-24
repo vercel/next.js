@@ -411,6 +411,41 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
   }
 })
 
+it('should keep navigator.serviceWorker existence checks as runtime checks', () => {
+  // `navigator` can exist without `serviceWorker` (e.g. in insecure contexts
+  // or in Node.js), so these must not be folded at compile time.
+  const check = () => {
+    let exists = false
+    if (navigator.serviceWorker) {
+      exists = true
+    }
+    let globalExists = false
+    if (globalThis.navigator.serviceWorker) {
+      globalExists = true
+    }
+    return [
+      exists,
+      navigator.serviceWorker ? 'yes' : 'no',
+      (navigator.serviceWorker ?? 'fallback') === 'fallback',
+      'serviceWorker' in navigator,
+      globalExists,
+      globalThis.navigator.serviceWorker ? 'yes' : 'no',
+      (globalThis.navigator.serviceWorker ?? 'fallback') === 'fallback',
+      'serviceWorker' in globalThis.navigator,
+    ]
+  }
+
+  expect({
+    missing: withGlobal('navigator', {}, check),
+    undefined: withGlobal('navigator', { serviceWorker: undefined }, check),
+    present: withGlobal('navigator', { serviceWorker: {} }, check),
+  }).toEqual({
+    missing: [false, 'no', true, false, false, 'no', true, false],
+    undefined: [false, 'no', true, true, false, 'no', true, true],
+    present: [true, 'yes', false, true, true, 'yes', false, true],
+  })
+})
+
 it('should evaluate process.turbopack through globalThis and global', () => {
   if (!globalThis.process.turbopack) {
     require('fail')

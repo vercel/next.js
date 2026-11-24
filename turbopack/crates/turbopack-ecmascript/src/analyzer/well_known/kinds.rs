@@ -57,13 +57,18 @@ pub enum WellKnownObjectKind {
 }
 
 impl WellKnownObjectKind {
-    /// Whether this is a global variable that might not exist at runtime (e.g. `process` in a
-    /// browser), or might have been overwritten. Its truthiness is unknown, so that feature
-    /// detection like `if (process)` or `globalThis.Buffer ? a : b` isn't folded at compile time.
+    /// Whether this is a global variable (or a property of one) that might not exist at runtime
+    /// (e.g. `process` in a browser, or `navigator.serviceWorker` in an insecure context), or
+    /// might have been overwritten. Its truthiness is unknown, so that feature detection like
+    /// `if (process)` or `globalThis.Buffer ? a : b` isn't folded at compile time.
     pub fn is_optional_global(&self) -> bool {
         matches!(
             self,
-            Self::ObjectConstructor | Self::NodeProcessGlobal | Self::NodeBuffer | Self::Navigator
+            Self::ObjectConstructor
+                | Self::NodeProcessGlobal
+                | Self::NodeBuffer
+                | Self::Navigator
+                | Self::NavigatorServiceWorker
         )
     }
 
