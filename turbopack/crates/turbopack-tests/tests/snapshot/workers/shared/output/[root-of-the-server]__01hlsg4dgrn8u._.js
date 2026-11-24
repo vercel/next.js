@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__07l1lihsce94l._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__01hlsg4dgrn8u._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -63,11 +63,11 @@ __turbopack_context__.s([
 function generateCreateWorker(entrypoint, moduleChunks) {
     return (WorkerConstructor, workerOptions)=>createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions);
 }
-}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js");
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js");
     },
     env: {
         DEV: true,
@@ -77,14 +77,13 @@ var __TURBOPACK__import$2e$meta__ = {
         SSR: false
     }
 };
-console.log('index.js');
-const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(Worker);
-}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)",((__turbopack_context__) => {
+const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js (static in ecmascript)"));
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js [test] (ecmascript, worker loader)")(SharedWorker);
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js (static in ecmascript)",((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/worker.2-qnq-strt8dn.js");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)",((__turbopack_context__) => {
+__turbopack_context__.q("/static/worker.1n36e5vaxakik.js");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js [test] (ecmascript, worker loader)",((__turbopack_context__) => {
 
-__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_basic_output_0uy0mninb8pht._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_11ygioomdle70.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_0lqk-upqfi2y2.js"]));
+__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_shared_output_0uy0mninb8pht._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1u1i0a127q7ym.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1im1g730qzysb.js"]));
 })]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__07l1lihsce94l._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__01hlsg4dgrn8u._.js.map

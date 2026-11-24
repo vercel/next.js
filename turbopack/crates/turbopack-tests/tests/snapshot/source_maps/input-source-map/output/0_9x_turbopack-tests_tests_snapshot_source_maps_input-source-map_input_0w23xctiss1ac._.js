@@ -1,4 +1,4 @@
-(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_source_maps_input-source-map_input_0n-g1xc4-d7nb._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
+(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_source_maps_input-source-map_input_0w23xctiss1ac._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 
 
 __turbopack_context__.s([]);
@@ -17,4 +17,4 @@ function runExternalSourceMapped(fn) {
 }
 })]);})()
 
-//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_source_maps_input-source-map_input_0n-g1xc4-d7nb._.js.map
+//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_source_maps_input-source-map_input_0w23xctiss1ac._.js.map
