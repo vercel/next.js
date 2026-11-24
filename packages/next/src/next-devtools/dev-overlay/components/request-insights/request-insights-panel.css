@@ -850,22 +850,6 @@
   white-space: nowrap;
 }
 
-.request-insights-span-attribute-label {
-  max-width: 140px;
-  min-width: 0;
-  padding: 1px 5px;
-  overflow: hidden;
-  flex: 0 1 auto;
-  border-radius: 999px;
-  background: var(--color-gray-300);
-  color: var(--color-gray-900);
-  font-family: var(--font-mono);
-  font-size: var(--size-11);
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .request-insights-span-marker {
   width: 6px;
   height: 6px;
@@ -876,10 +860,6 @@
 
 .request-insights-span-marker[data-kind='fetch'] {
   background: var(--color-purple-700);
-}
-
-.request-insights-span-marker[data-category='opentelemetry'] {
-  background: var(--color-green-800);
 }
 
 .request-insights-span-row .request-insights-span-marker[data-status='error'] {
@@ -919,10 +899,6 @@
 
 .request-insights-span-row[data-kind='fetch'] .request-insights-span-bar {
   background: var(--color-purple-700);
-}
-
-.request-insights-span-bar[data-category='opentelemetry'] {
-  background: var(--color-green-800);
 }
 
 .request-insights-span-row .request-insights-span-bar[data-status='error'] {

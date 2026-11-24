@@ -71,8 +71,6 @@
     "web-vitals.d.ts",
     "experimental/image-optimizer-transform.js",
     "experimental/image-optimizer-transform.d.ts",
-    "experimental/request-insights.js",
-    "experimental/request-insights.d.ts",
     "experimental/testing/server.js",
     "experimental/testing/server.d.ts",
     "experimental/testmode/playwright.js",

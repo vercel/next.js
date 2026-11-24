@@ -11,9 +11,8 @@ export type TraceItem = {
   spanId?: string
   parentSpanId?: string
   spanType?: string
-  category: 'nextjs' | 'application' | 'opentelemetry'
+  category: 'nextjs' | 'application'
   label: string
-  attributeLabel?: string
   attributes?: RequestInsightSpan['attributes']
   fullLabel?: string
   startTime: number
@@ -59,18 +58,6 @@ type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 const FETCH_SPAN_TYPE = 'AppRender.fetch'
 const LOAD_COMPONENTS_SPAN_TYPE = 'LoadComponents.loadComponents'
 const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
-const ATTRIBUTE_LABEL_KEYS = [
-  'feature_flag.key',
-  'db.query.summary',
-  'query',
-  'http.route',
-  'db.operation.name',
-  'rpc.method',
-  'messaging.destination.name',
-  'gen_ai.request.model',
-  'code.function.name',
-  'graphql.operation.name',
-] as const
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   MIDDLEWARE_SPAN_TYPE,
@@ -213,8 +200,6 @@ function getSpanTraceItem(
     spanType: typeof type === 'string' ? type : undefined,
     category,
     label: getSpanLabel(span),
-    attributeLabel:
-      category === 'opentelemetry' ? getSpanAttributeLabel(span) : undefined,
     attributes: span.attributes,
     startTime: span.startTime,
     durationMs: span.durationMs,
@@ -245,10 +230,6 @@ function getFetchTraceItem(
     spanType: FETCH_SPAN_TYPE,
     category: matchingSpan ? getSpanCategory(matchingSpan) : 'application',
     label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
-    attributeLabel:
-      matchingSpan && getSpanCategory(matchingSpan) === 'opentelemetry'
-        ? getSpanAttributeLabel(matchingSpan)
-        : undefined,
     attributes: matchingSpan?.attributes,
     fullLabel: `${method} ${url.fullUrl}`,
     startTime,
@@ -392,15 +373,9 @@ function getFetchIndex(span: RequestInsightSpan): number | undefined {
   return typeof index === 'number' ? index : undefined
 }
 
-function getSpanCategory(
-  span: RequestInsightSpan
-): 'nextjs' | 'application' | 'opentelemetry' {
+function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
   const category = span.attributes?.['next.span_category']
-  if (
-    category === 'nextjs' ||
-    category === 'application' ||
-    category === 'opentelemetry'
-  ) {
+  if (category === 'nextjs' || category === 'application') {
     return category
   }
 
@@ -411,29 +386,6 @@ function getSpanCategory(
   return typeof span.attributes?.['next.span_type'] === 'string'
     ? 'nextjs'
     : 'application'
-}
-
-function getSpanAttributeLabel(span: RequestInsightSpan): string | undefined {
-  for (const key of ATTRIBUTE_LABEL_KEYS) {
-    const value = span.attributes?.[key]
-    if (typeof value !== 'string' || value.length === 0) {
-      continue
-    }
-    const normalizedValue = value.replace(/\s+/g, ' ').trim()
-    if (normalizedValue.length === 0) {
-      continue
-    }
-    if (key === 'feature_flag.key') {
-      const variant = span.attributes?.['feature_flag.result.variant']
-      const normalizedVariant =
-        typeof variant === 'string' ? variant.replace(/\s+/g, ' ').trim() : ''
-      return normalizedVariant.length > 0
-        ? `${normalizedValue} = ${normalizedVariant}`
-        : normalizedValue
-    }
-    return normalizedValue
-  }
-  return undefined
 }
 
 function getSpanLabel(span: RequestInsightSpan): string {

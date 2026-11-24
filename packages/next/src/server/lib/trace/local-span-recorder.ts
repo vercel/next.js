@@ -202,10 +202,8 @@ export async function traceLocalSpan<T>(
 }
 
 export type LocalSpanRecorder = {
-  captureLocalSpanRecorder: typeof captureLocalSpanRecorder
   createLocalSpan: typeof createLocalSpan
   getActiveLocalSpan: typeof getActiveLocalSpan
-  getCurrentRequestIdentity: typeof getCurrentRequestIdentity
   getLocalParentSpan: typeof getLocalParentSpan
   getOpenTelemetrySpan: typeof getOpenTelemetrySpan
   isLocalRecordingSpan: typeof isLocalRecordingSpan
@@ -233,10 +231,8 @@ function getLocalSpanRecorderApi({
   sinkOnly: boolean
 }): LocalSpanRecorder {
   return {
-    captureLocalSpanRecorder,
     createLocalSpan,
     getActiveLocalSpan,
-    getCurrentRequestIdentity,
     getLocalParentSpan,
     getOpenTelemetrySpan,
     isLocalRecordingSpan,
@@ -266,7 +262,7 @@ function getLocalSpanAsyncStorage() {
   }>('local-span-storage')
 }
 
-export type RequestIdentity = {
+type RequestIdentity = {
   requestId?: string
   parentRequestId?: string
   requestInsightKind?: RequestInsightKind
@@ -677,7 +673,7 @@ function getSpanStoreExceptionAttributes(
   return Object.keys(attributes).length > 0 ? attributes : undefined
 }
 
-export function getCurrentRequestIdentity(): RequestIdentity {
+function getCurrentRequestIdentity(): RequestIdentity {
   try {
     const { getRequestInsightsIdentity } =
       require('./request-insights-identity') as typeof import('./request-insights-identity')
