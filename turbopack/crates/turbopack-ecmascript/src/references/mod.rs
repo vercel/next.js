@@ -1354,24 +1354,15 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    if usage == ValueUsage::Escapes
-                        && prop.as_str() == Some("env")
-                        && !analysis.has_runtime_env_var_reference_all()
-                    {
+                    if usage == ValueUsage::Escapes && prop.as_str() == Some("env") {
                         // e.g. `foo(process.env)` or `const key = 'env'; foo(process[key])`
-                        let value = analysis_state
-                            .link_value(
-                                JsValue::member(
-                                    arena.get_or_default(),
-                                    obj.clone_in(arena.get_or_default()),
-                                    atom!("env").into(),
-                                ),
-                                ImportAttributes::empty_ref(),
-                            )
+                        let value = JsValue::member(
+                            arena.get_or_default(),
+                            obj.clone_in(arena.get_or_default()),
+                            atom!("env").into(),
+                        );
+                        set_runtime_all_if_process_env(value, &analysis_state, &mut analysis)
                             .await?;
-                        if is_process_env(&value, &analysis_state.var_graph) {
-                            analysis.set_runtime_env_var_reference_all();
-                        }
                     }
 
                     // Intentionally not awaited because `handle_member` reads this only when needed
@@ -1406,45 +1397,29 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    if target_escapes
-                        && prop.as_str() == Some("env")
-                        && !analysis.has_runtime_env_var_reference_all()
-                    {
+                    if target_escapes && prop.as_str() == Some("env") {
                         // e.g. `const { env } = process` or `const { env: { ...rest } } = process`
-                        let value = analysis_state
-                            .link_value(
-                                JsValue::member(
-                                    arena.get_or_default(),
-                                    obj.clone_in(arena.get_or_default()),
-                                    atom!("env").into(),
-                                ),
-                                ImportAttributes::empty_ref(),
-                            )
+                        let value = JsValue::member(
+                            arena.get_or_default(),
+                            obj.clone_in(arena.get_or_default()),
+                            atom!("env").into(),
+                        );
+                        set_runtime_all_if_process_env(value, &analysis_state, &mut analysis)
                             .await?;
-                        if is_process_env(&value, &analysis_state.var_graph) {
-                            analysis.set_runtime_env_var_reference_all();
-                        }
                     }
 
-                    if prop.as_str().is_none() {
-                        let obj = analysis_state
-                            .link_value(take(&mut *obj), ImportAttributes::empty_ref())
-                            .await?;
-                        if is_process_env(&obj, &analysis_state.var_graph) {
-                            // `const { [unknown]: value } = process.env`
-                            analysis.set_runtime_env_var_reference_all();
-                        }
-                    } else if let Some(prop) = prop.as_str() {
-                        // This is only used for env var tracking. The more robust solution would be
-                        // an `Effect::Ident` but that would be even more
-                        // expensive.
-                        let obj = analysis_state
-                            .link_value(take(&mut *obj), ImportAttributes::empty_ref())
-                            .await?;
-
+                    // This is only used for env var tracking. The more robust solution would be
+                    // an `Effect::Ident` but that would be even more expensive.
+                    let obj = analysis_state
+                        .link_value(take(&mut *obj), ImportAttributes::empty_ref())
+                        .await?;
+                    if let Some(prop) = prop.as_str() {
                         if could_be_process_env(&obj, &analysis_state) {
                             analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
+                    } else if is_process_env(&obj, &analysis_state.var_graph) {
+                        // `const { [unknown]: value } = process.env`
+                        analysis.set_runtime_env_var_reference_all();
                     }
                 }
                 Effect::In {
@@ -1484,24 +1459,15 @@ async fn analyze_ecmascript_module_internal(
                     span: _,
                     usage,
                 } => {
-                    if usage == ValueUsage::Escapes
-                        && export.as_deref() == Some("env")
-                        && !analysis.has_runtime_env_var_reference_all()
-                    {
+                    if usage == ValueUsage::Escapes && export.as_deref() == Some("env") {
                         // e.g. `import { env } from 'process'; foo(env)`
-                        let value = analysis_state
-                            .link_value(
-                                eval_context.imports.get_import_for_idx(
-                                    arena.get_or_default(),
-                                    esm_reference_index,
-                                    export.clone().map(Into::into),
-                                ),
-                                ImportAttributes::empty_ref(),
-                            )
+                        let value = eval_context.imports.get_import_for_idx(
+                            arena.get_or_default(),
+                            esm_reference_index,
+                            export.clone().map(Into::into),
+                        );
+                        set_runtime_all_if_process_env(value, &analysis_state, &mut analysis)
                             .await?;
-                        if is_process_env(&value, &analysis_state.var_graph) {
-                            analysis.set_runtime_env_var_reference_all();
-                        }
                     }
 
                     let Some(r) = import_references.get(esm_reference_index) else {
@@ -3841,16 +3807,7 @@ async fn handle_membership<'a>(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     ty: MembershipType,
 ) -> Result<bool> {
-    let Some(prop) = prop.as_str() else {
-        let obj = link_obj.await?;
-        if is_process_env(&obj, &state.var_graph) {
-            // `process.env[unknown]` or `unknown in process.env`
-            analysis.set_runtime_env_var_reference_all();
-        }
-        return Ok(false);
-    };
-
-    {
+    if let Some(prop) = prop.as_str() {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
@@ -3955,6 +3912,9 @@ async fn handle_membership<'a>(
             }
             return Ok(false);
         }
+    } else if is_process_env(&link_obj.await?, &state.var_graph) {
+        // `process.env[unknown]` or `unknown in process.env`
+        analysis.set_runtime_env_var_reference_all();
     }
     Ok(false)
 }
@@ -4181,6 +4141,24 @@ fn is_process_env(value: &JsValue<'_>, var_graph: &VarGraph<'_>) -> bool {
                     ]
                 )
         })
+}
+
+/// Links `value` and marks the module as potentially reading all env vars if it's `process.env`,
+/// see [`is_process_env`]. Skips linking once that's already known.
+async fn set_runtime_all_if_process_env<'a>(
+    value: JsValue<'a>,
+    state: &AnalysisState<'a>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if !analysis.has_runtime_env_var_reference_all() {
+        let value = state
+            .link_value(value, ImportAttributes::empty_ref())
+            .await?;
+        if is_process_env(&value, &state.var_graph) {
+            analysis.set_runtime_env_var_reference_all();
+        }
+    }
+    Ok(())
 }
 
 async fn analyze_amd_define(
