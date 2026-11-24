@@ -1,3 +1,4 @@
+runtime_all: false
 runtime: [
     "FOO_COMPOUND_READ1",
     "FOO_COMPOUND_READ2",

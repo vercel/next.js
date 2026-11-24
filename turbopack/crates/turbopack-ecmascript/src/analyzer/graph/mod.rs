@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
-    common::BytePos,
+    common::{BytePos, Span},
     ecma::{ast::*, visit::VisitWithAstPath},
 };
 use turbopack_core::resolve::ExportUsage;
@@ -53,6 +53,10 @@ pub struct VarGraph<'a> {
     /// global `eval`). A direct eval can access bindings in its lexical scope by name, so the
     /// module must not be merged with others (merging may rename those bindings).
     pub has_direct_eval: bool,
+
+    /// The span of the first `process.env` access whose key cannot be determined statically
+    /// (e.g. `process.env` escaping into a variable or a function call), if any.
+    pub dynamic_process_env_access: Option<Span>,
 }
 
 impl<'a> VarGraph<'a> {
@@ -87,6 +91,7 @@ pub fn create_graph<'a>(
             require_usage: Default::default(),
             cjs_static_exports: Default::default(),
             has_direct_eval: false,
+            dynamic_process_env_access: None,
         },
         eval_context,
         state: Default::default(),

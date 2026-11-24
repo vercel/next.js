@@ -247,6 +247,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     has_direct_eval: bool,
 
     env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    env_var_info_runtime_all: Option<IssueSource>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -271,6 +272,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             cjs_static_exports: None,
             has_direct_eval: false,
             env_var_info_runtime: Default::default(),
+            env_var_info_runtime_all: None,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -389,6 +391,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .entry(runtime_env)
             // Only set if it hasn't been set to Read already.
             .or_insert(EnvVarAccessMode::Existence);
+    }
+
+    /// Marks the module as potentially reading all runtime environment variables (because of a
+    /// non-statically analyzable `process.env` access). Only the first location is kept.
+    pub fn set_runtime_env_var_reference_all(&mut self, issue_source: IssueSource) {
+        if self.env_var_info_runtime_all.is_none() {
+            self.env_var_info_runtime_all = Some(issue_source);
+        }
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -511,6 +521,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
                     runtime: self.env_var_info_runtime.into(),
+                    runtime_all: self.env_var_info_runtime_all,
                 }
                 .resolved_cell(),
             },
@@ -890,6 +901,10 @@ async fn analyze_ecmascript_module_internal(
         });
         graph.unwrap()
     };
+
+    if let Some(span) = var_graph.dynamic_process_env_access {
+        analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+    }
 
     let span = tracing::trace_span!("effects processing");
     async {
@@ -1364,14 +1379,36 @@ async fn analyze_ecmascript_module_internal(
                 Effect::DestructuredMember {
                     mut obj,
                     mut prop,
-                    span: _,
+                    span,
                 } => {
                     // TODO add an inlining codegen here
 
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
-                    if let Some(prop) = prop.as_str() {
+                    if prop.as_str().is_none() {
+                        let obj = analysis_state
+                            .link_value(take(&mut *obj), ImportAttributes::empty_ref())
+                            .await?;
+                        if obj
+                            .get_definable_name(Some(&analysis_state.var_graph))
+                            .iter()
+                            .flatten()
+                            .any(|(name, reassigned)| {
+                                !reassigned
+                                    && matches!(
+                                        name.0.as_slice(),
+                                        [
+                                            DefinableNameSegmentRef::Name("process"),
+                                            DefinableNameSegmentRef::Name("env")
+                                        ]
+                                    )
+                            })
+                        {
+                            // `const { [unknown]: value } = process.env`
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    } else if let Some(prop) = prop.as_str() {
                         // This is only used for env var tracking. The more robust solution would be
                         // an `Effect::Ident` but that would be even more
                         // expensive.
@@ -3757,7 +3794,34 @@ async fn handle_membership<'a>(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     ty: MembershipType,
 ) -> Result<bool> {
-    if let Some(prop) = prop.as_str() {
+    let Some(prop) = prop.as_str() else {
+        let obj = link_obj.await?;
+        if obj
+            .get_definable_name(Some(&state.var_graph))
+            .iter()
+            .flatten()
+            .any(|(name, reassigned)| {
+                !reassigned
+                    && matches!(
+                        name.0.as_slice(),
+                        [
+                            DefinableNameSegmentRef::Name("process"),
+                            DefinableNameSegmentRef::Name("env")
+                        ]
+                    )
+            })
+        {
+            // `process.env[unknown]` or `unknown in process.env`
+            analysis.set_runtime_env_var_reference_all(IssueSource::from_swc_offsets(
+                state.source,
+                span.lo.to_u32(),
+                span.hi.to_u32(),
+            ));
+        }
+        return Ok(false);
+    };
+
+    {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 

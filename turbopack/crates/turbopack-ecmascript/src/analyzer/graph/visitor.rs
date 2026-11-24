@@ -888,6 +888,60 @@ fn member_access_parent<'r>(
     }
 }
 
+/// Whether the current expression is the value being consumed by an object destructuring pattern
+/// without a rest element, i.e. every accessed key is listed in the pattern.
+fn is_object_destructuring_source_without_rest(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        let pat = match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
+                continue;
+            }
+            AstParentNodeRef::VarDeclarator(
+                VarDeclarator {
+                    name: Pat::Object(pat),
+                    ..
+                },
+                VarDeclaratorField::Init,
+            ) => pat,
+            AstParentNodeRef::AssignExpr(
+                AssignExpr {
+                    left: AssignTarget::Pat(AssignTargetPat::Object(pat)),
+                    ..
+                },
+                AssignExprField::Right,
+            ) => pat,
+            AstParentNodeRef::AssignPat(AssignPat { left, .. }, AssignPatField::Right) => {
+                match &**left {
+                    Pat::Object(pat) => pat,
+                    _ => return false,
+                }
+            }
+            _ => return false,
+        };
+        return pat
+            .props
+            .iter()
+            .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
+    }
+    false
+}
+
+/// Whether the current expression is the object in a `<key> in <obj>` expression.
+fn is_obj_in(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::BinExpr(bin, BinExprField::Right) => {
+                return bin.op == BinaryOp::In;
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
 /// Extracts export names from usage patterns on a dynamic import.
 ///
 /// Supports two patterns:
@@ -1834,6 +1888,23 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // `Effect::Member`, `Effect::DestructuredMember` and `Effect::In` handle the statically
+        // analyzable syntaxes (`process.env.FOO`, `const { FOO } = process.env`,
+        // `'FOO' in process.env`). If `process.env` occurs in any other context, it escapes and
+        // could be used to read any env var.
+        if self.data.dynamic_process_env_access.is_none()
+            && let MemberProp::Ident(prop) = &member_expr.prop
+            && prop.sym == "env"
+            && let Expr::Ident(obj) = &*member_expr.obj
+            && obj.sym == "process"
+            && is_unresolved_id(&obj.to_id(), self.eval_context.unresolved_mark)
+            && member_access_parent(ast_path).is_none()
+            && !is_object_destructuring_source_without_rest(ast_path)
+            && !is_obj_in(ast_path)
+        {
+            self.data.dynamic_process_env_access = Some(member_expr.span);
+        }
+
         let obj_value = BumpBox::new_in(
             self.eval_context.eval(self.arena, &member_expr.obj),
             self.arena,
