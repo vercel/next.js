@@ -1225,7 +1225,7 @@ impl<'e> ExecuteContext<'e> {
     #[track_caller]
     pub fn task_pair_upgrade(
         &mut self,
-        mut task: TaskGuard<'e>,
+        task: TaskGuard<'e>,
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (TaskGuard<'e>, TaskGuard<'e>) {
