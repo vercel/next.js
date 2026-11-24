@@ -37,6 +37,7 @@ use crate::{
     backend::{
         EventDescription, TaskDataCategory, TurboTasksBackend,
         cell_data::CellData,
+        known_immutable::KnownImmutable,
         snapshot_coordinator::{OperationGuard, SnapshotPhase},
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
@@ -405,7 +406,13 @@ impl<'e> ExecuteContext<'e> {
                     (storage_meta, SpecificTaskDataCategory::Meta),
                 ] {
                     let Some(storage) = storage else { continue };
-                    let applied = apply_restore_result(&mut task, storage, category);
+                    let applied = apply_restore_result(
+                        &mut task,
+                        storage,
+                        category,
+                        &self.backend().known_immutable,
+                        task_id,
+                    );
                     result = result.and(applied);
                 }
                 // Keep the guard through return. Once the restoring bit is clear, eviction may
@@ -733,7 +740,13 @@ impl<'e> ExecuteContext<'e> {
                 let claimed_data = entry.data_restore_result.get().is_some();
                 let claimed_meta = entry.meta_restore_result.get().is_some();
                 if let Some(result) = entry.data_restore_result.take() {
-                    match apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data) {
+                    match apply_restore_result(
+                        &mut task,
+                        result,
+                        SpecificTaskDataCategory::Data,
+                        &self.backend().known_immutable,
+                        task_id,
+                    ) {
                         Ok(()) => {
                             // Since we claimed this restore (data_restored() was false under the
                             // lock), the task type is always fresh here.
@@ -743,8 +756,13 @@ impl<'e> ExecuteContext<'e> {
                     }
                 }
                 if let Some(result) = entry.meta_restore_result.take()
-                    && let Err(e) =
-                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Meta)
+                    && let Err(e) = apply_restore_result(
+                        &mut task,
+                        result,
+                        SpecificTaskDataCategory::Meta,
+                        &self.backend().known_immutable,
+                        task_id,
+                    )
                 {
                     restore_errors.push((task_id, "meta", e));
                 }
@@ -1030,12 +1048,14 @@ fn schedule_priority(task: &TaskGuard<'_>, parent_priority: TaskPriority) -> Tas
 ///
 /// Clears the `*_restoring` flag for `category` unconditionally (success or error).
 /// On success, merges `storage` into the task if not already marked restored, then sets
-/// the restored flag. On error, returns the error so the caller can drop the task lock,
-/// notify waiters, and panic.
+/// the restored flag. A task restored as immutable is added to `known_immutable`. On error,
+/// returns the error so the caller can drop the task lock, notify waiters, and panic.
 fn apply_restore_result(
     task: &mut (impl DerefMut<Target = TaskStorage> + ?Sized),
     result: Result<Option<TaskStorage>>,
     category: SpecificTaskDataCategory,
+    known_immutable: &KnownImmutable,
+    task_id: TaskId,
 ) -> Result<()> {
     let task_category = TaskDataCategory::from(category);
     match result {
@@ -1053,6 +1073,9 @@ fn apply_restore_result(
             task.restore_from(storage, category);
             task.flags.set_restored(task_category);
             task.flags.set_restoring(task_category, false);
+            if task.flags.immutable() {
+                known_immutable.insert(task_id);
+            }
             Ok(())
         }
         Err(e) => {
@@ -2037,6 +2060,35 @@ pub use self::{
     update_cell::update_cell,
     update_collectible::UpdateCollectibleOperation,
 };
+
+#[cfg(test)]
+mod restore_known_immutable_tests {
+    use turbo_tasks::TaskId;
+
+    use super::{KnownImmutable, SpecificTaskDataCategory, TaskStorage, apply_restore_result};
+
+    #[test]
+    #[cfg_attr(feature = "verify_immutable", ignore)]
+    fn restoring_an_immutable_task_makes_it_known_immutable() {
+        let known_immutable = KnownImmutable::new();
+        for (id, immutable) in [(1, true), (2, false)] {
+            let task_id = TaskId::new(id).unwrap();
+            let mut restored = TaskStorage::default();
+            restored.flags.set_immutable(immutable);
+            let mut task = Box::new(TaskStorage::default());
+            apply_restore_result(
+                &mut task,
+                Ok(Some(restored)),
+                SpecificTaskDataCategory::Data,
+                &known_immutable,
+                task_id,
+            )
+            .unwrap();
+            assert_eq!(task.flags.immutable(), immutable);
+            assert_eq!(known_immutable.contains(task_id), immutable);
+        }
+    }
+}
 
 #[cfg(test)]
 mod must_exist_tests {
