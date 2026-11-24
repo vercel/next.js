@@ -8,6 +8,7 @@ mod code_gen;
 pub mod embed;
 pub mod emit_options;
 mod lifetime_util;
+pub mod minify;
 mod module_asset;
 pub(crate) mod process;
 pub(crate) mod references;

@@ -30,6 +30,7 @@ pub struct EmittedFile {
     pub content: ResolvedVc<FileContent>,
     /// Unprocessed until the destination's source map setting is known.
     pub source_map: Option<ResolvedVc<FileContent>>,
+    pub minimized: bool,
 }
 
 #[turbo_tasks::value_trait]
