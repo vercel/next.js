@@ -12,9 +12,20 @@ use super::*;
 
 type Queue<T> = ConcurrentPriorityQueue<u32, T>;
 
+/// A queue with all [`MAX_SHARD_COUNT`] shards, independent of the machine's parallelism: most
+/// tests address shards by index.
+fn queue<T>() -> Queue<T> {
+    Queue::with_shards(MAX_SHARD_COUNT)
+}
+
+/// The thread's home as stored, without mapping it into a queue's range.
+fn home() -> usize {
+    THREAD_SHARD.with(Cell::get)
+}
+
 /// Runs `f` with this thread's shard forced to `index`, restoring the previous shard after.
 fn on_shard<R>(index: usize, f: impl FnOnce() -> R) -> R {
-    let previous = thread_shard();
+    let previous = home();
     set_thread_shard(index);
     let result = f();
     set_thread_shard(previous);
@@ -66,7 +77,7 @@ fn run_search<T>(q: &Queue<T>) {
 /// From a single thread, priorities pop highest first; within a priority a single shard is LIFO.
 #[test]
 fn pops_in_exact_priority_order() {
-    let q: Queue<&str> = Queue::new();
+    let q: Queue<&str> = queue();
     assert!(q.is_empty());
     for (priority, item) in [
         (0, "low-a"),
@@ -90,7 +101,7 @@ fn pops_in_exact_priority_order() {
 
 #[test]
 fn push_many_queues_all_items() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     q.push_many(std::iter::empty());
     assert!(q.is_empty());
     q.push_many((0..8).map(|item| (if item % 2 == 0 { 0 } else { item }, item)));
@@ -103,7 +114,7 @@ fn push_many_queues_all_items() {
 /// drained queue as empty.
 #[test]
 fn is_empty_after_draining_a_higher_rank() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     q.push(5, 5);
     assert!(!q.is_empty());
     assert_eq!(q.pop(), Some((5, 5)));
@@ -116,7 +127,7 @@ fn is_empty_after_draining_a_higher_rank() {
 /// doesn't know about: every item that was queued stays poppable.
 #[test]
 fn push_many_panicking_iterator_loses_nothing() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         q.push_many((0..3).map(|i| {
             if i == 1 {
@@ -138,7 +149,7 @@ fn push_many_panicking_iterator_loses_nothing() {
 /// without a search for a new highest priority.
 #[test]
 fn rank_zero_drain_reaches_empty_without_search() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || (0..10).for_each(|item| q.push(0, item)));
     on_shard(1, || (10..20).for_each(|item| q.push(0, item)));
     assert_eq!(state(&q), make_state(0, false, shard_bit(0) | shard_bit(1)));
@@ -158,7 +169,7 @@ fn rank_zero_drain_reaches_empty_without_search() {
 /// items at that priority, and the victim keeps the rest.
 #[test]
 fn steal_moves_half_of_the_highest_priority() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || {
         (0..10).for_each(|item| q.push(5, item));
         // A lower priority stays behind in the victim.
@@ -189,7 +200,7 @@ fn steal_moves_half_of_the_highest_priority() {
 /// Once no shard has the highest priority, a search finds the next one across shards.
 #[test]
 fn search_finds_next_priority() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || q.push(3, 3));
     on_shard(1, || q.push(7, 7));
     on_shard(2, || q.push(5, 5));
@@ -205,7 +216,7 @@ fn search_finds_next_priority() {
 /// the empty state.
 #[test]
 fn search_with_only_rank_zero_items_sets_their_bits() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || q.push(0, 0));
     on_shard(1, || q.push(4, 4));
     assert_eq!(on_shard(1, || q.pop()).unwrap().1, 4);
@@ -231,7 +242,7 @@ fn search_with_only_rank_zero_items_sets_their_bits() {
 /// finds the shard without the highest priority.
 #[test]
 fn emptying_pop_keeps_the_bit() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || q.push(0, 100));
     on_shard(3, || {
         for item in 0..5 {
@@ -253,7 +264,7 @@ fn emptying_pop_keeps_the_bit() {
 /// thieves don't keep trying a drained shard.
 #[test]
 fn emptying_a_stolen_batch_clears_the_bit() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || (0..2).for_each(|item| q.push(5, item)));
     // Shard 1 steals one item (half of two, rounded up) and pops it: shard 1 is empty again.
     assert_eq!(on_shard(1, || q.pop()), Some((5, 1)));
@@ -265,7 +276,7 @@ fn emptying_a_stolen_batch_clears_the_bit() {
 /// thieves try those shards, so draining reaches the empty state.
 #[test]
 fn spurious_bits_are_cleared_while_draining() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     // Shards 1..=5 ran empty and kept their bits; shard 6 has the work.
     for index in 1..=5 {
         on_shard(index, || {
@@ -285,7 +296,7 @@ fn spurious_bits_are_cleared_while_draining() {
 /// known to be spurious.
 #[test]
 fn pop_leaving_lower_items_clears_the_bit() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(2, || {
         q.push(1, 1);
         q.push(6, 6);
@@ -299,7 +310,7 @@ fn pop_leaving_lower_items_clears_the_bit() {
 /// doesn't block the search, and the search finds its items.
 #[test]
 fn search_does_not_wait_for_locked_shards() {
-    let q: Arc<Queue<u32>> = Arc::new(Queue::new());
+    let q: Arc<Queue<u32>> = Arc::new(queue());
     on_shard(4, || q.push(3, 3));
     on_shard(7, || q.push(2, 2));
     // A stale `highest` without bits: the next pop searches.
@@ -328,7 +339,7 @@ fn search_does_not_wait_for_locked_shards() {
 /// it came after the scan) is therefore not lost.
 #[test]
 fn search_finish_merges_pushes_during_the_search() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(2, || q.push(4, 4));
     q.state.store(make_state(9, false, 0), Ordering::Release);
     let search = q.search_lock.lock();
@@ -353,7 +364,7 @@ fn search_finish_merges_pushes_during_the_search() {
 /// scan of the cross-search ABA): the push is in the word, so the finish keeps it.
 #[test]
 fn empty_scan_does_not_hide_a_push_during_the_search() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     q.state.store(make_state(7, false, 0), Ordering::Release);
     let search = q.search_lock.lock();
     q.state.store(SEARCHING, Ordering::Release);
@@ -372,7 +383,7 @@ fn empty_scan_does_not_hide_a_push_during_the_search() {
 /// else's search.
 #[test]
 fn pops_wait_for_a_running_search() {
-    let q: Arc<Queue<u32>> = Arc::new(Queue::new());
+    let q: Arc<Queue<u32>> = Arc::new(queue());
     on_shard(3, || q.push(2, 2));
     q.state.store(make_state(8, false, 0), Ordering::Release);
     // This thread is the search lock holder that started a search.
@@ -402,7 +413,7 @@ fn pops_wait_for_a_running_search() {
 /// Published tops follow every change of a shard: pushes, pops, steals, takeovers.
 #[test]
 fn published_tops_follow_shard_changes() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     assert_tops_match(&q);
     on_shard(0, || (0..8).for_each(|item| q.push(5, item)));
     on_shard(0, || q.push_many([(1, 100), (9, 9)]));
@@ -425,7 +436,7 @@ fn published_tops_follow_shard_changes() {
 /// state word, so `pop` returns `None`.
 #[test]
 fn search_over_empty_shards_ends_empty() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     // A stale `highest` with no bits, as left behind by the last pop of a priority.
     q.state.store(make_state(4, false, 0), Ordering::Release);
     assert!(on_shard(3, || q.pop()).is_none());
@@ -436,7 +447,7 @@ fn search_over_empty_shards_ends_empty() {
 /// an equal one adds its bit, a lower one writes nothing.
 #[test]
 fn push_updates_state_word() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || q.push(3, 0));
     on_shard(1, || q.push(3, 1));
     assert_eq!(state(&q), make_state(3, false, shard_bit(0) | shard_bit(1)));
@@ -452,7 +463,7 @@ fn push_updates_state_word() {
 /// rank, the pop doesn't go below the current `highest`.
 #[test]
 fn verified_rank_survives_a_raise() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || (0..3).for_each(|item| q.push(5, item)));
     // A raise by another shard after this pop verified rank 5.
     on_shard(1, || q.push(9, 9));
@@ -475,7 +486,7 @@ fn verified_rank_survives_a_raise() {
 /// the finishing thread read the shard's top before the push.
 #[test]
 fn push_during_search_is_not_lost() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || q.push(2, 2));
     q.state.store(SEARCHING, Ordering::Release);
     // The push lands while the search runs: it raises the searching `highest` and sets its bit.
@@ -497,7 +508,8 @@ fn equal_rank_priorities_are_ordered_within_a_shard() {
             self.0 / 10
         }
     }
-    let q: ConcurrentPriorityQueue<Coarse, u32> = ConcurrentPriorityQueue::new();
+    let q: ConcurrentPriorityQueue<Coarse, u32> =
+        ConcurrentPriorityQueue::with_shards(MAX_SHARD_COUNT);
     for p in [11, 15, 3, 19, 12] {
         q.push(Coarse(p), p);
     }
@@ -510,7 +522,7 @@ fn equal_rank_priorities_are_ordered_within_a_shard() {
 /// A thread whose shard is locked by someone else moves to another shard instead of waiting.
 #[test]
 fn busy_shard_is_skipped() {
-    let q: Arc<Queue<u32>> = Arc::new(Queue::new());
+    let q: Arc<Queue<u32>> = Arc::new(queue());
     let guard = q.shards[0].shard.lock();
     let (sender, receiver) = std::sync::mpsc::channel();
     let worker = {
@@ -519,7 +531,7 @@ fn busy_shard_is_skipped() {
             set_thread_shard(0);
             q.push(1, 1);
             let popped = q.pop().map(|(_, item)| item);
-            sender.send((popped, thread_shard())).unwrap();
+            sender.send((popped, home())).unwrap();
         })
     };
     let result = receiver.recv_timeout(Duration::from_secs(5));
@@ -545,7 +557,7 @@ fn set_steal_pressure<T>(q: &Queue<T>, index: usize, pressure: u32) {
 /// pressure by 1; a push or pop by its home thread halves it.
 #[test]
 fn steal_pressure_counts_foreign_uses_and_halves_on_home_use() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || (0..10).for_each(|item| q.push(5, item)));
     assert_eq!(steal_pressure(&q, 0), 0);
     // Shard 1 steals 5 items from shard 0 and pops one of them from its own home.
@@ -576,13 +588,13 @@ fn steal_pressure_threshold_is_1024() {
 /// steals from it instead of taking it over too.
 #[test]
 fn high_steal_pressure_victim_becomes_home() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || (0..10).for_each(|item| q.push(5, item)));
     on_shard(1, || q.push(1, 100));
     set_steal_pressure(&q, 0, STEAL_PRESSURE_THRESHOLD);
     let (item, home) = on_shard(1, || {
         let item = q.pop().unwrap().1;
-        (item, thread_shard())
+        (item, home())
     });
     assert_eq!(item, 9, "the newest item of the victim");
     assert_eq!(home, 0, "the thread switched its home to the victim");
@@ -597,12 +609,12 @@ fn high_steal_pressure_victim_becomes_home() {
 /// Below the threshold, a thread still steals half.
 #[test]
 fn low_steal_pressure_victim_is_stolen_from() {
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = queue();
     on_shard(0, || (0..10).for_each(|item| q.push(5, item)));
     set_steal_pressure(&q, 0, STEAL_PRESSURE_THRESHOLD - 1);
     let home = on_shard(1, || {
         q.pop().unwrap();
-        thread_shard()
+        home()
     });
     assert_eq!(home, 1);
     assert_eq!(shard_len(&q, 0), 5);
@@ -623,7 +635,7 @@ fn with_busy_home<R: Send + 'static>(
         std::thread::spawn(move || {
             set_thread_shard(0);
             let result = f(&q);
-            sender.send((result, thread_shard())).unwrap();
+            sender.send((result, home())).unwrap();
         })
     };
     let result = receiver.recv_timeout(Duration::from_secs(5));
@@ -636,12 +648,12 @@ fn with_busy_home<R: Send + 'static>(
 /// steal pressure.
 #[test]
 fn busy_home_push_switches_only_to_high_pressure_shard() {
-    let q: Arc<Queue<u32>> = Arc::new(Queue::new());
+    let q: Arc<Queue<u32>> = Arc::new(queue());
     let ((), home) = with_busy_home(&q, |q| q.push(1, 1));
     assert_eq!(home, 0);
     assert_eq!(shard_len(&q, 0), 0, "pushed to another shard");
 
-    for index in 1..SHARD_COUNT {
+    for index in 1..MAX_SHARD_COUNT {
         set_steal_pressure(&q, index, STEAL_PRESSURE_THRESHOLD);
     }
     let ((), home) = with_busy_home(&q, |q| q.push(1, 2));
@@ -657,7 +669,7 @@ fn busy_home_push_switches_only_to_high_pressure_shard() {
 /// home.
 #[test]
 fn busy_home_pop_uses_shard_with_items() {
-    let q: Arc<Queue<u32>> = Arc::new(Queue::new());
+    let q: Arc<Queue<u32>> = Arc::new(queue());
     on_shard(3, || q.push(2, 7));
     let (popped, home) = with_busy_home(&q, |q| q.pop().map(|(_, item)| item));
     assert_eq!(popped, Some(7));
@@ -673,7 +685,9 @@ fn busy_home_pop_uses_shard_with_items() {
 /// Total steal pressure of shards `1..`, for pushes that land on some other shard than a busy shard
 /// 0.
 fn foreign_pressure<T>(q: &Queue<T>) -> u32 {
-    (1..SHARD_COUNT).map(|index| steal_pressure(q, index)).sum()
+    (1..q.shard_count())
+        .map(|index| steal_pressure(q, index))
+        .sum()
 }
 
 /// A push or nonempty `push_many` that lands on another shard because the home is busy raises that
@@ -681,7 +695,7 @@ fn foreign_pressure<T>(q: &Queue<T>) -> u32 {
 /// pressure once, and an empty one leaves it unchanged.
 #[test]
 fn pushes_update_steal_pressure() {
-    let q: Arc<Queue<u32>> = Arc::new(Queue::new());
+    let q: Arc<Queue<u32>> = Arc::new(queue());
     let ((), home) = with_busy_home(&q, |q| q.push(1, 1));
     assert_eq!(home, 0);
     assert_eq!(foreign_pressure(&q), 1, "a foreign push");
@@ -702,6 +716,19 @@ fn pushes_update_steal_pressure() {
 /// pop of a lower priority (or a `None`) has completed.
 #[test]
 fn stress_no_loss_no_duplicates_and_order() {
+    stress(MAX_SHARD_COUNT);
+}
+
+/// [`stress_no_loss_no_duplicates_and_order`] with fewer shards than threads, down to one shard
+/// (no stealing). The threads' homes are set beyond the shard count, so they get remapped.
+#[test]
+fn stress_with_fewer_shards() {
+    for shard_count in [1, 2, 7] {
+        stress(shard_count);
+    }
+}
+
+fn stress(shard_count: usize) {
     const ROUNDS: u32 = 20;
     const PRODUCERS: u32 = 4;
     const CONSUMERS: u32 = 6;
@@ -713,7 +740,7 @@ fn stress_no_loss_no_duplicates_and_order() {
 
     let total = ROUNDS * PER_ROUND;
     let popped_count: Vec<AtomicU32> = (0..total).map(|_| AtomicU32::new(0)).collect();
-    let q: Queue<u32> = Queue::new();
+    let q: Queue<u32> = Queue::with_shards(shard_count);
     let seq = AtomicU64::new(0);
 
     for round in 0..ROUNDS {
@@ -726,7 +753,7 @@ fn stress_no_loss_no_duplicates_and_order() {
                 let (q, popped_count, seq, quiescent, quiescent_pops) =
                     (&q, &popped_count, &seq, &quiescent, &quiescent_pops);
                 scope.spawn(move || {
-                    set_thread_shard((consumer as usize * 5) % SHARD_COUNT);
+                    set_thread_shard((consumer as usize * 5) % MAX_SHARD_COUNT);
                     let mut local = Vec::new();
                     loop {
                         let in_quiescent = quiescent.load(Ordering::Acquire);
@@ -749,7 +776,7 @@ fn stress_no_loss_no_duplicates_and_order() {
             for producer in 0..PRODUCERS {
                 let (q, producers_done) = (&q, &producers_done);
                 scope.spawn(move || {
-                    set_thread_shard((producer as usize * 7 + 3) % SHARD_COUNT);
+                    set_thread_shard((producer as usize * 7 + 3) % MAX_SHARD_COUNT);
                     let mut x = 0x9E37_79B9u32 ^ (producer << 8) ^ round;
                     let mut batch = Vec::new();
                     for i in 0..PER_PRODUCER {
@@ -786,6 +813,13 @@ fn stress_no_loss_no_duplicates_and_order() {
         assert!(q.pop().is_none());
         assert!(all_shards_empty(&q), "round {round}: items left behind");
         assert_eq!(state(&q), 0);
+        if shard_count == 1 {
+            assert_eq!(
+                steal_pressure(&q, 0),
+                0,
+                "round {round}: one shard never steals"
+            );
+        }
 
         // Ordering in the quiescent phase.
         let pops = quiescent_pops.into_inner();
@@ -809,5 +843,221 @@ fn stress_no_loss_no_duplicates_and_order() {
 
     for (id, count) in popped_count.iter().enumerate() {
         assert_eq!(count.load(Ordering::Relaxed), 1, "item {id}");
+    }
+}
+
+/// Bits of shards that don't exist in a queue with `shard_count` shards.
+fn bits_outside(state: u64, shard_count: usize) -> u64 {
+    state_bits(state) & !((1u64 << shard_count) - 1)
+}
+
+/// With one shard, every thread uses shard 0 whatever its home, nothing is ever stolen, and a
+/// search scans only that shard.
+#[test]
+fn one_shard() {
+    let q: Queue<u32> = Queue::with_shards(1);
+    assert_eq!(q.shard_count(), 1);
+    assert_eq!(q.shards.len(), 1);
+    on_shard(0, || q.push(3, 30));
+    on_shard(5, || q.push(7, 70));
+    on_shard(30, || q.push(5, 50));
+    on_shard(17, || q.push_many([(5, 51), (0, 0)]));
+    assert_eq!(shard_len(&q, 0), 5);
+    assert_eq!(state(&q), make_state(7, false, shard_bit(0)));
+    let popped = on_shard(12, || {
+        let mut popped = Vec::new();
+        while let Some((priority, item)) = q.pop() {
+            assert_eq!(bits_outside(state(&q), 1), 0);
+            popped.push((priority, item));
+        }
+        popped
+    });
+    assert_eq!(popped, vec![(7, 70), (5, 51), (5, 50), (3, 30), (0, 0)]);
+    assert_eq!(steal_pressure(&q, 0), 0, "nothing was stolen");
+    assert_eq!(state(&q), 0);
+
+    // A search with one shard finds its top.
+    on_shard(9, || q.push(4, 40));
+    q.state.store(SEARCHING, Ordering::SeqCst);
+    assert_eq!(q.scan_tops(), (Some(4), shard_bit(0)));
+    run_search(&q);
+    assert_eq!(state(&q), make_state(4, false, shard_bit(0)));
+}
+
+/// With two shards, threads with any home use shards 0 and 1, steal from each other, and the
+/// state word never has bits of other shards.
+#[test]
+fn two_shards() {
+    let q: Queue<u32> = Queue::with_shards(2);
+    assert_eq!(q.shard_count(), 2);
+    // Homes 0 and 1, and an out-of-range home 3 that is mapped into `0..2`.
+    on_shard(0, || (0..10).for_each(|item| q.push(5, item)));
+    on_shard(1, || q.push(1, 100));
+    let mapped = on_shard(3, || {
+        q.push(0, 200);
+        home()
+    });
+    assert!(mapped < 2);
+    assert_eq!(shard_len(&q, 0) + shard_len(&q, 1), 12);
+    assert_eq!(shard_len(&q, 1), if mapped == 1 { 2 } else { 1 });
+    assert_eq!(bits_outside(state(&q), 2), 0);
+    // Shard 1 doesn't have priority 5: it steals half of shard 0's.
+    let (_, item) = on_shard(1, || q.pop()).unwrap();
+    assert_eq!(item, 9, "the newest item of the stolen half (5..=9)");
+    assert_eq!(
+        shard_len(&q, 0),
+        5 + usize::from(mapped == 0),
+        "5 left at priority 5, plus item 200 if it went to shard 0"
+    );
+    assert_eq!(steal_pressure(&q, 0), 1);
+    let mut rest = on_shard(0, || drain(&q));
+    rest.sort_unstable();
+    assert_eq!(rest, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 100, 200]);
+    assert_eq!(state(&q), 0);
+    assert!(all_shards_empty(&q));
+}
+
+/// The maximum shard count behaves like the default queue on a large machine: all shards and bits
+/// are used.
+#[test]
+fn max_shards() {
+    let q: Queue<u32> = Queue::with_shards(MAX_SHARD_COUNT);
+    assert_eq!(q.shard_count(), MAX_SHARD_COUNT);
+    for index in 0..MAX_SHARD_COUNT {
+        on_shard(index, || q.push(2, index as u32));
+    }
+    assert_eq!(state(&q), make_state(2, false, ALL_BITS));
+    on_shard(4, || q.push(9, 99));
+    let mut popped = on_shard(30, || drain(&q));
+    assert_eq!(popped.remove(0), 99, "highest priority first");
+    popped.sort_unstable();
+    assert_eq!(popped, (0..MAX_SHARD_COUNT as u32).collect::<Vec<_>>());
+    assert!(all_shards_empty(&q));
+}
+
+/// A home from a queue with more shards is mapped into the range of a smaller queue once and
+/// stored, and stays valid for larger queues.
+#[test]
+fn home_is_mapped_into_range() {
+    std::thread::spawn(|| {
+        let small: Queue<u32> = Queue::with_shards(4);
+        let large: Queue<u32> = queue();
+        set_thread_shard(30);
+        large.push(1, 1);
+        assert_eq!(home(), 30, "in range for the large queue");
+        assert_eq!(shard_len(&large, 30), 1);
+        small.push(1, 2);
+        let mapped = home();
+        assert!(mapped < 4, "mapped into the small queue's range");
+        assert_eq!(shard_len(&small, mapped), 1);
+        large.push(1, 3);
+        assert_eq!(
+            home(),
+            mapped,
+            "the mapped home is kept for the large queue"
+        );
+        assert_eq!(shard_len(&large, mapped), 1);
+    })
+    .join()
+    .unwrap();
+}
+
+/// A new thread's first home is in range for the queue it uses first.
+#[test]
+fn first_home_is_in_range() {
+    for shard_count in [1, 2, 3, 16, MAX_SHARD_COUNT] {
+        std::thread::spawn(move || {
+            let q: Queue<u32> = Queue::with_shards(shard_count);
+            q.push(0, 0);
+            assert!(home() < shard_count);
+            assert_eq!(shard_len(&q, home()), 1);
+        })
+        .join()
+        .unwrap();
+    }
+}
+
+#[test]
+#[should_panic(expected = "shard count 0 is not in 1..=31")]
+fn zero_shards_panics() {
+    let _ = Queue::<u32>::with_shards(0);
+}
+
+#[test]
+#[should_panic(expected = "shard count 32 is not in 1..=31")]
+fn too_many_shards_panics() {
+    let _ = Queue::<u32>::with_shards(MAX_SHARD_COUNT + 1);
+}
+
+/// `new` uses one shard per available CPU, at most [`MAX_SHARD_COUNT`].
+#[test]
+fn new_uses_available_parallelism() {
+    let expected = std::thread::available_parallelism()
+        .map_or(1, NonZeroUsize::get)
+        .min(MAX_SHARD_COUNT);
+    assert_eq!(Queue::<u32>::new().shard_count(), expected);
+}
+
+/// `random_shard` and `next_shard` stay in range for every shard count.
+#[test]
+fn shard_pickers_stay_in_range() {
+    for shard_count in 1..=MAX_SHARD_COUNT {
+        let mut seen = 0u64;
+        for _ in 0..2_000 {
+            let index = random_shard(shard_count);
+            assert!(index < shard_count);
+            seen |= shard_bit(index);
+        }
+        assert_eq!(
+            seen,
+            (1 << shard_count) - 1,
+            "{shard_count}: every shard is picked"
+        );
+        for index in 0..shard_count {
+            let next = next_shard(index, shard_count);
+            assert_eq!(
+                next,
+                if index + 1 == shard_count {
+                    0
+                } else {
+                    index + 1
+                }
+            );
+        }
+    }
+}
+
+/// A thread's first home is its ordinal modulo the shard count, so threads that start using
+/// queues of the same shard count one after another get different homes; a home that is out of
+/// range for a smaller queue is replaced the same way.
+#[test]
+fn homes_follow_the_thread_ordinal() {
+    for shard_count in [1, 2, 3, 16, 30, MAX_SHARD_COUNT] {
+        let homes: Vec<usize> = (100..100 + shard_count)
+            .map(|ordinal| {
+                std::thread::spawn(move || {
+                    THREAD_ORDINAL.with(|cell| cell.set(ordinal));
+                    let q: Queue<u32> = Queue::with_shards(shard_count);
+                    q.push(0, 0);
+                    let first = home();
+                    if shard_count < MAX_SHARD_COUNT {
+                        // A home that is out of range for `q`.
+                        set_thread_shard(MAX_SHARD_COUNT - 1);
+                        q.push(0, 0);
+                        assert_eq!(home(), first, "remapped by the ordinal again");
+                    }
+                    first
+                })
+                .join()
+                .unwrap()
+            })
+            .collect();
+        let mut sorted = homes.clone();
+        sorted.sort_unstable();
+        assert_eq!(
+            sorted,
+            (0..shard_count).collect::<Vec<_>>(),
+            "{shard_count} shards: homes {homes:?}"
+        );
     }
 }

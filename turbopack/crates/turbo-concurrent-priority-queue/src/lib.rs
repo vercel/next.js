@@ -1,10 +1,17 @@
 //! A concurrent priority queue for many threads that push and pop a lot:
 //! [`ConcurrentPriorityQueue`].
 //!
-//! The queue is a set of [`SHARD_COUNT`] mutex-protected shards plus one shared atomic state word.
-//! A thread sticks to one shard, its *home* (a thread-local index), so in the common case pushes
-//! and pops of different threads take different, uncontended locks. Threads that run out of work
-//! at the highest priority steal half of another shard's items at that priority.
+//! The queue is a set of mutex-protected shards plus one shared atomic state word. A thread sticks
+//! to one shard, its *home* (a thread-local index), so in the common case pushes and pops of
+//! different threads take different, uncontended locks. Threads that run out of work at the highest
+//! priority steal half of another shard's items at that priority.
+//!
+//! The number of shards `n` is fixed when the queue is created, between `1` and
+//! [`MAX_SHARD_COUNT`]: [`ConcurrentPriorityQueue::with_shards`] takes it explicitly, and
+//! [`ConcurrentPriorityQueue::new`] uses the available parallelism. It should not exceed the number
+//! of threads that use the queue: a shard that no thread calls home only spreads items out, which
+//! costs extra steals, and every search scans and every steal walks all `n` shards. With `n = 1`
+//! there is nothing to steal from, and the queue is a single locked heap plus the state word.
 //!
 //! # Shards
 //!
@@ -57,7 +64,8 @@
 //!   search is in progress it is the maximum rank pushed during the search (starting at `0`);
 //! - `SEARCHING` (bit 31): set while the holder of the search lock looks for the new highest
 //!   priority;
-//! - 31 shard bits (bits 0..31), one per shard.
+//! - [`MAX_SHARD_COUNT`] shard bits (bits 0..31). Shard `i` uses bit `i`; the bits of shards that
+//!   don't exist (`i >= n`) are always clear.
 //!
 //! Ranks are monotone but not strictly so (see [`QueuePriority`]): shards order by the full
 //! priority, the state word only by rank. "A shard has `highest`" means the shard is not empty and
@@ -213,6 +221,7 @@ use std::{
     cell::Cell,
     collections::{BinaryHeap, hash_map::Entry},
     hash::Hash,
+    num::NonZeroUsize,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
@@ -246,13 +255,14 @@ macro_rules! impl_queue_priority_for_uint {
 }
 impl_queue_priority_for_uint!(u8, u16, u32);
 
-/// The number of shards. Each has one bit in the state word, next to the `SEARCHING` flag and the
-/// 32-bit `highest` rank.
-pub const SHARD_COUNT: usize = 31;
-const ALL_BITS: u64 = (1 << SHARD_COUNT) - 1;
-const SEARCHING: u64 = 1 << SHARD_COUNT;
+/// The maximum number of shards. Each shard has one bit in the state word, next to the `SEARCHING`
+/// flag and the 32-bit `highest` rank.
+pub const MAX_SHARD_COUNT: usize = 31;
+const ALL_BITS: u64 = (1 << MAX_SHARD_COUNT) - 1;
+const SEARCHING: u64 = 1 << MAX_SHARD_COUNT;
 const HIGHEST_SHIFT: u32 = 32;
-/// How many shards a thread tries with `try_lock` before it blocks on a lock.
+/// How many shards a thread tries with `try_lock` before it blocks on a lock (fewer when the queue
+/// has fewer shards).
 const TRY_LOCK_ATTEMPTS: usize = 4;
 /// The steal pressure (see the crate docs) from which a shard is taken over by a thread that wants
 /// to steal from it, or that happens to use it, instead of being stolen from. See the crate docs.
@@ -288,52 +298,78 @@ fn shard_bit(index: usize) -> u64 {
     1 << index
 }
 
-/// Hands out the initial shard of each thread round-robin.
-static NEXT_THREAD_SHARD: AtomicUsize = AtomicUsize::new(0);
+/// Numbers threads in the order they first use a queue, see [`assign_thread_shard`].
+static NEXT_THREAD_ORDINAL: AtomicUsize = AtomicUsize::new(0);
 
 thread_local! {
     /// The shard this thread pushes to and pops from first. `usize::MAX` until first use.
+    ///
+    /// One home is shared by all queues the thread uses. A queue with fewer shards than the home
+    /// maps it into its range (see [`thread_shard`]) and stores the result, which is also a valid
+    /// home for every queue with more shards.
     static THREAD_SHARD: Cell<usize> = const { Cell::new(usize::MAX) };
+    /// This thread's number from [`NEXT_THREAD_ORDINAL`]. `usize::MAX` until first use.
+    static THREAD_ORDINAL: Cell<usize> = const { Cell::new(usize::MAX) };
     /// State of a per-thread xorshift generator, used to spread steal and search attempts.
     static THREAD_RNG: Cell<u32> = const { Cell::new(0) };
 }
 
-fn thread_shard() -> usize {
+/// The thread's home shard for a queue with `shard_count` shards: always `< shard_count`.
+fn thread_shard(shard_count: usize) -> usize {
     THREAD_SHARD.with(|shard| {
-        let mut index = shard.get();
-        if index == usize::MAX {
-            index = NEXT_THREAD_SHARD.fetch_add(1, Ordering::Relaxed) % SHARD_COUNT;
-            shard.set(index);
+        let index = shard.get();
+        if index < shard_count {
+            index
+        } else {
+            assign_thread_shard(shard, shard_count)
         }
-        index
     })
+}
+
+/// Assigns the thread's home for a queue with `shard_count` shards: its first one, or a new one
+/// when its home is out of range (it came from a queue with more shards). The home is the thread's
+/// ordinal modulo `shard_count`, so `shard_count` threads that start using queues of that size one
+/// after another get different homes (a `% MAX_SHARD_COUNT` first, then `% shard_count`, would
+/// not). Runs once per thread, and again only when the thread uses a queue with fewer shards than
+/// its home.
+#[cold]
+fn assign_thread_shard(shard: &Cell<usize>, shard_count: usize) -> usize {
+    let ordinal = THREAD_ORDINAL.with(|ordinal| {
+        if ordinal.get() == usize::MAX {
+            ordinal.set(NEXT_THREAD_ORDINAL.fetch_add(1, Ordering::Relaxed));
+        }
+        ordinal.get()
+    });
+    let index = ordinal % shard_count;
+    shard.set(index);
+    index
 }
 
 fn set_thread_shard(index: usize) {
     THREAD_SHARD.with(|shard| shard.set(index));
 }
 
-/// A pseudo-random number in `0..SHARD_COUNT`.
-fn random_shard() -> usize {
+/// A pseudo-random number in `0..shard_count`.
+fn random_shard(shard_count: usize) -> usize {
     THREAD_RNG.with(|rng| {
         let mut x = rng.get();
         if x == 0 {
-            // Seed from the thread's shard, so threads start at different points.
-            x = (thread_shard() as u32).wrapping_mul(0x9E37_79B9) | 1;
+            // Seed from the thread's home, so threads start at different points.
+            x = (thread_shard(shard_count) as u32).wrapping_mul(0x9E37_79B9) | 1;
         }
         x ^= x << 13;
         x ^= x >> 17;
         x ^= x << 5;
         rng.set(x);
-        // Multiply-shift maps `x` to `0..SHARD_COUNT` without a division.
-        ((u64::from(x) * SHARD_COUNT as u64) >> 32) as usize
+        // Multiply-shift maps `x` to `0..shard_count` without a division.
+        ((u64::from(x) * shard_count as u64) >> 32) as usize
     })
 }
 
-/// The shard after `index`, wrapping around after the last one (no division).
-fn next_shard(index: usize) -> usize {
+/// The shard after `index`, wrapping around after the last one, `shard_count - 1` (no division).
+fn next_shard(index: usize, shard_count: usize) -> usize {
     let next = index + 1;
-    if next == SHARD_COUNT { 0 } else { next }
+    if next == shard_count { 0 } else { next }
 }
 
 /// One shard: the items queued in it, by priority.
@@ -492,6 +528,7 @@ type PaddedShard<P, T> = CachePadded<Slot<P, T>>;
 /// are popped newest first within a shard, in no particular order across shards. See the
 /// [crate docs](crate) for the exact ordering guarantee under concurrent pushes.
 pub struct ConcurrentPriorityQueue<P, T> {
+    /// The `n` shards, `1 <= n <= MAX_SHARD_COUNT`.
     shards: Box<[PaddedShard<P, T>]>,
     /// `highest` rank, `SEARCHING` flag and shard bits, see the crate docs.
     state: CachePadded<AtomicU64>,
@@ -507,10 +544,27 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> Default for ConcurrentPriorityQue
 }
 
 impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
-    /// Creates an empty queue. Allocates all [`SHARD_COUNT`] shards and their buffers up front.
+    /// Creates an empty queue with one shard per available CPU
+    /// ([`std::thread::available_parallelism`], `1` if unknown), at most [`MAX_SHARD_COUNT`]. Use
+    /// [`with_shards`](Self::with_shards) when fewer threads use the queue.
     pub fn new() -> Self {
+        let parallelism = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
+        Self::with_shards(parallelism.min(MAX_SHARD_COUNT))
+    }
+
+    /// Creates an empty queue with `shard_count` shards, and allocates them and their buffers up
+    /// front. Use at most one shard per thread that uses the queue (see the [crate docs](crate)).
+    ///
+    /// # Panics
+    ///
+    /// If `shard_count` is `0` or above [`MAX_SHARD_COUNT`].
+    pub fn with_shards(shard_count: usize) -> Self {
+        assert!(
+            (1..=MAX_SHARD_COUNT).contains(&shard_count),
+            "shard count {shard_count} is not in 1..={MAX_SHARD_COUNT}"
+        );
         Self {
-            shards: (0..SHARD_COUNT)
+            shards: (0..shard_count)
                 .map(|_| {
                     CachePadded::new(Slot {
                         top: AtomicU64::new(0),
@@ -521,6 +575,11 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
             state: CachePadded::new(AtomicU64::new(0)),
             search_lock: CachePadded::new(Mutex::new(())),
         }
+    }
+
+    /// The number of shards, see [`with_shards`](Self::with_shards).
+    pub fn shard_count(&self) -> usize {
+        self.shards.len()
     }
 
     /// Whether the queue is empty. Only a snapshot when used concurrently with pushes and pops.
@@ -539,12 +598,14 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
     /// Locks the thread's home shard for a push, or another one if that is busy. Blocks on the home
     /// shard only after [`TRY_LOCK_ATTEMPTS`] failed attempts.
     fn lock_some_shard(&self) -> (usize, MutexGuard<'_, Shard<P, T>>) {
-        let home = thread_shard();
+        let shard_count = self.shard_count();
+        let home = thread_shard(shard_count);
         if let Some(guard) = self.shards[home].shard.try_lock() {
             return (home, guard);
         }
-        for _ in 1..TRY_LOCK_ATTEMPTS {
-            let index = random_shard();
+        // With a single shard there is nothing else to try.
+        for _ in 1..TRY_LOCK_ATTEMPTS.min(shard_count) {
+            let index = random_shard(shard_count);
             if let Some(mut guard) = self.shards[index].shard.try_lock() {
                 Self::visit_shard(home, index, &mut guard);
                 return (index, guard);
@@ -558,17 +619,18 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
     /// revalidates under the lock. Blocks on the home shard only after [`TRY_LOCK_ATTEMPTS`]
     /// failed attempts or when no other bit is set.
     fn lock_shard_for_pop(&self, state: u64) -> (usize, MutexGuard<'_, Shard<P, T>>) {
-        let home = thread_shard();
+        let shard_count = self.shard_count();
+        let home = thread_shard(shard_count);
         if let Some(guard) = self.shards[home].shard.try_lock() {
             return (home, guard);
         }
         let candidates = state_bits(state) & !shard_bit(home);
         if candidates != 0 {
-            let mut index = random_shard();
+            let mut index = random_shard(shard_count);
             let mut attempts = 1;
-            for _ in 0..SHARD_COUNT {
+            for _ in 0..shard_count {
                 let current = index;
-                index = next_shard(index);
+                index = next_shard(index, shard_count);
                 if candidates & shard_bit(current) == 0 {
                     continue;
                 }
@@ -597,7 +659,7 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
     /// Updates the steal pressure of shard `index`, whose lock the caller holds, for a push or pop
     /// by this thread.
     fn record_use(&self, index: usize, shard: &mut Shard<P, T>) {
-        shard.record_use(index == thread_shard());
+        shard.record_use(index == thread_shard(self.shard_count()));
     }
 
     /// Stores the published top rank of shard `index`, whose lock the caller holds, if it changed.
@@ -859,10 +921,15 @@ impl<P: Clone + Ord + Hash + QueuePriority, T> ConcurrentPriorityQueue<P, T> {
         }
         let highest = state_highest(state);
         let candidates = state_bits(state) & !shard_bit(index);
-        let mut next = random_shard();
-        for _ in 0..SHARD_COUNT {
+        if candidates == 0 {
+            // E.g. a single shard: nothing to steal from.
+            return None;
+        }
+        let shard_count = self.shard_count();
+        let mut next = random_shard(shard_count);
+        for _ in 0..shard_count {
             let victim_index = next;
-            next = next_shard(next);
+            next = next_shard(next, shard_count);
             if candidates & shard_bit(victim_index) == 0 {
                 continue;
             }
