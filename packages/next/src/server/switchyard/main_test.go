@@ -131,6 +131,48 @@ func TestKeepsForwardedHeadersTheClientSent(t *testing.T) {
 	}
 }
 
+func TestKeepsHopByHopHeadersTheClientSent(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	rawRoundTrip(t, addr, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n"+
+		"Connection: keep-alive, X-Named\r\n"+
+		"X-Named: named\r\n"+
+		"Keep-Alive: timeout=9\r\n"+
+		"Proxy-Authorization: Basic eA==\r\n"+
+		"Proxy-Connection: keep-alive\r\n"+
+		"TE: trailers, gzip\r\n"+
+		"Upgrade: example/1\r\n\r\n")
+	header := (<-seen).header
+	want := map[string]string{
+		"Connection":          "keep-alive, X-Named",
+		"X-Named":             "named",
+		"Keep-Alive":          "timeout=9",
+		"Proxy-Authorization": "Basic eA==",
+		"Proxy-Connection":    "keep-alive",
+		"Te":                  "trailers, gzip",
+		"Upgrade":             "example/1",
+	}
+	for name, value := range want {
+		if got := strings.Join(header.Values(name), ", "); got != value {
+			t.Errorf("%s = %q, want %q", name, got, value)
+		}
+	}
+}
+
+func TestKeepsTheConnectionHeaderOfAnUpgrade(t *testing.T) {
+	addr, seen := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest) // no upgrade needed for the check
+	})
+	rawRoundTrip(t, addr, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n"+
+		"Connection: keep-alive, Upgrade\r\nUpgrade: websocket\r\n\r\n")
+	header := (<-seen).header
+	if got := header.Get("Connection"); got != "keep-alive, Upgrade" {
+		t.Errorf("Connection = %q, want %q", got, "keep-alive, Upgrade")
+	}
+	if got := header.Get("Upgrade"); got != "websocket" {
+		t.Errorf("Upgrade = %q, want websocket", got)
+	}
+}
+
 func TestFillsOnlyForAndPortWhenMissing(t *testing.T) {
 	addr, seen := startProxy(t, nil)
 	rawRoundTrip(t, addr, get("/"))
