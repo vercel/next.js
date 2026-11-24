@@ -573,17 +573,26 @@ func (k *keptUpstreams) take() bool {
 
 // keptConn is a connection to Node. slotted reports whether it still holds a
 // slot; release gives the slot back once, however often it is called.
+// upgraded reports whether it now carries an upgraded protocol.
 type keptConn struct {
 	net.Conn
-	kept    *keptUpstreams
-	once    sync.Once
-	slotted atomic.Bool
+	kept     *keptUpstreams
+	once     sync.Once
+	slotted  atomic.Bool
+	upgraded atomic.Bool
 }
 
 func newKeptConn(conn net.Conn, kept *keptUpstreams) *keptConn {
-	c := &keptConn{Conn: conn, kept: kept, once: sync.Once{}, slotted: atomic.Bool{}}
+	c := &keptConn{Conn: conn, kept: kept, once: sync.Once{}, slotted: atomic.Bool{}, upgraded: atomic.Bool{}}
 	c.slotted.Store(kept.take())
 	return c
+}
+
+// upgrade marks the connection as carrying an upgraded protocol, such as a
+// WebSocket. It is never reused for HTTP, so its slot goes back.
+func (c *keptConn) upgrade() {
+	c.upgraded.Store(true)
+	c.release()
 }
 
 func (c *keptConn) release() {
@@ -595,8 +604,28 @@ func (c *keptConn) release() {
 	}
 }
 
+// Close ends the connection with a TCP reset instead of the usual FIN
+// handshake. After a FIN close, the side that closed first keeps the
+// connection's address pair in TIME_WAIT for up to a few minutes, and
+// Switchyard is nearly always that side. Every client connection gets its own
+// connections to Node, so clients that connect, send one request and leave
+// would each leave behind a loopback port that can't be used to reach Node
+// again for that long, and enough of them use up the range. A reset leaves no
+// TIME_WAIT, so the port is free again at once.
+//
+// Switchyard closes a connection to Node when it is idle (its client left, it
+// sat idle too long, or it holds no slot), when its request was abandoned, or
+// after Node closed its side, so nothing it still had to send is lost. Node
+// sees the same reset it sees when a client resets its connection to Node
+// without Switchyard. A connection carrying an upgraded protocol is the
+// exception: the reset could drop the last bytes the client sent through the
+// tunnel, so it closes as usual.
 func (c *keptConn) Close() error {
 	c.release()
+	if tcp, ok := c.Conn.(*net.TCPConn); ok && !c.upgraded.Load() {
+		// An error leaves the default close, which is still correct.
+		_ = tcp.SetLinger(0)
+	}
 	return c.Conn.Close()
 }
 
@@ -685,7 +714,7 @@ func (t clientTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		// WebSocket, and is never reused for HTTP, so its slot goes back. The
 		// connection itself stays open until the tunnel ends.
 		if c := conn.Load(); c != nil {
-			c.release()
+			c.upgrade()
 		}
 	}
 	return res, err

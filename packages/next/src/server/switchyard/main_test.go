@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -1599,4 +1601,143 @@ func TestUpgradedConnectionsGiveTheirSlotBack(t *testing.T) {
 	if peers[0] != peers[1] {
 		t.Errorf("requests reached Node from %v while a tunnel was open, want one kept connection", peers)
 	}
+}
+
+// startRawUpstream runs a minimal HTTP/1.1 server in place of Node, so a test
+// can see how each connection from Switchyard ends. It answers "ok" with
+// keep-alive, holds requests to /slow without answering, and answers an
+// upgrade with 101 and then reads the tunnel to its end. For every connection
+// it reports what it read after its last request and the error that ended
+// the connection: io.EOF for a FIN, a reset error for a reset.
+func startRawUpstream(t *testing.T) (string, <-chan connEnd, <-chan struct{}) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	ends := make(chan connEnd, 16)
+	held := make(chan struct{}, 16)
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				reader := bufio.NewReader(conn)
+				for {
+					req, err := http.ReadRequest(reader)
+					if err != nil {
+						ends <- connEnd{err: err}
+						return
+					}
+					io.Copy(io.Discard, req.Body)
+					switch {
+					case req.Header.Get("Upgrade") != "":
+						io.WriteString(conn, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+						data, err := io.ReadAll(reader)
+						if err == nil {
+							err = io.EOF
+						}
+						ends <- connEnd{data: string(data), err: err}
+						return
+					case req.URL.Path == "/slow":
+						held <- struct{}{}
+						_, err := reader.ReadByte()
+						ends <- connEnd{err: err}
+						return
+					default:
+						io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+					}
+				}
+			}()
+		}
+	}()
+
+	public, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	switchyard := newServer(newProxy(ln.Addr().String(), public.Addr().(*net.TCPAddr), time.Minute, testToken), time.Minute, 5*time.Second, 0, 16<<10)
+	go switchyard.Serve(public)
+	t.Cleanup(func() { switchyard.Close() })
+	return public.Addr().String(), ends, held
+}
+
+type connEnd struct {
+	data string
+	err  error
+}
+
+func waitForEnd(t *testing.T, ends <-chan connEnd) connEnd {
+	t.Helper()
+	select {
+	case end := <-ends:
+		return end
+	case <-time.After(5 * time.Second):
+		t.Fatal("the connection to Node never ended")
+		return connEnd{}
+	}
+}
+
+// Every client connection gets its own connections to Node, so a FIN close,
+// which keeps the loopback port in TIME_WAIT on Switchyard's side, would cost
+// one port per short-lived client. Switchyard resets the connections to Node
+// it closes instead, whether they are idle or their request was abandoned.
+func TestResetsConnectionsToNodeWhenTheirClientsLeave(t *testing.T) {
+	addr, ends, held := startRawUpstream(t)
+
+	t.Run("after a response", func(t *testing.T) {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		conn.Close()
+		if end := waitForEnd(t, ends); !errors.Is(end.err, syscall.ECONNRESET) {
+			t.Errorf("idle connection to Node ended with %v, want a reset", end.err)
+		}
+	})
+
+	t.Run("during a request", func(t *testing.T) {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(conn, "GET /slow HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		<-held
+		conn.Close()
+		if end := waitForEnd(t, ends); !errors.Is(end.err, syscall.ECONNRESET) {
+			t.Errorf("abandoned connection to Node ended with %v, want a reset", end.err)
+		}
+	})
+}
+
+// A reset could drop the last bytes a client sent through an upgraded
+// tunnel, so tunnels to Node still close the usual way.
+func TestClosesUpgradedTunnelsToNodeCleanly(t *testing.T) {
+	addr, ends, _ := startRawUpstream(t)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(conn, "GET /socket HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil || res.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("upgrade: %v %v", res, err)
+	}
+	io.WriteString(conn, "last words")
+	conn.(*net.TCPConn).CloseWrite()
+	end := waitForEnd(t, ends)
+	if end.data != "last words" || end.err != io.EOF {
+		t.Errorf("tunnel to Node ended with %q and %v, want %q and a clean close", end.data, end.err, "last words")
+	}
+	conn.Close()
 }
