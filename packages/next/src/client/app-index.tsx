@@ -1,3 +1,4 @@
+// Benchmark drill: a no-op change so CI publishes a commit build. DO NOT MERGE.
 import './app-globals'
 import ReactDOMClient from 'react-dom/client'
 import React from 'react'
