@@ -48,6 +48,13 @@ func startDirectWithTimeout(t *testing.T, worker http.HandlerFunc, requestTimeou
 		r = r.Clone(r.Context())
 		r.Body = io.NopCloser(strings.NewReader(string(body)))
 		fx.node <- r
+		if r.URL.Query().Has("big") {
+			// A compressible answer Node chose not to compress.
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-transform")
+			io.WriteString(w, strings.Repeat("n", 2048))
+			return
+		}
 		io.WriteString(w, "node")
 	}))
 	t.Cleanup(node.Close)
@@ -176,6 +183,24 @@ func TestAWorkerThatCannotBeReachedHandsTheRequestToNode(t *testing.T) {
 				t.Errorf("fallback added %s: %q", name, value)
 			}
 		}
+	}
+}
+
+// Node already chose whether to compress its answer, and adds its own Vary:
+// the compressor around the direct path leaves both alone.
+func TestNodesAnswerToAHandedBackRequestIsNotRecompressed(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {})
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	dead := ln.Addr().String()
+	ln.Close()
+	fx.announce(dead, "/api/echo/route")
+	res := fx.raw(t, "GET /api/echo?big=1 HTTP/1.1\r\nAccept-Encoding: gzip")
+	<-fx.node
+	if strings.Contains(res, "Content-Encoding") || strings.Contains(res, "Vary") || strings.Contains(res, gzhttp.HeaderNoCompression) {
+		t.Fatalf("Node's answer was changed: %q", res)
+	}
+	if !strings.HasSuffix(res, strings.Repeat("n", 2048)) {
+		t.Fatalf("body %q", res)
 	}
 }
 
