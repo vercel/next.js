@@ -318,6 +318,30 @@ describe('agentic upgrade prompts', () => {
     expect(process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES).toBeUndefined()
   })
 
+  it('records a scheduled handoff with the github_action origin', async () => {
+    process.env.__NEXT_AGENT_UPGRADE_CI_TARGET = '16.3.5'
+    process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = resolve(
+      '/tmp/next-upgrade-handoff.json'
+    )
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+
+    const events = jest
+      .mocked(Telemetry)
+      .mock.results.flatMap(({ value }) => value.record.mock.calls)
+      .map(([event]) => event)
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        eventName: 'NEXT_AGENT_UPGRADE_RUN_STARTED',
+        payload: expect.objectContaining({ origin: 'github_action' }),
+      })
+    )
+  })
+
   it('refuses a scheduled handoff if the target changed', async () => {
     process.env.__NEXT_AGENT_UPGRADE_CI_TARGET = '16.3.4'
     process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = resolve(
