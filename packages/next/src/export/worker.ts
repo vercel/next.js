@@ -23,6 +23,8 @@ process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
 import { extname, join, dirname, sep } from 'path'
 import fs from 'fs/promises'
+import v8 from 'v8'
+import { runInNewContext } from 'vm'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -43,6 +45,10 @@ import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
+import {
+  isMemoryPressureNotification,
+  type MemoryPressureLevel,
+} from '../lib/memory/pressure'
 import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
@@ -636,9 +642,63 @@ export async function exportPages(
     )
 
     results.push(...subsetResults)
+
+    // Under memory pressure, collect garbage while nothing is rendering.
+    // Skip it after the last batch: the worker is about to report back.
+    if (memoryPressure !== 'none' && i + maxConcurrency < exportPaths.length) {
+      collectGarbage()
+    }
   }
 
   return results
+}
+
+let memoryPressure: MemoryPressureLevel = 'none'
+
+/**
+ * Receives notifications from the parent process (see `Worker.notifyAll`).
+ * Under memory pressure the worker collects garbage between batches of pages;
+ * when it's critical it also collects right away, between pending tasks.
+ *
+ * A forced collection costs more than its own pause: it throws away optimized
+ * code that depends on objects that were only alive during the last renders,
+ * so the next renders run slower until V8 optimizes that code again. That's
+ * why this only happens under pressure instead of after every batch.
+ */
+export function onNotify(payload: unknown): void {
+  if (!isMemoryPressureNotification(payload)) return
+  memoryPressure = payload.level
+  if (memoryPressure === 'critical') {
+    setImmediate(collectGarbage)
+  }
+}
+
+let gc: (() => void) | undefined
+let gcCount = 0
+let gcTimeMs = 0
+
+function collectGarbage(): void {
+  if (!gc) {
+    // `gc()` exists only with `--expose-gc`. Enabling the flag at runtime
+    // exposes it to new contexts, so we get it without making it a global
+    // that user code could see.
+    gc = (globalThis as { gc?: () => void }).gc
+    if (!gc) {
+      v8.setFlagsFromString('--expose-gc')
+      gc = runInNewContext('gc') as () => void
+      v8.setFlagsFromString('--no-expose-gc')
+    }
+  }
+  const start = performance.now()
+  gc()
+  gcTimeMs += performance.now() - start
+  if (gcCount++ === 0 && process.env.NEXT_PRIVATE_DEBUG_MEMORY_PRESSURE) {
+    process.on('exit', () => {
+      console.error(
+        `memory pressure: ${gcCount} collections, ${Math.round(gcTimeMs)}ms (pid ${process.pid})`
+      )
+    })
+  }
 }
 
 async function exportPage(

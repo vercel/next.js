@@ -10,6 +10,7 @@ import {
   CHILD_MESSAGE_INITIALIZE,
   CHILD_MESSAGE_CALL,
   CHILD_MESSAGE_END,
+  CHILD_MESSAGE_NOTIFY,
   PARENT_MESSAGE_OK,
   PARENT_MESSAGE_CLIENT_ERROR,
   PARENT_MESSAGE_SETUP_ERROR,
@@ -29,7 +30,7 @@ export interface ChildTransport {
  * Create a message listener that handles the parent→child protocol.
  *
  * Call the returned function with each incoming `ChildMessage`. It handles
- * INITIALIZE, CALL, and END internally, using the provided `transport` to
+ * INITIALIZE, CALL, END, and NOTIFY internally, using the provided `transport` to
  * reply.
  *
  * An optional `onInitialize` hook is called after INITIALIZE, before any CALL.
@@ -231,6 +232,20 @@ export function createMessageHandler(
     )
   }
 
+  /**
+   * Hand a NOTIFY payload to the module's `onNotify()` export. Notifications
+   * are fire-and-forget: there's no reply, and a module without `onNotify`
+   * (or one that failed to load) ignores them.
+   */
+  function notify(payload: unknown): void {
+    if (typeof main?.onNotify !== 'function') return
+    try {
+      main.onNotify(payload)
+    } catch (err) {
+      console.error('Worker onNotify() threw:', err)
+    }
+  }
+
   function end(): void {
     if (typeof main?.teardown !== 'function') {
       transport.disconnect()
@@ -260,6 +275,9 @@ export function createMessageHandler(
         break
       case CHILD_MESSAGE_END:
         end()
+        break
+      case CHILD_MESSAGE_NOTIFY:
+        notify(message[1])
         break
       default:
         throw new TypeError(

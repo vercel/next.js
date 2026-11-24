@@ -427,6 +427,14 @@ export class Worker {
     }
   }
 
+  /**
+   * Send `payload` to the `onNotify()` export of every worker, including ones
+   * spawned later. No-op once the worker is shut down.
+   */
+  notifyAll(payload: unknown): void {
+    this._pool?.notifyAll(payload)
+  }
+
   setOnActivity(onActivity: (() => void) | undefined): void {
     this._onActivity = onActivity
   }

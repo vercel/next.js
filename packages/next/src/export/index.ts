@@ -76,6 +76,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 import { getBuildDistDir, getExportPathPageKey } from './utils'
+import { startMemoryPressureMonitor } from '../lib/memory/pressure'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -724,6 +725,12 @@ async function exportAppImpl(
       batches[index % batches.length].push(page)
     })
 
+    // Let the workers know when the system runs low on memory, so they can
+    // trade some speed for memory (see `onNotify` in ./worker).
+    const stopMemoryPressureMonitor = startMemoryPressureMonitor(
+      (notification) => worker.notifyAll(notification)
+    )
+
     return (
       await Promise.all(
         batches.map(async (batch) => {
@@ -765,7 +772,7 @@ async function exportAppImpl(
             renderResumeDataCachesByPage: batchRenderResumeDataCaches,
           })
         })
-      )
+      ).finally(stopMemoryPressureMonitor)
     ).flat()
   }
 

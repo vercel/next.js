@@ -40,6 +40,7 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 | INITIALIZE | `[0, workerPath, setupArgs]`       |
 | CALL       | `[1, requestId, methodName, args]` |
 | END        | `[2]`                              |
+| NOTIFY     | `[3, payload]`                     |
 
 ### Child → Parent
 
@@ -51,6 +52,8 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 | CUSTOM       | `[3, payload]`                                          |
 | READY        | `[4]`                                                   |
 | LOAD_ERROR   | `[5, errorName, message, stack]`                        |
+
+NOTIFY is fire-and-forget: the child passes `payload` to the worker module's `onNotify()` export, if it has one, and doesn't reply. `Worker.notifyAll(payload)` sends it to every live worker, and the pool replays the latest payload to workers spawned afterwards, so it should describe current state (e.g. the memory pressure level) rather than a one-off event.
 
 Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized. If `setup()` fails, READY is not sent; the SETUP_ERROR handler frees the booting slot instead and the worker keeps serving calls, since its module is loaded.
 

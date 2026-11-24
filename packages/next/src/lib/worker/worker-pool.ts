@@ -9,6 +9,7 @@ import {
   CHILD_MESSAGE_INITIALIZE,
   CHILD_MESSAGE_CALL,
   CHILD_MESSAGE_END,
+  CHILD_MESSAGE_NOTIFY,
   PARENT_MESSAGE_OK,
   PARENT_MESSAGE_CLIENT_ERROR,
   PARENT_MESSAGE_SETUP_ERROR,
@@ -17,6 +18,7 @@ import {
   PARENT_MESSAGE_LOAD_ERROR,
   type ParentMessage,
   type ChildMessageInitialize,
+  type ChildMessageNotify,
 } from './types'
 
 /**
@@ -275,6 +277,9 @@ export class WorkerPool {
   /** Merged stderr from all workers, piped through a PassThrough stream */
   private _stderr: PassThrough
 
+  /** The last `notifyAll()` payload, replayed to workers spawned after it */
+  private _lastNotification: { payload: unknown } | null = null
+
   /** Interval handle for periodic timeout checks (null when timeout is disabled) */
   private _timeoutInterval: ReturnType<typeof setInterval> | null = null
 
@@ -381,6 +386,23 @@ export class WorkerPool {
   /** Returns the number of currently alive workers (including booting ones) */
   getWorkerCount(): number {
     return this._allWorkers.size
+  }
+
+  /**
+   * Send `payload` to the `onNotify()` export of every live worker. The
+   * latest payload is also sent to workers spawned later, so a notification
+   * describes current state rather than a one-off event.
+   */
+  notifyAll(payload: unknown): void {
+    if (this._ending) return
+    this._lastNotification = { payload }
+    for (const worker of this._allWorkers) {
+      if (worker.state === WorkerState.SHUTTING_DOWN) continue
+      worker.handle.send([
+        CHILD_MESSAGE_NOTIFY,
+        payload,
+      ] satisfies ChildMessageNotify)
+    }
   }
 
   /**
@@ -712,6 +734,13 @@ export class WorkerPool {
       workerPath,
       setupArgs ?? [],
     ] satisfies ChildMessageInitialize)
+
+    if (this._lastNotification) {
+      handle.send([
+        CHILD_MESSAGE_NOTIFY,
+        this._lastNotification.payload,
+      ] satisfies ChildMessageNotify)
+    }
 
     this._allWorkers.add(worker)
     this._bootingCount++
