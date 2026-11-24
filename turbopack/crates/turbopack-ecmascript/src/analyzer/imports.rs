@@ -1471,10 +1471,26 @@ impl Visit for Analyzer<'_> {
     /// check if `new Worker()` or `new URL()` contains magic comments, e.g.
     /// - new Worker(/* turbopackIgnore: true */ new URL("./worker.js", import.meta.url))
     /// - new URL(/* turbopackIgnore: true */ url, import.meta.url)
+    ///
+    /// The same applies when the constructor is accessed through the global object, e.g.
+    /// `new globalThis.URL(/* turbopackIgnore: true */ url, import.meta.url)`.
     fn visit_new_expr(&mut self, n: &NewExpr) {
         if let Some(comments) = self.comments {
+            let is_constructor_name = |sym: &Atom| sym == "Worker" || sym == "URL";
             let callee_span = match &*n.callee {
-                Expr::Ident(Ident { sym, .. }) if sym == "Worker" || sym == "URL" => Some(n.span),
+                Expr::Ident(Ident { sym, .. }) if is_constructor_name(sym) => Some(n.span),
+                Expr::Member(MemberExpr {
+                    obj,
+                    prop: MemberProp::Ident(IdentName { sym, .. }),
+                    ..
+                }) if is_constructor_name(sym)
+                    && matches!(
+                        &**obj,
+                        Expr::Ident(Ident { sym, .. }) if sym == "globalThis" || sym == "global"
+                    ) =>
+                {
+                    Some(n.span)
+                }
                 _ => None,
             };
 

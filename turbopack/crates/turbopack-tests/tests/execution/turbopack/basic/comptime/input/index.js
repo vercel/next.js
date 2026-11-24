@@ -159,15 +159,22 @@ it('should not evaluate globalThis members used for feature detection', () => {
   expect(processExists).toBe(typeof process !== 'undefined')
 })
 
-// Temporarily replaces a property of the global object, so that the checks
-// below observe a value that only exists at runtime.
+const DELETED = Symbol('deleted')
+
+// Temporarily replaces a property of the global object (or deletes it when
+// `value` is `DELETED`), so that the checks below observe a value that only
+// exists at runtime.
 function withGlobal(name, value, fn) {
   const descriptor = Reflect.getOwnPropertyDescriptor(globalThis, name)
-  Reflect.defineProperty(globalThis, name, {
-    value,
-    configurable: true,
-    writable: true,
-  })
+  if (value === DELETED) {
+    Reflect.deleteProperty(globalThis, name)
+  } else {
+    Reflect.defineProperty(globalThis, name, {
+      value,
+      configurable: true,
+      writable: true,
+    })
+  }
   try {
     return fn()
   } finally {
@@ -181,9 +188,9 @@ function withGlobal(name, value, fn) {
 
 it('should keep existence checks of well-known globals as runtime checks', () => {
   // Each entry evaluates `if (globalThis.X)`, `globalThis.X ? … : …`,
-  // `typeof X` and `typeof globalThis.X` for one well-known global X. The
-  // expressions must be written out literally, as that is what the static
-  // analyzer sees.
+  // `global.X ? … : …`, `typeof X`, `typeof globalThis.X` and
+  // `globalThis.X ?? …` for one well-known global X. The expressions must be
+  // written out literally, as that is what the static analyzer sees.
   const checks = {
     process: () => {
       let exists = false
@@ -193,8 +200,10 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
       return [
         exists,
         globalThis.process ? 'yes' : 'no',
+        global.process ? 'yes' : 'no',
         typeof process,
         typeof globalThis.process,
+        (globalThis.process ?? 'fallback') === 'fallback',
       ]
     },
     Object: () => {
@@ -205,8 +214,10 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
       return [
         exists,
         globalThis.Object ? 'yes' : 'no',
+        global.Object ? 'yes' : 'no',
         typeof Object,
         typeof globalThis.Object,
+        (globalThis.Object ?? 'fallback') === 'fallback',
       ]
     },
     Buffer: () => {
@@ -217,8 +228,10 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
       return [
         exists,
         globalThis.Buffer ? 'yes' : 'no',
+        global.Buffer ? 'yes' : 'no',
         typeof Buffer,
         typeof globalThis.Buffer,
+        (globalThis.Buffer ?? 'fallback') === 'fallback',
       ]
     },
     navigator: () => {
@@ -229,8 +242,10 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
       return [
         exists,
         globalThis.navigator ? 'yes' : 'no',
+        global.navigator ? 'yes' : 'no',
         typeof navigator,
         typeof globalThis.navigator,
+        (globalThis.navigator ?? 'fallback') === 'fallback',
       ]
     },
     URL: () => {
@@ -241,8 +256,10 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
       return [
         exists,
         globalThis.URL ? 'yes' : 'no',
+        global.URL ? 'yes' : 'no',
         typeof URL,
         typeof globalThis.URL,
+        (globalThis.URL ?? 'fallback') === 'fallback',
       ]
     },
     Worker: () => {
@@ -253,8 +270,10 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
       return [
         exists,
         globalThis.Worker ? 'yes' : 'no',
+        global.Worker ? 'yes' : 'no',
         typeof Worker,
         typeof globalThis.Worker,
+        (globalThis.Worker ?? 'fallback') === 'fallback',
       ]
     },
     SharedWorker: () => {
@@ -265,19 +284,129 @@ it('should keep existence checks of well-known globals as runtime checks', () =>
       return [
         exists,
         globalThis.SharedWorker ? 'yes' : 'no',
+        global.SharedWorker ? 'yes' : 'no',
         typeof SharedWorker,
         typeof globalThis.SharedWorker,
+        (globalThis.SharedWorker ?? 'fallback') === 'fallback',
       ]
     },
   }
 
+  // The same checks on the bare identifier X. When X doesn't exist at all,
+  // these must throw a ReferenceError instead of being folded away.
+  const bareChecks = {
+    process: () => {
+      let exists = false
+      if (process) {
+        exists = true
+      }
+      return [
+        exists,
+        process ? 'yes' : 'no',
+        (process ?? 'fallback') === 'fallback',
+      ]
+    },
+    Object: () => {
+      let exists = false
+      if (Object) {
+        exists = true
+      }
+      return [
+        exists,
+        Object ? 'yes' : 'no',
+        (Object ?? 'fallback') === 'fallback',
+      ]
+    },
+    Buffer: () => {
+      let exists = false
+      if (Buffer) {
+        exists = true
+      }
+      return [
+        exists,
+        Buffer ? 'yes' : 'no',
+        (Buffer ?? 'fallback') === 'fallback',
+      ]
+    },
+    navigator: () => {
+      let exists = false
+      if (navigator) {
+        exists = true
+      }
+      return [
+        exists,
+        navigator ? 'yes' : 'no',
+        (navigator ?? 'fallback') === 'fallback',
+      ]
+    },
+    URL: () => {
+      let exists = false
+      if (URL) {
+        exists = true
+      }
+      return [exists, URL ? 'yes' : 'no', (URL ?? 'fallback') === 'fallback']
+    },
+    Worker: () => {
+      let exists = false
+      if (Worker) {
+        exists = true
+      }
+      return [
+        exists,
+        Worker ? 'yes' : 'no',
+        (Worker ?? 'fallback') === 'fallback',
+      ]
+    },
+    SharedWorker: () => {
+      let exists = false
+      if (SharedWorker) {
+        exists = true
+      }
+      return [
+        exists,
+        SharedWorker ? 'yes' : 'no',
+        (SharedWorker ?? 'fallback') === 'fallback',
+      ]
+    },
+  }
+
+  const runBare = (bareCheck) => {
+    try {
+      return bareCheck()
+    } catch (e) {
+      return e instanceof ReferenceError ? 'ReferenceError' : e
+    }
+  }
+
   for (const [name, check] of Object.entries(checks)) {
-    const missing = withGlobal(name, undefined, check)
-    const present = withGlobal(name, function stub() {}, check)
-    expect({ name, missing, present }).toEqual({
+    const bareCheck = () => runBare(bareChecks[name])
+    const results = {}
+    for (const [mode, value] of [
+      ['missing', undefined],
+      ['null', null],
+      ['present', function stub() {}],
+      ['deleted', DELETED],
+    ]) {
+      results[mode] = withGlobal(name, value, () => [check(), bareCheck()])
+    }
+    expect({ name, ...results }).toEqual({
       name,
-      missing: [false, 'no', 'undefined', 'undefined'],
-      present: [true, 'yes', 'function', 'function'],
+      missing: [
+        [false, 'no', 'no', 'undefined', 'undefined', true],
+        [false, 'no', true],
+      ],
+      null: [
+        [false, 'no', 'no', 'object', 'object', true],
+        [false, 'no', true],
+      ],
+      present: [
+        [true, 'yes', 'yes', 'function', 'function', false],
+        [true, 'yes', false],
+      ],
+      deleted: [
+        [false, 'no', 'no', 'undefined', 'undefined', true],
+        'ReferenceError',
+      ],
     })
   }
 })
@@ -297,6 +426,14 @@ import importedProcess from 'process'
 import * as processNamespace from 'process'
 import nodeProcess from 'node:process'
 import * as nodeProcessNamespace from 'node:process'
+
+it('should keep the truthiness of the imported process module', () => {
+  // Unlike the global `process`, an imported `process` always exists
+  if (!importedProcess) {
+    require('fail')
+    import('fail')
+  }
+})
 
 it('should evaluate NODE_ENV through process imports', () => {
   if (importedProcess.env.NODE_ENV !== 'production') {

@@ -34,6 +34,9 @@ pub enum WellKnownObjectKind {
     OsModuleDefault,
     NodeProcessModule,
     NodeProcessModuleDefault,
+    /// The global `process` variable. Unlike the imported `process` module
+    /// ([`Self::NodeProcessModuleDefault`]), it might not exist at runtime.
+    NodeProcessGlobal,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -54,6 +57,16 @@ pub enum WellKnownObjectKind {
 }
 
 impl WellKnownObjectKind {
+    /// Whether this is a global variable that might not exist at runtime (e.g. `process` in a
+    /// browser), or might have been overwritten. Its truthiness is unknown, so that feature
+    /// detection like `if (process)` or `globalThis.Buffer ? a : b` isn't folded at compile time.
+    pub fn is_optional_global(&self) -> bool {
+        matches!(
+            self,
+            Self::ObjectConstructor | Self::NodeProcessGlobal | Self::NodeBuffer | Self::Navigator
+        )
+    }
+
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::ObjectConstructor => Some(&["Object"]),
@@ -65,7 +78,9 @@ impl WellKnownObjectKind {
             Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
             Self::WorkerThreadsModule => Some(&["worker_threads"]),
-            Self::NodeProcessModule | Self::NodeProcessModuleDefault => Some(&["process"]),
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault | Self::NodeProcessGlobal => {
+                Some(&["process"])
+            }
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -136,6 +151,10 @@ impl WellKnownObjectKind {
             Self::NodeProcessModule | Self::NodeProcessModuleDefault => (
                 "process",
                 "The Node.js process module: https://nodejs.org/api/process.html",
+            ),
+            Self::NodeProcessGlobal => (
+                "process",
+                "The Node.js process global: https://nodejs.org/api/process.html",
             ),
             Self::NodeProcessArgv => (
                 "process.argv",
@@ -255,6 +274,15 @@ pub enum WellKnownFunctionKind<'a> {
 }
 
 impl WellKnownFunctionKind<'_> {
+    /// Whether this is a global variable that might not exist at runtime (e.g. `SharedWorker` in
+    /// Node.js). See [`WellKnownObjectKind::is_optional_global`].
+    pub fn is_optional_global(&self) -> bool {
+        matches!(
+            self,
+            Self::URLConstructor | Self::WorkerConstructor | Self::SharedWorkerConstructor
+        )
+    }
+
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::Import { .. } => Some(&["import"]),

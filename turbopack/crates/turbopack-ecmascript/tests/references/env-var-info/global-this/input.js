@@ -10,6 +10,12 @@ console.log(global.process.env.INLINED2)
 const { FOO4 } = globalThis.process.env
 console.log(FOO4)
 
+// Destructuring `env` through the global object behaves like the bare form
+const { env: e1 } = globalThis.process
+console.log(e1.FOO5)
+const { env: e2 } = process
+console.log(e2.FOO6)
+
 if (globalThis.process.env.FOO_EXISTENCE1) {
   console.log('exists')
 }

@@ -52,3 +52,14 @@ it('keeps a partially dynamic new URL() working at runtime', () => {
     'runtime.txt'
   )
 })
+
+function ignoredGlobalThisUrl() {
+  return new globalThis.URL(
+    /* turbopackIgnore: true */ './missing-global-this.txt',
+    import.meta.url
+  )
+}
+
+it('leaves an ignored new globalThis.URL() to runtime', () => {
+  expectUnbundledUrl(ignoredGlobalThisUrl(), 'missing-global-this.txt')
+})

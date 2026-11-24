@@ -77,6 +77,8 @@ impl JsValue<'_> {
         match self {
             JsValue::Constant(c) => Some(c.is_truthy()),
             JsValue::Concat(..) => self.is_empty_string().map(|x| !x),
+            JsValue::WellKnownObject(kind) if kind.is_optional_global() => None,
+            JsValue::WellKnownFunction(kind) if kind.is_optional_global() => None,
             JsValue::Url(..)
             | JsValue::Array { .. }
             | JsValue::Object { .. }
@@ -161,6 +163,8 @@ impl JsValue<'_> {
     pub fn is_nullish(&self) -> Option<bool> {
         match self {
             JsValue::Constant(c) => Some(c.is_nullish()),
+            JsValue::WellKnownObject(kind) if kind.is_optional_global() => None,
+            JsValue::WellKnownFunction(kind) if kind.is_optional_global() => None,
             JsValue::Concat(..)
             | JsValue::Url(..)
             | JsValue::Array { .. }
