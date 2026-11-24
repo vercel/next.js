@@ -340,6 +340,18 @@ describe('switchyard', () => {
     })
   })
 
+  describe('response headers', () => {
+    it('sends no date header when the app turns it off', async () => {
+      const res = await rawRequest(
+        Number(next.appPort),
+        `GET /api/no-date HTTP/1.1\r\nHost: localhost:${next.appPort}`
+      )
+      expect(res.status).toBe(200)
+      expect(getHeader(res, 'date')).toBeUndefined()
+      expect(res.body.toString()).toBe('no date')
+    })
+  })
+
   describe('status line', () => {
     it.each([
       {
