@@ -406,7 +406,13 @@ export async function initialize(opts: {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res.setHeader('Cache-Control', 'private, no-store')
-        if (req.method !== 'GET') {
+        res.setHeader('Allow', 'GET, HEAD, OPTIONS')
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204
+          res.end()
+          return
+        }
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
           res.statusCode = 405
           res.end(JSON.stringify({ error: 'Method not allowed' }))
           return
