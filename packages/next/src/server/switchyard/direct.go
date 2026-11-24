@@ -345,6 +345,12 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// the Transport sends a request again only without a body, and the
 			// body (requestBody) ignores the Transport's Close, so Node can
 			// still read it.
+			//
+			// Known difference: if a new worker for another route has already
+			// taken the exited worker's port, the dial succeeds and the new
+			// worker answers 403 to the old token, which reaches the client.
+			// That needs the operating system to hand out the same port
+			// before Node's "gone" arrives, a window of milliseconds.
 			if isDialError(err) && !attempt.sent.Load() {
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
