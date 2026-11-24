@@ -4,6 +4,7 @@ import (
 	"maps"
 	"net/http"
 	"net/textproto"
+	"slices"
 	"sync/atomic"
 
 	"github.com/vercel/next.js/packages/next/src/server/switchyard/routing"
@@ -55,6 +56,10 @@ func (f *switchyard) apply(msg controlMessage) {
 			return
 		}
 	case "worker":
+		if msg.Page == "" || msg.Address == "" || msg.TokenHeader == "" || msg.Token == "" {
+			proxyErrorLog.Printf("incomplete worker message for page %q", msg.Page)
+			return
+		}
 		next.workers = maps.Clone(next.workers)
 		next.workers[msg.Page] = &goUpstream{
 			address: msg.Address,
@@ -64,9 +69,18 @@ func (f *switchyard) apply(msg controlMessage) {
 			token:       []string{msg.Token},
 		}
 	case "gone":
+		if msg.Token == "" {
+			proxyErrorLog.Printf("gone message without a token for %s", msg.Address)
+			return
+		}
 		next.workers = maps.Clone(next.workers)
+		// Each worker has its own token. Matching on it, not the address,
+		// keeps a late message for an exited worker from removing a new
+		// worker that got the same port.
 		for route, up := range next.workers {
-			if up.address == msg.Address {
+			// slices.Contains, not up.token[0], so an entry without a
+			// token can't panic the control loop.
+			if slices.Contains(up.token, msg.Token) {
 				delete(next.workers, route)
 			}
 		}

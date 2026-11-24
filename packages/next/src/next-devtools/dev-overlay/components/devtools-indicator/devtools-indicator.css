@@ -66,6 +66,12 @@
   background-color: var(--color-gray-200);
 }
 
+/* Rows that only report a value are not actions: mute the label so they read
+   as status next to the rows that open something. */
+.dev-tools-indicator-item[data-interactive='false'] .dev-tools-indicator-label {
+  color: var(--color-gray-900);
+}
+
 .dev-tools-indicator-label {
   font-size: var(--size-14);
   line-height: var(--size-20);

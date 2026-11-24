@@ -111,7 +111,7 @@ use crate::{
         linker::link,
         parse_require_context,
         top_level_await::has_top_level_await,
-        well_known::replace_well_known,
+        well_known::{replace_well_known, replace_well_known_global},
     },
     ast_path_trie::{AstPathId, AstPathTrieBuilder},
     chunk::CjsStaticExports,
@@ -1154,6 +1154,7 @@ async fn analyze_ecmascript_module_internal(
                         &ast_path,
                         span,
                         func,
+                        None,
                         args,
                         &mut argument_effects,
                         &analysis_state,
@@ -1162,6 +1163,7 @@ async fn analyze_ecmascript_module_internal(
                         new,
                         eval_context.imports.get_attributes(span),
                         call_usage,
+                        ValueLinkContext::Default,
                     )
                     .await?;
                     add_argument_effects(&mut queue_stack, argument_effects);
@@ -1255,6 +1257,7 @@ async fn analyze_ecmascript_module_internal(
                         &ast_path,
                         span,
                         func,
+                        Some(&obj),
                         args,
                         &mut argument_effects,
                         &analysis_state,
@@ -1265,6 +1268,7 @@ async fn analyze_ecmascript_module_internal(
                         // A member call (`obj.method(...)`) result isn't narrowed
                         // for require export usage.
                         ExportUsage::All,
+                        ValueLinkContext::Default,
                     )
                     .await?;
                     add_argument_effects(&mut queue_stack, argument_effects);
@@ -1375,21 +1379,7 @@ async fn analyze_ecmascript_module_internal(
                             .link_value(take(&mut *obj), ImportAttributes::empty_ref())
                             .await?;
 
-                        if obj
-                            .get_definable_name(Some(&analysis_state.var_graph))
-                            .iter()
-                            .flatten()
-                            .any(|(name, reassigned)| {
-                                !reassigned
-                                    && matches!(
-                                        name.0.as_slice(),
-                                        [
-                                            DefinableNameSegmentRef::Name("process"),
-                                            DefinableNameSegmentRef::Name("env")
-                                        ]
-                                    )
-                            })
-                        {
+                        if could_be_process_env(&obj, &analysis_state) {
                             analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
                     }
@@ -1758,10 +1748,31 @@ fn add_argument_effects<'a>(
     }
 }
 
+/// Whether `value` (a linked value) could be `process.env`.
+fn could_be_process_env(value: &JsValue<'_>, state: &AnalysisState<'_>) -> bool {
+    value
+        .get_definable_name(Some(&state.var_graph))
+        .iter()
+        .flatten()
+        .any(|(name, reassigned)| {
+            !reassigned
+                && matches!(
+                    name.0.as_slice(),
+                    [
+                        DefinableNameSegmentRef::Name("process"),
+                        DefinableNameSegmentRef::Name("env")
+                    ]
+                )
+        })
+}
+
+/// Handles a call of `func` (linked) with the arguments `unlinked_args`. `this` (unlinked) is the
+/// receiver of a member call (`this.method(...)`), and `None` for a plain call.
 async fn handle_call<'a>(
     ast_path: &[AstParentKind],
     span: Span,
     func: JsValue<'a>,
+    this: Option<&JsValue<'a>>,
     unlinked_args: Vec<JsValue<'a>>,
     argument_effects: &mut [BumpBox<'a, [Effect<'a>]>],
     state: &AnalysisState<'a>,
@@ -1770,6 +1781,7 @@ async fn handle_call<'a>(
     new: bool,
     attributes: &ImportAttributes,
     call_usage: ExportUsage,
+    link_context: ValueLinkContext,
 ) -> Result<()> {
     let &AnalysisState {
         handler,
@@ -1813,6 +1825,7 @@ async fn handle_call<'a>(
                         wkf,
                         new,
                         ValueLinkContext::InAlternative,
+                        this,
                         &linked_args,
                         argument_effects,
                         handler,
@@ -1840,7 +1853,8 @@ async fn handle_call<'a>(
             handle_well_known_function_call(
                 wkf,
                 new,
-                ValueLinkContext::Default,
+                link_context,
+                this,
                 &linked_args,
                 argument_effects,
                 handler,
@@ -2032,6 +2046,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     func: WellKnownFunctionKind<'a>,
     new: bool,
     link_context: ValueLinkContext,
+    this: Option<&JsValue<'a>>,
     linked_args: &F,
     argument_effects: &mut [BumpBox<'a, [Effect<'a>]>],
     handler: &Handler,
@@ -2058,6 +2073,73 @@ where
 {
     fn explain_args(args: &[JsValue<'_>]) -> (String, String) {
         JsValue::explain_args(args, 10, 2)
+    }
+
+    let link = |value: &JsValue<'a>| {
+        state.link_value(
+            value.clone_in(state.arena.get_or_default()),
+            ImportAttributes::empty_ref(),
+        )
+    };
+
+    // Env var existence checks. These are also tracked in alternatives, as they don't generate
+    // code.
+    match func {
+        WellKnownFunctionKind::ObjectHasOwn => {
+            // `Object.hasOwn(process.env, key)`
+            if let [obj, key, ..] = &linked_args().await?[..]
+                && could_be_process_env(obj, state)
+                && let Some(key) = key.as_str()
+            {
+                analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+            }
+            return Ok(());
+        }
+        WellKnownFunctionKind::HasOwnProperty | WellKnownFunctionKind::PropertyIsEnumerable => {
+            // `process.env.hasOwnProperty(key)` checks its receiver. Without a receiver, as in
+            // `const { hasOwnProperty } = process.env; hasOwnProperty(key)`, it doesn't check
+            // `process.env` (it throws).
+            if !new
+                && let Some(this) = this
+                && could_be_process_env(&link(this).await?, state)
+                && let Some(key) = linked_args().await?.first().and_then(|key| key.as_str())
+            {
+                analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+            }
+            return Ok(());
+        }
+        WellKnownFunctionKind::FunctionCall => {
+            // `method.call(thisArg, ...args)` calls its receiver `method` with `thisArg` as the
+            // receiver.
+            if !new
+                && let Some(method) = this
+                && let [this_arg, args @ ..] = &linked_args().await?[..]
+            {
+                let method = link(method).await?;
+                let arena = state.arena.get_or_default();
+                // Only handled for its analysis, e.g. env var tracking: there is no codegen
+                // for the called method (`InAlternative`). The arguments are already linked;
+                // linking them again in `handle_call` doesn't change them.
+                Box::pin(handle_call(
+                    ast_path,
+                    span,
+                    method,
+                    Some(this_arg),
+                    args.iter().map(|arg| arg.clone_in(arena)).collect(),
+                    argument_effects.get_mut(1..).unwrap_or_default(),
+                    state,
+                    analysis,
+                    in_try,
+                    false,
+                    attributes,
+                    call_usage,
+                    ValueLinkContext::InAlternative,
+                ))
+                .await?;
+            }
+            return Ok(());
+        }
+        _ => {}
     }
 
     if link_context == ValueLinkContext::InAlternative
@@ -4233,7 +4315,7 @@ async fn value_visitor_inner<'a>(
     arena: &'a ThreadLocal<Bump>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     origin_path: &FileSystemPath,
-    v: JsValue<'a>,
+    mut v: JsValue<'a>,
     compile_time_info: Vc<CompileTimeInfo>,
     compile_time_info_ref: &CompileTimeInfo,
     var_graph: &VarGraph<'a>,
@@ -4269,6 +4351,9 @@ async fn value_visitor_inner<'a>(
     }
 
     let ImportAttributes { ignore, .. } = *attributes;
+    if replace_well_known_global(&mut v, ignore) {
+        return Ok((v, Modified::Yes));
+    }
     let value = match v {
         JsValue::Call(_, call)
             if matches!(
@@ -4392,29 +4477,8 @@ async fn value_visitor_inner<'a>(
                 true,
                 rcstr!("ignored import"),
             ),
-            "Worker" => JsValue::unknown_if(
-                ignore,
-                JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
-                true,
-                rcstr!("ignored Worker constructor"),
-            ),
-            "SharedWorker" => JsValue::unknown_if(
-                ignore,
-                JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
-                true,
-                rcstr!("ignored SharedWorker constructor"),
-            ),
+            // Globals like `process` or `URL` are handled by `replace_well_known_global` above.
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-            "URL" => JsValue::unknown_if(
-                ignore,
-                JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                true,
-                rcstr!("ignored URL constructor"),
-            ),
-            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault),
-            "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
-            "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
-            "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
             "__turbopack_emit__" => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackEmit)
             }

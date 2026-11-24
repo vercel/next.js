@@ -5,13 +5,11 @@
 
 import type {
   ProxyTracerProvider,
+  Span,
   Tracer,
   TracerProvider,
 } from '@opentelemetry/api'
-import {
-  type WorkUnitStore,
-  workUnitAsyncStorage,
-} from '../../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { isUseCacheFunction } from '../../../lib/client-and-server-references'
 
@@ -59,7 +57,7 @@ function extendTracerProviderForCacheComponents(): void {
   const provider = api.trace.getTracerProvider()
 
   // When Cache Components is enabled we need to instrument the tracer
-  // to exit the workUnitAsyncStorage context when generating spans.
+  // to exit the workUnitAsyncStorage context when creating and ending spans.
   const originalGetTracer = provider.getTracer.bind(provider)
   provider.getTracer = (...args) => {
     return instrumentTracerForCacheComponents(
@@ -90,8 +88,10 @@ function instrumentTracerForCacheComponents(tracer: Tracer): Tracer {
   }
   const originalStartSpan = tracer.startSpan
   tracer.startSpan = (...startSpanArgs) => {
-    return workUnitAsyncStorage.exit(() =>
-      originalStartSpan.apply(tracer, startSpanArgs)
+    return instrumentSpanForCacheComponents(
+      workUnitAsyncStorage.exit(() =>
+        originalStartSpan.apply(tracer, startSpanArgs)
+      )
     )
   }
 
@@ -99,11 +99,6 @@ function instrumentTracerForCacheComponents(tracer: Tracer): Tracer {
   // @ts-ignore TS doesn't recognize the overloads correctly
   tracer.startActiveSpan = (...startActiveSpanArgs: any[]) => {
     const workUnitStore = workUnitAsyncStorage.getStore()
-    if (!workUnitStore) {
-      // @ts-ignore TS doesn't recognize the overloads correctly
-      return originalStartActiveSpan.apply(tracer, startActiveSpanArgs)
-    }
-
     let fnIdx: number = 0
     if (
       startActiveSpanArgs.length === 2 &&
@@ -124,15 +119,19 @@ function instrumentTracerForCacheComponents(tracer: Tracer): Tracer {
 
     if (fnIdx) {
       const originalFn = startActiveSpanArgs[fnIdx]
-      if (isUseCacheFunction(originalFn)) {
+      if (workUnitStore && isUseCacheFunction(originalFn)) {
         console.error(
           'A Cache Function (`use cache`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.'
         )
       }
-      startActiveSpanArgs[fnIdx] = withWorkUnitContext(
-        workUnitStore,
-        originalFn
-      )
+      startActiveSpanArgs[fnIdx] = (span: Span) => {
+        // Instrument spans even when they are created outside a work unit:
+        // they may be ended later from within a prerender.
+        instrumentSpanForCacheComponents(span)
+        return workUnitStore
+          ? workUnitAsyncStorage.run(workUnitStore, originalFn, span)
+          : originalFn(span)
+      }
     }
 
     return workUnitAsyncStorage.exit(() => {
@@ -147,10 +146,16 @@ function instrumentTracerForCacheComponents(tracer: Tracer): Tracer {
 
 const WeakTracers = new WeakSet<Tracer>()
 
-function withWorkUnitContext(
-  workUnitStore: WorkUnitStore,
-  fn: (...args: any[]) => any
-) {
-  return (...args: any[]) =>
-    workUnitAsyncStorage.run(workUnitStore, fn, ...args)
+function instrumentSpanForCacheComponents(span: Span): Span {
+  if (WeakSpans.has(span)) {
+    return span
+  }
+  const originalEnd = span.end.bind(span)
+  // Ending a span invokes SDK processors, which may read time or randomness
+  // for metrics. Like span creation, this is telemetry rather than rendering.
+  span.end = (...args) => workUnitAsyncStorage.exit(originalEnd, ...args)
+  WeakSpans.add(span)
+  return span
 }
+
+const WeakSpans = new WeakSet<Span>()

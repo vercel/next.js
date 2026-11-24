@@ -10,6 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use dashmap::try_result::TryResult;
 use hashbrown::hash_table;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
@@ -694,6 +695,20 @@ impl Storage {
                 inner: b,
             },
         )
+    }
+
+    /// Locks the resident task `key`, if that is possible without blocking, also while the caller
+    /// holds another task's guard. Returns `None` when `key`'s shard is locked (also when it's the
+    /// shard of a task the caller holds: shard locks aren't reentrant), or when `key` isn't
+    /// resident (it is not inserted).
+    pub fn try_access_mut(&self, key: TaskId) -> Option<StorageWriteGuard<'_>> {
+        match self.map.try_get_mut(&key) {
+            TryResult::Present(inner) => Some(StorageWriteGuard {
+                storage: self,
+                inner: inner.into(),
+            }),
+            TryResult::Absent | TryResult::Locked => None,
+        }
     }
 
     pub fn drop_contents(&self) {

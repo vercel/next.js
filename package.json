@@ -129,6 +129,7 @@
     "@next/env": "workspace:*",
     "@next/eslint-plugin-next": "workspace:*",
     "@next/font": "workspace:*",
+    "@next/mcp": "workspace:*",
     "@next/mdx": "workspace:*",
     "@next/playwright": "workspace:*",
     "@next/plugin-storybook": "workspace:*",

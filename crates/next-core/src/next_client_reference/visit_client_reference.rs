@@ -165,6 +165,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                 parent_module,
                 include_traced,
                 include_binding_usage,
+                false,
             )
             .await?;
 
