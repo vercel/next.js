@@ -597,7 +597,36 @@ impl StaticSortedFile {
     /// If `FIND_ALL` is false, returns after finding the first match.
     /// If `FIND_ALL` is true, returns all entries with the same key (useful for
     /// keyspaces where keys are hashes and collisions are possible).
+    ///
+    /// With an mmap backing, a block's checksum is verified only on its first read in this open
+    /// (see `verified_blocks`), so another process modifying the file in place can change a block
+    /// after it was verified. Decoding validates every offset, length and type it reads from a
+    /// block and fails on an invalid one, so such a change can make a lookup fail (or, when the
+    /// changed bytes are still valid, return wrong data), but never makes it panic or read out of
+    /// bounds. Errors from an mmap-backed file are therefore marked as
+    /// [`CacheFileUnreadable`](crate::CacheFileUnreadable). Without mmap, every block read from
+    /// the file passes its checksum first, so a block that fails to decode after that was written
+    /// that way, which is a bug rather than damage to the file, and isn't marked.
     pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
+        &self,
+        key_hash: u64,
+        key: &K,
+        key_block_cache: &BlockCache,
+        value_block_cache: &BlockCache,
+    ) -> Result<SstLookupResult> {
+        let result =
+            self.lookup_unmarked::<K, FIND_ALL>(key_hash, key, key_block_cache, value_block_cache);
+        match self.backing {
+            #[cfg(feature = "mmap")]
+            StaticSortedFileBacking::Mmap(_) => {
+                result.mark_unreadable(|| format!("{:08}.sst", self.meta.sequence_number))
+            }
+            StaticSortedFileBacking::File { .. } => result,
+        }
+    }
+
+    /// [`StaticSortedFile::lookup`] without marking errors as unreadable.
+    fn lookup_unmarked<K: QueryKey, const FIND_ALL: bool>(
         &self,
         key_hash: u64,
         key: &K,
@@ -626,7 +655,12 @@ impl StaticSortedFile {
             cache: value_block_cache,
             verified_blocks: &self.verified_blocks,
         };
-        let block_type = be::read_u8(key_block);
+        let Some(&block_type) = key_block.first() else {
+            bail!(
+                "key block {key_block_index} of {:08}.sst is empty",
+                self.meta.sequence_number
+            );
+        };
         match KeyBlockLayout::from_block_type(block_type) {
             Some((layout, false)) => self
                 .lookup_variable_key_block::<K, FIND_ALL>(key_block, key_hash, key, layout, reader),
@@ -634,7 +668,10 @@ impl StaticSortedFile {
                 self.lookup_fixed_key_block::<K, FIND_ALL>(key_block, key_hash, key, layout, reader)
             }
             None => {
-                bail!("Invalid block type");
+                bail!(
+                    "Invalid block type {block_type} of key block {key_block_index} of {:08}.sst",
+                    self.meta.sequence_number
+                );
             }
         }
     }
@@ -1324,21 +1361,35 @@ fn handle_key_match_generic<B: SharedBytes>(
 ) -> Result<LookupValue<B>> {
     Ok(match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => {
+            let val = value_ref::<SMALL_VALUE_REF_SIZE>(meta, ty, val)?;
             let block = be::read_u16(val);
             let size = be::read_u16(&val[2..]) as usize;
             let position = be::read_u32(&val[4..]) as usize;
-            let value = reader
-                .get_or_read(meta, block, compression)?
-                .slice(position..position + size);
-            LookupValue::Slice { value }
+            let block_data = reader.get_or_read(meta, block, compression)?;
+            let block_len = block_data.len();
+            let Some(range) = position
+                .checked_add(size)
+                .filter(|&end| end <= block_len)
+                .map(|end| position..end)
+            else {
+                bail!(
+                    "small value at {position}..{} of {:08}.sst is past the end of its value \
+                     block {block} ({block_len} bytes)",
+                    position as u64 + size as u64,
+                    meta.sequence_number
+                );
+            };
+            LookupValue::Slice {
+                value: block_data.slice(range),
+            }
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
-            let block = be::read_u16(val);
+            let block = be::read_u16(value_ref::<MEDIUM_VALUE_REF_SIZE>(meta, ty, val)?);
             let value = reader.read_uncached(meta, block, compression)?;
             LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_BLOB => {
-            let sequence_number = be::read_u32(val);
+            let sequence_number = be::read_u32(value_ref::<BLOB_VALUE_REF_SIZE>(meta, ty, val)?);
             LookupValue::Blob { sequence_number }
         }
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => LookupValue::KeyDeleted,
@@ -1353,6 +1404,24 @@ fn handle_key_match_generic<B: SharedBytes>(
             LookupValue::Slice { value }
         }
     })
+}
+
+/// Checks that `val`, the value of a key block entry of type `ty`, is a value reference of `SIZE`
+/// bytes. A variable-size key block sizes each value by its type, but a mixed-type fixed-size key
+/// block gives every entry the same value size, whatever type the entry claims.
+fn value_ref<'l, const SIZE: usize>(
+    meta: &StaticSortedFileMetaData,
+    ty: u8,
+    val: &'l [u8],
+) -> Result<&'l [u8]> {
+    ensure!(
+        val.len() == SIZE,
+        "key block entry of type {ty} in {:08}.sst has a {} byte value reference, but this type \
+         needs {SIZE} bytes",
+        meta.sequence_number,
+        val.len()
+    );
+    Ok(val)
 }
 
 /// An iterator over all entries in a SST file in sorted order.
@@ -1596,7 +1665,8 @@ impl StaticSortedFileIter {
                     None => be::read_u64(hash),
                 };
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
-                    let block = be::read_u16(val);
+                    let block =
+                        be::read_u16(value_ref::<MEDIUM_VALUE_REF_SIZE>(&self.meta, ty, val)?);
                     let (uncompressed_size, checksum, block) =
                         get_raw_block_iter(&self.file, &self.block_offsets, &self.meta, block)?;
                     IterValue::Medium {
@@ -1785,12 +1855,21 @@ fn get_key_entry<'l>(
     // Hoisted into the table, so the search never reaches into the payload; empty for `KeyOnly`.
     let hash = &offsets[index * table_stride..index * table_stride + hash_len as usize];
     let val_size = entry_val_size(ty)?;
-    Ok(GetKeyEntryResult {
-        hash,
-        key: &entries[start..end - val_size],
-        ty,
-        val: &entries[end - val_size..end],
-    })
+    // The offsets come from the block, so they are checked rather than trusted: entries must be
+    // in order, end within the block, and leave room for the value.
+    let (Some(key), Some(val)) = (
+        end.checked_sub(val_size)
+            .and_then(|key_end| entries.get(start..key_end)),
+        end.checked_sub(val_size)
+            .and_then(|key_end| entries.get(key_end..end)),
+    ) else {
+        bail!(
+            "key block entry {index} spans {start}..{end}, which doesn't fit its {val_size} byte \
+             value in the {} bytes of entry data",
+            entries.len()
+        );
+    };
+    Ok(GetKeyEntryResult { hash, key, ty, val })
 }
 
 /// Reads a key entry from a fixed-size key block by direct indexing.
@@ -1876,7 +1955,7 @@ impl FixedRegions {
         Self {
             layout,
             search_stride,
-            tail_start: entry_count * search_stride,
+            tail_start: entry_count.saturating_mul(search_stride),
             tail_stride,
             key_size,
         }
@@ -1892,8 +1971,12 @@ impl FixedRegions {
     }
 
     /// Total entry-data length implied by these regions, for bounds checking.
+    ///
+    /// Saturates instead of overflowing, so sizes taken from a corrupted block header can't wrap
+    /// around to a length that passes the check.
     pub fn total_len(&self, entry_count: usize) -> usize {
-        self.tail_start + entry_count * self.tail_stride
+        self.tail_start
+            .saturating_add(entry_count.saturating_mul(self.tail_stride))
     }
 }
 
