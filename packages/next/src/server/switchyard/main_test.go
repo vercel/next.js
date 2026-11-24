@@ -343,6 +343,24 @@ func TestClosesAnHTTP10ConnectionAfterTheResponse(t *testing.T) {
 	}
 }
 
+func TestForwardsRequestTrailers(t *testing.T) {
+	trailers := make(chan http.Header, 1)
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body) // Go fills in r.Trailer at the body's end
+		trailers <- r.Trailer.Clone()
+		io.WriteString(w, string(body))
+	})
+	res := rawRoundTrip(t, addr, "POST / HTTP/1.1\r\nHost: shop.example.com\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum\r\nConnection: close\r\n\r\n"+
+		"3\r\nabc\r\n0\r\nX-Checksum: 900150983cd24fb0\r\n\r\n")
+	if body, _ := io.ReadAll(res.Body); string(body) != "abc" {
+		t.Errorf("body = %q, want %q", body, "abc")
+	}
+	got := <-trailers
+	if v := got.Get("X-Checksum"); v != "900150983cd24fb0" {
+		t.Errorf("upstream trailers = %v, want X-Checksum: 900150983cd24fb0", got)
+	}
+}
+
 func TestForwardsAResponseBeforeTheUploadFinishes(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusForbidden} {
 		t.Run(http.StatusText(status), func(t *testing.T) {

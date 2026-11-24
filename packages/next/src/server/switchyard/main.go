@@ -335,6 +335,13 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			// can't parse; keepRequestTarget sends the target as the client
 			// did, so Node sees the same URL as without Switchyard.
 			keepRequestTarget(pr.Out, pr.In.RequestURI)
+			// Node parity: Node gives the app the trailer fields of a chunked
+			// request body (req.trailers). Go's server fills them in on
+			// pr.In.Trailer once the body has been read to its end, but pr.Out
+			// starts with a copy of that map, which stays empty, and the
+			// Transport writes the trailers from pr.Out.Trailer after the body.
+			// Sharing the map sends the values Go's server read.
+			pr.Out.Trailer = pr.In.Trailer
 			// With Rewrite, Go deletes the client's forwarded headers before
 			// this function runs; put them back, so Node sees them as before.
 			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
