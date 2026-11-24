@@ -12,11 +12,24 @@ import (
 	"sync"
 )
 
-// With next.config `compress` on, Node runs every response through the
-// `compression` middleware (version 1.7.4, router-server.ts). This file makes
-// the same choices for a direct response, in the middleware's order: the
-// Content-Type and Cache-Control decide whether it adds Vary and may compress
-// at all; then a Content-Length below 1 KiB, a Content-Encoding, HEAD, or an
+// This file copies the behavior of Node's response compression, so that a
+// direct response comes out as it would through Node. With next.config
+// `compress` on, Node runs every response through the `compression`
+// middleware (version 1.7.4, router-server.ts), an npm package that decides
+// with its own dependencies (`compressible` and its mime-db, `accepts`,
+// `negotiator` and `vary`) whether and how to compress, and compresses with
+// Node's zlib. Go has no such middleware in its standard library, and Go
+// libraries that do this (such as github.com/klauspost/compress/gzhttp)
+// make different choices, so the choices are copied here; compressing uses
+// Go's own gzip and zlib packages. The rest of the copy is in direct.go
+// (directAttempt's WriteHeader, Write, Flush and finish: when the headers
+// and compressed bytes go out), routing/decide.go (which Accept-Encoding
+// values go to Node), and taskfile.js (the MIME table, written from the
+// middleware's own mime-db).
+//
+// The choices come in the middleware's order: the Content-Type and
+// Cache-Control decide whether it adds Vary and may compress at all; then a
+// Content-Length below 1 KiB, a Content-Encoding, HEAD, or an
 // Accept-Encoding without gzip or deflate leave the body as it is. The
 // middleware never flushes zlib between chunks, so neither does Switchyard.
 //
