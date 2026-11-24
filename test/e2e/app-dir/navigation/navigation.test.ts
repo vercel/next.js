@@ -397,6 +397,28 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('initial load with a hash then same-pathname navigation', () => {
+    const pathname = '/hash-initial-load'
+
+    it('should replace (not concatenate) the initial hash', async () => {
+      const browser = await next.browser(pathname + '#foo')
+
+      await browser.elementByCss('#link-to-bar').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(next.url + pathname + '#bar')
+      )
+    })
+
+    it('should not restore the initial hash when the href has none', async () => {
+      const browser = await next.browser(pathname + '#foo')
+
+      await browser.elementByCss('#link-without-hash').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(next.url + pathname)
+      )
+    })
+  })
+
   describe('not-found', () => {
     it('should trigger not-found in a server component', async () => {
       const browser = await next.browser('/not-found/servercomponent')
