@@ -266,7 +266,7 @@ describe('switchyard-go', () => {
       'varies %s by Accept-Encoding when appropriate',
       async (type, varies) => {
         // Plain query values keep these requests eligible for the direct path.
-        const target = `/go/extras?type=${type}`
+        const target = `/go/compress?size=2048&type=${type}`
         await send(target)
         const res = await send(target)
         expect(getHeader(res, 'vary')).toBe(
@@ -282,7 +282,7 @@ describe('switchyard-go', () => {
         ['vary=wildcard', '*'],
         ['cacheControl=no-transform', undefined],
       ]) {
-        const target = `/go/extras?${query}`
+        const target = `/go/compress?size=2048&${query}`
         await send(target)
         const res = await send(target)
         expect(getHeader(res, 'vary')).toBe(expected)
@@ -353,13 +353,13 @@ describe('switchyard-go', () => {
     })
 
     it('compresses a compressible response when the client accepts gzip', async () => {
-      const res = await send('/go/extras', ['Accept-Encoding: gzip'])
+      const res = await send('/go/compress?size=2048', [
+        'Accept-Encoding: gzip',
+      ])
       expect(res.status).toBe(200)
       expect(getHeader(res, 'content-encoding')).toBe('gzip')
       expect(getHeader(res, 'vary')).toContain('Accept-Encoding')
-      expect(JSON.parse(gunzipSync(res.body).toString()).padding).toHaveLength(
-        2048
-      )
+      expect(gunzipSync(res.body).toString()).toBe('x'.repeat(2048))
     })
 
     it('answers HEAD without a body and OPTIONS with the methods', async () => {
