@@ -3836,6 +3836,10 @@ async fn handle_membership<'a>(
         let is_prop_cache = prop == "cache";
 
         let obj = link_obj.await?;
+        if prop == "env" && !analysis.has_runtime_env_var_reference_all() {
+            // e.g. `foo(process.env)`
+            set_runtime_all_if_process_escapes(&obj, &ty, state, analysis).await?;
+        }
         let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
         if let [obj_name] = &*obj_name {
@@ -3923,10 +3927,6 @@ async fn handle_membership<'a>(
                 }
             }
             return Ok(false);
-        }
-        if prop == "env" && !analysis.has_runtime_env_var_reference_all() {
-            // e.g. `foo(process.env)`
-            set_runtime_all_if_process_escapes(&obj, &ty, state, analysis).await?;
         }
     } else if !analysis.has_runtime_env_var_reference_all() {
         let obj = link_obj.await?;
