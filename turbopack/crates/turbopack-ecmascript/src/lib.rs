@@ -75,9 +75,12 @@ use swc_core::{
             self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem,
             Program, Script, SourceMapperExt, Stmt,
         },
-        codegen::{Emitter, text_writer::JsWriter},
+        codegen::{
+            Emitter,
+            text_writer::{BindingStorage, JsWriter, ScopeBindingRecord, ScopeRecord},
+        },
         utils::StmtLikeInjector,
-        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
+        visit::{Visit, VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
     },
     quote,
 };
@@ -125,7 +128,7 @@ use crate::{
     directive::parse_module_turbopack_directives,
     emit_options::EcmascriptEmitOptions,
     merged_module::MergedEcmascriptModule,
-    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
+    parse::{IdentCollector, ParseResult, generate_js_source_map_with_scopes, parse},
     path_visitor::{ApplyVisitors, Visitors},
     references::{
         analyze_ecmascript_module,
@@ -1395,6 +1398,7 @@ impl EcmascriptModuleContent {
                 ),
                 indent: ecma_emit.indent,
                 scope_hoisting_syntax_contexts: None,
+                scope_bindings: Vec::new(),
             };
 
             let first_entry = entry_points.first().unwrap().0;
@@ -1975,6 +1979,10 @@ struct CodeGenResult {
         FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
         FxHashMap<RcStr, (Id, Span)>,
     )>,
+    /// The local ESM import bindings for the source map `scopes`, as (original local name, the
+    /// expression that evaluates to the binding in the generated code, if any). See
+    /// [`resolve_import_scope_bindings`].
+    scope_bindings: Vec<(Atom, Option<String>)>,
 }
 
 struct ScopeHoistingOptions<'a> {
@@ -2014,6 +2022,26 @@ async fn process_parse_result(
                     },
                 )
                 .into_inner();
+
+            // The local ESM import bindings, listed as variables of the module scope in the
+            // source map `scopes` (see `resolve_import_scope_bindings`).
+            let local_import_ids =
+                if source_map_generation_options.should_generate_any_source_maps() {
+                    // Imports injected by transforms (e.g. the JSX runtime import) have no
+                    // counterpart in the original source.
+                    let original_import_ids = original_import_ids(&program);
+                    let imports = match &eval_context {
+                        Either::Left(e) => &e.imports,
+                        Either::Right(e) => &e.imports,
+                    };
+                    imports
+                        .local_import_ids()
+                        .filter(|id| original_import_ids.contains(*id))
+                        .cloned()
+                        .collect()
+                } else {
+                    Vec::new()
+                };
 
             let (mut code_gens, ast_paths, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
@@ -2125,6 +2153,12 @@ async fn process_parse_result(
                 }
             }
 
+            let scope_references = code_gens
+                .iter()
+                .filter_map(|cg| cg.scope_bindings.as_ref())
+                .flat_map(|collector| collector.take())
+                .collect::<Vec<_>>();
+
             GLOBALS.set(globals, || {
                 // Delimit the early hoisted statements, which `merge_modules` moves in front of
                 // the merged module this module is part of.
@@ -2199,6 +2233,9 @@ async fn process_parse_result(
                 remove_directives(&mut program);
             });
 
+            let scope_bindings =
+                resolve_import_scope_bindings(&program, local_import_ids, scope_references);
+
             Ok(CodeGenResult {
                 source_map_generation_options,
                 program,
@@ -2219,6 +2256,7 @@ async fn process_parse_result(
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
                     .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
+                scope_bindings,
             })
         },
         async |parse_result| -> Result<CodeGenResult> {
@@ -2257,6 +2295,7 @@ async fn process_parse_result(
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         indent: true,
                         scope_hoisting_syntax_contexts: None,
+                        scope_bindings: Vec::new(),
                     }
                 }
                 ParseResult::NotFound => {
@@ -2287,6 +2326,7 @@ async fn process_parse_result(
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         indent: true,
                         scope_hoisting_syntax_contexts: None,
+                        scope_bindings: Vec::new(),
                     }
                 }
             })
@@ -2402,10 +2442,21 @@ async fn emit_content(
         original_source_map,
         indent,
         scope_hoisting_syntax_contexts: _,
+        scope_bindings,
     } = content;
 
     let generate_source_map =
         source_map_generation_options.should_generate_any_source_maps() && source_map.is_some();
+
+    // Emit ECMA-426 `scopes` only when the source map maps directly to the original sources:
+    // there is no support for composing scopes with an input source map, and merged
+    // (scope-hoisted) modules rename bindings, which would make the recorded variables
+    // misleading.
+    let generate_scopes = generate_source_map
+        && matches!(
+            original_source_map,
+            CodeGenResultOriginalSourceMap::Single(None)
+        );
 
     // Collect identifier names for source maps before emitting
     let source_map_names = if generate_source_map {
@@ -2421,16 +2472,18 @@ async fn emit_content(
     // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
 
     let mut mappings = vec![];
+    let mut scopes = generate_scopes.then(Vec::new);
 
     let source_map = Arc::new(source_map);
 
     {
-        let mut wr = JsWriter::new(
+        let mut wr = JsWriter::new_with_scopes(
             // unused anyway?
             Default::default(),
             "\n",
             &mut bytes,
             generate_source_map.then_some(&mut mappings),
+            scopes.as_mut(),
         );
         if !indent {
             wr.set_indent_str("");
@@ -2448,6 +2501,10 @@ async fn emit_content(
         emitter.emit_program(&program)?;
         // Drop the AST eagerly so we don't keep it in memory while generating source maps
         drop(program);
+    }
+
+    if let Some(scopes) = &mut scopes {
+        add_scope_bindings(scopes, scope_bindings);
     }
 
     let original_source_maps = if generate_source_map && source_map_generation_options.full {
@@ -2468,13 +2525,16 @@ async fn emit_content(
     let shallow_source_map = if generate_source_map && source_map_generation_options.shallow {
         let include_content = source_map_generation_options.shallow_sources_content
             || (source_map_generation_options.full && original_source_maps.is_empty());
-        Some(generate_js_source_map(
+        Some(generate_js_source_map_with_scopes(
             &*source_map,
             &mappings,
             std::iter::empty(),
             false,
             include_content,
             &source_map_names,
+            scopes
+                .as_deref()
+                .map(|scopes| (scopes, &*source_map as &dyn SourceMapper)),
         )?)
     } else {
         None
@@ -2492,7 +2552,7 @@ async fn emit_content(
             }
         } else {
             SourceMaps::new(
-                Some(generate_js_source_map(
+                Some(generate_js_source_map_with_scopes(
                     &*source_map,
                     &mappings,
                     original_source_maps,
@@ -2502,6 +2562,9 @@ async fn emit_content(
                     ),
                     true,
                     &source_map_names,
+                    scopes
+                        .as_deref()
+                        .map(|scopes| (scopes, &*source_map as &dyn SourceMapper)),
                 )?),
                 shallow_source_map,
             )
@@ -2518,6 +2581,110 @@ async fn emit_content(
         additional_ids,
     }
     .cell())
+}
+
+/// Returns the local bindings of the import declarations of `program` that exist in the original
+/// source, i.e. whose identifier has a real span.
+fn original_import_ids(program: &Program) -> FxHashSet<Id> {
+    let Program::Module(module) = program else {
+        return FxHashSet::default();
+    };
+    module
+        .body
+        .iter()
+        .filter_map(|item| match item {
+            ModuleItem::ModuleDecl(ast::ModuleDecl::Import(import)) => Some(&import.specifiers),
+            _ => None,
+        })
+        .flatten()
+        .map(|specifier| match specifier {
+            ast::ImportSpecifier::Named(s) => &s.local,
+            ast::ImportSpecifier::Default(s) => &s.local,
+            ast::ImportSpecifier::Namespace(s) => &s.local,
+        })
+        .filter(|ident| !ident.span.is_dummy())
+        .map(|ident| ident.to_id())
+        .collect()
+}
+
+/// Resolves the expressions that evaluate to the local ESM import bindings `import_ids` in the
+/// final generated `program`.
+///
+/// The code generation replaces references to imports with other expressions (e.g.
+/// `__TURBOPACK__imported__module__…__["foo"]`), recording the replaced references in
+/// `references` (see [`ScopeBindingsCollector`](crate::code_gen::ScopeBindingsCollector)). The
+/// replacements keep the span of the replaced identifier, so they are looked up by span here,
+/// after all later passes (e.g. hygiene renaming) ran.
+///
+/// Imports without a resolvable replacement (e.g. unused imports, or namespace imports that are
+/// only accessed by members, which are rewritten individually) are returned without an
+/// expression, i.e. as unavailable.
+fn resolve_import_scope_bindings(
+    program: &Program,
+    import_ids: Vec<Id>,
+    references: Vec<(Id, Span)>,
+) -> Vec<(Atom, Option<String>)> {
+    if import_ids.is_empty() {
+        return Vec::new();
+    }
+
+    struct FindReplacements {
+        spans: FxHashMap<Span, Option<String>>,
+    }
+    impl Visit for FindReplacements {
+        fn visit_expr(&mut self, expr: &Expr) {
+            if let Expr::Ident(Ident { span, .. }) | Expr::Member(ast::MemberExpr { span, .. }) =
+                expr
+                && let Some(found @ None) = self.spans.get_mut(span)
+            {
+                *found = Some(swc_core::ecma::codegen::to_code(expr));
+                return;
+            }
+            expr.visit_children_with(self);
+        }
+    }
+
+    let mut references = references
+        .into_iter()
+        .filter(|(id, _)| import_ids.contains(id))
+        .collect::<FxHashMap<_, _>>();
+    let mut finder = FindReplacements {
+        spans: references.values().map(|span| (*span, None)).collect(),
+    };
+    program.visit_with(&mut finder);
+
+    import_ids
+        .into_iter()
+        .map(|id| {
+            let expression = references
+                .remove(&id)
+                .and_then(|span| finder.spans.get(&span).cloned().flatten());
+            (id.0, expression)
+        })
+        .collect()
+}
+
+/// Adds the local ESM import bindings (see [`resolve_import_scope_bindings`]) to the module scope
+/// of the collected source map `scopes`.
+fn add_scope_bindings(scopes: &mut [ScopeRecord], bindings: Vec<(Atom, Option<String>)>) {
+    if bindings.is_empty() {
+        return;
+    }
+    // The root of the program, i.e. the module scope.
+    let Some(root) = scopes.iter_mut().find(|scope| scope.parent.is_none()) else {
+        return;
+    };
+    let import_bindings = bindings
+        .into_iter()
+        .filter(|(name, _)| !root.bindings.iter().any(|binding| *binding.name == **name))
+        .map(|(name, expression)| ScopeBindingRecord {
+            name: name.to_string(),
+            expression,
+            storage: BindingStorage::Lexical,
+        })
+        .collect::<Vec<_>>();
+    // Imports come first in the original module.
+    root.bindings.splice(0..0, import_bindings);
 }
 
 /// Applies the code generations, returning the number of early hoisted statements it prepended.
@@ -3475,6 +3642,7 @@ fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parse::generate_js_source_map;
 
     #[test]
     fn source_maps_without_inputs_ignore_completeness() {

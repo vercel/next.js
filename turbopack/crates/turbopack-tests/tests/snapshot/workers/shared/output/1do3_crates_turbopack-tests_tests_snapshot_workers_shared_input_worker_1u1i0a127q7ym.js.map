@@ -2,5 +2,5 @@
   "version": 3,
   "sources": [],
   "sections": [
-    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js"],"sourcesContent":["self.onconnect = (e) => e.ports[0].postMessage('hello')\n"],"names":["self","onconnect","e","ports","postMessage"],"mappings":"AAAAA,KAAKC,SAAS,GAAG,CAACC,IAAMA,EAAEC,KAAK,CAAC,EAAE,CAACC,WAAW,CAAC"}}]
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js"],"sourcesContent":["self.onconnect = (e) => e.ports[0].postMessage('hello')\n"],"names":["global","function","e","self","onconnect","ports","postMessage"],"scopes":"BCAAA,BGARC,DE,CAmB,CAA,ECAA,EGRC,GD,FkB,FBA","mappings":"AAAAG,KAAKC,SAAS,GAAG,CAACF,IAAMA,EAAEG,KAAK,CAAC,EAAE,CAACC,WAAW,CAAC"}}]
 }
