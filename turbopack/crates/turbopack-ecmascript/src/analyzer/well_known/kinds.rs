@@ -221,8 +221,10 @@ pub enum WellKnownFunctionKind<'a> {
     PropertyIsEnumerable,
     /// `Object.hasOwn(obj, key)`.
     ObjectHasOwn,
-    /// `Function.prototype.call`. The function it calls is its receiver, so it is only analyzed
-    /// when called as `func.call(this, ...args)`.
+    /// `Function.prototype.call`. `func.call(thisArg, ...args)` calls its own receiver `func`, with
+    /// the first argument as `this`. So it is only analyzed in a member call (including
+    /// `(0, func).call(thisArg, ...args)`), not when detached: `const call = func.call; call(...)`
+    /// throws.
     FunctionCall,
     NodePreGypFind,
     NodeGypBuild,

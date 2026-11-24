@@ -10,6 +10,8 @@ console.log(
 console.log(process.env.hasOwnProperty.call(process.env, 'FOO_METHOD_CALL'))
 const { hasOwnProperty } = process.env
 console.log(hasOwnProperty.call(env, 'FOO_DESTRUCTURED_CALL'))
+// prettier-ignore
+console.log((0, process.env.hasOwnProperty).call(process.env, 'FOO_COMMA_METHOD_CALL'))
 console.log(process.env.propertyIsEnumerable('FOO_ENUMERABLE'))
 console.log(
   Object.prototype.propertyIsEnumerable.call(process.env, 'FOO_ENUMERABLE_CALL')
