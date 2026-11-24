@@ -144,10 +144,10 @@ describe('segment cache (metadata)', () => {
     })
   })
 
-  // The legacy Vercel builder serves a cold ISR path from a completed static
+  // On the platform a cold ISR path is served from a completed static
   // prerender that cannot vary on the request tree, so the page body is sent
   // along with the head.
-  // @gate !deploy || adapter
+  // @gate !deploy
   it('requests only the head when the page segments are cached', async () => {
     let act: ReturnType<typeof createRouterAct>
     // The request tree of every navigation request (RSC requests that are
