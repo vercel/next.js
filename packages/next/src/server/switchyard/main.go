@@ -40,6 +40,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -403,6 +404,25 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 				for name, values := range node.hopHeaders {
 					res.Header[name] = values
 				}
+				// Node parity: Node's Connection header is what it decided
+				// about the connection it shares with this one client
+				// (clientUpstream): to keep it, with Keep-Alive saying how long,
+				// or to close it. Without Switchyard Node says the same to the
+				// client, so pass it on. Go's server closes the connection when
+				// it says close, and replaces it with close when Go itself must.
+				// An HTTP/1.0 client's connection closes after every response
+				// (the handler already says so), so Node's keep-alive for its own
+				// HTTP/1.1 connection doesn't apply there.
+				if !res.Request.ProtoAtLeast(1, 1) {
+					delete(res.Header, "Keep-Alive")
+				} else if node.connection != nil {
+					res.Header["Connection"] = node.connection
+				}
+				// Node parity: after a non-101 answer to an upgrade request the
+				// socket belongs to Node's upgrade handler, which ends it.
+				if res.StatusCode != http.StatusSwitchingProtocols && isUpgradeRequest(res.Request.Header) {
+					res.Header.Set("Connection", "close")
+				}
 			}
 			if body, ok := res.Request.Context().Value(requestBodyKey{}).(*requestBody); ok && !body.readToEnd.Load() {
 				res.Header.Set("Connection", "close")
@@ -410,6 +430,20 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			// Node parity: Node took the connection and closed it without an
+			// answer (the app destroyed the socket, or Next ended an upgrade
+			// it doesn't handle). A client of Node alone sees its connection
+			// close and Node logs nothing, so close the client's connection
+			// the same way. Go's server closes it without writing anything
+			// when the handler panics with ErrAbortHandler.
+			// Only when the client's body, if any, was read to its end: a
+			// failed read (a broken upload, or one that hit the request
+			// timeout) isn't Node's doing, and gets the answers below. And a
+			// panic with the upload still coming would make Go's server read
+			// up to 256 KB more of it, with no deadline, before closing.
+			if node, ok := r.Context().Value(nodeResponseKey{}).(*nodeResponse); ok && node.connected.Load() && r.Context().Err() == nil && !bodyUnfinished(r) {
+				panic(http.ErrAbortHandler)
+			}
 			// When the request was cancelled on the client's side (the client
 			// went away, as with a cancelled prefetch, or its upload hit the
 			// request timeout), Node logs nothing, so Switchyard doesn't
@@ -470,7 +504,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
-		r = r.WithContext(context.WithValue(r.Context(), nodeResponseKey{}, &nodeResponse{hopHeaders: nil}))
+		r = r.WithContext(context.WithValue(r.Context(), nodeResponseKey{}, &nodeResponse{hopHeaders: nil, connection: nil, connected: atomic.Bool{}}))
 		proxy.ServeHTTP(&clientWriter{ResponseWriter: w, sentInformational: false}, r)
 	})
 }
@@ -571,28 +605,50 @@ type nodeResponseKey struct{}
 type nodeResponse struct {
 	// The hop-by-hop headers Node sends its client, which the proxy removes.
 	hopHeaders http.Header
+	// Node's Connection header.
+	connection []string
+	// Whether a connection to Node was made for the request. The Transport
+	// reports it on its own goroutine.
+	connected atomic.Bool
 }
 
 // nodeResponseTransport keeps, in the request's nodeResponse, the parts of
-// Node's response that Go's proxy removes before ModifyResponse runs.
+// Node's response that Go's proxy removes before ModifyResponse runs, and
+// whether Node was reached at all.
 //
 // Node parity: Node's server sends its client every header the app set,
-// Proxy-Authenticate on a 407 or Upgrade on a 426 included.
+// Proxy-Authenticate on a 407 or Upgrade on a 426 included, and its own
+// Connection and Keep-Alive.
 type nodeResponseTransport struct {
 	next http.RoundTripper
 }
 
 func (t nodeResponseTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	node, ok := r.Context().Value(nodeResponseKey{}).(*nodeResponse)
+	if !ok {
+		return t.next.RoundTrip(r)
+	}
+	// httptrace adds this hook to any the context already has.
+	r = r.WithContext(httptrace.WithClientTrace(r.Context(), &httptrace.ClientTrace{
+		GotConn: func(httptrace.GotConnInfo) { node.connected.Store(true) },
+	}))
 	res, err := t.next.RoundTrip(r)
 	if err == nil {
-		if node, ok := r.Context().Value(nodeResponseKey{}).(*nodeResponse); ok {
-			node.hopHeaders = keepHopHeaders(res.Header)
-			// Node adds its own Keep-Alive to a keep-alive response, about its
-			// connection to Switchyard; not passed on for now.
-			delete(node.hopHeaders, "Keep-Alive")
+		node.hopHeaders = keepHopHeaders(res.Header)
+		node.connection = res.Header["Connection"]
+		// The Transport takes "Connection: close" out of the header map and
+		// reports it as res.Close.
+		if res.Close {
+			node.connection = []string{"close"}
 		}
 	}
 	return res, err
+}
+
+// isUpgradeRequest reports whether h asks to switch protocols, as Go's proxy
+// reads it: an Upgrade header, and upgrade among Connection's tokens.
+func isUpgradeRequest(h http.Header) bool {
+	return h.Get("Upgrade") != "" && slices.ContainsFunc(connectionNames(h), func(name string) bool { return name == "Upgrade" })
 }
 
 type requestBodyKey struct{}
@@ -630,6 +686,13 @@ func (b *requestBody) Read(p []byte) (int, error) {
 		b.endOnce.Do(func() { close(b.ended) })
 	}
 	return n, err
+}
+
+// bodyUnfinished reports whether r has a body that hasn't been read to its
+// end: it is still coming, broke off, or hit the request timeout.
+func bodyUnfinished(r *http.Request) bool {
+	body, ok := r.Context().Value(requestBodyKey{}).(*requestBody)
+	return ok && !body.readToEnd.Load()
 }
 
 // timedOut reports whether the body read stopped at the request timeout.

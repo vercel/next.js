@@ -82,6 +82,93 @@ func TestRefusesMoreHeaderLinesThanNodeReads(t *testing.T) {
 	}
 }
 
+func TestClosesTheClientConnectionWhenNodeClosesIts(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Connection", "close")
+		io.WriteString(w, "bye")
+	})
+	// Two requests on one connection: Switchyard must close it after the first.
+	got := sendRaw(t, addr, "GET /a HTTP/1.1\r\nHost: shop.example.com\r\n\r\nGET /b HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	if n := strings.Count(got, "HTTP/1.1 "); n != 1 || !strings.Contains(got, "\r\nConnection: close\r\n") {
+		t.Errorf("got %q, want one response with Connection: close", got)
+	}
+}
+
+func TestPassesOnNodesKeepAlive(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		// What Node writes on a keep-alive response the app set no Connection on.
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Keep-Alive", "timeout=5")
+		io.WriteString(w, "ok")
+	})
+	res := rawRoundTrip(t, addr, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	if got := res.Header.Get("Connection"); got != "keep-alive" {
+		t.Errorf("Connection = %q, want keep-alive", got)
+	}
+	if got := res.Header.Get("Keep-Alive"); got != "timeout=5" {
+		t.Errorf("Keep-Alive = %q, want timeout=5", got)
+	}
+}
+
+func TestClosesTheClientConnectionWhenNodeDropsIt(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, _, err := w.(http.Hijacker).Hijack()
+		if err == nil {
+			conn.Close() // what socket.destroy() before an answer looks like
+		}
+	})
+	if got := sendRaw(t, addr, "POST / HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 1\r\n\r\nx"); got != "" {
+		t.Errorf("got %q, want the connection closed without an answer", got)
+	}
+}
+
+func TestClosesTheConnectionAfterANonUpgradeAnswerToAnUpgrade(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		// What an upgrade handler writes before it ends the socket.
+		buf.WriteString("HTTP/1.1 400 Bad Request\r\nContent-Length: 3\r\n\r\nbad")
+		buf.Flush()
+	})
+	got := sendRaw(t, addr, "GET /socket HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+	if !strings.HasPrefix(got, "HTTP/1.1 400 Bad Request\r\n") || !strings.Contains(got, "\r\nConnection: close\r\n") || !strings.HasSuffix(got, "bad") {
+		t.Errorf("got %q, want the 400 with Connection: close, then the connection closed", got)
+	}
+}
+
+func TestSendsOneConnectionCloseToAnHTTP10Client(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		// What Node writes on its HTTP/1.1 connection to Switchyard.
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Keep-Alive", "timeout=5")
+		w.Header().Set("Content-Length", "2")
+		io.WriteString(w, "ok")
+	})
+	got := sendRaw(t, addr, "GET / HTTP/1.0\r\nHost: shop.example.com\r\nConnection: keep-alive\r\n\r\n")
+	head, _, _ := strings.Cut(got, "\r\n\r\n")
+	if n := strings.Count(strings.ToLower(head), "\r\nconnection:"); n != 1 || !strings.Contains(head, "\r\nConnection: close") {
+		t.Errorf("head %q, want exactly one Connection: close", head)
+	}
+	if strings.Contains(head, "Keep-Alive") {
+		t.Errorf("head %q, want no Keep-Alive", head)
+	}
+}
+
+func TestAnswersABrokenUploadInsteadOfDroppingTheConnection(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		io.WriteString(w, "read")
+	})
+	// "zz" isn't a chunk size: reading the body fails in Switchyard, not Node.
+	got := sendRaw(t, addr, "POST / HTTP/1.1\r\nHost: shop.example.com\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\nzz\r\n")
+	if !strings.HasPrefix(got, "HTTP/1.1 502 Bad Gateway\r\n") {
+		t.Errorf("got %q, want a 502 answer", got)
+	}
+}
+
 func TestCountsHeadersGoMovesOutOfTheHeaderMap(t *testing.T) {
 	r, err := http.ReadRequest(bufio.NewReader(strings.NewReader("POST /upload?x=1 HTTP/1.1\r\nHost: shop.example.com\r\n" +
 		"Transfer-Encoding: chunked\r\nTrailer: X-One, X-Two\r\nX-Other: v\r\n\r\n0\r\n\r\n")))

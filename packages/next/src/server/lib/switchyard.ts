@@ -58,9 +58,10 @@ export async function startSwitchyard(
     // The OS could hand Node the public port when it is in its ephemeral
     // range; Node then binds again so Switchyard can take it.
     avoidPort: options.port,
-    // Switchyard owns client keep-alive; the Node server keeps Node's
-    // default.
-    keepAliveTimeout: undefined,
+    // Switchyard owns client keep-alive and passes on the Keep-Alive header
+    // Node writes, so the Node server uses the same keep-alive as the public
+    // one would: --keepAliveTimeout, or Node's default.
+    keepAliveTimeout: options.keepAliveTimeout,
     switchyardToken: token,
     // Start Switchyard: it takes the public port and forwards to
     // the Node server above.
@@ -77,13 +78,16 @@ export async function startSwitchyard(
         // or Node's), Node's header and request timeouts, and a pool idle time
         // a second below Node's keep-alive, so Switchyard never sends a request
         // on a connection Node is closing.
-        // Node ignores --keepAliveTimeout 0 and keeps its own value, so 0
-        // falls back here too.
-        idleTimeoutMs:
-          options.keepAliveTimeout || privateServer.keepAliveTimeout,
+        // The Node server has --keepAliveTimeout, or its own value when that
+        // is 0 or unset, as without Switchyard.
+        idleTimeoutMs: privateServer.keepAliveTimeout,
         headerTimeoutMs: privateServer.headersTimeout,
         requestTimeoutMs: privateServer.requestTimeout,
-        upstreamIdleMs: privateServer.keepAliveTimeout - 1000,
+        // Half of it, for keep-alives of 2 s or less, so it stays above 0.
+        upstreamIdleMs: Math.max(
+          privateServer.keepAliveTimeout - 1000,
+          Math.ceil(privateServer.keepAliveTimeout / 2)
+        ),
       }),
   })
 }
