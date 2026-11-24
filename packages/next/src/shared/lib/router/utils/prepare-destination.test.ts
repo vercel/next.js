@@ -113,7 +113,7 @@ describe('prepareDestinationURL', () => {
 
   it('interpolates hostname templates before constructing the final authority', () => {
     const { parsedDestination } = prepareDestinationURL({
-      destination: 'https://:sub.example.org/:slug?q=:slug',
+      destination: 'https://user:p%40ss@:sub.example.org:8443/:slug?q=:slug',
       params: { sub: 'API', slug: 'hello' },
       query: {},
       appendParamsToQuery: true,
@@ -122,8 +122,22 @@ describe('prepareDestinationURL', () => {
     if (parsedDestination.kind !== 'absolute')
       throw new Error('Expected absolute destination')
     expect(parsedDestination.url.href).toBe(
-      'https://api.example.org/hello?q=hello'
+      'https://user:p%40ss@api.example.org:8443/hello?q=hello'
     )
     expect(parsedDestination.query).toEqual({ q: 'hello' })
   })
+
+  it.each(['bad host', 'host/other', 'host:123'])(
+    'rejects an invalid interpolated hostname: %s',
+    (sub) => {
+      expect(() =>
+        prepareDestinationURL({
+          destination: 'https://:sub.example.org/target',
+          params: { sub },
+          query: {},
+          appendParamsToQuery: false,
+        })
+      ).toThrow(/Invalid (URL|destination hostname)/)
+    }
+  )
 })

@@ -314,7 +314,18 @@ export function prepareDestinationURL(args: {
 
     const [pathname, hash] = newUrl.split('#', 2)
     if (destHostnameCompiler && parsedDestination.kind === 'absolute') {
-      parsedDestination.url.hostname = destHostnameCompiler(args.params)
+      const hostname = destHostnameCompiler(args.params)
+      // URL setters silently ignore invalid hosts. Construct the final authority
+      // instead, so an invalid interpolation cannot leave the template host in use.
+      if (!hostname || /[\\/?#@]/.test(hostname)) {
+        throw new TypeError('Invalid destination hostname')
+      }
+      const previous = parsedDestination.url
+      parsedDestination.url = new URL(
+        `${previous.protocol}//${hostname}${previous.port ? `:${previous.port}` : ''}`
+      )
+      parsedDestination.url.username = previous.username
+      parsedDestination.url.password = previous.password
     }
     parsedDestination.url.pathname = pathname
     parsedDestination.url.hash = `${hash ? '#' : ''}${hash || ''}`
