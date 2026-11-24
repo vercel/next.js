@@ -12,6 +12,8 @@ import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
+import { requirePage } from '../require'
+import { RouteKind } from '../route-kind'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
 import {
@@ -674,6 +676,21 @@ export async function initialize(opts: {
       }
 
       debug('invokeRender', req.url, req.headers)
+
+      // A page on the native RSC runtime is handed to its entry, which owns the
+      // response, the way a deployment adapter calls a Node entry. It never reaches
+      // base-server. Only a matched route goes to the native RSC runtime so far;
+      // not-found and error renders stay on App Router.
+      const match = additionalRequestMeta?.match
+      if (match?.definition.kind === RouteKind.APP_PAGE_NATIVE_RSC_RUNTIME) {
+        const entry = await requirePage(
+          match.definition.page,
+          path.join(opts.dir, config.distDir),
+          true
+        )
+        await entry.handler(req, res, {})
+        return null
+      }
 
       try {
         const initResult =

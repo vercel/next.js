@@ -1148,6 +1148,20 @@ function assignDefaultsAndValidate(
     silent
   )
 
+  // Vercel builds without the deployment adapter serve pages through
+  // next-server's minimal mode, which pages on the native RSC runtime never
+  // reach.
+  if (
+    result.experimental.nativeRscRuntime &&
+    phase === PHASE_PRODUCTION_BUILD &&
+    ciEnvironment.hasNextSupport &&
+    !result.adapterPath
+  ) {
+    throw new Error(
+      `\`experimental.nativeRscRuntime\` deploys to Vercel only through the Next.js adapter. Set \`NEXT_ENABLE_ADAPTER=1\` in the project's environment variables.`
+    )
+  }
+
   // TODO(as-any): pre-existing cast, not yet reviewed
   // eslint-disable-next-line @next/internal/no-as-any
   if ((result.experimental as any).outputStandalone) {

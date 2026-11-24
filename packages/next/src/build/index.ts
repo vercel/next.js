@@ -775,6 +775,8 @@ export interface FunctionsConfigManifest {
         has?: Rewrite['has']
         missing?: Rewrite['has']
       }>
+      /** The page is on the native RSC runtime. Router-server hands it to its entry. */
+      nativeRscRuntime?: true
     } & (
       | { runtime?: 'nodejs'; nativeEntry?: never }
       | { runtime: 'go'; nativeEntry: string }
@@ -2653,7 +2655,8 @@ export default async function build(
                 if (
                   typeof staticInfo?.runtime !== 'undefined' ||
                   typeof staticInfo?.maxDuration !== 'undefined' ||
-                  typeof staticInfo?.preferredRegion !== 'undefined'
+                  typeof staticInfo?.preferredRegion !== 'undefined' ||
+                  staticInfo?.nativeRscRuntime
                 ) {
                   const regions = staticInfo?.preferredRegion
                     ? typeof staticInfo.preferredRegion === 'string'
@@ -2664,6 +2667,9 @@ export default async function build(
                   functionsConfigManifest.functions[page] = {
                     maxDuration: staticInfo?.maxDuration,
                     ...(regions && { regions }),
+                    ...(staticInfo?.nativeRscRuntime && {
+                      nativeRscRuntime: true,
+                    }),
                   }
                 }
 

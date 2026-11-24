@@ -60,7 +60,11 @@ import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { PagesNormalizers } from '../../normalizers/built/pages'
 import { AppNormalizers } from '../../normalizers/built/app'
 import { RouteKind } from '../../route-kind'
-import { isAppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
+import {
+  isAppPageRouteDefinition,
+  type AppPageRouteDefinition,
+} from '../../route-definitions/app-page-route-definition'
+import type { AppPageNativeRscRuntimeRouteDefinition } from '../../route-definitions/app-page-native-rsc-runtime-route-definition'
 import { selectAppPageEntry } from '../../../shared/lib/router/utils/app-paths'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 
@@ -464,13 +468,17 @@ export async function setupFsCheck(opts: {
         appNormalizers.pathname.normalize(appPath)
       )
       setRouteDefinition('appFile', pathname, {
-        kind: RouteKind.APP_PAGE,
+        kind: functionsConfigManifest.functions?.[pathname]?.nativeRscRuntime
+          ? RouteKind.APP_PAGE_NATIVE_RSC_RUNTIME
+          : RouteKind.APP_PAGE,
         pathname,
         page,
         bundlePath: appNormalizers.bundlePath.normalize(page),
         filename: appNormalizers.filename.normalize(appPathsManifest[page]),
         appPaths,
-      } as FilesystemRouteDefinition)
+      } satisfies
+        | AppPageRouteDefinition
+        | AppPageNativeRscRuntimeRouteDefinition as FilesystemRouteDefinition)
       addAppDynamicRoute(pathname, RouteKind.APP_PAGE)
     }
 

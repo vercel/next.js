@@ -1,6 +1,10 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { PHASE_DEVELOPMENT_SERVER, PHASE_TEST } from 'next/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_TEST,
+} from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -500,6 +504,35 @@ describe('config', () => {
         })
       )
       expect(config.experimental.nativeRscRuntime).toBe(true)
+    })
+
+    it('Should throw when building `nativeRscRuntime` on Vercel without the adapter', async () => {
+      const originalNowBuilder = process.env.NOW_BUILDER
+      process.env.NOW_BUILDER = '1'
+      try {
+        // `hasNextSupport` is read when `ci-info` loads.
+        jest.resetModules()
+        const { default: loadConfigOnVercel } = await import(
+          'next/dist/server/config'
+        )
+        await withTurbopack('1', async () => {
+          await expect(async () => {
+            await loadConfigOnVercel(
+              PHASE_PRODUCTION_BUILD,
+              '<rootDir>-nrr-vercel',
+              { customConfig: nativeRscRuntime }
+            )
+          }).rejects.toThrow(
+            /`experimental.nativeRscRuntime` deploys to Vercel only through the Next.js adapter/
+          )
+        })
+      } finally {
+        if (originalNowBuilder === undefined) {
+          delete process.env.NOW_BUILDER
+        } else {
+          process.env.NOW_BUILDER = originalNowBuilder
+        }
+      }
     })
   })
 

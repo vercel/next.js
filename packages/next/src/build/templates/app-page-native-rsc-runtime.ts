@@ -6,10 +6,30 @@
 // The SSR bundle goes through the `next-ssr` transition, so it resolves React for Fizz rather
 // than for Flight.
 
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { RequestMeta } from '../../server/request-meta'
 import * as rsc from 'VAR_RENDERER_RSC'
 import * as ssr from 'VAR_RENDERER_SSR' with { 'turbopack-transition': 'next-ssr' }
 import * as rootLayout from 'VAR_ROOT_LAYOUT'
 import * as page from 'VAR_PAGE'
+import { handle } from 'VAR_BRIDGE'
 
-// Nothing serves the page yet, so nothing calls into these.
-export { rsc, ssr, rootLayout, page }
+// The page's renderer, behind the renderer interface: the RSC bundle renders the root
+// layout and the page to Flight, and the SSR bundle renders that to HTML with Fizz.
+const renderer = ssr.createRouteRenderer(
+  rsc.createFlightRenderer({ rootLayout, page })
+)
+
+// Called as the deployment adapter contract calls every Node entry: by the adapter's
+// launcher on Vercel, and by router-server under `next start`. The bridge owns HTTP.
+// Nothing reads `ctx` yet.
+export async function handler(
+  req: IncomingMessage,
+  res: ServerResponse,
+  _ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
+  }
+): Promise<void> {
+  return handle(renderer, req, res)
+}
