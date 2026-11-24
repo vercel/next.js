@@ -580,6 +580,15 @@ describe('switchyard', () => {
       }
     })
 
+    it('closes the connection at once when the app drops it during an upload', async () => {
+      // 10 bytes announced, 1 sent, and the client then waits.
+      const { text, closed } = await exchange(
+        `POST /api/drop-upload HTTP/1.1\r\n${host()}Content-Length: 10\r\n\r\nx`
+      )
+      expect(text).toBe('')
+      expect(closed).toBe(true)
+    })
+
     it('closes the connection without an answer for an upgrade to a page', async () => {
       const { text, closed } = await exchange(
         `GET / HTTP/1.1\r\n${host()}Connection: Upgrade\r\nUpgrade: websocket\r\n\r\n`
