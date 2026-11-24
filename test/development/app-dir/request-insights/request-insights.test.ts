@@ -162,6 +162,13 @@ describe('request insights', () => {
     expect(result.cliOutput).toMatch(
       /No request insights captured yet|retained requests \(newest first\)/
     )
+
+    const json = await next.runCommand([
+      'experimental-request-insights',
+      '--json',
+    ])
+    expect(json.code).toBe(0)
+    expect(JSON.parse(json.cliOutput)).toHaveProperty('requests')
   })
 
   it('keeps outer server and app render spans on the same request', async () => {
@@ -198,6 +205,56 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+      expect(
+        requestsWithRelevantSpans[0].spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+        )?.name
+      ).toBe('GET /')
+    })
+  })
+
+  it('keeps the rendered route when the proxy records spans', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    expect((await next.fetch('/api/proxied-route?proxy-fetch=1')).status).toBe(
+      200
+    )
+    expect((await next.fetch('/proxied?proxy-fetch=1')).status).toBe(200)
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      for (const [pathname, route] of [
+        ['/api/proxied-route', '/api/proxied-route'],
+        ['/proxied', '/proxied'],
+      ]) {
+        const request = snapshot.requests.find(
+          (candidate) =>
+            !existingRequestIds.has(candidate.requestId) &&
+            candidate.kind !== 'instant-insights' &&
+            candidate.url?.split('?')[0] === pathname
+        )
+        expect(request?.route).toBe(route)
+        expect(
+          request?.spans.find(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' && span.name !== 'GET'
+          )?.name
+        ).toBe(`GET ${route}`)
+      }
     })
   })
 

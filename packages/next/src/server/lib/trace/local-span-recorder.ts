@@ -269,7 +269,6 @@ type RequestIdentity = {
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus
   htmlRequestId?: string
-  route?: string
   url?: string
 }
 
@@ -496,8 +495,7 @@ class LocalRecordingSpan implements Span {
         htmlRequestId: this.requestIdentity.htmlRequestId,
         route:
           getStringAttribute(recordAttributes, 'next.route') ??
-          getStringAttribute(recordAttributes, 'http.route') ??
-          this.requestIdentity.route,
+          getStringAttribute(recordAttributes, 'http.route'),
         url:
           getStringAttribute(recordAttributes, 'http.url') ??
           this.requestIdentity.url,
@@ -695,7 +693,6 @@ function getCurrentRequestIdentity(): RequestIdentity {
       requestInsightProxyStatus: requestInsightsIdentity?.proxyStatus,
       htmlRequestId:
         requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
-      route: workStore?.route,
       url: url ? `${url.pathname}${url.search}` : requestInsightsIdentity?.url,
     }
   } catch {

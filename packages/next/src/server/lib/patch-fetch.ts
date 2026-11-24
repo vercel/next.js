@@ -202,7 +202,6 @@ function trackFetchMetric(
           kind: requestInsightsIdentity?.kind,
           htmlRequestId:
             requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
-          route: workStore.route,
         },
         {
           url: metric.url,

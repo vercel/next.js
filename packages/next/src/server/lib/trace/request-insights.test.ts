@@ -165,6 +165,37 @@ describe('request insights', () => {
     unsubscribe()
   })
 
+  it('names the request span with the request route', () => {
+    process.env.__NEXT_DEV_SERVER = 'true'
+    startRequestInsight({ requestId: 'req_named' })
+    recordSpan({
+      name: 'executing api route (app) /api/items',
+      requestId: 'req_named',
+      route: '/api/items',
+    })
+    recordSpan({
+      name: 'GET',
+      requestId: 'req_named',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+        'http.method': 'GET',
+      },
+    })
+
+    const request = getRequestInsightsSnapshot().requests.find(
+      (insight) => insight.requestId === 'req_named'
+    )
+    expect(
+      request?.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+      )
+    ).toMatchObject({
+      name: 'GET /api/items',
+      attributes: { 'next.route': '/api/items' },
+    })
+  })
+
   it('imports a worker span batch with the main-thread identity', () => {
     process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'instant_1', kind: 'instant-insights' })

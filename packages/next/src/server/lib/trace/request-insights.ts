@@ -132,6 +132,9 @@ class InMemoryRequestInsightsStore {
     insight.url = insight.url ?? sanitizeUrl(span.url)
     const spanType = span.attributes?.['next.span_type']
     const isRequestSpan = spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+    if (isRequestSpan && insight.route) {
+      nameRequestSpan(recordedSpan, insight.route)
+    }
     if (insight.completedAt === undefined) {
       this.updateTiming(insight, spanStartTime, span.durationMs, isRequestSpan)
     }
@@ -436,6 +439,19 @@ export function registerRequestInsightsExporter(): void {
       )
     },
   })
+}
+
+function nameRequestSpan(span: RequestInsightSpan, route: string): void {
+  const method = span.attributes?.['http.method']
+  // Already named by the tracer.
+  if (typeof method !== 'string' || span.attributes?.['next.route']) return
+  const name = `${span.attributes?.['next.rsc'] ? 'RSC ' : ''}${method} ${route}`
+  span.name = name
+  span.attributes = {
+    ...span.attributes,
+    'next.route': route,
+    'next.span_name': name,
+  }
 }
 
 function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
