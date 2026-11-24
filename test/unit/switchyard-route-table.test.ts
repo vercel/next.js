@@ -42,6 +42,8 @@ describe('switchyard-route-table', () => {
       '/[id]x',
       // The router reads parameter a, then the literal "[b]".
       '/x/[a][b]',
+      // The router reads "[]" as a literal, not a parameter.
+      '/[]/[id]',
     ])('refuses %s', (page) => {
       expect(patternOf(page)).toBeUndefined()
     })
