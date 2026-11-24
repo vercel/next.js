@@ -210,7 +210,13 @@ export async function adapter(
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
   const isRSCRequest = isRSCRequestHeader(requestHeaders.get(RSC_HEADER))
 
-  if (isNextDataRequest && requestURL.pathname === '/index') {
+  // Proxy gets a route pathname with the data URL already normalized.
+  // Edge Pages rendering bypasses NextURL and still needs the legacy mapping.
+  if (
+    params.bypassNextUrl &&
+    isNextDataRequest &&
+    requestURL.pathname === '/index'
+  ) {
     requestURL.pathname = '/'
   }
 
