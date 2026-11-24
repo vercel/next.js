@@ -459,17 +459,20 @@ async fn batch_group_sort_key(batch_group: Vc<ChunkItemBatchGroup>) -> Result<Op
 /// The keys of the elements of one chunk are unique: a module is part of at most one element of a
 /// chunk (batches and batch groups are disjoint, see `sort_batch_groups`), and
 /// [`ChunkItem::asset_ident`] must uniquely identify a chunk item at runtime, as it's the source of
-/// its module id. The keys are read from different cells, which can transiently disagree during
-/// recomputation, so a duplicate key is an error rather than a panic.
+/// its module id. With debug assertions enabled, a duplicate key is an error (rather than a panic,
+/// as the keys are read from different cells, which can transiently disagree during
+/// recomputation). Without them, the check is skipped and duplicates are kept in an unspecified
+/// order.
 fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<Option<RcStr>>) -> Result<()> {
     // Sort indices rather than the (potentially large) elements, then permute once.
     let mut order = (0..u32::try_from(keys.len())?)
         .filter(|&i| keys[i as usize].is_some())
         .collect::<Vec<_>>();
     order.sort_unstable_by(|&a, &b| keys[a as usize].cmp(&keys[b as usize]));
-    if let Some(pair) = order
-        .windows(2)
-        .find(|pair| keys[pair[0] as usize] == keys[pair[1] as usize])
+    if cfg!(debug_assertions)
+        && let Some(pair) = order
+            .windows(2)
+            .find(|pair| keys[pair[0] as usize] == keys[pair[1] as usize])
     {
         bail!(
             "chunk elements must have unique sort keys, but {:?} is duplicated",
