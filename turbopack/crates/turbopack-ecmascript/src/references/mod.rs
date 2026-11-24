@@ -1826,7 +1826,6 @@ async fn handle_call<'a>(
                         new,
                         ValueLinkContext::InAlternative,
                         this,
-                        &unlinked_args,
                         &linked_args,
                         argument_effects,
                         handler,
@@ -1856,7 +1855,6 @@ async fn handle_call<'a>(
                 new,
                 link_context,
                 this,
-                &unlinked_args,
                 &linked_args,
                 argument_effects,
                 handler,
@@ -2049,7 +2047,6 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     new: bool,
     link_context: ValueLinkContext,
     this: Option<&JsValue<'a>>,
-    unlinked_args: &[JsValue<'a>],
     linked_args: &F,
     argument_effects: &mut [BumpBox<'a, [Effect<'a>]>],
     handler: &Handler,
@@ -2116,12 +2113,13 @@ where
             // receiver.
             if !new
                 && let Some(method) = this
-                && let [this_arg, args @ ..] = unlinked_args
+                && let [this_arg, args @ ..] = &linked_args().await?[..]
             {
                 let method = link(method).await?;
                 let arena = state.arena.get_or_default();
                 // Only handled for its analysis, e.g. env var tracking: there is no codegen
-                // for the called method (`InAlternative`).
+                // for the called method (`InAlternative`). The arguments are already linked;
+                // linking them again in `handle_call` doesn't change them.
                 Box::pin(handle_call(
                     ast_path,
                     span,
