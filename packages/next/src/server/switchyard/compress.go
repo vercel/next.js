@@ -32,8 +32,9 @@ import (
 //     middleware holds it in zlib until more output is ready.
 //
 // What stays as in the middleware: no compression for HEAD, for a response
-// that already has a Content-Encoding (other than identity, above), for
-// Cache-Control: no-transform, or for a body of a known length under 1 KiB.
+// without a Content-Type, for one that already has a Content-Encoding (other
+// than identity, above), for Cache-Control: no-transform, or for a body of a
+// known length under 1 KiB.
 // The compressed bytes differ in any case; the decompressed body is the
 // same.
 var compressDirect = func() func(http.Handler) http.HandlerFunc {
@@ -85,11 +86,13 @@ func keepNodesCompression(header http.Header) {
 }
 
 // skipCompression marks a worker's response that the middleware wouldn't
-// compress but gzhttp would: a HEAD response, or one that says
-// Cache-Control: no-transform. gzhttp removes the marker before the
-// response goes out.
+// compress but gzhttp would: a HEAD response, one without a Content-Type
+// (gzhttp guesses a type from the body; the middleware doesn't compress), or
+// one that says Cache-Control: no-transform. gzhttp removes the marker before
+// the response goes out.
 func skipCompression(res *http.Response) {
-	if res.Request.Method == http.MethodHead || noTransform.MatchString(strings.Join(res.Header["Cache-Control"], ",")) {
+	if res.Request.Method == http.MethodHead || res.Header.Get("Content-Type") == "" ||
+		noTransform.MatchString(strings.Join(res.Header["Cache-Control"], ",")) {
 		res.Header.Set(gzhttp.HeaderNoCompression, "1")
 	}
 }
