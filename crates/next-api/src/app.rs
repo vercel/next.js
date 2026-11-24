@@ -1464,6 +1464,12 @@ impl Endpoint for GoEndpoint {
         // failing change subscriptions with an internal error. Editing files next to a Go
         // entry, such as `next.config.ts` or `pages/` beside `proxy.go`, can race a compile.
         if matches!(result.outcome, GoBuildOutcome::Retry) || !result.is_current().await? {
+            // Without a watcher, as in `next build`, nothing recomputes this task and build
+            // output is not validated per request, so fail instead of omitting the executable.
+            ensure!(
+                watch,
+                "Go route inputs changed during compilation; run the build again"
+            );
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,

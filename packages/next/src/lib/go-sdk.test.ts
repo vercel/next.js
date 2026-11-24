@@ -13,7 +13,7 @@ import {
 import * as os from 'os'
 import { dirname, join } from 'path'
 import * as Log from '../build/output/log'
-import { ensureGoSdk } from './go-sdk'
+import { ensureGoSdk, ensureGoSdkQueued } from './go-sdk'
 
 jest.mock('../build/output/log', () => ({
   info: jest.fn(),
@@ -187,6 +187,58 @@ afterEach(async () => {
       expect(content).toContain(`go ${goVersion}\n`)
       expect(() => build(dir)).not.toThrow()
     }
+  })
+
+  it.each(['vendor', 'testdata'])(
+    'detects imports in a route folder named %s',
+    async (folder) => {
+      // Go gives vendor a meaning only at a module root and skips testdata only
+      // in wildcard patterns; Turbopack compiles routes in either.
+      const dir = await temporaryDirectory()
+      await writeModule(dir, 'example.com/app')
+      const route = join(dir, 'app', folder)
+      await write(
+        join(route, 'route.go'),
+        `package main\n\nimport (\n\t"net/http"\n\t"next/go"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { next.Next(w) }\n\nfunc main() {}\n`
+      )
+      const sdkDir = await installNext(dir, '16.0.0')
+
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+      expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(() => build(route, ['route.go'])).not.toThrow()
+    }
+  )
+
+  it("skips a module's vendor directory", async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'app/api/route.go'), PLAIN)
+    await write(join(dir, 'vendor/example.com/lib/lib.go'), PROXY)
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).not.toMatch(/next\/go/)
+  })
+
+  it('shares a queued run between calls made before it starts', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'proxy.go'), PROXY)
+    const sdkDir = await installNext(dir, '16.0.0')
+    const options = { dir, rootDir: dir, sdkDir }
+
+    const first = ensureGoSdkQueued(options)
+    const second = ensureGoSdkQueued(options)
+    expect(second).toBe(first)
+    await first
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+
+    // Once a run has started, a new call queues another one.
+    const third = ensureGoSdkQueued(options)
+    expect(third).not.toBe(first)
+    await third
   })
 
   it('leaves go.mod alone when next/go is not imported', async () => {

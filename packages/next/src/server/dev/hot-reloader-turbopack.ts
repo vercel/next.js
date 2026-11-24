@@ -24,6 +24,7 @@ import {
   HMR_MESSAGE_SENT_TO_SERVER,
 } from './hot-reloader-types'
 import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
+import { ensureGoSdkQueued, goSdkOptions } from '../../lib/go-sdk'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
@@ -708,6 +709,17 @@ export async function createHotReloaderTurbopack(
     }
   }, 500)
 
+  const goSdk = goSdkOptions(projectPath, distDir, nextConfig)
+  // Every written Go endpoint is a Turbopack (re)compile, which happens when
+  // any of its tracked inputs change, including imported packages outside the
+  // route directories that the dev server's file watcher sees. A source there
+  // can start importing next/go, so keep the go.mod mapping current. When
+  // nothing needs changing this writes nothing, so it cannot loop; when it adds
+  // the requirement, Turbopack sees the go.mod change and recompiles.
+  function syncGoSdk() {
+    if (nextConfig.experimental.goRoutes) void ensureGoSdkQueued(goSdk)
+  }
+
   // Server HMR supports App Router entries on the Node.js runtime.
   function participatesInServerHmr(
     key: EntryKey,
@@ -731,7 +743,10 @@ export async function createHotReloaderTurbopack(
       force?: boolean
     } = {}
   ): boolean {
-    if (writtenEndpoint.type === 'native') return false
+    if (writtenEndpoint.type === 'native') {
+      syncGoSdk()
+      return false
+    }
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         // We ignore source maps

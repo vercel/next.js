@@ -24,7 +24,7 @@ Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/
 
 ## Reference
 
-The `next/go` package provides these helpers. It ships inside the installed `next` package, and Next.js maps it in `go.mod` for you, so editors, linters, and other Go tools resolve it too. This requires `proxy.go` to be in a Go module, so create a `go.mod` if the project does not have one (see [Go setup](/docs/app/api-reference/file-conventions/route-go#setup)):
+The `next/go` package provides these helpers. It ships inside the installed `next` package, and Next.js maps it in `go.mod` for you, so editors, linters, and other Go tools resolve it too. This requires `proxy.go` to be in a Go module, so create a `go.mod` if the project does not have one (see [Go setup](/docs/app/api-reference/file-conventions/route-go#setup)). The package is named `next`; where a function already has a `next http.Handler` parameter, import it under another name, such as `nextgo "next/go"`:
 
 | Helper                                     | Behavior                          |
 | ------------------------------------------ | --------------------------------- |

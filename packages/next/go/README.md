@@ -49,11 +49,14 @@ replacement, always at the installed Next.js version, without downloads or
 - **Requirement:** Go ignores a replacement for a module that is not required. The
   requirement is added only when a Go source in the project, its tests, or a
   package it imports uses `next/go`, and is never removed, so it agrees with
-  `go mod tidy`. During `next dev`, editing a Go source in the project adds it.
+  `go mod tidy`. During `next dev`, it is added when a route or Proxy file, or a
+  package one of them imports, starts importing `next/go`: Next.js updates
+  `go.mod` when the handler recompiles, then Turbopack compiles it again.
 - **Replacement:** kept pointing at the installed SDK while the module requires
   it. With pnpm it names the package's real directory under `node_modules/.pnpm`,
-  so it changes when Next.js is upgraded, and the next `next dev` or `next build`
-  updates it. Modules that neither require nor import the SDK are left unchanged.
+  so it changes when `next` or one of its peer dependencies is upgraded, and the
+  next `next dev` or `next build` updates it. Modules that neither require nor
+  import the SDK are left unchanged.
 - **Monorepos:** the `go.mod` can be in the application, in a directory nested in
   it, or at the workspace root, and `next` can be installed anywhere inside
   Turbopack's root (`turbopack.root`), such as the workspace's `node_modules`.
@@ -63,8 +66,12 @@ replacement, always at the installed Next.js version, without downloads or
   ignored by applications.
 - **No module:** Go cannot resolve `next/go` outside a module, so `next dev` and
   `next build` warn about Go files that import it without a `go.mod`.
-- **Go version:** the SDK declares `go 1.21`, so application modules with an older
-  `go` line than the Go 1.24 toolchain Next.js requires can still use it.
+- **Go version:** the SDK declares `go 1.21`, so modules with a `go 1.21` line or
+  newer can use it, even though Next.js requires a Go 1.24 toolchain. Builds do not
+  update `go.mod`, so raise an older `go` line to at least 1.21.
+- **Package name:** the package is named `next`. In middleware that already has a
+  `next http.Handler` parameter, import it under another name, such as
+  `nextgo "next/go"`.
 
 Other requirements and `go.sum` are left to Go. Versioned replacements and Go
 workspaces are not supported.

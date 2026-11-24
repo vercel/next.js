@@ -59,7 +59,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { ensureGoSdkQueued } from '../../../lib/go-sdk'
+import { ensureGoSdkQueued, goSdkOptions } from '../../../lib/go-sdk'
 
 import {
   isMiddlewareFile,
@@ -240,14 +240,9 @@ async function startWatcher(
 
   fs.mkdirSync(distDir, { recursive: true })
 
-  const goSdkOptions = {
-    dir,
-    rootDir:
-      nextConfig.turbopack?.root || nextConfig.outputFileTracingRoot || dir,
-    distDir,
-  }
+  const goSdk = goSdkOptions(dir, distDir, nextConfig)
   if (nextConfig.experimental.goRoutes) {
-    await ensureGoSdkQueued(goSdkOptions)
+    await ensureGoSdkQueued(goSdk)
   }
 
   // Create server info to store in the lockfile itself
@@ -996,10 +991,12 @@ async function startWatcher(
         }
       }
 
-      // A Go source can start importing next/go after startup. Add the go.mod
-      // requirement then; Turbopack tracks go.mod and recompiles the handler.
+      // A Go route or Proxy file can start importing next/go after startup.
+      // Add the go.mod requirement before it is compiled; Turbopack tracks
+      // go.mod. Other Go sources are covered when Turbopack recompiles the
+      // endpoints that import them (see the hot reloader).
       if (goFileChange && nextConfig.experimental.goRoutes) {
-        void ensureGoSdkQueued(goSdkOptions)
+        void ensureGoSdkQueued(goSdk)
       }
 
       // Also set on the initial scan, so that typed env definitions exist
