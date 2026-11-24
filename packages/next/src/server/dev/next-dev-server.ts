@@ -82,10 +82,12 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+import { registerRequestInsightsSpanProcessorFactory } from '../lib/trace/request-insights-otel'
 import { registerRequestInsightsExporter } from '../lib/trace/request-insights'
 
 registerLocalSpanRecorder()
 registerRequestInsightsExporter()
+registerRequestInsightsSpanProcessorFactory()
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType

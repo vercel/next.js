@@ -455,6 +455,8 @@ function nameRequestSpan(span: RequestInsightSpan, route: string): void {
 }
 
 function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
+  const preserveAttributes =
+    span.attributes?.['next.span_category'] === 'opentelemetry'
   return {
     name: sanitizeSpanName(span),
     startTime: span.startTime ?? span.timestamp,
@@ -463,9 +465,9 @@ function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
     traceId: span.traceId,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
-    attributes: sanitizeSpanAttributes(span.attributes),
-    links: sanitizeSpanLinks(span.links),
-    events: sanitizeSpanEvents(span.events),
+    attributes: sanitizeSpanAttributes(span.attributes, preserveAttributes),
+    links: sanitizeSpanLinks(span.links, preserveAttributes),
+    events: sanitizeSpanEvents(span.events, preserveAttributes),
     error: span.error,
   }
 }
@@ -632,7 +634,8 @@ function getCurrentTimestamp(): number {
 }
 
 function sanitizeSpanAttributes(
-  attributes: SpanStoreRecord['attributes']
+  attributes: SpanStoreRecord['attributes'],
+  preserveAll = false
 ): SpanStoreRecord['attributes'] {
   if (!attributes) {
     return undefined
@@ -644,12 +647,13 @@ function sanitizeSpanAttributes(
       ? getSanitizedFetchSpanName(attributes)
       : undefined
   for (const [key, value] of Object.entries(attributes)) {
-    if (!SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
+    if (!preserveAll && !SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
       continue
     }
 
-    sanitized[key] =
-      key === 'http.url'
+    sanitized[key] = preserveAll
+      ? value
+      : key === 'http.url'
         ? sanitizeUrlAttribute(value)
         : key === 'next.span_name' && sanitizedFetchSpanName
           ? sanitizedFetchSpanName
@@ -679,20 +683,22 @@ function getSanitizedFetchSpanName(
 }
 
 function sanitizeSpanEvents(
-  events: SpanStoreRecord['events']
+  events: SpanStoreRecord['events'],
+  preserveAttributes = false
 ): SpanStoreRecord['events'] {
   return events?.map((event) => ({
     ...event,
-    attributes: sanitizeSpanAttributes(event.attributes),
+    attributes: sanitizeSpanAttributes(event.attributes, preserveAttributes),
   }))
 }
 
 function sanitizeSpanLinks(
-  links: SpanStoreRecord['links']
+  links: SpanStoreRecord['links'],
+  preserveAttributes = false
 ): SpanStoreRecord['links'] {
   return links?.map((link) => ({
     ...link,
-    attributes: sanitizeSpanAttributes(link.attributes),
+    attributes: sanitizeSpanAttributes(link.attributes, preserveAttributes),
   }))
 }
 
