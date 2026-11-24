@@ -29,6 +29,7 @@ function toQueryString(query: Record<string, any> | null | undefined): string {
 type SetupTestsCtx = {
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
+  dependencies?: Record<string, string>
 }
 
 type RunTestsCtx = {
@@ -1769,6 +1770,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         nextConfig: ctx.nextConfigExperimental
           ? { experimental: ctx.nextConfigExperimental }
           : undefined,
+        dependencies: ctx.dependencies,
       })
 
       runTests({
@@ -1806,6 +1808,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
           ? { experimental: ctx.nextConfigExperimental }
           : {}),
       },
+      dependencies: ctx.dependencies,
     })
 
     runTests({

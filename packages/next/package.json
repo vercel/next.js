@@ -104,7 +104,6 @@
   },
   "dependencies": {
     "@next/env": "workspace:*",
-    "@next/safe-image-optimization": "0.0.2",
     "@swc/helpers": "0.5.24",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",
@@ -112,6 +111,7 @@
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
+    "@next/safe-image-optimization": "0.0.2",
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.51.1",
     "babel-plugin-react-compiler": "*",
@@ -130,6 +130,9 @@
       "optional": true
     },
     "@playwright/test": {
+      "optional": true
+    },
+    "@next/safe-image-optimization": {
       "optional": true
     }
   },
@@ -172,6 +175,7 @@
     "@next/polyfill-module": "workspace:*",
     "@next/polyfill-nomodule": "workspace:*",
     "@next/react-refresh-utils": "workspace:*",
+    "@next/safe-image-optimization": "0.0.2",
     "@next/swc": "workspace:*",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.61.0",

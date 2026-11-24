@@ -1289,9 +1289,6 @@ importers:
       '@next/env':
         specifier: workspace:*
         version: link:../next-env
-      '@next/safe-image-optimization':
-        specifier: 0.0.2
-        version: 0.0.2
       '@swc/helpers':
         specifier: 0.5.24
         version: 0.5.24
@@ -1422,6 +1419,9 @@ importers:
       '@next/react-refresh-utils':
         specifier: workspace:*
         version: link:../react-refresh-utils
+      '@next/safe-image-optimization':
+        specifier: 0.0.2
+        version: 0.0.2
       '@next/swc':
         specifier: workspace:*
         version: link:../next-swc

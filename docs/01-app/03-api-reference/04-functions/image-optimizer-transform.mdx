@@ -84,7 +84,7 @@ All fields are optional.
 | `sequentialRead`        | `boolean \| null` | `undefined` | Passed to sharp as [`sequentialRead`]. Only used by sharp.                                                                                                                                                  |
 | `timeoutInSeconds`      | `number`          | `7`         | Per-image processing timeout.                                                                                                                                                                               |
 | `mozjpeg`               | `boolean`         | `true`      | Encodes JPEG output with mozjpeg. Much slower, but produces smaller files.                                                                                                                                  |
-| `safeImageOptimization` | `boolean`         | `false`     | Optimizes with `@next/safe-image-optimization` instead of sharp.                                                                                                                                            |
+| `safeImageOptimization` | `boolean`         | `false`     | Optimizes with `@next/safe-image-optimization` instead of sharp. `@next/safe-image-optimization` is an optional peer dependency of `next`, so install it in your app first.                                 |
 | `logger`                | `object`          | `undefined` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.                                                                                                                    |
 
 [`sequentialRead`]: https://sharp.pixelplumbing.com/api-constructor/#new

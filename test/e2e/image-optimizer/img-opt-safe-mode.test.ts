@@ -2,6 +2,10 @@ import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { expectWidth, setupTests } from './util'
 
+// `@next/safe-image-optimization` is an optional peer dependency of `next`, so
+// apps that enable `experimental.imgOptSafeMode` install it themselves.
+const dependencies = { '@next/safe-image-optimization': '0.0.2' }
+
 // Deployments use the Vercel image CDN instead of the local image pipeline.
 // @force-gate !deploy
 describe('with experimental.imgOptSafeMode', () => {
@@ -9,6 +13,7 @@ describe('with experimental.imgOptSafeMode', () => {
   setupTests({
     nextConfigImages: { formats: ['image/webp'] },
     nextConfigExperimental: { imgOptSafeMode: true },
+    dependencies,
   })
 
   describe('with only AVIF in images.formats', () => {
@@ -18,6 +23,7 @@ describe('with experimental.imgOptSafeMode', () => {
         images: { formats: ['image/avif'] },
         experimental: { imgOptSafeMode: { nextImage: true } },
       },
+      dependencies,
     })
 
     it('should ignore avif and keep the source format', async () => {

@@ -26,9 +26,18 @@ function getPool(
     } catch (error) {
       // The caller falls back to the unoptimized image without logging, so
       // warn here, or a misconfiguration (e.g. no worker binary for this
-      // platform) would go unnoticed
+      // platform) would go unnoticed.
+      //
+      // `@next/safe-image-optimization` is an optional peer dependency so its
+      // native binaries aren't installed for every app, only for apps that
+      // opt into the experiment.
+      const notInstalled =
+        (error as NodeJS.ErrnoException | undefined)?.code ===
+        'MODULE_NOT_FOUND'
       logger?.warnOnce(
-        `Failed to initialize "@next/safe-image-optimization" for "experimental.imgOptSafeMode", images will not be optimized: ${error}`
+        notInstalled
+          ? `"experimental.imgOptSafeMode" requires "@next/safe-image-optimization". Install it with your package manager (e.g. \`npm install @next/safe-image-optimization\`), images will not be optimized until then.`
+          : `Failed to initialize "@next/safe-image-optimization" for "experimental.imgOptSafeMode", images will not be optimized: ${error}`
       )
       throw error
     }
