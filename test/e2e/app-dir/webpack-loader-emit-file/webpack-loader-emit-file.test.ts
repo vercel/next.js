@@ -8,6 +8,9 @@ describe('webpack-loader-emit-file', () => {
     files: __dirname,
     dependencies: {
       'file-loader': '6.2.0',
+      'auto-import-x-loader': '0.0.4',
+      // Native oxc-transform bindings require a newer Node than the minimum CI version.
+      '@oxc-transform/binding-wasm32-wasi': '0.105.0',
     },
   })
 
@@ -131,6 +134,14 @@ describe('webpack-loader-emit-file', () => {
     if (!isTurbopack) {
       expect(await response.text()).toBe('sidecar-transitive')
     }
+  })
+
+  it('preserves outputs of published ESM loaders from retained modules', async () => {
+    const $ = await next.render$('/')
+    expect($('#auto-value').text()).toBe('42')
+    const declarations = (await fetchAsset('auto-imports.d.ts')).toString()
+    expect(declarations).toContain('declare global')
+    expect(declarations).toContain("typeof import('react').useState")
   })
 
   it('runs file-loader with its default publicPath', async () => {
