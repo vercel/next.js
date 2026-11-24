@@ -27,7 +27,7 @@ use crate::{
     worker_pool::{
         operation::{
             PoolState, TaskChannels, WORKER_POOL_OPERATION, WorkerOperation, WorkerOptions,
-            get_pool_state,
+            get_pool_state, terminate_worker,
         },
         worker_thread::create_worker,
     },
@@ -201,8 +201,8 @@ impl NodeBackend for WorkerThreadsBackend {
         WORKER_POOL_OPERATION.scale_down();
     }
 
-    fn scale_zero(&self) {
-        WORKER_POOL_OPERATION.scale_zero();
+    fn close(&self) {
+        WORKER_POOL_OPERATION.close();
     }
 }
 
@@ -214,6 +214,9 @@ pub(crate) fn idle_worker_count() -> usize {
 #[async_trait::async_trait]
 impl EvaluateOperation for WorkerThreadPool {
     async fn operation(&self) -> Result<Box<dyn Operation>> {
+        if WORKER_POOL_OPERATION.is_closed() {
+            tracing::warn!("Node.js operation started after the Node.js pools were closed");
+        }
         let operation = {
             let _guard = duration_span!("Node.js operation", blocking = true);
             let worker_options = self.worker_options.clone();
@@ -227,6 +230,7 @@ impl EvaluateOperation for WorkerThreadPool {
             let (worker_id, permits) = self.acquire_worker().await?;
 
             let state = self.state.clone();
+            let worker_options_on_drop = worker_options.clone();
 
             // Pre-allocate channels for this task to avoid HashMap lookups during communication
             let channels = TaskChannels::new(task_id, worker_id);
@@ -242,8 +246,17 @@ impl EvaluateOperation for WorkerThreadPool {
                             if tx.send(worker_id).is_ok() {
                                 break;
                             }
+                        } else if WORKER_POOL_OPERATION.is_closed() {
+                            // A closed pool doesn't keep idle workers.
+                            state.stats.lock().remove_worker();
+                            terminate_worker(worker_options_on_drop.clone(), worker_id);
+                            break;
                         } else {
                             state.idle_workers.lock().push(worker_id);
+                            // `close` might have run between the check and the push.
+                            if WORKER_POOL_OPERATION.is_closed() {
+                                WORKER_POOL_OPERATION.scale_zero();
+                            }
                             break;
                         }
                     }

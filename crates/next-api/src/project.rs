@@ -3204,14 +3204,15 @@ impl Project {
     }
 }
 
-/// Scales down or shuts down the Node.js process pool after module graph computation.
+/// Scales down the Node.js pools after module graph computation. Without watching, no more
+/// Node.js work is expected, so the pools are closed.
 async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
     let execution_context = project.execution_context().await?;
     let node_backend = execution_context.node_backend.into_trait_ref().await?;
     if *project.is_watch_enabled().await? {
         node_backend.scale_down();
     } else {
-        node_backend.scale_zero();
+        node_backend.close();
     }
     Ok(())
 }

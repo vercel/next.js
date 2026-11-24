@@ -943,8 +943,8 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
-    // Without watching, the pools were scaled to zero once the module graph was built (see
-    // `Project::whole_app_module_graphs`), so no Node.js process should still be holding memory.
+    // Without watching, the pools were closed once the module graph was built (see
+    // `Project::whole_app_module_graphs`), so none of their processes stay idle.
     debug_assert!(
         project.watch || turbopack_node::idle_node_process_count() == 0,
         "{} idle Node.js processes are still running at shutdown, but they should have been \

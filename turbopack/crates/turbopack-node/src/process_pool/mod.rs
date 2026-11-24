@@ -4,7 +4,10 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     process::{ExitStatus, Stdio},
-    sync::{Arc, LazyLock},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -737,14 +740,17 @@ impl NodeBackend for ChildProcessesBackend {
         scale_down();
     }
 
-    fn scale_zero(&self) {
-        scale_zero();
+    fn close(&self) {
+        close();
     }
 }
 
 #[async_trait::async_trait]
 impl EvaluateOperation for ChildProcessPool {
     async fn operation(&self) -> Result<Box<dyn Operation>> {
+        if POOLS_CLOSED.load(Ordering::Relaxed) {
+            tracing::warn!("Node.js operation started after the Node.js pools were closed");
+        }
         // Acquire a running process (handles concurrency limits, boots up the process)
 
         let operation = {
@@ -774,6 +780,9 @@ impl EvaluateOperation for ChildProcessPool {
     /// If a node request comes in while this is still initializing, it waits
     /// on the bootup semaphore and will resume when the process is ready.
     fn pre_warm(&self) {
+        if POOLS_CLOSED.load(Ordering::SeqCst) {
+            return;
+        }
         let args = self.process_args();
         let bootup_semaphore = self.bootup_semaphore.clone();
         let idle_processes = self.idle_processes.clone();
@@ -794,7 +803,9 @@ impl EvaluateOperation for ChildProcessPool {
                         s.finished_booting_worker();
                     }
                     drop(bootup_permit);
-                    idle_processes.push(process, &ACTIVE_POOLS);
+                    if !return_to_pool(&idle_processes, process) {
+                        stats.lock().remove_worker();
+                    }
                 }
                 Err(_e) => {
                     let mut s = stats.lock();
@@ -881,6 +892,29 @@ fn scale_down() {
     for pool in pools {
         pool.reduce_to_one();
     }
+}
+
+/// Set by [`close`]. A closed pool doesn't keep idle processes.
+static POOLS_CLOSED: AtomicBool = AtomicBool::new(false);
+
+/// Stops all idle processes and stops pooling, see [`NodeBackend::close`].
+fn close() {
+    POOLS_CLOSED.store(true, Ordering::SeqCst);
+    scale_zero();
+}
+
+/// Puts an idle `process` back into `queue`, unless the pools are closed, in which case the
+/// process is dropped, which stops it. Returns whether it was put back.
+fn return_to_pool(queue: &Arc<HeapQueue<NodeJsPoolProcess>>, process: NodeJsPoolProcess) -> bool {
+    if POOLS_CLOSED.load(Ordering::SeqCst) {
+        return false;
+    }
+    queue.push(process, &ACTIVE_POOLS);
+    // `close` might have run between the check and the push.
+    if POOLS_CLOSED.load(Ordering::SeqCst) {
+        scale_zero();
+    }
+    true
 }
 
 /// Stops all idle processes of each pool.
@@ -991,7 +1025,9 @@ impl Drop for ChildProcessOperation {
             }
             if self.allow_process_reuse {
                 process.cpu_time_invested += elapsed;
-                self.idle_processes.push(process, &ACTIVE_POOLS);
+                if !return_to_pool(&self.idle_processes, process) {
+                    self.stats.lock().remove_worker();
+                }
             }
         }
     }

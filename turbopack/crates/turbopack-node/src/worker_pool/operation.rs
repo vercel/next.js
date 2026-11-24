@@ -1,6 +1,9 @@
 use std::{
     process::ExitStatus,
-    sync::{Arc, LazyLock},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use anyhow::{Context, Result};
@@ -86,6 +89,8 @@ pub(super) struct WorkerPoolOperation {
     #[allow(clippy::type_complexity)]
     task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
     pub(super) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
+    /// Set by [`Self::close`]. A closed pool doesn't keep idle workers.
+    closed: AtomicBool,
 }
 
 impl WorkerPoolOperation {
@@ -99,6 +104,16 @@ impl WorkerPoolOperation {
             .values()
             .map(|state| state.idle_workers.lock().len())
             .sum()
+    }
+
+    /// Stops all idle workers and stops pooling, see `NodeBackend::close`.
+    pub(super) fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+        self.scale_zero();
+    }
+
+    pub(super) fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
     }
 
     pub(super) fn scale_down(&self) {
@@ -183,7 +198,7 @@ impl WorkerPoolOperation {
 pub(super) static WORKER_POOL_OPERATION: LazyLock<WorkerPoolOperation> =
     LazyLock::new(WorkerPoolOperation::default);
 
-fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) {
+pub(super) fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) {
     WORKER_POOL_OPERATION.terminate_worker(worker_options, worker_id)
 }
 
