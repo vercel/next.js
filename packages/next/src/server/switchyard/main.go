@@ -406,6 +406,18 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// Go's server fills in two headers a response doesn't have, and Node
 		// doesn't (markHeadersAbsent).
 		markHeadersAbsent(w.Header())
+		// Node parity: Node closes an HTTP/1.0 client's connection after a
+		// response and says so (Connection: close). It keeps one open only
+		// when the request asked for keep-alive and the app set the
+		// Content-Length itself; Node can't chunk a 1.0 response and doesn't
+		// add a length of its own. Switchyard can't tell an app's length from
+		// one Node added on its HTTP/1.1 connection to Switchyard, and Go's
+		// server keeps a 1.0 keep-alive connection open whenever the length is
+		// known, so close after every 1.0 response: what Node does for nearly
+		// all of them.
+		if !r.ProtoAtLeast(1, 1) {
+			w.Header().Set("Connection", "close")
+		}
 		// Go's HTTP/1 server reads the rest of the request body before it
 		// sends any of the response. Node doesn't: it can answer (a 403, or a
 		// streamed response) while the client is still uploading. Full-duplex
