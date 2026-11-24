@@ -7,4 +7,7 @@ module.exports = {
     'prettier --with-node-modules --ignore-path .prettierignore --write',
   ],
   '*.rs': ['rustfmt --edition 2024 --'],
+  // Go code: Switchyard, route.go templates and test fixtures. Needs Go on
+  // PATH, only for commits that change a .go file.
+  '*.go': ['gofmt -w'],
 }
