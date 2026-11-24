@@ -4124,8 +4124,7 @@ fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource 
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
 }
 
-/// Whether the linked `value` is (potentially) the `process.env` object, also when accessed via
-/// `globalThis.process.env` or `global.process.env`.
+/// Whether the linked `value` is (potentially) the `process.env` object.
 fn is_process_env(value: &JsValue<'_>, var_graph: &VarGraph<'_>) -> bool {
     value
         .get_definable_name(Some(var_graph))
@@ -4136,10 +4135,6 @@ fn is_process_env(value: &JsValue<'_>, var_graph: &VarGraph<'_>) -> bool {
                 && matches!(
                     name.0.as_slice(),
                     [
-                        DefinableNameSegmentRef::Name("process"),
-                        DefinableNameSegmentRef::Name("env")
-                    ] | [
-                        DefinableNameSegmentRef::Name("globalThis" | "global"),
                         DefinableNameSegmentRef::Name("process"),
                         DefinableNameSegmentRef::Name("env")
                     ]
