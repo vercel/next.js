@@ -4,6 +4,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import {
   getRequestInsightKind,
   type RequestInsight,
+  type RequestInsightKind,
   type RequestInsightsSnapshot,
 } from '../shared/lib/request-insights'
 import { summarizeRequestInsight } from '../shared/lib/request-insights-summary'
@@ -24,6 +25,7 @@ export type NextRequestInsightsOptions = {
   json?: boolean
   limit?: number
   requestId?: string
+  kind?: RequestInsightKind
   route?: string
   view?: 'list'
 }
@@ -64,7 +66,7 @@ export async function nextRequestInsights(
   }
 
   const selectedRequest = options.requestId
-    ? findRequest(data.requests, options.requestId)
+    ? findRequest(data.requests, options.requestId, options.kind)
     : undefined
 
   if (options.view === 'list') {
@@ -180,20 +182,33 @@ function matchesRoute(request: RequestInsight, route: string): boolean {
   }
 }
 
-function findRequest(requests: RequestInsight[], id: string): RequestInsight {
-  const exact = requests.find((request) => request.requestId === id)
-  if (exact) return exact
-
-  const matches = requests.filter((request) => request.requestId.startsWith(id))
+function findRequest(
+  requests: RequestInsight[],
+  id: string,
+  kind?: RequestInsightKind
+): RequestInsight {
+  const candidates = kind
+    ? requests.filter((request) => getRequestInsightKind(request) === kind)
+    : requests
+  const exact = candidates.filter((request) => request.requestId === id)
+  const matches =
+    exact.length > 0
+      ? exact
+      : candidates.filter((request) => request.requestId.startsWith(id))
   if (matches.length === 0) {
     return exitWithError(`No retained request matches "${id}".`)
   }
-  if (matches.length > 1) {
+  const matchedIds = new Set(matches.map((request) => request.requestId))
+  if (matchedIds.size > 1) {
     return exitWithError(
-      `Request ID prefix "${id}" is ambiguous (${matches.length} matches).`
+      `Request ID prefix "${id}" is ambiguous (${matchedIds.size} matches).`
     )
   }
-  return matches[0]
+  // Instant Insights entries share the request ID of the request they validated.
+  return (
+    matches.find((request) => getRequestInsightKind(request) === 'request') ??
+    matches[0]
+  )
 }
 
 function printRequestDetails(request: RequestInsight): void {

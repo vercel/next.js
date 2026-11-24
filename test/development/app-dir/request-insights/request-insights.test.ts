@@ -1935,6 +1935,31 @@ describe('request insights', () => {
     expect(result.stderr).toContain(message)
   })
 
+  it('resolves a request ID shared with its Instant Insights entry', async () => {
+    const request = createRequest(1)
+    const instantInsights = {
+      ...createRequest(1),
+      kind: 'instant-insights',
+      route: '/instant',
+    } satisfies RequestInsight
+    const body = { requests: [instantInsights, request] }
+
+    const byPrefix = await runWithResponse(body, ['get', 'request-1', '--json'])
+    expect(byPrefix.result.code).toBe(0)
+    expect(JSON.parse(byPrefix.result.stdout)).toEqual({ request })
+
+    const byKind = await runWithResponse(body, [
+      'get',
+      'request-1',
+      '--kind',
+      'instant-insights',
+      '--json',
+    ])
+    expect(JSON.parse(byKind.result.stdout)).toEqual({
+      request: instantInsights,
+    })
+  })
+
   it.each(['localhost:3000', 'https://[', 'ftp://localhost:3000'])(
     'rejects invalid dev server URL %s',
     async (url) => {

@@ -725,9 +725,7 @@ Workflow:
   2. List completed requests: next experimental-request-insights list --route <route> --json
   3. Inspect the matching request: next experimental-request-insights get <request-id> --json
   4. Compare span start times, durations, parents, and attributes before reading source.
-  5. Use a CPU profile only when the timeline localizes CPU time but not the responsible function.
-
-Guide: node_modules/next/dist/docs/01-app/02-guides/request-insights.md`
+  5. Use a CPU profile only when the timeline localizes CPU time but not the responsible function.`
   )
   .argument(
     '[directory]',
@@ -791,6 +789,12 @@ requestInsights
   )
   .option('--url <url>', 'Override automatic dev server discovery.')
   .option('--json', 'Output the complete request as JSON.')
+  .addOption(
+    new Option(
+      '--kind <kind>',
+      'Select the request or its Instant Insights entry when both share an ID.'
+    ).choices(['request', 'instant-insights'])
+  )
   .action(
     (
       requestId: string,
