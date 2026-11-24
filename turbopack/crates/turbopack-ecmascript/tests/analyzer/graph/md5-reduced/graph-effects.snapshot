@@ -80,7 +80,7 @@
         ],
         span: 1622..1636,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     FreeVar {
         var: "md5",
@@ -306,7 +306,7 @@
         ],
         span: 380..388,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Call {
         func: Variable(

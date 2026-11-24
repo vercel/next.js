@@ -66,7 +66,7 @@
         ],
         span: 53..87,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: Array {
@@ -267,7 +267,7 @@
         ],
         span: 135..169,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: Array {
@@ -468,7 +468,7 @@
         ],
         span: 219..253,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: Array {
@@ -667,7 +667,7 @@
                             ],
                             span: 281..296,
                             in_truthiness_context: false,
-                            escapes: false,
+                            escapes: true,
                         },
                         MemberCall {
                             obj: FreeVar(
@@ -962,7 +962,7 @@
         ],
         span: 339..354,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: FreeVar(

@@ -83,6 +83,6 @@
         ],
         span: 9..25,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
 ]

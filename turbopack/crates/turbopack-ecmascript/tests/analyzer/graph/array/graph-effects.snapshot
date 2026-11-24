@@ -137,7 +137,7 @@
                 ],
                 span: 50..62,
                 in_truthiness_context: false,
-                escapes: false,
+                escapes: true,
             },
         ],
         ast_path: [
@@ -295,7 +295,7 @@
                 ],
                 span: 103..115,
                 in_truthiness_context: false,
-                escapes: false,
+                escapes: true,
             },
         ],
         ast_path: [
@@ -373,7 +373,7 @@
         ],
         span: 129..134,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -419,6 +419,6 @@
         ],
         span: 147..152,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
 ]

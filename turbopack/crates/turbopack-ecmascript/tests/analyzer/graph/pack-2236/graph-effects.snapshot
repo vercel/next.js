@@ -279,7 +279,7 @@
                             ),
                         ],
                         span: 153..165,
-                        escapes: false,
+                        escapes: true,
                     },
                 ],
                 range: Exact(

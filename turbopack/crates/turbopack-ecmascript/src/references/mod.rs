@@ -1353,27 +1353,20 @@ async fn analyze_ecmascript_module_internal(
                     in_truthiness_context,
                     escapes,
                 } => {
-                    // Only needed if the property turns out to be `env`, see below.
-                    let escape_obj = (escapes && !analysis.has_runtime_env_var_reference_all())
-                        .then(|| obj.clone_in(arena.get_or_default()));
-
-                    // Intentionally not awaited because `handle_member` reads this only when needed
-                    let obj =
-                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
-
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    if let Some(escape_obj) = escape_obj
+                    if escapes
                         && prop.as_str() == Some("env")
+                        && !analysis.has_runtime_env_var_reference_all()
                     {
                         // e.g. `foo(process.env)` or `const key = 'env'; foo(process[key])`
                         let value = analysis_state
                             .link_value(
                                 JsValue::member(
                                     arena.get_or_default(),
-                                    escape_obj,
+                                    obj.clone_in(arena.get_or_default()),
                                     atom!("env").into(),
                                 ),
                                 ImportAttributes::empty_ref(),
@@ -1383,6 +1376,10 @@ async fn analyze_ecmascript_module_internal(
                             analysis.set_runtime_env_var_reference_all(issue_source(source, span));
                         }
                     }
+
+                    // Intentionally not awaited because `handle_member` reads this only when needed
+                    let obj =
+                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
 
                     let replaced = handle_membership(
                         &ast_path,
@@ -1408,24 +1405,20 @@ async fn analyze_ecmascript_module_internal(
                 } => {
                     // TODO add an inlining codegen here
 
-                    // Only needed if the property turns out to be `env`, see below.
-                    let escape_obj = (target_escapes
-                        && !analysis.has_runtime_env_var_reference_all())
-                    .then(|| obj.clone_in(arena.get_or_default()));
-
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    if let Some(escape_obj) = escape_obj
+                    if target_escapes
                         && prop.as_str() == Some("env")
+                        && !analysis.has_runtime_env_var_reference_all()
                     {
                         // e.g. `const { env } = process` or `const { env: { ...rest } } = process`
                         let value = analysis_state
                             .link_value(
                                 JsValue::member(
                                     arena.get_or_default(),
-                                    escape_obj,
+                                    obj.clone_in(arena.get_or_default()),
                                     atom!("env").into(),
                                 ),
                                 ImportAttributes::empty_ref(),
@@ -1494,7 +1487,10 @@ async fn analyze_ecmascript_module_internal(
                     span,
                     escapes,
                 } => {
-                    if escapes && !analysis.has_runtime_env_var_reference_all() {
+                    if escapes
+                        && export.as_deref() == Some("env")
+                        && !analysis.has_runtime_env_var_reference_all()
+                    {
                         // e.g. `import { env } from 'process'; foo(env)`
                         let value = analysis_state
                             .link_value(
