@@ -11,7 +11,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{FixintU128, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
@@ -432,7 +432,7 @@ pub struct OptionDebugId(Option<RcStr>);
 impl Code {
     /// Returns the hash of the source code of this Code.
     #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u128> {
+    pub fn source_code_hash(&self) -> Vc<FixintU128> {
         let code = self;
         let hash = hash_xxh3_hash128(code.source_code());
         Vc::cell(hash)

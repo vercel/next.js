@@ -40,7 +40,7 @@ The bundled copy gives coding agents access to the APIs and patterns supported b
 
 Next.js makes the bundled documentation discoverable through managed instructions in `AGENTS.md` at the project root. Coding agents such as Claude Code, Codex, Cursor, and GitHub Copilot read this file when they start a session.
 
-[`create-next-app`](/docs/app/api-reference/cli/create-next-app) creates the agent files for new projects. When `next dev` detects a coding agent, it creates or updates the managed instructions for existing projects. The block directs the agent to the documentation installed with the project:
+[`create-next-app`](/docs/app/api-reference/cli/create-next-app) creates the agent files for new projects. Running `next dev` creates or updates the managed instructions for existing projects. The block directs the agent to the documentation installed with the project:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
@@ -58,11 +58,23 @@ Next.js updates only the content between the agent rules markers and preserves t
 
 [Research comparing `AGENTS.md` with knowledge Skills](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals) found a 100% pass rate with bundled documentation, compared with up to 79% for Skill-based approaches. See the current [Next.js agent evaluation results](https://nextjs.org/evals).
 
-Managed documentation instructions are enabled by default in Next.js 16.3 and later. See the [`agentRules` API reference](/docs/app/api-reference/config/next-config-js/agentRules) to configure or disable them.
+Managed documentation instructions are enabled by default. See the [`agentRules` API reference](/docs/app/api-reference/config/next-config-js/agentRules) to configure or disable them.
 
 ### Version support
 
-Next.js 16.3 and later include bundled documentation and support managed agent instructions. Next.js 16.2 includes the bundled documentation but does not generate instructions automatically.
+#### Next.js 16.5 and later
+
+Running `next dev` creates and updates managed documentation instructions in `AGENTS.md` by default. Set `agentRules: false` to disable this behavior.
+
+#### Next.js 16.3 and 16.4
+
+These versions include bundled documentation and support managed documentation instructions.
+
+#### Next.js 16.2
+
+Next.js 16.2 includes the bundled documentation but does not generate instructions automatically.
+
+#### Next.js 16.1 and earlier
 
 Next.js 16.1 and earlier do not include the bundled documentation. The legacy `agents-md` command downloads a version-matched copy to `.next-docs/` and indexes it in `AGENTS.md`:
 
@@ -82,7 +94,7 @@ Automatic agent feedback lets coding agents keep track of potential Next.js issu
 
 Before opening a form, the agent attempts to anonymize the report by replacing customer and project details with generic descriptions and omitting source code, logs, paths, URLs, secrets, and personal information. Review the draft and remove anything you don't want to include. Nothing is sent until you select **Send feedback**.
 
-With the option enabled, `next dev` adds the following managed feedback instructions to the agent file when it detects an AI coding agent:
+With the option and Next.js Telemetry enabled outside CI, `next dev` adds the following managed feedback instructions to `AGENTS.md`:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-feedback -->
@@ -102,7 +114,7 @@ Continue the current user request without reporting immediately. Routine debuggi
 
 Retain qualifying friction even if it is later fixed or worked around; record the final outcome during the reporting pass.
 
-Before the final response, run one reporting pass. If candidates remain, from this file's directory run `npx --no-install next internal agent-feedback-instructions` once without piping or truncating its output. Follow its output or error guidance. If a network sandbox blocks it, retry with network access; if it still returns no output, continue normally.
+Before the final response, run one reporting pass. If candidates remain, run `npx --no-install next internal agent-feedback-instructions` once from the directory whose `package.json` declares `next` without piping or truncating its output. Follow its output or error guidance. If a network sandbox blocks it, retry with network access; if it still returns no output, continue normally.
 
 <!-- END:nextjs-agent-feedback -->
 ```
@@ -120,6 +132,8 @@ npx next@canary upgrade --agent=latest
 ```
 
 The experimental [`agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade) option shows security upgrade reminders during `next dev` and `next build` by default. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for the available policies and workflow.
+
+When upgrade reminders are enabled, `next dev` also creates or updates a separate managed upgrade block in `AGENTS.md`. Set `experimental.agentUpgrade: false` to disable reminders and remove this block. Documentation rules and feedback instructions have independent settings.
 
 <span id="step-2-give-agents-runtime-visibility" />
 
@@ -233,7 +247,7 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill expands a target route's static shell to include the useful UI you want available on an initial load:
 
-1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the static-shell UI you named.
+1. Writes a failing [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) test for the static-shell UI you named.
 2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
 3. Commits the passing test with the refactoring, so it catches future regressions.
 
@@ -254,7 +268,7 @@ Optimize the static shell for /dashboard using the next-cache-components-optimiz
 The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
 
 1. Audits existing `<Link prefetch={true}>` navigations and identifies the prefetched UI to preserve.
-2. Captures that UI in passing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
+2. Captures that UI in passing [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
 3. Enables the flag, resolves the URL-data insights it surfaces, and marks optional per-link prefetching candidates for later.
 
 It needs [Cache Components](/docs/app/getting-started/caching) already adopted and a production-like build it can run for prefetch verification.
@@ -274,7 +288,7 @@ Adopt Partial Prefetching in this project using the next-partial-prefetching-ado
 The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill takes a target navigation or set of navigations and works toward the UI you want ready before each click:
 
 1. Turns the requested behavior for each navigation into a contract for what is prefetched, what waits for navigation, and when prefetching begins.
-2. Captures each contract in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
+2. Captures each contract in an [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) test.
 3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns and keeps the passing tests as regression coverage.
 
 It needs Cache Components and Partial Prefetching already adopted.

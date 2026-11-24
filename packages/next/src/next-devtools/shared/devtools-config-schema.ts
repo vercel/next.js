@@ -17,7 +17,6 @@ export const devToolsConfigSchema: z.ZodType<DevToolsConfig> = z.object({
     .record(z.string(), z.object({ width: z.number(), height: z.number() }))
     .optional(),
   scale: z.number().optional(),
-  hideShortcut: z.string().nullable().optional(),
   requestInsights: z
     .object({
       showInternal: z.boolean().optional(),

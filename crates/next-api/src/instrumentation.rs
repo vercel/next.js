@@ -75,7 +75,7 @@ impl InstrumentationEndpoint {
             .asset_context
             .process(
                 *self.source,
-                ReferenceType::Entry(EntryReferenceSubType::Instrumentation),
+                ReferenceType::Entry(EntryReferenceSubType::default()),
             )
             .module()
             .to_resolved()
@@ -240,6 +240,7 @@ impl Endpoint for InstrumentationEndpoint {
                 }
                 .resolved_cell(),
                 project: this.project,
+                first_load_chunks: None,
             }
             .cell())
         }

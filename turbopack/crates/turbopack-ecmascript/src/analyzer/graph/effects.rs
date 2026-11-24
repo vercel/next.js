@@ -92,23 +92,33 @@ impl<'a> ConditionalKind<'a> {
 
 #[derive(Debug)]
 pub enum EffectArg<'a> {
-    Value(JsValue<'a>),
+    /// Argument evaluation effects, skipped when codegen discards this argument.
+    Value(JsValue<'a>, BumpBox<'a, [Effect<'a>]>),
     Closure(JsValue<'a>, BumpBox<'a, EffectsBlock<'a>>),
-    Spread,
+    Spread(BumpBox<'a, [Effect<'a>]>),
 }
 
 impl<'a> EffectArg<'a> {
     /// Normalizes all contained values.
     pub fn normalize(&mut self, arena: &'a Bump) {
         match self {
-            EffectArg::Value(value) => value.normalize(arena),
+            EffectArg::Value(value, effects) => {
+                value.normalize(arena);
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
+            }
             EffectArg::Closure(value, effects) => {
                 value.normalize(arena);
                 for effect in effects.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
-            EffectArg::Spread => {}
+            EffectArg::Spread(effects) => {
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
+            }
         }
     }
 }

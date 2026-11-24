@@ -18,7 +18,7 @@ use next_core::{
         BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
         PagesManifest, ProxyMatcher, Regions,
     },
-    next_pages::create_page_ssr_entry_module,
+    next_pages::{PagesEntryKind, create_page_ssr_entry_module},
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
     },
@@ -34,7 +34,7 @@ use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
+    Completion, FxIndexMap, OrderedAutoMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexset,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -62,7 +62,7 @@ use turbopack_core::{
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
-    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -88,7 +88,7 @@ use crate::{
     project::Project,
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, Endpoint, EndpointOutput,
-        EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        EndpointOutputPaths, FirstLoadChunks, ModuleGraphs, Route, Routes,
     },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
@@ -119,7 +119,7 @@ impl PagesProject {
             has_user_pages: _,
             should_create_pages_entries,
         } = &*pages_structure.await?;
-        let mut routes = FxIndexMap::default();
+        let mut routes = OrderedAutoMap::default();
 
         // If pages entries shouldn't be created (build mode with no pages), return empty routes
         if !should_create_pages_entries {
@@ -127,7 +127,7 @@ impl PagesProject {
         }
 
         async fn add_page_to_routes(
-            routes: &mut FxIndexMap<RcStr, Route>,
+            routes: &mut OrderedAutoMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
             make_route: impl Fn(
                 RcStr,
@@ -148,7 +148,7 @@ impl PagesProject {
         }
 
         async fn add_dir_to_routes(
-            routes: &mut FxIndexMap<RcStr, Route>,
+            routes: &mut OrderedAutoMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
             make_route: impl Fn(
                 RcStr,
@@ -302,7 +302,7 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn pages_structure(&self) -> Result<Vc<PagesStructure>> {
+    pub async fn pages_structure(&self) -> Result<Vc<PagesStructure>> {
         let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
         let next_router_root = next_router_fs.root().owned().await?;
         Ok(find_pages_structure(
@@ -471,7 +471,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
             self.project().server_source_map_generation_options(),
         ))
     }
@@ -510,7 +510,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
             self.project().server_source_map_generation_options(),
         ))
     }
@@ -669,7 +669,7 @@ async fn client_entry_modules(
 async fn page_next_dynamic_chunks(
     endpoint: Vc<PageEndpoint>,
     next_dynamic_imports: ReadRef<DynamicImportEntriesWithImporter>,
-    client_availability_info: AvailabilityInfo,
+    client_chunk_group: &ChunkGroupResult,
 ) -> Result<ResolvedVc<DynamicImportedChunks>> {
     let this = endpoint.await?;
     let project = this.pages_project.project();
@@ -680,15 +680,15 @@ async fn page_next_dynamic_chunks(
             endpoint.client_module_graph(),
             client_chunking_context,
             next_dynamic_imports,
-            NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+            NextDynamicChunkAvailability::PagesRouterClientEntry(client_chunk_group),
         )
         .await;
     }
 
     // `/_app`'s `next/dynamic` imports are loaded by `/_app`'s async loaders, which are chunked
-    // with `/_app`'s graph and availability, so preload them with the chunks `/_app` itself
-    // lists. Chunked with the page's availability, they would name chunks that don't match what
-    // those loaders request (and that may not be emitted at all).
+    // with `/_app`'s graph and chunk group, so preload them with the chunks `/_app` itself
+    // lists. The page's chunk group sees `/_app`'s chunk group as available and doesn't create
+    // those loaders itself.
     // With a per-page module graph, a page's client graph is chained after `/_app`'s (see
     // `client_module_graph`), so `next_dynamic_imports` also contains `/_app`'s imports: chunk
     // only the page's own imports with the page's graph and availability. With a whole-app graph
@@ -700,31 +700,35 @@ async fn page_next_dynamic_chunks(
         .get_next_dynamic_imports_for_endpoint(app_endpoint.client_module())
         .await?;
     let app_dynamic_entries = app_next_dynamic_imports
+        .entries
         .iter()
-        .map(|(dynamic_entry, _)| *dynamic_entry)
+        .map(|import| import.dynamic_entry)
         .collect::<FxHashSet<_>>();
-    let page_next_dynamic_imports = Vc::<DynamicImportEntriesWithImporter>::cell(
-        next_dynamic_imports
+    let page_next_dynamic_imports = DynamicImportEntriesWithImporter {
+        entries: next_dynamic_imports
+            .entries
             .iter()
-            .filter(|(dynamic_entry, _)| !app_dynamic_entries.contains(dynamic_entry))
+            .filter(|import| !app_dynamic_entries.contains(&import.dynamic_entry))
             .cloned()
             .collect(),
-    )
+        async_modules: next_dynamic_imports.async_modules.clone(),
+    }
+    .cell()
     .await?;
 
     let page_chunks = collect_next_dynamic_chunks(
         endpoint.client_module_graph(),
         client_chunking_context,
         page_next_dynamic_imports,
-        NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+        NextDynamicChunkAvailability::PagesRouterClientEntry(client_chunk_group),
     )
     .await?;
     let app_chunks = collect_next_dynamic_chunks(
         app_module_graph,
         client_chunking_context,
         app_next_dynamic_imports,
-        NextDynamicChunkAvailability::AvailabilityInfo(
-            app_endpoint.client_chunk_group().await?.availability_info,
+        NextDynamicChunkAvailability::PagesRouterClientEntry(
+            &*app_endpoint.client_chunk_group().await?,
         ),
     )
     .await?;
@@ -1013,21 +1017,21 @@ impl PageEndpoint {
     async fn internal_ssr_chunk_module(self: Vc<Self>) -> Result<Vc<InternalSsrChunkModule>> {
         let this = self.await?;
 
-        let (reference_type, project_root, module_context, edge_module_context) = match this.ty {
+        let (kind, project_root, module_context, edge_module_context) = match this.ty {
             PageEndpointType::Html | PageEndpointType::SsrOnly => (
-                ReferenceType::Entry(EntryReferenceSubType::Page),
+                PagesEntryKind::Page,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Data => (
-                ReferenceType::Entry(EntryReferenceSubType::PageData),
+                PagesEntryKind::Data,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Api => (
-                ReferenceType::Entry(EntryReferenceSubType::PagesApi),
+                PagesEntryKind::Api,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.api_module_context(),
                 this.pages_project.edge_api_module_context(),
@@ -1045,7 +1049,7 @@ impl PageEndpoint {
             // rendering for edge is part of the page bundle.
             if this.pathname == "/_app" || this.pathname == "/_document" {
                 let ssr_module = module_context
-                    .process(self.source(), reference_type)
+                    .process(self.source(), kind.reference_type())
                     .module();
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
@@ -1062,7 +1066,7 @@ impl PageEndpoint {
             } else {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
-                    reference_type,
+                    kind,
                     project_root,
                     if runtime == NextRuntime::Edge {
                         Vc::upcast(edge_module_context)
@@ -1119,7 +1123,7 @@ impl PageEndpoint {
             let ssr_module_graph = self.ssr_module_graph();
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
-                let client_availability_info = self.client_chunk_group().await?.availability_info;
+                let client_chunk_group = self.client_chunk_group().await?;
 
                 let client_module_graph = self.client_module_graph();
                 let per_page_module_graph = *project.per_page_module_graph().await?;
@@ -1140,18 +1144,15 @@ impl PageEndpoint {
                     NextDynamicGraphs::new(client_module_graph, per_page_module_graph)
                         .get_next_dynamic_imports_for_endpoint(self.client_module())
                         .await?;
-                Some((next_dynamic_imports, client_availability_info))
+                Some((next_dynamic_imports, client_chunk_group))
             } else {
                 None
             };
 
-            let dynamic_import_entries = if let Some((
-                next_dynamic_imports,
-                client_availability_info,
-            )) = next_dynamic_imports
+            let dynamic_import_entries = if let Some((next_dynamic_imports, client_chunk_group)) =
+                next_dynamic_imports
             {
-                page_next_dynamic_chunks(self, next_dynamic_imports, client_availability_info)
-                    .await?
+                page_next_dynamic_chunks(self, next_dynamic_imports, &client_chunk_group).await?
             } else {
                 DynamicImportedChunks::default().resolved_cell()
             };
@@ -1421,14 +1422,14 @@ impl PageEndpoint {
         let (pages, pages_chunk_group_bootstrap_params) =
             if pages_structure.should_create_pages_entries {
                 (
-                    fxindexmap!(self.pathname.clone() => client_chunks),
+                    OrderedAutoMap::from_iter([(self.pathname.clone(), client_chunks)]),
                     chunk_group_bootstrap_params
-                        .map(|params| fxindexmap!(self.pathname.clone() => params))
+                        .map(|params| OrderedAutoMap::from_iter([(self.pathname.clone(), params)]))
                         .unwrap_or_default(),
                 )
             } else {
                 // Empty when no user pages should be created
-                (fxindexmap![], fxindexmap![])
+                (OrderedAutoMap::default(), OrderedAutoMap::default())
             };
 
         let chunk_loading_global = (*self
@@ -1474,9 +1475,9 @@ impl PageEndpoint {
         // Check if we should include pages in the manifest
         let pages_structure = self.pages_structure.await?;
         let pages = if pages_structure.should_create_pages_entries {
-            fxindexmap!(self.pathname.clone() => page_loader)
+            OrderedAutoMap::from_iter([(self.pathname.clone(), page_loader)])
         } else {
-            fxindexmap![] // Empty pages when no user pages should be created
+            OrderedAutoMap::default() // Empty pages when no user pages should be created
         };
 
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
@@ -1725,7 +1726,14 @@ impl PageEndpoint {
                         entrypoint,
                         regions,
                         matchers: vec![matchers],
-                        env: this.pages_project.project().edge_env().owned().await?,
+                        env: this
+                            .pages_project
+                            .project()
+                            .edge_env()
+                            .owned()
+                            .await?
+                            .into_iter()
+                            .collect(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![this.pathname.clone()],
@@ -1898,11 +1906,28 @@ impl Endpoint for PageEndpoint {
                 },
             };
 
+            // Only needed for the route bundle stats of production builds: the chunks listed for
+            // this page in its `build-manifest.json`.
+            let first_load_chunks = if this.ty == PageEndpointType::Html
+                && project.next_mode().await?.is_production()
+            {
+                Some(FirstLoadChunks::PagesPage(
+                    if this.pages_structure.await?.should_create_pages_entries {
+                        self.client_chunk_group().await?.assets
+                    } else {
+                        OutputAssets::empty_resolved()
+                    },
+                ))
+            } else {
+                None
+            };
+
             anyhow::Ok(
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    first_load_chunks,
                 }
                 .cell(),
             )

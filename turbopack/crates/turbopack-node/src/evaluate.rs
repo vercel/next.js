@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
-    duration_span, fxindexmap, parallel::available_parallelism,
+    duration_span, parallel::available_parallelism,
     resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -314,6 +314,8 @@ pub(crate) async fn get_evaluate_pool(
                 env.read(name.into()).await?;
             }
 
+            // INVALIDATION: In this mode, only the Node.js environment variables tracked above
+            // should invalidate the pool, not changes to unrelated environment variables.
             env.read_all().untracked().await?
         }
     };
@@ -349,7 +351,7 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
             }
         }
     }
-    Ok(Vc::cell(filtered))
+    Ok(Vc::cell(filtered.into()))
 }
 
 /// A Node.js process could not connect back to us over the loopback interface.
@@ -585,8 +587,11 @@ pub async fn get_evaluate_entries(
                 ),
             )),
             ReferenceType::Internal(ResolvedVc::cell(
-                fxindexmap! {rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset},
+                [
+                    (rcstr!("INNER"), module_asset),
+                    (rcstr!("RUNTIME"), runtime_asset),
+                ]
+                .into(),
             )),
         )
         .module()

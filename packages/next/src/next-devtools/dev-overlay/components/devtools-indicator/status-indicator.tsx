@@ -35,31 +35,30 @@ export function getCurrentStatus(
 
 interface StatusIndicatorProps {
   status: Status
-  isError?: boolean
-  onClick?: () => void
 }
 
-export function StatusIndicator({
-  status,
-  isError = false,
-  onClick,
-}: StatusIndicatorProps) {
+/**
+ * Temporary status text shown in the badge next to the N while compiling or
+ * rendering. It is plain text, not a button, and goes away on its own. Cold
+ * and cache-disabled renders read as plain "Rendering"; the persistent cache
+ * badge explains the cache state once the load settles.
+ */
+export function StatusIndicator({ status }: StatusIndicatorProps) {
   const statusText: Record<Status, string> = {
     [Status.None]: '',
     [Status.Compiling]: 'Compiling',
     [Status.Rendering]: 'Rendering',
-    [Status.RenderingColdCache]: 'Rendering (cold cache)',
-    [Status.RenderingCacheDisabled]: 'Rendering (cache disabled)',
+    [Status.RenderingColdCache]: 'Rendering',
+    [Status.RenderingCacheDisabled]: 'Rendering',
   }
 
-  // Status dot colors: teal while rendering normally, orange when the render
-  // hit a cold cache or bypassed caches.
+  // Status dot colors: amber while compiling, teal while rendering.
   const statusDotColor: Record<Status, string> = {
     [Status.None]: '',
     [Status.Compiling]: '#f5a623',
     [Status.Rendering]: '#50e3c2',
-    [Status.RenderingColdCache]: '#f5a623',
-    [Status.RenderingCacheDisabled]: '#f5a623',
+    [Status.RenderingColdCache]: '#50e3c2',
+    [Status.RenderingCacheDisabled]: '#50e3c2',
   }
 
   if (status === Status.None) {
@@ -75,25 +74,12 @@ export function StatusIndicator({
             display: flex;
             gap: 6px;
             align-items: center;
-            padding-left: 12px;
-            padding-right: 8px;
-            height: var(--size-32);
-            margin-right: 2px;
-            border-radius: var(--rounded-full);
-            transition: background var(--duration-short) ease;
+            padding: 0 6px;
+            height: var(--size-28);
             color: white;
             font-size: var(--size-13);
             font-weight: 500;
             white-space: nowrap;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            outline: none;
-          }
-
-          [data-indicator-status]:focus-visible {
-            outline: 2px solid var(--color-blue-800, #3b82f6);
-            outline-offset: 3px;
           }
 
           [data-status-dot] {
@@ -165,18 +151,12 @@ export function StatusIndicator({
           }
         `}
       </style>
-      <button
-        data-indicator-status
-        data-nextjs-dev-tools-button
-        onClick={onClick}
-        aria-label={'Open Next.js Dev Tools'}
-      >
+      <span data-indicator-status role="status">
         {statusDotColor[status] && (
-          <div
+          <span
+            aria-hidden
             data-status-dot
-            style={{
-              backgroundColor: isError ? '#fff' : statusDotColor[status],
-            }}
+            style={{ backgroundColor: statusDotColor[status] }}
           />
         )}
         <AnimateStatusText
@@ -186,7 +166,7 @@ export function StatusIndicator({
         >
           {statusText[status]}
         </AnimateStatusText>
-      </button>
+      </span>
     </>
   )
 }

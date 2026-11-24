@@ -41,7 +41,7 @@
 
 0 -> 19 member call = module<../../webpack-api-runtime.js, {}>["C"]({})
 
-0 -> 21 call = module<../../webpack-api-runtime.js, {}>(???*0*)
+0 -> 20 call = module<../../webpack-api-runtime.js, {}>(???*0*)
 - *0* assignment expression
   ⚠️  This value might have side effects
 

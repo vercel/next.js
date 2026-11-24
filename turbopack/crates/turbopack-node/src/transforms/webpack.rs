@@ -631,6 +631,7 @@ enum LogType {
 #[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct LogInfo {
+    #[bincode(fixint)]
     time: u64,
     log_type: LogType,
     #[bincode(with = "turbo_bincode::serde_self_describing")]

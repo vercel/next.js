@@ -10,8 +10,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, MinifyType,
-        ModuleChunkItemIdExt, ModuleId,
+        ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, ModuleChunkItemIdExt, ModuleId,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -23,6 +22,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
+    emit_options::EcmascriptEmitOptions,
     minify::minify,
     utils::StringifyJs,
 };
@@ -210,9 +210,19 @@ impl EcmascriptBrowserEvaluateChunk {
                         this.chunking_context.chunk_loading_global(),
                         this.chunking_context.cross_origin(),
                         this.chunking_context.chunk_load_retry(),
-                        include_async_module_runtime,
                         this.chunking_context.chunk_loading(),
-                        *this.chunking_context.generate_component_chunks().await?,
+                        turbopack_ecmascript_runtime::BrowserRuntimeOptions {
+                            include_async_module_runtime,
+                            support_component_chunks: *this
+                                .chunking_context
+                                .generate_component_chunks()
+                                .await?,
+                            bootstrap_metadata_attribute: this
+                                .chunking_context
+                                .bootstrap_metadata_attribute()
+                                .owned()
+                                .await?,
+                        },
                     );
                     code.push_code(&*runtime_code.await?)?;
                 }
@@ -226,14 +236,16 @@ impl EcmascriptBrowserEvaluateChunk {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
+        let ecma_opts =
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*this.chunking_context)).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
             code = minify(
                 code,
                 this.chunking_context
                     .emitted_source_map_type()
                     .await?
                     .is_some(),
-                mangle,
+                swc_opts,
             )?;
         }
 
@@ -252,7 +264,7 @@ impl EcmascriptBrowserEvaluateChunk {
         ident.modifiers.extend(
             evaluatable_assets
                 .iter()
-                .map(|entry| entry.ident().to_string().owned())
+                .map(|entry| entry.ident_string().owned())
                 .try_join()
                 .await?,
         );

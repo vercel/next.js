@@ -128,11 +128,15 @@ async function handleRequest(
             ...params,
           },
           params,
-          allowedRevalidateHeaderKeys: process.env
-            .__NEXT_ALLOWED_REVALIDATE_HEADERS as any as string[],
+          allowedRevalidateHeaderKeys:
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS as any as string[],
           multiZoneDraftMode: Boolean(process.env.__NEXT_MULTI_ZONE_DRAFT_MODE),
-          trustHostHeader: process.env
-            .__NEXT_TRUST_HOST_HEADER as any as boolean,
+          trustHostHeader:
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            process.env.__NEXT_TRUST_HOST_HEADER as any as boolean,
           // TODO: get this from from runtime env so manifest
           // doesn't need to load
           previewProps,

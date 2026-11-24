@@ -1,10 +1,9 @@
 use anyhow::{Context, Result, bail};
+use auto_hash_map::AutoMap;
 use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
-};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
@@ -12,8 +11,9 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
         ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
-        SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        ChunkingContext, ContentHashing, EmitOption, EmitOptions, EntryChunkGroupResult,
+        EvaluatableAsset, SourceMapSourceType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -77,8 +77,16 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
-        self.chunking_context.minify_type = minify_type;
+    pub fn emit_option(mut self, opt: ResolvedVc<Box<dyn EmitOption>>) -> Self {
+        self.chunking_context.emit_options.push(opt);
+        self
+    }
+
+    pub fn emit_options(
+        mut self,
+        opts: impl IntoIterator<Item = ResolvedVc<Box<dyn EmitOption>>>,
+    ) -> Self {
+        self.chunking_context.emit_options.extend(opts);
         self
     }
 
@@ -214,23 +222,19 @@ pub struct NodeJsChunkingContext {
     /// This path is used to compute the url to request chunks or assets from
     client_root: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
-    #[bincode(with = "turbo_bincode::indexmap")]
-    client_roots: FxIndexMap<RcStr, FileSystemPath>,
+    client_roots: AutoMap<RcStr, FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPath,
     /// Static assets are placed at this path
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_root_paths: FxIndexMap<RcStr, FileSystemPath>,
+    asset_root_paths: AutoMap<RcStr, FileSystemPath>,
     /// Static assets requested from this url base
     asset_prefix: Option<RcStr>,
     /// Static assets requested from this url base
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_prefixes: FxIndexMap<RcStr, RcStr>,
+    asset_prefixes: AutoMap<RcStr, RcStr>,
     /// URL behavior overrides for different tags.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
+    url_behaviors: AutoMap<RcStr, UrlBehavior>,
     /// Default URL behavior when no tag-specific override is found.
     default_url_behavior: Option<UrlBehavior>,
     /// The environment chunks will be evaluated in.
@@ -243,8 +247,8 @@ pub struct NodeJsChunkingContext {
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
-    /// Whether to minify resulting chunks
-    minify_type: MinifyType,
+    /// Crate-specific emit options (e.g. JS/CSS minification settings).
+    emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
     /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
     /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
     minify_before_chunking: bool,
@@ -307,7 +311,7 @@ impl NodeJsChunkingContext {
                 enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
-                minify_type: MinifyType::NoMinify,
+                emit_options: vec![],
                 minify_before_chunking: false,
                 emitted_source_map_type: Some(SourceMapType::Full),
                 source_map_generation_options: None,
@@ -336,12 +340,6 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn runtime_type(&self) -> Vc<RuntimeType> {
         self.runtime_type.cell()
-    }
-
-    /// Returns the minify type.
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     #[turbo_tasks::function]
@@ -469,8 +467,8 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        Vc::cell(self.emit_options.clone())
     }
 
     #[turbo_tasks::function]
@@ -608,6 +606,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability,
             } = make_chunk_group(
                 groups,
                 module_graph,
@@ -630,6 +629,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 references: ResolvedVc::cell(references),
                 availability_info,
                 chunk_group_bootstrap_params: None,
+                async_loader_availability: vec![async_loader_availability],
             }
             .cell())
         }
@@ -661,6 +661,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability: _,
             } = make_chunk_group(
                 smallvec![chunk_group.clone()],
                 module_graph,
@@ -793,16 +794,16 @@ impl ChunkingContext for NodeJsChunkingContext {
         let chunk = chunk_type
             .chunk(
                 Vc::upcast(self),
-                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                Box::new([ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
                     ChunkItemWithAsyncModuleInfo {
                         chunk_item,
                         chunk_type,
                         module: None,
                         async_info: None,
                     },
-                )],
-                Vec::new(),
-                Vec::new(),
+                )]),
+                Box::default(),
+                Box::default(),
             )
             .to_resolved()
             .await?;

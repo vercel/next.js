@@ -1,14 +1,14 @@
 0 -> 1 free var = FreeVar(ESBUILD_BINARY_PATH)
 
-0 -> 3 free var = FreeVar(__filename)
-
-0 -> 4 member call = path*0*["basename"]("__filename")
+0 -> 3 member call = path*0*["basename"]("__filename")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-0 -> 6 free var = FreeVar(__dirname)
+3 -> 4 free var = FreeVar(__filename)
 
-0 -> 7 member call = path*0*["basename"]("__dirname")
+0 -> 6 member call = path*0*["basename"]("__dirname")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+6 -> 7 free var = FreeVar(__dirname)
 
 0 -> 8 conditional = (!(???*0*) | false | (???*1* !== "main.js") | (???*4* !== "lib"))
 - *0* FreeVar(ESBUILD_BINARY_PATH)
@@ -31,21 +31,21 @@
 
 8 -> 9 free var = FreeVar(Error)
 
-8 -> 10 free var = FreeVar(__filename)
-
-8 -> 11 call = new ???*0*(
+8 -> 10 call = new ???*0*(
     "The esbuild JavaScript API cannot be bundled. Please mark the \"esbuild\" package as external so it's not included in the bundle.\n\nMore information: The file containing the code for esbuild's JavaScript API (__filename) does not appear to be inside the esbuild package on the file system, which usually means that the esbuild package was bundled into another file. This is problematic because the API needs to run a binary executable inside the esbuild package which is located using a relative path from the API code to the executable. If the esbuild package is bundled, the relative path will be incorrect and the executable won't be found."
 )
 - *0* FreeVar(Error)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
+10 -> 11 free var = FreeVar(__filename)
+
 0 -> 12 conditional = false
 
-12 -> 14 free var = FreeVar(__dirname)
-
-12 -> 15 member call = path*0*["join"]("__dirname", "..", "bin", "esbuild")
+12 -> 14 member call = path*0*["join"]("__dirname", "..", "bin", "esbuild")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+14 -> 15 free var = FreeVar(__dirname)
 
 12 -> 16 unreachable = ???*0*
 - *0* unreachable
@@ -247,22 +247,15 @@ by esbuild to install the correct binary executable for your current platform.`
 
 44 -> 66 conditional = (false | true)
 
-68 -> 69 free var = FreeVar(require)
+66 -> 68 member call = path*0*["dirname"]("\"esbuild\"/resolved/lib/index.js")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-66 -> 70 member call = require*0*["resolve"]("esbuild")
+69 -> 70 free var = FreeVar(require)
+
+68 -> 71 member call = require*0*["resolve"]("esbuild")
 - *0* require: The require method from CommonJS
 
-66 -> 71 member call = path*0*["dirname"]("\"esbuild\"/resolved/lib/index.js")
-- *0* path: The Node.js path module: https://nodejs.org/api/path.html
-
-66 -> 74 member call = path*0*["basename"]((???*1* | "esbuild.exe" | "bin/esbuild" | ???*2*))
-- *0* path: The Node.js path module: https://nodejs.org/api/path.html
-- *1* subpath
-  ⚠️  pattern without value
-- *2* unknown mutation
-  ⚠️  This value might have side effects
-
-66 -> 75 member call = path*0*["join"](
+66 -> 73 member call = path*0*["join"](
     "\"esbuild\"/resolved/lib",
     `pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`
 )
@@ -281,6 +274,13 @@ by esbuild to install the correct binary executable for your current platform.`
 - *6* subpath
   ⚠️  pattern without value
 - *7* unknown mutation
+  ⚠️  This value might have side effects
+
+73 -> 75 member call = path*0*["basename"]((???*1* | "esbuild.exe" | "bin/esbuild" | ???*2*))
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+- *1* subpath
+  ⚠️  pattern without value
+- *2* unknown mutation
   ⚠️  This value might have side effects
 
 76 -> 77 free var = FreeVar(fs)

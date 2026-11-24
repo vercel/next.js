@@ -3,9 +3,7 @@ use bincode::{Decode, Encode};
 use indoc::formatdoc;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, turbofmt,
-};
+use turbo_tasks::{Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath,
     json::parse_json_with_source_context,
@@ -400,7 +398,7 @@ async fn postcss_executor(
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path.clone()),
-            ReferenceType::Entry(EntryReferenceSubType::Undefined),
+            ReferenceType::Entry(EntryReferenceSubType::default()),
         )
         .module()
         .to_resolved()
@@ -413,9 +411,7 @@ async fn postcss_executor(
                 .await?,
             turbofmt!("?config={postcss_config_path}").await?,
         )),
-        ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-            rcstr!("CONFIG") => config_asset
-        })),
+        ReferenceType::Internal(ResolvedVc::cell([(rcstr!("CONFIG"), config_asset)].into())),
     ))
 }
 

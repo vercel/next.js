@@ -18,6 +18,7 @@ pub mod code_gen;
 mod collect_module;
 mod directive;
 pub mod embed_js;
+pub mod emit_options;
 mod errors;
 pub mod hmr;
 pub mod json_source_transform;
@@ -62,7 +63,6 @@ use serde::Deserialize;
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Atom,
-    base::SwcComments,
     common::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
         SourceMapper, Span, SpanSnippetError, Spanned, SyntaxContext,
@@ -84,16 +84,16 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, OrderedAutoMap, ReadRef, ResolvedVc,
+    SerializationInvalidator, TryJoinIterExt, Upcast, ValueToString, Vc,
+    get_serialization_invalidator, parking_lot_mutex_bincode, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
-        MinifyType, ModuleChunkItemIdExt, ModuleId,
+        ModuleChunkItemIdExt, ModuleId,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -123,6 +123,7 @@ use crate::{
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     directive::parse_module_turbopack_directives,
+    emit_options::EcmascriptEmitOptions,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::{ApplyVisitors, Visitors},
@@ -139,7 +140,7 @@ use crate::{
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
     static_code::StaticEcmascriptCode,
-    swc_comments::swc_comments_to_single_threaded,
+    swc_comments::{MutableComments, swc_comments_to_single_threaded},
     transform::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
         TransformPlugin,
@@ -445,8 +446,7 @@ pub trait EcmascriptParsable {
 #[derive(Default, Debug)]
 pub struct EnvVarInfo {
     /// List of environment variables accessed at runtime (not inlined) in the module.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    pub runtime: OrderedAutoMap<RcStr, EnvVarAccessMode>,
     // TODO add this back once we can do it without regressing performance
     // Whether the module potentially references all environment variables (because of a
     // non-statically analyzeable `process.env`).
@@ -1245,7 +1245,7 @@ impl EcmascriptModuleContent {
             ..
         } = &*input;
 
-        let minify = chunking_context.minify_type().await?;
+        let ecma_emit = EcmascriptEmitOptions::get_or_default(**chunking_context).await?;
 
         let content = process_parse_result(
             *parsed,
@@ -1253,7 +1253,7 @@ impl EcmascriptModuleContent {
             *specified_module_type,
             *source_map_generation_options,
             *original_source_map,
-            *minify,
+            &ecma_emit,
             Some(&*input),
             None,
         )
@@ -1275,7 +1275,7 @@ impl EcmascriptModuleContent {
             specified_module_type,
             source_map_generation_options,
             None,
-            MinifyType::NoMinify,
+            EcmascriptEmitOptions::default_ref(),
             None,
             None,
         )
@@ -1319,12 +1319,17 @@ impl EcmascriptModuleContent {
 
             let globals_merged = Globals::default();
 
+            // Use the options from an arbitrary module, since they should all be the same with
+            // regards to emit_options and chunking_context.
+            let options = module_options.last().unwrap().await?;
+            let ecma_emit =
+                EcmascriptEmitOptions::get_or_default(*options.chunking_context).await?;
+
             let contents = module_options
                 .iter()
                 .map(async |options| {
                     let options = options.await?;
                     let EcmascriptModuleContentOptions {
-                        chunking_context,
                         parsed,
                         module,
                         specified_module_type,
@@ -1339,7 +1344,7 @@ impl EcmascriptModuleContent {
                         *specified_module_type,
                         *source_map_generation_options,
                         *original_source_map,
-                        *chunking_context.minify_type().await?,
+                        &ecma_emit,
                         Some(&*options),
                         Some(ScopeHoistingOptions {
                             module: *module,
@@ -1369,10 +1374,6 @@ impl EcmascriptModuleContent {
             let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
                 merge_modules(contents, &entry_points, &globals_merged).await?;
 
-            // Use the options from an arbitrary module, since they should all be the same with
-            // regards to minify_type and chunking_context.
-            let options = module_options.last().unwrap().await?;
-
             let modules_header_width = modules.len().next_power_of_two().trailing_zeros();
             let content = CodeGenResult {
                 program: merged_ast,
@@ -1392,7 +1393,7 @@ impl EcmascriptModuleContent {
                 original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
                     original_source_maps,
                 ),
-                minify: *options.chunking_context.minify_type().await?,
+                indent: ecma_emit.indent,
                 scope_hoisting_syntax_contexts: None,
             };
 
@@ -1442,7 +1443,7 @@ fn early_hoist_comment(text: &str) -> Comment {
 /// Finds the statements delimited by [`EARLY_HOIST_START`] and [`EARLY_HOIST_END`], as an inclusive
 /// index range over `body` covering both delimiters. Must run before the spans are rewritten.
 fn early_hoist_range(
-    comments: &SwcComments,
+    comments: &MutableComments,
     body: impl Iterator<Item = Span>,
 ) -> Option<(usize, usize)> {
     let (mut start, mut end) = (None, None);
@@ -1536,23 +1537,22 @@ async fn merge_modules(
                 // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
                 // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
-                let (local, local_ctxt) = if let Some(((local, local_ctxt), _)) =
-                    eval_context_exports.get(&sym_rc_str)
-                {
-                    (Some(local), *local_ctxt)
-                } else if sym.starts_with("__TURBOPACK__imported__module__") {
-                    // The variable corresponding to the `export * as foo from "...";` is generated
-                    // in the module generating the reexport (and it's not listed in the
-                    // eval_context). `EsmAssetReference::code_gen` uses a dummy span when
-                    // generating this variable.
-                    (None, SyntaxContext::empty())
-                } else {
-                    self.error = Err(anyhow::anyhow!(
-                        "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
-                         {eval_context_exports:?}",
-                    ));
-                    return;
-                };
+                let (local, local_ctxt) =
+                    if let Some(((local, local_ctxt), _)) = eval_context_exports.get(&sym_rc_str) {
+                        (Some(local), *local_ctxt)
+                    } else if sym.starts_with("__TURBOPACK__imported__module__") {
+                        // The variable corresponding to the `export * as foo from "...";` is
+                        // generated in the module generating the reexport (and it's not listed in
+                        // the eval_context). `EsmAssetReference::code_gen` uses a dummy span when
+                        // generating this variable.
+                        (None, SyntaxContext::empty())
+                    } else {
+                        self.error = Err(anyhow::anyhow!(
+                            "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
+                             {eval_context_exports:?}",
+                        ));
+                        return;
+                    };
 
                 let global_ctxt = self.get_context_for(module, local_ctxt);
 
@@ -1967,7 +1967,8 @@ struct CodeGenResult {
     is_esm: bool,
     strict: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
-    minify: MinifyType,
+    /// Whether to indent JS output.
+    indent: bool,
     #[allow(clippy::type_complexity)]
     /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
@@ -1987,7 +1988,7 @@ async fn process_parse_result(
     specified_module_type: SpecifiedModuleType,
     source_map_generation_options: SourceMapGenerationOptions,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    minify: MinifyType,
+    emit_options: &EcmascriptEmitOptions,
     options: Option<&EcmascriptModuleContentOptions>,
     scope_hoisting_options: Option<ScopeHoistingOptions<'_>>,
 ) -> Result<CodeGenResult> {
@@ -2061,7 +2062,7 @@ async fn process_parse_result(
                             _ => Default::default(),
                         };
 
-                    let prepend_ident_comment = if matches!(minify, MinifyType::NoMinify) {
+                    let prepend_ident_comment = if emit_options.merged_module_comments {
                         Some(Comment {
                             kind: CommentKind::Line,
                             span: DUMMY_SP,
@@ -2097,10 +2098,7 @@ async fn process_parse_result(
                     (vec![], None, None, None)
                 };
 
-            let extra_comments = SwcComments {
-                leading: Default::default(),
-                trailing: Default::default(),
-            };
+            let extra_comments = MutableComments::new();
 
             let early_hoisted_count = process_content_with_code_gens(
                 &mut program,
@@ -2109,16 +2107,21 @@ async fn process_parse_result(
                 &mut code_gens,
             );
 
-            for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
-                let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
-                let trailing = Arc::unwrap_or_clone(take(&mut comments.trailing));
+            // The visitors in `code_gens` may still hold clones of these comments; `take_all`
+            // moves the comments out instead of copying them.
+            for comments in code_gens.iter_mut().filter_map(|cg| cg.comments.take()) {
+                let (leading, trailing) = comments.take_all();
 
                 for (pos, v) in leading {
-                    extra_comments.leading.entry(pos).or_default().extend(v);
+                    if !v.is_empty() {
+                        extra_comments.add_leading_comments(pos, v);
+                    }
                 }
 
                 for (pos, v) in trailing {
-                    extra_comments.trailing.entry(pos).or_default().extend(v);
+                    if !v.is_empty() {
+                        extra_comments.add_trailing_comments(pos, v);
+                    }
                 }
             }
 
@@ -2212,7 +2215,7 @@ async fn process_parse_result(
                 is_esm,
                 strict,
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
-                minify,
+                indent: emit_options.indent,
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
                     .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
@@ -2252,7 +2255,7 @@ async fn process_parse_result(
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
-                        minify: MinifyType::NoMinify,
+                        indent: true,
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2282,7 +2285,7 @@ async fn process_parse_result(
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
-                        minify: MinifyType::NoMinify,
+                        indent: true,
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2397,7 +2400,7 @@ async fn emit_content(
         is_esm,
         strict,
         original_source_map,
-        minify,
+        indent,
         scope_hoisting_syntax_contexts: _,
     } = content;
 
@@ -2429,7 +2432,7 @@ async fn emit_content(
             &mut bytes,
             generate_source_map.then_some(&mut mappings),
         );
-        if matches!(minify, MinifyType::Minify { .. }) {
+        if !indent {
             wr.set_indent_str("");
         }
 
@@ -3013,7 +3016,7 @@ struct ModulePosition(u32, u32);
 enum CodeGenResultComments {
     Single {
         comments: Either<ImmutableComments, Arc<ImmutableComments>>,
-        extra_comments: SwcComments,
+        extra_comments: MutableComments,
     },
     ScopeHoisting {
         /// The bitwidth of the modules header in the spans, see
@@ -3212,7 +3215,7 @@ impl CodeGenResultComments {
 enum CodeGenResultCommentsConsumable<'a> {
     Single {
         comments: CowComments<'a>,
-        extra_comments: &'a SwcComments,
+        extra_comments: &'a MutableComments,
     },
     ScopeHoisting {
         modules_header_width: u32,

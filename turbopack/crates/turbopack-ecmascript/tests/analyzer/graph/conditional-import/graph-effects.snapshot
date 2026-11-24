@@ -1,72 +1,4 @@
 [
-    Conditional {
-        condition: Constant(
-            True,
-        ),
-        kind: Ternary {
-            then: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    AstPathId(
-                        12,
-                    ),
-                ),
-            },
-            else: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    AstPathId(
-                        13,
-                    ),
-                ),
-            },
-        },
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-        ],
-        span: 18..34,
-    },
     DynamicImport {
         args: [
             Value(
@@ -77,85 +9,36 @@
                         ),
                     ),
                 ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: 11..35,
-        in_try: false,
-        export_usage: All,
-    },
-    Member {
-        obj: Member(
-            3,
-            FreeVar(
-                "process",
-            ),
-            Constant(
-                Str(
-                    Atom(
-                        "env",
-                    ),
-                ),
-            ),
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "NEXT_RUNTIME",
-                ),
-            ),
-        ),
-        base_effects: [
-            Member {
-                obj: FreeVar(
-                    "process",
-                ),
-                prop: Constant(
-                    Str(
-                        Atom(
-                            "env",
+                [
+                    Conditional {
+                        condition: Constant(
+                            True,
                         ),
-                    ),
-                ),
-                base_effects: [
-                    FreeVar {
-                        var: "process",
+                        kind: Ternary {
+                            then: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        12,
+                                    ),
+                                ),
+                            },
+                            else: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        13,
+                                    ),
+                                ),
+                            },
+                        },
                         ast_path: [
                             Program(
                                 Module,
                             ),
                             Module(
                                 Body(
-                                    1,
+                                    0,
                                 ),
                             ),
                             ModuleItem(
@@ -192,93 +75,11 @@
                             CondExpr(
                                 Test,
                             ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Left,
-                            ),
-                            Expr(
-                                Member,
-                            ),
-                            MemberExpr(
-                                Obj,
-                            ),
-                            Expr(
-                                Member,
-                            ),
-                            MemberExpr(
-                                Obj,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
                         ],
-                        span: 57..64,
+                        span: 18..34,
                     },
                 ],
-                ast_path: [
-                    Program(
-                        Module,
-                    ),
-                    Module(
-                        Body(
-                            1,
-                        ),
-                    ),
-                    ModuleItem(
-                        Stmt,
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Var,
-                    ),
-                    VarDecl(
-                        Decls(
-                            0,
-                        ),
-                    ),
-                    VarDeclarator(
-                        Init,
-                    ),
-                    Expr(
-                        Call,
-                    ),
-                    CallExpr(
-                        Args(
-                            0,
-                        ),
-                    ),
-                    ExprOrSpread(
-                        Expr,
-                    ),
-                    Expr(
-                        Cond,
-                    ),
-                    CondExpr(
-                        Test,
-                    ),
-                    Expr(
-                        Bin,
-                    ),
-                    BinExpr(
-                        Left,
-                    ),
-                    Expr(
-                        Member,
-                    ),
-                    MemberExpr(
-                        Obj,
-                    ),
-                    Expr(
-                        Member,
-                    ),
-                ],
-                span: 57..68,
-                in_truthiness_context: false,
-            },
+            ),
         ],
         ast_path: [
             Program(
@@ -286,7 +87,7 @@
             ),
             Module(
                 Body(
-                    1,
+                    0,
                 ),
             ),
             ModuleItem(
@@ -309,131 +110,10 @@
             Expr(
                 Call,
             ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Member,
-            ),
         ],
-        span: 57..81,
-        in_truthiness_context: false,
-    },
-    Conditional {
-        condition: Binary(
-            7,
-            Member(
-                5,
-                Member(
-                    3,
-                    FreeVar(
-                        "process",
-                    ),
-                    Constant(
-                        Str(
-                            Atom(
-                                "env",
-                            ),
-                        ),
-                    ),
-                ),
-                Constant(
-                    Str(
-                        Atom(
-                            "NEXT_RUNTIME",
-                        ),
-                    ),
-                ),
-            ),
-            StrictEqual,
-            Constant(
-                Str(
-                    Atom(
-                        "edge",
-                    ),
-                ),
-            ),
-        ),
-        kind: Ternary {
-            then: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    AstPathId(
-                        24,
-                    ),
-                ),
-            },
-            else: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    AstPathId(
-                        25,
-                    ),
-                ),
-            },
-        },
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    1,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-        ],
-        span: 57..196,
+        span: 11..35,
+        in_try: false,
+        export_usage: All,
     },
     DynamicImport {
         args: [
@@ -489,6 +169,330 @@
                         ),
                     ),
                 ),
+                [
+                    Member {
+                        obj: Member(
+                            3,
+                            FreeVar(
+                                "process",
+                            ),
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "env",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "NEXT_RUNTIME",
+                                ),
+                            ),
+                        ),
+                        base_effects: [
+                            Member {
+                                obj: FreeVar(
+                                    "process",
+                                ),
+                                prop: Constant(
+                                    Str(
+                                        Atom(
+                                            "env",
+                                        ),
+                                    ),
+                                ),
+                                base_effects: [
+                                    FreeVar {
+                                        var: "process",
+                                        ast_path: [
+                                            Program(
+                                                Module,
+                                            ),
+                                            Module(
+                                                Body(
+                                                    1,
+                                                ),
+                                            ),
+                                            ModuleItem(
+                                                Stmt,
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Var,
+                                            ),
+                                            VarDecl(
+                                                Decls(
+                                                    0,
+                                                ),
+                                            ),
+                                            VarDeclarator(
+                                                Init,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Args(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Cond,
+                                            ),
+                                            CondExpr(
+                                                Test,
+                                            ),
+                                            Expr(
+                                                Bin,
+                                            ),
+                                            BinExpr(
+                                                Left,
+                                            ),
+                                            Expr(
+                                                Member,
+                                            ),
+                                            MemberExpr(
+                                                Obj,
+                                            ),
+                                            Expr(
+                                                Member,
+                                            ),
+                                            MemberExpr(
+                                                Obj,
+                                            ),
+                                            Expr(
+                                                Ident,
+                                            ),
+                                        ],
+                                        span: 57..64,
+                                    },
+                                ],
+                                ast_path: [
+                                    Program(
+                                        Module,
+                                    ),
+                                    Module(
+                                        Body(
+                                            1,
+                                        ),
+                                    ),
+                                    ModuleItem(
+                                        Stmt,
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Var,
+                                    ),
+                                    VarDecl(
+                                        Decls(
+                                            0,
+                                        ),
+                                    ),
+                                    VarDeclarator(
+                                        Init,
+                                    ),
+                                    Expr(
+                                        Call,
+                                    ),
+                                    CallExpr(
+                                        Args(
+                                            0,
+                                        ),
+                                    ),
+                                    ExprOrSpread(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Cond,
+                                    ),
+                                    CondExpr(
+                                        Test,
+                                    ),
+                                    Expr(
+                                        Bin,
+                                    ),
+                                    BinExpr(
+                                        Left,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                ],
+                                span: 57..68,
+                                in_truthiness_context: false,
+                            },
+                        ],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    1,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Test,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Left,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 57..81,
+                        in_truthiness_context: false,
+                    },
+                    Conditional {
+                        condition: Binary(
+                            7,
+                            Member(
+                                5,
+                                Member(
+                                    3,
+                                    FreeVar(
+                                        "process",
+                                    ),
+                                    Constant(
+                                        Str(
+                                            Atom(
+                                                "env",
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "NEXT_RUNTIME",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            StrictEqual,
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "edge",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        kind: Ternary {
+                            then: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        24,
+                                    ),
+                                ),
+                            },
+                            else: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        25,
+                                    ),
+                                ),
+                            },
+                        },
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    1,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Test,
+                            ),
+                        ],
+                        span: 57..196,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -542,6 +546,7 @@
                                         ),
                                     ),
                                 ),
+                                [],
                             ),
                         ],
                         ast_path: [
@@ -609,6 +614,7 @@
                                         ),
                                     ),
                                 ),
+                                [],
                             ),
                         ],
                         ast_path: [
@@ -939,6 +945,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [

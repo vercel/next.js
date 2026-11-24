@@ -5,7 +5,12 @@ use crate::analyzer::{ConstantString, JsValue, RequireContextValue};
 /// A list of well-known objects that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
-    GlobalObject,
+    /// The `Object` global variable.
+    ObjectConstructor,
+    /// The `globalThis` global object.
+    GlobalThis,
+    /// The Node.js `global` object (an alias of `globalThis`).
+    NodeGlobal,
     PathModule,
     PathModuleDefault,
     FsModule,
@@ -26,6 +31,7 @@ pub enum WellKnownObjectKind {
     OsModule,
     OsModuleDefault,
     NodeProcessModule,
+    NodeProcessModuleDefault,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -48,14 +54,16 @@ pub enum WellKnownObjectKind {
 impl WellKnownObjectKind {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
-            Self::GlobalObject => Some(&["Object"]),
+            Self::ObjectConstructor => Some(&["Object"]),
+            Self::GlobalThis => Some(&["globalThis"]),
+            Self::NodeGlobal => Some(&["global"]),
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
             Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
             Self::WorkerThreadsModule => Some(&["worker_threads"]),
-            Self::NodeProcessModule => Some(&["process"]),
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault => Some(&["process"]),
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -73,7 +81,15 @@ impl WellKnownObjectKind {
                 "Generator",
                 "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
             ),
-            Self::GlobalObject => ("Object", "The global Object variable"),
+            Self::ObjectConstructor => ("Object", "The global Object constructor"),
+            Self::GlobalThis => (
+                "globalThis",
+                "The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis",
+            ),
+            Self::NodeGlobal => (
+                "global",
+                "The Node.js global object: https://nodejs.org/api/globals.html#global",
+            ),
             Self::PathModule | Self::PathModuleDefault => (
                 "path",
                 "The Node.js path module: https://nodejs.org/api/path.html",
@@ -114,7 +130,7 @@ impl WellKnownObjectKind {
                 "os",
                 "The Node.js os module: https://nodejs.org/api/os.html",
             ),
-            Self::NodeProcessModule => (
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault => (
                 "process",
                 "The Node.js process module: https://nodejs.org/api/process.html",
             ),

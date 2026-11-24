@@ -10,6 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use dashmap::try_result::TryResult;
 use hashbrown::hash_table;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
@@ -662,6 +663,22 @@ impl Storage {
         per_shard.into_iter().flatten()
     }
 
+    /// Captures the aggregation edges of all resident tasks, for verification of the aggregation
+    /// graph. Only meaningful when no aggregation updates run concurrently.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub fn aggregation_edges_for_verification(
+        &self,
+    ) -> Vec<crate::backend::operation::TaskAggregationEdges> {
+        let mut result = Vec::new();
+        for shard in self.map.shards() {
+            let shard = shard.read();
+            for (task_id, task) in shard.iter() {
+                result.extend(task.aggregation_edges_for_verification(*task_id));
+            }
+        }
+        result
+    }
+
     pub fn access_pair_mut(
         &self,
         key1: TaskId,
@@ -678,6 +695,20 @@ impl Storage {
                 inner: b,
             },
         )
+    }
+
+    /// Locks the resident task `key`, if that is possible without blocking, also while the caller
+    /// holds another task's guard. Returns `None` when `key`'s shard is locked (also when it's the
+    /// shard of a task the caller holds: shard locks aren't reentrant), or when `key` isn't
+    /// resident (it is not inserted).
+    pub fn try_access_mut(&self, key: TaskId) -> Option<StorageWriteGuard<'_>> {
+        match self.map.try_get_mut(&key) {
+            TryResult::Present(inner) => Some(StorageWriteGuard {
+                storage: self,
+                inner: inner.into(),
+            }),
+            TryResult::Absent | TryResult::Locked => None,
+        }
     }
 
     pub fn drop_contents(&self) {
@@ -728,6 +759,10 @@ impl Storage {
                 // delete by the GC.
                 if task_id.is_transient() && !task.flags.deleted() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                    // A task that is executing would only inflate its forward sets again.
+                    if !task.is_in_progress() {
+                        task.shrink_edge_sets();
+                    }
                     return true;
                 }
                 if task.flags.deleted() {
@@ -782,6 +817,8 @@ impl Storage {
                                 return false;
                             }
                             DropPartialOutcome::HasResidue => {
+                                // The category that stays resident keeps its edge sets.
+                                task.shrink_edge_sets();
                                 if data && meta {
                                     evicted.data_and_meta += 1;
                                 } else if data {
@@ -795,6 +832,11 @@ impl Storage {
                     }
                     ValueEvictability::Unevictable(reason) => {
                         evicted.unevictable_reasons[reason.index()] += 1;
+                        // Kept in memory as it is: flatten its edge sets, unless it is executing
+                        // (or about to), when it would only inflate its forward sets again.
+                        if reason != UnevictableReason::InProgress {
+                            task.shrink_edge_sets();
+                        }
                     }
                 }
                 true

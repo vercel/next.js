@@ -14,8 +14,8 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk,
-        OutputChunkRuntimeInfo, SourceMapSourceType, round_chunk_item_size,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, OutputChunk, OutputChunkRuntimeInfo,
+        SourceMapSourceType, round_chunk_item_size,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -36,7 +36,7 @@ use turbopack_core::{
 };
 
 use self::single_item_chunk::chunk::SingleItemCssChunk;
-use crate::ImportAssetReference;
+use crate::{ImportAssetReference, emit_options::CssEmitOptions};
 
 #[turbo_tasks::value]
 pub struct CssChunk {
@@ -95,10 +95,8 @@ impl CssChunk {
                 }
             }
 
-            if matches!(
-                &*this.chunking_context.minify_type().await?,
-                MinifyType::NoMinify
-            ) {
+            let css_emit = CssEmitOptions::get_or_default(*this.chunking_context).await?;
+            if css_emit.chunk_item_comments {
                 let id = css_item.asset_ident().to_string().await?;
                 writeln!(body, "/* {id} */")?;
             }
@@ -545,9 +543,9 @@ impl ChunkType for CssChunkType {
     async fn chunk(
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
-        _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-        _component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+        chunk_items_or_batches: Box<[ChunkItemOrBatchWithAsyncModuleInfo]>,
+        _batch_groups: Box<[ResolvedVc<ChunkItemBatchGroup>]>,
+        _component_chunks: Box<[ResolvedVc<Box<dyn Chunk>>]>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let mut chunk_items = Vec::new();
         // TODO operate with batches

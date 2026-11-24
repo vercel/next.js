@@ -370,122 +370,6 @@
         span: 273..287,
         in_truthiness_context: false,
     },
-    Conditional {
-        condition: Binary(
-            3,
-            Variable(
-                (
-                    "variable",
-                    #3,
-                ),
-            ),
-            StrictEqual,
-            Constant(
-                Str(
-                    Atom(
-                        "true",
-                    ),
-                ),
-            ),
-        ),
-        kind: Ternary {
-            then: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    AstPathId(
-                        25,
-                    ),
-                ),
-            },
-            else: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    AstPathId(
-                        26,
-                    ),
-                ),
-            },
-        },
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Object,
-            ),
-            ObjectLit(
-                Props(
-                    1,
-                ),
-            ),
-            PropOrSpread(
-                Prop,
-            ),
-            Prop(
-                KeyValue,
-            ),
-            KeyValueProp(
-                Value,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-        ],
-        span: 354..392,
-    },
     MemberCall {
         obj: FreeVar(
             "JSON",
@@ -574,6 +458,124 @@
                     ],
                     mutability: Mutable,
                 },
+                [
+                    Conditional {
+                        condition: Binary(
+                            3,
+                            Variable(
+                                (
+                                    "variable",
+                                    #3,
+                                ),
+                            ),
+                            StrictEqual,
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "true",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        kind: Ternary {
+                            then: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        25,
+                                    ),
+                                ),
+                            },
+                            else: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        26,
+                                    ),
+                                ),
+                            },
+                        },
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Arrow,
+                            ),
+                            ArrowExpr(
+                                Body,
+                            ),
+                            ArrowFunctionBody(
+                                FunctionBody,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                            ReturnStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Object,
+                            ),
+                            ObjectLit(
+                                Props(
+                                    1,
+                                ),
+                            ),
+                            PropOrSpread(
+                                Prop,
+                            ),
+                            Prop(
+                                KeyValue,
+                            ),
+                            KeyValueProp(
+                                Value,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Test,
+                            ),
+                        ],
+                        span: 354..392,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -701,6 +703,7 @@
                     ],
                     mutability: Mutable,
                 },
+                [],
             ),
         ],
         ast_path: [

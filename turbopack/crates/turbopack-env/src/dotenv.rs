@@ -18,9 +18,12 @@ pub async fn load_env(project_path: FileSystemPath) -> Result<Vc<Box<dyn Process
 
     let env = Vc::upcast(CustomProcessEnv::new(
         env,
-        Vc::cell(fxindexmap! {
-            rcstr!("NODE_ENV") => node_env.clone(),
-        }),
+        Vc::cell(
+            fxindexmap! {
+                rcstr!("NODE_ENV") => node_env.clone(),
+            }
+            .into(),
+        ),
     ));
 
     let mut files = [

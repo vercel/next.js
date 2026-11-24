@@ -2,6 +2,8 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run, run_once};
@@ -161,12 +163,12 @@ async fn recompute_dependency() {
         let output = outer_compute(input);
         let read = output.read_strongly_consistent().await?;
         println!(
-            "first read: value={}, inner_random={}, outer_random={}",
-            read.value, read.inner_random, read.outer_random
+            "first read: value={}, inner_execution={}, outer_execution={}",
+            read.value, read.inner_execution, read.outer_execution
         );
         assert_eq!(read.value, 1);
-        let prev_inner_random = read.inner_random;
-        let prev_outer_random = read.outer_random;
+        let prev_inner_execution = read.inner_execution;
+        let prev_outer_execution = read.outer_execution;
 
         // Change state - should invalidate inner_compute,
         // which should then invalidate outer_compute
@@ -175,25 +177,32 @@ async fn recompute_dependency() {
 
         let read = output.read_strongly_consistent().await?;
         println!(
-            "second read: value={}, inner_random={}, outer_random={}",
-            read.value, read.inner_random, read.outer_random
+            "second read: value={}, inner_execution={}, outer_execution={}",
+            read.value, read.inner_execution, read.outer_execution
         );
 
         // Value should be updated
         assert_eq!(read.value, 2);
 
-        // Inner task should have re-executed (different random)
-        assert_ne!(
-            read.inner_random, prev_inner_random,
-            "inner_compute should have re-executed"
+        // Inner task should have re-executed. Execution ids are strictly increasing within the
+        // process, and the persistent cache is cleared at the start of each test, so a value
+        // that is not greater than the previous one can only come from a stale execution.
+        assert!(
+            read.inner_execution > prev_inner_execution,
+            "inner_compute should have re-executed (execution id {} -> {})",
+            prev_inner_execution,
+            read.inner_execution
         );
 
         // CRITICAL: Outer task should ALSO have re-executed
         // This is what the bug broke - outer_compute wasn't being
         // invalidated because its output_dependent edge was removed
-        assert_ne!(
-            read.outer_random, prev_outer_random,
-            "outer_compute should have re-executed due to dependency on inner_compute"
+        assert!(
+            read.outer_execution > prev_outer_execution,
+            "outer_compute should have re-executed due to dependency on inner_compute (execution \
+             id {} -> {})",
+            prev_outer_execution,
+            read.outer_execution
         );
 
         anyhow::Ok(())
@@ -210,34 +219,53 @@ fn get_dependency_input() -> Vc<ChangingInput> {
     .cell()
 }
 
+/// Process-wide source of execution ids for `inner_compute` and `outer_compute`.
+///
+/// Every execution takes a fresh id, so ids are unique and strictly increasing within the test
+/// process. Other tests running concurrently in the same process only make the counter advance
+/// faster, so the test only relies on ordering, never on exact values. The persistent cache
+/// directory is cleared at the start of each test, so every id restored from the cache was
+/// handed out earlier in this process.
+static EXECUTION_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn next_execution_id() -> u64 {
+    EXECUTION_COUNTER.fetch_add(1, Ordering::Relaxed) + 1
+}
+
 #[turbo_tasks::value]
 struct DependencyOutput {
     value: u32,
-    inner_random: u32,
-    outer_random: u32,
+    inner_execution: u64,
+    outer_execution: u64,
 }
 
-/// Inner task - reads state directly, returns value with embedded random
+#[turbo_tasks::value]
+struct InnerOutput {
+    value: u32,
+    execution: u64,
+}
+
+/// Inner task - reads state directly, returns value tagged with a unique execution id
 #[turbo_tasks::function]
-async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
+async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<InnerOutput>> {
     println!("inner_compute()");
     let value = *input.await?.state.get();
-    // Combine value with random to detect re-execution
-    // Value in lower 16 bits, random in upper 16 bits
-    Ok(Vc::cell(value | (rand::random::<u32>() << 16)))
+    Ok(InnerOutput {
+        value,
+        execution: next_execution_id(),
+    }
+    .cell())
 }
 
 /// Outer task - depends on inner_compute
 #[turbo_tasks::function(operation, root)]
 async fn outer_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<DependencyOutput>> {
     println!("outer_compute()");
-    let inner_result = *inner_compute(*input).await?;
-    let value = inner_result & 0xFFFF;
-    let inner_random = inner_result >> 16;
+    let inner = inner_compute(*input).await?;
     Ok(DependencyOutput {
-        value,
-        inner_random,
-        outer_random: rand::random(),
+        value: inner.value,
+        inner_execution: inner.execution,
+        outer_execution: next_execution_id(),
     }
     .cell())
 }

@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { expectedWhenTrailingSlashTrue, getFiles } from './utils'
 import { FileRef, isNextStart, nextTestSetup, PatchedFileRef } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 
 describe('app dir - with output export', () => {
   if (isNextStart) {
@@ -78,10 +79,15 @@ describe('app dir - with output export', () => {
         let { exitCode } = await next.build()
         expect(exitCode).toBe(0)
         const actualFiles = await getFiles(join(next.testDir, 'output'))
-        expect(actualFiles).toEqual(
-          expect.arrayContaining(expectedWhenTrailingSlashTrue)
+        const cacheComponents = await gate((c) => c.cacheComponents)
+        const expected = expectedWhenTrailingSlashTrue.filter(
+          (file) =>
+            cacheComponents ||
+            typeof file !== 'string' ||
+            !file.endsWith('__next._full.txt')
         )
-        expect(actualFiles).toHaveLength(expectedWhenTrailingSlashTrue.length)
+        expect(actualFiles).toEqual(expect.arrayContaining(expected))
+        expect(actualFiles).toHaveLength(expected.length)
       })
     })
   } else {

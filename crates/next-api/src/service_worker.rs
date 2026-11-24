@@ -102,7 +102,10 @@ async fn service_worker_chunk(
 
     let source: Vc<Box<dyn Source>> = Vc::upcast(FileSource::new(source_path));
     let module = asset_context
-        .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
+        .process(
+            source,
+            ReferenceType::Entry(EntryReferenceSubType::default()),
+        )
         .module()
         .to_resolved()
         .await?;
@@ -120,7 +123,7 @@ async fn service_worker_chunk(
                 // The service-worker chunking context doesn't enable module merging (scope
                 // hoisting), so `compute_merged_modules` never runs on this graph.
                 include_mergeable: false,
-                include_traced: *project.should_write_nft_manifests().await?,
+                include_traced: *project.should_trace().await?,
                 include_binding_usage: is_production,
             },
         )],

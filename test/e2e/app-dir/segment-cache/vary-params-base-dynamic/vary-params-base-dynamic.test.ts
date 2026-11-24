@@ -82,14 +82,16 @@ describe('segment cache - vary params base dynamic', () => {
       }))
   }
 
-  const collectSegmentPrefetchResponses = async (
-    href: string,
-    startPath: string = '/'
-  ) => {
+  const collectSegmentPrefetchResponses = async (href: string) => {
     let act: ReturnType<typeof createRouterAct>
     const segmentPrefetchResponses: Array<Promise<SegmentPrefetchResponse>> = []
 
-    const browser = await next.browser(startPath, {
+    // Start from a page without any visible <Link>. Visible links (like the
+    // ones on `/`) prefetch on page load, outside of the `act` scope below. If
+    // those uncontrolled prefetches for the target route are already in flight
+    // when the accordion is toggled, the router dedupes against them and no
+    // new request is initiated within `act`.
+    const browser = await next.browser('/prefetch-hub', {
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
         p.on('response', (response) => {

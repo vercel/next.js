@@ -296,6 +296,15 @@ export const experimentalSchema = {
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
   imgOptMozjpeg: z.boolean().optional(),
+  imgOptSafeMode: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        nextImage: z.boolean().optional(),
+        imageResponse: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -431,6 +440,7 @@ export const experimentalSchema = {
   turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
+  turbopackFileTracingForDev: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
@@ -447,6 +457,8 @@ export const experimentalSchema = {
       minChunkSize: z.number().min(0).optional(),
       maxChunkCountPerGroup: z.number().min(0).optional(),
       maxMergeChunkSize: z.number().min(0).optional(),
+      maxChunkSize: z.number().min(0).optional(),
+      maxServerChunkSize: z.number().min(0).optional(),
       minComponentChunkSize: z.number().min(0).optional(),
       generateComponentChunks: z.boolean().optional(),
       minServerChunkSize: z.number().min(0).optional(),

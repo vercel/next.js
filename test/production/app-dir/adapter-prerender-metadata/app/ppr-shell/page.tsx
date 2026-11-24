@@ -1,6 +1,11 @@
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
 
+export async function generateMetadata() {
+  await headers()
+  return { title: 'adapter-prerender-metadata' }
+}
+
 async function Dynamic() {
   const requestHeaders = await headers()
   return <div>{requestHeaders.get('user-agent')}</div>

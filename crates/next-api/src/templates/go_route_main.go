@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+// Next.js authenticates every request with this worker's token and replaces
+// client-supplied x-next-internal-* headers before forwarding.
+const nextGoTrustInternalHeaders = true
+
 func main() {
 	token := os.Getenv("__NEXT_GO_TOKEN")
 	if token == "" {

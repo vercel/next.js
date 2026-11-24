@@ -319,7 +319,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-0 -> 50 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 49 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -361,7 +361,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 52 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 51 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -403,7 +403,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 54 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 53 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -445,7 +445,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 56 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 55 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -487,7 +487,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 58 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 57 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -529,7 +529,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 60 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 59 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -571,7 +571,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 62 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 61 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -613,7 +613,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 64 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 63 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -655,7 +655,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 66 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 65 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -697,7 +697,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 68 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 67 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -739,7 +739,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 70 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 69 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -781,7 +781,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 72 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 71 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -823,7 +823,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 74 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 73 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -865,7 +865,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 76 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 75 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -907,7 +907,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 78 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 77 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -949,7 +949,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 80 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 79 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -991,7 +991,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 82 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 81 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1033,7 +1033,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 84 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 83 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1075,7 +1075,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 86 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 85 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1117,7 +1117,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 88 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 87 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1159,7 +1159,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 90 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 89 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1201,7 +1201,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 92 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 91 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1243,7 +1243,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 94 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 93 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1285,7 +1285,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 96 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 95 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1327,7 +1327,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 98 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 97 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1369,7 +1369,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 100 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 99 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1411,7 +1411,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 102 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 101 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1453,7 +1453,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 104 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 103 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1495,7 +1495,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 106 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 105 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1537,7 +1537,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 108 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 107 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1579,7 +1579,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 110 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 109 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1621,7 +1621,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 112 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 111 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1663,7 +1663,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 114 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 113 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1705,7 +1705,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 116 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 115 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1747,7 +1747,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 118 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 117 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1789,7 +1789,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 120 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 119 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1831,7 +1831,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 122 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 121 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1873,7 +1873,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 124 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 123 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1915,7 +1915,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 126 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 125 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1957,7 +1957,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 128 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 127 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1999,7 +1999,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 130 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 129 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2041,7 +2041,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 132 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 131 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2083,7 +2083,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 134 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 133 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2125,7 +2125,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 136 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 135 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2167,7 +2167,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 138 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 137 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2209,7 +2209,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 140 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 139 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2251,7 +2251,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 142 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 141 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2293,7 +2293,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 144 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 143 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2335,7 +2335,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 146 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 145 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2377,7 +2377,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 148 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 147 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2419,7 +2419,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 150 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 149 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2461,7 +2461,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 152 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 151 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2503,7 +2503,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 154 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 153 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2545,7 +2545,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 156 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 155 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2587,7 +2587,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 158 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 157 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2629,7 +2629,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 160 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 159 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2671,7 +2671,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 162 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 161 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2713,7 +2713,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 164 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 163 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2755,7 +2755,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 166 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 165 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2797,7 +2797,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 168 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 167 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2839,7 +2839,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 170 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 169 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2881,7 +2881,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 172 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 171 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2923,7 +2923,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 174 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 173 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2965,7 +2965,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 176 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 175 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -3054,15 +3054,15 @@
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 196 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
+0 -> 196 member call = module<crypt, {}>["wordsToBytes"](???*0*)
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+196 -> 197 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
-
-0 -> 197 member call = module<crypt, {}>["wordsToBytes"](???*0*)
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
 
 0 -> 199 conditional = (???*0* | ???*1*)
 - *0* arguments[1]

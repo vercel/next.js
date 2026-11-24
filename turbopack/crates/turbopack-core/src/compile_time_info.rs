@@ -7,7 +7,7 @@ use num_bigint::BigInt;
 use rustc_hash::FxHashSet;
 use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, OrderedAutoMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{environment::Environment, issue::IssueSeverity};
@@ -87,7 +87,7 @@ macro_rules! definable_name_map_internal {
 macro_rules! compile_time_defines {
     ($($more:tt)+) => {
         {
-            let mut map = $crate::__private::FxIndexMap::default();
+            let mut map = $crate::__private::OrderedAutoMap::default();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::CompileTimeDefines(map)
         }
@@ -98,7 +98,7 @@ macro_rules! compile_time_defines {
 macro_rules! free_var_references {
     ($($more:tt)+) => {
         {
-            let mut map = $crate::__private::FxIndexMap::default();
+            let mut map = $crate::__private::OrderedAutoMap::default();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::FreeVarReferences(map)
         }
@@ -340,13 +340,13 @@ impl Equivalent<Vec<DefinableNameSegment>> for DefinableNameSegmentRefs<'_> {
 #[turbo_tasks::value(transparent, cell = "keyed")]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefines(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>,
+    pub OrderedAutoMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>,
 );
 
 impl IntoIterator for CompileTimeDefines {
     type Item = (Vec<DefinableNameSegment>, CompileTimeDefineValue);
-    type IntoIter = indexmap::map::IntoIter<Vec<DefinableNameSegment>, CompileTimeDefineValue>;
+    type IntoIter =
+        <OrderedAutoMap<Vec<DefinableNameSegment>, CompileTimeDefineValue> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -357,7 +357,7 @@ impl IntoIterator for CompileTimeDefines {
 impl CompileTimeDefines {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Vc::cell(OrderedAutoMap::default())
     }
 
     #[turbo_tasks::function]
@@ -433,10 +433,7 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 #[derive(Debug, Clone)]
-pub struct FreeVarReferences(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>,
-);
+pub struct FreeVarReferences(pub OrderedAutoMap<Vec<DefinableNameSegment>, FreeVarReference>);
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct FreeVarReferencesMembers(FxHashSet<RcStr>);
@@ -445,7 +442,7 @@ pub struct FreeVarReferencesMembers(FxHashSet<RcStr>);
 impl FreeVarReferences {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Vc::cell(OrderedAutoMap::default())
     }
 
     #[turbo_tasks::function]
@@ -474,7 +471,8 @@ impl FreeVarReferences {
 
 impl IntoIterator for FreeVarReferences {
     type Item = (Vec<DefinableNameSegment>, FreeVarReference);
-    type IntoIter = indexmap::map::IntoIter<Vec<DefinableNameSegment>, FreeVarReference>;
+    type IntoIter =
+        <OrderedAutoMap<Vec<DefinableNameSegment>, FreeVarReference> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -585,7 +583,7 @@ mod test {
 
     use smallvec::smallvec;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::FxIndexMap;
+    use turbo_tasks::OrderedAutoMap;
 
     use crate::compile_time_info::{
         CompileTimeDefineValue, DefinableNameSegment, DefinableNameSegmentRef,
@@ -699,7 +697,7 @@ mod test {
                     export: Some(rcstr!("Buffer")),
                 },
             ),
-            FreeVarReferences(FxIndexMap::from_iter(vec![
+            FreeVarReferences(OrderedAutoMap::from_iter(vec![
                 (
                     vec![rcstr!("FOO").into()],
                     FreeVarReference::Value(rcstr!("bar").into())
@@ -728,7 +726,7 @@ mod test {
                 typeof x.y = "b",
                 typeof x.y.z = "c"
             ),
-            FreeVarReferences(FxIndexMap::from_iter(vec![
+            FreeVarReferences(OrderedAutoMap::from_iter(vec![
                 (
                     vec![rcstr!("x").into(), DefinableNameSegment::TypeOf],
                     FreeVarReference::Value(rcstr!("a").into())
@@ -764,10 +762,10 @@ mod test {
     }
 
     #[test]
-    fn indexmap_lookup_with_equivalent() {
+    fn ordered_auto_map_lookup_with_equivalent() {
         // Test that DefinableNameSegmentRefs can be used to look up Vec<DefinableNameSegment>
-        // in an IndexMap using the Equivalent trait
-        let mut map: FxIndexMap<Vec<DefinableNameSegment>, &str> = FxIndexMap::default();
+        // in an OrderedAutoMap using the Equivalent trait
+        let mut map: OrderedAutoMap<Vec<DefinableNameSegment>, &str> = OrderedAutoMap::default();
         map.insert(
             vec![
                 DefinableNameSegment::Name(rcstr!("process")),
@@ -793,7 +791,7 @@ mod test {
         assert_eq!(
             map.get(&key),
             Some(&"production"),
-            "IndexMap lookup with Equivalent trait should work"
+            "OrderedAutoMap lookup with Equivalent trait should work"
         );
 
         let key2 = DefinableNameSegmentRefs(smallvec![
@@ -803,7 +801,7 @@ mod test {
         assert_eq!(
             map.get(&key2),
             Some(&"true"),
-            "IndexMap lookup with Equivalent trait should work for shorter keys"
+            "OrderedAutoMap lookup with Equivalent trait should work for shorter keys"
         );
 
         let key3 = DefinableNameSegmentRefs(smallvec![
@@ -813,7 +811,7 @@ mod test {
         assert_eq!(
             map.get(&key3),
             None,
-            "IndexMap lookup should return None for nonexistent keys"
+            "OrderedAutoMap lookup should return None for nonexistent keys"
         );
     }
 

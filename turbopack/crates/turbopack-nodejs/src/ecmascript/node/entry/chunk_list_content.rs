@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TransientInstance, TryJoinIterExt, Vc};
+use turbo_tasks::{OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,7 +21,7 @@ use crate::NodeJsChunkingContext;
 async fn collect_chunks_contents(
     output_root: &FileSystemPath,
     chunks: impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
-) -> Result<FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>> {
+) -> Result<OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>>> {
     chunks
         .map(async |chunk| {
             let chunk_path = chunk.path().await?;
@@ -35,7 +35,7 @@ async fn collect_chunks_contents(
         })
         .try_join()
         .await
-        .map(FxIndexMap::from_iter)
+        .map(OrderedAutoMap::from_iter)
 }
 
 /// Never emitted as an asset — the entry chunk already inlines the `R.c(...)`
@@ -48,26 +48,20 @@ async fn collect_chunks_contents(
 /// still rides the merged `ChunkListUpdate` instead of being missed.
 #[turbo_tasks::value]
 pub struct EcmascriptBuildNodeChunkListContent {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
+    pub(super) chunks_contents: OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
+}
+
+impl EcmascriptBuildNodeChunkListContent {
+    /// The tracked chunks' versioned contents, by `output_root`-relative path.
+    pub fn chunks_contents(
+        &self,
+    ) -> &OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>> {
+        &self.chunks_contents
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkListContent {
-    #[turbo_tasks::function]
-    pub async fn compute_update_from_version(
-        self: Vc<Self>,
-        from: TransientInstance<ReadRef<ChunkListVersion>>,
-    ) -> Result<Vc<Update>> {
-        let to = self.version();
-        update_chunk_list(
-            &self.await?.chunks_contents,
-            to,
-            ResolvedVc::upcast(ReadRef::resolved_cell((*from).clone())),
-        )
-        .await
-    }
-
     #[turbo_tasks::function]
     pub async fn new(
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
@@ -156,12 +150,4 @@ impl VersionedContent for EcmascriptBuildNodeChunkListContent {
         let to_version = self.version();
         update_chunk_list(&this.chunks_contents, to_version, from_version).await
     }
-}
-
-#[turbo_tasks::function(operation, root)]
-pub fn compute_update_from_version_operation(
-    content: ResolvedVc<EcmascriptBuildNodeChunkListContent>,
-    from: TransientInstance<ReadRef<ChunkListVersion>>,
-) -> Vc<Update> {
-    content.compute_update_from_version(from)
 }
