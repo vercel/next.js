@@ -5,7 +5,6 @@ const nextConfig = {
   distDir: 'build',
   cacheComponents: true,
   experimental: {
-    requestInsights: true,
     instantInsights: {
       validationLevel: 'manual-warning',
     },

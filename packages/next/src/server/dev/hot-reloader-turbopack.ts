@@ -146,10 +146,7 @@ import {
 import type { VersionInfo } from './parse-version-info'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
-import {
-  getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
-} from '../lib/trace/request-insights'
+import { getRequestInsightsSnapshot } from '../lib/trace/request-insights'
 import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
@@ -1904,8 +1901,7 @@ export async function createHotReloaderTurbopack(
             devIndicator: devIndicatorServerState,
             devToolsConfig,
             requestInsights:
-              nextConfig.experimental.requestInsights ||
-              isRequestInsightsEnabled()
+              nextConfig.experimental.requestInsights !== false
                 ? getRequestInsightsSnapshot()
                 : undefined,
           }

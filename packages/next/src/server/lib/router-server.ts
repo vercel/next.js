@@ -363,7 +363,7 @@ export async function initialize(opts: {
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
       },
-      Boolean(developmentConfig.experimental.requestInsights)
+      developmentConfig.experimental.requestInsights !== false
     )
 
     development = {
@@ -388,7 +388,7 @@ export async function initialize(opts: {
     }
 
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights) {
+      if (config.experimental.requestInsights !== false) {
         process.env.__NEXT_REQUEST_INSIGHTS = 'true'
         filterInvalidDevRequestIdHeaders(req.headers)
         const identity = resolveRequestInsightsIdentity({
@@ -420,14 +420,14 @@ export async function initialize(opts: {
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res.setHeader('Cache-Control', 'private, no-store')
         if (
-          !config.experimental.requestInsights &&
+          config.experimental.requestInsights === false ||
           !isRequestInsightsEnabled()
         ) {
           res.statusCode = 404
           res.end(
             JSON.stringify({
               error:
-                'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
+                'Request Insights is disabled by experimental.requestInsights = false.',
             })
           )
           return
@@ -877,7 +877,7 @@ export async function initialize(opts: {
         }
 
         try {
-          if (config.experimental.requestInsights) {
+          if (config.experimental.requestInsights !== false) {
             const requestInsightsIdentity = getRequestMeta(
               req,
               'requestInsightsIdentity'
@@ -1111,7 +1111,7 @@ export async function initialize(opts: {
     try {
       return await requestHandlerInner(req, res)
     } finally {
-      if (opts.dev && config.experimental.requestInsights) {
+      if (opts.dev && config.experimental.requestInsights !== false) {
         const identity = getRequestMeta(req, 'requestInsightsIdentity')
         if (identity) {
           void waitForResponseToFinish(res).then(() => {

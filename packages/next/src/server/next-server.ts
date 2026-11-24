@@ -233,7 +233,7 @@ export default class NextNodeServer extends BaseServer<
     }
     if (
       (isDev || process.env.__NEXT_DEV_SERVER) &&
-      this.nextConfig.experimental.requestInsights
+      this.nextConfig.experimental.requestInsights !== false
     ) {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     } else {

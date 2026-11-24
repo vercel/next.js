@@ -261,7 +261,7 @@ async function startWatcher(
     }
   )
 
-  if (nextConfig.experimental.requestInsights) {
+  if (nextConfig.experimental.requestInsights !== false) {
     await initializeRequestInsightsJournal(distDir)
   }
 

@@ -287,7 +287,7 @@ export default class DevServer extends Server {
   protected async prepareImpl(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    if (this.nextConfig.experimental.requestInsights) {
+    if (this.nextConfig.experimental.requestInsights !== false) {
       await configureRequestInsightsJournal(this.distDir)
       configureRequestInsightsHistoryProvider({
         append: appendRequestInsightToJournal,

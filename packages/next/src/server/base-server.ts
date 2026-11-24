@@ -508,7 +508,7 @@ export default abstract class Server<
     this.nextConfig = conf as NextConfigRuntime
     if (
       (dev || process.env.__NEXT_DEV_SERVER) &&
-      this.nextConfig.experimental.requestInsights
+      this.nextConfig.experimental.requestInsights !== false
     ) {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     }

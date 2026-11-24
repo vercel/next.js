@@ -9,7 +9,6 @@ import { gunzipSync } from 'zlib'
 describe('lockfile', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
-    nextConfig: { experimental: { requestInsights: true } },
   })
 
   it('only allows a single instance of `next dev` to run at a time', async () => {
