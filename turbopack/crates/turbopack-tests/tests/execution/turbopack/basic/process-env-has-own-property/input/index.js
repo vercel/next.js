@@ -2,14 +2,23 @@ import { env } from 'node:process'
 
 const KEY = 'TURBOPACK_TEST_HAS_OWN_PROPERTY_KEY'
 
+// Runs `fn` with `KEY` and `hasOwnProperty` unset, then restores their previous state
 function withCleanEnv(fn) {
-  delete process.env[KEY]
-  delete process.env.hasOwnProperty
+  const names = [KEY, 'hasOwnProperty']
+  const saved = names.map((name) =>
+    Object.hasOwn(process.env, name) ? { value: process.env[name] } : null
+  )
+  for (const name of names) delete process.env[name]
   try {
     fn()
   } finally {
-    delete process.env[KEY]
-    delete process.env.hasOwnProperty
+    names.forEach((name, i) => {
+      if (saved[i]) {
+        process.env[name] = saved[i].value
+      } else {
+        delete process.env[name]
+      }
+    })
   }
 }
 
@@ -32,7 +41,8 @@ it('should check env var existence at runtime', () => {
 
 it('should check env var existence with a dynamic key', () => {
   withCleanEnv(() => {
-    const key = [KEY][0]
+    // Not statically known to the analyzer
+    const key = JSON.parse(JSON.stringify(KEY))
     expect(process.env.hasOwnProperty(key)).toBe(false)
     process.env[KEY] = '1'
     expect(process.env.hasOwnProperty(key)).toBe(true)
