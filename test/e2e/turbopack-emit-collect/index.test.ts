@@ -460,7 +460,7 @@ describe('turbopack-emit-collect', () => {
       expect(modules).toMatchInlineSnapshot(`
          [
            "[project]/src/collect-result.js [ssr] (ecmascript)",
-           "[project]/src/pages-lib/client-only/lib.js [ssr] (ecmascript, next/dynamic entry, async loader)",
+           "[project]/src/pages-lib/client-only/lib.js [ssr] (ecmascript, next/dynamic entry, loader)",
            "[project]/src/pages-lib/client-only/unique.js [ssr] (ecmascript)",
            "[project]/src/pages/pages/client-only.js [ssr] (ecmascript)",
            "[project]/src/pages/pages/client-only.js [ssr] (ecmascript, collect, my-test)",
