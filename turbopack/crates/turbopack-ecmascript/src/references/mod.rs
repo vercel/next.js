@@ -2142,17 +2142,24 @@ where
             ImportAttributes::empty_ref(),
         )
     };
+    // Records an existence check of the env var `key` (linked): an unknown key could check any
+    // env var
+    let add_existence_check =
+        |analysis: &mut AnalyzeEcmascriptModuleResultBuilder, key: Option<&JsValue<'a>>| {
+            match key.and_then(|key| key.as_str()) {
+                Some(key) => analysis.add_runtime_env_var_reference_existence(RcStr::from(key)),
+                None => analysis.set_runtime_env_var_reference_all(),
+            }
+        };
 
     // Env var existence checks. These are also tracked in alternatives, as they don't generate
     // code.
     match func {
         WellKnownFunctionKind::ObjectHasOwn => {
             // `Object.hasOwn(process.env, key)`
-            if let [obj, key, ..] = &linked_args().await?[..]
-                && could_be_process_env(obj, state)
-                && let Some(key) = key.as_str()
-            {
-                analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+            let args = linked_args().await?;
+            if args.first().is_some_and(|obj| could_be_process_env(obj, state)) {
+                add_existence_check(analysis, args.get(1));
             }
             return Ok(());
         }
@@ -2163,9 +2170,8 @@ where
             if !new
                 && let Some(this) = this
                 && could_be_process_env(&link(this).await?, state)
-                && let Some(key) = linked_args().await?.first().and_then(|key| key.as_str())
             {
-                analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+                add_existence_check(analysis, linked_args().await?.first());
             }
             return Ok(());
         }
