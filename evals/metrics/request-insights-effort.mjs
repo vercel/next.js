@@ -5,11 +5,16 @@ export const collectFailed = true
 
 const requestInsightsCommand =
   /(?:node_modules\/\.bin\/next|\bnext|\bnpx\s+next)\s+experimental-request-insights\b/
-const bundledDocsPath = /(?:node_modules\/next\/dist|next\/dist)\/docs\//
+const bundledDocsPath = /(?:node_modules\/next\/dist|next\/dist)\/docs\b/
 
 function toolText(tool) {
   return tool?.args?.command ?? JSON.stringify(tool?.args ?? {})
 }
+
+const projectSource =
+  /(?:next\.config|(?:^|[\s/"'])(?:app|pages|src)\/|\.[cm]?[jt]sx?\b)/
+const outsideProject = /node_modules\/|(?:^|[\s"'])\/tmp\//
+const searchTools = new Set(['grep', 'glob'])
 
 function isProjectInspection(tool) {
   const text = toolText(tool)
@@ -21,10 +26,11 @@ function isProjectInspection(tool) {
     return false
   }
   if (tool?.name === 'file_read') {
-    return !/(?:^|\/)(?:(?:AGENTS|CLAUDE|PROMPT)\.md|package(?:-lock)?\.json)$/.test(
-      tool.args?.file_path ?? ''
-    )
+    const filePath = tool.args?.file_path ?? tool.args?.path ?? ''
+    return !outsideProject.test(filePath) && projectSource.test(filePath)
   }
+  // Grep/Glob default to the project root when no path is given.
+  if (searchTools.has(tool?.name)) return !outsideProject.test(text)
   return (
     tool?.name === 'shell' &&
     /(?:\b(?:cat|sed|rg|grep|find|head|tail)\b[^\n]*(?:next\.config|(?:^|[ /])(?:app|pages|src)\/|\.[cm]?[jt]sx?\b))/.test(
@@ -48,7 +54,8 @@ export async function collect(directory) {
     .filter(
       (tool) =>
         bundledDocsPath.test(toolText(tool)) &&
-        /\b(?:find|grep|rg)\b/.test(toolText(tool))
+        (searchTools.has(tool?.name) ||
+          /\b(?:find|grep|rg)\b/.test(toolText(tool)))
     )
     .map(toolText)
   const bundledDocsReads = tools
