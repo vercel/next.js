@@ -6,7 +6,7 @@ import {
   type TurbopackBuildProject,
   type TurbopackBuildProjectHost,
 } from './impl'
-import { Worker } from '../../lib/worker/index'
+import { Worker, WorkerExitError } from '../../lib/worker/index'
 import { exportTraceState, recordTraceEvents } from '../../trace'
 import type { Span } from '../../trace'
 import { getBindingsSync } from '../swc'
@@ -46,6 +46,9 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
   private shutdown: Promise<void> | undefined
   private ending: Promise<void> | undefined
   private runTurbopackSpan: Span | undefined
+  // Set when a call failed because the worker exited (e.g. it crashed). The
+  // pool would start a new worker for further calls, which has no project.
+  private exited = false
 
   constructor({ useWasmBinary }: { useWasmBinary: boolean }) {
     this.worker = new Worker(path.join(__dirname, 'worker.js'), {
@@ -81,7 +84,7 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
         },
       },
     }) as Worker & typeof import('./worker')
-    this.prepared = this.worker.prepare(useWasmBinary)
+    this.prepared = this.track(this.worker.prepare(useWasmBinary))
     // Awaited (and rethrown) in `createProject()`. Don't report it as
     // unhandled if the build fails before it gets there.
     this.prepared.catch(() => {})
@@ -102,23 +105,28 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
       await getBindingsSync().turbo.serializeProjectOptions(options)
     await this.prepared
     const traceState = exportTraceState()
-    const result = await this.worker.createProject({
-      options: serializedOptions,
-      turboEngineOptions,
-      hasOnBeforeDeferredEntries: !!callbacks?.onBeforeDeferredEntries,
-      traceState: {
-        ...traceState,
-        lastId: traceState.lastId + WORKER_SPAN_ID_OFFSET,
-        shouldSaveTraceEvents: true,
-      },
-      parentSpanId: (
-        this.runTurbopackSpan ?? NextBuildContext.nextBuildSpan!
-      ).getId(),
-    })
+    const result = await this.track(
+      this.worker.createProject({
+        options: serializedOptions,
+        turboEngineOptions,
+        hasOnBeforeDeferredEntries: !!callbacks?.onBeforeDeferredEntries,
+        traceState: {
+          ...traceState,
+          lastId: traceState.lastId + WORKER_SPAN_ID_OFFSET,
+          shouldSaveTraceEvents: true,
+        },
+        parentSpanId: (
+          this.runTurbopackSpan ?? NextBuildContext.nextBuildSpan!
+        ).getId(),
+        distDir: NextBuildContext.distDir!,
+      })
+    )
 
     const project: TurbopackBuildProject = {
       writeAllEntrypointsToDisk: async (appDirOnly) => {
-        let written = await this.worker.writeAllEntrypointsToDisk(appDirOnly)
+        let written = await this.track(
+          this.worker.writeAllEntrypointsToDisk(appDirOnly)
+        )
         if (written.type === 'before-deferred-entries') {
           written = await this.runOnBeforeDeferredEntries(callbacks)
         }
@@ -127,17 +135,35 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
         }
         return entrypointsFromTransferable(written.entrypoints)
       },
-      featureUsage: () => this.worker.featureUsage(),
+      featureUsage: () => this.track(this.worker.featureUsage()),
       writeAnalyzeData: (appDirOnly) =>
-        this.worker.writeAnalyzeData(appDirOnly),
-      shutdown: () => {
-        this.shutdown ??= this.worker
-          .shutdownProject()
-          .then(({ traceEvents }) => recordTraceEvents(traceEvents))
-        return this.shutdown
-      },
+        this.track(this.worker.writeAnalyzeData(appDirOnly)),
+      shutdown: () => this.shutdownProject(),
     }
     return { ...result, value: project }
+  }
+
+  private track<T>(call: Promise<T>): Promise<T> {
+    return call.catch((err) => {
+      if (err instanceof WorkerExitError) {
+        this.exited = true
+      }
+      throw err
+    })
+  }
+
+  /**
+   * Shuts Turbopack in the worker down (persisting its cache) and records the
+   * worker's trace events here. Safe to call more than once, and when the
+   * project wasn't created. Does nothing if the worker exited.
+   */
+  private shutdownProject(): Promise<void> {
+    this.shutdown ??= this.exited
+      ? Promise.resolve()
+      : this.track(this.worker.shutdownProject()).then(({ traceEvents }) =>
+          recordTraceEvents(traceEvents)
+        )
+    return this.shutdown
   }
 
   /**
@@ -157,14 +183,16 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
     // callback failed, Turbopack receives the error and stops compiling.
     let written: WriteAllEntrypointsToDiskResult
     try {
-      written = await this.worker.continueAfterDeferredEntries(
-        callbackFailure &&
-          (callbackFailure.error instanceof Error
-            ? {
-                message: callbackFailure.error.message,
-                stack: callbackFailure.error.stack,
-              }
-            : { message: String(callbackFailure.error) })
+      written = await this.track(
+        this.worker.continueAfterDeferredEntries(
+          callbackFailure &&
+            (callbackFailure.error instanceof Error
+              ? {
+                  message: callbackFailure.error.message,
+                  stack: callbackFailure.error.stack,
+                }
+              : { message: String(callbackFailure.error) })
+        )
       )
     } catch (err) {
       if (callbackFailure) throw callbackFailure.error
@@ -175,13 +203,14 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
   }
 
   /**
-   * Ends the worker process. If the project was created, this first waits for
-   * Turbopack to finish persisting its cache, so a build that fails later
-   * doesn't cut that short. Safe to call more than once.
+   * Ends the worker process. This first lets the worker shut Turbopack down,
+   * so a build that fails later doesn't cut persisting the cache short, and
+   * so the worker sends its telemetry events, e.g. of a Turbopack internal
+   * error while creating the project. Safe to call more than once.
    */
   end(): Promise<void> {
     this.ending ??= (async () => {
-      await this.shutdown?.catch(() => {})
+      await this.shutdownProject().catch(() => {})
       await this.worker.shutdown()
     })()
     return this.ending

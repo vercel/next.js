@@ -2,8 +2,14 @@
 import '../../server/lib/cpu-profile'
 import { getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
-import { getTraceEvents, initializeTraceState, trace } from '../../trace'
+import {
+  getTraceEvents,
+  initializeTraceState,
+  setGlobal,
+  trace,
+} from '../../trace'
 import type { Span, SpanId, TraceEvent, TraceState } from '../../trace'
+import { Telemetry } from '../../telemetry/storage'
 import type {
   BuildFeatureUsage,
   Project,
@@ -28,6 +34,7 @@ import {
 process.once('disconnect', () => process.exit(1))
 
 let project: Project | undefined
+let telemetry: Telemetry | undefined
 let workerSpan: Span | undefined
 let compilationEvents: Promise<void> = Promise.resolve()
 const compilationEventsController = new AbortController()
@@ -85,7 +92,14 @@ export async function createProject(data: {
   hasOnBeforeDeferredEntries: boolean
   traceState: TraceState
   parentSpanId: SpanId
+  distDir: string
 }): Promise<Omit<TurbopackResult<unknown>, 'value'>> {
+  // Turbopack reports internal errors (e.g. Rust panics) to the telemetry in
+  // the globals (see `throwTurbopackInternalError`). Like the webpack build
+  // worker, record them with a telemetry instance of this process. The main
+  // process already showed the telemetry notice.
+  telemetry = new Telemetry({ distDir: data.distDir, skipNotify: true })
+  setGlobal('telemetry', telemetry)
   initializeTraceState(data.traceState)
   // Spans of this worker, including Turbopack's compilation events, are
   // recorded as descendants of this span.
@@ -191,14 +205,20 @@ export function writeAnalyzeData(
 }
 
 /**
- * Shuts Turbopack down (which persists its cache) and returns the trace events
- * recorded in this worker, so the main process can write them.
+ * Shuts Turbopack down (which persists its cache), sends the recorded
+ * telemetry events and returns the trace events recorded in this worker, so
+ * the main process can write them. Also called when creating the project
+ * failed, to send the telemetry events of that failure.
  */
 export async function shutdownProject(): Promise<{
   traceEvents: TraceEvent[]
 }> {
   shutdownPromise ??= (async () => {
-    await project?.shutdown()
+    try {
+      await project?.shutdown()
+    } finally {
+      await telemetry?.flush()
+    }
     // Shutdown flushes and closes the compilation event queue, so the
     // subscription ends once final events (e.g. persistence, compaction
     // trace spans) have been delivered. The timeout is only a backstop
