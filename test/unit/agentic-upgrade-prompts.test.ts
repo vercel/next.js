@@ -271,6 +271,75 @@ describe('agentic upgrade prompts', () => {
     }
   })
 
+  it.each([
+    {
+      source: '16.3.5',
+      policy: 'security',
+      unavailable: false,
+      expected: {
+        status: 'unaffected',
+        reason: expect.stringContaining('No security update is needed'),
+      },
+    },
+    {
+      source: '16.3.4',
+      policy: 'latest',
+      unavailable: false,
+      expected: { status: 'ready', targetVersion: '16.3.5' },
+    },
+    {
+      source: '16.3.4-canary.1',
+      policy: 'security',
+      unavailable: false,
+      expected: {
+        status: 'blocked',
+        reason: expect.stringContaining('is a canary prerelease'),
+      },
+    },
+    {
+      source: '16.3.5',
+      policy: 'security',
+      unavailable: true,
+      expected: {
+        status: 'unknown',
+        reason: expect.stringContaining('Could not check for security updates'),
+      },
+    },
+    {
+      source: 'not-a-version',
+      policy: 'security',
+      unavailable: false,
+      expected: {
+        status: 'unknown',
+        reason: expect.stringContaining('Could not assess'),
+      },
+    },
+  ])(
+    'exposes the scheduled $expected.status assessment',
+    async ({ source, policy, unavailable, expected }) => {
+      const { assessScheduledUpgrade } = jest.requireActual<
+        typeof import('next/dist/lib/upgrade/prepare-upgrade')
+      >('next/dist/lib/upgrade/prepare-upgrade')
+
+      jest.mocked(fetch).mockImplementation(async (input) => {
+        if (unavailable) {
+          throw new Error('Registry unavailable')
+        }
+        if (String(input).endsWith('/advisories/bulk')) {
+          return Response.json({})
+        }
+        if (String(input).endsWith('/next/latest')) {
+          return Response.json({ version: '16.3.5' })
+        }
+        throw new Error(`Unexpected registry request: ${input}`)
+      })
+
+      await expect(assessScheduledUpgrade(source, policy)).resolves.toEqual(
+        expected
+      )
+    }
+  )
+
   it('uses the pinned CLI without looking up canary again', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'unaffected',

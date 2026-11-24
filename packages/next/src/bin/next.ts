@@ -747,6 +747,18 @@ const internal = program
     'Internal debugging commands. Use with caution. Not covered by semver.'
   )
 
+internal
+  .command('assess-agent-upgrade', { hidden: true })
+  .argument('<installed-version>', 'The resolved Next.js version of the app.')
+  .argument('<policy>', 'The scheduled upgrade policy.')
+  .action(async (installedVersion: string, policy: string) => {
+    const { assessScheduledUpgrade } = await import(
+      '../lib/upgrade/prepare-upgrade.js'
+    )
+    const result = await assessScheduledUpgrade(installedVersion, policy)
+    process.stdout.write(`${JSON.stringify(result)}\n`)
+  })
+
 // Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
 internal
   .command('report-agent-upgrade', { hidden: true })

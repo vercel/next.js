@@ -92,6 +92,33 @@ export type UpgradeAssessment = {
   upgrade: UpgradePreparation
 }
 
+export async function assessScheduledUpgrade(
+  installedVersion: string,
+  policy: string
+) {
+  if (policy !== 'security' && policy !== 'latest') {
+    throw new Error('Scheduled upgrades require the security or latest policy.')
+  }
+
+  let upgrade: UpgradePreparation
+  try {
+    ;({ upgrade } = await getUpgradeAssessment(installedVersion, policy))
+  } catch {
+    return {
+      status: 'unknown',
+      reason: `Could not assess Next.js ${installedVersion} for scheduled upgrades.`,
+    }
+  }
+  if (upgrade.status === 'ready') {
+    return {
+      status: upgrade.status,
+      targetVersion: upgrade.targetVersion,
+    }
+  }
+
+  return { status: upgrade.status, reason: upgrade.reason }
+}
+
 // TODO: Cache assessments briefly by installed version, policy, and resolved
 // target to avoid repeating nudge lookups. New advisories can affect the same
 // target, so expire cached results and refresh metadata before execution.
