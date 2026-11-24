@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
@@ -459,19 +459,26 @@ async fn batch_group_sort_key(batch_group: Vc<ChunkItemBatchGroup>) -> Result<Op
 /// The keys of the elements of one chunk are unique: a module is part of at most one element of a
 /// chunk (batches and batch groups are disjoint, see `sort_batch_groups`), and
 /// [`ChunkItem::asset_ident`] must uniquely identify a chunk item at runtime, as it's the source of
-/// its module id.
-fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<Option<RcStr>>) {
-    let mut keyed = keys
-        .into_iter()
-        .zip(elements.drain(..))
-        .filter_map(|(key, element)| Some((key?, element)))
+/// its module id. The keys are read from different cells, which can transiently disagree during
+/// recomputation, so a duplicate key is an error rather than a panic.
+fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<Option<RcStr>>) -> Result<()> {
+    // Sort indices rather than the (potentially large) elements, then permute once.
+    let mut order = (0..u32::try_from(keys.len())?)
+        .filter(|&i| keys[i as usize].is_some())
         .collect::<Vec<_>>();
-    keyed.sort_by(|(a, _), (b, _)| a.cmp(b));
-    debug_assert!(
-        keyed.windows(2).all(|pair| pair[0].0 != pair[1].0),
-        "chunk elements must have unique sort keys"
-    );
-    elements.extend(keyed.into_iter().map(|(_, element)| element));
+    order.sort_unstable_by(|&a, &b| keys[a as usize].cmp(&keys[b as usize]));
+    if let Some(pair) = order
+        .windows(2)
+        .find(|pair| keys[pair[0] as usize] == keys[pair[1] as usize])
+    {
+        bail!(
+            "chunk elements must have unique sort keys, but {:?} is duplicated",
+            keys[pair[0] as usize]
+        );
+    }
+    let mut slots = elements.drain(..).map(Some).collect::<Vec<_>>();
+    elements.extend(order.into_iter().filter_map(|i| slots[i as usize].take()));
+    Ok(())
 }
 
 async fn sort_chunk_items(chunk_items: &mut Vec<&'_ ChunkItemOrBatchWithInfo>) -> Result<()> {
@@ -480,8 +487,7 @@ async fn sort_chunk_items(chunk_items: &mut Vec<&'_ ChunkItemOrBatchWithInfo>) -
         .map(|item| item_sort_key(item))
         .try_join()
         .await?;
-    sort_canonically(chunk_items, keys);
-    Ok(())
+    sort_canonically(chunk_items, keys)
 }
 
 /// Sorts the batch groups of a chunk. Their order doesn't affect the generated code: batch groups
@@ -494,8 +500,7 @@ async fn sort_batch_groups(batch_groups: &mut Vec<ResolvedVc<ChunkItemBatchGroup
         .map(|batch_group| batch_group_sort_key(**batch_group))
         .try_join()
         .await?;
-    sort_canonically(batch_groups, keys);
-    Ok(())
+    sort_canonically(batch_groups, keys)
 }
 
 fn build_chunk(
