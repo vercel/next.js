@@ -96,3 +96,26 @@ export function eventAgentUpgradeAgentResult(fields: {
 }) {
   return event('NEXT_AGENT_UPGRADE_AGENT_RESULT', fields)
 }
+
+export type AgentUpgradeCIInstallOutcome =
+  | 'draft_created'
+  | 'already_installed'
+  | 'existing_draft'
+  | 'instructions_printed'
+  | 'cancelled'
+  | 'blocked'
+  | 'failed'
+
+export function eventAgentUpgradeCIInstallStarted(fields: {
+  installId: string
+}) {
+  return event('NEXT_AGENT_UPGRADE_CI_INSTALL_STARTED', fields)
+}
+
+export function eventAgentUpgradeCIInstallResult(fields: {
+  installId: string
+  outcome: AgentUpgradeCIInstallOutcome
+  durationMs: number
+}) {
+  return event('NEXT_AGENT_UPGRADE_CI_INSTALL_RESULT', fields)
+}

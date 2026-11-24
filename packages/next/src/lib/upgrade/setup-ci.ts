@@ -1,4 +1,4 @@
-import { createHash } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import {
   closeSync,
   constants,
@@ -7,7 +7,8 @@ import {
   openSync,
   readFileSync,
 } from 'fs'
-import { readFile, realpath } from 'fs/promises'
+import { mkdtemp, readFile, realpath, rm } from 'fs/promises'
+import { tmpdir } from 'os'
 import { isAbsolute, join, relative, sep } from 'path'
 
 import cliSelect from 'next/dist/compiled/cli-select'
@@ -20,6 +21,12 @@ import {
   CONFIG_FILES,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
+import {
+  eventAgentUpgradeCIInstallResult,
+  eventAgentUpgradeCIInstallStarted,
+  type AgentUpgradeCIInstallOutcome,
+} from '../../telemetry/events/agent-upgrade'
+import { Telemetry } from '../../telemetry/storage'
 import { interopDefault } from '../interop-default'
 
 const WORKFLOW = '.github/workflows/next-upgrade.yml'
@@ -41,14 +48,7 @@ type Auth = keyof typeof AUTH_OPTIONS
 type Policy = 'security' | 'latest'
 type Target = { path: string; policy: Policy }
 type SetupResult = {
-  status:
-    | 'draft_created'
-    | 'already_installed'
-    | 'existing_draft'
-    | 'instructions_printed'
-    | 'cancelled'
-    | 'blocked'
-    | 'failed'
+  status: AgentUpgradeCIInstallOutcome
   url?: string
 }
 
@@ -491,6 +491,58 @@ export async function setupUpgradeCI({
   directory: string
   policy: true | string
 }): Promise<SetupResult> {
+  const installId = randomUUID()
+  const start = Date.now()
+  // The decision the rendered workflow uses once apps are selected: the
+  // environment, the invoking directory's .env, or any selected app's .env.
+  // Before selection, only the first two are known.
+  const decision: { telemetryDisabled?: boolean } = {}
+  let initialOptOut: string | undefined
+  try {
+    initialOptOut =
+      process.env.NEXT_TELEMETRY_DISABLED || readEnvTelemetryOptOut(directory)
+  } catch {
+    initialOptOut = '1'
+  }
+  const result = await installScheduledUpgrade({ directory, policy, decision })
+  try {
+    const disabled = decision.telemetryDisabled ?? Boolean(initialOptOut)
+    if (!disabled) {
+      // Both events are sent once the outcome and the opt-out are known.
+      // In CI, telemetry keeps its settings under distDir. Use a private
+      // directory so it never opens project files such as a linked
+      // .next/cache/config.json.
+      const distDir = await mkdtemp(join(tmpdir(), 'next-upgrade-setup-'))
+      try {
+        const telemetry = new Telemetry({ distDir, skipNotify: true })
+        telemetry.record(eventAgentUpgradeCIInstallStarted({ installId }))
+        telemetry.record(
+          eventAgentUpgradeCIInstallResult({
+            installId,
+            outcome: result.status,
+            durationMs: Date.now() - start,
+          })
+        )
+        await telemetry.flush()
+      } finally {
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  } catch {
+    // Reporting failures cannot change the setup result.
+  }
+  return result
+}
+
+async function installScheduledUpgrade({
+  directory,
+  policy,
+  decision,
+}: {
+  directory: string
+  policy: true | string
+  decision: { telemetryDisabled?: boolean }
+}): Promise<SetupResult> {
   // App configs can load dotenv files. Keep the invoking user's GitHub environment.
   const env = {
     ...process.env,
@@ -794,6 +846,7 @@ export async function setupUpgradeCI({
         readEnvTelemetryOptOut(directory) ||
         [...selected].some((path) => readEnvTelemetryOptOut(join(root, path)))
     )
+    decision.telemetryDisabled = telemetryDisabled
 
     const supportingPaths = new Set<string>()
     for (const path of selected) {
