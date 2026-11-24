@@ -49,6 +49,10 @@ use crate::{
     watcher::{DiskWatcher, DiskWatcherConfig},
 };
 
+/// Effect kinds sharing the path key namespace of an [`EffectStateStorage`].
+const WRITE_FILE_EFFECT: &str = "write file";
+const WRITE_LINK_EFFECT: &str = "write link";
+
 /// Validate the path, returning the valid path, a modified-but-now-valid path, or bailing with an
 /// error.
 ///
@@ -1348,13 +1352,14 @@ impl FileSystem for DiskFileSystem {
                 // our hash, skip materializing the content (avoids a possible disk read +
                 // decompression via the persistent cache). The apply-time state machine will
                 // dedup-hit before touching content. If state diverged between this read and
-                // apply, `Effects::apply` will fire our producer's invalidator via the Retry
+                // apply, publication will fire our producer's invalidator via the Retry
                 // pathway and the producer will rerun with a fresh capture.
                 let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
-                let content = if inner
-                    .effect_state_storage
-                    .matches_applied(&key_bytes, self.content_hash)
-                {
+                let content = if inner.effect_state_storage.matches_applied(
+                    &key_bytes,
+                    WRITE_FILE_EFFECT,
+                    self.content_hash,
+                ) {
                     None
                 } else {
                     // INVALIDATION: the content cell is already captured via `content_hash`, and
@@ -1389,13 +1394,26 @@ impl FileSystem for DiskFileSystem {
                 self.content_hash
             }
 
+            fn state_storage(&self) -> &EffectStateStorage {
+                &self.inner.effect_state_storage
+            }
+
+            fn kind(&self) -> &'static str {
+                WRITE_FILE_EFFECT
+            }
+
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
                 let body = self.content.as_ref().map(|content| {
                     async || self.apply_inner(content).await.map_err(AnyhowWrapper::from)
                 });
                 self.inner
                     .effect_state_storage
-                    .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
+                    .run_apply::<AnyhowWrapper, _, _>(
+                        self.key(),
+                        self.kind(),
+                        self.content_hash,
+                        body,
+                    )
                     .await
             }
         }
@@ -1618,10 +1636,11 @@ impl FileSystem for DiskFileSystem {
                 // Skip the write entirely if the per-key effect state already records
                 // `Applied { value_hash }` matching our hash. See `WriteEffect::capture`.
                 let key_bytes = self.full_path.as_os_str().as_encoded_bytes();
-                let content = if inner
-                    .effect_state_storage
-                    .matches_applied(key_bytes, self.content_hash)
-                {
+                let content = if inner.effect_state_storage.matches_applied(
+                    key_bytes,
+                    WRITE_LINK_EFFECT,
+                    self.content_hash,
+                ) {
                     None
                 } else {
                     Some((self.target_sys_path.clone(), self.target_type.clone()))
@@ -1654,13 +1673,26 @@ impl FileSystem for DiskFileSystem {
                 self.content_hash
             }
 
+            fn state_storage(&self) -> &EffectStateStorage {
+                &self.inner.effect_state_storage
+            }
+
+            fn kind(&self) -> &'static str {
+                WRITE_LINK_EFFECT
+            }
+
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
                 let body = self.content.as_ref().map(|content| {
                     async || self.apply_inner(content).await.map_err(AnyhowWrapper::from)
                 });
                 self.inner
                     .effect_state_storage
-                    .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
+                    .run_apply::<AnyhowWrapper, _, _>(
+                        self.key(),
+                        self.kind(),
+                        self.content_hash,
+                        body,
+                    )
                     .await
             }
         }

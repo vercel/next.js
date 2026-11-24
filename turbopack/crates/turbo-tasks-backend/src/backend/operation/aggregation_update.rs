@@ -90,7 +90,10 @@ use tracing::span::Span;
 use tracing::trace_span;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
-use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
+use turbo_tasks::{
+    ChangeInProgress, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority,
+    event::EventDescription,
+};
 
 use crate::{
     backend::{
@@ -1237,6 +1240,9 @@ pub struct AggregationUpdateQueue {
     /// `MAX_OPTIMIZATIONS_PER_QUEUE`.
     optimizations_executed: usize,
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    /// Held from the first task this queue's operation marks dirty until the queue has been
+    /// executed, so that the dirtiness it still has to propagate counts as a change in progress.
+    change: Option<ChangeInProgress>,
     /// One-shot interleaving at the unlocked boundary after the debt precheck and before the inner
     /// write. Per-queue (not global), and absent from production builds.
     #[cfg(test)]
@@ -1262,6 +1268,7 @@ impl AggregationUpdateQueue {
             optimize_queue: FxRingSet::default(),
             optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
+            change: None,
             #[cfg(test)]
             before_inner_write: None,
             #[cfg(test)]
@@ -1309,6 +1316,7 @@ impl AggregationUpdateQueue {
             optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
+            change: _,
             #[cfg(test)]
                 before_inner_write: _,
             #[cfg(test)]
@@ -1323,6 +1331,14 @@ impl AggregationUpdateQueue {
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
             && scheduled_tasks.is_empty()
+    }
+
+    /// Counts this queue's operation as a change in progress until the queue has been executed.
+    /// Call before marking a task dirty.
+    pub fn start_change(&mut self) {
+        if self.change.is_none() {
+            self.change = Some(ChangeInProgress::start());
+        }
     }
 
     /// Pushes a job to the queue.
@@ -1381,6 +1397,14 @@ impl AggregationUpdateQueue {
             _ if job.is_edge_removal() => {
                 self.removal_jobs
                     .push_back(AggregationUpdateJobItem::new(job));
+            }
+            AggregationUpdateJob::InvalidateDueToCollectiblesChange { ref task_ids, .. } => {
+                // Pushed under the lock of the task whose collectibles changed, so this starts
+                // before the new collectibles can be read.
+                if !task_ids.is_empty() {
+                    self.start_change();
+                }
+                self.jobs.push_back(AggregationUpdateJobItem::new(job));
             }
             _ => {
                 self.jobs.push_back(AggregationUpdateJobItem::new(job));
@@ -3692,6 +3716,7 @@ impl AggregationUpdateQueue {
 impl AggregationUpdateQueue {
     pub fn execute(&mut self, ctx: &mut ExecuteContext<'_>) {
         abort_on_aggregation_panic(|| while !self.process(ctx) {});
+        self.change = None;
     }
 }
 

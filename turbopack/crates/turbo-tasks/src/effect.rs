@@ -2,31 +2,38 @@ use std::{
     collections::hash_map,
     error::Error as StdError,
     future::Future,
-    mem::{forget, replace},
+    mem::{forget, replace, take},
     num::NonZeroUsize,
+    panic::{AssertUnwindSafe, resume_unwind},
     sync::{
         Arc, OnceLock,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
 };
 
 use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam_utils::CachePadded;
-use futures::{StreamExt, TryStreamExt};
-use parking_lot::{Mutex, MutexGuard};
+use futures::{FutureExt, StreamExt, stream::FuturesUnordered};
+use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
+use tokio::{
+    sync::{Mutex as AsyncMutex, OwnedMutexGuard},
+    task_local,
+};
 use tracing::Instrument;
 
 use crate::{
-    self as turbo_tasks, CollectiblesSource, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
-    TryJoinIterExt, Upcast, VcRead, VcValueType, emit,
+    self as turbo_tasks, CollectiblesSource, JoinHandle, NonLocalValue, OperationVc, ReadRef,
+    ResolvedVc, TryJoinIterExt, Upcast, VcRead, VcValueType,
+    backend::SettledTaskResult,
+    changes::{change_epoch, wait_for_change_to_end},
+    emit,
     event::Event,
     invalidation::{Invalidator, get_invalidator},
     manager::{
-        debug_assert_in_top_level_task, debug_assert_not_in_top_level_task, mark_top_level_task,
-        spawn_in_current_task, unmark_top_level_task_may_leak_eventually_consistent_state,
-        with_turbo_tasks,
+        debug_assert_in_top_level_task, debug_assert_not_in_top_level_task, forbid_task_reads,
+        replace_top_level_task, spawn_in_current_task, with_turbo_tasks,
     },
     parallel::available_parallelism,
     spawn,
@@ -69,28 +76,43 @@ where
 /// coordination, dedup-hit short-circuit, and panic recovery).
 #[async_trait]
 pub trait CapturedEffect: NonLocalValue + Send + Sync + 'static {
-    /// Unique key identifying this effect's target (e.g., absolute path bytes).
+    /// Unique key identifying this effect's target within its storage (e.g., absolute path bytes).
+    ///
+    /// Must be pure and non-blocking: publication calls it while holding write claims.
     fn key(&self) -> Box<[u8]>;
 
     /// Extract the hash of the value part of this effect for comparison.
+    ///
+    /// Must be pure and non-blocking: publication calls it while holding write claims.
     fn value_hash(&self) -> u128;
+
+    /// The storage that coordinates writes to [`Self::key`].
+    fn state_storage(&self) -> &EffectStateStorage;
+
+    /// Distinguishes effect kinds that share a key namespace (e.g. writing a file vs. a link).
+    /// Pass the same value to [`EffectStateStorage::run_apply`] and
+    /// [`EffectStateStorage::matches_applied`].
+    fn kind(&self) -> &'static str;
 
     /// Perform the side effect
     ///
-    /// Implementations typically dispatch into [`EffectStateStorage::run_apply`].
+    /// Implementations typically dispatch into [`EffectStateStorage::run_apply`]. Must not publish
+    /// effects itself. When this returns or unwinds, the side effect must be complete: publication
+    /// releases the key's claim at that point.
     async fn apply(&self) -> Result<(), ApplyError>;
 }
 
 /// Outcome of [`CapturedEffect::apply`]. Distinguishes a side-effect failure (terminal) from a
 /// soft failure where the captured form had no content and storage state diverged between
-/// capture and apply (recoverable via `Effects::apply`'s invalidator path).
+/// capture and apply (recoverable via the invalidator path of
+/// [`read_strongly_consistent_and_apply_effects`]).
 #[derive(Debug)]
 pub enum ApplyError {
     /// The side effect itself failed.
     Failed(Arc<dyn EffectError>),
     /// Capture short-circuited content materialization (observed `Applied { matching }` in
     /// storage), but by apply time the storage state had diverged and we have no content to
-    /// re-apply. `Effects::apply` should invalidate the producing operation and return
+    /// re-apply. Publication invalidates the producing operation and returns
     /// [`EffectsError::Retry`].
     Retry,
 }
@@ -117,36 +139,65 @@ enum EffectLastApplied {
         write_event: Event,
     },
     Applied {
+        kind: &'static str,
         value_hash: u128,
         result: Result<(), Arc<dyn EffectError>>,
     },
 }
 
+struct KeyState {
+    last_applied: Mutex<EffectLastApplied>,
+    /// Held by a publication from before validation until its write of this key has finished, and
+    /// again while it commits.
+    claim: Arc<AsyncMutex<()>>,
+}
+
 /// Per-key entry in the effect state storage.
-type EffectStateEntry = Arc<Mutex<EffectLastApplied>>;
+type EffectStateEntry = Arc<KeyState>;
 /// Shared state storage for tracking applied effects. Stored on the filesystem implementation
 /// (e.g. DiskFileSystemInner).
-#[derive(Default)]
 pub struct EffectStateStorage {
+    /// Process-unique and never reused. Orders claims across storages.
+    id: u64,
     effect_state: Mutex<FxHashMap<Box<[u8]>, EffectStateEntry>>,
 }
 
+impl Default for EffectStateStorage {
+    fn default() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        Self {
+            id: NEXT
+                .try_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
+                    next.checked_add(1)
+                })
+                .expect("effect state storage ids exhausted"),
+            effect_state: Default::default(),
+        }
+    }
+}
+
 impl EffectStateStorage {
-    /// Returns true if the per-key state holds `Applied { value_hash == target, result: Ok(()) }`.
+    fn claim_for(&self, key: Box<[u8]>) -> Arc<AsyncMutex<()>> {
+        self.entry_for(key).claim.clone()
+    }
+
+    /// Returns true if the per-key state holds `Applied { kind, value_hash == target, result:
+    /// Ok(()) }`.
     ///
     /// Intended for use by [`Effect::capture`] to elide content materialization when the apply
     /// would dedup. Reading this from inside a turbo-tasks task is sound because
-    /// `Effects::apply` re-checks at apply time and fires the producing task's invalidator on
+    /// publication re-checks at apply time and fires the producing task's invalidator on
     /// mismatch (via the [`ApplyError::Retry`] / [`EffectsError::Retry`] pathway).
-    pub fn matches_applied(&self, key: &[u8], target: u128) -> bool {
+    pub fn matches_applied(&self, key: &[u8], kind: &'static str, target: u128) -> bool {
         let entry = self.effect_state.lock().get(key).cloned();
         let Some(entry) = entry else { return false };
         matches!(
-            &*entry.lock(),
+            &*entry.last_applied.lock(),
             EffectLastApplied::Applied {
+                kind: applied_kind,
                 value_hash,
                 result: Ok(()),
-            } if *value_hash == target,
+            } if *applied_kind == kind && *value_hash == target,
         )
     }
 
@@ -155,7 +206,12 @@ impl EffectStateStorage {
         self.effect_state
             .lock()
             .entry(key)
-            .or_insert_with(|| Arc::new(Mutex::new(EffectLastApplied::Unapplied)))
+            .or_insert_with(|| {
+                Arc::new(KeyState {
+                    last_applied: Mutex::new(EffectLastApplied::Unapplied),
+                    claim: Default::default(),
+                })
+            })
             .clone()
     }
 
@@ -168,6 +224,7 @@ impl EffectStateStorage {
     pub async fn run_apply<E, F, Fut>(
         &self,
         key: Box<[u8]>,
+        kind: &'static str,
         value_hash: u128,
         body: Option<F>,
     ) -> Result<(), ApplyError>
@@ -187,7 +244,10 @@ impl EffectStateStorage {
         }
         impl Drop for EventGuard<'_> {
             fn drop(&mut self) {
-                let prev_state = replace(&mut *self.entry.lock(), EffectLastApplied::Unapplied);
+                let prev_state = replace(
+                    &mut *self.entry.last_applied.lock(),
+                    EffectLastApplied::Unapplied,
+                );
                 let EffectLastApplied::InProgress { write_event } = prev_state else {
                     unreachable!("EventGuard: prev_state must be InProgress");
                 };
@@ -195,7 +255,7 @@ impl EffectStateStorage {
             }
         }
 
-        let begin_in_progress = |mut last_applied_guard: MutexGuard<'_, _>| {
+        let begin_in_progress = |mut last_applied_guard: parking_lot::MutexGuard<'_, _>| {
             *last_applied_guard = EffectLastApplied::InProgress {
                 write_event: Event::new(|| || "effect application in progress".to_string()),
             };
@@ -205,16 +265,17 @@ impl EffectStateStorage {
         let event_guard = loop {
             let listener;
             {
-                let last_applied_guard = entry.lock();
+                let last_applied_guard = entry.last_applied.lock();
                 match &*last_applied_guard {
                     EffectLastApplied::Unapplied => {
                         break begin_in_progress(last_applied_guard);
                     }
                     EffectLastApplied::Applied {
+                        kind: stored_kind,
                         value_hash: stored,
                         result,
                     } => {
-                        if value_hash == *stored {
+                        if kind == *stored_kind && value_hash == *stored {
                             return result.clone().map_err(ApplyError::Failed);
                         } else {
                             break begin_in_progress(last_applied_guard);
@@ -244,8 +305,9 @@ impl EffectStateStorage {
             .map_err(|err| Arc::new(err) as Arc<dyn EffectError>);
 
         let prev_state = replace(
-            &mut *entry.lock(),
+            &mut *entry.last_applied.lock(),
             EffectLastApplied::Applied {
+                kind,
                 value_hash,
                 result: effect_result.clone(),
             },
@@ -264,11 +326,12 @@ impl EffectStateStorage {
 /// Capture effects. Call this from within a [turbo-tasks operation][crate::OperationVc].
 ///
 /// Collectibles are read from `ResolvedVc`s, so this function, and the return value of this
-/// function should be applied with `Effects::apply`.
+/// function should be published with [`read_strongly_consistent_and_apply_effects`].
 ///
 /// It's important to wrap calls to this function in an [operation with a strongly consistent
 /// read][crate::OperationVc::read_strongly_consistent] before applying the effects outside of the
-/// operation at the top-level (e.g. in a `run_once` closure) with `Effects::apply`.
+/// operation at the top-level (e.g. in a `run_once` closure) with
+/// [`read_strongly_consistent_and_apply_effects`].
 ///
 /// # Example
 ///
@@ -453,7 +516,7 @@ struct ConflictingEffectError {
 }
 
 const MAX_KEYS_TO_DISPLAY: usize = 10;
-/// Error returned by `Effects::apply`. Callers should retry on `Retry`; everything else is
+/// Error returned when applying effects. Publication retries on `Retry`; everything else is
 /// terminal.
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum EffectsError {
@@ -499,9 +562,9 @@ type CapturedSlice = Arc<[Arc<dyn CapturedEffect>]>;
 /// [`EffectStateStorage::run_apply`]), which short-circuits when storage already holds
 /// `Applied { value_hash }` matching the new hash.
 ///
-/// `Effects::apply` is idempotent and safe to call multiple times on the same value — the state
-/// machine in `run_apply` ensures each underlying side effect runs at most once per stored
-/// `(key, value_hash)` pair across all callers.
+/// Publishing the same value multiple times is idempotent — the state machine in `run_apply`
+/// ensures each underlying side effect runs at most once per stored `(key, kind, value_hash)`
+/// across all callers.
 #[turbo_tasks::value(shared, eq = "manual", serialization = "skip", cell = "new")]
 pub struct Effects {
     /// Pre-resolved effects awaiting application. Lives for the lifetime of the cell — released
@@ -513,9 +576,9 @@ pub struct Effects {
     #[turbo_tasks(debug_ignore)]
     invalidator: Option<Invalidator>,
     /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
-    /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
-    /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
-    /// `apply()`.
+    /// unique `(storage, key)`, or a `ConflictingEffectError` if two captured effects share one
+    /// with a different kind or hash. Applied state in [`EffectStateStorage`] is only consulted
+    /// during publication.
     #[turbo_tasks(debug_ignore)]
     unique_keys: Arc<UniqueKeys>,
 }
@@ -560,127 +623,380 @@ impl Effects {
         }
     }
 
-    /// Applies all effects that have been captured.
-    ///
-    /// Dispatch goes through each captured effect's [`CapturedEffect::apply`] (via
-    /// [`EffectStateStorage::run_apply`]) which handles the per-key state machine, dedup hits,
-    /// in-progress coordination, and panic recovery. The dispatch is idempotent — calling
-    /// `apply()` multiple times on the same `Effects` value runs each underlying side effect at
-    /// most once per stored `(key, value_hash)` pair.
-    ///
-    /// If any captured effect signals [`ApplyError::Retry`] (its content was elided at capture
-    /// time and storage state diverged between capture and apply), the producing task is
-    /// invalidated and [`EffectsError::Retry`] is returned after the remaining keys finish.
-    /// Side-effect failures (`ApplyError::Failed`) propagate as [`EffectsError::Apply`]; the
-    /// first such error wins.
-    ///
-    /// `apply` must only be used in a "top-level" task (e.g. [`run_once`][crate::run_once]),
-    /// after [`take_effects`] is called from an [operation read with strong
-    /// consistency][crate::OperationVc::read_strongly_consistent].
-    ///
-    /// See [`take_effects`] for example usage.
-    ///
-    /// **Do not call this directly.** External callers must go through
-    /// [`read_strongly_consistent_and_apply_effects`] or
-    /// [`resolve_strongly_consistent_and_take_and_apply_effects`], which own the read+apply+retry
-    /// loop required to recover from [`EffectsError::Retry`]. Exposed publicly only as
-    /// [`Effects::apply_for_testing`] (`#[doc(hidden)]`) so integration tests can drive the apply
-    /// state machine directly.
-    async fn apply(&self) -> Result<(), EffectsError> {
-        debug_assert_in_top_level_task(
-            "Effects::apply must be called from a top-level task to avoid unintended \
-             re-executions due to eventual consistency",
-        );
+    /// The plan's identity: every claimed `(storage, key)` with the operation it performs.
+    /// Elided content does not affect it.
+    fn plan(&self) -> Result<Vec<PlannedEffect>, EffectsError> {
         let unique = match self.unique_keys.as_ref() {
-            Ok(unique) => unique.as_slice(),
+            Ok(unique) => unique,
             Err(err) => return Err(EffectsError::Conflict(err.key_len)),
         };
-        if unique.is_empty() {
+        let mut plan: Vec<PlannedEffect> = unique
+            .iter()
+            .map(|&idx| {
+                let effect = &self.captured[idx];
+                PlannedEffect {
+                    storage: effect.state_storage().id,
+                    key: effect.key(),
+                    kind: effect.kind(),
+                    value_hash: effect.value_hash(),
+                }
+            })
+            .collect();
+        plan.sort_unstable();
+        Ok(plan)
+    }
+
+    /// Claims every key the plan still has to write, in a global `(storage, key)` order so that
+    /// overlapping publications cannot deadlock.
+    ///
+    /// Keys whose storage already records the plan's `(kind, value_hash)` as applied are neither
+    /// held nor written: publishing does not change them. This is checked again once the claim is
+    /// acquired, so publications sharing identical outputs (e.g. runtime chunks) only queue behind
+    /// the one that writes them.
+    async fn claim(&self) -> Publication {
+        let mut candidates = Vec::new();
+        if let Ok(unique) = self.unique_keys.as_ref() {
+            for &idx in unique {
+                let effect = &self.captured[idx];
+                let storage = effect.state_storage();
+                let key = effect.key();
+                if !storage.matches_applied(&key, effect.kind(), effect.value_hash()) {
+                    candidates.push(((storage.id, key), idx));
+                }
+            }
+        }
+        candidates.sort_unstable();
+        let mut publication = Publication::new(Vec::with_capacity(candidates.len()));
+        for ((_, key), idx) in candidates {
+            let effect = &self.captured[idx];
+            let storage = effect.state_storage();
+            let claim = storage.claim_for(key.clone()).lock_owned().await;
+            if storage.matches_applied(&key, effect.kind(), effect.value_hash()) {
+                continue;
+            }
+            publication.to_apply.push((idx, Some(claim)));
+        }
+        publication
+    }
+
+    /// Claims every key of the plan in the global order and reports whether each still records the
+    /// plan's `(kind, value_hash)` as applied. Waits for any publication that still holds one of
+    /// the keys, so a write admitted earlier cannot land after this succeeds.
+    async fn claim_all_and_check_applied(&self) -> (Vec<OwnedMutexGuard<()>>, bool) {
+        let mut keys = Vec::new();
+        if let Ok(unique) = self.unique_keys.as_ref() {
+            for &idx in unique {
+                let effect = &self.captured[idx];
+                keys.push(((effect.state_storage().id, effect.key()), idx));
+            }
+        }
+        keys.sort_unstable();
+        let mut claims = Vec::with_capacity(keys.len());
+        let mut applied = true;
+        for ((_, key), idx) in keys {
+            let effect = &self.captured[idx];
+            let storage = effect.state_storage();
+            claims.push(storage.claim_for(key.clone()).lock_owned().await);
+            applied &= storage.matches_applied(&key, effect.kind(), effect.value_hash());
+        }
+        (claims, applied)
+    }
+
+    /// Applies the effects while `publication` holds their claims.
+    ///
+    /// At most [`APPLY_EFFECTS_CONCURRENCY_LIMIT`] writes run at once. Each write owns its key's
+    /// claim and releases it as soon as that write has finished, so a publication waiting only on
+    /// an already written key does not wait for slower siblings. Dropping `publication` (e.g. on
+    /// cancellation) leaves started writes running until they finish, still holding their claims.
+    /// After the first failure, panic, or [`ApplyError::Retry`], no further writes start; started
+    /// writes finish before this returns.
+    ///
+    /// If any write signals [`ApplyError::Retry`], the producing task is invalidated and
+    /// [`EffectsError::Retry`] is returned. Side-effect failures propagate as
+    /// [`EffectsError::Apply`]; the first such error wins. A panicking write resumes unwinding
+    /// here after all started writes have finished.
+    async fn apply_claimed(&self, publication: &mut Publication) -> Result<(), EffectsError> {
+        debug_assert_in_top_level_task(
+            "effects must be applied from a top-level task to avoid unintended re-executions due \
+             to eventual consistency",
+        );
+        if let Err(err) = self.unique_keys.as_ref() {
+            return Err(EffectsError::Conflict(err.key_len));
+        }
+        if publication.to_apply.is_empty() {
             return Ok(());
         }
 
-        let span = tracing::info_span!("apply effects", count = unique.len());
-        let captured = &self.captured;
-
+        let span = tracing::info_span!("apply effects", count = publication.to_apply.len());
         async {
-            // Collect the keys of any effects that signaled `Retry` across the parallel apply so
-            // we invalidate at most once at the end of the batch and can report which outputs
-            // forced the retry. `Apply` errors still take precedence — they fail-fast through the
-            // `try_for_each_concurrent`.
-            let retry_keys = Mutex::new(Vec::<String>::new());
-            let result: Result<(), EffectsError> = futures::stream::iter(unique.iter())
-                .map(Ok::<_, EffectsError>)
-                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |idx| {
+            // Undispatched claims stay in `publication` and are released when it is dropped.
+            publication.to_apply.reverse();
+            let mut stop = false;
+            let mut retry_keys = Vec::new();
+            loop {
+                while !stop && publication.running.len() < APPLY_EFFECTS_CONCURRENCY_LIMIT {
+                    let Some((idx, claim)) = publication.to_apply.pop() else {
+                        break;
+                    };
+                    let effect = self.captured[idx].clone();
                     // Run each apply on its own spawned task so that pending effects execute in
-                    // parallel rather than serially on this future (see #94140).
-                    let effect = captured[*idx].clone();
-                    match spawn(async move { effect.apply().await }).await {
-                        Ok(()) => Ok(()),
-                        Err(ApplyError::Failed(err)) => Err(EffectsError::Apply(err)),
-                        Err(ApplyError::Retry) => {
-                            let key = captured[*idx].key();
-                            retry_keys
-                                .lock()
-                                .push(String::from_utf8_lossy(&key).into_owned());
-                            Ok(())
-                        }
+                    // parallel rather than serially on this future (see #94140). The body never
+                    // unwinds, so awaiting its handle never resumes a panic before siblings finish.
+                    // A dropped handle detaches the task, so the claim is held until the write
+                    // finishes even if this publication is cancelled.
+                    publication.running.push(spawn(async move {
+                        let result = AssertUnwindSafe(
+                            IN_EFFECT_APPLY.scope((), async move { effect.apply().await }),
+                        )
+                        .catch_unwind()
+                        .await;
+                        drop(claim);
+                        (idx, result)
+                    }));
+                }
+                let Some((idx, result)) = publication.running.next().await else {
+                    break;
+                };
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(ApplyError::Retry)) => {
+                        stop = true;
+                        retry_keys
+                            .push(String::from_utf8_lossy(&self.captured[idx].key()).into_owned());
                     }
-                })
-                .await;
-
-            match result {
-                Err(e) => Err(e),
-                Ok(()) => {
-                    let retry_keys = retry_keys.into_inner();
-                    if retry_keys.is_empty() {
-                        Ok(())
-                    } else {
-                        self.signal_retry(retry_keys)
+                    failure => {
+                        stop = true;
+                        // Held by the publication so that, if this future is dropped, the
+                        // failure is only dropped after every started write has finished:
+                        // dropping a panic payload or an error can itself panic.
+                        publication.failures.push(failure);
                     }
                 }
+            }
+            // Every started write has finished.
+            let mut failures = take(&mut publication.failures);
+            if let Some(i) = failures.iter().position(Result::is_err) {
+                let Err(payload) = failures.swap_remove(i) else {
+                    unreachable!()
+                };
+                drop(failures);
+                resume_unwind(payload);
+            }
+            if let Some(Ok(Err(ApplyError::Failed(err)))) = failures.into_iter().next() {
+                return Err(EffectsError::Apply(err));
+            }
+            if retry_keys.is_empty() {
+                Ok(())
+            } else {
+                self.signal_retry(retry_keys)
             }
         }
         .instrument(span)
         .await
     }
 
-    /// Test-only public alias for [`Effects::apply`]. Lets integration tests in other crates drive
-    /// the per-key apply state machine directly (e.g. asserting dedup counts or the raw
-    /// [`EffectsError::Retry`] signal). Production code must use
-    /// [`read_strongly_consistent_and_apply_effects`] instead, which owns the retry loop.
+    /// Test-only: applies the effects without claims or currentness validation, so integration
+    /// tests in other crates can drive the per-key apply state machine directly (e.g. asserting
+    /// dedup counts or the raw [`EffectsError::Retry`] signal). Production code must use
+    /// [`read_strongly_consistent_and_apply_effects`], which owns publication.
     #[doc(hidden)]
     pub async fn apply_for_testing(&self) -> Result<(), EffectsError> {
-        self.apply().await
+        let to_apply = match self.unique_keys.as_ref() {
+            Ok(unique) => unique.iter().map(|&idx| (idx, None)).collect(),
+            Err(err) => return Err(EffectsError::Conflict(err.key_len)),
+        };
+        self.apply_claimed(&mut Publication::new(to_apply)).await
     }
 
     /// Invalidate the producing task (if any) and return [`EffectsError::Retry`] carrying the
     /// `keys` that signaled [`ApplyError::Retry`] (their capture elided content materialization but
     /// storage state diverged before apply).
     fn signal_retry(&self, keys: Vec<String>) -> Result<(), EffectsError> {
+        self.invalidate_producer();
+        Err(EffectsError::Retry { keys })
+    }
+
+    fn invalidate_producer(&self) {
         if let Some(invalidator) = self.invalidator {
             with_turbo_tasks(|tt| invalidator.invalidate(&**tt));
         }
-        Err(EffectsError::Retry { keys })
     }
 }
 
-/// Strongly-consistent read of `op`, then apply its effects, retrying the whole read+apply on
-/// [`EffectsError::Retry`].
+/// One claimed key and the operation a plan performs on it.
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+struct PlannedEffect {
+    storage: u64,
+    key: Box<[u8]>,
+    kind: &'static str,
+    value_hash: u128,
+}
+
+task_local! {
+    /// Set inside every spawned effect apply. Publishing from there could wait on claims that the
+    /// enclosing publication holds.
+    static IN_EFFECT_APPLY: ();
+}
+
+type ApplyOutcome = std::thread::Result<Result<(), ApplyError>>;
+type RunningApply = JoinHandle<(usize, ApplyOutcome)>;
+
+/// One publication attempt: the claimed writes it has not started and the writes it has started.
+/// Each started write owns its claim. Dropping this with writes still running (e.g. when the
+/// caller is cancelled) moves them into a task that collects their outcomes.
+struct Publication {
+    /// Indices into the captured effects that this attempt writes, with their claims (`None` only
+    /// for [`Effects::apply_for_testing`]).
+    to_apply: Vec<(usize, Option<OwnedMutexGuard<()>>)>,
+    running: FuturesUnordered<RunningApply>,
+    /// Failed or panicked writes, in completion order.
+    failures: Vec<ApplyOutcome>,
+    runtime: tokio::runtime::Handle,
+}
+
+impl Publication {
+    fn new(to_apply: Vec<(usize, Option<OwnedMutexGuard<()>>)>) -> Self {
+        Self {
+            to_apply,
+            running: FuturesUnordered::new(),
+            failures: Vec::new(),
+            runtime: tokio::runtime::Handle::current(),
+        }
+    }
+}
+
+impl Drop for Publication {
+    fn drop(&mut self) {
+        if self.running.is_empty() {
+            return;
+        }
+        let mut running = take(&mut self.running);
+        let mut failures = take(&mut self.failures);
+        self.runtime.spawn(async move {
+            // Keep outcomes until every write has finished: dropping a panic payload can panic.
+            while let Some((_, outcome)) = running.next().await {
+                failures.push(outcome);
+            }
+            drop(failures);
+        });
+    }
+}
+
+/// Reads `op` only if it is settled right now, without waiting, scheduling, or executing any task.
+///
+/// The settled check, the output, and the output cell are read under one task lock, so the value
+/// is the root's result at one instant. The root must return a cell of its own (as the usual
+/// wrapper operations returning `{ .. }.cell()` do): validating a result reached through another
+/// task would need a snapshot of the whole chain.
+fn read_settled<T: VcValueType>(op: OperationVc<T>) -> Result<Option<ReadRef<T>>> {
+    match with_turbo_tasks(|tt| tt.try_read_settled_task_result(op.task_id()))? {
+        SettledTaskResult::NotSettled => Ok(None),
+        SettledTaskResult::OwnCell(content) => content.cast::<T>().map(Some),
+        SettledTaskResult::Other => anyhow::bail!(
+            "effects must be published from an operation that returns its own cell, e.g. \
+             `Ok(WithEffects {{ .. }}.cell())`"
+        ),
+    }
+}
+
+/// Returns the current value of `op` if it is settled and its plan is `plan`, the plan of
+/// `captured`.
+enum Currentness<T> {
+    Current(T),
+    Obsolete,
+    /// A change was in progress (see [`ChangeInProgress`][crate::ChangeInProgress]); check again
+    /// once it ended.
+    ChangeInProgress,
+}
+
+fn read_current<T, F>(
+    op: OperationVc<T>,
+    get_effects: &F,
+    captured: &ReadRef<T>,
+    plan: &[PlannedEffect],
+) -> Result<Currentness<ReadRef<T>>>
+where
+    T: VcValueType,
+    F: Fn(&<<T as VcValueType>::Read as VcRead<T>>::Target) -> &Effects,
+{
+    // While a change is in progress, a root that depends on the old value can still look settled
+    // although other tasks already see the new value. So the check only counts if no change was
+    // in progress, and none started or ended, while it ran.
+    let Some(epoch) = change_epoch() else {
+        return Ok(Currentness::ChangeInProgress);
+    };
+    let Some(value) = read_settled(op)? else {
+        return Ok(Currentness::Obsolete);
+    };
+    let current = ReadRef::ptr_eq(&value, captured)
+        || forbid_task_reads(|| get_effects(&*value).plan()).is_ok_and(|current| current == plan);
+    Ok(match change_epoch() {
+        None => Currentness::ChangeInProgress,
+        Some(now) if current && now == epoch => Currentness::Current(value),
+        Some(_) => Currentness::Obsolete,
+    })
+}
+
+/// Strongly-consistent read of `op`, then publish its effects.
 ///
 /// `get_effects` extracts the [`Effects`] from the read value (for a wrapper struct this is
-/// `|v| &v.effects`; for an `OperationVc<Effects>` it is `|e| e`).
+/// `|v| &v.effects`; for an `OperationVc<Effects>` it is `|e| e`). It and the captured effects'
+/// [`CapturedEffect::key`], [`CapturedEffect::kind`], and [`CapturedEffect::value_hash`] must be
+/// pure and non-blocking.
 ///
-/// On [`EffectsError::Retry`] the producing operation has already been invalidated by
-/// `Effects::apply`, so the next
-/// [`read_strongly_consistent`][OperationVc::read_strongly_consistent] re-runs the producer and
-/// yields a fresh [`Effects`] whose `capture()` re-materializes content. Retries are bounded to
-/// avoid livelock when two producers perpetually stomp the same key; after the first retry a
-/// warning is logged on each subsequent attempt, and on exhaustion the last `Retry` surfaces as an
-/// error.
+/// `op` must return a cell of its own, which is how currentness is validated in one consistent
+/// read. Wrap effects in a value built by the operation itself:
 ///
-/// This is one of two public entry points for applying effects (see also
-/// [`resolve_strongly_consistent_and_take_and_apply_effects`]) — `Effects::apply` is private so the
-/// retry contract cannot be bypassed.
+/// ```ignore
+/// #[turbo_tasks::function(operation, root)]
+/// async fn with_effects(args: Args) -> Result<Vc<OutputWithEffects>> {
+///     let op = some_operation(args);
+///     let output = op.read_strongly_consistent().await?;
+///     let effects = take_effects(op).await?;
+///     Ok(OutputWithEffects { output, effects }.cell())
+/// }
+/// ```
+///
+/// An operation returning another task's value (e.g. `fn root() -> Vc<T> { other() }`) is
+/// rejected with an error.
+///
+/// Each attempt:
+/// 1. reads `op` strongly consistently and captures its plan;
+/// 2. claims every key the plan still has to write (keys already holding the planned result are
+///    left alone);
+/// 3. checks, without waiting, that `op` is still settled with the same plan, and otherwise
+///    releases the claims and starts over;
+/// 4. applies the plan under the claims, draining every started write even if this future is
+///    dropped, then releases them;
+/// 5. commits: claims every key of the plan, including ones it did not write, checks that each
+///    holds the planned result and that `op` is still settled with the same plan, and otherwise
+///    starts over to publish the current plan.
+///
+/// The returned value is the one validated after the writes (or, after too many obsolete plans,
+/// the last one captured). Its effects equal the applied plan.
+///
+/// Within one [`EffectStateStorage`] this ensures a plan that is no longer current is never
+/// written over a newer one, provided every writer of those keys publishes through this function
+/// and roots that are current at the same time agree on shared keys. Writes from separate
+/// storages to one physical location are not coordinated.
+///
+/// "Current" means settled as of the dirtiness that has reached the root. A change counts as in
+/// progress (see [`ChangeInProgress`][crate::ChangeInProgress]) from before its new value is
+/// readable or a task is marked dirty until that dirtiness has reached the aggregating ancestors,
+/// and the check only counts if no change was in progress, and none started or ended, while it
+/// ran. So a newer value another root could already read always makes this root obsolete. If a
+/// change is in progress, publication releases its claims, waits for a change to end, and counts
+/// the attempt like an obsolete plan. A change that is only reported through an [`Invalidator`]
+/// after its new value became readable elsewhere (e.g. an untracked read of external state) is
+/// not covered.
+///
+/// [`EffectsError::Retry`] (content elided at capture time, storage diverged before apply) is
+/// retried with bounded attempts. If inputs keep changing during publication, it gives up checking
+/// currentness after a bounded number of obsolete plans and checks that found a change in
+/// progress: it warns, writes the latest plan under
+/// its claims without checking it or waiting for changes in progress, and returns that plan's
+/// value. Must not be called from inside an effect's
+/// [`CapturedEffect::apply`].
 pub async fn read_strongly_consistent_and_apply_effects<T, F>(
     op: OperationVc<T>,
     get_effects: F,
@@ -689,52 +1005,200 @@ where
     T: VcValueType,
     F: Fn(&<<T as VcValueType>::Read as VcRead<T>>::Target) -> &Effects,
 {
-    let mut attempts = 0usize;
-    loop {
-        let value = op.read_strongly_consistent().await?;
-        // Deref the `ReadRef<T>` to the read target (`T` for non-transparent types).
-        let effects = get_effects(&*value);
-        match effects.apply().await {
-            Ok(()) => return Ok(value),
-            Err(e) => handle_apply_retry(e, &mut attempts)?,
-        }
-    }
+    publish(op, get_effects, false).await
 }
 
 /// AVOID CALLING THIS UNLESS DEEPLY REQUIRED
 ///
-/// Like [`read_strongly_consistent_and_apply_effects`], but the [`Effects`] directly accessed by
-/// calling [`take_effects`] on the supplied operation.
-///
-/// Unlike [`read_strongly_consistent_and_apply_effects`], this may be called from *inside* a
-/// turbo-tasks task (it owns the `mark`/`unmark` around `apply`). The consequence is that the
-/// effects may be re-applied if that enclosing task is invalidated — acceptable for lazily-created
-/// resources.
-pub async fn resolve_strongly_consistent_and_take_and_apply_effects<T>(
+/// Like [`read_strongly_consistent_and_apply_effects`], but may be called from *inside* a
+/// turbo-tasks task (it owns the `mark`/`unmark` around applying). The consequence is that the
+/// effects may be re-published if that enclosing task is invalidated — acceptable for
+/// lazily-created resources.
+pub async fn read_strongly_consistent_and_apply_effects_in_task<T, F>(
     op: OperationVc<T>,
-) -> Result<ResolvedVc<T>>
+    get_effects: F,
+) -> Result<ReadRef<T>>
 where
     T: VcValueType,
+    F: Fn(&<<T as VcValueType>::Read as VcRead<T>>::Target) -> &Effects,
 {
-    let mut attempts = 0usize;
-    loop {
-        let value = op.resolve().strongly_consistent().await?;
-        // Run the callback while *not* marked top-level so it can `take_effects` / read Vcs.
+    publish(op, get_effects, true).await
+}
 
-        let effects = take_effects(op).await?;
-        // `Effects::apply` asserts it runs at the top-level. Mark only around the apply, then
-        // unmark so any further work (including the next loop iteration's read) is unaffected.
-        mark_top_level_task();
-        let result = effects.apply().await;
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        match result {
-            Ok(()) => return Ok(value),
-            Err(e) => handle_apply_retry(e, &mut attempts)?,
+async fn publish<T, F>(op: OperationVc<T>, get_effects: F, in_task: bool) -> Result<ReadRef<T>>
+where
+    T: VcValueType,
+    F: Fn(&<<T as VcValueType>::Read as VcRead<T>>::Target) -> &Effects,
+{
+    anyhow::ensure!(
+        IN_EFFECT_APPLY.try_with(|_| ()).is_err(),
+        "effects must not be published from inside an effect's apply"
+    );
+    let mut retries = 0usize;
+    let mut obsolete = 0usize;
+    loop {
+        let value = op.read_strongly_consistent().await?;
+        let effects = get_effects(&*value);
+        let plan = effects.plan()?;
+        let check_current = obsolete < MAX_OBSOLETE_PLANS;
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Captured).await;
+        let mut publication = effects.claim().await;
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Claimed).await;
+        if check_current {
+            match read_current(op, &get_effects, &value, &plan)? {
+                Currentness::Current(_) => {}
+                Currentness::Obsolete => {
+                    drop(publication);
+                    handle_obsolete_plan(&mut obsolete);
+                    continue;
+                }
+                Currentness::ChangeInProgress => {
+                    drop(publication);
+                    wait_for_change_to_end().await;
+                    handle_obsolete_plan(&mut obsolete);
+                    continue;
+                }
+            }
+        }
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Validated).await;
+        let result = {
+            // Restores the previous marking even if applying unwinds or is cancelled.
+            struct TopLevel(bool);
+            impl Drop for TopLevel {
+                fn drop(&mut self) {
+                    replace_top_level_task(self.0);
+                }
+            }
+            let _top_level = in_task.then(|| TopLevel(replace_top_level_task(true)));
+            effects.apply_claimed(&mut publication).await
+        };
+        if let Err(err) = result {
+            drop(publication);
+            handle_apply_retry(err, &mut retries)?;
+            continue;
+        }
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Applied).await;
+        drop(publication);
+        if !check_current {
+            return Ok(value);
+        }
+        // Commit: with every key of the plan claimed (not only the ones written), check that each
+        // holds the planned result and the plan is still current. Releasing first keeps claims in
+        // the global order.
+        let (claims, applied) = effects.claim_all_and_check_applied().await;
+        let current = if applied {
+            read_current(op, &get_effects, &value, &plan)?
+        } else {
+            // Another publication changed a key. Rerun the producer so the next capture
+            // materializes content instead of eliding it against the old storage state.
+            effects.invalidate_producer();
+            Currentness::Obsolete
+        };
+        drop(claims);
+        match current {
+            Currentness::Current(value) => return Ok(value),
+            Currentness::Obsolete => handle_obsolete_plan(&mut obsolete),
+            Currentness::ChangeInProgress => {
+                wait_for_change_to_end().await;
+                handle_obsolete_plan(&mut obsolete)
+            }
         }
     }
 }
 
-/// Shared retry-decision for the two `read_strongly_consistent_and_apply_effects*` helpers.
+/// Pause points inside [`read_strongly_consistent_and_apply_effects`], for deterministic
+/// interleaving tests only.
+#[cfg(feature = "publication_test_hooks")]
+#[doc(hidden)]
+pub mod publication_test_hooks {
+    use std::sync::Arc;
+
+    use futures::future::BoxFuture;
+    use parking_lot::RwLock;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Point {
+        /// The plan is captured; no claims are held.
+        Captured,
+        /// The plan's keys are claimed; validation has not run.
+        Claimed,
+        /// Validation passed, or was skipped after too many obsolete plans; nothing has been
+        /// written yet.
+        Validated,
+        /// The plan is applied; claims of written keys are released and revalidation has not run.
+        Applied,
+    }
+
+    pub type Hook = Arc<dyn Fn(Point) -> BoxFuture<'static, ()> + Send + Sync>;
+
+    static HOOK: RwLock<Option<Hook>> = RwLock::new(None);
+
+    pub fn set(hook: Option<Hook>) {
+        // Drop the previous hook outside the lock: its drop may call `set` again.
+        let previous = std::mem::replace(&mut *HOOK.write(), hook);
+        drop(previous);
+    }
+
+    pub(super) async fn fire(point: Point) {
+        let hook = HOOK.read().clone();
+        if let Some(hook) = hook {
+            hook(point).await;
+        }
+    }
+
+    /// Synchronous pause points outside publication, in code that cannot await.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SyncPoint {
+        /// A [`State`][crate::State] mutation is visible to readers; its dependents have not been
+        /// notified yet.
+        StateMutationVisible,
+        /// An invalidation has marked its tasks dirty; the dirtiness has not propagated to their
+        /// aggregating ancestors yet.
+        InvalidationDirtied,
+        /// A changed cell's new content is readable and its direct dependents are dirty; their
+        /// dirtiness has not propagated to their aggregating ancestors yet.
+        CellChangeExposed,
+    }
+
+    pub type SyncHook = Arc<dyn Fn(SyncPoint) + Send + Sync>;
+
+    static SYNC_HOOK: RwLock<Option<SyncHook>> = RwLock::new(None);
+
+    pub fn set_sync(hook: Option<SyncHook>) {
+        let previous = std::mem::replace(&mut *SYNC_HOOK.write(), hook);
+        drop(previous);
+    }
+
+    pub fn fire_sync(point: SyncPoint) {
+        let hook = SYNC_HOOK.read().clone();
+        if let Some(hook) = hook {
+            hook(point);
+        }
+    }
+}
+
+/// Obsolete plans, and checks that found a change in progress, after which publication stops
+/// checking currentness and writes the latest plan.
+const MAX_OBSOLETE_PLANS: usize = 16;
+
+/// Counts a restart caused by inputs changing, or a change being in progress, between a capture and
+/// its validation or commit, and warns once publication will stop checking currentness.
+fn handle_obsolete_plan(obsolete: &mut usize) {
+    *obsolete += 1;
+    if *obsolete == MAX_OBSOLETE_PLANS {
+        tracing::warn!(
+            attempts = MAX_OBSOLETE_PLANS,
+            "inputs kept changing while publishing effects; writing the latest plan without \
+             checking that it is still current"
+        );
+    }
+}
+
+/// Shared retry-decision for publication.
 ///
 /// Returns `Ok(())` to signal the caller should retry the read+apply loop (bounded by
 /// `MAX_RETRIES`). Returns `Err` for terminal outcomes: a non-`Retry` error, or `Retry` after the
@@ -769,16 +1233,18 @@ fn handle_apply_retry(err: EffectsError, attempts: &mut usize) -> Result<()> {
 /// effects themselves (no [`EffectStateStorage`] interaction) and is therefore safe to call
 /// from inside a turbo-tasks task in [`take_effects`].
 fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
-    let mut by_key: FxHashMap<Box<[u8]>, usize> = FxHashMap::default();
+    let mut by_key: FxHashMap<(u64, Box<[u8]>), usize> = FxHashMap::default();
     for (idx, effect) in captured.iter().enumerate() {
-        match by_key.entry(effect.key()) {
+        match by_key.entry((effect.state_storage().id, effect.key())) {
             hash_map::Entry::Vacant(entry) => {
                 entry.insert(idx);
             }
             hash_map::Entry::Occupied(entry) => {
-                if captured[*entry.get()].value_hash() != effect.value_hash() {
+                let existing = &captured[*entry.get()];
+                if existing.kind() != effect.kind() || existing.value_hash() != effect.value_hash()
+                {
                     return Err(Arc::new(ConflictingEffectError {
-                        key_len: entry.key().len(),
+                        key_len: entry.key().1.len(),
                     }));
                 }
             }
@@ -793,14 +1259,115 @@ fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CollectiblesSource, Effects, take_effects};
+    use std::{
+        future::ready,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
+
+    use crate::{
+        self as turbo_tasks, ApplyError, CollectiblesSource, EffectStateStorage, Effects,
+        NonLocalValue, take_effects,
+    };
+
+    #[derive(Debug, thiserror::Error, NonLocalValue)]
+    #[error("test effect failed")]
+    struct TestError;
+
+    fn key(name: &str) -> Box<[u8]> {
+        name.as_bytes().into()
+    }
+
+    #[tokio::test]
+    async fn kind_is_part_of_applied_identity() {
+        let storage = EffectStateStorage::default();
+        let calls = AtomicUsize::new(0);
+        let apply = |kind| {
+            storage.run_apply(
+                key("out"),
+                kind,
+                7,
+                Some(async || {
+                    calls.fetch_add(1, Ordering::Relaxed);
+                    Ok::<_, TestError>(())
+                }),
+            )
+        };
+        apply("file").await.unwrap();
+        apply("file").await.unwrap();
+        assert_eq!(
+            calls.load(Ordering::Relaxed),
+            1,
+            "same kind and hash dedups"
+        );
+        apply("link").await.unwrap();
+        assert_eq!(
+            calls.load(Ordering::Relaxed),
+            2,
+            "a different kind with the same hash must run"
+        );
+        assert!(storage.matches_applied(&key("out"), "link", 7));
+        assert!(!storage.matches_applied(&key("out"), "file", 7));
+    }
+
+    #[tokio::test]
+    async fn identical_plan_after_failure_returns_cached_error() {
+        let storage = EffectStateStorage::default();
+        let calls = AtomicUsize::new(0);
+        for _ in 0..2 {
+            let result = storage
+                .run_apply(
+                    key("out"),
+                    "file",
+                    1,
+                    Some(async || {
+                        calls.fetch_add(1, Ordering::Relaxed);
+                        Err::<(), _>(TestError)
+                    }),
+                )
+                .await;
+            assert!(matches!(result, Err(ApplyError::Failed(_))));
+        }
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test]
+    async fn cancelled_apply_wakes_waiters() {
+        let storage = EffectStateStorage::default();
+        let mut pending = Box::pin(storage.run_apply(
+            key("out"),
+            "file",
+            1,
+            Some(async || {
+                std::future::pending::<()>().await;
+                Ok::<_, TestError>(())
+            }),
+        ));
+        assert!(futures::poll!(&mut pending).is_pending());
+        let mut waiter = Box::pin(storage.run_apply(
+            key("out"),
+            "file",
+            2,
+            Some(|| ready(Ok::<_, TestError>(()))),
+        ));
+        assert!(futures::poll!(&mut waiter).is_pending());
+        drop(pending);
+        waiter.await.unwrap();
+    }
+
+    #[test]
+    fn storage_ids_are_unique() {
+        assert_ne!(
+            EffectStateStorage::default().id,
+            EffectStateStorage::default().id
+        );
+    }
 
     #[test]
     #[allow(dead_code)]
     fn is_send() {
         fn assert_send<T: Send>(_: T) {}
         fn check_effects_apply() {
-            assert_send(Effects::empty().apply());
+            assert_send(Effects::empty().apply_for_testing());
         }
         fn check_take_effects<T: CollectiblesSource + Send + Sync>(t: T) {
             assert_send(take_effects(t));

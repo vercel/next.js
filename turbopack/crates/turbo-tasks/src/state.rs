@@ -10,8 +10,8 @@ use parking_lot::{Mutex, MutexGuard};
 use tracing::trace_span;
 
 use crate::{
-    Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
-    get_serialization_invalidator, manager::with_turbo_tasks,
+    Invalidator, OperationValue, SerializationInvalidator, changes::ChangeInProgress,
+    get_invalidator, get_serialization_invalidator, manager::with_turbo_tasks,
 };
 
 #[derive(Encode, Decode)]
@@ -75,6 +75,13 @@ impl<T: PartialEq> StateInner<T> {
 ///
 /// Both notifications resolve `TURBO_TASKS` from a task-local, so we do them
 /// inside a single [`with_turbo_tasks`] call to amortize that lookup.
+/// A [`State`] mutation that tasks have to be notified about. Starts while the state is still
+/// locked, before the new value can be read, and ends once every reader has been invalidated and
+/// that has propagated to their aggregating ancestors.
+fn start_mutation(invalidators: &AutoSet<Invalidator>) -> Option<ChangeInProgress> {
+    (!invalidators.is_empty()).then(ChangeInProgress::start)
+}
+
 fn notify_mutated(
     invalidators: AutoSet<Invalidator>,
     serialization_invalidator: Option<&SerializationInvalidator>,
@@ -82,6 +89,10 @@ fn notify_mutated(
     if invalidators.is_empty() && serialization_invalidator.is_none() {
         return;
     }
+    #[cfg(feature = "publication_test_hooks")]
+    crate::publication_test_hooks::fire_sync(
+        crate::publication_test_hooks::SyncPoint::StateMutationVisible,
+    );
     let _span = trace_span!("state value changed").entered();
     with_turbo_tasks(|tt| {
         Invalidator::invalidate_all(invalidators, &**tt);
@@ -150,8 +161,10 @@ impl<T> Drop for StateRef<'_, T> {
         // running them under the guard is a lock-order inversion.
         let mut guard = self.inner.take().expect("Drop only called once");
         let invalidators = take(&mut guard.invalidators);
+        let mutation = start_mutation(&invalidators);
         drop(guard);
         notify_mutated(invalidators, self.serialization_invalidator);
+        drop(mutation);
     }
 }
 
@@ -274,11 +287,14 @@ impl<T> State<T> {
     /// Sets the current state without comparing it with the old value. This
     /// should only be used if one is sure that the value has changed.
     pub fn set_unconditionally(&self, value: T) {
-        let invalidators = {
+        let (invalidators, mutation) = {
             let mut inner = self.inner.lock();
-            inner.set_unconditionally(value)
+            let invalidators = inner.set_unconditionally(value);
+            let mutation = start_mutation(&invalidators);
+            (invalidators, mutation)
         };
         notify_mutated(invalidators, Some(&self.serialization_invalidator));
+        drop(mutation);
     }
 
     /// Updates the current state with the `update` function. The `update`
@@ -286,13 +302,17 @@ impl<T> State<T> {
     /// the current value from the `update` function is not allowed and will
     /// result in incorrect cache invalidation.
     pub fn update_conditionally(&self, update: impl FnOnce(&mut T) -> bool) {
-        let Some(invalidators) = ({
+        let Some((invalidators, mutation)) = ({
             let mut inner = self.inner.lock();
-            inner.update_conditionally(update)
+            inner.update_conditionally(update).map(|invalidators| {
+                let mutation = start_mutation(&invalidators);
+                (invalidators, mutation)
+            })
         }) else {
             return;
         };
         notify_mutated(invalidators, Some(&self.serialization_invalidator));
+        drop(mutation);
     }
 }
 
@@ -300,12 +320,16 @@ impl<T: PartialEq> State<T> {
     /// Update the current state when the `value` is different from the current
     /// value. `T` must implement [PartialEq] for this to work.
     pub fn set(&self, value: T) {
-        let Some(invalidators) = ({
+        let Some((invalidators, mutation)) = ({
             let mut inner = self.inner.lock();
-            inner.set(value)
+            inner.set(value).map(|invalidators| {
+                let mutation = start_mutation(&invalidators);
+                (invalidators, mutation)
+            })
         }) else {
             return;
         };
         notify_mutated(invalidators, Some(&self.serialization_invalidator));
+        drop(mutation);
     }
 }
