@@ -21,11 +21,19 @@ describe('generateBuildId', () => {
     ).rejects.toThrow('generateBuildId did not return a string')
   })
 
-  it('rejects a build id containing a slash', async () => {
-    await expect(
-      generateBuildId(async () => 'release/v1', fallback)
-    ).rejects.toThrow(
-      'generateBuildId returned "release/v1", which contains a "/"'
-    )
-  })
+  it.each(['release/v1', '/a', 'a/'])(
+    'rejects a build id containing a slash: %s',
+    async (id) => {
+      await expect(generateBuildId(async () => id, fallback)).rejects.toThrow(
+        `generateBuildId returned "${id}", which contains a "/"`
+      )
+    }
+  )
+
+  it.each(['v1.0.0+build', 'a%2Fb'])(
+    'accepts a build id without a slash: %s',
+    async (id) => {
+      await expect(generateBuildId(async () => id, fallback)).resolves.toBe(id)
+    }
+  )
 })
