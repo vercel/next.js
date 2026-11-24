@@ -395,11 +395,6 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// Switchyard allocates, and Go's garbage collector then spends CPU
 		// freeing them. The pool hands finished buffers to later responses.
 		BufferPool: &bufferPool{pool: sync.Pool{}},
-		// Node can answer before the client has finished sending the request
-		// body. If the body hasn't been read cleanly to its end by then, the
-		// rest of it is still on the client connection, and Go's server could
-		// read those bytes as the next request. Close the connection after
-		// such a response instead of reusing it.
 		ModifyResponse: func(res *http.Response) error {
 			// Put back the hop-by-hop headers the proxy removed and Node sends
 			// its client (nodeResponseTransport).
@@ -426,9 +421,6 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 				if res.StatusCode != http.StatusSwitchingProtocols && isUpgradeRequest(res.Request.Header) {
 					res.Header.Set("Connection", "close")
 				}
-			}
-			if body, ok := res.Request.Context().Value(requestBodyKey{}).(*requestBody); ok && !body.readToEnd.Load() {
-				res.Header.Set("Connection", "close")
 			}
 			return nil
 		},
@@ -500,17 +492,35 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// mode lets the response go out as Node sends it. It fails only for
 		// HTTP/2, which Switchyard doesn't serve, so the error is ignored.
 		_ = http.NewResponseController(w).EnableFullDuplex()
+		node := newNodeResponse()
+		var body *requestBody
 		if r.ContentLength != 0 && r.Body != nil && r.Body != http.NoBody {
-			// Track whether the body is read to its end before Node answers;
-			// ModifyResponse closes the connection if it isn't.
-			body := newRequestBody(r.Body)
+			// Track how reading the body ends, and keep the rest of it from
+			// being read as the next request (finishRequestBody).
+			body = newRequestBody(r.Body)
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
-		r = r.WithContext(context.WithValue(r.Context(), nodeResponseKey{}, &nodeResponse{hopHeaders: nil, connection: nil, connected: atomic.Bool{}}))
+		r = r.WithContext(context.WithValue(r.Context(), nodeResponseKey{}, node))
 		r, release := endWithClient(r)
 		defer release()
+		if body != nil {
+			// The proxy panics when a response breaks off (Node went away
+			// mid-response) and so does the ErrorHandler on purpose. On a
+			// panic Go's server cuts off reads still running and then reads
+			// up to 256 KB more of the body itself, with no deadline, before
+			// it closes the connection, so stop reading the body first.
+			defer func() {
+				if p := recover(); p != nil {
+					stopReadingBody(body, node, r)
+					panic(p)
+				}
+			}()
+		}
 		proxy.ServeHTTP(&clientWriter{ResponseWriter: w, sentInformational: false}, r)
+		if body != nil {
+			finishRequestBody(body, node, r, w.Header())
+		}
 	})
 }
 
@@ -615,6 +625,19 @@ type nodeResponse struct {
 	// Whether a connection to Node was made for the request. The Transport
 	// reports it on its own goroutine.
 	connected atomic.Bool
+
+	// Closed once the Transport is done with the request: it has written all
+	// of it, given up writing it, or failed (finishRequestBody).
+	requestDone chan struct{}
+	doneOnce    sync.Once
+}
+
+func newNodeResponse() *nodeResponse {
+	return &nodeResponse{hopHeaders: nil, connection: nil, connected: atomic.Bool{}, requestDone: make(chan struct{}), doneOnce: sync.Once{}}
+}
+
+func (n *nodeResponse) finishedRequest() {
+	n.doneOnce.Do(func() { close(n.requestDone) })
 }
 
 // nodeResponseTransport keeps, in the request's nodeResponse, the parts of
@@ -635,10 +658,13 @@ func (t nodeResponseTransport) RoundTrip(r *http.Request) (*http.Response, error
 	}
 	// httptrace adds this hook to any the context already has.
 	r = r.WithContext(httptrace.WithClientTrace(r.Context(), &httptrace.ClientTrace{
-		GotConn: func(httptrace.GotConnInfo) { node.connected.Store(true) },
+		GotConn:      func(httptrace.GotConnInfo) { node.connected.Store(true) },
+		WroteRequest: func(httptrace.WroteRequestInfo) { node.finishedRequest() },
 	}))
 	res, err := t.next.RoundTrip(r)
-	if err == nil {
+	if err != nil {
+		node.finishedRequest()
+	} else {
 		node.hopHeaders = keepHopHeaders(res.Header)
 		node.connection = res.Header["Connection"]
 		// The Transport takes "Connection: close" out of the header map and
@@ -668,6 +694,8 @@ type requestBody struct {
 	deadline  atomic.Bool
 	ended     chan struct{} // closed once a read returns any error, io.EOF included
 	endOnce   sync.Once
+	// Reads come from the Transport and, at the end, from finishRequestBody.
+	readMu sync.Mutex
 }
 
 func newRequestBody(body io.ReadCloser) *requestBody {
@@ -677,10 +705,84 @@ func newRequestBody(body io.ReadCloser) *requestBody {
 		deadline:   atomic.Bool{},
 		ended:      make(chan struct{}),
 		endOnce:    sync.Once{},
+		readMu:     sync.Mutex{},
+	}
+}
+
+// Close does nothing. The proxy closes the request body when it returns, and
+// closing Go's body waits for a read in progress, which is the Transport's,
+// still waiting for the client's upload. The proxy would not return, and a
+// response without a length would not end, until the upload did.
+// finishRequestBody decides what happens to the rest of the body, and Go's
+// server closes the body after the handler returns.
+func (b *requestBody) Close() error { return nil }
+
+// finishRequestBody decides what happens to the part of the client's request
+// body that hasn't been read when the response is done. r is the request,
+// header the response's.
+//
+// Node parity: Node can answer before it has read the body (an upload
+// refused with a 403, say). It ends the response at once, then reads and
+// discards the rest of the body (IncomingMessage._dump), and keeps the
+// connection unless the response closes it.
+//   - The response has a length and keeps the connection, so the client
+//     already has all of it: wait until the body ends, as the Transport keeps
+//     sending it on to Node, which discards it. If the Transport stops first
+//     (Node stopped reading), read and discard the rest here. Then the
+//     connection stays open.
+//   - The response closes the connection, or has no length (Go's server
+//     writes its end only after the handler returns, so the handler must
+//     return now): shut down reading on the client's connection, wait until
+//     the Transport has stopped reading the body, and return. Go's server
+//     then ends the response and closes the connection. For an answer with no
+//     length, Node would read the rest and keep the connection open.
+//
+// Nothing may read the body after the handler returns (Go's reverse proxy
+// notes this, golang.org/issue/46866): Go's server would cut off that read
+// and then wait for the client's next bytes with no deadline.
+func finishRequestBody(body *requestBody, node *nodeResponse, r *http.Request, header http.Header) {
+	select {
+	case <-body.ended:
+		return
+	default:
+	}
+	if !slices.Contains(connectionNames(header), "Close") && header.Get("Content-Length") != "" {
+		select {
+		case <-body.ended:
+			return
+		case <-node.requestDone:
+		}
+		io.Copy(io.Discard, body)
+		return
+	}
+	stopReadingBody(body, node, r)
+}
+
+// stopReadingBody shuts down reading on the client's connection, which ends
+// every read of r's body at once, the Transport's included, and waits until
+// the Transport has stopped. The connection then closes after the response.
+func stopReadingBody(body *requestBody, node *nodeResponse, r *http.Request) {
+	select {
+	case <-body.ended:
+		return
+	default:
+	}
+	conn, ok := r.Context().Value(clientConnKey{}).(*clientConn)
+	if !ok {
+		return
+	}
+	conn.CloseRead()
+	select {
+	case <-node.requestDone:
+	case <-time.After(time.Second):
+		// The Transport is stuck writing to Node instead: don't hold the
+		// response's end any longer.
 	}
 }
 
 func (b *requestBody) Read(p []byte) (int, error) {
+	b.readMu.Lock()
+	defer b.readMu.Unlock()
 	n, err := b.ReadCloser.Read(p)
 	if err != nil {
 		if err == io.EOF {

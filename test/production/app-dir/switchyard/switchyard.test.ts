@@ -522,6 +522,28 @@ describe('switchyard', () => {
       expect(closed).toBe(true)
     })
 
+    it('keeps the connection after an answer that came before the upload ended', async () => {
+      const socket = net.connect(Number(next.appPort), '127.0.0.1')
+      let text = ''
+      socket.on('data', (chunk) => (text += chunk.toString('latin1')))
+      try {
+        const body = Buffer.alloc(200_000, 'a')
+        socket.write(
+          `POST /api/early HTTP/1.1\r\n${host()}Content-Length: ${body.length}\r\n\r\n`
+        )
+        await retry(() => expect(text).toContain('refused'))
+        expect(text).toMatch(/^HTTP\/1\.1 403 /)
+        expect(text).not.toMatch(/\r\nconnection: close\r\n/i)
+        // The rest of the upload, then another request on the same connection.
+        socket.write(body)
+        socket.write(`GET /api/sized HTTP/1.1\r\n${host()}\r\n`)
+        await retry(() => expect(text.endsWith('sized')).toBe(true))
+        expect(text.match(/HTTP\/1\.1 /g)).toHaveLength(2)
+      } finally {
+        socket.destroy()
+      }
+    })
+
     // Writes `request`, stops sending (a half-close), and resolves with what
     // the server sent before it closed the connection.
     function sendThenStopSending(request: string) {
