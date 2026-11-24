@@ -3,7 +3,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import { match } from 'next/dist/compiled/path-to-regexp'
 import {
   matchHas,
-  prepareDestination,
+  prepareDestinationURL,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import { PHASE_PRODUCTION_BUILD } from '../../../shared/lib/constants'
 import { buildCustomRoute } from '../../../lib/build-custom-route'
@@ -19,8 +19,11 @@ import type {
 import type { BaseNextRequest } from '../../../server/base-http'
 import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
-import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/helpers/parsed-url-query-to-params'
-import { searchParamsToUrlQuery } from '../../../shared/lib/router/utils/querystring'
+import {
+  searchParamsToUrlQuery,
+  urlQueryToSearchParams,
+} from '../../../shared/lib/router/utils/querystring'
+import { toAbsoluteURL } from '../../../shared/lib/router/utils/relative-url'
 
 /**
  * Tries to match the current request against the provided route. If there is
@@ -124,21 +127,20 @@ export async function unstable_getResponseFromNextConfig({
     if (!params) {
       return
     }
-    const { newUrl, parsedDestination } = prepareDestination({
+    const { parsedDestination } = prepareDestinationURL({
       appendParamsToQuery: false,
       destination: route.destination,
       params,
       query,
     })
-    const searchParams = new URLSearchParams(
-      parsedUrlQueryToParams(parsedDestination.query) as Record<string, string>
-    )
-    return new URL(
-      searchParams.size > 0 ? `${newUrl}?${searchParams.toString()}` : newUrl,
-      parsedDestination.hostname
-        ? `${parsedDestination.protocol}//${parsedDestination.hostname}`
-        : parsed.origin
-    )
+    const destination =
+      parsedDestination.kind === 'absolute'
+        ? parsedDestination.url
+        : toAbsoluteURL(parsedDestination.url, parsed)
+    destination.search = urlQueryToSearchParams(
+      parsedDestination.query
+    ).toString()
+    return destination
   }
   for (const route of redirectRoutes) {
     const redirectUrl = matchRouteAndGetDestination(route)
