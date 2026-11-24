@@ -1236,9 +1236,11 @@ impl<'e> ExecuteContext<'e> {
         {
             self.task_lock_counter.acquire_second();
             #[cfg(debug_assertions)]
-            {
+            let task = {
+                let mut task = task;
                 task.category = category;
-            }
+                task
+            };
             let task2 = TaskGuard::new(task2, task_id2, category, self.task_lock_counter.clone());
             return (task, task2);
         }
