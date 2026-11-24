@@ -4,7 +4,7 @@ use std::{
 };
 
 use bumpalo::boxed::Box as BumpBox;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     common::{BytePos, Mark, Span, Spanned, SyntaxContext, pass::AstNodePath},
@@ -94,6 +94,45 @@ pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) ast_paths: AstPathTrieBuilder,
 
     pub(super) eval_context: &'eval EvalContext,
+
+    /// Bindings that are destructured as `env` from an object (e.g. `const { env } = process`),
+    /// so they might be `process.env`. Escaping uses of them are found by
+    /// [`EnvBindingEscapeFinder`] once the whole module has been visited (uses can come before the
+    /// declaration in source order, e.g. in a function declared earlier).
+    pub(super) env_binding_candidates: FxHashSet<Id>,
+}
+
+/// Finds escaping uses (see [`value_escapes`]) of the given bindings.
+pub(super) struct EnvBindingEscapeFinder<'a> {
+    pub(super) bindings: &'a FxHashSet<Id>,
+    pub(super) escaping_uses: Vec<(Id, Span)>,
+}
+
+impl VisitAstPath for EnvBindingEscapeFinder<'_> {
+    // The local bindings of import specifiers aren't uses of the value.
+    fn visit_import_decl<'ast: 'r, 'r>(
+        &mut self,
+        _: &'ast ImportDecl,
+        _: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+    }
+
+    fn visit_ident<'ast: 'r, 'r>(
+        &mut self,
+        ident: &'ast Ident,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        // Binding occurrences (declarations, assignment targets) aren't uses of the value.
+        if self.bindings.contains(&ident.to_id())
+            && !matches!(
+                ast_path.len().checked_sub(1).and_then(|i| ast_path.get(i)),
+                Some(AstParentNodeRef::BindingIdent(..))
+            )
+            && value_escapes(ast_path)
+        {
+            self.escaping_uses.push((ident.to_id(), ident.span));
+        }
+    }
 }
 
 /// Collects a static CommonJS module's droppable named exports during the main
@@ -888,12 +927,27 @@ fn member_access_parent<'r>(
     }
 }
 
+/// Whether the value of the current expression (or identifier) escapes, i.e. it's not only used as
+/// the object of a member access (`<value>.prop`), as the source of an object destructuring
+/// pattern without a rest element, or as the right-hand side of an `in` expression.
+fn value_escapes(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    member_access_parent(ast_path).is_none()
+        && !is_object_destructuring_source_without_rest(ast_path)
+        && !is_obj_in(ast_path)
+}
+
 /// Whether the current expression is the value being consumed by an object destructuring pattern
 /// without a rest element, i.e. every accessed key is listed in the pattern.
+///
+/// For a destructuring assignment expression, the result of the assignment expression (which is
+/// the source value) must be discarded as well, e.g. `consume(({ a } = obj))` passes on `obj`.
 fn is_object_destructuring_source_without_rest(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
 ) -> bool {
-    for node_ref in ast_path.iter().rev() {
+    for i in (0..ast_path.len()).rev() {
+        let Some(node_ref) = ast_path.get(i) else {
+            return false;
+        };
         let pat = match node_ref {
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
                 continue;
@@ -911,7 +965,12 @@ fn is_object_destructuring_source_without_rest(
                     ..
                 },
                 AssignExprField::Right,
-            ) => pat,
+            ) => {
+                if !is_result_discarded(ast_path, i) {
+                    return false;
+                }
+                pat
+            }
             AstParentNodeRef::AssignPat(AssignPat { left, .. }, AssignPatField::Right) => {
                 match &**left {
                     Pat::Object(pat) => pat,
@@ -924,6 +983,29 @@ fn is_object_destructuring_source_without_rest(
             .props
             .iter()
             .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
+    }
+    false
+}
+
+/// Whether the value of the expression that is the child of `ast_path[index]` is discarded: it's
+/// an expression statement, a non-last expression of a sequence expression or a `for` loop's
+/// init/update expression.
+fn is_result_discarded(ast_path: &AstNodePath<AstParentNodeRef<'_>>, index: usize) -> bool {
+    for i in (0..index).rev() {
+        match ast_path.get(i) {
+            Some(
+                AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr),
+            ) => {}
+            Some(
+                AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr)
+                | AstParentNodeRef::ForStmt(_, ForStmtField::Update)
+                | AstParentNodeRef::VarDeclOrExpr(_, VarDeclOrExprField::Expr),
+            ) => return true,
+            Some(AstParentNodeRef::SeqExpr(seq, SeqExprField::Exprs(idx))) => {
+                return *idx + 1 < seq.exprs.len();
+            }
+            _ => return false,
+        }
     }
     false
 }
@@ -1086,6 +1168,43 @@ impl<'a> Analyzer<'a, '_> {
 
     fn add_effect(&mut self, effect: Effect<'a>) {
         self.effects.push(effect);
+    }
+
+    /// Records that `value` (which might be `process.env`) escapes at `span`.
+    fn add_possible_process_env_escape(&mut self, value: JsValue<'a>, span: Span) {
+        self.add_effect(Effect::PossibleProcessEnvEscape {
+            value: BumpBox::new_in(value, self.arena),
+            span,
+        });
+    }
+
+    /// Handles the target of an `env` property in an object destructuring pattern with the source
+    /// `obj`, e.g. `const { env: <target> } = obj`. `obj.env` might be `process.env`.
+    fn record_env_destructuring_target(&mut self, target: &Pat, obj: &JsValue<'a>, span: Span) {
+        let target = match target {
+            Pat::Assign(assign) => &*assign.left,
+            target => target,
+        };
+        match target {
+            // `const { env: e } = obj`: escaping uses of `e` are found by
+            // `EnvBindingEscapeFinder` after the main traversal
+            Pat::Ident(binding) => {
+                self.env_binding_candidates.insert(binding.to_id());
+            }
+            // `const { env: { ...rest } } = obj`: all keys are copied into `rest`
+            Pat::Object(pat)
+                if pat
+                    .props
+                    .iter()
+                    .any(|p| matches!(p, ObjectPatProp::Rest(..))) =>
+            {
+                self.add_possible_process_env_escape(
+                    JsValue::member(self.arena, obj.clone_in(self.arena), atom!("env").into()),
+                    span,
+                );
+            }
+            _ => {}
+        }
     }
 
     fn collect_effects(&mut self, visit: impl FnOnce(&mut Self)) -> BumpBox<'a, [Effect<'a>]> {
@@ -1888,23 +2007,6 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        // `Effect::Member`, `Effect::DestructuredMember` and `Effect::In` handle the statically
-        // analyzable syntaxes (`process.env.FOO`, `const { FOO } = process.env`,
-        // `'FOO' in process.env`). If `process.env` occurs in any other context, it escapes and
-        // could be used to read any env var.
-        if self.data.dynamic_process_env_access.is_none()
-            && let MemberProp::Ident(prop) = &member_expr.prop
-            && prop.sym == "env"
-            && let Expr::Ident(obj) = &*member_expr.obj
-            && obj.sym == "process"
-            && is_unresolved_id(&obj.to_id(), self.eval_context.unresolved_mark)
-            && member_access_parent(ast_path).is_none()
-            && !is_object_destructuring_source_without_rest(ast_path)
-            && !is_obj_in(ast_path)
-        {
-            self.data.dynamic_process_env_access = Some(member_expr.span);
-        }
-
         let obj_value = BumpBox::new_in(
             self.eval_context.eval(self.arena, &member_expr.obj),
             self.arena,
@@ -1919,6 +2021,21 @@ impl VisitAstPath for Analyzer<'_, '_> {
             )),
         };
         if let Some(prop_value) = prop_value {
+            // `Effect::Member`, `Effect::DestructuredMember` and `Effect::In` handle the
+            // statically analyzable syntaxes (`process.env.FOO`, `const { FOO } = process.env`,
+            // `'FOO' in process.env`). If a `<obj>.env` value occurs in any other context, it
+            // escapes and, if it turns out to be `process.env`, could be used to read any env var.
+            if prop_value.as_str() == Some("env") && value_escapes(ast_path) {
+                self.add_possible_process_env_escape(
+                    JsValue::member(
+                        self.arena,
+                        obj_value.clone_in(self.arena),
+                        prop_value.clone_in(self.arena),
+                    ),
+                    member_expr.span,
+                );
+            }
+
             let base_effects = self.collect_effects(|this| {
                 member_expr.visit_children_with_ast_path(this, ast_path);
             });
@@ -2548,6 +2665,10 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
         // Attempt to add import effects.
         if let Some((esm_reference_index, export)) = self.eval_context.imports.get_binding(&id) {
+            // `import { env } from "..."` (also renamed), `env` might be `process.env`
+            if export.is_some_and(|export| export == "env") {
+                self.env_binding_candidates.insert(id.clone());
+            }
             // Optimization: Look for a MemberExpr to see if we only access a few members from the
             // module, add those specific effects instead of depending on the entire module.
             //
@@ -3240,6 +3361,10 @@ impl<'a> Analyzer<'a, '_> {
                         span: key.span(),
                     });
 
+                    if key_value.as_str() == Some("env") {
+                        self.record_env_destructuring_target(value, &pat_value, kv.span());
+                    }
+
                     let pat_value = Some(JsValue::member(
                         self.arena,
                         pat_value.clone_in(self.arena),
@@ -3260,6 +3385,10 @@ impl<'a> Analyzer<'a, '_> {
                     ));
                     let AssignPatProp { key, value, .. } = assign;
                     let key_value = JsValue::from(key.sym.clone());
+                    if key.sym == "env" {
+                        // `const { env } = <obj>`, `env` might be `process.env`
+                        self.env_binding_candidates.insert(key.to_id());
+                    }
                     {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
                             assign,
