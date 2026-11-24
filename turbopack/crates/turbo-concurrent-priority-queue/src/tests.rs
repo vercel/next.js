@@ -567,8 +567,8 @@ fn steal_pressure_counts_foreign_uses_and_halves_on_home_use() {
 
 /// A victim needs a high steal pressure before a thief takes it over.
 #[test]
-fn steal_pressure_threshold_is_64() {
-    assert_eq!(STEAL_PRESSURE_THRESHOLD, 64);
+fn steal_pressure_threshold_is_1024() {
+    assert_eq!(STEAL_PRESSURE_THRESHOLD, 1024);
 }
 
 /// Instead of stealing from a shard with high steal pressure, a thread makes that shard its home,

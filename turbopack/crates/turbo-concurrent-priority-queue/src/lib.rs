@@ -256,7 +256,7 @@ const HIGHEST_SHIFT: u32 = 32;
 const TRY_LOCK_ATTEMPTS: usize = 4;
 /// The steal pressure (see the crate docs) from which a shard is taken over by a thread that wants
 /// to steal from it, or that happens to use it, instead of being stolen from. See the crate docs.
-const STEAL_PRESSURE_THRESHOLD: u32 = 64;
+const STEAL_PRESSURE_THRESHOLD: u32 = 1024;
 /// Bytes allocated up front for each of a shard's buffers (priority heap, priority map, spare item
 /// `Vec`): several cache lines each.
 const SHARD_BUFFER_BYTES: usize = 512;
