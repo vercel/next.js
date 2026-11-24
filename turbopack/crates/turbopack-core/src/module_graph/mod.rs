@@ -321,6 +321,7 @@ pub struct ModuleGraphOptions {
     /// contain the same modules still see them as inactive until they are really activated.
     ///
     /// [`ActivatableModule`]: crate::module::ActivatableModule
+    /// [`ActivatableModule::activated_references`]: crate::module::ActivatableModule::activated_references
     pub force_activated: bool,
 }
 
