@@ -1058,10 +1058,29 @@ fn is_result_discarded(ast_path: &[AstParentNodeRef<'_>]) -> bool {
 /// `<obj>[<expr>]`, or with parentheses `(<obj>).<prop>` (which TypeScript casts like
 /// `(<obj> as any).<prop>` also become).
 fn is_member_obj(ast_path: &[AstParentNodeRef<'_>]) -> bool {
-    for node_ref in ast_path.iter().rev() {
+    for (i, node_ref) in ast_path.iter().enumerate().rev() {
         match node_ref {
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
-            AstParentNodeRef::MemberExpr(_, MemberExprField::Obj) => return true,
+            AstParentNodeRef::MemberExpr(_, MemberExprField::Obj) => {
+                return !is_opt_call_callee(&ast_path[..i]);
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Whether the current expression is the callee of an optional call: `a.b?.()` or `a?.b()`.
+/// Optional calls aren't analyzed as calls (there is no call effect for them), so the object of
+/// such a method call is conservatively treated as escaping, as the method receives it as `this`.
+fn is_opt_call_callee(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..)
+            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+            | AstParentNodeRef::OptChainBase(_, OptChainBaseField::Member)
+            | AstParentNodeRef::OptChainExpr(_, OptChainExprField::Base) => {}
+            AstParentNodeRef::OptCall(_, OptCallField::Callee) => return true,
             _ => return false,
         }
     }
