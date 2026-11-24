@@ -1,6 +1,7 @@
+import { gunzipSync, inflateSync } from 'zlib'
 import { nextTestSetup } from 'e2e-utils'
 import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
-import { getHeader, rawRequest } from '../switchyard/raw-http'
+import { getHeader, rawRequest, type RawResponse } from '../switchyard/raw-http'
 
 // What a route.go handler receives, and what its client gets back, under
 // `next start`. Every expectation is today's behavior, so the suite passes
@@ -235,6 +236,40 @@ describe('switchyard-go', () => {
   })
 
   describe('the response the client gets', () => {
+    it.each([
+      ['json', true],
+      ['text', true],
+      ['svg', true],
+      ['customjson', true],
+      ['png', false],
+      ['unknown', false],
+    ])(
+      'varies %s by Accept-Encoding when appropriate',
+      async (type, varies) => {
+        // Plain query values keep these requests eligible for the direct path.
+        const target = `/go/compress?size=2048&type=${type}`
+        await send(target)
+        const res = await send(target)
+        expect(getHeader(res, 'vary')).toBe(
+          varies ? 'Accept-Encoding' : undefined
+        )
+      }
+    )
+
+    it('preserves existing Vary fields and respects no-transform', async () => {
+      for (const [query, expected] of [
+        ['vary=Origin', 'Origin, Accept-Encoding'],
+        ['vary=accept-encoding', 'accept-encoding'],
+        ['vary=wildcard', '*'],
+        ['cacheControl=no-transform', undefined],
+      ]) {
+        const target = `/go/compress?size=2048&${query}`
+        await send(target)
+        const res = await send(target)
+        expect(getHeader(res, 'vary')).toBe(expected)
+      }
+    })
+
     it('rejects worker response headers larger than Node’s limit through Node', async () => {
       // A query pair without "=" always goes through Node (checkQuery). If
       // checkQuery ever sends such queries direct, pick another way to
@@ -307,6 +342,16 @@ describe('switchyard-go', () => {
       expect(trailers).toEqual({})
     })
 
+    it('compresses a compressible response when the client accepts gzip', async () => {
+      const res = await send('/go/compress?size=2048', [
+        'Accept-Encoding: gzip',
+      ])
+      expect(res.status).toBe(200)
+      expect(getHeader(res, 'content-encoding')).toBe('gzip')
+      expect(getHeader(res, 'vary')).toContain('Accept-Encoding')
+      expect(gunzipSync(res.body).toString()).toBe('x'.repeat(2048))
+    })
+
     it('answers HEAD without a body and OPTIONS with the methods', async () => {
       const head = await send('/go/echo', [], 'HEAD')
       expect(head.status).toBe(200)
@@ -353,6 +398,177 @@ describe('switchyard-go', () => {
     it('sends the first chunk of a streaming response before it ends', async () => {
       const first = await firstChunk(Number(next.appPort), '/go/stream')
       expect(first.toString()).toBe('first')
+    })
+  })
+
+  // Node's compression middleware (the `compress` option, on by default)
+  // decides per response whether to gzip or deflate it. Each request is sent
+  // twice: the first starts the route's worker through Node, the second may
+  // go to the worker directly.
+  describe('compression', () => {
+    /** Sends the request twice and checks both answers the same way. */
+    async function twice(
+      target: string,
+      lines: string[],
+      check: (res: RawResponse) => void,
+      method = 'GET'
+    ) {
+      for (let i = 0; i < 2; i++) {
+        check(await send(target, lines, method))
+      }
+    }
+
+    function decoded(res: RawResponse): string {
+      switch (getHeader(res, 'content-encoding')) {
+        case 'gzip':
+          return gunzipSync(res.body).toString()
+        case 'deflate':
+          return inflateSync(res.body).toString()
+        default:
+          return res.body.toString()
+      }
+    }
+
+    it.each([
+      ['gzip', 'gzip'],
+      ['deflate', 'deflate'],
+      ['gzip, deflate, br, zstd', 'gzip'],
+      ['deflate, gzip', 'gzip'],
+      // The middleware picks gzip over deflate whenever gzip is acceptable.
+      ['deflate;q=1, gzip;q=0.5', 'gzip'],
+      ['GZIP', 'gzip'],
+      ['*', 'gzip'],
+      ['deflate, *;q=0', 'deflate'],
+      ['br, zstd', undefined],
+      ['identity', undefined],
+      ['x-gzip', undefined],
+      ['gzip;q=0', undefined],
+      ['gzip;q=0.5, identity', undefined],
+      ['gzip; q=0.5, identity;q=0.4', 'gzip'],
+      ['*;q=0', undefined],
+    ])(
+      'picks the encoding for Accept-Encoding: %s',
+      async (accept, expected) => {
+        await twice(
+          '/go/compress?size=2048',
+          [`Accept-Encoding: ${accept}`],
+          (res) => {
+            expect(res.status).toBe(200)
+            expect(getHeader(res, 'content-encoding')).toBe(expected)
+            expect(getHeader(res, 'vary')).toBe('Accept-Encoding')
+            expect(decoded(res)).toBe('x'.repeat(2048))
+          }
+        )
+      }
+    )
+
+    it.each([
+      // A Content-Length below 1 KiB stays uncompressed, and so does an empty
+      // body; a body of unknown length is compressed however short it is.
+      ['size=1023', undefined, '1023', undefined],
+      ['size=1024', 'gzip', undefined, 'chunked'],
+      ['size=5&chunked=1', 'gzip', undefined, 'chunked'],
+      ['size=0&chunked=1', undefined, undefined, 'chunked'],
+      ['size=0', undefined, '0', undefined],
+    ])(
+      'applies the 1 KiB threshold to %s',
+      async (query, encoding, contentLength, transferEncoding) => {
+        const size = Number(new URLSearchParams(query).get('size'))
+        await twice(
+          `/go/compress?${query}`,
+          ['Accept-Encoding: gzip'],
+          (res) => {
+            expect(getHeader(res, 'content-encoding')).toBe(encoding)
+            expect(getHeader(res, 'content-length')).toBe(contentLength)
+            expect(getHeader(res, 'transfer-encoding')).toBe(transferEncoding)
+            expect(decoded(res)).toBe('x'.repeat(size))
+          }
+        )
+      }
+    )
+
+    it('frames an empty body of unknown length as chunked for any client', async () => {
+      // The middleware sends the headers itself when the body ends, before
+      // Node could count it, whatever the client accepts.
+      for (const query of ['', '&type=png']) {
+        await twice(`/go/compress?size=0&chunked=1${query}`, [], (res) => {
+          expect(getHeader(res, 'content-length')).toBeUndefined()
+          expect(getHeader(res, 'transfer-encoding')).toBe('chunked')
+          expect(res.body.length).toBe(0)
+        })
+      }
+    })
+
+    it('leaves a response the middleware skips as the worker sent it', async () => {
+      for (const [query, vary] of [
+        ['type=png', undefined],
+        ['cacheControl=no-transform', undefined],
+        ['encoding=br', 'Accept-Encoding'],
+        ['status=204', 'Accept-Encoding'],
+      ]) {
+        await twice(
+          `/go/compress?size=2048&${query}`,
+          ['Accept-Encoding: gzip'],
+          (res) => {
+            expect(getHeader(res, 'vary')).toBe(vary)
+            expect(getHeader(res, 'content-encoding')).toBe(
+              query === 'encoding=br' ? 'br' : undefined
+            )
+          }
+        )
+      }
+    })
+
+    it('answers HEAD uncompressed but varies it', async () => {
+      await twice(
+        '/go/compress?size=2048',
+        ['Accept-Encoding: gzip'],
+        (res) => {
+          expect(res.status).toBe(200)
+          expect(getHeader(res, 'content-encoding')).toBeUndefined()
+          expect(getHeader(res, 'content-length')).toBe('2048')
+          expect(getHeader(res, 'vary')).toBe('Accept-Encoding')
+          expect(res.body.length).toBe(0)
+        },
+        'HEAD'
+      )
+    })
+
+    it('replaces Content-Encoding: identity and keeps the status and ETag', async () => {
+      await twice(
+        '/go/compress?size=2048&encoding=identity&status=404&etag=1',
+        ['Accept-Encoding: gzip'],
+        (res) => {
+          expect(res.status).toBe(404)
+          expect(getHeader(res, 'content-encoding')).toBe('gzip')
+          expect(getHeader(res, 'etag')).toBe('"compress-etag"')
+          expect(getHeader(res, 'content-length')).toBeUndefined()
+          expect(decoded(res)).toBe('x'.repeat(2048))
+        }
+      )
+    })
+
+    it('compresses a body streamed in many parts', async () => {
+      await twice(
+        '/go/compress?size=4096&parts=20',
+        ['Accept-Encoding: gzip'],
+        (res) => {
+          expect(getHeader(res, 'content-encoding')).toBe('gzip')
+          expect(decoded(res)).toBe('x'.repeat(4096 * 20))
+        }
+      )
+    })
+
+    it('holds a streamed chunk in the compressor until more output is ready', async () => {
+      // The middleware never flushes zlib between chunks, so the client gets
+      // only the 10-byte gzip header until the handler sends enough, or ends.
+      for (let i = 0; i < 2; i++) {
+        const first = await firstChunk(Number(next.appPort), '/go/stream', {
+          'Accept-Encoding': 'gzip',
+        })
+        expect(first.length).toBe(10)
+        expect([...first.subarray(0, 4)]).toEqual([0x1f, 0x8b, 8, 0])
+      }
     })
   })
 })
