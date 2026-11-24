@@ -750,8 +750,7 @@ mod tests {
                     }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::DestructuredMember { .. }
-                    | Effect::PossibleProcessEnvEscape { .. } => 0,
+                    | Effect::DestructuredMember { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {

@@ -335,7 +335,7 @@
                                 ],
                                 span: 57..68,
                                 in_truthiness_context: false,
-                                escapes_with_dynamic_prop: false,
+                                escapes: false,
                             },
                         ],
                         ast_path: [
@@ -393,7 +393,7 @@
                         ],
                         span: 57..81,
                         in_truthiness_context: false,
-                        escapes_with_dynamic_prop: false,
+                        escapes: false,
                     },
                     Conditional {
                         condition: Binary(
@@ -744,6 +744,7 @@
                             ),
                         ],
                         span: 354..355,
+                        escapes: false,
                     },
                 ],
                 range: Exact(
@@ -797,6 +798,7 @@
                             ),
                         ],
                         span: 368..369,
+                        escapes: false,
                     },
                 ],
                 range: Exact(
@@ -1039,5 +1041,6 @@
             ),
         ],
         span: 453..454,
+        escapes: false,
     },
 ]

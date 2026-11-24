@@ -1,4 +1,3 @@
-use bumpalo::boxed::Box as BumpBox;
 use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
@@ -95,7 +94,6 @@ pub fn create_graph<'a>(
         hoisted_effects: Default::default(),
         code_gens: Default::default(),
         ast_paths: Default::default(),
-        env_binding_candidates: Default::default(),
     };
 
     // CommonJS export recognition runs for a CommonJS module that emits code when either CJS
@@ -112,29 +110,6 @@ pub fn create_graph<'a>(
     }
 
     m.visit_with_ast_path(&mut analyzer, &mut Default::default());
-
-    // Bindings destructured as `env` (e.g. `const { env } = process`) that escape. This needs a
-    // separate traversal as uses can precede the declaration in source order. It's rare, so the
-    // extra traversal only happens for modules with such bindings.
-    if !analyzer.env_binding_candidates.is_empty() {
-        let mut finder = visitor::EnvBindingEscapeFinder {
-            bindings: &analyzer.env_binding_candidates,
-            escaping_uses: Vec::new(),
-        };
-        m.visit_with_ast_path(&mut finder, &mut Default::default());
-        for (id, span) in finder.escaping_uses {
-            // `eval_id` resolves import bindings to the imported value, other bindings to
-            // `Variable(id)`.
-            let value = eval_context.eval_id(arena, id);
-            analyzer
-                .data
-                .effects
-                .push(Effect::PossibleProcessEnvEscape {
-                    value: BumpBox::new_in(value, arena),
-                    span,
-                });
-        }
-    }
 
     let mut graph = analyzer.data;
     graph.normalize(arena);
