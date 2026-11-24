@@ -52,13 +52,21 @@ var compressDirect = func() func(http.Handler) http.HandlerFunc {
 }()
 
 // compressibleType approximates the middleware's MIME database: text, JSON,
-// XML and JavaScript, and the structured-syntax suffixes for them.
+// XML and JavaScript, the structured-syntax suffixes for them, and the other
+// types a web app serves that the database marks compressible (fonts, icons,
+// WebAssembly, forms). Of the database's 607 compressible types it leaves out
+// 21, such as application/x-sh, tar archives and VirtualBox disk images.
 func compressibleType(contentType string) bool {
 	typ, _, _ := strings.Cut(contentType, ";")
 	typ = strings.ToLower(strings.TrimSpace(typ))
 	switch typ {
-	case "application/json", "application/javascript", "application/xml",
-		"application/x-javascript", "application/manifest+json", "image/svg+xml":
+	case "application/json", "application/javascript", "application/ecmascript",
+		"application/x-javascript", "application/xml", "application/xml-dtd",
+		"application/manifest+json", "application/toml", "application/wasm",
+		"application/rtf", "application/x-www-form-urlencoded",
+		"font/ttf", "font/otf", "application/vnd.ms-fontobject",
+		"application/vnd.ms-opentype", "image/svg+xml", "image/bmp",
+		"image/x-ms-bmp", "image/x-icon", "image/vnd.microsoft.icon":
 		return true
 	}
 	return strings.HasPrefix(typ, "text/") || strings.HasSuffix(typ, "+json") ||
@@ -66,6 +74,15 @@ func compressibleType(contentType string) bool {
 }
 
 var noTransform = regexp.MustCompile(`(?:^|,)\s*no-transform\s*(?:,|$)`)
+
+// keepNodesCompression readies the response headers for an answer Node
+// writes through the compressor, when a direct request is handed back to
+// Node: Node already compressed it or chose not to, and adds its own Vary, so
+// the compressor's Vary goes and the compressor leaves the body alone.
+func keepNodesCompression(header http.Header) {
+	header.Del("Vary")
+	header.Set(gzhttp.HeaderNoCompression, "1")
+}
 
 // skipCompression marks a worker's response that the middleware wouldn't
 // compress but gzhttp would: a HEAD response, or one that says

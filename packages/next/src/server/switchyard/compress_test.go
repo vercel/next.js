@@ -206,3 +206,23 @@ func TestAnAbortedCompressedResponseStaysIncomplete(t *testing.T) {
 		t.Fatal("the client read a complete response")
 	}
 }
+
+func TestCompressibleTypesFollowTheMiddlewaresDatabase(t *testing.T) {
+	for typ, want := range map[string]bool{
+		"application/json; charset=utf-8":   true,
+		"text/html":                         true,
+		"application/x-switchyard+json":     true,
+		"image/svg+xml":                     true,
+		"application/wasm":                  true,
+		"font/ttf":                          true,
+		"image/x-icon":                      true,
+		"application/x-www-form-urlencoded": true,
+		"image/png":                         false,
+		"font/woff2":                        false,
+		"application/octet-stream":          false,
+	} {
+		if got := compressibleType(typ); got != want {
+			t.Errorf("%s: %v, want %v", typ, got, want)
+		}
+	}
+}

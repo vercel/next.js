@@ -296,9 +296,9 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// That needs the operating system to hand out the same port
 			// before Node's "gone" arrives, a window of milliseconds.
 			if isDialError(err) && !attempt.sent.Load() {
-				// Node's response carries its own Vary; without this, the
-				// compressor's would be sent too.
-				attempt.Header().Del("Vary")
+				if attempt.state.compress {
+					keepNodesCompression(attempt.Header())
+				}
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
 			}
