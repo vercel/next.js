@@ -724,7 +724,9 @@ Workflow:
   1. Keep the current dev server running so retained request evidence is preserved.
   2. List completed requests: next experimental-request-insights list --route <route> --json
   3. Inspect the matching request: next experimental-request-insights get <request-id> --json
-  4. Compare span start times, durations, parents, and attributes.`
+  4. Compare span start times, durations, parents, and attributes.
+
+Guide: node_modules/next/dist/docs/01-app/02-guides/request-insights.md`
   )
   .argument(
     '[directory]',
