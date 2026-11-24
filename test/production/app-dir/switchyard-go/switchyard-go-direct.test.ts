@@ -113,7 +113,8 @@ describe('switchyard-go direct path', () => {
       expect((await received('/go/echo', browser)).requestURI).toBe('/go/echo')
       const cases: Array<[string, string | undefined]> = [
         ['gzip, deflate, br, zstd', 'gzip'],
-        ['deflate', 'deflate'],
+        // gzhttp only sends gzip (switchyard/compress.go).
+        ['deflate', undefined],
         ['br', undefined],
       ]
       for (const [accept, encoding] of cases) {
