@@ -1229,7 +1229,7 @@ impl<'e> ExecuteContext<'e> {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (TaskGuard<'e>, TaskGuard<'e>) {
-        let task_id = task.id();
+        // Just handle the common happy path, delegating difficult cases back to `task_pair``
         if task.task.flags.is_restored(category)
             && let Some(task2) = self.backend().storage.try_access_mut(task_id2)
             && task2.flags.is_restored(category)
@@ -1242,6 +1242,7 @@ impl<'e> ExecuteContext<'e> {
             let task2 = TaskGuard::new(task2, task_id2, category, self.task_lock_counter.clone());
             return (task, task2);
         }
+        let task_id = task.id();
         drop(task);
         self.task_pair(task_id, task_id2, category)
     }
