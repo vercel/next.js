@@ -561,7 +561,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   overscroll-behavior: contain;
 }
 
@@ -746,7 +746,8 @@
 }
 
 .request-insights-tab-panel {
-  min-height: 0;
+  /* Keep a few rows visible at minimum panel height; .request-insights-details scrolls instead */
+  min-height: 160px;
   overflow: auto;
   flex: 1 1 auto;
 }
@@ -758,6 +759,7 @@
 
 .request-insights-trace-panel > .request-insights-section {
   display: flex;
+  min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
