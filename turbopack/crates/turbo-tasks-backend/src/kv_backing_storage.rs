@@ -1,16 +1,17 @@
 use std::{
     borrow::Borrow,
     env,
-    path::PathBuf,
+    fmt::Display,
+    path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
-use turbo_persistence::CommitStats;
+use turbo_persistence::{CacheFileUnreadable, CommitStats};
 use turbo_tasks::{
-    DynTaskInputs, RawVc, TaskId,
+    DynTaskInputs, PersistentCacheUnreadablePanic, RawVc, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -22,7 +23,7 @@ use crate::{
     backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash_from_components},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
-        db_versioning::handle_db_versioning,
+        db_versioning::{handle_db_versioning, remove_db_version_dir},
         key_value_database::KeySpace,
         turbo::{TurboKeyValueDatabase, TurboWriteBatch},
         write_batch::WriteBuffer,
@@ -96,6 +97,37 @@ fn should_invalidate_on_panic() -> bool {
     *SHOULD_INVALIDATE
 }
 
+/// Builds the message of a [`PersistentCacheUnreadablePanic`] if `error` was caused by a database
+/// file that couldn't be read (see [`CacheFileUnreadable`]), otherwise returns `None`.
+///
+/// `base_path` is the directory of the filesystem cache (`None` for in-memory storage), and
+/// `invalidates_on_panic` whether the panic hook registered by
+/// [`TurboBackingStorage::open_versioned_on_disk`] invalidates the cache (see
+/// [`should_invalidate_on_panic`]). That invalidation is best-effort, so the message doesn't claim
+/// that it succeeded.
+fn unreadable_cache_message(
+    error: &anyhow::Error,
+    base_path: Option<&Path>,
+    invalidates_on_panic: bool,
+) -> Option<String> {
+    let unreadable = CacheFileUnreadable::find(error)?;
+    let what_to_do = match base_path {
+        Some(base_path) if invalidates_on_panic => format!(
+            "Turbopack will try to invalidate the filesystem cache, so that it is rebuilt on the \
+             next start. Restart to continue. If this error comes back, delete {} manually.",
+            base_path.display()
+        ),
+        Some(base_path) => format!("Delete {} and restart to continue.", base_path.display()),
+        None => "Restart to continue.".to_string(),
+    };
+    Some(format!(
+        "Turbopack's filesystem cache could not be read: the cache file {} is missing or \
+         corrupted. It may have been deleted or modified outside of Turbopack while Turbopack was \
+         running.\n{what_to_do}\n\nDetails: {error:?}",
+        unreadable.file_name()
+    ))
+}
+
 struct TurboBackingStorageInner {
     database: TurboKeyValueDatabase,
     /// Used when calling [`TurboBackingStorage::invalidate`]. Can be `None` in the
@@ -137,8 +169,16 @@ impl TurboBackingStorage {
     /// - Creates a directory per version, with a maximum number of old versions and performs
     ///   automatic cleanup of old versions.
     /// - Checks for a database invalidation marker file, and cleans up the database as needed.
+    /// - If the database can't be opened (e.g. because its files were deleted or modified from
+    ///   outside), deletes the directory of this version and starts over with an empty database.
+    ///   This is reported as [`StartupCacheState::Invalidated`] with
+    ///   [`invalidation_reasons::UNREADABLE`].
     /// - [Registers a dynamic panic hook][turbo_tasks::panic_hooks] to invalidate the database upon
     ///   a panic. This invalidates the database using [`invalidation_reasons::PANIC`].
+    ///
+    /// Like the panic hook, replacing an unreadable database is skipped when
+    /// `TURBO_ENGINE_SKIP_INVALIDATE_ON_PANIC` or `__NEXT_TEST_MODE` is set: the error is returned
+    /// instead.
     ///
     /// Along with returning a [`TurboBackingStorage`], this returns a
     /// [`StartupCacheState`], which can be used by the application for logging information to the
@@ -147,16 +187,54 @@ impl TurboBackingStorage {
         base_path: PathBuf,
         version_info: &GitVersionInfo,
         is_ci: bool,
-        database: impl FnOnce(PathBuf) -> Result<TurboKeyValueDatabase>,
+        database: impl Fn(PathBuf) -> Result<TurboKeyValueDatabase>,
     ) -> Result<(Self, StartupCacheState)> {
-        let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)
+        Self::open_versioned_on_disk_with(
+            base_path,
+            version_info,
+            is_ci,
+            should_invalidate_on_panic(),
+            database,
+        )
+    }
+
+    /// [`Self::open_versioned_on_disk`], with `invalidate_on_failure` in place of
+    /// [`should_invalidate_on_panic`]: whether to register the panic hook and to replace a
+    /// database that can't be opened.
+    fn open_versioned_on_disk_with(
+        base_path: PathBuf,
+        version_info: &GitVersionInfo,
+        is_ci: bool,
+        invalidate_on_failure: bool,
+        database: impl Fn(PathBuf) -> Result<TurboKeyValueDatabase>,
+    ) -> Result<(Self, StartupCacheState)> {
+        let mut startup_cache_state = check_db_invalidation_and_cleanup(&base_path)
             .context("Failed to check database invalidation and cleanup")?;
         let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)
             .context("Failed to handle database versioning")?;
-        let database = (database)(versioned_path).context("Failed to open database")?;
+        let database = match database(versioned_path.clone()) {
+            Ok(database) => database,
+            Err(open_error) if invalidate_on_failure => {
+                // The cache is only an optimization, so rather than failing, pay for a cold start.
+                // The failed open doesn't hold on to the directory, so it can be removed.
+                let open_error = open_error.context("Failed to open database");
+                let database = remove_db_version_dir(&base_path, &versioned_path)
+                    .and_then(|()| database(versioned_path))
+                    .with_context(|| {
+                        format!(
+                            "Failed to replace a database that could not be opened: {open_error:?}"
+                        )
+                    })?;
+                startup_cache_state = StartupCacheState::Invalidated {
+                    reason_code: Some(invalidation_reasons::UNREADABLE.to_string()),
+                };
+                database
+            }
+            Err(open_error) => return Err(open_error.context("Failed to open database")),
+        };
         let backing_storage = Self {
             inner: Arc::new_cyclic(move |weak_inner: &Weak<TurboBackingStorageInner>| {
-                let panic_hook_guard = if should_invalidate_on_panic() {
+                let panic_hook_guard = if invalidate_on_failure {
                     let weak_inner = weak_inner.clone();
                     Some(register_panic_hook(Box::new(move |_| {
                         let Some(inner) = weak_inner.upgrade() else {
@@ -226,6 +304,26 @@ impl TurboBackingStorage {
     /// [`TurboTasksBackend::stop`]: turbo_tasks::backend::Backend::stop
     pub(crate) fn invalidate(&self, reason_code: &str) -> Result<()> {
         self.inner.invalidate(reason_code)
+    }
+
+    /// Panics because reading from the database failed with `error`, which can't be recovered
+    /// from: the task graph can't be restored without that data.
+    ///
+    /// If a database file couldn't be read (see [`CacheFileUnreadable`]), e.g. because it was
+    /// deleted or modified by another process while it was in use, the panic payload is a
+    /// [`PersistentCacheUnreadablePanic`] with a message explaining that and what to do about it.
+    /// Otherwise this panics with `description` and `error` as before.
+    #[cold]
+    #[track_caller]
+    pub(crate) fn panic_on_read_error(&self, description: impl Display, error: anyhow::Error) -> ! {
+        if let Some(message) = unreadable_cache_message(
+            &error,
+            self.inner.base_path.as_deref(),
+            should_invalidate_on_panic(),
+        ) {
+            std::panic::panic_any(PersistentCacheUnreadablePanic { message });
+        }
+        panic!("{description}: {error:?}");
     }
 
     pub(crate) fn next_free_task_id(&self) -> Result<TaskId> {
@@ -512,7 +610,7 @@ fn save_infra(
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
+    use std::{borrow::Borrow, path::Path};
 
     use turbo_tasks::TaskId;
 
@@ -901,6 +999,285 @@ mod tests {
         );
 
         db.shutdown();
+        Ok(())
+    }
+
+    /// An error caused by an unreadable database file, wrapped in further context like the errors
+    /// of restoring a task.
+    fn unreadable_error() -> anyhow::Error {
+        anyhow::Error::new(CacheFileUnreadable::new(
+            "00000007.sst",
+            anyhow::anyhow!("failed to open file `00000007.sst`: No such file or directory"),
+        ))
+        .context("Looking up task storage for TaskId 4 from database failed")
+        .context("Failed to restore Data for TaskId 4")
+    }
+
+    #[test]
+    fn test_unreadable_cache_message() {
+        let base_path = Path::new("/project/.cache/turbopack");
+        let error = unreadable_error();
+
+        let with_invalidation = unreadable_cache_message(&error, Some(base_path), true).unwrap();
+        let without_invalidation =
+            unreadable_cache_message(&error, Some(base_path), false).unwrap();
+        let in_memory = unreadable_cache_message(&error, None, true).unwrap();
+        for message in [&with_invalidation, &without_invalidation, &in_memory] {
+            assert!(
+                message.contains("Turbopack's filesystem cache could not be read"),
+                "{message}"
+            );
+            assert!(message.contains("00000007.sst"), "{message}");
+            assert!(
+                message.contains("deleted or modified outside of Turbopack"),
+                "{message}"
+            );
+            // The details of the error follow.
+            assert!(message.contains("No such file or directory"), "{message}");
+            // Invalidating is best-effort, so it's never claimed to have happened.
+            assert!(!message.contains("has been deleted"), "{message}");
+            assert!(!message.contains("was deleted"), "{message}");
+        }
+        assert!(
+            with_invalidation.contains("will try to invalidate"),
+            "{with_invalidation}"
+        );
+        assert!(
+            with_invalidation
+                .contains("If this error comes back, delete /project/.cache/turbopack"),
+            "{with_invalidation}"
+        );
+        assert!(
+            without_invalidation.contains("Delete /project/.cache/turbopack and restart"),
+            "{without_invalidation}"
+        );
+        assert!(
+            !without_invalidation.contains("will try to invalidate"),
+            "{without_invalidation}"
+        );
+
+        assert_eq!(
+            unreadable_cache_message(&anyhow::anyhow!("some bug"), Some(base_path), true),
+            None
+        );
+    }
+
+    #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    fn test_panic_on_read_error() -> Result<()> {
+        let tempdir = test_temp_dir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            storage.panic_on_read_error("Failed to restore", unreadable_error())
+        }))
+        .expect_err("must panic");
+        let panic = payload
+            .downcast_ref::<PersistentCacheUnreadablePanic>()
+            .expect("the payload must be a PersistentCacheUnreadablePanic");
+        assert!(panic.message.contains("00000007.sst"), "{}", panic.message);
+
+        // Other errors panic as before. (Without the error's backtrace, which is included if
+        // `RUST_BACKTRACE` is set.)
+        let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            storage.panic_on_read_error("Failed to restore", anyhow::anyhow!("some bug"))
+        }))
+        .expect_err("must panic");
+        let message = payload
+            .downcast_ref::<String>()
+            .expect("the payload must be a String");
+        let message = message
+            .split("\n\nStack backtrace:")
+            .next()
+            .unwrap_or_default();
+        assert_eq!(message, "Failed to restore: some bug");
+        Ok(())
+    }
+
+    const TEST_VERSION: GitVersionInfo<'static> = GitVersionInfo {
+        describe: "v-current",
+        dirty: false,
+    };
+
+    /// Writes a cache entry into the current version's database under `base_path` and then removes
+    /// one of its `.sst` files, the way something outside of Turbopack might. Also creates the
+    /// database of another version next to it. Returns the removed file's name.
+    fn unreadable_versioned_db(base_path: &Path) -> Result<String> {
+        let versioned_path = base_path.join(TEST_VERSION.describe);
+        let db = TurboKeyValueDatabase::new(versioned_path.clone(), TEST_STORAGE_OPTIONS)?;
+        write_task_cache_entry(&db, 1, TaskId::try_from(1u32).unwrap())?;
+        db.shutdown();
+        drop(db);
+
+        let other = base_path.join("v-other");
+        fs_err::create_dir_all(&other)?;
+        fs_err::write(other.join("CURRENT"), b"untouched")?;
+
+        let sst = fs_err::read_dir(&versioned_path)?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<std::io::Result<Vec<_>>>()?
+            .into_iter()
+            .find(|path| path.extension().is_some_and(|ext| ext == "sst"))
+            .expect("the commit should have written an SST file");
+        fs_err::remove_file(&sst)?;
+        Ok(sst.file_name().unwrap().to_str().unwrap().to_owned())
+    }
+
+    /// A database that can't be opened is deleted and replaced by an empty one, and the deletion
+    /// is reported, so that a damaged cache costs a cold start instead of failing the process.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_open_versioned_on_disk_replaces_an_unreadable_database() -> Result<()> {
+        let tempdir = test_temp_dir()?;
+        let base_path = tempdir.path();
+        unreadable_versioned_db(base_path)?;
+
+        let (storage, state) = TurboBackingStorage::open_versioned_on_disk_with(
+            base_path.to_path_buf(),
+            &TEST_VERSION,
+            false,
+            true,
+            |path| TurboKeyValueDatabase::new(path, TEST_STORAGE_OPTIONS),
+        )?;
+        assert!(
+            matches!(
+                &state,
+                StartupCacheState::Invalidated { reason_code: Some(reason) }
+                    if reason == invalidation_reasons::UNREADABLE
+            ),
+            "the deletion should be reported as UNREADABLE"
+        );
+
+        // The new database starts out empty and is writable.
+        let db = &storage.inner.database;
+        assert_eq!(task_cache_ids(db, 1)?, vec![]);
+        write_task_cache_entry(db, 2, TaskId::try_from(2u32).unwrap())?;
+        assert_eq!(
+            task_cache_ids(db, 2)?,
+            vec![TaskId::try_from(2u32).unwrap()]
+        );
+        db.shutdown();
+        drop(storage);
+
+        // Other versions are not touched.
+        assert_eq!(
+            fs_err::read(base_path.join("v-other").join("CURRENT"))?,
+            b"untouched"
+        );
+
+        // The replacement is a normal database that is reused by the next start.
+        let (storage, state) = TurboBackingStorage::open_versioned_on_disk_with(
+            base_path.to_path_buf(),
+            &TEST_VERSION,
+            false,
+            true,
+            |path| TurboKeyValueDatabase::new(path, TEST_STORAGE_OPTIONS),
+        )?;
+        assert!(
+            !matches!(state, StartupCacheState::Invalidated { .. }),
+            "a replaced database must not be replaced again"
+        );
+        let db = &storage.inner.database;
+        assert_eq!(
+            task_cache_ids(db, 2)?,
+            vec![TaskId::try_from(2u32).unwrap()]
+        );
+        db.shutdown();
+        Ok(())
+    }
+
+    /// If the database that can't be opened can't be removed either, opening isn't retried and
+    /// the error includes the original failure.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_open_versioned_on_disk_returns_removal_failures() -> Result<()> {
+        let tempdir = test_temp_dir()?;
+        let base_path = tempdir.path();
+        let attempts = std::sync::atomic::AtomicUsize::new(0);
+        let stale_path = base_path.join(format!("__stale_{}", TEST_VERSION.describe));
+
+        let error = TurboBackingStorage::open_versioned_on_disk_with(
+            base_path.to_path_buf(),
+            &TEST_VERSION,
+            false,
+            true,
+            |path| {
+                attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                fs_err::create_dir_all(&path)?;
+                // Occupy the path the database directory is moved to before it's deleted with a
+                // file, which can't be removed as a directory, so that the removal fails. (Done
+                // here because opening cleans up such leftovers before calling this.)
+                fs_err::write(&stale_path, b"")?;
+                anyhow::bail!("injected open failure")
+            },
+        )
+        .map(|_| ())
+        .expect_err("opening must fail");
+        assert_eq!(attempts.into_inner(), 1, "no retry after a failed removal");
+        assert!(
+            format!("{error:#}").contains("injected open failure"),
+            "the error should include the original failure: {error:#}"
+        );
+        assert!(base_path.join(TEST_VERSION.describe).is_dir());
+        Ok(())
+    }
+
+    /// If the replacement database can't be opened either, opening is attempted only once more,
+    /// and the error includes both the original failure and the failure of the retry.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_open_versioned_on_disk_retries_once_and_keeps_both_errors() -> Result<()> {
+        let tempdir = test_temp_dir()?;
+        let base_path = tempdir.path();
+        let attempts = std::sync::atomic::AtomicUsize::new(0);
+
+        let error = TurboBackingStorage::open_versioned_on_disk_with(
+            base_path.to_path_buf(),
+            &TEST_VERSION,
+            false,
+            true,
+            |path| {
+                fs_err::create_dir_all(&path)?;
+                let attempt = attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                anyhow::bail!("injected open failure {attempt}")
+            },
+        )
+        .map(|_| ())
+        .expect_err("opening must fail");
+        assert_eq!(attempts.into_inner(), 2, "open once, then retry once");
+        let error = format!("{error:#}");
+        assert!(
+            error.contains("injected open failure 1") && error.contains("injected open failure 2"),
+            "the error should include both failures: {error}"
+        );
+        Ok(())
+    }
+
+    /// With recovery disabled (to surface such problems instead of hiding them), the open error is
+    /// returned unchanged and nothing is deleted.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_open_versioned_on_disk_without_recovery_returns_the_error() -> Result<()> {
+        let tempdir = test_temp_dir()?;
+        let base_path = tempdir.path();
+        let missing = unreadable_versioned_db(base_path)?;
+
+        let error = TurboBackingStorage::open_versioned_on_disk_with(
+            base_path.to_path_buf(),
+            &TEST_VERSION,
+            false,
+            false,
+            |path| TurboKeyValueDatabase::new(path, TEST_STORAGE_OPTIONS),
+        )
+        .map(|_| ())
+        .expect_err("opening must fail");
+        assert!(
+            format!("{error:#}").contains(&missing),
+            "the error should name the missing file {missing}: {error:#}"
+        );
+        assert!(
+            base_path
+                .join(TEST_VERSION.describe)
+                .join("CURRENT")
+                .exists()
+        );
         Ok(())
     }
 }

@@ -1,6 +1,7 @@
 // switchyard owns `next start`'s public port and forwards every request,
-// unchanged, to the Node server on a private loopback port. It makes no
-// routing decisions; later stages move work here from Node.
+// unchanged, to the Node server on a private loopback port. Node also tells
+// it the app's route table and its route.go workers (direct.go), so that
+// later stages can send those requests to the workers directly.
 //
 // Contract with Node (packages/next/src/server/lib/switchyard.ts):
 //
@@ -14,8 +15,13 @@
 //	  - Once it listens, it prints `NEXT_SWITCHYARD_READY <port>` on stdout.
 //	  - If it can't listen, it prints the error on stderr and exits 1; Node
 //	    reports "Failed to start server".
+//	  - Node writes control messages to stdin, one JSON object per line
+//	    (control.go): the route table, then route.go workers as they start
+//	    and stop.
 //	  - On stdin EOF (Node exited or asked it to stop), SIGINT or SIGTERM it
 //	    stops accepting, finishes in-flight requests and exits 0.
+//	  - It runs Go code on at most 4 threads at once; a GOMAXPROCS environment
+//	    variable overrides that.
 package main
 
 import (
@@ -31,6 +37,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -127,6 +134,14 @@ func parseConfig(args []string) (config, error) {
 }
 
 func main() {
+	// runtime.GOMAXPROCS(0) reads the current limit without changing it. Only
+	// a different value is set: from Go 1.25, any call that sets the limit
+	// also turns off Go's own updates of it.
+	current := runtime.GOMAXPROCS(0)
+	if threads := threadsToUse(os.Getenv("GOMAXPROCS"), current); threads != current {
+		runtime.GOMAXPROCS(threads)
+	}
+
 	cfg, err := parseConfig(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "switchyard:", err)
@@ -145,13 +160,14 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token), cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
+	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token))
+	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
 
 	fmt.Printf("NEXT_SWITCHYARD_READY %d\n", addr.Port)
 
 	stopped := make(chan struct{})
 	go func() {
-		<-stopRequested()
+		<-stopRequested(f.apply)
 		// No deadline: like Node's server.close(), wait for every in-flight
 		// request, however long it streams. Shutdown doesn't wait for
 		// connections taken over for a WebSocket upgrade, so those end when
@@ -167,6 +183,39 @@ func main() {
 		os.Exit(1)
 	}
 	<-stopped
+}
+
+// maxThreads is Switchyard's default limit on threads running Go code at once.
+const maxThreads = 4
+
+// threadsToUse returns how many threads may run Switchyard's Go code at once:
+// at most maxThreads, unless the user chose a limit with GOMAXPROCS.
+// Go runs Go code on as many threads at once as there are cores the process
+// may use (GOMAXPROCS). On a machine with many cores, most of those threads
+// spend their CPU waking each other and in the scheduler, which costs more per
+// request than the forwarding itself. Four threads keep that overhead low and
+// still serve route.go requests, which Switchyard sends to the Go worker
+// without Node, as fast as no limit does; with two, Switchyard itself became
+// the bottleneck for those requests under load.
+// env is the GOMAXPROCS environment variable, and current is the limit Go
+// already applied: GOMAXPROCS when it holds a number Go accepts, otherwise one
+// per core.
+func threadsToUse(env string, current int) int {
+	if goAcceptsGOMAXPROCS(env) {
+		return current // the user chose the limit; keep it
+	}
+	return min(current, maxThreads) // Go's default (one per core), at most maxThreads
+}
+
+// goAcceptsGOMAXPROCS reports whether Go's runtime uses env as the limit: a
+// whole number above 0 that fits in 32 bits, written with digits only (Go's
+// parser rejects a leading +, which strconv would accept).
+func goAcceptsGOMAXPROCS(env string) bool {
+	if env == "" || env[0] < '0' || env[0] > '9' {
+		return false
+	}
+	n, err := strconv.ParseInt(env, 10, 32)
+	return err == nil && n > 0
 }
 
 // newServer is the public server. It times out what Node times out: idle
@@ -211,14 +260,17 @@ func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout 
 }
 
 // stopRequested is closed on stdin EOF, SIGINT or SIGTERM, whichever comes
-// first. Stdin is a pipe from Node, so EOF also means Node has died.
-func stopRequested() <-chan struct{} {
+// first. Stdin is a pipe from Node, so EOF also means Node has died. Until
+// then, each line Node writes there is a control message for apply.
+func stopRequested(apply func(controlMessage)) <-chan struct{} {
 	stop := make(chan struct{})
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	stdinClosed := make(chan struct{})
 	go func() {
-		_, _ = io.Copy(io.Discard, os.Stdin)
+		readControl(os.Stdin, apply, func(err error) {
+			proxyErrorLog.Printf("control message: %v", err)
+		})
 		close(stdinClosed)
 	}()
 	go func() {
@@ -302,6 +354,11 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// soon as Node sends it, as without Switchyard.
 		FlushInterval: -1,
 		Transport:     newClientTransport(upstream, upstreamIdle),
+		// The proxy copies each response body through a buffer. Without a
+		// pool it allocates a new 32 KB buffer per response, most of what
+		// Switchyard allocates, and Go's garbage collector then spends CPU
+		// freeing them. The pool hands finished buffers to later responses.
+		BufferPool: &bufferPool{pool: sync.Pool{}},
 		// Node can answer before the client has finished sending the request
 		// body. If the body hasn't been read cleanly to its end by then, the
 		// rest of it is still on the client connection, and Go's server could
@@ -362,9 +419,51 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
-		proxy.ServeHTTP(w, r)
+		proxy.ServeHTTP(&clientWriter{w}, r)
 	})
 }
+
+// bufferPool reuses the proxy's 32 KB copy buffers (the size the proxy
+// allocates without a pool). sync.Pool lets the garbage collector free
+// buffers that sit unused, so an idle Switchyard doesn't keep them.
+type bufferPool struct{ pool sync.Pool }
+
+func (b *bufferPool) Get() []byte {
+	if buf, ok := b.pool.Get().(*[]byte); ok {
+		return *buf
+	}
+	return make([]byte, 32*1024)
+}
+
+// Put zeroes the buffer before shelving it, so bytes from one response never
+// sit in a buffer that a later response, possibly another client's, is handed.
+// The proxy only ever writes out the bytes it just read into the buffer, so
+// the old bytes aren't sent today; clearing keeps it that way if that code
+// changes. It costs about 0.2 µs per response for 32 KB (a new zeroed buffer
+// from make costs about 3 µs plus garbage collection), so most of the pool's
+// saving remains. If the proxy's copy can be shown never to expose bytes past
+// what it read, removing the clear saves that 0.2 µs.
+func (b *bufferPool) Put(buf []byte) {
+	clear(buf)
+	b.pool.Put(&buf)
+}
+
+// clientWriter is the client's ResponseWriter as the proxy sees it.
+type clientWriter struct {
+	http.ResponseWriter
+}
+
+// WriteHeader puts back the marker that stops Go from guessing a
+// Content-Type (see the handler above): the proxy clears the header map after
+// each 1xx response it passes on, such as 103 Early Hints.
+func (c *clientWriter) WriteHeader(code int) {
+	if _, ok := c.Header()["Content-Type"]; !ok && code >= 200 {
+		c.Header()["Content-Type"] = nil
+	}
+	c.ResponseWriter.WriteHeader(code)
+}
+
+func (c *clientWriter) Unwrap() http.ResponseWriter { return c.ResponseWriter }
 
 type requestBodyKey struct{}
 
