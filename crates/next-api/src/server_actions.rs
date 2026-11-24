@@ -285,11 +285,6 @@ impl Asset for ServerActionManifestAsset {
         // - next/dist/shared/lib/server-inserted-html.shared-runtime
         let modules_to_ignore = (durable_use_cache_entries || static_root_param_tracking_enabled)
             .then(|| get_use_cache_modules_to_ignore(*self.project));
-        let next_dir = if durable_use_cache_entries {
-            Some(get_next_package(self.project.project_path().owned().await?).await?)
-        } else {
-            None
-        };
 
         struct ActionMetadata<'a> {
             exported_name: &'a str,
@@ -328,9 +323,6 @@ impl Asset for ServerActionManifestAsset {
                         hash_salt,
                         modules_to_ignore
                             .expect("cache metadata collection requires module exclusions"),
-                        next_dir
-                            .clone()
-                            .context("durable use-cache entries require the Next.js package")?,
                     )
                     .await?;
                     // A non-statically analyzable `process.env` access in the subgraph could read
@@ -581,7 +573,6 @@ async fn compute_subtree_content_hash(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     hash_salt: Vc<RcStr>,
     modules_to_ignore: Vc<Modules>,
-    next_dir: FileSystemPath,
 ) -> Result<Vc<ModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
@@ -631,7 +622,11 @@ async fn compute_subtree_content_hash(
                                 .as_ref()
                                 .is_some_and(|e| e.runtime_all.is_some())
                             {
-                                " with dynamic env access"
+                                if data.ignore_runtime_all {
+                                    ""
+                                } else {
+                                    " with dynamic env access"
+                                }
                             } else {
                                 ""
                             },
@@ -671,12 +666,10 @@ async fn compute_subtree_content_hash(
         let mut runtime_env_vars = FxIndexMap::default();
         let mut has_dynamic_env_access = false;
 
-        for (m, data) in &data {
+        for (_, data) in &data {
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
-                if env.runtime_all.is_some()
-                    && !has_dynamic_env_access
-                    && !is_use_cache_wrapper(&m.ident().await?.path, &next_dir)
+                if !data.ignore_runtime_all && env.runtime_all.is_some() && !has_dynamic_env_access
                 {
                     has_dynamic_env_access = true;
                 }
@@ -742,24 +735,12 @@ async fn compute_subtree_content_hash(
     }
 }
 
-/// Whether `path` is Next.js' `use cache` wrapper. It reads `process.env[name]` dynamically, but
-/// only for the env vars listed in the durability metadata, to hash their values. So that access
-/// must not deopt durability.
-fn is_use_cache_wrapper(path: &FileSystemPath, next_dir: &FileSystemPath) -> bool {
-    matches!(
-        next_dir.get_path_to(path),
-        Some(
-            "dist/server/use-cache/use-cache-wrapper.js"
-                | "dist/esm/server/use-cache/use-cache-wrapper.js"
-        )
-    )
-}
-
 #[turbo_tasks::value]
 #[derive(Debug)]
 struct ModuleInformation {
     pub path_code_hash: RcStr,
     pub env_var_info: Option<ReadRef<EnvVarInfo>>,
+    pub ignore_runtime_all: bool,
 }
 
 #[turbo_tasks::function]
@@ -787,6 +768,10 @@ async fn module_hash(
         // ineffective.
         bail!("use cache subtree shouldn't contain {}", ident_str);
     }
+
+    // For the use-cache wrapper modules, we don't want to consider dynamic env access.
+    let ignore_runtime_all = ident_str.contains("next/dist/server/use-cache/use-cache-wrapper.js")
+        || ident_str.contains("next/dist/esm/server/use-cache/use-cache-wrapper.js");
 
     let env_var_info =
         if let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(m) {
@@ -839,6 +824,7 @@ async fn module_hash(
     Ok(ModuleInformation {
         path_code_hash,
         env_var_info,
+        ignore_runtime_all,
     }
     .cell())
 }
