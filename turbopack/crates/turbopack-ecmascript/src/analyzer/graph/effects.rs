@@ -162,6 +162,8 @@ pub enum Effect<'a> {
         base_effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
+        /// How the accessed value (`obj.prop`) is used, e.g. `Escapes` for `foo(obj.prop)` or
+        /// `Access` for `obj.prop.x`.
         usage: ValueUsage,
     },
     /// A property access created by an object destructuring pattern.
@@ -192,6 +194,8 @@ pub enum Effect<'a> {
         member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
+        /// How the imported value is used, e.g. `Escapes` for `foo(binding)`. Always `Access` for
+        /// a namespace member (`ns.export`), whose use is tracked by the `Member` effect instead.
         usage: ValueUsage,
     },
     /// A reference to a free var access.
