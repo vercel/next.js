@@ -19,6 +19,14 @@ describe('webpack-loader-emit-file-conflicts', () => {
     expect(await response.text()).toBe('shared-content\n')
   })
 
+  it('allows separate modules to emit identical contents with different source maps', async () => {
+    const response = await next.fetch(
+      `/_next/static/media/same-map.js${next.getDeploymentIdQuery()}`
+    )
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('console.log("same")')
+  })
+
   it('allows different compilers to emit identical contents at the same path', async () => {
     const response = await next.fetch(
       `/_next/static/media/compiler.txt${next.getDeploymentIdQuery()}`

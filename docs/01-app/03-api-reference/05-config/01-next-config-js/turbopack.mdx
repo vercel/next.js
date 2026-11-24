@@ -65,9 +65,9 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 - [`sass-loader`](https://www.npmjs.com/package/sass-loader) [_(Configured automatically)_](/docs/app/api-reference/turbopack#css-and-styling)
 - [`graphql-tag/loader`](https://www.npmjs.com/package/graphql-tag)
 
-Loaders can use [`this.emitFile(name, content)`](https://webpack.js.org/api/loaders/#thisemitfile) to emit output assets with string or `Buffer` contents. Files emitted with PostCSS `asset` messages are written the same way.
+Loaders can use [`this.emitFile(name, content, sourceMap)`](https://webpack.js.org/api/loaders/#thisemitfile) to emit output assets with string or `Buffer` contents. Files emitted with PostCSS `asset` messages are written the same way. When source maps are enabled, JavaScript and CSS assets include the supplied source map, which can be a source map object or an original source filename. Invalid source maps are omitted with a warning. Unlike webpack, whose default development `eval-source-map` devtool omits them, Turbopack also emits these source maps in development. Public assets use the browser source-map settings, including when emitted by server or edge loaders.
 
-Emitting different content to the same path is an error, including when the files come from different routes or from the browser and server compilers. Webpack reports conflicts within a compiler, but keeps whichever compiler writes last. Identical files are written once. File names that point outside of the build output directory or name a directory are errors.
+Emitting different content to the same path is an error, including when the files come from different routes or from the browser and server compilers. Webpack reports conflicts within a compiler, but keeps whichever compiler writes last. Identical files are written once, even if their source maps differ. File names that point outside of the build output directory or name a directory are errors.
 
 Unlike webpack, Turbopack does not build dependencies skipped as side-effect-free solely to collect loader-emitted files. Files from those skipped dependencies may therefore be absent. Files emitted by loaders that have already run are preserved even if their generated code is later removed by tree shaking.
 

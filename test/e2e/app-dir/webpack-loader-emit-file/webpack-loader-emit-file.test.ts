@@ -22,6 +22,19 @@ describe('webpack-loader-emit-file', () => {
     return Buffer.from(await response.arrayBuffer())
   }
 
+  async function fetchSourceMap(name: string) {
+    const response = await next.fetch(
+      `/_next/static/media/${name}${next.getDeploymentIdQuery()}`
+    )
+    if (isNextDeploy) {
+      // The deployment test project blocks source maps, including maps that do not exist.
+      expect(response.status).toBe(403)
+      return null
+    }
+    expect(response.status).toBe(200)
+    return response.json()
+  }
+
   it('emits text and binary assets from server and browser modules', async () => {
     const browser = await next.browser('/')
     for (const name of ['server', 'client']) {
@@ -71,6 +84,32 @@ describe('webpack-loader-emit-file', () => {
     expect((await fetchAsset('server.overwrite')).toString()).toBe('last-rule')
   })
 
+  it('emits referenced source maps for JavaScript, CSS, and original-source filename mappings', async () => {
+    const $ = await next.render$('/')
+    expect($('#mapped-value').text()).toBe('mapped-files')
+    for (const [name, source, original] of [
+      ['mapped-asset.js', 'original.js', 'console.log("original-asset");\n'],
+      ['mapped-styles.css', 'original.css', 'body { color: red; }'],
+      [
+        'original-name.js',
+        'original-name-source.js',
+        'console.log("mapped-asset");\n',
+      ],
+    ]) {
+      const content = (await fetchAsset(name)).toString()
+      expect(content).toContain(`sourceMappingURL=${name}.map`)
+      const map = await fetchSourceMap(`${name}.map`)
+      if (!map) continue
+      expect(map.version).toBe(3)
+      expect(map.file.replace(/\\/g, '/').split('/').pop()).toBe(name)
+      expect(map.sources.some((item: string) => item.endsWith(source))).toBe(
+        true
+      )
+      expect(map.sourcesContent).toContain(original)
+      expect(map.mappings).not.toBe('')
+    }
+  })
+
   it('emits files from modules loaded with importModule', async () => {
     const $ = await next.render$('/')
     expect($('#imported-value').text()).toBe('imported-value')
@@ -102,6 +141,18 @@ describe('webpack-loader-emit-file', () => {
       expect(response.status).toBe(200)
       expect(await response.text()).toBe('query-content')
     }
+  })
+
+  // @force-gate turbopack
+  it('ignores invalid source maps', async () => {
+    await next.render('/')
+    expect((await fetchAsset('invalid-map.js')).toString()).toContain(
+      'mapped-asset'
+    )
+    const invalid = await next.fetch(
+      `/_next/static/media/invalid-map.js.map${next.getDeploymentIdQuery()}`
+    )
+    expect(invalid.status).toBe(isNextDeploy ? 403 : 404)
   })
 
   it('keeps emitted files from a module marked side-effect-free', async () => {

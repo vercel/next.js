@@ -59,6 +59,15 @@ describe('webpack loader emitFile IPC', () => {
     ])
   })
 
+  it('transports a source map object', async () => {
+    const result = await run({ map: true })
+    expect(result.assets[0]).toEqual({
+      file: 'mapped.txt',
+      content: 'source',
+      sourceMap: { version: 3, sources: ['input.emit'], mappings: '' },
+    })
+  })
+
   it('preserves late Buffer mutations', async () => {
     const result = await run({ mutableBuffer: true })
     expect(result.assets[0]).toEqual({

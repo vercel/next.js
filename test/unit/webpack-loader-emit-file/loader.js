@@ -10,6 +10,12 @@ module.exports = function (source) {
     this.emitFile('nested\\asset.txt', 'first')
     this.emitFile('nested/asset.txt', 'middle')
     this.emitFile('nested/asset.txt', 'last')
+  } else if (options.map) {
+    this.emitFile('mapped.txt', source, {
+      version: 3,
+      sources: ['input.emit'],
+      mappings: '',
+    })
   } else {
     this.emitFile('text.txt', source, null, { immutable: true })
     this.emitFile('binary.bin', Buffer.from([0, 255, 128, 10]))
