@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { instant } from '@next/playwright'
 import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
@@ -1189,6 +1190,39 @@ describe('runtime prefetching', () => {
   })
 
   describe('errors', () => {
+    it.each([
+      ['shell', '/errors/sync-io-after-runtime-api/cookies'],
+      ['per-link', '/errors/sync-io-after-runtime-api/dynamic-params/123'],
+    ])(
+      'commits an instant navigation after sync IO aborts the %s prefetch',
+      async (_stage, path) => {
+        let page: Playwright.Page
+        await next.browser('/errors', {
+          beforePageLoad(p) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page)
+
+        await instant(page, async () => {
+          await act(async () => {
+            await page.locator(`input[data-link-accordion="${path}"]`).click()
+            await page.locator(`a[href="${path}"]`).click()
+          })
+
+          // The navigation must commit while the lock is still held, even
+          // though the runtime prefetch aborted before rendering the timestamp.
+          await page.waitForURL(new URL(path, next.url).href, {
+            timeout: 10_000,
+          })
+          await page.locator('#intro').waitFor({ state: 'visible' })
+          expect(await page.locator('#timestamp').count()).toBe(0)
+        })
+
+        await page.locator('#timestamp').waitFor({ state: 'visible' })
+      }
+    )
+
     it.each([
       {
         description: 'when sync IO is used after awaiting cookies()',

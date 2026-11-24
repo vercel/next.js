@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   productionBrowserSourceMaps: true,
   experimental: {
+    exposeTestingApiInProductionBuild: true,
     // TODO: This test asserts on the pre-`varyParams` cache-keying behavior
     // for root params. Pin the fixture to the old default until the test is
     // updated to reflect the new shape (or until the flag is removed).
