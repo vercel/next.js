@@ -97,6 +97,7 @@ describe('trace-build-file', () => {
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
+                  "turbopack-build-worker",
                   "turbopack-emit",
                   "turbopack-module-graph",
                   "turbopack-persistence",
