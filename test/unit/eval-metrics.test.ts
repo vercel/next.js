@@ -287,6 +287,26 @@ describe('effort gate', () => {
     }
   })
 
+  it('keeps effort samples when the collector fails after writing metrics', () => {
+    const { root, exitCode } = run(['--effort-gate'], 1)
+    try {
+      expect(exitCode).toBe(0)
+      const [report] = fs.readdirSync(
+        path.join(root, 'evals/results/effort-gate')
+      )
+      const { samples } = JSON.parse(
+        fs.readFileSync(
+          path.join(root, 'evals/results/effort-gate', report),
+          'utf8'
+        )
+      )
+      expect(samples.skills).toHaveLength(5)
+      expect(samples.skills[0]).toMatchObject({ collectorFailed: true })
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('prepends a pre-stack package to the effort comparison', () => {
     const { root, calls, exitCode } = run([
       '--effort-gate',
@@ -307,6 +327,7 @@ describe('effort gate', () => {
       expect(config).toContain(
         JSON.stringify(path.join(root, 'pre-stack-next.tgz'))
       )
+      expect(config).toContain('{ requireNextApp: true }')
       const [report] = fs.readdirSync(
         path.join(root, 'evals/results/effort-gate')
       )
