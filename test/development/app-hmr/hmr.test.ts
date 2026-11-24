@@ -91,6 +91,70 @@ describe(`app-dir-hmr`, () => {
       }
     })
 
+    // Only Turbopack's dev server sends `built` for the compilations a
+    // navigation triggers.
+    // @force-gate turbopack
+    it('does not repeat the Fast Refresh log on navigation after an edit', async () => {
+      const componentPath = 'app/fast-refresh-log/message.js'
+      const browser = await next.browser('/fast-refresh-log')
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+
+      const countLogs = async (message: string) =>
+        (await browser.log()).filter((log) => log.message.includes(message))
+          .length
+      const countBuiltMessages = async () =>
+        (await browser.websocketFrames()).filter(
+          ({ payload }) =>
+            typeof payload === 'string' && payload.includes('"type":"built"')
+        ).length
+      const navigateAwayAndBack = async () => {
+        await browser
+          .elementByCss('#to-other')
+          .click()
+          .waitForElementByCss('#other')
+        await browser
+          .elementByCss('#to-home')
+          .click()
+          .waitForElementByCss('#message')
+      }
+
+      // Compile both routes before the edit.
+      await navigateAwayAndBack()
+
+      await next.patchFile(
+        componentPath,
+        (content) => content.replace('Initial', 'Edited'),
+        async () => {
+          await retry(async () => {
+            expect(await browser.elementByCss('#message').text()).toBe('Edited')
+          })
+
+          const builtMessagesBeforeNavigation = await countBuiltMessages()
+          for (let i = 0; i < 3; i++) {
+            await navigateAwayAndBack()
+          }
+          // Navigating triggers compilations that finish too quickly for the
+          // dev server to send `building`, so the client only gets `built`.
+          await retry(async () => {
+            expect(await countBuiltMessages()).toBeGreaterThan(
+              builtMessagesBeforeNavigation
+            )
+          })
+          // Round-trip to the page so console messages logged while handling
+          // those `built` messages have been delivered.
+          await browser.eval('1')
+
+          // Every `done` log belongs to a `rebuilding` log. A `done` log on
+          // its own replays an update that was already reported.
+          expect(await countLogs('[Fast Refresh] done in')).toBe(
+            await countLogs('[Fast Refresh] rebuilding')
+          )
+        }
+      )
+
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBe(true)
+    })
+
     it('should not continously poll when hitting a not found page', async () => {
       let requestCount = 0
 
