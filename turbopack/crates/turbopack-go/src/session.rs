@@ -65,8 +65,6 @@ impl GoBuildContext {
             self.module_cache_filesystem()
                 .await?
                 .await?
-                .inner()
-                .await?
                 .start_watching()
                 .await?;
         }
@@ -79,10 +77,8 @@ impl GoBuildContext {
                 self.module_cache_filesystem()
                     .await?
                     .await?
-                    .inner()
-                    .await?
                     .stop_watching()
-                    .await;
+                    .await?;
             }
         }
         Ok(())
@@ -103,10 +99,8 @@ impl GoBuildContext {
             self.module_cache_filesystem()
                 .await?
                 .await?
-                .inner()
-                .await?
                 .stop_watching()
-                .await;
+                .await?;
         }
         Ok(())
     }

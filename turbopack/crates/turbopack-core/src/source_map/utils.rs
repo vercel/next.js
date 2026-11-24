@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     iter,
     sync::{LazyLock, OnceLock},
 };
@@ -12,9 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, turbofmt};
-use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemInner, FileContent, FileSystemPath, rope::Rope,
-};
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath, rope::Rope};
 use url::Url;
 
 use crate::{SOURCE_URL_PROTOCOL_STR, source_map::structured::StructuredSourceMap};
@@ -89,8 +87,8 @@ struct SourceMapJson {
 /// `sourceContent`s from disk.
 ///
 /// The filesystem is only read when needed, and as narrowly as possible: its name only when a
-/// source is rewritten, and the whole [`DiskFileSystem`] (which contains its absolute root) only
-/// when a `file://` source has to be mapped into it. This avoids invalidating the caller when the
+/// source is rewritten, and its absolute root only when a `file://` source has to be mapped into
+/// it. This avoids invalidating the caller when the
 /// filesystem root changes but the map does not depend on it.
 pub async fn resolve_source_map_sources(
     map: Option<&Rope>,
@@ -105,7 +103,7 @@ pub async fn resolve_source_map_sources(
     };
 
     let disk_fs_vc = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs_vc);
-    let disk_fs = OnceLock::<ReadRef<DiskFileSystemInner>>::new();
+    let disk_fs = OnceLock::<ReadRef<DiskFileSystem>>::new();
 
     let resolve_source =
         async |source_url: &mut String, source_content: Option<&mut Option<Box<RawValue>>>| {
@@ -129,9 +127,10 @@ pub async fn resolve_source_map_sources(
                 if let Ok(sys_path) = original_source_url_obj.to_file_path() {
                     if let Some(disk_fs_vc) = disk_fs_vc {
                         let disk_fs =
-                            get_or_try_init(&disk_fs, async || disk_fs_vc.await?.inner().await)
-                                .await?;
-                        disk_fs.try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
+                            get_or_try_init(&disk_fs, async || Ok(disk_fs_vc.await?)).await?;
+                        disk_fs
+                            .try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
+                            .await?
                     } else {
                         None
                     }
@@ -308,23 +307,39 @@ pub async fn absolute_fileify_source_map(
     let Some(prefix) = relative_files_prefix(map, &context_path).await? else {
         return Ok(map.clone());
     };
-    // The absolute root of the filesystem is needed here, so read the whole filesystem.
+    // The absolute root of the filesystem is needed here, which can only be read asynchronously,
+    // so convert the sources first and then rewrite them.
     let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_path.fs)
         .context("Expected the chunking context to have a DiskFileSystem")?
-        .await?
-        .inner()
         .await?;
-    transform_relative_files(map, &prefix, |src_rest| {
-        let path = context_path.join(src_rest)?;
+    let mut sources_rest = Vec::new();
+    map.any_source(|src| {
+        if let Some(src_rest) = src.strip_prefix(&prefix) {
+            sources_rest.push(src_rest.to_string());
+        }
+        false
+    });
+    let mut urls = HashMap::with_capacity(sources_rest.len());
+    for src_rest in sources_rest {
+        if urls.contains_key(&src_rest) {
+            continue;
+        }
+        let path = context_path.join(&src_rest)?;
 
         // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
         // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
-        let sys_path = context_fs.to_sys_path(&path);
-        Ok(Url::from_file_path(&sys_path)
+        let sys_path = context_fs.to_sys_path(&path).await?;
+        let url: String = Url::from_file_path(&sys_path)
             .map_err(|()| {
                 anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
             })?
-            .into())
+            .into();
+        urls.insert(src_rest, url);
+    }
+    transform_relative_files(map, &prefix, |src_rest| {
+        urls.get(src_rest)
+            .cloned()
+            .with_context(|| format!("source {src_rest:?} was not converted"))
     })
 }
 

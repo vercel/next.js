@@ -127,11 +127,11 @@ async fn input_directory(path: &FileSystemPath, system: &Path) -> Result<Directo
     let mut input = directory(system)?;
     let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs)
         .context("Go inputs require a disk filesystem")?;
-    let fs = fs.await?.inner().await?;
+    let fs = fs.await?;
     if let Some(names) = &mut input.names {
         let mut denied = Vec::new();
         for name in names.keys() {
-            if fs.is_path_denied(&path.join(name)?) {
+            if fs.is_path_denied(&path.join(name)?).await? {
                 denied.push(name.clone());
             }
         }
@@ -321,9 +321,8 @@ impl<'a> Tracker<'a> {
             .context("Go inputs require a disk filesystem")?;
         if let Some(tracked) = project_fs
             .await?
-            .inner()
-            .await?
             .try_from_sys_path(project_fs, path, None)
+            .await?
         {
             validate_source_path(self.project, path)?;
             return Ok(tracked);
@@ -336,9 +335,8 @@ impl<'a> Tracker<'a> {
         .await?;
         let tracked = module_fs
             .await?
-            .inner()
-            .await?
             .try_from_sys_path(module_fs, path, None)
+            .await?
             .with_context(|| {
                 format!("Go source outside project/module cache: {}", path.display())
             })?;
@@ -354,7 +352,7 @@ impl<'a> Tracker<'a> {
         let tracked = self.path(path).await?;
         let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(tracked.fs)
             .context("Go inputs require a disk filesystem")?;
-        fs.await?.inner().await?.track_file(&tracked).await?;
+        fs.await?.track_file(&tracked).await?;
         let before = stamp(path)?;
         let content = tracked.read().await?;
         let digest = match &*content {
@@ -391,7 +389,7 @@ impl<'a> Tracker<'a> {
         let tracked = self.path(path).await?;
         let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(tracked.fs)
             .context("Go inputs require a disk filesystem")?;
-        fs.await?.inner().await?.track_directory(&tracked).await?;
+        fs.await?.track_directory(&tracked).await?;
         let before = input_directory(&tracked, path).await?;
         let entries = tracked.raw_read_dir().await?;
         let recorded = match &*entries {
@@ -448,7 +446,7 @@ impl<'a> Tracker<'a> {
 
     pub(crate) async fn invalidate(&self) -> Result<()> {
         if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.root.fs) {
-            fs.await?.inner().await?.invalidate();
+            fs.await?.invalidate().await?;
         }
         filesystem_with_poll_interval(
             self.go_context.module_cache.clone(),
@@ -458,9 +456,8 @@ impl<'a> Tracker<'a> {
         .strongly_consistent()
         .await?
         .await?
-        .inner()
-        .await?
-        .invalidate();
+        .invalidate()
+        .await?;
         Ok(())
     }
 }

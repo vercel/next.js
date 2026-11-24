@@ -520,11 +520,12 @@ impl DiskFileSystemState {
 
 /// A filesystem backed by a directory on disk.
 ///
-/// The cell only contains the name and a reference to the [`DiskFileSystemInner`] cell, which
-/// contains the root and the session state. [`DiskFileSystem::new`] doesn't read the root, so the
-/// task creating this cell is immutable, and tasks that only use the filesystem's identity or name
-/// (e.g. to format a [`FileSystemPath`]) don't depend on the root. Everything that needs the root
-/// or the session state reads the [`DiskFileSystemInner`] cell (see [`DiskFileSystem::inner`]).
+/// The cell only contains the name and a reference to a separate cell with the root and the
+/// session state. [`DiskFileSystem::new`] doesn't read the root, so the task creating this cell is
+/// immutable, and tasks that only use the filesystem's identity or name (e.g. to format a
+/// [`FileSystemPath`]) don't depend on the root. The methods that need the root or the session
+/// state (e.g. [`DiskFileSystem::to_sys_path`]) read that cell, so they are async and make the
+/// calling task depend on the root.
 #[derive(Clone, ValueToString)]
 #[value_to_string(self.name)]
 #[turbo_tasks::value]
@@ -538,10 +539,132 @@ impl DiskFileSystem {
         &self.name
     }
 
-    /// Reads the [`DiskFileSystemInner`] cell, which contains the root and the session state of
-    /// the filesystem.
-    pub async fn inner(&self) -> Result<ReadRef<DiskFileSystemInner>> {
+    /// Reads the cell with the root and the session state of the filesystem.
+    pub(crate) async fn inner(&self) -> Result<ReadRef<DiskFileSystemInner>> {
         self.inner.await
+    }
+
+    pub async fn root(&self) -> Result<RcStr> {
+        Ok(self.inner().await?.root().clone())
+    }
+
+    /// Track a file consumed by an external reader (for example a compiler subprocess).
+    /// Unlike depending on `read()`, this invalidates the calling task for every file event,
+    /// including an edit that restores identical bytes. Call before accessing the OS path.
+    pub async fn track_file(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner().await?.track_file(path).await
+    }
+
+    /// Track directory membership consumed by an external reader. Missing directories are
+    /// watched through their nearest existing parent, just like ordinary filesystem reads.
+    pub async fn track_directory(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner().await?.track_directory(path).await
+    }
+
+    pub async fn invalidate(&self) -> Result<()> {
+        self.inner().await?.invalidate();
+        Ok(())
+    }
+
+    pub async fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) -> Result<()> {
+        self.inner().await?.invalidate_with_reason(reason);
+        Ok(())
+    }
+
+    pub async fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) -> Result<()> {
+        self.inner()
+            .await?
+            .invalidate_path_and_children_with_reason(paths, reason);
+        Ok(())
+    }
+
+    pub async fn start_watching(&self) -> Result<()> {
+        self.inner().await?.start_watching().await
+    }
+
+    pub async fn stop_watching(&self) -> Result<()> {
+        self.inner().await?.stop_watching().await;
+        Ok(())
+    }
+
+    /// Whether this filesystem treats a path as nonexistent under its read policy.
+    pub async fn is_path_denied(&self, path: &FileSystemPath) -> Result<bool> {
+        Ok(self.inner().await?.is_path_denied(path))
+    }
+
+    /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
+    /// filesystem root. If no `relative_to` argument is given, it is assumed that the `sys_path` is
+    /// relative to the [`DiskFileSystem`] root.
+    ///
+    /// Attempts to convert absolute paths to paths relative to the filesystem root, though we only
+    /// attempt to do so lexically.
+    ///
+    /// Assumes `self` is the `DiskFileSystem` contained in `vc_self`. [`Path`]/[`PathBuf`] should
+    /// not be stored in the filesystem cache, so this function cannot be a
+    /// [`turbo_tasks::function`].
+    pub async fn try_from_sys_path(
+        &self,
+        vc_self: ResolvedVc<DiskFileSystem>,
+        sys_path: &Path,
+        relative_to: Option<&FileSystemPath>,
+    ) -> Result<Option<FileSystemPath>> {
+        Ok(self
+            .inner()
+            .await?
+            .try_from_sys_path(vc_self, sys_path, relative_to))
+    }
+
+    /// Similar to [`DiskFileSystem::try_from_sys_path`], but allows resolving paths that cross
+    /// roots and may be in a different [`DiskFileSystem`] linked via the [`DiskFileSystemMap`].
+    ///
+    /// Unlike [`DiskFileSystem::try_from_sys_path`], this conversion is not entirely lexical, and
+    /// we may attempt to canonicalize some segments of an absolute path.
+    ///
+    /// Crossing roots should generally only happen at symlink boundaries. If you are not
+    /// handling a path that was potentially formed by crossing a symlink boundary, you should
+    /// prefer [`DiskFileSystem::try_from_sys_path`].
+    pub async fn try_from_sys_path_across_roots(
+        &self,
+        vc_self: ResolvedVc<DiskFileSystem>,
+        sys_path: &Path,
+        relative_to: &FileSystemPath,
+    ) -> Result<Option<FileSystemPath>> {
+        self.inner()
+            .await?
+            .try_from_sys_path_across_roots(vc_self, sys_path, relative_to)
+            .await
+    }
+
+    /// Returns the path as a system [`PathBuf`]. Similar to [`DiskFileSystem::to_sys_path`], but
+    /// keeps the internal representation as-is.
+    ///
+    /// On Windows this returns the verbatim/extended (`\\?\`-prefixed) path format used internally,
+    /// which supports paths exceeding the 260 character path limit. Use this for internal
+    /// filesystem operations and for comparisons against other internal paths, such as the keys of
+    /// the invalidator maps used by [`Self::invalidate_path_and_children_with_reason`]. For a path
+    /// handed to external consumers, prefer [`Self::to_sys_path`].
+    ///
+    /// On non-Windows platforms this is identical to [`Self::to_sys_path`].
+    pub async fn to_sys_path_raw(&self, fs_path: &FileSystemPath) -> Result<PathBuf> {
+        Ok(self.inner().await?.to_sys_path_raw(fs_path))
+    }
+
+    /// Returns the path as a system [`PathBuf`].
+    ///
+    /// As a general rule, system paths should not be stored inside turbo-task cells, or passed
+    /// inside [`turbo_tasks::TaskInput`]s as they are not valid after serialization.
+    ///
+    /// On Windows, this will attempt to convert the internal verbatim/extended path representation
+    /// to a more-compatible win32 path, but may return a verbatim path if that conversion fails.
+    pub async fn to_sys_path(&self, fs_path: &FileSystemPath) -> Result<PathBuf> {
+        Ok(self.inner().await?.to_sys_path(fs_path))
     }
 }
 
@@ -551,7 +674,8 @@ impl Debug for DiskFileSystem {
     }
 }
 
-/// The root and the session state of a [`DiskFileSystem`].
+/// The root and the session state of a [`DiskFileSystem`]. Not exposed publicly, use the methods
+/// on [`DiskFileSystem`] instead.
 ///
 /// `DiskFileSystemInner` carries serializable fields (`name`, `root`, `denied_paths`) inside
 /// `DiskFileSystemState` alongside session-scoped state (the `notify` watcher, invalidator maps,
@@ -559,15 +683,11 @@ impl Debug for DiskFileSystem {
 /// invalidations work, so we never evict this data.
 #[derive(Clone)]
 #[turbo_tasks::value(cell = "new", eq = "manual", evict = "never")]
-pub struct DiskFileSystemInner {
+pub(crate) struct DiskFileSystemInner {
     inner: Arc<DiskFileSystemState>,
 }
 
 impl DiskFileSystemInner {
-    pub fn name(&self) -> &RcStr {
-        &self.inner.name
-    }
-
     pub fn root(&self) -> &RcStr {
         &self.inner.root
     }
@@ -913,8 +1033,9 @@ impl DiskFileSystem {
     /// `root` is the [canonicalized][std::fs::canonicalize] root of the filesystem. It should have
     /// a stable [cell identity][`ResolvedVc`]: the returned filesystem (and every
     /// [`FileSystemPath`] on it) is keyed by that identity, not by the value of `root`. When the
-    /// value changes (e.g. when a project with a persistent cache is moved), only the
-    /// [`DiskFileSystemInner`] is recomputed, and only tasks that read it are invalidated.
+    /// value changes (e.g. when a project with a persistent cache is moved), only the internal
+    /// cell with the root and the session state is recomputed, and only tasks that read the root
+    /// (e.g. through [`DiskFileSystem::to_sys_path`]) are invalidated.
     ///
     /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
     /// resolution) which should (ideally) not be cached.

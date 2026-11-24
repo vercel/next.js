@@ -3776,9 +3776,8 @@ mod tests {
             fs_operation
                 .read_strongly_consistent()
                 .await?
-                .inner()
-                .await?
-                .invalidate();
+                .invalidate()
+                .await?;
 
             let conditions = exports_conditions_operation(fs)
                 .read_strongly_consistent()

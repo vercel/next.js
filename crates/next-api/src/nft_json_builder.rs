@@ -114,9 +114,8 @@ impl NftJsonBuilder {
             .context("NFT path must use a disk filesystem")?;
         let output_base_path = output_file_system
             .await?
-            .inner()
-            .await?
-            .to_sys_path_raw(&output_base);
+            .to_sys_path_raw(&output_base)
+            .await?;
         let output_base_path = sys_to_unix(
             output_base_path
                 .to_str()

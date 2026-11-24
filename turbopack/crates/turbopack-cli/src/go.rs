@@ -100,14 +100,14 @@ impl GoBuild {
             .resolve()
             .strongly_consistent()
             .await?;
-        let fs = fs.await?.inner().await?;
+        let fs = fs.await?;
         if self.go_context.is_cancelled() {
             return Ok(());
         }
         fs.start_watching().await?;
         // Shutdown can overlap startup; the project watcher remains caller-owned.
         if self.go_context.is_cancelled() {
-            fs.stop_watching().await;
+            fs.stop_watching().await?;
         }
         self.go_context.start_module_cache_watching().await?;
         Ok(())
@@ -120,7 +120,7 @@ impl GoBuild {
             .resolve()
             .strongly_consistent()
             .await?;
-        fs.await?.inner().await?.stop_watching().await;
+        fs.await?.stop_watching().await?;
         self.go_context.stop_module_cache_watching().await?;
 
         Ok(())
