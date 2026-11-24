@@ -14,10 +14,17 @@
 //! that isn't immutable. That holds because:
 //! - the `immutable` flag only ever changes from `false` to `true`, and eviction and restore keep
 //!   it;
-//! - task ids aren't reused (`IdFactoryWithReuse::reuse` has no callers, and GC doesn't recycle the
-//!   ids of collected tasks). Recycling task ids would require removing them from this set while no
-//!   reader can observe the id;
+//! - task ids aren't reused (`IdFactoryWithReuse::reuse` has no callers, and persistent ids come
+//!   from the persisted, monotonic `next_free_task_id`). Recycling task ids would require removing
+//!   them from this set while no reader can observe the id;
 //! - transient and persistent task ids don't overlap, and each backend has its own set.
+//!
+//! In particular, a task that is collected by GC and then needed again doesn't come back mutable
+//! under its known-immutable id: GC marks the collected task `deleted` and removes it from
+//! `task_cache` (persisting a tombstone), so calling the same task again allocates a new task id,
+//! which is only added to this set once it's immutable itself. The bit of the collected id stays
+//! set. That's harmless, as nothing can execute or read that id anymore: reads open it with
+//! `try_task`, which returns `None` for a deleted or missing task.
 
 use std::{
     ptr::null_mut,

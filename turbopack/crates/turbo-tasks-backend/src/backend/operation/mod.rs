@@ -2082,8 +2082,6 @@ impl TaskStorageAccessors for TaskGuard<'_> {
     }
 }
 
-#[cfg(test)]
-pub(in crate::backend) use self::update_cell::invalidate_cell_dependents;
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, CollectiblesUpdateVec, get_aggregation_number,
@@ -2746,6 +2744,80 @@ mod must_exist_tests {
         });
         assert!(msg.contains("task_pair, MustExist"), "{msg}");
         assert_no_leftovers(&tt, present, missing);
+    }
+
+    /// What `lock_task_and_optional_reader(task, Some(reader))` yields: `None` if the task is gone,
+    /// otherwise whether a reader guard was returned.
+    fn lock_for_read(
+        tt: &TurboTasks<TurboTasksBackend>,
+        task: TaskId,
+        reader: TaskId,
+    ) -> Option<bool> {
+        let mut ctx = ExecuteContext::new(tt);
+        crate::backend::lock_task_and_optional_reader(
+            &mut ctx,
+            &tt.backend().known_immutable,
+            task,
+            Some(reader),
+        )
+        .map(|(_, reader)| reader.is_some())
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(feature = "verify_immutable", ignore)]
+    async fn known_immutable_read_doesnt_open_the_reader() {
+        let tt = backend();
+        let task = persistent(1);
+        // Opening this missing reader would panic.
+        let missing_reader = persistent(2);
+        resident(&tt, task, TaskDataCategory::All);
+        tt.backend()
+            .storage
+            .access_mut(task)
+            .flags
+            .set_immutable(true);
+        tt.backend().known_immutable.insert(task);
+        assert_eq!(lock_for_read(&tt, task, missing_reader), Some(false));
+        assert_no_leftovers(&tt, task, missing_reader);
+    }
+
+    /// A stale bit of a task that is gone (collected by GC) doesn't make reads of it succeed or
+    /// recreate it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn known_immutable_read_of_a_missing_task_is_none() {
+        let tt = backend();
+        let reader = persistent(1);
+        let missing = persistent(2);
+        resident(&tt, reader, TaskDataCategory::All);
+        for known_immutable in [false, true] {
+            if known_immutable {
+                tt.backend().known_immutable.insert(missing);
+            }
+            assert_eq!(lock_for_read(&tt, missing, reader), None);
+            assert_no_leftovers(&tt, reader, missing);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn known_immutable_read_of_a_deleted_task_is_none() {
+        for known_immutable in [false, true] {
+            let tt = backend();
+            let reader = persistent(1);
+            let deleted = persistent(2);
+            resident(&tt, reader, TaskDataCategory::All);
+            resident(&tt, deleted, TaskDataCategory::All);
+            let mut storage = tt.backend().storage.access_mut(deleted);
+            storage.flags.set_immutable(true);
+            storage.flags.set_deleted(true);
+            drop(storage);
+            if known_immutable {
+                tt.backend().known_immutable.insert(deleted);
+            }
+            assert_eq!(lock_for_read(&tt, deleted, reader), None);
+            // Like `try_task`, the soft-deleted task is left in place.
+            assert!(has_entry(&tt, deleted));
+            assert_unpinned(&tt, reader);
+        }
     }
 
     #[tokio::test(flavor = "multi_thread")]
