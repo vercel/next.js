@@ -3,6 +3,9 @@ runtime: [
     "propertyIsEnumerable",
 ]
 runtime_existence: [
+    "FOO_METHOD",
+    "FOO_IMPORT",
+    "FOO_ALIAS",
     "FOO_OBJECT_HAS_OWN",
     "FOO_OBJECT_HAS_OWN_EXTRACTED",
     "FOO_PROTOTYPE_CALL",

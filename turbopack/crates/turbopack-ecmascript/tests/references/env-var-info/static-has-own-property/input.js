@@ -1,6 +1,12 @@
 import { env } from 'node:process'
+// Not the `process` module
+import { env as otherEnv } from './config'
 
 // Existence checks of process.env
+console.log(process.env.hasOwnProperty('FOO_METHOD'))
+console.log(env.hasOwnProperty('FOO_IMPORT'))
+const aliasedEnv = process.env
+console.log(aliasedEnv.hasOwnProperty('FOO_ALIAS'))
 console.log(Object.hasOwn(process.env, 'FOO_OBJECT_HAS_OWN'))
 const { hasOwn } = Object
 console.log(hasOwn(env, 'FOO_OBJECT_HAS_OWN_EXTRACTED'))
@@ -18,6 +24,7 @@ console.log(
 )
 
 // Not existence checks of process.env
+console.log(otherEnv.hasOwnProperty('NOT_ENV_OTHER_IMPORT'))
 const other = { NOT_ENV_OTHER: 1 }
 console.log(Object.hasOwn(other, 'NOT_ENV_OBJECT_HAS_OWN'))
 console.log(Object.prototype.hasOwnProperty.call(other, 'NOT_ENV_CALL'))
