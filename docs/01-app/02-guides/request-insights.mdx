@@ -18,32 +18,13 @@ Suppose a request to `/reports` takes several seconds. We'll record the request,
 
 ### Step 1: Record the slow request
 
-Enable Request Insights in `next.config.ts`, then start the development server:
+Request Insights is available whenever you run the development server:
 
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    requestInsights: true,
-  },
-}
-
-export default nextConfig
+```bash
+next dev
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    requestInsights: true,
-  },
-}
-
-module.exports = nextConfig
-```
-
-This option enables both the **Request Insights** panel in the development overlay and the `next experimental-request-insights` CLI. If the development server is already running, restart it before continuing.
+It powers both the **Request Insights** panel in the development overlay and the `next experimental-request-insights` CLI. To turn it off, set `experimental.requestInsights` to `false` in `next.config.js` and restart the development server.
 
 Open `http://localhost:3000/reports` and reproduce the slowdown. Request Insights retains the completed request in the current development session.
 
