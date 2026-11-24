@@ -194,6 +194,30 @@ func TestFillsOnlyForAndPortWhenMissing(t *testing.T) {
 	}
 }
 
+func TestSendsAnHTTP10ClientsVersionInTheMetadata(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	for _, c := range []struct{ request, suffix string }{
+		{"GET / HTTP/1.0\r\nHost: shop.example.com\r\n\r\n", ";1.0"},
+		{"GET / HTTP/1.1\r\nHost: shop.example.com\r\nConnection: close\r\n\r\n", ""},
+	} {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(conn, c.request)
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		want := testToken + ";" + conn.LocalAddr().String() + c.suffix
+		conn.Close()
+		if got := (<-seen).header.Get(connectionHeader); got != want {
+			t.Errorf("%q: metadata = %q, want %q", c.request, got, want)
+		}
+	}
+}
+
 func TestReplacesUntrustedConnectionMetadata(t *testing.T) {
 	addr, seen := startProxy(t, nil)
 	conn, err := net.Dial("tcp", addr)

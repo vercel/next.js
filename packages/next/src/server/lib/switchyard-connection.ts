@@ -48,7 +48,17 @@ export function restoreSwitchyardConnection(
     return false
   }
 
-  const address = peer.slice(token.length + 1)
+  // `<address>:<port>`, then `;1.0` for an HTTP/1.0 client: Switchyard always
+  // speaks HTTP/1.1 to this server.
+  const [address, version, ...rest] = peer.slice(token.length + 1).split(';')
+  if (rest.length > 0 || (version !== undefined && version !== '1.0')) {
+    return false
+  }
+  if (version === '1.0') {
+    req.httpVersion = '1.0'
+    req.httpVersionMajor = 1
+    req.httpVersionMinor = 0
+  }
   const colon = address.lastIndexOf(':')
   const remoteAddress = address.startsWith('[')
     ? address.slice(1, colon - 1)

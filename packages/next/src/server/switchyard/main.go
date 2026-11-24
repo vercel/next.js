@@ -377,7 +377,14 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			_, remotePort, _ := net.SplitHostPort(pr.In.RemoteAddr)
 			// Always replace caller-supplied metadata, including headers named
 			// in Connection. Node authenticates and removes this before routing.
-			pr.Out.Header.Set(connectionHeader, token+";"+net.JoinHostPort(clientIP(pr.In.RemoteAddr, mapIPv4), remotePort))
+			metadata := token + ";" + net.JoinHostPort(clientIP(pr.In.RemoteAddr, mapIPv4), remotePort)
+			// Node parity: Node shows the app the client's HTTP version
+			// (req.httpVersion). Go's Transport always speaks HTTP/1.1 to Node,
+			// so an HTTP/1.0 client's version travels in the metadata.
+			if !pr.In.ProtoAtLeast(1, 1) {
+				metadata += ";1.0"
+			}
+			pr.Out.Header.Set(connectionHeader, metadata)
 			// Node now sees Switchyard's connection (127.0.0.1 and its private
 			// port) instead of the client's, so pass on the client's address
 			// and the public port when no proxy in front of us already did.

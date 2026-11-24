@@ -623,6 +623,11 @@ describe('switchyard', () => {
       )
     }
 
+    it('shows the app the client’s HTTP version', async () => {
+      const { text } = await keepAliveRequest('/api/version')
+      expect(text.endsWith('1.0 1 0')).toBe(true)
+    })
+
     it('closes the connection after a response of unknown length', async () => {
       const { text, closed } = await keepAliveRequest('/api/no-date')
       expect(text).toMatch(/\r\nconnection: close\r\n/i)
