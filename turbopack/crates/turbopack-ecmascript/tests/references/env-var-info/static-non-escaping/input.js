@@ -20,9 +20,12 @@ console.log(
 )
 
 // Destructuring assignments whose result isn't consumed
-let FOO5, FOO6
+let FOO5, FOO6, FOO18
 ;({ FOO5 } = process.env)
 ;(({ FOO6 } = process.env), console.log(FOO5, FOO6))
+for ({ FOO18 } = process.env; FOO18; ) {
+  break
+}
 
 // `process` itself escaping is deliberately not treated as a dynamic `process.env` access
 foo(process)

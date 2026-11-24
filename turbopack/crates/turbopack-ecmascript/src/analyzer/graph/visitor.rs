@@ -991,8 +991,11 @@ fn is_nullish_literal(expr: &Expr, unresolved_mark: Mark) -> bool {
 /// Whether the current expression is the value being consumed by an object destructuring pattern
 /// without a rest element. Every property (including computed ones) then gets its own
 /// `Effect::DestructuredMember`, whereas a rest element would copy keys without any effect.
+///
+/// A destructuring assignment evaluates to its source, so this is only true when the result of the
+/// assignment is discarded: `({ FOO } = obj);`, but not `consume(({ FOO } = obj))`.
 fn is_object_destructuring_source_without_rest(ast_path: &[AstParentNodeRef<'_>]) -> bool {
-    for node_ref in ast_path.iter().rev() {
+    for (i, node_ref) in ast_path.iter().enumerate().rev() {
         let pat = match node_ref {
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
                 continue;
@@ -1010,7 +1013,7 @@ fn is_object_destructuring_source_without_rest(ast_path: &[AstParentNodeRef<'_>]
                     ..
                 },
                 AssignExprField::Right,
-            ) => pat,
+            ) if is_result_discarded(&ast_path[..i]) => pat,
             AstParentNodeRef::AssignPat(AssignPat { left, .. }, AssignPatField::Right) => {
                 match &**left {
                     Pat::Object(pat) => pat,
@@ -1023,6 +1026,30 @@ fn is_object_destructuring_source_without_rest(ast_path: &[AstParentNodeRef<'_>]
             .props
             .iter()
             .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
+    }
+    false
+}
+
+/// Whether the value of the expression whose parents are `ast_path` is discarded: an expression
+/// statement, a non-last expression of a sequence, or the init/update of a `for` statement.
+fn is_result_discarded(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..)
+            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+            | AstParentNodeRef::VarDeclOrExpr(_, VarDeclOrExprField::Expr) => {}
+            AstParentNodeRef::SeqExpr(seq, SeqExprField::Exprs(index)) => {
+                // Only the last expression of a sequence becomes its result.
+                if *index + 1 < seq.exprs.len() {
+                    return true;
+                }
+            }
+            AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr)
+            | AstParentNodeRef::ForStmt(_, ForStmtField::Init | ForStmtField::Update) => {
+                return true;
+            }
+            _ => return false,
+        }
     }
     false
 }
