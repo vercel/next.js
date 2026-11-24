@@ -161,15 +161,18 @@ it('should not evaluate globalThis members used for feature detection', () => {
 
 const DELETED = Symbol('deleted')
 
-// Temporarily replaces a property of the global object (or deletes it when
-// `value` is `DELETED`), so that the checks below observe a value that only
-// exists at runtime.
-function withGlobal(name, value, fn) {
-  const descriptor = Reflect.getOwnPropertyDescriptor(globalThis, name)
+// Captured up front, as the tests below also replace `globalThis` itself.
+const globalObject = globalThis
+
+// Temporarily replaces a property of `target` (or deletes it when `value` is
+// `DELETED`), so that the checks below observe a value that only exists at
+// runtime.
+function withProperty(target, name, value, fn) {
+  const descriptor = Reflect.getOwnPropertyDescriptor(target, name)
   if (value === DELETED) {
-    Reflect.deleteProperty(globalThis, name)
+    Reflect.deleteProperty(target, name)
   } else {
-    Reflect.defineProperty(globalThis, name, {
+    Reflect.defineProperty(target, name, {
       value,
       configurable: true,
       writable: true,
@@ -179,11 +182,15 @@ function withGlobal(name, value, fn) {
     return fn()
   } finally {
     if (descriptor) {
-      Reflect.defineProperty(globalThis, name, descriptor)
+      Reflect.defineProperty(target, name, descriptor)
     } else {
-      Reflect.deleteProperty(globalThis, name)
+      Reflect.deleteProperty(target, name)
     }
   }
+}
+
+function withGlobal(name, value, fn) {
+  return withProperty(globalObject, name, value, fn)
 }
 
 it('should keep existence checks of well-known globals as runtime checks', () => {
@@ -443,6 +450,62 @@ it('should keep navigator.serviceWorker existence checks as runtime checks', () 
     missing: [false, 'no', true, false, false, 'no', true, false],
     undefined: [false, 'no', true, true, false, 'no', true, true],
     present: [true, 'yes', false, true, true, 'yes', false, true],
+  })
+})
+
+it('should keep globalThis existence checks as runtime checks', () => {
+  // `globalThis` doesn't exist in older browsers.
+  const check = () => {
+    let exists = false
+    if (globalThis) {
+      exists = true
+    }
+    return [
+      exists,
+      globalThis ? 'yes' : 'no',
+      (globalThis ?? 'fallback') === 'fallback',
+    ]
+  }
+
+  expect({
+    undefined: withGlobal('globalThis', undefined, check),
+    present: withGlobal('globalThis', globalObject, check),
+  }).toEqual({
+    undefined: [false, 'no', true],
+    present: [true, 'yes', false],
+  })
+})
+
+it('should keep Object.assign existence checks as runtime checks', () => {
+  // `Object.assign` doesn't exist in older browsers.
+  const check = () => {
+    let exists = false
+    if (Object.assign) {
+      exists = true
+    }
+    let globalExists = false
+    if (globalThis.Object.assign) {
+      globalExists = true
+    }
+    return [
+      exists,
+      Object.assign ? 'yes' : 'no',
+      (Object.assign ?? 'fallback') === 'fallback',
+      globalExists,
+      globalThis.Object.assign ? 'yes' : 'no',
+      (globalThis.Object.assign ?? 'fallback') === 'fallback',
+    ]
+  }
+
+  const assign = () => {}
+  expect({
+    undefined: withProperty(Object, 'assign', undefined, check),
+    deleted: withProperty(Object, 'assign', DELETED, check),
+    present: withProperty(Object, 'assign', assign, check),
+  }).toEqual({
+    undefined: [false, 'no', true, false, 'no', true],
+    deleted: [false, 'no', true, false, 'no', true],
+    present: [true, 'yes', false, true, 'yes', false],
   })
 })
 

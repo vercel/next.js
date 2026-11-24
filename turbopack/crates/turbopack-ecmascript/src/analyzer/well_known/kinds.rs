@@ -57,14 +57,21 @@ pub enum WellKnownObjectKind {
 }
 
 impl WellKnownObjectKind {
-    /// Whether this is a global variable (or a property of one) that might not exist at runtime
-    /// (e.g. `process` in a browser, or `navigator.serviceWorker` in an insecure context), or
-    /// might have been overwritten. Its truthiness is unknown, so that feature detection like
-    /// `if (process)` or `globalThis.Buffer ? a : b` isn't folded at compile time.
+    /// Whether this is a global variable (or a property of one) that might not exist at runtime,
+    /// or might have been overwritten. Its truthiness and nullishness are unknown, so that feature
+    /// detection like `if (process)` or `globalThis.Buffer ? a : b` isn't folded at compile time.
+    ///
+    /// Globals can be missing in older browsers (e.g. `globalThis`), in insecure contexts (e.g.
+    /// `navigator.serviceWorker`), or depending on the runtime (e.g. `process` in a browser). See
+    /// [`WellKnownFunctionKind::is_optional_global`] for the global functions.
+    ///
+    /// `global` ([`Self::NodeGlobal`]) is not optional, as it's always rewritten to the
+    /// Turbopack runtime's global object.
     pub fn is_optional_global(&self) -> bool {
         matches!(
             self,
             Self::ObjectConstructor
+                | Self::GlobalThis
                 | Self::NodeProcessGlobal
                 | Self::NodeBuffer
                 | Self::Navigator
@@ -279,12 +286,21 @@ pub enum WellKnownFunctionKind<'a> {
 }
 
 impl WellKnownFunctionKind<'_> {
-    /// Whether this is a global variable that might not exist at runtime (e.g. `SharedWorker` in
-    /// Node.js). See [`WellKnownObjectKind::is_optional_global`].
+    /// Whether this is a global function (or a property of a global) that might not exist at
+    /// runtime, or might have been overwritten. Its truthiness and nullishness are unknown, so that
+    /// feature detection like `typeof SharedWorker` or `Object.assign ? a : b` isn't folded at
+    /// compile time.
+    ///
+    /// Older browsers lack some of these (e.g. no `URL` constructor or `Object.assign` in IE11, no
+    /// `SharedWorker` in older Safari), and Node.js lacks the browser ones (`Worker`,
+    /// `SharedWorker`). See [`WellKnownObjectKind::is_optional_global`] for the global objects.
     pub fn is_optional_global(&self) -> bool {
         matches!(
             self,
-            Self::URLConstructor | Self::WorkerConstructor | Self::SharedWorkerConstructor
+            Self::ObjectAssign
+                | Self::URLConstructor
+                | Self::WorkerConstructor
+                | Self::SharedWorkerConstructor
         )
     }
 

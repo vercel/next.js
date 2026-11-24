@@ -133,7 +133,7 @@ fn well_known_global<'a>(name: &str, ignore: bool) -> Option<JsValue<'a>> {
 ///
 /// `globalThis` and `global` are replaced with the global object itself. Properties of the
 /// global object that are aliases of it (e.g. `globalThis.global`) are not replaced, as they
-/// might not exist at runtime (`global` in a browser) and the global object is always truthy.
+/// might not exist at runtime (`global` in a browser), while `global` itself is always truthy.
 ///
 /// Unknown properties of the global object (e.g. `globalThis.foo`) are left as is too, so that
 /// they keep their definable name and can still be replaced by compile-time defines.
