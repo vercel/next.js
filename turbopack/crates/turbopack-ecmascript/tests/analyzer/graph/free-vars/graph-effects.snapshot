@@ -95,8 +95,7 @@
             ),
         ],
         span: 13..24,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(

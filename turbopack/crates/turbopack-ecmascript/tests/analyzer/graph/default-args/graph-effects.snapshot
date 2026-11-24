@@ -73,7 +73,7 @@
             ),
         ],
         span: 117..122,
-        escapes: true,
+        usage: Escapes,
     },
     Unreachable {
         start_ast_path: [
@@ -190,7 +190,7 @@
             ),
         ],
         span: 62..67,
-        escapes: true,
+        usage: Escapes,
     },
     Unreachable {
         start_ast_path: [
