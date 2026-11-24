@@ -833,10 +833,7 @@ fn is_expression_statement(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool
     false
 }
 
-fn is_in_boolean_context(
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-    unresolved_mark: Mark,
-) -> bool {
+fn is_in_boolean_context(ast_path: &[AstParentNodeRef<'_>], unresolved_mark: Mark) -> bool {
     for parent in ast_path.iter().rev() {
         match parent {
             // Transparent expression wrappers.
@@ -881,9 +878,7 @@ fn is_in_boolean_context(
 
 /// Returns the [`MemberExpr`] where the current node is the object:
 /// `<node>.<prop>` or `<node>[<expr>]`.
-fn member_access_parent<'r>(
-    ast_path: &AstNodePath<AstParentNodeRef<'r>>,
-) -> Option<&'r MemberExpr> {
+fn member_access_parent<'r>(ast_path: &[AstParentNodeRef<'r>]) -> Option<&'r MemberExpr> {
     match ast_path.len().checked_sub(2).and_then(|i| ast_path.get(i)) {
         Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) => Some(*member),
         _ => None,
@@ -911,6 +906,17 @@ fn destructuring_target_escapes(target: &Pat) -> bool {
 
 /// How the value of the current expression (or identifier) is used, see [`ValueUsage`].
 fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Mark) -> ValueUsage {
+    // A member in an optional chain (`a?.b`) is wrapped in `OptChainBase`/`OptChainExpr`, so look
+    // at how the whole `Expr::OptChain` is used instead.
+    let ast_path = match &ast_path[..] {
+        [
+            rest @ ..,
+            AstParentNodeRef::Expr(_, ExprField::OptChain),
+            AstParentNodeRef::OptChainExpr(_, OptChainExprField::Base),
+            AstParentNodeRef::OptChainBase(_, OptChainBaseField::Member),
+        ] => &ast_path[..rest.len() + 1],
+        ast_path => ast_path,
+    };
     if is_in_boolean_context(ast_path, unresolved_mark) {
         ValueUsage::Truthiness
     } else if member_access_parent(ast_path).is_some()
@@ -929,7 +935,7 @@ fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Ma
 /// `<value> == null` (and `!= null`, `== undefined`, `== void 0`), or the left side of
 /// `<value> && x` (which only becomes the result when falsy). Loose equality with other operands
 /// is excluded: it can call `valueOf`/`toString`/`Symbol.toPrimitive` on the value.
-fn is_only_inspected(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Mark) -> bool {
+fn is_only_inspected(ast_path: &[AstParentNodeRef<'_>], unresolved_mark: Mark) -> bool {
     for parent in ast_path.iter().rev() {
         return match parent {
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
@@ -982,9 +988,7 @@ fn is_nullish_literal(expr: &Expr, unresolved_mark: Mark) -> bool {
 /// Whether the current expression is the value being consumed by an object destructuring pattern
 /// without a rest element. Every property (including computed ones) then gets its own
 /// `Effect::DestructuredMember`, whereas a rest element would copy keys without any effect.
-fn is_object_destructuring_source_without_rest(
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-) -> bool {
+fn is_object_destructuring_source_without_rest(ast_path: &[AstParentNodeRef<'_>]) -> bool {
     for node_ref in ast_path.iter().rev() {
         let pat = match node_ref {
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
@@ -1021,7 +1025,7 @@ fn is_object_destructuring_source_without_rest(
 }
 
 /// Whether the current expression is the object in a `<key> in <obj>` expression.
-fn is_obj_in(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+fn is_obj_in(ast_path: &[AstParentNodeRef<'_>]) -> bool {
     for node_ref in ast_path.iter().rev() {
         match node_ref {
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}

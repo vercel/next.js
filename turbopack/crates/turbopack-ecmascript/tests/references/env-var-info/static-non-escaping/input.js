@@ -8,6 +8,16 @@ const {
 } = process
 console.log(FOO4)
 
+// Static reads and checks through optional chains
+console.log(
+  process?.env?.FOO13,
+  globalThis.process?.env?.FOO14,
+  process?.env.FOO15,
+  process.env?.FOO16,
+  !process?.env,
+  typeof process?.env === 'object'
+)
+
 // Destructuring assignments whose result isn't consumed
 let FOO5, FOO6
 ;({ FOO5 } = process.env)
