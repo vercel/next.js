@@ -44,10 +44,7 @@ type directState struct {
 	// canonical names it removes ("X-Next-Internal-").
 	strip         map[string]bool
 	stripPrefixes []string
-	// Compression's MIME database, for the choices Node's compression
-	// middleware makes (see compress.go).
-	mimeTypes map[string]bool
-	compress  bool
+	compress      bool
 	// route id → worker serving it
 	workers map[string]*goUpstream
 }
@@ -149,9 +146,8 @@ func (s *directState) loadTable(data []byte) error {
 	var raw struct {
 		Compress bool `json:"compress"`
 		Direct   struct {
-			StripRequestHeaders        []string        `json:"stripRequestHeaders"`
-			StripRequestHeaderPrefixes []string        `json:"stripRequestHeaderPrefixes"`
-			MimeTypes                  map[string]bool `json:"mimeTypes"`
+			StripRequestHeaders        []string `json:"stripRequestHeaders"`
+			StripRequestHeaderPrefixes []string `json:"stripRequestHeaderPrefixes"`
 		} `json:"direct"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -168,7 +164,6 @@ func (s *directState) loadTable(data []byte) error {
 		// "x-next-internal-" → "X-Next-Internal-", how Go keys such headers.
 		s.stripPrefixes = append(s.stripPrefixes, textproto.CanonicalMIMEHeaderKey(prefix))
 	}
-	s.mimeTypes = raw.Direct.MimeTypes
 	s.compress = raw.Compress
 	s.table = table
 	return nil
@@ -190,15 +185,6 @@ type directAttempt struct {
 	up    *goUpstream
 	// The request as the client sent it, for handing it to Node.
 	request *http.Request
-	// What Node's compression middleware does with the response body (see
-	// compress.go), set from the worker's response headers.
-	compress compressMode
-	encoding string
-	// The status the worker sent, held while compress is compressIfBody
-	// and no body has arrived.
-	heldStatus int
-	// The compressor, once the body is being compressed.
-	encoder *encoder
 	// Whether the Transport has written the request to a worker, on any
 	// attempt. The Transport sends it on its own goroutine.
 	sent atomic.Bool
@@ -208,6 +194,18 @@ type directAttempt struct {
 }
 
 func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
+	if !s.compress {
+		f.serveAttempt(w, r, s, up)
+		return
+	}
+	// The compressor sits between the attempt and the client, so the
+	// attempt's choices (which headers and when) apply before it.
+	compressDirect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f.serveAttempt(w, r, s, up)
+	}))(w, r)
+}
+
+func (f *switchyard) serveAttempt(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
 	attempt := &directAttempt{ResponseWriter: w, state: s, up: up, request: r}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
 	// Go's Transport can send a request again on a new connection, so a
@@ -281,11 +279,7 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 		ModifyResponse: func(res *http.Response) error {
-			attempt := attemptOf(res.Request.Context())
-			attempt.compress, attempt.encoding = planCompression(res, attempt.state)
-			if attempt.compress != compressNone {
-				res.Body = &finishingBody{ReadCloser: res.Body, attempt: attempt}
-			}
+			skipCompression(res)
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -302,6 +296,9 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// That needs the operating system to hand out the same port
 			// before Node's "gone" arrives, a window of milliseconds.
 			if isDialError(err) && !attempt.sent.Load() {
+				// Node's response carries its own Vary; without this, the
+				// compressor's would be sent too.
+				attempt.Header().Del("Vary")
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
 			}
@@ -349,122 +346,31 @@ func (a *directAttempt) WriteHeader(code int) {
 	if _, ok := a.Header()["Content-Type"]; !ok {
 		a.Header()["Content-Type"] = nil
 	}
-	switch a.compress {
-	case compressIfBody:
-		a.heldStatus = code
-		return
-	case compressBody:
-		a.startEncoder()
-	}
 	a.ResponseWriter.WriteHeader(code)
-}
-
-// startEncoder sets the headers the middleware sets when it compresses.
-func (a *directAttempt) startEncoder() {
-	a.Header().Set("Content-Encoding", a.encoding)
-	a.Header().Del("Content-Length")
-	a.encoder = getEncoder(a.encoding)
 }
 
 // Write sends each chunk to the client as soon as the worker sends it, as
 // Node's pipe does. The headers wait in Go's buffer until then, so they go
 // out with the first chunk, and a one-chunk response in a single write.
-// When compressing, it sends what the compressor has written so far, as
-// Node's zlib stream does after each chunk.
+// With compression on, the compressor decides when its bytes go out.
 func (a *directAttempt) Write(p []byte) (int, error) {
-	if a.heldStatus != 0 && len(p) > 0 {
-		if a.encoding != "" {
-			a.startEncoder()
-		}
-		a.compress = compressNone
-		a.ResponseWriter.WriteHeader(a.heldStatus)
-		a.heldStatus = 0
-	}
-	if a.encoder == nil {
-		n, err := a.ResponseWriter.Write(p)
-		a.wrote = true
-		a.Flush()
-		return n, err
-	}
-	a.encoder.w.Write(p)
-	if err := a.sendEncoded(); err != nil {
-		return 0, err
-	}
-	return len(p), nil
-}
-
-func (a *directAttempt) sendEncoded() error {
-	if a.encoder.out.Len() == 0 {
-		return nil
-	}
-	_, err := a.ResponseWriter.Write(a.encoder.out.Bytes())
-	a.encoder.out.Reset()
+	n, err := a.ResponseWriter.Write(p)
 	a.wrote = true
 	a.Flush()
-	return err
+	return n, err
 }
 
-// Flush sends what has been written to the client so far. It does nothing
-// while the headers are held. In an app without compression it also does
-// nothing before the first body byte: Node sends a response's headers with
-// its first chunk, or at its end, with Content-Length: 0 when there was no
-// body, while the proxy flushes the headers of a response of unknown length
-// right away, which would send an empty body chunked. With compression on,
-// Node's middleware sends such a response chunked too. It never flushes the
-// compressor; the middleware doesn't either.
+// Flush sends what has been written to the client so far. Before the first
+// body byte it does nothing: Node sends a response's headers with its first
+// chunk, or at its end, with Content-Length: 0 when there was no body, while
+// the proxy flushes the headers of a response of unknown length right away,
+// which would send an empty body chunked.
 func (a *directAttempt) Flush() {
-	if a.heldStatus != 0 || (!a.wrote && !a.state.compress) {
+	if !a.wrote {
 		return
 	}
 	if f, ok := a.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
-	}
-}
-
-// finishingBody calls finish when the proxy closes the worker's response
-// body after reading it to the end, which is when Node would end the
-// response too. Waiting for the proxy to return would be later: it also
-// waits for the client's upload to end. After a failed copy the proxy closes
-// the body without having read it to the end, and aborts the response, which
-// must then not end as a complete compressed stream.
-type finishingBody struct {
-	io.ReadCloser
-	attempt *directAttempt
-	eof     bool
-}
-
-func (b *finishingBody) Read(p []byte) (int, error) {
-	n, err := b.ReadCloser.Read(p)
-	if err == io.EOF {
-		b.eof = true
-	}
-	return n, err
-}
-
-func (b *finishingBody) Close() error {
-	err := b.ReadCloser.Close()
-	if b.eof {
-		b.eof = false
-		b.attempt.finish()
-	}
-	return err
-}
-
-// finish ends the response once the proxy has copied the whole body.
-func (a *directAttempt) finish() {
-	if a.heldStatus != 0 {
-		// The body was empty: the middleware sends the headers when it ends,
-		// before Node could count it, so it goes out chunked.
-		a.ResponseWriter.WriteHeader(a.heldStatus)
-		a.heldStatus = 0
-		a.Flush()
-		return
-	}
-	if a.encoder != nil {
-		a.encoder.w.Close()
-		a.sendEncoded()
-		encoders[a.encoding].Put(a.encoder)
-		a.encoder = nil
 	}
 }
 
