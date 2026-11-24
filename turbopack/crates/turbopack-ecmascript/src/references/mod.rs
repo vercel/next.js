@@ -1351,7 +1351,13 @@ async fn analyze_ecmascript_module_internal(
                     ast_path,
                     span,
                     in_truthiness_context,
+                    escapes_with_dynamic_prop,
                 } => {
+                    // Only needed if the property turns out to be `env`, see below.
+                    let escape_obj = (escapes_with_dynamic_prop
+                        && !analysis.has_runtime_env_var_reference_all())
+                    .then(|| obj.clone_in(arena.get_or_default()));
+
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
                         analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
@@ -1359,6 +1365,25 @@ async fn analyze_ecmascript_module_internal(
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
+
+                    if let Some(escape_obj) = escape_obj
+                        && prop.as_str() == Some("env")
+                    {
+                        // e.g. `const key = 'env'; foo(process[key])`
+                        let value = analysis_state
+                            .link_value(
+                                JsValue::member(
+                                    arena.get_or_default(),
+                                    escape_obj,
+                                    atom!("env").into(),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?;
+                        if is_process_env(&value, &analysis_state.var_graph) {
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    }
 
                     let replaced = handle_membership(
                         &ast_path,

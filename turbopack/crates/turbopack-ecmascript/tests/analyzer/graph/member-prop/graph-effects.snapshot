@@ -62,6 +62,7 @@
         ],
         span: 1..4,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     Member {
         obj: FreeVar(
@@ -197,6 +198,7 @@
                 ],
                 span: 8..11,
                 in_truthiness_context: false,
+                escapes_with_dynamic_prop: false,
             },
         ],
         ast_path: [
@@ -220,5 +222,6 @@
         ],
         span: 6..12,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: true,
     },
 ]

@@ -162,6 +162,7 @@
         ],
         span: 50..61,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -369,6 +370,7 @@
         ],
         span: 273..287,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: FreeVar(

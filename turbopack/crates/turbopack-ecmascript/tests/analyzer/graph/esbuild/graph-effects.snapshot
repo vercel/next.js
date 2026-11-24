@@ -171,6 +171,7 @@
         ],
         span: 2725..2739,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -453,6 +454,7 @@
         ],
         span: 2775..2789,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -1155,6 +1157,7 @@
                         ],
                         span: 3526..3536,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                     MemberCall {
                         obj: Variable(
@@ -1719,6 +1722,7 @@
         ],
         span: 3671..3682,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -2177,6 +2181,7 @@
         ],
         span: 1005..1021,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     Member {
         obj: Variable(
@@ -2256,6 +2261,7 @@
         ],
         span: 1025..1032,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -2406,6 +2412,7 @@
         ],
         span: 1038..1051,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -2621,6 +2628,7 @@
                         ],
                         span: 1112..1145,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: true,
                     },
                 ],
                 range: Exact(
@@ -2786,6 +2794,7 @@
                                         ],
                                         span: 1239..1273,
                                         in_truthiness_context: false,
+                                        escapes_with_dynamic_prop: true,
                                     },
                                 ],
                                 range: Exact(
@@ -3474,6 +3483,7 @@
                         ],
                         span: 1602..1617,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -3880,6 +3890,7 @@
                         ],
                         span: 1712..1725,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -4184,6 +4195,7 @@
                                         ],
                                         span: 1758..1773,
                                         in_truthiness_context: false,
+                                        escapes_with_dynamic_prop: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -4768,6 +4780,7 @@
                                         ],
                                         span: 2299..2311,
                                         in_truthiness_context: false,
+                                        escapes_with_dynamic_prop: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -4989,6 +5002,7 @@
                                                         ],
                                                         span: 2312..2327,
                                                         in_truthiness_context: false,
+                                                        escapes_with_dynamic_prop: false,
                                                     },
                                                     MemberCall {
                                                         obj: FreeVar(
@@ -5235,6 +5249,7 @@
                                         ],
                                         span: 2367..2376,
                                         in_truthiness_context: false,
+                                        escapes_with_dynamic_prop: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5414,6 +5429,7 @@
                                                         ],
                                                         span: 2422..2435,
                                                         in_truthiness_context: false,
+                                                        escapes_with_dynamic_prop: false,
                                                     },
                                                     MemberCall {
                                                         obj: Variable(
@@ -5741,6 +5757,7 @@
                                         ],
                                         span: 2463..2476,
                                         in_truthiness_context: false,
+                                        escapes_with_dynamic_prop: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -6023,6 +6040,7 @@
                                                         ],
                                                         span: 2501..2516,
                                                         in_truthiness_context: false,
+                                                        escapes_with_dynamic_prop: false,
                                                     },
                                                     MemberCall {
                                                         obj: FreeVar(
@@ -6294,6 +6312,7 @@
                                                         ],
                                                         span: 2548..2560,
                                                         in_truthiness_context: false,
+                                                        escapes_with_dynamic_prop: false,
                                                     },
                                                     MemberCall {
                                                         obj: FreeVar(

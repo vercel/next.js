@@ -122,13 +122,17 @@ impl VisitAstPath for EnvBindingEscapeFinder<'_> {
         ident: &'ast Ident,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        // Binding occurrences (declarations, assignment targets) aren't uses of the value.
+        // Binding occurrences (declarations, assignment targets) aren't uses of the value, except
+        // for declarations that are exported (e.g. `export const { env } = process`).
         if self.bindings.contains(&ident.to_id())
-            && !matches!(
+            && if matches!(
                 ast_path.len().checked_sub(1).and_then(|i| ast_path.get(i)),
                 Some(AstParentNodeRef::BindingIdent(..))
-            )
-            && value_escapes(ast_path)
+            ) {
+                is_exported_var_binding(ast_path)
+            } else {
+                value_escapes(ast_path)
+            }
         {
             self.escaping_uses.push((ident.to_id(), ident.span));
         }
@@ -925,6 +929,25 @@ fn member_access_parent<'r>(
         Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) => Some(*member),
         _ => None,
     }
+}
+
+/// Whether the current binding identifier is declared by an exported variable declaration, e.g.
+/// `e` in `export const { env: e } = obj`.
+fn is_exported_var_binding(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    let mut in_var_declarator_name = false;
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::VarDeclarator(_, VarDeclaratorField::Name) => {
+                in_var_declarator_name = true;
+            }
+            AstParentNodeRef::ExportDecl(..) => return in_var_declarator_name,
+            AstParentNodeRef::Function(..)
+            | AstParentNodeRef::ArrowExpr(..)
+            | AstParentNodeRef::Class(..) => return false,
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Whether the value of the current expression (or identifier) escapes, i.e. it's not only used as
@@ -2039,6 +2062,10 @@ impl VisitAstPath for Analyzer<'_, '_> {
             let base_effects = self.collect_effects(|this| {
                 member_expr.visit_children_with_ast_path(this, ast_path);
             });
+            // Like above, but the property is only known after linking (e.g. `process[key]`).
+            let escapes_with_dynamic_prop = matches!(member_expr.prop, MemberProp::Computed(_))
+                && !matches!(*prop_value, JsValue::Constant(_))
+                && value_escapes(ast_path);
             self.add_effect(Effect::Member {
                 obj: obj_value,
                 prop: prop_value,
@@ -2049,6 +2076,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     ast_path,
                     self.eval_context.unresolved_mark,
                 ),
+                escapes_with_dynamic_prop,
             });
         } else {
             member_expr.visit_children_with_ast_path(self, ast_path);
