@@ -19,8 +19,8 @@ Default: diagnose. Edit only on explicit request.
   ./node_modules/.bin/next experimental-request-insights --help
   ```
 
-  Follow it. If Request Insights is disabled, set
-  `experimental.requestInsights: true` in `next.config`, restart the same
+  Follow it. If Request Insights is disabled, remove
+  `experimental.requestInsights: false` from `next.config`, restart the same
   development command, wait until it is ready, and reproduce the affected
   request once. Inspect that request. State that an unrecorded original
   request cannot be recovered.
