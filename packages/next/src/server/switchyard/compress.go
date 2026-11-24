@@ -20,10 +20,8 @@ import (
 //     gets the body uncompressed; the middleware would deflate it.
 //   - Which types count as compressible is decided by compressibleType below,
 //     not by the middleware's MIME database.
-//   - gzhttp waits for the first 1 KiB of a body of unknown length before it
-//     decides, and sends an empty one with Content-Length: 0; the middleware
-//     compresses such a body whatever its size, and sends an empty one
-//     chunked.
+//   - gzhttp sends an empty body of unknown length with Content-Length: 0;
+//     the middleware sends it chunked.
 //   - gzhttp compresses whenever the client names gzip; the middleware
 //     sends identity when the client prefers it ("gzip;q=0.5, identity"),
 //     and reads "*" as gzip, which this gzhttp version doesn't (its
@@ -34,8 +32,10 @@ import (
 //     middleware holds it in zlib until more output is ready.
 //
 // What stays as in the middleware: no compression for HEAD, for a response
-// that already has a Content-Encoding, for Cache-Control: no-transform, or
-// for a body of a known length under 1 KiB.
+// that already has a Content-Encoding (other than identity, above), for
+// Cache-Control: no-transform, or for a body of a known length under 1 KiB.
+// The compressed bytes differ in any case; the decompressed body is the
+// same.
 var compressDirect = func() func(http.Handler) http.HandlerFunc {
 	wrap, err := gzhttp.NewWrapper(
 		// The middleware's default threshold, which Next.js keeps.
