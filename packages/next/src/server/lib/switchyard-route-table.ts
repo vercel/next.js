@@ -5,7 +5,6 @@ import type { NextConfigComplete, NextConfigRuntime } from '../config-shared'
 import type { setupFsCheck } from './router-utils/filesystem'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { INTERNAL_HEADERS } from './server-ipc/utils'
-import mimeTypes from 'next/dist/compiled/compression/mime-types.json'
 import { SWITCHYARD_DIRECT_ENV } from './switchyard-env'
 import { RouteKind } from '../route-kind'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
@@ -41,7 +40,6 @@ export type SwitchyardRouteTable =
       direct: Readonly<{
         stripRequestHeaders: readonly string[]
         stripRequestHeaderPrefixes: readonly string[]
-        mimeTypes: Readonly<Record<string, boolean>>
       }>
     }>
 
@@ -157,7 +155,6 @@ export function buildSwitchyardRouteTable(
     direct: {
       stripRequestHeaders: [...input.internalHeaders],
       stripRequestHeaderPrefixes: ['x-next-internal-'],
-      mimeTypes,
     },
   }
 }
