@@ -71,6 +71,8 @@ Emitting different content to the same path is an error, including when the file
 
 Unlike webpack, Turbopack does not build dependencies skipped as side-effect-free solely to collect loader-emitted files. Files from those skipped dependencies may therefore be absent. Files emitted by loaders that have already run are preserved even if their generated code is later removed by tree shaking.
 
+Loader-generated code can read [`__webpack_public_path__`](https://webpack.js.org/api/module-variables/#__webpack_public_path__-webpack-specific), which is the configured asset prefix followed by `/_next/`.
+
 #### Missing Webpack loader features
 
 Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) library to execute webpack loaders, which provides most of the standard loader API. However, some features are not supported:

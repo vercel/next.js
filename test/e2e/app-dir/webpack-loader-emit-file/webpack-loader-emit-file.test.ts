@@ -6,6 +6,9 @@ import path from 'path'
 describe('webpack-loader-emit-file', () => {
   const { next, isNextDev, isNextDeploy, isTurbopack } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      'file-loader': '6.2.0',
+    },
   })
 
   async function fetchAsset(name: string) {
@@ -128,6 +131,19 @@ describe('webpack-loader-emit-file', () => {
     if (!isTurbopack) {
       expect(await response.text()).toBe('sidecar-transitive')
     }
+  })
+
+  it('runs file-loader with its default publicPath', async () => {
+    const browser = await next.browser('/')
+    expect(await browser.elementByCss('#file-asset').text()).toBe(
+      '/_next/static/media/asset.file'
+    )
+    expect(await browser.elementByCss('#client-file-asset').text()).toBe(
+      '/_next/static/media/asset.file'
+    )
+    expect((await fetchAsset('asset.file')).toString()).toBe(
+      'file-loader-content\n'
+    )
   })
 
   // A deployed fixture has no host filesystem to inspect; the fetch assertions above still run.
