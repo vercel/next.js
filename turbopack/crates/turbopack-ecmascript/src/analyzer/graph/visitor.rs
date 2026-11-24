@@ -888,9 +888,10 @@ fn member_access_parent<'r>(
     }
 }
 
-/// Whether the whole value is bound or copied by the target of a property in an object
-/// destructuring pattern, e.g. `e` in `const { env: e } = obj` (conservatively treated as an
-/// escape, like `const e = obj.env`), or `{ ...rest }` in `const { env: { ...rest } } = obj`.
+/// Whether the target of a property in an object destructuring pattern lets the property's value
+/// escape, i.e. doesn't destructure it further into statically known keys: `x` in
+/// `const { prop: x } = obj` (treated like `const x = obj.prop`) or `{ ...rest }` in
+/// `const { prop: { ...rest } } = obj`.
 fn destructuring_target_escapes(target: &Pat) -> bool {
     let target = match target {
         Pat::Assign(assign) => &*assign.left,
