@@ -206,3 +206,36 @@ func TestAnAbortedCompressedResponseStaysIncomplete(t *testing.T) {
 		t.Fatal("the client read a complete response")
 	}
 }
+
+func TestCompressibleTypesFollowTheMiddlewaresDatabase(t *testing.T) {
+	for typ, want := range map[string]bool{
+		"application/json; charset=utf-8":   true,
+		"text/html":                         true,
+		"application/x-switchyard+json":     true,
+		"image/svg+xml":                     true,
+		"application/wasm":                  true,
+		"font/ttf":                          true,
+		"image/x-icon":                      true,
+		"application/x-www-form-urlencoded": true,
+		"image/png":                         false,
+		"font/woff2":                        false,
+		"application/octet-stream":          false,
+	} {
+		if got := compressibleType(typ); got != want {
+			t.Errorf("%s: %v, want %v", typ, got, want)
+		}
+	}
+}
+
+// The middleware doesn't compress a response without a Content-Type; gzhttp
+// would guess one from the body.
+func TestADirectResponseWithoutAContentTypeIsNotCompressed(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header()["Content-Type"] = nil
+		io.WriteString(w, strings.Repeat("plain text ", 200))
+	})
+	res, body := compressResponse(t, fx, "GET /api/echo HTTP/1.1\r\nAccept-Encoding: gzip")
+	if res.Header.Get("Content-Encoding") != "" || res.Header.Get("Content-Type") != "" || string(body) != strings.Repeat("plain text ", 200) {
+		t.Fatalf("%v, body %d bytes", res.Header, len(body))
+	}
+}
