@@ -1,6 +1,6 @@
 # Scheduled Next.js upgrades
 
-The caller workflow from `workflow.template.yml` runs weekly and manually. The installer resolves the `vercel/next.js` release tag that matches the installed `next` version, reads the template and the reusable workflow at that commit, and pins the caller to its full SHA. Every job checks out only these workflow scripts at the same SHA. Preparation installs the published `next` package of exactly the version in `packages/next/package.json` from npm, and publication runs only the script dependencies locked in `package-lock.json`. Consumer runs never install or build the monorepo.
+`next upgrade --ci` opens a setup draft containing the weekly and manual caller workflow. Setup resolves the `vercel/next.js` release tag that matches the installed `next` version, reads the template and the reusable workflow at that commit, and pins the caller to its full SHA. Every job checks out only these workflow scripts at the same SHA. Preparation installs the published `next` package of exactly the version in `packages/next/package.json` from npm, and publication runs only the script dependencies locked in `package-lock.json`. Consumer runs never install or build the monorepo.
 
 The caller passes `targets` as JSON containing repository-relative app paths and their `security` or `latest` policies. Include any approved supporting package paths in `supporting-paths`. When apps share a pnpm catalog entry, approve every affected app and supporting package together.
 
@@ -10,10 +10,11 @@ Publication requires the `publish-token` secret, passed from `NEXT_UPGRADE_PUBLI
 
 An upgrade draft also moves the caller workflow to the release it upgrades to, by replacing the pinned SHA with the commit of that release tag. When apps upgrade to different versions, only drafts for the newest version move it. The pin stays, and the run log says why, when the target is not newer than the pinned release, when the release cannot be read or has no scheduled upgrade workflow, when the caller does not use the pinned SHA exactly once on a line that ends with it, or when the release changed the workflow template. In the last case the draft explains how to reinstall: delete the caller workflow and run `next upgrade --ci` again, because setup leaves an installed workflow alone. A group that already has an open draft keeps that draft unchanged.
 
-Preparation uses the pinned Next.js CLI to assess locked versions and to prepare the prompt for each actual upgrade. It checks the changed files and verifies the result against a frozen install. Publication validates each patch independently in a fresh job, rejects any agent change under `.github`, and opens or reuses one draft per app or catalog group. When a selected group has an unapproved member or incompatible targets, the workflow reports it as blocked. To opt out of Next.js telemetry, set `telemetry-disabled: true` in the caller's workflow inputs.
+Preparation uses the pinned Next.js CLI to assess locked versions and to prepare the prompt for each actual upgrade. It checks the changed files and verifies the result against a frozen install. Publication validates each patch independently in a fresh job, rejects any agent change under `.github`, and opens or reuses one draft per app or catalog group. When a selected group has an unapproved member or incompatible targets, the workflow reports it as blocked. To opt out of Next.js telemetry, set `telemetry-disabled: true` in the caller's workflow inputs. Setup sets it when the environment or the `.env` files where setup runs already opt out.
 
 Regular verification uses the independent pnpm workspace fixture, real local Git, and a mock GitHub API. Run:
 
 ```bash
 pnpm exec jest --runInBand test/unit/next-upgrade-action.test.ts
+pnpm test-dev-turbo test/e2e/agent-upgrade-ci/agent-upgrade-ci.test.ts
 ```
