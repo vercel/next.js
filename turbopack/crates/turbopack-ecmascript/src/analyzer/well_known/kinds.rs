@@ -210,6 +210,8 @@ pub enum WellKnownFunctionKind<'a> {
     OsPlatform,
     OsEndianness,
     ProcessCwd,
+    /// `process.env.hasOwnProperty(key)`, an env var existence check.
+    ProcessEnvHasOwnProperty,
     NodePreGypFind,
     NodeGypBuild,
     NodeBindings,
@@ -347,6 +349,10 @@ impl WellKnownFunctionKind<'_> {
             Self::OsEndianness => (
                 "os.endianness".to_string(),
                 "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
+            ),
+            Self::ProcessEnvHasOwnProperty => (
+                "process.env.hasOwnProperty".to_string(),
+                "Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty",
             ),
             Self::ProcessCwd => (
                 "process.cwd".to_string(),

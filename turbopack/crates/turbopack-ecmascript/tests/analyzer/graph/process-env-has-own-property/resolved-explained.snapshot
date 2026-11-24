@@ -1,0 +1,28 @@
+cond = ((process.env.hasOwnProperty*0* | ???*1*) ? "truthy" : "falsy")
+- *0* process.env.hasOwnProperty: Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+- *1* process.env*2*["hasOwnProperty"]
+  ⚠️  could also be an env var
+- *2* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+has = (???*0* | ???*2*)
+- *0* process.env.hasOwnProperty*1*("FOO")
+  ⚠️  unsupported function
+  ⚠️  This value might have side effects
+- *1* process.env.hasOwnProperty: Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+- *2* ???*3*("FOO")
+  ⚠️  unknown callee
+- *3* process.env*4*["hasOwnProperty"]
+  ⚠️  could also be an env var
+- *4* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+method = (process.env.hasOwnProperty*0* | ???*1*)
+- *0* process.env.hasOwnProperty: Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+- *1* process.env*2*["hasOwnProperty"]
+  ⚠️  could also be an env var
+- *2* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+type = typeof((process.env.hasOwnProperty*0* | ???*1*))
+- *0* process.env.hasOwnProperty: Checks whether an environment variable is set: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+- *1* process.env*2*["hasOwnProperty"]
+  ⚠️  could also be an env var
+- *2* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv

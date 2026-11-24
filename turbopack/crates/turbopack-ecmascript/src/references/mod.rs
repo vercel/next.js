@@ -2060,6 +2060,15 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
+    if let WellKnownFunctionKind::ProcessEnvHasOwnProperty = func {
+        // An env var existence check. This is also tracked in alternatives, as it doesn't
+        // generate code.
+        if let Some(key) = linked_args().await?.first().and_then(|key| key.as_str()) {
+            analysis.add_runtime_env_var_reference_existence(RcStr::from(key));
+        }
+        return Ok(());
+    }
+
     if link_context == ValueLinkContext::InAlternative
         && analysis.analyze_mode.is_codegen
         && !analysis.analyze_mode.trace_file_references

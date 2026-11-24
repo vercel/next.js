@@ -1,0 +1,7 @@
+cond (const after eval) = (FreeVar(process)["env"]["hasOwnProperty"] ? "truthy" : "falsy")
+
+has (const after eval) = FreeVar(process)["env"]["hasOwnProperty"]("FOO")
+
+method (const after eval) = FreeVar(process)["env"]["hasOwnProperty"]
+
+type (const after eval) = typeof(FreeVar(process)["env"]["hasOwnProperty"])

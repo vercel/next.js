@@ -808,6 +808,36 @@ async fn well_known_object_member<'a>(
         WellKnownObjectKind::NodeProcessModule | WellKnownObjectKind::NodeProcessModuleDefault => {
             node_process_member(arena, kind, prop, compile_time_info).await?
         }
+        WellKnownObjectKind::NodeProcessEnv => {
+            let method = prop.as_str().and_then(node_process_env_method);
+            match method {
+                Some(func) => {
+                    let arena = arena.get_or_default();
+                    JsValue::alternatives(BumpVec::from_iter_in(
+                        arena,
+                        [
+                            JsValue::WellKnownFunction(func),
+                            // An env var with the same name would shadow the method
+                            JsValue::unknown(
+                                JsValue::member(arena, JsValue::WellKnownObject(kind), prop),
+                                false,
+                                rcstr!("could also be an env var"),
+                            ),
+                        ],
+                    ))
+                }
+                None => {
+                    return Ok((
+                        JsValue::member(
+                            arena.get_or_default(),
+                            JsValue::WellKnownObject(kind),
+                            prop,
+                        ),
+                        Modified::No,
+                    ));
+                }
+            }
+        }
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeExpressApp => express(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(arena.get_or_default(), prop),
@@ -1209,6 +1239,15 @@ async fn node_process_member<'a>(
             rcstr!("unsupported property on Node.js process object"),
         ),
     })
+}
+
+/// The methods of `process.env` that are modeled as well-known functions (inherited from
+/// `Object.prototype`, unless there is an env var with that name).
+fn node_process_env_method<'a>(prop: &str) -> Option<WellKnownFunctionKind<'a>> {
+    match prop {
+        "hasOwnProperty" => Some(WellKnownFunctionKind::ProcessEnvHasOwnProperty),
+        _ => None,
+    }
 }
 
 fn node_pre_gyp<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {

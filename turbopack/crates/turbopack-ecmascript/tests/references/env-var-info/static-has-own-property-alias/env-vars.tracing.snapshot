@@ -1,0 +1,6 @@
+runtime: [
+    "hasOwnProperty",
+]
+runtime_existence: [
+    "FOO1",
+]
