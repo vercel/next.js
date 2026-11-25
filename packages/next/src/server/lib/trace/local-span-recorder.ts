@@ -5,10 +5,8 @@ import type {
   Span,
   SpanContext,
   SpanOptions,
-  SpanStatusCode,
 } from 'next/dist/compiled/@opentelemetry/api'
 import {
-  captureLocalSpanRecorder,
   isLocalSpanRecordingEnabled,
   isLocalSpanSinkActive,
   type SpanStoreAttributes,
@@ -18,16 +16,19 @@ import {
   type LocalSpanParent,
 } from './span-store'
 import {
-  applyRequestIdentity,
+  captureOpenTelemetrySpanRecorder,
   captureRequestSpanRecorder,
-  getCurrentRequestIdentity,
 } from './request-insights-span-recorder'
 import { setRegisteredLocalSpanRecorder } from './local-span-recorder-registry'
-import type { OpenTelemetryReadableSpan } from './request-insights-otel'
-import { normalizeTraceAttributes } from './span-attributes'
+import {
+  SPAN_STATUS_ERROR,
+  cleanSpanStoreAttributes,
+  getSpanStoreLinks,
+  normalizeTraceAttributes,
+} from './span-attributes'
 import { api, getTracerInstance } from './otel-api'
 import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
-import { getTimestamp, hrTimeToMilliseconds, toHrTime } from './utils'
+import { getTimestamp, toHrTime } from './utils'
 import { AppRenderSpan } from './constants'
 import type { RequestInsightSpanCategory } from '../../../shared/lib/request-insights'
 export { isLocalSpanRecordingEnabled } from './span-store'
@@ -44,9 +45,6 @@ function epochNanoseconds(time?: Parameters<Span['end']>[0]): bigint {
 
 const TRACE_ID_HEX_LENGTH = 32
 const SPAN_ID_HEX_LENGTH = 16
-// The OTel status code is part of its public API. Keep recording independent of
-// loading the runtime API.
-const SPAN_STATUS_ERROR: SpanStatusCode = 2
 
 export type LocalSpanOptions = {
   name: string
@@ -223,47 +221,6 @@ export function traceLocalSpan<T>(
   }
   // Preserve the asynchronous default, including errors during creation.
   return options.synchronous ? run() : (async () => run())()
-}
-
-export function captureOpenTelemetrySpanRecorder():
-  | ((span: OpenTelemetryReadableSpan) => void)
-  | undefined {
-  const identity = getCurrentRequestIdentity()
-  if (!identity.requestId) {
-    return undefined
-  }
-
-  const deliver = captureLocalSpanRecorder()
-  return (span) => {
-    const { traceId, spanId } = span.spanContext()
-    const isError = span.status.code === SPAN_STATUS_ERROR
-    const record: SpanStoreRecord = {
-      timestamp: getTimestamp(),
-      name: span.name,
-      category: 'opentelemetry',
-      startTime: hrTimeToMilliseconds(span.startTime),
-      durationMs: hrTimeToMilliseconds(span.duration),
-      status: isError ? 'error' : 'ok',
-      traceId,
-      spanId,
-      parentSpanId: span.parentSpanContext?.spanId ?? span.parentSpanId,
-      attributes: cleanSpanStoreAttributes(span.attributes),
-      events: span.events.length
-        ? span.events.map((event) => ({
-            name: event.name,
-            timestamp: hrTimeToMilliseconds(event.time),
-            attributes: cleanSpanStoreAttributes(event.attributes),
-          }))
-        : undefined,
-      links: getSpanStoreLinks(span.links),
-      error:
-        isError && span.status.message
-          ? { message: span.status.message }
-          : undefined,
-    }
-    applyRequestIdentity(record, identity)
-    deliver([record])
-  }
 }
 
 export type LocalSpanRecorder = {
@@ -637,36 +594,6 @@ export class LocalRecordingSpan implements Span {
         : undefined)
     )
   }
-}
-
-function getSpanStoreLinks(
-  links: SpanOptions['links'] | OpenTelemetryReadableSpan['links'] | undefined
-): SpanStoreLink[] | undefined {
-  const spanStoreLinks = links?.map((link) => ({
-    traceId: link.context.traceId,
-    spanId: link.context.spanId,
-    attributes: cleanSpanStoreAttributes(link.attributes),
-  }))
-
-  return spanStoreLinks?.length ? spanStoreLinks : undefined
-}
-
-function cleanSpanStoreAttributes(
-  attributes:
-    | Record<string, AttributeValue | undefined>
-    | SpanStoreAttributes
-    | undefined,
-  cleanedAttributes: SpanStoreAttributes = {}
-): SpanStoreAttributes {
-  if (attributes) {
-    for (const key of Object.keys(attributes)) {
-      const value = attributes[key]
-      if (value !== undefined) {
-        cleanedAttributes[key] = value
-      }
-    }
-  }
-  return cleanedAttributes
 }
 
 function getLocalSpanCategory(
