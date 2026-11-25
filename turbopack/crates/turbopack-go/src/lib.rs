@@ -690,6 +690,23 @@ fn source_diagnostic(message: &str, project: &Path, aliases: &BTreeMap<RcStr, Rc
         message = message.replace(&format!("/{virtual_directory}"), &source);
     }
     message
+        .lines()
+        .map(|line| {
+            if let Some(end) = line.find(".go:") {
+                let name = &line[..end + 3];
+                // Line directives already name the source directory. Unlike `diagnostic`,
+                // this can recognize paths containing spaces without treating prose as a path.
+                if aliases.values().any(|directory| {
+                    !directory.is_empty()
+                        && Path::new(name).starts_with(module_path(Path::new(""), directory))
+                }) {
+                    return format!("{}{}", project.join(name).display(), &line[end + 3..]);
+                }
+            }
+            line.to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// List and track the directory at `/`-separated `relative` below `root`. Entries map names to
@@ -868,7 +885,7 @@ fn overlay(
             .with_context(|| format!("reading Go source: {}", source_path.display()))?;
         // Go accepts a byte order mark only at the start of a file.
         let content = content.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&content);
-        let mut bytes = format!("//line {source}:1\n").into_bytes();
+        let mut bytes = format!("//line {source}:1:1\n").into_bytes();
         bytes.extend_from_slice(content);
         let replacement = temp.path().join(format!("mirrored-{index}.go"));
         std::fs::write(&replacement, bytes)?;
@@ -1739,7 +1756,7 @@ mod tests {
         };
         assert_eq!(
             std::fs::read_to_string(replacement("app/_next_go_route_id/route.go"))?,
-            "//line app/[id]/route.go:1\npackage route\n"
+            "//line app/[id]/route.go:1:1\npackage route\n"
         );
         // Files below embed patterns are mirrored byte for byte from their source.
         assert_eq!(
@@ -1800,6 +1817,32 @@ mod tests {
             ),
             "# example.com/m/app/[id]\n# example.com/m"
         );
+        let directory = "app/café a 100%";
+        let aliases = BTreeMap::from([(rcstr!("app/_next_go_route"), RcStr::from(directory))]);
+        let expected = format!(
+            "{}:2:14: undefined: missing",
+            project.join(directory).join("route.go").display()
+        );
+        for name in [
+            format!("{directory}/route.go"),
+            module_path(Path::new(""), directory)
+                .join("route.go")
+                .display()
+                .to_string(),
+            "app/_next_go_route/route.go".to_owned(),
+        ] {
+            assert_eq!(
+                source_diagnostic(
+                    &format!("{name}:2:14: undefined: missing"),
+                    project,
+                    &aliases
+                )
+                .replace('\\', "/"),
+                expected.replace('\\', "/")
+            );
+        }
+        let message = format!("cannot compile {directory}/route.go: invalid input");
+        assert_eq!(source_diagnostic(&message, project, &aliases), message);
     }
 
     #[test]

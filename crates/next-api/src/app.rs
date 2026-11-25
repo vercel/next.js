@@ -1295,24 +1295,23 @@ struct GoPackageAlias {
     entrypoint: String,
 }
 
-/// Whether Go accepts `element` in an import path. This is a conservative subset of
+/// Whether Go accepts `element` in an import path, following
 /// `golang.org/x/mod/module.CheckImportPath`.
 fn is_go_import_path_element(element: &str) -> bool {
-    let reserved = element
-        .split('.')
-        .next()
-        .unwrap_or_default()
-        .to_ascii_uppercase();
+    let short = element.split('.').next().unwrap_or_default();
+    let reserved = short.to_ascii_uppercase();
     !element.is_empty()
-        && !element.starts_with('.')
         && !element.ends_with('.')
         && element
             .chars()
-            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '.' | '_'))
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '.' | '_' | '~' | '+'))
         && !matches!(reserved.as_str(), "CON" | "PRN" | "AUX" | "NUL")
         && !(reserved.len() == 4
             && (reserved.starts_with("COM") || reserved.starts_with("LPT"))
-            && reserved.ends_with(|ch: char| ch.is_ascii_digit()))
+            && reserved.ends_with(|ch: char| matches!(ch, '1'..='9')))
+        && !short.rsplit_once('~').is_some_and(|(_, suffix)| {
+            !suffix.is_empty() && suffix.bytes().all(|ch| ch.is_ascii_digit())
+        })
 }
 
 /// Choose virtual package directories with valid import paths for a source directory.
@@ -1392,12 +1391,36 @@ mod go_package_alias_tests {
         let alias = go_package_alias("app/café a 100%/x", false);
         assert!(alias.package.starts_with("app/_next_go_route_caf_a_100_x_"));
         for element in [
-            "@slot", "[id]", "(group)", ".hidden", "a.", "CON", "com1.txt", "",
+            "@slot", "[id]", "(group)", ".", "..", "a.", "CON", "com1.txt", "a~1", "a~12.txt", "",
         ] {
             assert!(!is_go_import_path_element(element), "{element}");
         }
-        for element in ["api", "rss.xml", "v1-beta", "_private", "console"] {
+        for element in [
+            "api",
+            "rss.xml",
+            "v1-beta",
+            "_private",
+            "console",
+            "c++",
+            "a~b",
+            ".hidden",
+            ".well-known",
+            "a~",
+            "com0",
+            "lpt0",
+        ] {
             assert!(is_go_import_path_element(element), "{element}");
+            let directory = format!("app/{element}/[id]");
+            let alias = go_package_alias(&directory, false);
+            let h = hash(&directory);
+            assert_eq!(
+                alias.package,
+                format!("app/{element}/_next_go_route_id_{h:08x}")
+            );
+            assert_eq!(
+                alias.entrypoint,
+                format!("app/{element}/_next_go_main_{h:08x}")
+            );
         }
     }
 

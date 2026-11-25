@@ -1270,7 +1270,7 @@ fn selected_package_bundle(
 async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
     let session = Session::new().await?;
     // Neither `(group)` nor `[id]` may appear in a Go import path.
-    let directory = "app/(group)/[id]";
+    let directory = "app/(group)/café a 100%/[id]";
     let handler = [
         "package route",
         "import (",
@@ -1455,7 +1455,7 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
     let GoBuildOutcome::Failed(message) = &result.outcome else {
         anyhow::bail!("unexpected result: {:?}", result.outcome);
     };
-    let expected = session.project.join(directory).join("sibling.go:3");
+    let expected = session.project.join(directory).join("sibling.go:3:32:");
     assert!(
         message.contains(expected.to_str().unwrap()) && !message.contains("_next_go_route"),
         "{message}"
