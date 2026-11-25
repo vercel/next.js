@@ -136,11 +136,21 @@ async function scanProject(
   return { packages, modules }
 }
 
-// Characters Go accepts in import path elements. Route directories such as
-// `[id]` and `(group)` fall outside them.
+// Quickly route directories such as `[id]` and `(group)` to named-file listing.
+// Go also rejects some names using only these characters; let go list report
+// those below rather than duplicating its import-path validation rules.
 const IMPORT_PATH = /^[A-Za-z0-9._~/+-]*$/
 
-const LIST = ['list', '-e', '-mod=readonly', '-deps', '-f', '{{.ImportPath}}']
+const LIST = [
+  'list',
+  '-e',
+  '-mod=readonly',
+  '-deps',
+  '-f',
+  // A package with no directory failed to load. Prefix its matching command
+  // patterns with ! so the caller can retry those directories by filename.
+  '{{.ImportPath}}{{if not .Dir}}{{range .Match}}\n!{{.}}{{end}}{{end}}',
+]
 
 /** Whether any of the packages, their tests, or their dependencies import the SDK. */
 async function importsSdk(
@@ -148,20 +158,27 @@ async function importsSdk(
   packages: string[]
 ): Promise<boolean> {
   const patterns: string[] = []
-  const byFiles: string[] = []
+  const byFiles = new Set<string>()
   for (const pkg of packages) {
     const relative = path.relative(moduleDir, pkg).split(path.sep).join('/')
     if (IMPORT_PATH.test(relative)) {
       patterns.push(relative ? `./${relative}` : '.')
     } else {
-      byFiles.push(pkg)
+      byFiles.add(pkg)
     }
   }
   // -e reports packages that fail to load, including the SDK while its
   // requirement is still missing, instead of failing the whole listing.
   const outputs: string[] = []
   if (patterns.length) {
-    outputs.push(await go(moduleDir, [...LIST, '-test', ...patterns]))
+    const output = await go(moduleDir, [...LIST, '-test', ...patterns])
+    outputs.push(output)
+    for (const line of output.split('\n')) {
+      if (!line.startsWith('!')) continue
+      // Only retry a directory we scanned, never a dependency's reported path.
+      const pkg = path.resolve(moduleDir, line.slice(1))
+      if (packages.includes(pkg)) byFiles.add(pkg)
+    }
   }
   // A directory that is not a valid import path cannot be named as a package,
   // so list its files instead, like Turbopack compiles it.

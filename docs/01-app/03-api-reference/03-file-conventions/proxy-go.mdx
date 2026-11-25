@@ -105,6 +105,6 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 
 - Go Proxy runs on every request unless `Config.Matcher` limits it.
 - Other `.go` files in the same directory as `proxy.go` are compiled with it and must use `package main`. Do not define a `main` function; Next.js generates it. If your project root already contains Go code, put the proxy in `src/proxy.go`, and put shared code in packages that `proxy.go` imports.
-- Go Proxy is only supported in App Router applications. A build fails if the project also has Pages Router routes or an `i18n` configuration. Custom `_app`, `_document`, and `_error` files are allowed.
+- Go Proxy is only supported in App Router applications. A build fails if the project also has Pages Router routes or an `i18n` configuration.
 - `r.URL` is the URL a JavaScript Proxy would receive. Requests that the route could interpret differently from Proxy, such as paths with an encoded `.rsc` suffix, receive a `404` response before Proxy runs. Requests with a query string over 64 KiB or 4,096 parameters receive a `414` response.
-- Go Proxy requires Turbopack. Self-host with `next build` and `next start`; deploying to a platform requires an adapter that supports Go middleware.
+- Go Proxy requires Turbopack.
