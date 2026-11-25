@@ -24,6 +24,9 @@ const dependencyFields = [
 const oid = /^[a-f0-9]{40}$/
 const candidateId = /^[a-f0-9]{24}$/
 const author = 'github-actions[bot]'
+const source = 'vercel/next.js'
+const reusableWorkflow = `${source}/.github/workflows/next-upgrade.yml@`
+const templatePath = '.github/actions/next-upgrade/workflow.template.yml'
 const preparationFailureStages = new Set([
   'preflight',
   'assessment',
@@ -590,6 +593,72 @@ function validatePatch({ git, base, baseSha, patch, candidate }) {
   return { tree, changes }
 }
 
+// The release commit the caller workflow can move to with an upgrade to
+// `version`, or the reason it keeps its pin.
+async function workflowRelease({ github, version, pin }) {
+  if (!version || !semver.gt(version, pin.version)) {
+    return {}
+  }
+  try {
+    const ref = `refs/tags/v${version}`
+    const endpoint = `/repos/${source}/git`
+    const tag = await github(
+      'GET',
+      `${endpoint}/ref/tags/${encodeURIComponent(`v${version}`)}`
+    )
+    let target = tag?.ref === ref ? tag.object : null
+    if (target?.type === 'tag' && oid.test(target.sha)) {
+      target = (await github('GET', `${endpoint}/tags/${target.sha}`))?.object
+    }
+    if (target?.type !== 'commit' || !oid.test(target.sha)) {
+      return {}
+    }
+    // The caller keeps its inputs, so it can only move to a release whose
+    // template is the one it was rendered from. Releases without scheduled
+    // upgrades have no template.
+    const template = await github(
+      'GET',
+      `/repos/${source}/contents/${templatePath}?ref=${target.sha}`
+    )
+    return Buffer.from(template?.content ?? '', 'base64').equals(
+      readFileSync(new URL('workflow.template.yml', import.meta.url))
+    )
+      ? { sha: target.sha }
+      : { outdated: true }
+  } catch {
+    console.error(
+      `Kept the scheduled upgrade workflow on its release: could not read the Next.js ${version} release.`
+    )
+    return {}
+  }
+}
+
+// Point the caller workflow in `tree` at another release commit.
+function pinWorkflow({ git, base, tree, pin, sha }) {
+  const entry = base.get(pin.path)
+  requireValid(entry?.mode === '100644', 'Unexpected caller workflow')
+  const blob = readBlob(git, entry)
+  const before = blob.toString('utf8')
+  requireValid(
+    blob.equals(Buffer.from(before)) &&
+      before.split(reusableWorkflow).length === 2 &&
+      before.includes(`${reusableWorkflow}${pin.sha}\n`),
+    'Caller workflow does not use the pinned release exactly once'
+  )
+  const moved = git(
+    ['hash-object', '-w', '--stdin'],
+    before.replace(reusableWorkflow + pin.sha, reusableWorkflow + sha)
+  )
+    .toString()
+    .trim()
+  git(['read-tree', tree])
+  git(['update-index', '--cacheinfo', `100644,${moved},${pin.path}`])
+  return {
+    tree: git(['write-tree']).toString().trim(),
+    change: { path: pin.path, entry: { mode: '100644', sha: moved } },
+  }
+}
+
 const signedCommitMutation = `
   mutation PublishNextUpgrade($input: CreateCommitOnBranchInput!) {
     createCommitOnBranch(input: $input) {
@@ -733,7 +802,7 @@ async function publishCandidate({
   github,
   transport,
   localRemote,
-  publishTokenProvided,
+  workflowNote,
 }) {
   const { id, targets } = candidate
   // The tree names the branch, so a leftover branch from an earlier candidate
@@ -848,12 +917,7 @@ async function publishCandidate({
     'Scheduled Next.js upgrade for the following apps:',
     '',
     ...targets.map(({ path: app, policy }) => `    ${app} (${policy})`),
-    ...(publishTokenProvided
-      ? []
-      : [
-          '',
-          'GitHub does not start pull request workflows for drafts opened with `GITHUB_TOKEN`. To run CI, close and reopen this pull request or push a commit to its branch. To start CI automatically, pass a `publish-token` secret to the scheduled upgrade workflow.',
-        ]),
+    ...(workflowNote ? ['', workflowNote] : []),
   ].join('\n')
   let draft
   try {
@@ -966,7 +1030,7 @@ export async function publishUpgradeCandidates({
   baseBranch,
   github,
   gitRemote,
-  publishTokenProvided = false,
+  workflowPin,
 }) {
   const approvedTargets = new Map(
     targets.map(({ path: app, policy }) => [normalizeUpgradePath(app), policy])
@@ -1100,7 +1164,18 @@ export async function publishUpgradeCandidates({
       repository,
       localRemote,
     })
+    // Apps can upgrade to different versions, and the repository has one
+    // caller workflow, so only drafts for the newest version move it.
+    const [newest] = semver.rsort(
+      index.candidates
+        .map((candidate) => candidate?.targets?.[0]?.targetVersion)
+        .filter((version) => semver.valid(version))
+    )
+    const release = workflowPin
+      ? await workflowRelease({ github, version: newest, pin: workflowPin })
+      : {}
     for (const outcome of prepared) {
+      let workflowMoved = false
       try {
         const matching = candidatesByPaths.get(groupKey(outcome.paths))
         requireValid(
@@ -1118,6 +1193,31 @@ export async function publishUpgradeCandidates({
           path.join(artifactDirectory, `${candidate.id}.patch`)
         )
         const verified = validatePatch({ git, base, baseSha, patch, candidate })
+        let workflowNote
+        if (candidate.targets[0].targetVersion === newest) {
+          if (release.outdated) {
+            // Setup leaves an installed workflow alone, so it has to be removed first.
+            workflowNote = `The scheduled upgrade workflow changed in Next.js ${newest}, so it stays on its current release. To update it, merge this draft, delete \`${workflowPin.path}\`, and run \`next upgrade --ci\` again.`
+          } else if (release.sha) {
+            try {
+              const pinned = pinWorkflow({
+                git,
+                base,
+                tree: verified.tree,
+                pin: workflowPin,
+                sha: release.sha,
+              })
+              verified.tree = pinned.tree
+              verified.changes.push(pinned.change)
+              workflowMoved = true
+              workflowNote = `This draft also moves the scheduled upgrade workflow to the Next.js ${newest} release.`
+            } catch {
+              console.error(
+                `Kept the scheduled upgrade workflow on its release: ${workflowPin.path} does not use the pinned release exactly once.`
+              )
+            }
+          }
+        }
         outcome.failureStage = 'publishing'
         Object.assign(
           outcome,
@@ -1130,13 +1230,18 @@ export async function publishUpgradeCandidates({
             github,
             transport,
             localRemote,
-            publishTokenProvided,
+            workflowNote,
           })
         )
         delete outcome.failureStage
       } catch (error) {
         // One invalid or failed candidate must not prevent independent publication.
         explain(outcome.paths, error)
+        if (outcome.failureStage === 'publishing' && workflowMoved) {
+          console.error(
+            'This draft changes a workflow file. Check that the publication token has `workflows` write access.'
+          )
+        }
       }
     }
   } catch (error) {
@@ -1204,6 +1309,38 @@ function writeSummary({ outcomes }) {
   )
 }
 
+// The caller workflow file and the release it pins, from the workflow run.
+// An unreadable caller reference keeps the pin and never fails publication.
+function callerWorkflowPin() {
+  try {
+    const repository = process.env.GITHUB_REPOSITORY ?? ''
+    const reference = process.env.NEXT_UPGRADE_CALLER_WORKFLOW ?? ''
+    // `owner/repo/.github/workflows/file.yml@refs/heads/main`
+    const file = reference.slice(
+      repository.length + 1,
+      reference.lastIndexOf('@refs/')
+    )
+    const sha = process.env.NEXT_UPGRADE_WORKFLOW_SHA
+    const { version } = JSON.parse(
+      readFileSync(
+        new URL('../../../packages/next/package.json', import.meta.url),
+        'utf8'
+      )
+    )
+    if (
+      reference.toLowerCase().startsWith(`${repository.toLowerCase()}/`) &&
+      /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file) &&
+      oid.test(sha) &&
+      semver.valid(version)
+    ) {
+      return { path: file, sha, version }
+    }
+  } catch {}
+  console.error(
+    'Kept the scheduled upgrade workflow on its release: could not identify the caller workflow.'
+  )
+}
+
 async function main() {
   const resultPath = process.env.NEXT_UPGRADE_PUBLISH_RESULT
   requireValid(resultPath, 'Missing NEXT_UPGRADE_PUBLISH_RESULT')
@@ -1221,8 +1358,7 @@ async function main() {
       repository: process.env.GITHUB_REPOSITORY,
       baseBranch: process.env.NEXT_UPGRADE_BASE_BRANCH,
       github: githubCli,
-      publishTokenProvided:
-        process.env.NEXT_UPGRADE_PUBLISH_TOKEN_PROVIDED === 'true',
+      workflowPin: callerWorkflowPin(),
     })
   } catch {
     result = {

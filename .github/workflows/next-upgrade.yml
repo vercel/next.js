@@ -30,7 +30,7 @@ on:
       agent-credential:
         required: true
       publish-token:
-        required: false
+        required: true
 
 permissions: {}
 
@@ -42,8 +42,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prepare:
+  # A missing token stops the run before the agent spends any time.
+  preflight:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check the publication token
+        env:
+          PUBLISH_TOKEN_PROVIDED: ${{ secrets.publish-token != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$PUBLISH_TOKEN_PROVIDED" != true ]; then
+            echo 'Register a fine-grained personal access token with contents, pull-requests, and workflows write access as the NEXT_UPGRADE_PUBLISH_TOKEN secret.' >&2
+            exit 1
+          fi
+
+  prepare:
+    needs: preflight
     runs-on: ubuntu-latest
     # Preparation stops starting agents before this limit so it can still
     # upload what it verified (see the budget in prepare-upgrade.mjs).
@@ -57,17 +74,6 @@ jobs:
       telemetry-started-at: ${{ steps.telemetry.outputs.started-at }}
       telemetry-attempt: ${{ steps.telemetry.outputs.attempt }}
     steps:
-      - name: Check whether Actions can create pull requests
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if allowed="$(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews' 2>/dev/null)"; then
-            if [ "$allowed" = false ]; then
-              echo 'Enable GitHub Actions pull request creation in the repository settings.' >&2
-              exit 1
-            fi
-          fi
       # Scheduled events carry no repository payload, so ask the API.
       - name: Look up the default branch
         id: branch
@@ -185,9 +191,9 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The publication token opens the draft, so the job token only reads.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - name: Check out the assessed consumer base
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -231,8 +237,9 @@ jobs:
           NEXT_UPGRADE_TARGETS: ${{ inputs.targets }}
           NEXT_UPGRADE_SUPPORTING_PATHS: ${{ inputs.supporting-paths }}
           NEXT_UPGRADE_PUBLISH_RESULT: ${{ runner.temp }}/next-upgrade-publish-result.json
-          NEXT_UPGRADE_PUBLISH_TOKEN_PROVIDED: ${{ secrets.publish-token != '' }}
-          GH_TOKEN: ${{ secrets.publish-token || github.token }}
+          NEXT_UPGRADE_CALLER_WORKFLOW: ${{ github.workflow_ref }}
+          NEXT_UPGRADE_WORKFLOW_SHA: ${{ job.workflow_sha }}
+          GH_TOKEN: ${{ secrets.publish-token }}
         run: node next-source/.github/actions/next-upgrade/publish-upgrade.mjs
       - name: Upload the publication result
         if: ${{ !cancelled() }}

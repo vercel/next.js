@@ -294,8 +294,10 @@ describe('next upgrade --ci', () => {
     expect(result.output).toContain(
       'Register a Vercel AI Gateway API key as the repository secret NEXT_UPGRADE_AGENT_API_KEY'
     )
-    expect(result.output).toContain('NEXT_UPGRADE_PUBLISH_TOKEN')
-    expect(result.output).toContain('GitHub does not start your CI')
+    // Both secrets are required.
+    expect(result.output).toContain(
+      'Register a fine-grained personal access token with contents, pull-requests, and workflows write access as the repository secret NEXT_UPGRADE_PUBLISH_TOKEN'
+    )
     expect(result.output).not.toContain('Choose an upgrade policy')
     expect(result.localAgent).toEqual([])
     expect(

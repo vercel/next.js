@@ -25,7 +25,16 @@ const selectedApps = ['apps/web', 'apps/admin']
 const supportingPaths = ['packages/shared']
 
 type Workflow = {
-  jobs: Record<string, { with?: Record<string, unknown> }>
+  on: { workflow_call: { secrets: Record<string, unknown> } }
+  jobs: Record<
+    string,
+    {
+      with?: Record<string, unknown>
+      needs?: string
+      permissions?: Record<string, string>
+      steps?: { env?: Record<string, string>; run?: string }[]
+    }
+  >
 }
 
 function readYaml(path: string) {
@@ -120,7 +129,7 @@ describe('scheduled Next.js upgrade workflow', () => {
         },
         publish: {
           needs: 'prepare',
-          permissions: { contents: 'write', 'pull-requests': 'write' },
+          permissions: { contents: 'read' },
           steps: expect.arrayContaining([
             checkout,
             expect.objectContaining({
@@ -129,12 +138,12 @@ describe('scheduled Next.js upgrade workflow', () => {
             }),
             expect.objectContaining({
               env: expect.objectContaining({
-                GH_TOKEN: workflowExpression(
-                  'secrets.publish-token || github.token'
+                GH_TOKEN: workflowExpression('secrets.publish-token'),
+                NEXT_UPGRADE_CALLER_WORKFLOW: workflowExpression(
+                  'github.workflow_ref'
                 ),
-                NEXT_UPGRADE_PUBLISH_TOKEN_PROVIDED: workflowExpression(
-                  "secrets.publish-token != ''"
-                ),
+                NEXT_UPGRADE_WORKFLOW_SHA:
+                  workflowExpression('job.workflow_sha'),
               }),
             }),
           ]),
@@ -148,6 +157,22 @@ describe('scheduled Next.js upgrade workflow', () => {
     const serialized = JSON.stringify(workflow)
     expect(serialized.match(/secrets\.agent-credential/g)).toHaveLength(1)
     expect(serialized.match(/secrets\.publish-token/g)).toHaveLength(2)
+    // A run without the publication token stops before preparation.
+    expect(workflow.on.workflow_call.secrets['publish-token']).toEqual({
+      required: true,
+    })
+    expect(workflow.jobs.prepare.needs).toBe('preflight')
+    const { preflight } = workflow.jobs
+    expect(preflight.permissions).toEqual({})
+    expect(preflight.steps).toHaveLength(1)
+    expect(preflight.steps![0].env).toEqual({
+      PUBLISH_TOKEN_PROVIDED: workflowExpression("secrets.publish-token != ''"),
+    })
+    expect(preflight.steps![0].run).toMatch(
+      /if \[ "\$PUBLISH_TOKEN_PROVIDED" != true \]; then\n[^\n]+\n\s+exit 1\n/
+    )
+    // The job token only reads; the publication token opens the draft.
+    expect(template.jobs.upgrade.permissions).toEqual({ contents: 'read' })
     expect(JSON.stringify(workflow.jobs.prepare)).not.toContain('publish-token')
     // Consumer runs use the published package and never build the monorepo.
     expect(serialized).not.toMatch(/pnpm install|turbo|taskr/)
@@ -705,8 +730,7 @@ const id = artifact.candidates[0].id
 git('update-ref', 'refs/heads/next-upgrade/' + id, advanced)
 git('update-ref', 'refs/heads/next-upgrade/' + id + '-000000000000', advanced)
 for (let run = 0; run < 3; run++) {
-  // The first draft request falls back to GITHUB_TOKEN; the retry has a publication token.
-  attempts.push(await publishUpgradeCandidates({ ...input, github, publishTokenProvided: run > 0 }))
+  attempts.push(await publishUpgradeCandidates({ ...input, github }))
 }
 console.log(JSON.stringify({ drafts, attempts }))
 `
@@ -738,14 +762,6 @@ console.log(JSON.stringify({ drafts, attempts }))
       head: expect.stringMatching(branchPattern),
       draft: true,
     })
-    const ciNote =
-      'GitHub does not start pull request workflows for drafts opened with `GITHUB_TOKEN`'
-    expect(publication.drafts[0]).toMatchObject({
-      body: expect.stringContaining(ciNote),
-    })
-    expect(publication.drafts[1]).toMatchObject({
-      body: expect.not.stringContaining(ciNote),
-    })
     expect(publication.attempts.map(({ outcomes }) => outcomes[0])).toEqual([
       expect.objectContaining({
         status: 'failed',
@@ -770,13 +786,35 @@ console.log(JSON.stringify({ drafts, attempts }))
     ).toEqual(['pnpm-lock.yaml', 'pnpm-workspace.yaml'])
   }, 180_000)
 
+  // How the release lookup or the caller differs from a release the workflow can move to.
   it.each([
-    ['opens a draft from a GitHub-signed commit', true],
-    ['refuses a commit GitHub did not sign', false],
-  ])(
+    ['opens a draft from a GitHub-signed commit', true, 'moved'],
+    ['refuses a commit GitHub did not sign', false, 'moved'],
+    ['keeps the workflow pin for a changed template', true, 'outdated'],
+    [
+      'keeps the workflow pin for a release without the workflow',
+      true,
+      'missing',
+    ],
+    ['keeps the workflow pin for a target that is not newer', true, 'current'],
+    ['keeps the workflow pin for an edited caller', true, 'edited'],
+  ] as const)(
     '%s through the GitHub API',
-    (_, signed) => {
+    (_, signed, pin) => {
       const targets = [{ path: 'apps/docs', policy: 'latest' }]
+      // The caller workflow moves to the release the draft upgrades to.
+      const callerWorkflow = '.github/workflows/next-upgrade.yml'
+      const pinned = 'a'.repeat(40)
+      const released = 'b'.repeat(40)
+      const uses = 'vercel/next.js/.github/workflows/next-upgrade.yml@'
+      mkdirSync(join(root, '.github/workflows'), { recursive: true })
+      writeFileSync(
+        join(root, callerWorkflow),
+        // A trailing comment is an edit the publisher does not rewrite.
+        `name: Next.js upgrade\njobs:\n  upgrade:\n    uses: ${uses}${pinned}${pin === 'edited' ? ' # pinned' : ''}\n    with:\n      targets: '[]'\n`
+      )
+      git(root, 'add', '.')
+      git(root, 'commit', '-m', 'Add the scheduled upgrade workflow')
       const [candidate] = prepare({
         targets,
         approvedSupportingPaths: [],
@@ -795,7 +833,7 @@ import { execFileSync } from 'node:child_process'
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-const { modulePath, signed, ...input } = JSON.parse(process.argv[1])
+const { modulePath, signed, released, template, pin, ...input } = JSON.parse(process.argv[1])
 const { publishUpgradeCandidates } = await import(pathToFileURL(modulePath).href)
 const git = (args, options = {}) => execFileSync('git', args, { cwd: input.root, encoding: 'utf8', ...options }).trim()
 const base = git(['rev-parse', 'HEAD'])
@@ -804,8 +842,22 @@ const commits = new Map()
 const requests = []
 const drafts = []
 const prefix = '/repos/example/consumer'
+const source = '/repos/vercel/next.js'
 const github = async (method, endpoint, body) => {
   requests.push(method + ' ' + endpoint.split('?')[0])
+  if (pin === 'missing' && endpoint.startsWith(source)) {
+    throw new Error('Not Found')
+  }
+  // The release is an annotated tag, or a plain one for the changed template.
+  if (method === 'GET' && endpoint === source + '/git/ref/tags/v' + input.targetVersion) {
+    return { ref: 'refs/tags/v' + input.targetVersion, object: pin === 'outdated' ? { type: 'commit', sha: released } : { type: 'tag', sha: 'c'.repeat(40) } }
+  }
+  if (method === 'GET' && endpoint === source + '/git/tags/' + 'c'.repeat(40)) {
+    return { object: { type: 'commit', sha: released } }
+  }
+  if (method === 'GET' && endpoint === source + '/contents/.github/actions/next-upgrade/workflow.template.yml?ref=' + released) {
+    return { content: pin === 'outdated' ? Buffer.from('changed').toString('base64') : template }
+  }
   if (method === 'GET' && endpoint.startsWith(prefix + '/git/matching-refs/')) {
     const ref = 'refs/' + endpoint.slice((prefix + '/git/matching-refs/').length)
     return refs.has(ref) ? [{ ref, object: { sha: refs.get(ref) } }] : []
@@ -853,13 +905,19 @@ const github = async (method, endpoint, body) => {
   }
   throw new Error('Unexpected GitHub request ' + method + ' ' + endpoint)
 }
-const result = await publishUpgradeCandidates({ ...input, github })
-console.log(JSON.stringify({ result, requests, drafts }))
+const { targetVersion, ...options } = input
+const result = await publishUpgradeCandidates({ ...options, github })
+const head = drafts.length ? refs.get('refs/heads/' + drafts[0].head.ref) : null
+const workflow = head ? git(['show', head + ':' + options.workflowPin.path]) : null
+const changed = head ? git(['diff', '--name-only', base, head]).split('\\n') : []
+console.log(JSON.stringify({ result, requests, drafts, workflow, changed }))
 `
       const publication = runScript<{
         result: { outcomes: { status: string; failureStage?: string }[] }
         requests: string[]
-        drafts: { head: { ref: string } }[]
+        drafts: { head: { ref: string }; body: string }[]
+        workflow: string | null
+        changed: string[]
       }>(
         publisher,
         {
@@ -871,6 +929,17 @@ console.log(JSON.stringify({ result, requests, drafts }))
           repository: 'example/consumer',
           baseBranch: 'main',
           signed,
+          targetVersion,
+          released,
+          template: readFileSync(
+            join(actionRoot, 'workflow.template.yml')
+          ).toString('base64'),
+          pin,
+          workflowPin: {
+            path: callerWorkflow,
+            sha: pinned,
+            version: pin === 'current' ? targetVersion : sourceVersion,
+          },
         },
         root
       )
@@ -888,6 +957,31 @@ console.log(JSON.stringify({ result, requests, drafts }))
             }),
           }),
         ])
+        const original = readFileSync(join(root, callerWorkflow), 'utf8')
+        const { body } = publication.drafts[0]
+        const lookups = publication.requests.filter((request) =>
+          request.includes('/repos/vercel/next.js/')
+        )
+        if (pin === 'moved') {
+          // Only the pinned commit changes.
+          expect(publication.workflow).toBe(
+            original.replace(pinned, released).trimEnd()
+          )
+          expect(publication.changed).toContain(callerWorkflow)
+          expect(body).toContain(
+            `moves the scheduled upgrade workflow to the Next.js ${targetVersion} release`
+          )
+        } else {
+          // The upgrade is still published, without the workflow.
+          expect(publication.workflow).toBe(original.trimEnd())
+          expect(publication.changed).not.toContain(callerWorkflow)
+          expect(body).not.toContain('moves the scheduled upgrade workflow')
+        }
+        expect(body.includes(`delete \`${callerWorkflow}\``)).toBe(
+          pin === 'outdated'
+        )
+        // A target that is not newer needs no lookup.
+        expect(lookups.length > 0).toBe(pin !== 'current')
         expect(publication.requests).toEqual(
           expect.arrayContaining([
             'POST /repos/example/consumer/git/refs',

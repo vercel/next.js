@@ -10,8 +10,7 @@ permissions: {}
 jobs:
   upgrade:
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     uses: vercel/next.js/.github/workflows/next-upgrade.yml@__NEXT_UPGRADE_WORKFLOW_SHA__
     with:
       targets: __NEXT_UPGRADE_TARGETS__

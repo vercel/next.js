@@ -398,8 +398,7 @@ function renderWorkflow({
     'jobs:',
     '  upgrade:',
     '    permissions:',
-    '      contents: write',
-    '      pull-requests: write',
+    '      contents: read',
     substitutions[0][0],
     '    with:',
     ...substitutions.slice(1).map(([placeholder]) => placeholder),
@@ -962,7 +961,7 @@ async function installScheduledUpgrade({
 
     if (!interactive) {
       Log.info(
-        `Run next upgrade --ci in an interactive terminal to choose the hosted agent. The workflow needs a Vercel AI Gateway API key in the ${SECRET} secret.`
+        `Run next upgrade --ci in an interactive terminal to choose the hosted agent. The workflow needs a Vercel AI Gateway API key in the ${SECRET} secret and a fine-grained personal access token in the ${PUBLISH_SECRET} secret.`
       )
       return { status: 'instructions_printed' }
     }
@@ -1272,7 +1271,7 @@ async function installScheduledUpgrade({
       `Register a Vercel AI Gateway API key as the repository secret ${SECRET} in https://github.com/${repo}/settings/secrets/actions. The hosted ${auth === 'codex-ai-gateway-api-key' ? 'Codex' : 'Claude Code'} agent uses it.`
     )
     Log.info(
-      `Optionally register a fine-grained personal access token with contents and pull-requests write access as ${PUBLISH_SECRET}. Without it, the workflow opens drafts with GITHUB_TOKEN, and GitHub does not start your CI on them until you close and reopen the draft or push a commit to it.`
+      `Register a fine-grained personal access token with contents, pull-requests, and workflows write access as the repository secret ${PUBLISH_SECRET}. The workflow opens upgrade drafts with it, and a draft also moves the workflow to the release it upgrades to.`
     )
     Log.info(
       'Review the draft, mark it ready and merge it. In Actions, open Next.js upgrade and select Run workflow to run it immediately.'
