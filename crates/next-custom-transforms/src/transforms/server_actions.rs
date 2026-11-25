@@ -240,13 +240,14 @@ pub fn server_actions<C: Comments>(
         in_module_level: true,
         should_track_names: false,
         has_server_reference_with_bound_args: false,
+        has_bound_server_reference_decl: false,
 
         names: Default::default(),
         declared_idents: Default::default(),
 
         // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
         rewrite_fn_decl_to_proxy_decl: None,
-        hoist_module_cache_decl: false,
+        hoist_fn_decl: false,
         rewrite_default_fn_expr_to_proxy_expr: None,
         rewrite_expr_to_proxy_expr: None,
 
@@ -288,6 +289,16 @@ fn generate_server_references_comment(
     )
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StmtListScope {
+    /// Top-level statement list of a function or arrow body (`var`, after body directives).
+    FunctionBody,
+    /// Statement list of a block (`if`, `for`, `try`, bare `{ ... }`) (`let`, at index 0).
+    Block,
+    /// Direct statements inside a `SwitchCase` (hoisted to a wrapping block around `switch`).
+    SwitchCase,
+}
+
 struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
@@ -312,14 +323,15 @@ struct ServerActions<C: Comments> {
     in_module_level: bool,
     should_track_names: bool,
     has_server_reference_with_bound_args: bool,
+    has_bound_server_reference_decl: bool,
 
     names: Vec<Name>,
     declared_idents: Vec<Ident>,
 
     // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
     rewrite_fn_decl_to_proxy_decl: Option<VarDecl>,
-    // Set when visiting a module-level function declaration that needs a cache initializer.
-    hoist_module_cache_decl: bool,
+    // Set when visiting a function declaration rewritten to a server/cache binding.
+    hoist_fn_decl: bool,
     rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
     rewrite_expr_to_proxy_expr: Option<Box<Expr>>,
 
@@ -707,6 +719,7 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         function: &mut Function,
         fn_name: Option<Ident>,
+        lazy_bind: bool,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
@@ -829,15 +842,25 @@ impl<C: Comments> ServerActions<C> {
             Box::new(action_ident.clone().into())
         } else {
             self.has_server_reference_with_bound_args = true;
-            Box::new(bind_args_to_ident(
-                action_ident.clone(),
-                ids_from_closure
-                    .iter()
-                    .cloned()
-                    .map(|id| Some(id.as_arg()))
-                    .collect(),
-                action_id.clone(),
-            ))
+            let bound = ids_from_closure
+                .iter()
+                .cloned()
+                .map(|id| Some(id.as_arg()))
+                .collect();
+            if lazy_bind {
+                self.has_bound_server_reference_decl = true;
+                Box::new(bind_args_lazily_to_ident(
+                    action_ident.clone(),
+                    bound,
+                    action_id.clone(),
+                ))
+            } else {
+                Box::new(bind_args_to_ident(
+                    action_ident.clone(),
+                    bound,
+                    action_id.clone(),
+                ))
+            }
         }
     }
 
@@ -946,6 +969,7 @@ impl<C: Comments> ServerActions<C> {
         fn_name: Option<Ident>,
         cache_kind: RcStr,
         function: &mut Function,
+        lazy_bind: bool,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
@@ -1021,11 +1045,20 @@ impl<C: Comments> ServerActions<C> {
             Box::new(cache_ident.clone().into())
         } else {
             self.has_server_reference_with_bound_args = true;
-            Box::new(bind_args_to_ident(
-                cache_ident.clone(),
-                bound_args,
-                reference_id.clone(),
-            ))
+            if lazy_bind {
+                self.has_bound_server_reference_decl = true;
+                Box::new(bind_args_lazily_to_ident(
+                    cache_ident.clone(),
+                    bound_args,
+                    reference_id.clone(),
+                ))
+            } else {
+                Box::new(bind_args_to_ident(
+                    cache_ident.clone(),
+                    bound_args,
+                    reference_id.clone(),
+                ))
+            }
         }
     }
 
@@ -1108,6 +1141,65 @@ impl<C: Comments> ServerActions<C> {
                     Some(Box::new(Expr::Ident(action_ident)));
             }
         }
+    }
+
+    fn visit_mut_stmt_list(&mut self, stmts: &mut Vec<Stmt>, scope: StmtListScope) -> Vec<Stmt> {
+        if !self.in_module_level {
+            for stmt in stmts.iter() {
+                collect_decl_idents_in_stmt(stmt, &mut self.declared_idents);
+                if scope == StmtListScope::FunctionBody {
+                    collect_hoisted_var_idents_in_stmt(stmt, &mut self.declared_idents);
+                }
+            }
+        }
+
+        let old_annotations = self.annotations.take();
+        let mut new = Vec::with_capacity(stmts.len());
+        let mut hoisted_fn_decls = Vec::new();
+
+        for mut stmt in stmts.take() {
+            let is_fn_decl = matches!(&stmt, Stmt::Decl(Decl::Fn(_)));
+            let old_hoist_fn_decl = replace(&mut self.hoist_fn_decl, false);
+            stmt.visit_mut_with(self);
+            let should_hoist = is_fn_decl && self.hoist_fn_decl;
+            self.hoist_fn_decl = old_hoist_fn_decl;
+
+            if should_hoist {
+                if scope != StmtListScope::FunctionBody
+                    && let Stmt::Decl(Decl::Var(var_decl)) = &mut stmt
+                {
+                    var_decl.kind = VarDeclKind::Let;
+                }
+                hoisted_fn_decls.push(stmt);
+            } else {
+                new.push(stmt);
+            }
+            new.append(&mut self.annotations);
+        }
+
+        let returned_hoisted = match scope {
+            StmtListScope::FunctionBody => {
+                if !hoisted_fn_decls.is_empty() {
+                    let prologue_end = new
+                        .iter()
+                        .take_while(|stmt| stmt.can_precede_directive())
+                        .count();
+                    new.splice(prologue_end..prologue_end, hoisted_fn_decls);
+                }
+                Vec::new()
+            }
+            StmtListScope::Block => {
+                if !hoisted_fn_decls.is_empty() {
+                    new.splice(0..0, hoisted_fn_decls);
+                }
+                Vec::new()
+            }
+            StmtListScope::SwitchCase => hoisted_fn_decls,
+        };
+
+        *stmts = new;
+        self.annotations = old_annotations;
+        returned_hoisted
     }
 
     /// Registers a cache export for the client layer (for 'use cache' directive).
@@ -1349,12 +1441,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 return;
             }
 
+            let is_fn_decl = !self.is_default_export() && self.fn_decl_ident.is_some();
+            let excluded_ident = self.fn_decl_ident.as_ref().map(Ident::to_id);
+
             if let Directive::UseCache { cache_kind } = directive {
                 // Collect all the identifiers defined inside the closure and used
                 // in the cache function. With deduplication.
                 retain_names_from_declared_idents(
                     &mut child_names,
                     &self.declared_idents[..declared_idents_until],
+                    excluded_ident.as_ref(),
                 );
 
                 let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
@@ -1362,6 +1458,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     fn_name,
                     cache_kind,
                     f,
+                    is_fn_decl,
                 );
 
                 if self.is_default_export() {
@@ -1369,10 +1466,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     // `export default async function() {}`
                     // This specific case (default export) isn't handled by `visit_mut_expr`.
                     // Replace the original function expr with a action proxy expr.
+                    self.hoist_fn_decl = self.fn_expr_ident.is_some();
                     self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
                 } else if let Some(ident) = &self.fn_decl_ident {
                     // Replace the original function declaration with a cache decl.
-                    self.hoist_module_cache_decl = self.in_module_level;
+                    self.hoist_fn_decl = true;
                     self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
@@ -1393,12 +1491,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 retain_names_from_declared_idents(
                     &mut child_names,
                     &self.declared_idents[..declared_idents_until],
+                    excluded_ident.as_ref(),
                 );
 
                 let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                     child_names,
                     f,
                     fn_name,
+                    is_fn_decl,
                 );
 
                 if self.is_default_export() {
@@ -1406,10 +1506,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     // `export default async function() {}`
                     // This specific case (default export) isn't handled by `visit_mut_expr`.
                     // Replace the original function expr with a action proxy expr.
+                    self.hoist_fn_decl = self.fn_expr_ident.is_some();
                     self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
                 } else if let Some(ident) = &self.fn_decl_ident {
                     // Replace the original function declaration with an action proxy
                     // declaration expr.
+                    self.hoist_fn_decl = true;
                     self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
@@ -1562,6 +1664,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             retain_names_from_declared_idents(
                 &mut child_names,
                 &self.declared_idents[..declared_idents_until],
+                None,
             );
 
             if let Directive::UseCache { cache_kind } = directive {
@@ -1584,7 +1687,78 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         m.visit_mut_children_with(self);
     }
 
+    fn visit_mut_function_body(&mut self, body: &mut FunctionBody) {
+        self.visit_mut_stmt_list(&mut body.stmts, StmtListScope::FunctionBody);
+    }
+
+    fn visit_mut_block_stmt(&mut self, block: &mut BlockStmt) {
+        self.visit_mut_stmt_list(&mut block.stmts, StmtListScope::Block);
+    }
+
+    fn visit_mut_for_stmt(&mut self, n: &mut ForStmt) {
+        if !self.in_module_level
+            && let Some(VarDeclOrExpr::VarDecl(var)) = &n.init
+        {
+            collect_idents_in_var_decls(&var.decls, &mut self.declared_idents);
+        }
+        n.visit_mut_children_with(self);
+    }
+
+    fn visit_mut_for_in_stmt(&mut self, n: &mut ForInStmt) {
+        if !self.in_module_level
+            && let ForHead::VarDecl(var) = &n.left
+        {
+            collect_idents_in_var_decls(&var.decls, &mut self.declared_idents);
+        }
+        n.visit_mut_children_with(self);
+    }
+
+    fn visit_mut_for_of_stmt(&mut self, n: &mut ForOfStmt) {
+        if !self.in_module_level
+            && let ForHead::VarDecl(var) = &n.left
+        {
+            collect_idents_in_var_decls(&var.decls, &mut self.declared_idents);
+        }
+        n.visit_mut_children_with(self);
+    }
+
+    fn visit_mut_catch_clause(&mut self, n: &mut CatchClause) {
+        if !self.in_module_level
+            && let Some(param) = &n.param
+        {
+            collect_idents_in_pat(param, &mut self.declared_idents);
+        }
+        n.visit_mut_children_with(self);
+    }
+
     fn visit_mut_stmt(&mut self, n: &mut Stmt) {
+        if let Stmt::Switch(switch_stmt) = n {
+            switch_stmt.discriminant.visit_mut_with(self);
+            if !self.in_module_level {
+                for case in &switch_stmt.cases {
+                    for stmt in &case.cons {
+                        collect_decl_idents_in_stmt(stmt, &mut self.declared_idents);
+                    }
+                }
+            }
+            let mut switch_hoisted_decls = Vec::new();
+            for case in &mut switch_stmt.cases {
+                case.test.visit_mut_with(self);
+                switch_hoisted_decls
+                    .extend(self.visit_mut_stmt_list(&mut case.cons, StmtListScope::SwitchCase));
+            }
+            if !switch_hoisted_decls.is_empty() {
+                let original_switch = n.take();
+                switch_hoisted_decls.push(original_switch);
+                *n = Stmt::Block(BlockStmt {
+                    span: DUMMY_SP,
+                    ctxt: SyntaxContext::empty(),
+                    stmts: switch_hoisted_decls,
+                });
+            }
+            return;
+        }
+
         n.visit_mut_children_with(self);
 
         if self.in_module_level {
@@ -1936,7 +2110,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         let old_annotations = self.annotations.take();
         let mut new = Vec::with_capacity(stmts.len());
-        let mut cache_decl_initializers = Vec::new();
+        let mut hoisted_module_items = Vec::new();
 
         // Main pass: For each statement, validate exports in server boundary files,
         // visit and transform it, and add it to the output along with any hoisted items.
@@ -2172,46 +2346,93 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
 
-            let is_module_fn_decl = matches!(
+            let is_named_module_fn_decl = matches!(
                 &stmt,
                 ModuleItem::Stmt(Stmt::Decl(Decl::Fn(_)))
                     | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                         decl: Decl::Fn(_),
                         ..
                     }))
+                    | ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
+                        decl: DefaultDecl::Fn(FnExpr { ident: Some(_), .. }),
+                        ..
+                    }))
             );
-            self.hoist_module_cache_decl = false;
+            let default_export_fn_ident = match &stmt {
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
+                    decl: DefaultDecl::Fn(fn_expr),
+                    ..
+                })) => fn_expr.ident.clone(),
+                _ => None,
+            };
+            self.hoist_fn_decl = false;
             stmt.visit_mut_with(self);
 
-            let new_stmt = if should_remove_statement {
-                None
+            let (hoisted_default_decl, new_stmt) = if should_remove_statement {
+                (None, None)
             } else if let Some(expr) = self.rewrite_default_fn_expr_to_proxy_expr.take() {
-                Some(ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
-                    ExportDefaultExpr {
+                if self.hoist_fn_decl
+                    && let Some(ident) = default_export_fn_ident
+                {
+                    let var_decl = ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
-                        expr,
-                    },
-                )))
+                        kind: VarDeclKind::Var,
+                        decls: vec![VarDeclarator {
+                            span: DUMMY_SP,
+                            name: Pat::Ident(ident.clone().into()),
+                            init: Some(expr),
+                            definite: false,
+                        }],
+                        ..Default::default()
+                    }))));
+                    (
+                        Some(var_decl),
+                        Some(ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
+                            ExportDefaultExpr {
+                                span: DUMMY_SP,
+                                expr: Box::new(Expr::Ident(ident)),
+                            },
+                        ))),
+                    )
+                } else {
+                    (
+                        None,
+                        Some(ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
+                            ExportDefaultExpr {
+                                span: DUMMY_SP,
+                                expr,
+                            },
+                        ))),
+                    )
+                }
             } else {
-                Some(stmt)
+                (None, Some(stmt))
             };
 
             if self.config.is_react_server_layer || self.file_directive.is_none() {
-                let output = if is_module_fn_decl && self.hoist_module_cache_decl {
-                    &mut cache_decl_initializers
+                if is_named_module_fn_decl {
+                    hoisted_module_items.append(&mut self.hoisted_extra_items);
+                    if let Some(default_decl) = hoisted_default_decl {
+                        hoisted_module_items.push(default_decl);
+                        new.extend(new_stmt);
+                    } else if self.hoist_fn_decl {
+                        hoisted_module_items.extend(new_stmt);
+                    } else {
+                        new.extend(new_stmt);
+                    }
                 } else {
-                    &mut new
-                };
-                output.append(&mut self.hoisted_extra_items);
-                output.extend(new_stmt);
+                    new.append(&mut self.hoisted_extra_items);
+                    new.extend(new_stmt);
+                }
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
                 new.append(&mut self.extra_items);
             }
         }
 
-        if !cache_decl_initializers.is_empty() {
-            // Function declarations can be read before their original position. Initialize
-            // their wrappers before any user code runs, without changing reference ID order.
+        if !hoisted_module_items.is_empty() {
+            // Function declarations can be read or called before their original position.
+            // Initialize generated server references and module-level declaration bindings
+            // before any user code runs, without changing reference ID order.
             let prologue_end = new
                 .iter()
                 .take_while(|item| {
@@ -2219,7 +2440,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         || item.as_stmt().is_some_and(Stmt::can_precede_directive)
                 })
                 .count();
-            new.splice(prologue_end..prologue_end, cache_decl_initializers);
+            new.splice(prologue_end..prologue_end, hoisted_module_items);
         }
 
         // Post-pass: For server boundary files, register any exports that weren't already
@@ -2692,15 +2913,25 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
             // Inlined actions are only allowed on the server layer.
             // import { registerServerReference } from 'private-next-rsc-server-reference'
+            let mut server_reference_specifiers =
+                vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                    span: DUMMY_SP,
+                    local: quote_ident!("registerServerReference").into(),
+                    imported: None,
+                    is_type_only: false,
+                })];
+            if self.has_bound_server_reference_decl {
+                server_reference_specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
+                    span: DUMMY_SP,
+                    local: quote_ident!("bindServerReference").into(),
+                    imported: None,
+                    is_type_only: false,
+                }));
+            }
             let mut server_reference_imports =
                 vec![ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: quote_ident!("registerServerReference").into(),
-                        imported: None,
-                        is_type_only: false,
-                    })],
+                    specifiers: server_reference_specifiers,
                     src: Box::new(Str {
                         span: DUMMY_SP,
                         value: atom!("private-next-rsc-server-reference").into(),
@@ -2877,19 +3108,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
-        let old_annotations = self.annotations.take();
-
-        let mut new = Vec::with_capacity(stmts.len());
-        for mut stmt in stmts.take() {
-            stmt.visit_mut_with(self);
-
-            new.push(stmt);
-            new.append(&mut self.annotations);
-        }
-
-        *stmts = new;
-
-        self.annotations = old_annotations;
+        self.visit_mut_stmt_list(stmts, StmtListScope::Block);
     }
 
     fn visit_mut_jsx_attr(&mut self, attr: &mut JSXAttr) {
@@ -2985,6 +3204,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 fn retain_names_from_declared_idents(
     child_names: &mut Vec<Name>,
     current_declared_idents: &[Ident],
+    excluded_ident: Option<&Id>,
 ) {
     // Collect the names to retain in a separate vector
     let mut retained_names = Vec::new();
@@ -3017,6 +3237,7 @@ fn retain_names_from_declared_idents(
         }
 
         if should_retain
+            && excluded_ident != Some(&name.0)
             && current_declared_idents
                 .iter()
                 .any(|ident| ident.to_id() == name.0)
@@ -3295,6 +3516,41 @@ fn bind_args_to_ident(ident: Ident, bound: Vec<Option<ExprOrSpread>>, action_id:
     })
 }
 
+fn bind_args_lazily_to_ident(
+    ident: Ident,
+    bound: Vec<Option<ExprOrSpread>>,
+    action_id: Atom,
+) -> Expr {
+    // /*#__PURE__*/ bindServerReference(ident, () => encryptActionBoundArgs("id", arg1, arg2, ...))
+    let encrypt_call = Expr::Call(CallExpr {
+        span: DUMMY_SP,
+        callee: quote_ident!("encryptActionBoundArgs").as_callee(),
+        args: std::iter::once(ExprOrSpread {
+            spread: None,
+            expr: Box::new(action_id.into()),
+        })
+        .chain(bound.into_iter().flatten())
+        .collect(),
+        ..Default::default()
+    });
+
+    let getter = Expr::Arrow(ArrowExpr {
+        span: DUMMY_SP,
+        params: vec![],
+        body: Box::new(ArrowFunctionBody::Expr(Box::new(encrypt_call))),
+        is_async: false,
+        is_generator: false,
+        ..Default::default()
+    });
+
+    Expr::Call(CallExpr {
+        span: PURE_SP,
+        callee: quote_ident!("bindServerReference").as_callee(),
+        args: vec![ident.as_arg(), getter.as_arg()],
+        ..Default::default()
+    })
+}
+
 // Detects if two strings are similar (but not the same).
 // This implementation is fast and simple as it allows only one
 // edit (add, remove, edit, swap), instead of using a N^2 Levenshtein algorithm.
@@ -3481,6 +3737,84 @@ fn collect_decl_idents_in_stmt(stmt: &Stmt, idents: &mut Vec<Ident>) {
             }
             _ => {}
         }
+    }
+}
+
+fn collect_hoisted_var_idents_in_stmt(stmt: &Stmt, idents: &mut Vec<Ident>) {
+    match stmt {
+        Stmt::Decl(Decl::Var(var)) if var.kind == VarDeclKind::Var => {
+            collect_idents_in_var_decls(&var.decls, idents);
+        }
+        Stmt::Block(block) => {
+            for stmt in &block.stmts {
+                collect_hoisted_var_idents_in_stmt(stmt, idents);
+            }
+        }
+        Stmt::If(if_stmt) => {
+            collect_hoisted_var_idents_in_stmt(&if_stmt.cons, idents);
+            if let Some(alt) = &if_stmt.alt {
+                collect_hoisted_var_idents_in_stmt(alt, idents);
+            }
+        }
+        Stmt::For(for_stmt) => {
+            if let Some(VarDeclOrExpr::VarDecl(var)) = &for_stmt.init
+                && var.kind == VarDeclKind::Var
+            {
+                collect_idents_in_var_decls(&var.decls, idents);
+            }
+            collect_hoisted_var_idents_in_stmt(&for_stmt.body, idents);
+        }
+        Stmt::ForIn(for_in) => {
+            if let ForHead::VarDecl(var) = &for_in.left
+                && var.kind == VarDeclKind::Var
+            {
+                collect_idents_in_var_decls(&var.decls, idents);
+            }
+            collect_hoisted_var_idents_in_stmt(&for_in.body, idents);
+        }
+        Stmt::ForOf(for_of) => {
+            if let ForHead::VarDecl(var) = &for_of.left
+                && var.kind == VarDeclKind::Var
+            {
+                collect_idents_in_var_decls(&var.decls, idents);
+            }
+            collect_hoisted_var_idents_in_stmt(&for_of.body, idents);
+        }
+        Stmt::While(while_stmt) => {
+            collect_hoisted_var_idents_in_stmt(&while_stmt.body, idents);
+        }
+        Stmt::DoWhile(do_while) => {
+            collect_hoisted_var_idents_in_stmt(&do_while.body, idents);
+        }
+        Stmt::Try(try_stmt) => {
+            for stmt in &try_stmt.block.stmts {
+                collect_hoisted_var_idents_in_stmt(stmt, idents);
+            }
+            if let Some(handler) = &try_stmt.handler {
+                for stmt in &handler.body.stmts {
+                    collect_hoisted_var_idents_in_stmt(stmt, idents);
+                }
+            }
+            if let Some(finalizer) = &try_stmt.finalizer {
+                for stmt in &finalizer.stmts {
+                    collect_hoisted_var_idents_in_stmt(stmt, idents);
+                }
+            }
+        }
+        Stmt::Switch(switch_stmt) => {
+            for case in &switch_stmt.cases {
+                for stmt in &case.cons {
+                    collect_hoisted_var_idents_in_stmt(stmt, idents);
+                }
+            }
+        }
+        Stmt::Labeled(labeled) => {
+            collect_hoisted_var_idents_in_stmt(&labeled.body, idents);
+        }
+        Stmt::With(with_stmt) => {
+            collect_hoisted_var_idents_in_stmt(&with_stmt.body, idents);
+        }
+        _ => {}
     }
 }
 

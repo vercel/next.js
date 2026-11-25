@@ -1452,6 +1452,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
           } else {
             expect(output).toMatchInlineSnapshot(`
              "⨯ Error: Kaputt!
+                 at <next-dist-dir>
                  at a (<next-dist-dir>)
                  at b (<next-dist-dir>)
                  at <next-internal> {

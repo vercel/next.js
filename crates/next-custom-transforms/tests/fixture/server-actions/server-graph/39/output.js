@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"c03128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"c03128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ import { registerServerReference, bindServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
@@ -14,8 +14,8 @@ export var $$RSC_SERVER_CACHE_0 = /*#__PURE__*/ Object["defineProperty"](/*#__PU
     value: "fn"
 });
 async function Component({ foo }) {
+    var fn = /*#__PURE__*/ bindServerReference($$RSC_SERVER_CACHE_0, ()=>encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", a, foo));
     const a = 123;
-    var fn = $$RSC_SERVER_CACHE_0.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", a, foo));
     const data = await fn();
     // @ts-ignore: data is not a valid react child
     return <div>{data}</div>;

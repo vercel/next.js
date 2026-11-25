@@ -6,7 +6,6 @@ export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async
     console.log(1);
 }, "006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 var foo = $$RSC_SERVER_ACTION_0;
-export { foo };
 export const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ registerServerReference(async function bar() {
     console.log(2);
 }, "0090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
@@ -14,7 +13,9 @@ export var bar = $$RSC_SERVER_ACTION_1;
 export const $$RSC_SERVER_ACTION_2 = /*#__PURE__*/ registerServerReference(async function baz() {
     console.log(3);
 }, "001c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null);
-export default $$RSC_SERVER_ACTION_2;
+var baz = $$RSC_SERVER_ACTION_2;
+export { foo };
+export default baz;
 export const $$RSC_SERVER_ACTION_3 = /*#__PURE__*/ registerServerReference(async function qux() {
     console.log(4);
 }, "009ed0cc47abc4e1c64320cf42b74ae60b58c40f00", null);

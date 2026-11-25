@@ -16,8 +16,8 @@ export const $$RSC_SERVER_ACTION_4 = /*#__PURE__*/ registerServerReference(async
     return 'named function expression';
 }, "00a9b2939c1f39073a6bed227fd20233064c8b7869", null);
 export default function Page() {
-    const foo = $$RSC_SERVER_ACTION_0;
     var bar = $$RSC_SERVER_ACTION_1;
+    const foo = $$RSC_SERVER_ACTION_0;
     return <>
       <Form action={foo}/>
       <Form action={bar}/>
