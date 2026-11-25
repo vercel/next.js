@@ -1,15 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// The `turbopackModuleType` import attribute is Turbopack-specific; the fixture
+// can't be built with webpack.
+// @force-gate turbopack
 describe('turbopack-module-type-attribute', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  // The `turbopackModuleType` import attribute is Turbopack-specific.
-  if (!isTurbopack) {
-    it('should skip for webpack', () => {})
-    return
-  }
 
   it('should import an SVG as a string with turbopackModuleType raw', async () => {
     const $ = await next.render$('/')
