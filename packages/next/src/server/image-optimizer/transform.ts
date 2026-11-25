@@ -81,6 +81,14 @@ export interface ImageOptimizerTransformOptions {
    * Defaults to `false`.
    */
   safeImageOptimization?: boolean
+  /**
+   * With `safeImageOptimization`, this stops in-progress work (killing the
+   * worker process or thread). sharp can't be interrupted.
+   *
+   * If optimization fails after `signal` aborts, the transform rejects with
+   * `signal.reason` instead of falling back to the unoptimized image.
+   */
+  signal?: AbortSignal
   logger?: ImageOptimizerTransformLogger
 }
 
@@ -193,6 +201,11 @@ export async function imageOptimizerTransform(
       optimized: true,
     }
   } catch (error) {
+    // Only an abort rejects. Other failures still fall back, even if the signal
+    // happened to abort around the same time.
+    if (opts.signal?.aborted && error === opts.signal.reason) {
+      throw error
+    }
     // If we fail to optimize, fallback to the original image
     return {
       buffer: upstreamBuffer,

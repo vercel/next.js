@@ -197,6 +197,14 @@ export type ResponseGenerator = (state: {
   span?: any
 
   /**
+   * Aborts once every caller waiting on this response has aborted. `undefined`
+   * if the first caller didn't pass a signal, or the response is only filling
+   * the cache after the callers received a stale entry. Never aborts if any
+   * caller didn't pass a signal.
+   */
+  signal?: AbortSignal
+
+  /**
    * When true, this indicates that the response generator is being called in a
    * context where the response must be generated statically.
    *

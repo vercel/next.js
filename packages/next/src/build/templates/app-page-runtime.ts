@@ -1482,7 +1482,7 @@ export function createAppPageEntrypoint({
                         // We don't have a prior entry for this param-specific shell.
                         null,
                         hasResolved,
-                        ctx.waitUntil
+                        { waitUntil: ctx.waitUntil }
                       )
                       if (result !== null && 'error' in result) {
                         throw result.error
@@ -1566,7 +1566,7 @@ export function createAppPageEntrypoint({
                   (c) => responseGenerator({ ...c, forceStaticRender: true }),
                   null,
                   hasResolved,
-                  ctx.waitUntil
+                  { waitUntil: ctx.waitUntil }
                 )
               if (result !== null && 'error' in result) {
                 return result
@@ -1651,7 +1651,7 @@ export function createAppPageEntrypoint({
                     // change this request's revalidation mode.
                     null,
                     hasResolved,
-                    ctx.waitUntil
+                    { waitUntil: ctx.waitUntil }
                   )
                   if (result !== null && 'error' in result) {
                     throw result.error

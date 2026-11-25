@@ -656,6 +656,43 @@ describe('fetchExternalImage', () => {
     }, 20_000)
   })
 
+  describe('abort signal', () => {
+    it('should reject with the abort reason before the headers and during the body', async () => {
+      let received = 0
+      let allReceived!: () => void
+      const bothReceived = new Promise<void>((resolve) => {
+        allReceived = resolve
+      })
+      handler = (req, res) => {
+        if (req.url === '/stalled-body.jpg') {
+          res.writeHead(200, { 'content-type': 'image/jpeg' })
+          res.write(Buffer.from([0xff, 0xd8]))
+        }
+        if (++received === 2) allReceived()
+      }
+
+      const controller = new AbortController()
+      const fetches = Promise.all(
+        ['/stalled-headers.jpg', '/stalled-body.jpg'].map((path) =>
+          fetchExternalImage(
+            `${origin()}${path}`,
+            true,
+            MAXIMUM_RESPONSE_BODY,
+            undefined,
+            controller.signal
+          ).catch((e) => e)
+        )
+      )
+      await bothReceived
+      // Give the stalled body's headers time to reach the client
+      await new Promise((resolve) => setImmediate(resolve))
+      const reason = new Error('client disconnected')
+      controller.abort(reason)
+
+      expect(await fetches).toEqual([reason, reason])
+    })
+  })
+
   describe('response size limit', () => {
     it('should throw error when exceeding maximumResponseBody config on later chunk', async () => {
       const maximumResponseBody = 2_000 // 2KB custom limit
