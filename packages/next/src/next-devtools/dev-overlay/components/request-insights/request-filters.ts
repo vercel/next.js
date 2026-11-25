@@ -44,6 +44,7 @@ export const REQUEST_INSIGHT_FILTER_GROUPS: readonly RequestInsightFilterGroup[]
       options: [
         { value: 'activity:proxy', label: 'Matched proxy' },
         { value: 'activity:instant-insights', label: 'Instant Insights' },
+        { value: 'activity:opentelemetry', label: 'OpenTelemetry' },
       ],
     },
     {
