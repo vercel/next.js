@@ -536,6 +536,10 @@ pub struct ChunkGroupContentInner {
     pub async_modules: OrderedAutoSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     /// All modules that implement CollectingModule
     pub collecting_modules: OrderedAutoSet<ResolvedVc<Box<dyn CollectingModule>>>,
+    /// The `WorkerEntryModule` markers reached over `ChunkingType::Worker` edges. The real
+    /// `WorkerLoaderModule` is created from each of these during `make_chunk_group`, so it can
+    /// be given this chunk group's availability info.
+    pub worker_modules: OrderedAutoSet<ResolvedVc<Box<dyn Module>>>,
 }
 
 pub struct ChunkGroupContent {
