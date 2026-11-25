@@ -2,7 +2,7 @@ import type { Socket } from 'net'
 import { mkdir } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative, isAbsolute, sep } from 'path'
+import { join, extname, relative, isAbsolute, sep, basename } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -176,6 +176,9 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
 
+/** The file name of a Turbopack Node.js runtime chunk. */
+const TURBOPACK_RUNTIME_FILE = '[turbopack]_runtime.js'
+
 // How long a server component change observed outside of an update waits for
 // that update's start before it is announced on its own.
 const SERVER_COMPONENT_CHANGES_FALLBACK_MS = 100
@@ -309,6 +312,13 @@ function setupServerHmr(
     return applyPromise
   }
 
+  /** Re-evaluates all modules on the next pull. */
+  function invalidate() {
+    pending = pending.then(() => {
+      needsReEvaluation = true
+    })
+  }
+
   function reset(): Promise<void> {
     const resetState = async () => {
       needsReEvaluation = false
@@ -325,7 +335,7 @@ function setupServerHmr(
     return resetPromise
   }
 
-  return { apply, reset }
+  return { apply, invalidate, reset }
 }
 
 function getSourceMapFromTurbopack(
@@ -802,6 +812,18 @@ export async function createHotReloaderTurbopack(
       }
     }
     deleteCache(filesToDelete)
+    // Re-evaluating a runtime that server HMR also uses replaces its HMR handler, so the
+    // modules that server HMR entries loaded in the previous instance stop receiving updates.
+    if (
+      !usesServerHmr &&
+      filesToDelete.some(
+        (file) =>
+          relative(distDir, file).startsWith(serverChunksPrefix) &&
+          basename(file) === TURBOPACK_RUNTIME_FILE
+      )
+    ) {
+      serverHmr?.invalidate()
+    }
 
     // Reset the fetch patch so patchFetch() can re-wrap on the next request.
     if (serverPaths.length > 0) {

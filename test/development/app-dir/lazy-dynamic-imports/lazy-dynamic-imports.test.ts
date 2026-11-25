@@ -376,6 +376,34 @@ import { getRedboxSource, retry, waitFor, waitForRedbox } from 'next-test-utils'
       expect(documentRequests).toBe(1)
     })
 
+    it('updates a Pages page after editing a target that only getServerSideProps imports', async () => {
+      const targetPath = path.join('lib', 'lazy-gssp-reload-target.ts')
+      let loads = 0
+      const browser = await next.browser('/lazy-gssp-reload', {
+        beforePageLoad(page) {
+          page.on('load', () => {
+            loads++
+          })
+        },
+      })
+      expect(await browser.elementByCss('#lazy-gssp-reload').text()).toBe(
+        'lazy-gssp-reload-marker'
+      )
+
+      await next.patchFile(
+        targetPath,
+        (content) => content.replace('reload-marker', 'reload-updated'),
+        async () => {
+          await retry(async () => {
+            expect(await browser.elementByCss('#lazy-gssp-reload').text()).toBe(
+              'lazy-gssp-reload-updated'
+            )
+          })
+        }
+      )
+      expect(loads).toBe(1)
+    })
+
     it('refreshes a page after editing the target of a nested lazy import', async () => {
       const browser = await next.browser('/nested-server-edit')
       expect(await browser.elementByCss('#nested-server-edit').text()).toBe(
