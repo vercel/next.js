@@ -173,28 +173,33 @@ afterEach(async () => {
 
   // These names cannot be created on Windows, but Go rejects them as package
   // paths on every platform. Turbopack still compiles their named source files.
-  ;(process.platform === 'win32' ? it.skip : it).each([
-    'aux',
-    'con',
-    'nul',
-    'prn',
-    'com1',
-    'lpt1',
-    'AUX.txt',
-    'trailing.',
-  ])(
-    'detects imports when Go rejects the route directory %s',
-    async (folder) => {
-      const dir = await temporaryDirectory()
-      await writeModule(dir, 'example.com/app')
-      const route = join(dir, 'app', folder)
-      await write(join(route, 'route.go'), PROXY)
-      const sdkDir = await installNext(dir, '16.0.0')
+  ;(process.platform === 'win32' ? describe.skip : describe)(
+    'Go import-path restrictions',
+    () => {
+      it.each([
+        'aux',
+        'con',
+        'nul',
+        'prn',
+        'com1',
+        'lpt1',
+        'AUX.txt',
+        'trailing.',
+      ])(
+        'detects imports when Go rejects the route directory %s',
+        async (folder) => {
+          const dir = await temporaryDirectory()
+          await writeModule(dir, 'example.com/app')
+          const route = join(dir, 'app', folder)
+          await write(join(route, 'route.go'), PROXY)
+          const sdkDir = await installNext(dir, '16.0.0')
 
-      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+          await ensureGoSdk({ dir, rootDir: dir, sdkDir })
 
-      expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
-      expect(() => build(route, ['route.go'])).not.toThrow()
+          expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+          expect(() => build(route, ['route.go'])).not.toThrow()
+        }
+      )
     }
   )
 
@@ -304,38 +309,40 @@ afterEach(async () => {
     expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
     expect(() => build(dir)).not.toThrow()
   })
-  ;(process.platform === 'linux' ? it : it.skip)(
-    'preserves XDG_CACHE_HOME when the home directory cannot hold a Go cache',
-    async () => {
-      const dir = await temporaryDirectory()
-      await writeModule(dir, 'example.com/app')
-      await write(join(dir, 'proxy.go'), PROXY)
-      const sdkDir = await installNext(dir, '16.0.0')
-      const outside = await temporaryDirectory()
-      const unavailableHome = join(outside, 'unavailable-home')
-      await write(unavailableHome, 'not a directory')
-      const overrides = {
-        HOME: unavailableHome,
-        XDG_CACHE_HOME: join(outside, 'cache'),
-        GOCACHE: '',
-        GOMODCACHE: join(outside, 'modules'),
-      }
-      const previous = Object.fromEntries(
-        Object.keys(overrides).map((key) => [key, process.env[key]])
-      )
-      try {
-        Object.assign(process.env, overrides)
-        await ensureGoSdk({ dir, rootDir: dir, sdkDir })
-      } finally {
-        for (const [key, value] of Object.entries(previous)) {
-          if (value === undefined) delete process.env[key]
-          else process.env[key] = value
+  ;(process.platform === 'linux' ? describe : describe.skip)(
+    'Linux cache locations',
+    () => {
+      it('preserves XDG_CACHE_HOME when the home directory cannot hold a Go cache', async () => {
+        const dir = await temporaryDirectory()
+        await writeModule(dir, 'example.com/app')
+        await write(join(dir, 'proxy.go'), PROXY)
+        const sdkDir = await installNext(dir, '16.0.0')
+        const outside = await temporaryDirectory()
+        const unavailableHome = join(outside, 'unavailable-home')
+        await write(unavailableHome, 'not a directory')
+        const overrides = {
+          HOME: unavailableHome,
+          XDG_CACHE_HOME: join(outside, 'cache'),
+          GOCACHE: '',
+          GOMODCACHE: join(outside, 'modules'),
         }
-      }
+        const previous = Object.fromEntries(
+          Object.keys(overrides).map((key) => [key, process.env[key]])
+        )
+        try {
+          Object.assign(process.env, overrides)
+          await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+        } finally {
+          for (const [key, value] of Object.entries(previous)) {
+            if (value === undefined) delete process.env[key]
+            else process.env[key] = value
+          }
+        }
 
-      expect(Log.warn).not.toHaveBeenCalled()
-      expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
-      expect(() => build(dir)).not.toThrow()
+        expect(Log.warn).not.toHaveBeenCalled()
+        expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+        expect(() => build(dir)).not.toThrow()
+      })
     }
   )
 
