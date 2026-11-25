@@ -55,9 +55,13 @@ pub enum EcmaScriptModulesReferenceSubType {
     /// transitive dependencies are compiled and executed in a loader context.
     ImportModule,
     ImportWithType(RcStr),
-    /// Import with `turbopackLoader` attribute specifying an inline loader.
+    /// Import with `turbopackLoader`, `turbopackAs` and/or `turbopackModuleType` attributes.
+    ///
+    /// The inline loader (if any) runs first, then the source is renamed according to
+    /// `rename_as`, then `module_type` (if any) is applied directly, overriding the module rules
+    /// that would otherwise match the source.
     ImportWithTurbopackUse {
-        loader: ResolvedWebpackLoaderItem,
+        loader: Option<ResolvedWebpackLoaderItem>,
         rename_as: Option<RcStr>,
         module_type: Option<RcStr>,
     },

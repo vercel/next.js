@@ -377,13 +377,24 @@ The following import attributes are supported:
 | `turbopackAs`            | Rename pattern for the output (same as `turbopack.rules[].as`). For example, `'*.js'` treats the loader output as JavaScript. |
 | `turbopackModuleType`    | Set the module type for the output (same as `turbopack.rules[].type`).                                                        |
 
+`turbopackAs` and `turbopackModuleType` also work without `turbopackLoader`. They then apply to the imported file itself for that import only. `turbopackAs` renames the file, then the rules for the new name apply. `turbopackModuleType` sets the module type directly and overrides the built-in handling and `turbopack.rules`. For example, you can import an SVG file as a string instead of as a [static image](/docs/app/getting-started/images#local-images):
+
+```tsx filename="app/page.tsx"
+// Export the file contents as a string
+import iconSource from './icon.svg' with { turbopackModuleType: 'raw' }
+// Other imports of the same file keep the built-in image handling
+import icon from './icon.svg'
+```
+
+The attributes are applied in order: the loader runs first, then the output is renamed with `turbopackAs`, then `turbopackModuleType` sets the module type. See [Module types](#module-types) for the available values.
+
 Loaders with options pass a JSON-encoded string via `turbopackLoaderOptions`:
 
 ```tsx filename="app/page.tsx"
 import value from '../data.js' with { turbopackLoader: 'string-replace-loader', turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}' }
 ```
 
-> **Good to know**: Import attributes with `turbopackLoader` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
+> **Good to know**: The `turbopackLoader`, `turbopackLoaderOptions`, `turbopackAs` and `turbopackModuleType` import attributes are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
 
 ### Resolving aliases
 
@@ -453,15 +464,16 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 ## Version History
 
-| Version  | Changes                                                    |
-| -------- | ---------------------------------------------------------- |
-| `16.5.0` | `experimental.turbopackDetectGlobalVirtualStore` was added |
-| `16.4.0` | `experimental.turbopackAdditionalRoots` was added          |
-| `16.2.0` | `turbopackLoader` import attributes were added.            |
-| `16.2.0` | `turbopack.rules.*.type` was added.                        |
-| `16.2.0` | `turbopack.rules.*.condition.contentType` was added.       |
-| `16.2.0` | `turbopack.rules.*.condition.query` was added.             |
-| `16.0.0` | `turbopack.debugIds` was added.                            |
-| `16.0.0` | `turbopack.rules.*.condition` was added.                   |
-| `15.3.0` | `experimental.turbo` is changed to `turbopack`.            |
-| `13.0.0` | `experimental.turbo` introduced.                           |
+| Version  | Changes                                                                                   |
+| -------- | ----------------------------------------------------------------------------------------- |
+| `16.5.0` | `experimental.turbopackDetectGlobalVirtualStore` was added                                |
+| `16.5.0` | `turbopackAs` and `turbopackModuleType` import attributes work without `turbopackLoader`. |
+| `16.4.0` | `experimental.turbopackAdditionalRoots` was added                                         |
+| `16.2.0` | `turbopackLoader` import attributes were added.                                           |
+| `16.2.0` | `turbopack.rules.*.type` was added.                                                       |
+| `16.2.0` | `turbopack.rules.*.condition.contentType` was added.                                      |
+| `16.2.0` | `turbopack.rules.*.condition.query` was added.                                            |
+| `16.0.0` | `turbopack.debugIds` was added.                                                           |
+| `16.0.0` | `turbopack.rules.*.condition` was added.                                                  |
+| `15.3.0` | `experimental.turbo` is changed to `turbopack`.                                           |
+| `13.0.0` | `experimental.turbo` introduced.                                                          |

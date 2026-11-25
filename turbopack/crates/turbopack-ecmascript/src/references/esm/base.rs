@@ -513,9 +513,11 @@ pub struct EsmAssetReferenceOptions {
 struct EsmReferenceExtras {
     /// `turbopackLoader` configuration (drives `ImportWithTurbopackUse`).
     turbopack_loader: Option<WebpackLoaderItem>,
-    /// `turbopackAs` rename configuration.
+    /// `turbopackAs` rename configuration (drives `ImportWithTurbopackUse`, also without a
+    /// loader).
     turbopack_rename_as: Option<RcStr>,
-    /// `turbopackModuleType` override (distinct from the `with { type: ... }` attribute).
+    /// `turbopackModuleType` override (drives `ImportWithTurbopackUse`, also without a loader;
+    /// distinct from the `with { type: ... }` attribute).
     turbopack_module_type: Option<RcStr>,
     /// The `with { type: ... }` attribute (drives `ImportWithType`).
     module_type: Option<RcStr>,
@@ -698,30 +700,39 @@ impl ModuleReference for EsmAssetReference {
         if let Some(resolved) = extras.and_then(|e| e.resolve_override) {
             return Ok(*ModuleResolveResult::module(resolved));
         }
-        let ty = if let Some(loader) = extras.and_then(|e| e.turbopack_loader.as_ref()) {
-            // Resolve the loader path relative to the importing file
-            let origin_ref = self.origin.into_trait_ref().await?;
-            let origin_path = origin_ref.origin_path();
-            let loader_request = Request::parse(loader.loader.clone().into());
-            let resolved = resolve(
-                origin_path.parent(),
-                ReferenceType::Loader,
-                loader_request,
-                origin_ref.resolve_options(),
-            );
-            let loader_fs_path = if let Some(source) = resolved.await?.first_source() {
-                source.ident().await?.path.clone()
+        let ty = if let Some(extras) = extras
+            && (extras.turbopack_loader.is_some()
+                || extras.turbopack_rename_as.is_some()
+                || extras.turbopack_module_type.is_some())
+        {
+            let loader = if let Some(loader) = &extras.turbopack_loader {
+                // Resolve the loader path relative to the importing file
+                let origin_ref = self.origin.into_trait_ref().await?;
+                let origin_path = origin_ref.origin_path();
+                let loader_request = Request::parse(loader.loader.clone().into());
+                let resolved = resolve(
+                    origin_path.parent(),
+                    ReferenceType::Loader,
+                    loader_request,
+                    origin_ref.resolve_options(),
+                );
+                let loader_fs_path = if let Some(source) = resolved.await?.first_source() {
+                    source.ident().await?.path.clone()
+                } else {
+                    bail!("Unable to resolve turbopackLoader '{}'", loader.loader);
+                };
+                Some(ResolvedWebpackLoaderItem {
+                    loader: loader_fs_path,
+                    options: loader.options.clone(),
+                })
             } else {
-                bail!("Unable to resolve turbopackLoader '{}'", loader.loader);
+                None
             };
 
             EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
-                loader: ResolvedWebpackLoaderItem {
-                    loader: loader_fs_path,
-                    options: loader.options.clone(),
-                },
-                rename_as: extras.and_then(|e| e.turbopack_rename_as.clone()),
-                module_type: extras.and_then(|e| e.turbopack_module_type.clone()),
+                loader,
+                rename_as: extras.turbopack_rename_as.clone(),
+                module_type: extras.turbopack_module_type.clone(),
             }
         } else if let Some(module_type) = extras.and_then(|e| e.module_type.as_ref()) {
             EcmaScriptModulesReferenceSubType::ImportWithType(module_type.clone())

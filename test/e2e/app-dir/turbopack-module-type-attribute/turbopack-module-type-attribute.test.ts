@@ -1,0 +1,34 @@
+import { nextTestSetup } from 'e2e-utils'
+
+describe('turbopack-module-type-attribute', () => {
+  const { next, isTurbopack } = nextTestSetup({
+    files: __dirname,
+  })
+
+  // The `turbopackModuleType` import attribute is Turbopack-specific.
+  if (!isTurbopack) {
+    it('should skip for webpack', () => {})
+    return
+  }
+
+  it('should import an SVG as a string with turbopackModuleType raw', async () => {
+    const $ = await next.render$('/')
+    expect($('#raw-svg').text()).toContain(
+      'data-marker="module-type-svg-marker"'
+    )
+  })
+
+  it('should keep the built-in image handling for imports without the attribute', async () => {
+    const $ = await next.render$('/')
+    expect(JSON.parse($('#image-svg').text())).toMatchObject({
+      src: expect.stringContaining('.svg'),
+      width: 24,
+      height: 24,
+    })
+  })
+
+  it('should import a file without a built-in rule with turbopackModuleType raw', async () => {
+    const $ = await next.render$('/')
+    expect($('#raw-txt').text()).toBe('Hello from turbopackModuleType raw\n')
+  })
+})

@@ -29,7 +29,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     ident::{AssetIdent, Layer},
     issue::{IssueExt, IssueSource, module::ModuleIssue},
-    loader::{WebpackLoaderItem, WebpackLoaderItems},
+    loader::{ResolvedWebpackLoaderItem, WebpackLoaderItem, WebpackLoaderItems},
     module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
     output::{ExpandedOutputAssets, OutputAsset},
@@ -38,6 +38,7 @@ use turbopack_core::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssets,
         ReferenceType,
     },
+    renamed_source::RenamedSource,
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
         ResolveResult, ResolveResultItem,
@@ -622,6 +623,89 @@ async fn apply_module_rule_transforms(
     Ok(())
 }
 
+/// Applies a `turbopackLoader` import attribute: runs the inline loader on `source` as a source
+/// transform (also applying `rename_as` to the loader output).
+async fn apply_inline_loader(
+    module_asset_context: Vc<ModuleAssetContext>,
+    module_options_context: &ModuleOptionsContext,
+    source: ResolvedVc<Box<dyn Source>>,
+    loader: &ResolvedWebpackLoaderItem,
+    rename_as: Option<RcStr>,
+) -> Result<ResolvedVc<Box<dyn Source>>> {
+    let webpack_loaders_options = module_options_context
+        .enable_webpack_loaders
+        .as_ref()
+        .context(
+            "turbopackLoader import attributes require webpack loaders to be enabled \
+             (enable_webpack_loaders)",
+        )?
+        .await?;
+    let execution_context = module_options_context
+        .execution_context
+        .context("execution_context is required for turbopackLoader import attributes")?;
+    let execution_context_value = execution_context.await?;
+
+    let resolve_options_context = module_asset_context
+        .resolve_options_context()
+        .to_resolved()
+        .await?;
+    let generate_full_source_map = module_options_context
+        .ecmascript
+        .source_map_generation_options
+        .full;
+
+    // Determine the import map for loader-runner
+    let loader_runner_package = webpack_loaders_options.loader_runner_package;
+
+    let import_map = if let Some(loader_runner_package) = loader_runner_package {
+        package_import_map_from_import_mapping(rcstr!("loader-runner"), *loader_runner_package)
+    } else {
+        package_import_map_from_context(
+            rcstr!("loader-runner"),
+            execution_context_value.project_path.clone(),
+        )
+    };
+
+    let evaluate_context = node_evaluate_asset_context(
+        *execution_context,
+        Some(import_map),
+        None,
+        Layer::new(rcstr!("webpack_loaders")),
+        false,
+    )
+    .to_resolved()
+    .await?;
+
+    let loader_request = execution_context_value
+        .project_path
+        .get_relative_request_to(&loader.loader)
+        .context("Loader path must be on project filesystem")?;
+    let webpack_loader_item = WebpackLoaderItem {
+        loader: loader_request,
+        options: loader.options.clone(),
+    };
+    let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
+    let webpack_loaders = WebpackLoaders::new(
+        *evaluate_context,
+        *execution_context,
+        loaders_vc,
+        *webpack_loaders_options.target,
+        webpack_loaders_options.mode.clone(),
+        rename_as,
+        *resolve_options_context,
+        generate_full_source_map,
+        config_tracing_module_context(*execution_context),
+    )
+    .to_resolved()
+    .await?;
+
+    let transforms = Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
+    transforms
+        .transform(*source, Vc::upcast(module_asset_context))
+        .to_resolved()
+        .await
+}
+
 async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
@@ -644,7 +728,9 @@ async fn process_default_internal(
     let mut current_source = source;
     let mut current_module_type = None;
 
-    // Handle turbopackLoader import attributes: apply inline loader as source transform
+    // Handle turbopackLoader/turbopackAs/turbopackModuleType import attributes: apply the inline
+    // loader (if any) as source transform, rename the source, then apply the module type (if any)
+    // directly, overriding the module rules.
     if let ReferenceType::EcmaScriptModules(
         EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
             ref loader,
@@ -654,82 +740,26 @@ async fn process_default_internal(
     ) = reference_type
     {
         let module_options_context = module_asset_context.module_options_context().await?;
-        let webpack_loaders_options = module_options_context
-            .enable_webpack_loaders
-            .as_ref()
-            .context(
-                "turbopackUse import assertions require webpack loaders to be enabled \
-                 (enable_webpack_loaders)",
-            )?
-            .await?;
-        let execution_context = module_options_context
-            .execution_context
-            .context("execution_context is required for turbopackUse import assertions")?;
-        let execution_context_value = execution_context.await?;
-
-        let resolve_options_context = module_asset_context
-            .resolve_options_context()
-            .to_resolved()
-            .await?;
-        let generate_full_source_map = module_options_context
-            .ecmascript
-            .source_map_generation_options
-            .full;
-
-        // Determine the import map for loader-runner
-        let loader_runner_package = webpack_loaders_options.loader_runner_package;
-
-        let import_map = if let Some(loader_runner_package) = loader_runner_package {
-            package_import_map_from_import_mapping(rcstr!("loader-runner"), *loader_runner_package)
-        } else {
-            package_import_map_from_context(
-                rcstr!("loader-runner"),
-                execution_context_value.project_path.clone(),
+        if let Some(loader) = loader {
+            current_source = apply_inline_loader(
+                module_asset_context,
+                &module_options_context,
+                current_source,
+                loader,
+                rename_as.clone(),
             )
-        };
-
-        let evaluate_context = node_evaluate_asset_context(
-            *execution_context,
-            Some(import_map),
-            None,
-            Layer::new(rcstr!("webpack_loaders")),
-            false,
-        )
-        .to_resolved()
-        .await?;
-
-        let loader_request = execution_context_value
-            .project_path
-            .get_relative_request_to(&loader.loader)
-            .context("Loader path must be on project filesystem")?;
-        let webpack_loader_item = WebpackLoaderItem {
-            loader: loader_request,
-            options: loader.options.clone(),
-        };
-        let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
-        let webpack_loaders = WebpackLoaders::new(
-            *evaluate_context,
-            *execution_context,
-            loaders_vc,
-            *webpack_loaders_options.target,
-            webpack_loaders_options.mode.clone(),
-            rename_as.clone(),
-            *resolve_options_context,
-            generate_full_source_map,
-            config_tracing_module_context(*execution_context),
-        )
-        .to_resolved()
-        .await?;
-
-        let transforms = Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
-        current_source = transforms
-            .transform(*current_source, Vc::upcast(module_asset_context))
-            .to_resolved()
             .await?;
+        } else if let Some(rename_as) = rename_as {
+            current_source = ResolvedVc::upcast(
+                RenamedSource::new(*current_source, rename_as.clone())
+                    .to_resolved()
+                    .await?,
+            );
+        }
 
         // If turbopackModuleType is specified, skip rule matching and directly
-        // apply the requested module type with empty transforms (loader output
-        // is already processed).
+        // apply the requested module type with empty transforms (loader output,
+        // if any, is already processed).
         if let Some(type_str) = module_type {
             let empty_transforms = EcmascriptInputTransforms::empty().to_resolved().await?;
             let default_options = EcmascriptOptions::default().resolved_cell();
@@ -768,8 +798,8 @@ async fn process_default_internal(
 
         // If the ident changed (e.g., due to rename_as), re-process from the
         // beginning so the new extension is matched by the correct rules.
-        // Use a plain Import reference type to avoid re-applying turbopackUse
-        // loaders in the recursive call (which would cause an infinite loop).
+        // Use a plain Import reference type to avoid re-applying the import
+        // attributes in the recursive call (which would cause an infinite loop).
         if current_source.ident().to_resolved().await? != ident {
             let plain_reference_type =
                 ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import);

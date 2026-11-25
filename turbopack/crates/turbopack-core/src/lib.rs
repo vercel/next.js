@@ -36,6 +36,7 @@ pub mod raw_output;
 pub mod rebase;
 pub mod reference;
 pub mod reference_type;
+pub mod renamed_source;
 pub mod resolve;
 pub mod server_fs;
 pub mod source;
