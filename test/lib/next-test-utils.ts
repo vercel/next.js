@@ -221,7 +221,7 @@ export function fetchViaRawHttp(
   rawPath: string,
   opts?: {
     method?: string
-    headers?: Record<string, string>
+    headers?: Record<string, string | string[]>
     /** Accepted for drop-in compatibility; raw requests never follow redirects. */
     redirect?: 'manual'
     /** Passed to the TLS connection for https URLs (e.g. self-signed servers). */

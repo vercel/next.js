@@ -3,13 +3,18 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
+	"path"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 func main() {
@@ -122,7 +127,20 @@ func (f file) describe(expr ast.Expr) node {
 	return f.unsupported(expr)
 }
 
+func sorted(set map[string]bool) []string {
+	names := make([]string, 0, len(set))
+	for name := range set {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func analyze() error {
+	goos := flag.String("goos", build.Default.GOOS, "target GOOS")
+	goarch := flag.String("goarch", build.Default.GOARCH, "target GOARCH")
+	tags := flag.String("tags", "", "comma-separated build tags")
+	flag.Parse()
 	// Only the files the caller asked to analyze are sent; other package files are not parsed.
 	var query struct {
 		Sources map[string]string `json:"sources"`
@@ -137,23 +155,71 @@ func analyze() error {
 	sources := query.Sources
 	entries := []browserEntry{}
 	assetErrors := []string{}
+	// Evaluate file names and build constraints as the compiler does for this target.
+	// Compilation always runs with CGO_ENABLED=0. Release tags come from this tool's
+	// toolchain, which is the session's toolchain.
+	context := build.Default
+	context.GOOS = *goos
+	context.GOARCH = *goarch
+	context.CgoEnabled = false
+	context.BuildTags = nil
+	for _, tag := range strings.Split(*tags, ",") {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			context.BuildTags = append(context.BuildTags, tag)
+		}
+	}
+	// Selected files share one directory, so base names identify them.
+	byBase := map[string]string{}
+	for name, source := range sources {
+		byBase[path.Base(name)] = source
+	}
+	context.OpenFile = func(name string) (io.ReadCloser, error) {
+		source, ok := byBase[name]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return io.NopCloser(strings.NewReader(source)), nil
+	}
 	names := make([]string, 0, len(sources))
 	for name := range sources {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	functions := map[string]bool{}
-	values := map[string]string{}
+	values := map[string]value{}
+	packages := map[string]bool{}
+	selectedFunctions := map[string]bool{}
+	selectedPackages := map[string]bool{}
 	errors := []string{}
 	for _, name := range names {
 		positions := token.NewFileSet()
 		// Object resolution lets Browser discovery ignore local identifiers that shadow imports.
 		parsed, err := parser.ParseFile(positions, name, sources[name], 0)
+		syntaxValid := err == nil
 		if err != nil {
 			errors = append(errors, err.Error())
+		}
+		// ParseFile returns a partial AST on syntax errors. Retain its package and
+		// declarations so generated files do not mask the compiler's diagnostics.
+		if parsed == nil || parsed.Name == nil || parsed.Name.Name == "" {
 			continue
 		}
-		if query.AssetPackage != "" {
+		// A file whose constraints cannot be evaluated is left for the compiler to report.
+		selected, err := context.MatchFile("", path.Base(name))
+		if err != nil {
+			selected = true
+		}
+		// MatchFile leaves cgo files to the importer, which ignores them when cgo is disabled.
+		for _, spec := range parsed.Imports {
+			if spec.Path != nil && spec.Path.Value == `"C"` {
+				selected = false
+			}
+		}
+		packages[parsed.Name.Name] = true
+		if selected {
+			selectedPackages[parsed.Name.Name] = true
+		}
+		if query.AssetPackage != "" && syntaxValid && selected {
 			discoverBrowser(parsed, positions, query.AssetPackage, query.AssetPackageName, &entries, &assetErrors)
 		}
 		f := file{positions}
@@ -173,13 +239,17 @@ func analyze() error {
 			switch d := declaration.(type) {
 			// Include unexported package functions too; callers decide which names have meaning.
 			case *ast.FuncDecl:
-				if d.Recv == nil {
+				if d.Recv == nil && d.Name != nil && d.Name.Name != "" {
 					functions[d.Name.Name] = true
+					if selected {
+						selectedFunctions[d.Name.Name] = true
+					}
 				}
 			// Exported package-level values only. Multiple names, missing initializers and
 			// computed initializers are reported as unsupported rather than omitted.
 			case *ast.GenDecl:
-				if d.Tok != token.VAR && d.Tok != token.CONST {
+				// Leave configuration in a partial AST for the compiler to diagnose.
+				if !syntaxValid || (d.Tok != token.VAR && d.Tok != token.CONST) {
 					continue
 				}
 				for _, spec := range d.Specs {
@@ -198,34 +268,28 @@ func analyze() error {
 								declaredType = unsupportedType
 							}
 						}
-						encoded, err := json.Marshal(value{
+						values[ident.Name] = value{
 							Pos:      f.pos(ident),
 							Constant: d.Tok == token.CONST,
 							Type:     declaredType,
 							Imports:  imports,
 							Value:    described,
-						})
-						if err != nil {
-							return err
 						}
-						values[ident.Name] = string(encoded)
 					}
 				}
 			}
 		}
 	}
-	declared := make([]string, 0, len(functions))
-	for name := range functions {
-		declared = append(declared, name)
-	}
-	sort.Strings(declared)
 	return json.NewEncoder(os.Stdout).Encode(struct {
-		Functions      []string          `json:"functions"`
-		Values         map[string]string `json:"values"`
-		SyntaxErrors   []string          `json:"syntax_errors"`
-		BrowserEntries []browserEntry    `json:"browser_entries"`
-		AssetErrors    []string          `json:"asset_errors"`
-	}{declared, values, errors, entries, assetErrors})
+		Functions         []string         `json:"functions"`
+		Packages          []string         `json:"packages"`
+		SelectedFunctions []string         `json:"selected_functions"`
+		SelectedPackages  []string         `json:"selected_packages"`
+		Values            map[string]value `json:"values"`
+		SyntaxErrors      []string         `json:"syntax_errors"`
+		BrowserEntries    []browserEntry   `json:"browser_entries"`
+		AssetErrors       []string         `json:"asset_errors"`
+	}{sorted(functions), sorted(packages), sorted(selectedFunctions), sorted(selectedPackages), values, errors, entries, assetErrors})
 }
 
 type browserEntry struct {

@@ -1,22 +1,2 @@
-package main
-
-import (
-	"net/http"
-	"next/go/proxy"
-)
-
-func Proxy(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("x-src-proxy", "yes")
-	if r.URL.Path == "/native-proxy/rewrite" || r.URL.Query().Get("override") == "1" {
-		headers := r.Header.Clone()
-		headers.Set("Host", r.Host)
-		headers.Set("x-from-go", "proxy")
-		if r.URL.Path == "/native-proxy/rewrite" {
-			proxy.Rewrite(w, "/native-proxy/native", proxy.WithRequestHeaders(headers))
-		} else {
-			proxy.Next(w, proxy.WithRequestHeaders(headers))
-		}
-		return
-	}
-	proxy.Next(w)
-}
+// Proxy lives in proxy-handler.go to cover discovery in sibling files.
+package proxy

@@ -5,7 +5,10 @@ import type { Params } from '../request/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import type { MiddlewareRoutingItem } from '../base-server'
+import type {
+  MiddlewareRoutingConfig,
+  MiddlewareRoutingItem,
+} from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import {
@@ -61,6 +64,7 @@ import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { getGoProxyMatcher } from '../lib/native-proxy-matcher'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   isUnhandledRejectionListenerRegistered,
@@ -152,7 +156,11 @@ export default class DevServer extends Server {
   private appDir?: string
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
-  private middleware?: MiddlewareRoutingItem
+  private middleware?: MiddlewareRoutingConfig
+  private middlewareMatchers = new WeakMap<
+    MiddlewareRoutingConfig,
+    MiddlewareRoutingItem
+  >()
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
@@ -661,15 +669,17 @@ export default class DevServer extends Server {
     return rewrites ?? []
   }
 
-  protected async getMiddleware() {
-    // We need to populate the match
-    // field as it isn't serializable
-    if (this.middleware?.match === null) {
-      this.middleware.match = getMiddlewareRouteMatcher(
-        this.middleware.matchers || []
-      )
+  protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
+    const config = this.middleware
+    if (!config) return
+    let middleware = this.middlewareMatchers.get(config)
+    if (!middleware) {
+      const getMatcher =
+        config.runtime === 'go' ? getGoProxyMatcher : getMiddlewareRouteMatcher
+      middleware = { ...config, match: getMatcher(config.matchers || []) }
+      this.middlewareMatchers.set(config, middleware)
     }
-    return this.middleware
+    return middleware
   }
 
   protected getNextFontManifest() {

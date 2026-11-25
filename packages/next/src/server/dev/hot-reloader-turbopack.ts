@@ -28,19 +28,17 @@ import { ensureGoSdkQueued, goSdkOptions } from '../../lib/go-sdk'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
-  Issue,
   WrittenEndpoint,
   TurbopackResult,
   Project,
   Entrypoints,
   NodeJsPartialHmrUpdate,
-  ServerHmrVersion,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { readGoProxyConfig } from '../../build/analysis/go-config'
 import type { ProxyMatcher } from '../../build/analysis/get-page-static-info'
-import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { getGoProxyMatcher } from '../lib/native-proxy-matcher'
 import {
   BLOCKED_PAGES,
   CLIENT_REFERENCE_MANIFEST,
@@ -223,37 +221,6 @@ declare global {
     | undefined
 }
 
-/**
- * Collects the output chunk paths touched by a partial HMR update. Both
- * single-chunk `EcmascriptMergedUpdate`s and `ChunkListUpdate`s (which nest
- * per-chunk deltas inside `merged`) are flattened so the manifest cache can be
- * invalidated for every affected chunk after a successful apply.
- */
-function collectUpdatedChunkPaths(
-  instruction: NodeJsPartialHmrUpdate['instruction']
-): string[] {
-  const paths = new Set<string>()
-  if (instruction.type === 'EcmascriptMergedUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-  } else if (instruction.type === 'ChunkListUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-    for (const merged of instruction.merged ?? []) {
-      for (const chunkPath of Object.keys(merged.chunks ?? {})) {
-        paths.add(chunkPath)
-      }
-    }
-  } else {
-    throw new Error(
-      `[Server HMR] unreachable: unknown HMR instruction type ${(instruction as { type: string }).type}`
-    )
-  }
-  return Array.from(paths)
-}
-
 function setupServerHmr(
   project: Project,
   {
@@ -265,15 +232,15 @@ function setupServerHmr(
   }
 ) {
   let pending = Promise.resolve()
-  // Each pull snapshots only the requested endpoint's entries. Keep independent
-  // baselines so building one route does not discard another route's version.
-  const versions = new Map<string, ServerHmrVersion>()
+  // What the server runtimes have loaded lives in Turbopack, which diffs each
+  // requested route against it.
   let needsReEvaluation = false
 
-  async function recover() {
+  async function recover(entryPaths: string[]) {
     try {
       await reEvaluateAllModulesExpensive()
-      versions.clear()
+      // The requested route loads from scratch next.
+      await project.resetServerHmrState(entryPaths)
       needsReEvaluation = false
     } catch (error) {
       console.error('[Server HMR] Re-evaluating modules failed:', error)
@@ -283,22 +250,15 @@ function setupServerHmr(
   function apply(entryPaths: string[]): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
-        await recover()
+        await recover(entryPaths)
         return
       }
 
       try {
-        const versionKey = [...entryPaths].sort().join('\0')
         // `issues` is intentionally dropped: this pull scans project-wide chunk
         // lists, so its issues may belong to an unrelated or removed route, and
         // endpoint writes already report route-scoped issues.
-        const { value: update } = await project.getServerHmrUpdate(
-          versions.get(versionKey),
-          entryPaths
-        )
-        if (update.version) {
-          versions.set(versionKey, update.version)
-        }
+        const { value: update } = await project.getServerHmrUpdate(entryPaths)
         switch (update.kind) {
           case 'none':
             return
@@ -306,20 +266,24 @@ function setupServerHmr(
             const handlers = globalThis.__turbopack_server_hmr_handlers__
             if (!handlers || handlers.size === 0) return
 
-            const payload: NodeJsPartialHmrUpdate = {
-              type: 'partial',
-              instruction: update.instruction,
-            }
             if (typeof __turbopack_server_hmr_apply__ === 'function') {
               try {
-                __turbopack_server_hmr_apply__(payload)
-                mirrorModuleStateToDevValidationWorker({
-                  type: 'apply',
-                  update: payload,
-                })
+                // Each update targets one runtime directory, so it is routed
+                // only to its own runtime.
+                for (const instruction of update.updates) {
+                  const payload: NodeJsPartialHmrUpdate = {
+                    type: 'partial',
+                    instruction,
+                  }
+                  __turbopack_server_hmr_apply__(payload)
+                  mirrorModuleStateToDevValidationWorker({
+                    type: 'apply',
+                    update: payload,
+                  })
+                }
 
-                const updatedChunkPaths = collectUpdatedChunkPaths(
-                  update.instruction
+                const updatedChunkPaths = update.updates.flatMap(
+                  (instruction) => Object.keys(instruction.chunks ?? {})
                 )
                 if (updatedChunkPaths.length > 0) {
                   await onApplied(updatedChunkPaths)
@@ -344,16 +308,22 @@ function setupServerHmr(
       }
 
       needsReEvaluation = true
-      await recover()
+      await recover(entryPaths)
     })
     pending = applyPromise
     return applyPromise
   }
 
   function reset(): Promise<void> {
-    const resetState = () => {
-      versions.clear()
+    const resetState = async () => {
       needsReEvaluation = false
+      try {
+        await project.resetServerHmrState()
+      } catch (error) {
+        // Keep the queue usable; the next pull re-evaluates everything instead.
+        needsReEvaluation = true
+        console.error('[Server HMR] Clearing the loaded state failed:', error)
+      }
     }
     const resetPromise = pending.then(resetState, resetState)
     pending = resetPromise
@@ -1342,7 +1312,7 @@ export async function createHotReloaderTurbopack(
                 force: forceDeleteCache,
               })
             },
-            loadNativeMiddleware: async () => {
+            loadNativeMiddleware: async (entryPath) => {
               // Turbopack records proxy.go's static Config in the descriptor it
               // just wrote. Source-level static info has no Go matchers.
               const proxyPath = join(
@@ -1352,6 +1322,11 @@ export async function createHotReloaderTurbopack(
               )
               let matchers: ProxyMatcher[]
               try {
+                // A failed compile may leave a previous descriptor on disk. Do
+                // not reload it or keep its matchers while the proxy is invalid.
+                if (!entryPath) {
+                  throw new Error(`Failed to compile ${proxyPath}`)
+                }
                 matchers = (
                   await readGoProxyConfig(
                     join(distDir, 'server', 'middleware.native.json'),
@@ -1361,42 +1336,27 @@ export async function createHotReloaderTurbopack(
                 ).matchers
                 serverFields.goProxyConfigError = undefined
               } catch (error) {
-                // `next build` fails on an invalid Config. In dev, report it as a
-                // compilation error of the proxy entry, which the next successful
-                // compile clears. Until then the proxy matches every path and
-                // `ensureMiddleware` fails each request with this error: matching
+                // Fail requests through ensureMiddleware's ModuleBuildError until
+                // a successful compile clears the error. Match every path: matching
                 // nothing would serve routes the proxy protects, and keeping the
                 // previous matchers would run it with a configuration that no
                 // longer applies.
                 const message =
                   error instanceof Error ? error.message : String(error)
-                const issue: Issue = {
-                  severity: 'error',
-                  stage: 'analyze',
-                  filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
-                  title: { type: 'text', value: 'Invalid proxy.go Config' },
-                  description: { type: 'text', value: message },
-                  documentationLink: '',
-                }
-                const key = getEntryKey('root', 'server', 'middleware')
-                const issues = currentEntryIssues.get(key) ?? new Map()
-                issues.set(getIssueKey(issue), issue)
-                currentEntryIssues.set(key, issues)
-                Log.error(message)
+                // Rust compilation and static-value errors are already recorded by
+                // processMiddleware. Only Next.js descriptor/schema validation can
+                // fail here after a successful native compilation.
+                if (entryPath) Log.error(message)
                 serverFields.goProxyConfigError = message
                 matchers = [{ regexp: '^/.*$', originalSource: '/:path*' }]
               }
               serverFields.middleware = {
-                // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
-                // eslint-disable-next-line @next/internal/no-as-any
-                match: null as any,
                 page: '/',
                 matchers,
                 runtime: 'go',
                 nativeEntry: 'middleware.native.json',
               }
-              opts.fsChecker.middlewareMatcher =
-                getMiddlewareRouteMatcher(matchers)
+              opts.fsChecker.middlewareMatcher = getGoProxyMatcher(matchers)
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
@@ -1783,6 +1743,7 @@ export async function createHotReloaderTurbopack(
           clientIssues,
           messages: new Map(),
           turbopackUpdates: [],
+          hmrVersionChecked: false,
           subscriptions,
         })
 
@@ -1925,19 +1886,29 @@ export async function createHotReloaderTurbopack(
 
           // Turbopack messages
           switch (parsedData.type) {
-            case 'turbopack-subscribe':
+            case 'turbopack-subscribe': {
+              // Check the version once per connection, on its first versioned subscription. That
+              // catches updates missed through stale HTML or a dropped connection. Later mismatches
+              // are skipped, since lazily compiling a chunk list advances the version without the
+              // client missing an update.
+              const state = clientStates.get(client)
               if (
                 parsedData.hmrVersion !== undefined &&
-                parsedData.hmrVersion !== String(clientHmrVersion)
+                state &&
+                !state.hmrVersionChecked
               ) {
-                sendToClient(client, {
-                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-                  data: 'HMR hash mismatch',
-                })
-                break
+                state.hmrVersionChecked = true
+                if (parsedData.hmrVersion !== String(clientHmrVersion)) {
+                  sendToClient(client, {
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+                    data: 'HMR hash mismatch',
+                  })
+                  break
+                }
               }
               subscribeToClientHmrEvents(client, parsedData.path)
               break
+            }
 
             case 'turbopack-unsubscribe':
               unsubscribeFromClientHmrEvents(client, parsedData.path)

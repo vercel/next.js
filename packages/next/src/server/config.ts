@@ -503,9 +503,11 @@ function assignDefaultsAndValidate(
   }
 
   if (result.experimental.goRoutes) {
-    if (result.output) {
+    // Go handlers always execute dynamically, so they cannot be prerendered
+    // into static export files. Standalone output copies their executables.
+    if (result.output === 'export') {
       throw new Error(
-        '`route.go` and `proxy.go` do not support standalone or static export output'
+        '`route.go` and `proxy.go` do not support `output: "export"`'
       )
     }
   }
@@ -951,17 +953,14 @@ function assignDefaultsAndValidate(
     }
   }
 
-  // Normalize imgOptSafeMode: boolean | { nextImage?,
-  // imageResponse? } into a resolved object. `true` enables every feature, and
-  // omitted keys in the object form are disabled.
+  // Normalize imgOptSafeMode: boolean | { nextImage? } into a resolved object.
+  // `true` enables every feature, and omitted keys in the object form are
+  // disabled.
   const safeImgOpt = result.experimental.imgOptSafeMode
   const resolvedSafeImgOpt =
     typeof safeImgOpt === 'object'
-      ? {
-          nextImage: safeImgOpt.nextImage ?? false,
-          imageResponse: safeImgOpt.imageResponse ?? false,
-        }
-      : { nextImage: !!safeImgOpt, imageResponse: !!safeImgOpt }
+      ? { nextImage: safeImgOpt.nextImage ?? false }
+      : { nextImage: !!safeImgOpt }
   ;(result as NextConfigComplete).experimental.imgOptSafeMode =
     resolvedSafeImgOpt
 

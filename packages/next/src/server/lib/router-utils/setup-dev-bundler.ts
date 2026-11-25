@@ -1,4 +1,4 @@
-import type { MiddlewareRoutingItem } from '../../base-server'
+import type { MiddlewareRoutingConfig } from '../../base-server'
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -59,6 +59,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getGoProxyMatcher } from '../native-proxy-matcher'
 import { ensureGoSdkQueued, goSdkOptions } from '../../../lib/go-sdk'
 
 import {
@@ -164,7 +165,7 @@ export type ServerFields = {
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>
-  middleware?: MiddlewareRoutingItem
+  middleware?: MiddlewareRoutingConfig
   hasAppNotFound?: boolean
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
@@ -522,7 +523,7 @@ async function startWatcher(
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
-      let middlewareEntry: MiddlewareRoutingItem | undefined
+      let middlewareEntry: MiddlewareRoutingConfig | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
 
@@ -728,9 +729,6 @@ async function startWatcher(
           )
           middlewareEntry = {
             page: '/',
-            // TODO(as-any): pre-existing cast, not yet reviewed
-            // eslint-disable-next-line @next/internal/no-as-any
-            match: null as any,
             // proxy.go matchers come from Turbopack's compiled descriptor (see
             // loadNativeMiddleware); keep them across file system events.
             matchers: (fileBase === 'proxy.go' &&
@@ -1336,6 +1334,14 @@ async function startWatcher(
         ])
       )
 
+      // The scan can await while Turbopack updates proxy.go's matchers. Preserve
+      // the latest failure or recovery state instead of committing its snapshot.
+      if (
+        middlewareEntry?.runtime === 'go' &&
+        serverFields.middleware?.runtime === 'go'
+      ) {
+        middlewareEntry.matchers = serverFields.middleware.matchers
+      }
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareEntry
       // A removed or replaced proxy.go takes its Config error with it.
@@ -1346,8 +1352,12 @@ async function startWatcher(
       await propagateServerField(opts, 'middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
 
+      const getMatcher =
+        serverFields.middleware?.runtime === 'go'
+          ? getGoProxyMatcher
+          : getMiddlewareRouteMatcher
       opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
-        ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
+        ? getMatcher(serverFields.middleware.matchers)
         : undefined
 
       const interceptionRoutes = generateInterceptionRoutesRewrites(
@@ -1721,13 +1731,24 @@ export async function setupDevBundler(opts: SetupOpts) {
   )
 
   // Track build features for dev server here:
-  opts.telemetry.record({
-    eventName: EVENT_BUILD_FEATURE_USAGE,
-    payload: {
-      featureName: 'turbopackFileSystemCache',
-      invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig) ? 1 : 0,
+  opts.telemetry.record([
+    {
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: {
+        featureName: 'turbopackFileSystemCache',
+        invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig)
+          ? 1
+          : 0,
+      },
     },
-  })
+    {
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: {
+        featureName: 'experimental/goRoutes',
+        invocationCount: opts.nextConfig.experimental.goRoutes ? 1 : 0,
+      },
+    },
+  ])
 
   return result
 }

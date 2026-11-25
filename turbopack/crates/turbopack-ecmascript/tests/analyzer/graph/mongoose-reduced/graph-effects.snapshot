@@ -89,7 +89,7 @@
             ),
         ],
         span: 16..43,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     FreeVar {
         var: "require",

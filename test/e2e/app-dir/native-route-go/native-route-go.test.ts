@@ -1,5 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, fetchViaRawHttp, findPort, retry } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  fetchViaRawHttp,
+  findPort,
+  initNextServerScript,
+  killApp,
+  retry,
+} from 'next-test-utils'
 import { request } from 'http'
 import { promises as fs } from 'fs'
 import { dirname, join, relative } from 'path'
@@ -532,7 +539,6 @@ describe('native-route-go', () => {
       const path = 'app/(group)/native/[id]/route.ts'
       const goPath = 'app/(group)/native/[id]/route.go'
       const goSource = await next.readFile(goPath)
-      const outputStart = next.cliOutput.length
       try {
         await next.patchFile(
           path,
@@ -543,8 +549,9 @@ describe('native-route-go', () => {
         await next.deleteFile(goPath)
         await next.patchFile(goPath, goSource)
         await retry(async () => {
-          expect((await next.fetch('/native/example')).status).toBe(500)
-          expect(next.cliOutput.slice(outputStart)).toContain(
+          const response = await next.fetch('/native/example')
+          expect(response.status).toBe(500)
+          expect(await response.text()).toContain(
             'Conflicting App Router handlers'
           )
         }, 30_000)
@@ -670,10 +677,31 @@ describe('native-route-go', () => {
         expect((await data()).id).toBe('example')
       })
     })
+    it('rejects package main and recovers after the package is renamed', async () => {
+      const path = 'app/package-main/route.go'
+      const source =
+        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("renamed")) }\n'
+      const outputStart = next.cliOutput.length
+      await next.patchFile(path, source)
+      await retry(async () => {
+        expect((await next.fetch('/package-main')).status).toBe(500)
+        expect(next.cliOutput.slice(outputStart)).toContain(
+          'route.go must not use `package main`'
+        )
+      }, 30_000)
+      await next.patchFile(
+        path,
+        source.replace('package main', 'package route')
+      )
+      await retry(async () => {
+        expect(await next.render('/package-main')).toBe('renamed')
+      })
+      await next.deleteFile(path)
+    })
     it('repairs a first compilation failure and survives a persistent cache restart', async () => {
       const path = 'app/first-error/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
+        'package route\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
       const outputStart = next.cliOutput.length
       await next.patchFile(path, source + '\ninvalid syntax\n')
       // A newly added route enters the polling route table asynchronously.
@@ -730,7 +758,7 @@ describe('native-route-go', () => {
     it('caches startup errors and repairs them after an edit', async () => {
       const path = 'app/startup/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
+        'package route\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
       await next.patchFile(path, source)
       // Route-table discovery can lag behind creation of the source file.
       await retry(async () => {
@@ -1199,6 +1227,90 @@ describe('native-route-go', () => {
   }
 })
 
+// Standalone output is a self-hosted production build.
+// @force-gate turbopack && start
+describe('native-route-go with standalone output', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    // Standalone output is self-hosted with `node server.js`; see README.md for
+    // the deploy coverage boundary.
+    skipDeployment: true,
+  })
+
+  it('serves Go routes from .next/standalone/server.js without a Go toolchain', async () => {
+    await next.patchFile('next.config.ts', (config) =>
+      config.replace('experimental:', "output: 'standalone',\n  experimental:")
+    )
+    const result = await next.build()
+    expect(result.exitCode).toBe(0)
+    expect(result.cliOutput).not.toContain('Failed to copy traced files')
+
+    const standaloneDir = join(next.testDir, '.next/standalone')
+    const manifest = await next.readJSON(
+      '.next/standalone/.next/server/app-paths-manifest.json'
+    )
+    const entry = manifest['/(group)/native/[id]/route']
+    expect(entry).toMatch(/\.native\.json$/)
+    const descriptor = JSON.parse(
+      await fs.readFile(join(standaloneDir, '.next/server', entry), 'utf8')
+    )
+    const metadata = await fs.stat(
+      join(standaloneDir, '.next/server', descriptor.executable)
+    )
+    if (process.platform !== 'win32') expect(metadata.mode & 0o111).not.toBe(0)
+
+    // The standalone server must not fall back to the original build output.
+    await next.renameFolder('.next/standalone', 'standalone')
+    await next.renameFolder('.next', '.next-original')
+
+    const port = await findPort()
+    let output = ''
+    const server = await initNextServerScript(
+      join(next.testDir, 'standalone/server.js'),
+      /- Local:/,
+      {
+        ...process.env,
+        PORT: String(port),
+        HOSTNAME: '127.0.0.1',
+        TURBOPACK_GO: '/missing-go-toolchain',
+      },
+      undefined,
+      {
+        cwd: next.testDir,
+        onStdout: (message) => (output += message),
+        onStderr: (message) => (output += message),
+      }
+    )
+    try {
+      const origin = `http://127.0.0.1:${port}`
+      const response = await fetchViaHTTP(origin, '/native/standalone')
+      expect(response.status).toBe(201)
+      expect(response.headers.get('x-native-route')).toBe('yes')
+      expect(await response.json()).toMatchObject({
+        id: 'standalone',
+        sibling: 'sibling-v1',
+        embedded: expect.any(String),
+        proxy: '1',
+      })
+
+      const rewritten = await fetchViaHTTP(origin, '/alias')
+      expect(rewritten.status).toBe(201)
+      expect((await rewritten.json()).id).toBe('123')
+
+      await expectAutomaticMethods((method) =>
+        fetchViaHTTP(origin, '/methods', undefined, { method })
+      )
+
+      const js = await fetchViaHTTP(origin, '/js')
+      expect(js.status).toBe(200)
+    } finally {
+      await killApp(server)
+    }
+    expect(output).not.toContain('Error')
+  })
+})
+
 // @force-gate turbopack
 describe('native-route-go in src/app', () => {
   const { next, skipped } = nextTestSetup({
@@ -1215,6 +1327,14 @@ describe('native-route-go in src/app', () => {
     await next.renameFolder('app', 'src/app')
     await next.renameFolder('pages', 'src/pages')
     await next.renameFile('proxy.ts', 'src/proxy.ts')
+    const helper = 'src/app/(group)/native/[id]/helper.go'
+    await next.patchFile(
+      helper,
+      (await next.readFile(helper)).replace(
+        'example.com/native-route/app/internal/visibility',
+        'example.com/native-route/src/app/internal/visibility'
+      )
+    )
     await next.start()
   })
   it('discovers grouped native handlers below src/app', async () => {
@@ -1254,6 +1374,26 @@ describe('native route diagnostics', () => {
         expect(result.exitCode).not.toBe(0)
         expect(result.cliOutput).toContain(
           'route.go requires experimental.goRoutes: true'
+        )
+      }
+    )
+  })
+  it('rejects static export output', async () => {
+    await next.patchFile(
+      'next.config.ts',
+      (config) =>
+        config!.replace('experimental:', "output: 'export',\n  experimental:"),
+      async () => {
+        const result = await next.runCommand(['build', '--turbopack'], {
+          env: {
+            TURBOPACK_GO: '/missing-go-toolchain',
+            IS_TURBOPACK_TEST: '1',
+            IS_WEBPACK_TEST: '',
+          },
+        })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.cliOutput).toContain(
+          '`route.go` and `proxy.go` do not support `output: "export"`'
         )
       }
     )

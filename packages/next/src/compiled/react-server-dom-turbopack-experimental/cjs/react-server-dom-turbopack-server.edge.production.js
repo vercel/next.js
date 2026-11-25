@@ -23,6 +23,8 @@ var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+  REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+  REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -701,24 +703,25 @@ function use(usable) {
   throw Error("An unsupported type was passed to use(): " + String(usable));
 }
 var DefaultAsyncDispatcher = {
-    getCacheForType: function (resourceType) {
-      var JSCompiler_inline_result = (JSCompiler_inline_result =
-        resolveRequest())
-        ? JSCompiler_inline_result.cache
-        : new Map();
-      var entry = JSCompiler_inline_result.get(resourceType);
-      void 0 === entry &&
-        ((entry = resourceType()),
-        JSCompiler_inline_result.set(resourceType, entry));
-      return entry;
-    },
-    cacheSignal: function () {
-      var request = resolveRequest();
-      return request ? request.cacheController.signal : null;
-    }
+  getCacheForType: function (resourceType) {
+    var JSCompiler_inline_result = (JSCompiler_inline_result = resolveRequest())
+      ? JSCompiler_inline_result.cache
+      : new Map();
+    var entry = JSCompiler_inline_result.get(resourceType);
+    void 0 === entry &&
+      ((entry = resourceType()),
+      JSCompiler_inline_result.set(resourceType, entry));
+    return entry;
   },
-  ReactSharedInternalsServer =
-    React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+  cacheSignal: function () {
+    var request = resolveRequest();
+    return request ? request.cacheController.signal : null;
+  },
+  units: null
+};
+DefaultAsyncDispatcher.addToLedger = addToLedger;
+var ReactSharedInternalsServer =
+  React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 if (!ReactSharedInternalsServer)
   throw Error(
     'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
@@ -739,6 +742,10 @@ function describeValueForErrorMessage(value) {
       if (isArrayImpl(value)) return "[...]";
       if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
         return "client";
+      if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
+        return "LedgerData";
+      if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+        return "LedgerTotal";
       value = objectName(value);
       return "Object" === value ? "{...}" : value;
     case "function":
@@ -803,6 +810,9 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
     str = "<" + describeElementType(objectOrArray.type) + "/>";
   else {
     if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
+    if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE) return "LedgerData";
+    if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+      return "LedgerTotal";
     str = "{";
     i = Object.keys(objectOrArray);
     for (value = 0; value < i.length; value++) {
@@ -877,6 +887,8 @@ function RequestInstance(
   )
     throw Error("Currently React only supports one RSC renderer at a time.");
   ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
+  supportsRequestStorage &&
+    (DefaultAsyncDispatcher.units = DefaultUnitCacheHooks);
   var abortSet = new Set(),
     pingedTasks = [],
     cleanupQueue = [];
@@ -895,6 +907,7 @@ function RequestInstance(
   this.pingedTasks = pingedTasks;
   this.completedImportChunks = [];
   this.completedHintChunks = [];
+  this.completedLedgerChunks = [];
   this.completedRegularChunks = [];
   this.completedErrorChunks = [];
   this.writtenSymbols = new Map();
@@ -907,10 +920,11 @@ function RequestInstance(
   this.identifierPrefix = identifierPrefix || "";
   this.identifierCount = 1;
   this.taintCleanupQueue = cleanupQueue;
+  this.rootUnit = this.ledgers = null;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
-  type = createTask(this, model, null, !1, 0, abortSet);
+  type = createTask(this, model, null, !1, 0, abortSet, 0, null, null, null);
   pingedTasks.push(type);
 }
 var currentRequest = null;
@@ -918,7 +932,7 @@ function resolveRequest() {
   if (currentRequest) return currentRequest;
   if (supportsRequestStorage) {
     var store = requestStorage.getStore();
-    if (store) return store;
+    if (void 0 !== store) return store.request;
   }
   return null;
 }
@@ -936,32 +950,130 @@ function runWithRequest(request, callback, argument) {
       switchHooksRequest(previousHooksRequest);
   }
 }
+var currentUnit = null;
+function resolveRunningUnit() {
+  if (null !== currentUnit) return currentUnit;
+  if (supportsRequestStorage) {
+    var store = requestStorage.getStore();
+    if (void 0 !== store) return store;
+  }
+  return null;
+}
+function currentUnitForRequest(request) {
+  var unit = resolveRunningUnit();
+  return null !== unit && unit.request === request ? unit : request.rootUnit;
+}
+function ensureRequestLedgers(request) {
+  var ledgers = request.ledgers;
+  return null !== ledgers
+    ? ledgers
+    : (request.ledgers = { dirtyUnits: [], declarations: null });
+}
+function accumulateLedgerEntry(cell, entry) {
+  if ("number" !== typeof entry) return !1;
+  var state = cell.state;
+  entry = (state | entry) >>> 0;
+  if (entry === state) return !1;
+  cell.state = entry;
+  return !0;
+}
+function createUnit(request, creator, id) {
+  return {
+    request: request,
+    id: id,
+    creator: creator,
+    totals: null,
+    declared: !1,
+    dirtyDeltas: null,
+    dirtyReferences: null
+  };
+}
+function recordUnitReference(unit, row) {
+  if (null !== unit && row !== unit.id) {
+    var ledgers = ensureRequestLedgers(unit.request),
+      pending = unit.dirtyReferences;
+    null === pending
+      ? (null === unit.dirtyDeltas && ledgers.dirtyUnits.push(unit),
+        (unit.dirtyReferences = row))
+      : "number" === typeof pending
+        ? pending !== row &&
+          ((ledgers = new Set()),
+          ledgers.add(pending),
+          ledgers.add(row),
+          (unit.dirtyReferences = ledgers))
+        : pending.has(row) || pending.add(row);
+  }
+}
+function addToLedger(type, entry) {
+  var unit = resolveRunningUnit();
+  if (null !== unit) {
+    var ledgers = ensureRequestLedgers(unit.request),
+      dirty = unit.dirtyDeltas,
+      cell = null === dirty ? void 0 : dirty.get(type);
+    void 0 === cell
+      ? ((cell = { kind: 1, state: 0 }),
+        accumulateLedgerEntry(cell, entry) &&
+          (null === dirty &&
+            (null === unit.dirtyReferences && ledgers.dirtyUnits.push(unit),
+            (unit.dirtyDeltas = dirty = new Map())),
+          dirty.set(type, cell)))
+      : accumulateLedgerEntry(cell, entry);
+  }
+}
+var DefaultUnitCacheHooks = {
+  hit: function (unit) {
+    var running = resolveRunningUnit();
+    null !== running &&
+      running.request === unit.request &&
+      recordUnitReference(running, unit.id);
+  },
+  miss: function (cacheEntry, fn, args) {
+    var outer = resolveRunningUnit();
+    if (null === outer) return applyCachedFunction(fn, args);
+    var request = outer.request;
+    null === cacheEntry.u
+      ? (cacheEntry.u = cacheEntry =
+          createUnit(request, outer, request.nextChunkId++))
+      : ((cacheEntry = cacheEntry.u),
+        recordUnitReference(outer, cacheEntry.id));
+    outer = currentUnit;
+    currentUnit = cacheEntry;
+    try {
+      return requestStorage.run(cacheEntry, applyCachedFunction, fn, args);
+    } finally {
+      currentUnit = outer;
+    }
+  }
+};
+function applyCachedFunction(fn, args) {
+  return fn.apply(null, args);
+}
+function createThenableTask(request, task, thenable) {
+  return createTask(
+    request,
+    thenable,
+    task.keyPath,
+    task.implicitSlot,
+    task.formatContext,
+    request.abortableTasks,
+    0,
+    null,
+    null,
+    null
+  );
+}
 function serializeThenable(request, task, thenable) {
   switch (thenable.status) {
     case "fulfilled":
       return (
-        (task = createTask(
-          request,
-          thenable,
-          task.keyPath,
-          task.implicitSlot,
-          task.formatContext,
-          request.abortableTasks
-        )),
+        (task = createThenableTask(request, task, thenable)),
         (task.model = thenable.value),
         pingTask(request, task),
         task.id
       );
     case "rejected":
       return (
-        (task = createTask(
-          request,
-          thenable,
-          task.keyPath,
-          task.implicitSlot,
-          task.formatContext,
-          request.abortableTasks
-        )),
+        (task = createThenableTask(request, task, thenable)),
         erroredTask(request, task, thenable.reason),
         task.id
       );
@@ -970,6 +1082,9 @@ function serializeThenable(request, task, thenable) {
         keyPath = task.keyPath,
         implicitSlot = task.implicitSlot,
         formatContext = task.formatContext,
+        creatorUnit = supportsRequestStorage
+          ? currentUnitForRequest(request)
+          : null,
         settled = !1;
       thenable.then(
         function (value) {
@@ -983,7 +1098,12 @@ function serializeThenable(request, task, thenable) {
               keyPath,
               implicitSlot,
               formatContext,
-              request.abortableTasks
+              request.abortableTasks,
+              0,
+              null,
+              null,
+              null,
+              creatorUnit
             )),
             pingTask(request, value));
         },
@@ -997,23 +1117,22 @@ function serializeThenable(request, task, thenable) {
               keyPath,
               implicitSlot,
               formatContext,
-              request.abortableTasks
+              request.abortableTasks,
+              0,
+              null,
+              null,
+              null,
+              creatorUnit
             );
             erroredTask(request, newTask, reason);
+            completeWork(request);
             enqueueFlush(request);
           }
         }
       );
       return id;
     default:
-      var newTask$12 = createTask(
-        request,
-        thenable,
-        task.keyPath,
-        task.implicitSlot,
-        task.formatContext,
-        request.abortableTasks
-      );
+      var newTask$12 = createThenableTask(request, task, thenable);
       if (12 === request.status)
         return (
           request.abortableTasks.delete(newTask$12),
@@ -1044,7 +1163,9 @@ function serializeThenable(request, task, thenable) {
         },
         function (reason) {
           0 === newTask$12.status &&
-            (erroredTask(request, newTask$12, reason), enqueueFlush(request));
+            (erroredTask(request, newTask$12, reason),
+            completeWork(request),
+            enqueueFlush(request));
         }
       );
       return newTask$12.id;
@@ -1062,6 +1183,7 @@ function serializeReadableStream(request, task, stream) {
             "abort",
             abortStream
           ),
+          completeWork(request),
           enqueueFlush(request),
           callOnAllReadyIfReady(request);
       else
@@ -1077,6 +1199,7 @@ function serializeReadableStream(request, task, stream) {
                   !1
                 )
               : runWithRequest(request, tryStreamTaskWithRequest, streamTask),
+            completeWork(request),
             enqueueFlush(request),
             reader.read().then(progress, error);
         } catch (x$13) {
@@ -1087,6 +1210,7 @@ function serializeReadableStream(request, task, stream) {
     0 === streamTask.status &&
       (request.cacheController.signal.removeEventListener("abort", abortStream),
       erroredTask(request, streamTask, reason),
+      completeWork(request),
       enqueueFlush(request),
       reader.cancel(reason).then(error, error));
   }
@@ -1099,7 +1223,9 @@ function serializeReadableStream(request, task, stream) {
         ? (request.abortableTasks.delete(streamTask),
           haltTask(streamTask),
           finishHaltedTask(streamTask, request))
-        : (erroredTask(request, streamTask, signal), enqueueFlush(request));
+        : (erroredTask(request, streamTask, signal),
+          completeWork(request),
+          enqueueFlush(request));
       reader.cancel(signal).then(error, error);
     }
   }
@@ -1118,7 +1244,11 @@ function serializeReadableStream(request, task, stream) {
       task.keyPath,
       task.implicitSlot,
       task.formatContext,
-      request.abortableTasks
+      request.abortableTasks,
+      0,
+      null,
+      null,
+      null
     );
   request.pendingChunks++;
   task = streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
@@ -1158,6 +1288,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           "abort",
           abortIterable
         );
+        completeWork(request);
         enqueueFlush(request);
         callOnAllReadyIfReady(request);
       } else
@@ -1165,6 +1296,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           (streamTask.model = entry.value),
             request.pendingChunks++,
             runWithRequest(request, tryStreamTaskWithRequest, streamTask),
+            completeWork(request),
             enqueueFlush(request),
             iterator.next().then(progress, error);
         } catch (x$14) {
@@ -1178,6 +1310,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
         abortIterable
       ),
       erroredTask(request, streamTask, reason),
+      completeWork(request),
       enqueueFlush(request),
       "function" === typeof iterator.throw &&
         iterator.throw(reason).then(noop, noop));
@@ -1192,6 +1325,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           haltTask(streamTask),
           finishHaltedTask(streamTask, request))
         : (erroredTask(request, streamTask, signal.reason),
+          completeWork(request),
           enqueueFlush(request));
       "function" === typeof iterator.throw &&
         iterator.throw(reason).then(noop, noop);
@@ -1204,7 +1338,11 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
     task.keyPath,
     task.implicitSlot,
     task.formatContext,
-    request.abortableTasks
+    request.abortableTasks,
+    0,
+    null,
+    null,
+    null
   );
   request.pendingChunks++;
   task = streamTask.id.toString(16) + ":" + (iterable ? "x" : "X") + "\n";
@@ -1219,6 +1357,7 @@ function emitHint(request, code, model) {
   model = stringify(model);
   code = stringToChunk(":H" + code + model + "\n");
   request.completedHintChunks.push(code);
+  completeWork(request);
   enqueueFlush(request);
 }
 function readThenable(thenable) {
@@ -1326,7 +1465,11 @@ function deferTask(request, task) {
     task.keyPath,
     task.implicitSlot,
     task.formatContext,
-    request.abortableTasks
+    request.abortableTasks,
+    0,
+    null,
+    null,
+    null
   );
   pingTask(request, task);
   return serializeLazyID(task.id);
@@ -1411,7 +1554,11 @@ function createTask(
   keyPath,
   implicitSlot,
   formatContext,
-  abortSet
+  abortSet,
+  lastTimestamp,
+  debugOwner,
+  debugStack,
+  debugTask
 ) {
   return createTaskWithID(
     request,
@@ -1420,7 +1567,12 @@ function createTask(
     keyPath,
     implicitSlot,
     formatContext,
-    abortSet
+    abortSet,
+    lastTimestamp,
+    debugOwner,
+    debugStack,
+    debugTask,
+    supportsRequestStorage ? currentUnitForRequest(request) : null
   );
 }
 function createTaskWithID(
@@ -1430,14 +1582,25 @@ function createTaskWithID(
   keyPath,
   implicitSlot,
   formatContext,
-  abortSet
+  abortSet,
+  lastTimestamp,
+  debugOwner,
+  debugStack,
+  debugTask,
+  creatorUnit
 ) {
   request.pendingChunks++;
   "object" !== typeof model ||
     null === model ||
     null !== keyPath ||
     implicitSlot ||
-    request.writtenObjects.set(model, serializeByValueID(id));
+    writeToDedupeMap(request, model, id, serializeByValueID(id));
+  lastTimestamp = null;
+  supportsRequestStorage &&
+    (lastTimestamp =
+      null === request.rootUnit
+        ? (request.rootUnit = createUnit(request, null, id))
+        : createUnit(request, creatorUnit, id));
   var task = {
     id: id,
     status: 0,
@@ -1448,7 +1611,8 @@ function createTaskWithID(
     ping: function () {
       return pingTask(request, task);
     },
-    thenableState: null
+    thenableState: null,
+    unit: lastTimestamp
   };
   abortSet.add(task);
   return task;
@@ -1503,7 +1667,11 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
                 task.keyPath,
                 task.implicitSlot,
                 task.formatContext,
-                request.abortableTasks
+                request.abortableTasks,
+                0,
+                null,
+                null,
+                null
               )),
               (JSCompiler_inline_result = jsonValue.ping),
               parentPropertyName.then(
@@ -1568,11 +1736,27 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
         : (prevImplicitSlot[resolved$16] = parent));
   return prevImplicitSlot;
 }
+function writeToDedupeMap(request, value, id, reference) {
+  id = { id: id, reference: reference };
+  request.writtenObjects.set(value, id);
+  return id;
+}
 function serializeByValueID(id) {
   return "$" + id.toString(16);
 }
 function serializeLazyID(id) {
   return "$L" + id.toString(16);
+}
+function serializeNumber(number) {
+  return Number.isFinite(number)
+    ? 0 === number && -Infinity === 1 / number
+      ? "$-0"
+      : number
+    : Infinity === number
+      ? "$Infinity"
+      : -Infinity === number
+        ? "$-Infinity"
+        : "$NaN";
 }
 function encodeReferenceChunk(request, id, reference) {
   request = stringify(reference);
@@ -1668,9 +1852,13 @@ function outlineModelWithFormatContext(request, value, formatContext) {
     null,
     !1,
     formatContext,
-    request.abortableTasks
+    request.abortableTasks,
+    0,
+    null,
+    null,
+    null
   );
-  0 === value.status && runWithRequest(request, retryTaskWithRequest, value);
+  retryTask(request, value);
   return value.id;
 }
 function serializeServerReference(request, serverReference) {
@@ -1715,6 +1903,7 @@ function serializeBlob(request, blob) {
     0 === newTask.status &&
       (request.cacheController.signal.removeEventListener("abort", abortBlob),
       erroredTask(request, newTask, reason),
+      completeWork(request),
       enqueueFlush(request),
       reader.cancel(reason).then(error, error));
   }
@@ -1727,12 +1916,25 @@ function serializeBlob(request, blob) {
         ? (request.abortableTasks.delete(newTask),
           haltTask(newTask),
           finishHaltedTask(newTask, request))
-        : (erroredTask(request, newTask, signal), enqueueFlush(request));
+        : (erroredTask(request, newTask, signal),
+          completeWork(request),
+          enqueueFlush(request));
       reader.cancel(signal).then(error, error);
     }
   }
   var model = [blob.type],
-    newTask = createTask(request, model, null, !1, 0, request.abortableTasks),
+    newTask = createTask(
+      request,
+      model,
+      null,
+      !1,
+      0,
+      request.abortableTasks,
+      0,
+      null,
+      null,
+      null
+    ),
     reader = blob.stream().getReader();
   request.cacheController.signal.aborted
     ? abortBlob()
@@ -1775,24 +1977,32 @@ function renderModelDestructive(
   if ("object" === typeof value) {
     switch (value.$$typeof) {
       case REACT_ELEMENT_TYPE:
-        var elementReference = null,
+        var elementEntry = null,
           writtenObjects = request.writtenObjects;
         if (null === task.keyPath && !task.implicitSlot) {
-          var existingReference = writtenObjects.get(value);
-          if (void 0 !== existingReference)
+          var existingEntry = writtenObjects.get(value);
+          if (void 0 !== existingEntry)
             if (modelRoot === value) modelRoot = null;
-            else return existingReference;
+            else
+              return (
+                recordUnitReference(resolveRunningUnit(), existingEntry.id),
+                existingEntry.reference
+              );
           else
             -1 === parentPropertyName.indexOf(":") &&
               ((parent = writtenObjects.get(parent)),
               void 0 !== parent &&
-                ((elementReference = parent + ":" + parentPropertyName),
-                writtenObjects.set(value, elementReference)));
+                (elementEntry = writeToDedupeMap(
+                  request,
+                  value,
+                  parent.id,
+                  parent.reference + ":" + parentPropertyName
+                )));
         }
         if (3200 < serializedSize) return deferTask(request, task);
         parentPropertyName = value.props;
         parent = parentPropertyName.ref;
-        value = renderElement(
+        request = renderElement(
           request,
           task,
           value.type,
@@ -1800,17 +2010,17 @@ function renderModelDestructive(
           void 0 !== parent ? parent : null,
           parentPropertyName
         );
-        "object" === typeof value &&
-          null !== value &&
-          null !== elementReference &&
-          (writtenObjects.has(value) ||
-            writtenObjects.set(value, elementReference));
-        return value;
+        "object" === typeof request &&
+          null !== request &&
+          null !== elementEntry &&
+          (writtenObjects.has(request) ||
+            writtenObjects.set(request, elementEntry));
+        return request;
       case REACT_LAZY_TYPE:
         if (3200 < serializedSize) return deferTask(request, task);
         task.thenableState = null;
-        elementReference = value._init;
-        value = elementReference(value._payload);
+        elementEntry = value._init;
+        value = elementEntry(value._payload);
         if (12 === request.status) throw null;
         return renderModelDestructive(
           request,
@@ -1818,6 +2028,71 @@ function renderModelDestructive(
           parent,
           parentPropertyName,
           value
+        );
+      case REACT_LEDGER_DATA_TYPE:
+        a: {
+          parent = ensureRequestLedgers(request);
+          parentPropertyName = [];
+          for (
+            elementEntry = 0;
+            elementEntry < value.totals.length;
+            elementEntry++
+          )
+            parentPropertyName.push(
+              ensureLedgerTotalDeclared(
+                request,
+                parent,
+                value.totals[elementEntry]
+              )
+            );
+          value = value.input;
+          if (
+            null !== value &&
+            "object" === typeof value &&
+            null === task.keyPath &&
+            !task.implicitSlot &&
+            ((parent = request.writtenObjects.get(value)), void 0 !== parent)
+          ) {
+            request = createUnit(
+              request,
+              currentUnitForRequest(request),
+              request.nextChunkId++
+            );
+            request.totals = parentPropertyName;
+            recordUnitReference(request, parent.id);
+            request = parent.reference;
+            break a;
+          }
+          task = createTask(
+            request,
+            value,
+            task.keyPath,
+            task.implicitSlot,
+            task.formatContext,
+            request.abortableTasks,
+            0,
+            null,
+            null,
+            null
+          );
+          parent = task.unit;
+          null !== parent && (parent.totals = parentPropertyName);
+          retryTask(request, task);
+          request =
+            1 === task.status
+              ? serializeByValueID(task.id)
+              : "object" !== typeof value ||
+                  null === value ||
+                  (value.$$typeof !== REACT_ELEMENT_TYPE &&
+                    value.$$typeof !== REACT_LAZY_TYPE)
+                ? serializeByValueID(task.id)
+                : serializeLazyID(task.id);
+        }
+        return request;
+      case REACT_LEDGER_TOTAL_TYPE:
+        return (
+          (task = ensureRequestLedgers(request)),
+          "$y" + ensureLedgerTotalDeclared(request, task, value).toString(16)
         );
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
@@ -1835,14 +2110,14 @@ function renderModelDestructive(
       return serializeServerReference(request, value);
     if (
       void 0 !== request.temporaryReferences &&
-      ((elementReference = request.temporaryReferences.get(value)),
-      void 0 !== elementReference)
+      ((elementEntry = request.temporaryReferences.get(value)),
+      void 0 !== elementEntry)
     )
-      return "$T" + elementReference;
-    elementReference = TaintRegistryObjects.get(value);
-    void 0 !== elementReference && throwTaintViolation(elementReference);
-    elementReference = request.writtenObjects;
-    writtenObjects = elementReference.get(value);
+      return "$T" + elementEntry;
+    elementEntry = TaintRegistryObjects.get(value);
+    void 0 !== elementEntry && throwTaintViolation(elementEntry);
+    elementEntry = request.writtenObjects;
+    writtenObjects = elementEntry.get(value);
     if ("function" === typeof value.then) {
       if (void 0 !== writtenObjects) {
         if (null !== task.keyPath || task.implicitSlot)
@@ -1853,43 +2128,58 @@ function renderModelDestructive(
               : "$@" + request.toString(16)
           );
         if (modelRoot === value) modelRoot = null;
-        else return writtenObjects;
+        else
+          return (
+            recordUnitReference(resolveRunningUnit(), writtenObjects.id),
+            writtenObjects.reference
+          );
       }
-      request = serializeThenable(request, task, value);
-      request =
+      task = serializeThenable(request, task, value);
+      parentPropertyName =
         "pending_weak" === value.status
-          ? "$w" + request.toString(16)
-          : "$@" + request.toString(16);
-      elementReference.set(value, request);
-      return request;
+          ? "$w" + task.toString(16)
+          : "$@" + task.toString(16);
+      writeToDedupeMap(request, value, task, parentPropertyName);
+      return parentPropertyName;
     }
     if (void 0 !== writtenObjects)
       if (modelRoot === value) {
-        if (writtenObjects !== serializeByValueID(task.id))
-          return writtenObjects;
+        if (writtenObjects.reference !== serializeByValueID(task.id))
+          return (
+            recordUnitReference(resolveRunningUnit(), writtenObjects.id),
+            writtenObjects.reference
+          );
         modelRoot = null;
-      } else return writtenObjects;
+      } else
+        return (
+          recordUnitReference(resolveRunningUnit(), writtenObjects.id),
+          writtenObjects.reference
+        );
     else if (
       -1 === parentPropertyName.indexOf(":") &&
-      ((writtenObjects = elementReference.get(parent)),
-      void 0 !== writtenObjects)
+      ((elementEntry = elementEntry.get(parent)), void 0 !== elementEntry)
     ) {
-      existingReference = parentPropertyName;
+      writtenObjects = parentPropertyName;
       if (isArrayImpl(parent) && parent[0] === REACT_ELEMENT_TYPE)
         switch (parentPropertyName) {
           case "1":
-            existingReference = "type";
+            writtenObjects = "type";
             break;
           case "2":
-            existingReference = "key";
+            writtenObjects = "key";
             break;
           case "3":
-            existingReference = "props";
+            writtenObjects = "props";
             break;
           case "4":
-            existingReference = "_owner";
+            writtenObjects = "_owner";
         }
-      elementReference.set(value, writtenObjects + ":" + existingReference);
+      writeToDedupeMap(
+        request,
+        value,
+        elementEntry.id,
+        elementEntry.reference + ":" + writtenObjects
+      );
     }
     if (isArrayImpl(value)) return renderFragment(request, task, value);
     if (value instanceof Map)
@@ -1936,9 +2226,9 @@ function renderModelDestructive(
       return serializeTypedArray(request, "V", value);
     if ("function" === typeof Blob && value instanceof Blob)
       return serializeBlob(request, value);
-    if ((elementReference = getIteratorFn(value)))
+    if ((elementEntry = getIteratorFn(value)))
       return (
-        (parentPropertyName = elementReference.call(value)),
+        (parentPropertyName = elementEntry.call(value)),
         parentPropertyName === value
           ? ((value = Array.from(parentPropertyName)),
             "$i" +
@@ -1947,25 +2237,25 @@ function renderModelDestructive(
       );
     if ("function" === typeof ReadableStream && value instanceof ReadableStream)
       return serializeReadableStream(request, task, value);
-    elementReference = value[ASYNC_ITERATOR];
-    if ("function" === typeof elementReference)
+    elementEntry = value[ASYNC_ITERATOR];
+    if ("function" === typeof elementEntry)
       return (
         null !== task.keyPath
-          ? ((value = [
+          ? ((request = [
               REACT_ELEMENT_TYPE,
               REACT_FRAGMENT_TYPE,
               task.keyPath,
               { children: value }
             ]),
-            (value = task.implicitSlot ? [value] : value))
-          : ((parentPropertyName = elementReference.call(value)),
-            (value = serializeAsyncIterable(
+            (request = task.implicitSlot ? [request] : request))
+          : ((parentPropertyName = elementEntry.call(value)),
+            (request = serializeAsyncIterable(
               request,
               task,
               value,
               parentPropertyName
             ))),
-        value
+        request
       );
     if (value instanceof Date) return "$D" + value.toJSON();
     request = getPrototypeOf(value);
@@ -1989,22 +2279,13 @@ function renderModelDestructive(
         ? "$D" + value
         : 1024 <= value.length && null !== byteLengthOfChunk
           ? (request.pendingChunks++,
-            (parentPropertyName = request.nextChunkId++),
-            emitTextChunk(request, parentPropertyName, value, !1),
-            serializeByValueID(parentPropertyName))
+            (task = request.nextChunkId++),
+            emitTextChunk(request, task, value, !1),
+            serializeByValueID(task))
           : escapeStringValue(value)
     );
   if ("boolean" === typeof value) return value;
-  if ("number" === typeof value)
-    return Number.isFinite(value)
-      ? 0 === value && -Infinity === 1 / value
-        ? "$-0"
-        : value
-      : Infinity === value
-        ? "$Infinity"
-        : -Infinity === value
-          ? "$-Infinity"
-          : "$NaN";
+  if ("number" === typeof value) return serializeNumber(value);
   if ("undefined" === typeof value) return "$undefined";
   if ("function" === typeof value) {
     if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
@@ -2040,11 +2321,10 @@ function renderModelDestructive(
   }
   if ("symbol" === typeof value) {
     task = request.writtenSymbols;
-    elementReference = task.get(value);
-    if (void 0 !== elementReference)
-      return serializeByValueID(elementReference);
-    elementReference = value.description;
-    if (Symbol.for(elementReference) !== value)
+    elementEntry = task.get(value);
+    if (void 0 !== elementEntry) return serializeByValueID(elementEntry);
+    elementEntry = value.description;
+    if (Symbol.for(elementEntry) !== value)
       throw Error(
         "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
           (value.description + ") cannot be found among global symbols.") +
@@ -2055,7 +2335,7 @@ function renderModelDestructive(
     parent = encodeReferenceChunk(
       request,
       parentPropertyName,
-      "$S" + elementReference
+      "$S" + elementEntry
     );
     request.completedImportChunks.push(parent);
     task.set(value, parentPropertyName);
@@ -2075,15 +2355,16 @@ function renderModelDestructive(
   );
 }
 function logRecoverableError(request, error) {
-  var prevRequest = currentRequest;
-  currentRequest = null;
+  var prevRequest = currentRequest,
+    prevUnit = currentUnit;
+  currentUnit = currentRequest = null;
   try {
     var onError = request.onError;
     var errorDigest = supportsRequestStorage
       ? requestStorage.run(void 0, onError, error)
       : onError(error);
   } finally {
-    currentRequest = prevRequest;
+    (currentRequest = prevRequest), (currentUnit = prevUnit);
   }
   if (null != errorDigest && "string" !== typeof errorDigest)
     throw Error(
@@ -2172,6 +2453,58 @@ function transformImportMetadata(request, value, depth) {
     default:
       return NOT_PLAIN_IMPORT_METADATA;
   }
+}
+function emitLedgerChunk(request, row) {
+  request.completedLedgerChunks.push(stringToChunk(row));
+}
+function ensureLedgerDeclared(request, ledgers, type) {
+  var declarations = ledgers.declarations;
+  null === declarations && (ledgers.declarations = declarations = new Map());
+  ledgers = declarations.get(type);
+  void 0 === ledgers &&
+    ((ledgers = request.nextChunkId++),
+    declarations.set(type, ledgers),
+    emitLedgerChunk(request, ledgers.toString(16) + ":K" + type.kind + "\n"));
+  return ledgers;
+}
+function ensureLedgerTotalDeclared(request, ledgers, total) {
+  if (!supportsRequestStorage)
+    throw Error(
+      "Cannot render captured ledgers because this Server Components renderer has no async context. Use a Node or Edge Server Components entry point."
+    );
+  var declarations = ledgers.declarations;
+  null === declarations && (ledgers.declarations = declarations = new Map());
+  var id = declarations.get(total);
+  void 0 === id &&
+    ((ledgers = ensureLedgerDeclared(request, ledgers, total.type)),
+    (id = request.nextChunkId++),
+    emitLedgerChunk(
+      request,
+      id.toString(16) + ":Y" + ledgers.toString(16) + "\n"
+    ),
+    declarations.set(total, id));
+  return id;
+}
+function emitLedgerDeltas(request, ledgers, unit, dirtyDeltas) {
+  dirtyDeltas.forEach(function (cell, type) {
+    cell = serializeNumber(cell.state);
+    type = [ensureLedgerDeclared(request, ledgers, type).toString(16), cell];
+    emitLedgerChunk(
+      request,
+      unit.id.toString(16) + ":Z" + stringify(type) + "\n"
+    );
+  });
+}
+function emitUnitReferences(request, unit, pending) {
+  if ("number" === typeof pending)
+    var references = '"' + pending.toString(16) + '"';
+  else
+    (references = ""),
+      pending.forEach(function (row) {
+        references += ',"' + row.toString(16) + '"';
+      }),
+      (references = references.slice(1));
+  emitLedgerChunk(request, unit.id.toString(16) + ":F[" + references + "]\n");
 }
 function emitModelChunk(request, id, json) {
   id = id.toString(16) + ":" + json + "\n";
@@ -2297,6 +2630,21 @@ function erroredTask(request, task, error) {
   callOnAllReadyIfReady(request);
 }
 var emptyRoot = {};
+function retryTask(request, task) {
+  var unit = task.unit;
+  if (null !== unit) {
+    var prevUnit = currentUnit;
+    currentUnit = unit;
+    try {
+      requestStorage.run(unit, retryTaskImpl, request, task);
+    } finally {
+      currentUnit = prevUnit;
+    }
+  } else retryTaskImpl(request, task);
+}
+function retryTaskImpl(request, task) {
+  0 === task.status && runWithRequest(request, retryTaskWithRequest, task);
+}
 function retryTaskWithRequest(request, task) {
   task.status = 5;
   var parentSerializedSize = serializedSize;
@@ -2313,7 +2661,12 @@ function retryTaskWithRequest(request, task) {
     task.keyPath = null;
     task.implicitSlot = !1;
     if ("object" === typeof resolvedModel && null !== resolvedModel)
-      request.writtenObjects.set(resolvedModel, serializeByValueID(task.id)),
+      writeToDedupeMap(
+        request,
+        resolvedModel,
+        task.id,
+        serializeByValueID(task.id)
+      ),
         emitChunk(request, task, resolvedModel);
     else {
       var json = stringify(resolvedModel);
@@ -2366,13 +2719,63 @@ function performWorkWithRequest(request) {
   try {
     var pingedTasks = request.pingedTasks;
     request.pingedTasks = [];
-    for (var i = 0; i < pingedTasks.length; i++) {
-      var task = pingedTasks[i];
-      0 === task.status && runWithRequest(request, retryTaskWithRequest, task);
-    }
+    for (var i = 0; i < pingedTasks.length; i++)
+      retryTask(request, pingedTasks[i]);
+    completeWork(request);
     flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
+  }
+}
+function completeWork(request$jscomp$1) {
+  var ledgers = request$jscomp$1.ledgers;
+  if (null !== ledgers && null !== ledgers.declarations) {
+    for (
+      var dirtyUnits = ledgers.dirtyUnits, i = 0;
+      i < dirtyUnits.length;
+      i++
+    ) {
+      var unit = dirtyUnits[i],
+        request = request$jscomp$1;
+      if (!unit.declared) {
+        for (
+          var undeclared = [unit], ancestor = unit.creator;
+          null !== ancestor && !ancestor.declared;
+
+        )
+          undeclared.push(ancestor), (ancestor = ancestor.creator);
+        for (ancestor = undeclared.length - 1; 0 <= ancestor; ancestor--) {
+          var request$jscomp$0 = request,
+            unit$jscomp$0 = undeclared[ancestor];
+          unit$jscomp$0.declared = !0;
+          var creator = unit$jscomp$0.creator,
+            totalIds = "",
+            totals = unit$jscomp$0.totals;
+          if (null !== totals)
+            for (var i$jscomp$0 = 0; i$jscomp$0 < totals.length; i$jscomp$0++)
+              totalIds += ',"' + totals[i$jscomp$0].toString(16) + '"';
+          emitLedgerChunk(
+            request$jscomp$0,
+            unit$jscomp$0.id.toString(16) +
+              ":Q" +
+              (null === creator
+                ? "[null,["
+                : '["' + creator.id.toString(16) + '",[') +
+              totalIds.slice(1) +
+              "]]\n"
+          );
+        }
+      }
+      request = unit.dirtyDeltas;
+      null !== request &&
+        (emitLedgerDeltas(request$jscomp$1, ledgers, unit, request),
+        (unit.dirtyDeltas = null));
+      request = unit.dirtyReferences;
+      null !== request &&
+        (emitUnitReferences(request$jscomp$1, unit, request),
+        (unit.dirtyReferences = null));
+    }
+    dirtyUnits.length = 0;
   }
 }
 function abortTask(task) {
@@ -2408,6 +2811,10 @@ function flushCompletedChunks(request) {
       for (i = 0; i < hintChunks.length; i++)
         writeChunkAndReturn(destination, hintChunks[i]);
       hintChunks.splice(0, i);
+      var ledgerChunks = request.completedLedgerChunks;
+      for (i = 0; i < ledgerChunks.length; i++)
+        writeChunkAndReturn(destination, ledgerChunks[i]);
+      ledgerChunks.splice(0, i);
       var regularChunks = request.completedRegularChunks;
       for (i = 0; i < regularChunks.length; i++) {
         var item = regularChunks[i];
@@ -2465,7 +2872,16 @@ function startWork(request) {
   request.flushScheduled = null !== request.destination;
   supportsRequestStorage
     ? scheduleMicrotask(function () {
-        requestStorage.run(request, performWork, request);
+        var rootUnit = request.rootUnit;
+        if (null !== rootUnit) {
+          var prevUnit = currentUnit;
+          currentUnit = rootUnit;
+          try {
+            requestStorage.run(rootUnit, performWork, request);
+          } finally {
+            currentUnit = prevUnit;
+          }
+        } else requestStorage.run(request, performWork, request);
       })
     : scheduleMicrotask(function () {
         return performWork(request);
@@ -2486,7 +2902,7 @@ function enqueueFlush(request) {
 }
 function callOnAllReadyIfReady(request) {
   0 === request.abortableTasks.size &&
-    ((request = request.onAllReady), request());
+    (completeWork(request), (request = request.onAllReady), request());
 }
 function startFlowing(request, destination) {
   if (13 === request.status)
@@ -2505,6 +2921,7 @@ function finishHalt(request, abortedTasks) {
     abortedTasks.forEach(function (task) {
       return finishHaltedTask(task, request);
     });
+    completeWork(request);
     var onAllReady = request.onAllReady;
     onAllReady();
     flushCompletedChunks(request);
@@ -2517,6 +2934,7 @@ function finishAbort(request, abortedTasks, errorId) {
     abortedTasks.forEach(function (task) {
       return finishAbortedTask(task, request, errorId);
     });
+    completeWork(request);
     var onAllReady = request.onAllReady;
     onAllReady();
     flushCompletedChunks(request);
@@ -2575,13 +2993,14 @@ function abort(request, reason) {
           }, 0);
         }
       else {
+        completeWork(request);
         var onAllReady = request.onAllReady;
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$36) {
-      logRecoverableError(request, error$36, null),
-        fatalError(request, error$36);
+    } catch (error$38) {
+      logRecoverableError(request, error$38, null),
+        fatalError(request, error$38);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -3451,12 +3870,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$39 = new ReactPromise("pending", null, null);
-          chunk$39.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$39;
+          var chunk$41 = new ReactPromise("pending", null, null);
+          chunk$41.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$41;
           chunk.then(function () {
-            previousBlockedChunk === chunk$39 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$39, json, -1);
+            previousBlockedChunk === chunk$41 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$41, json, -1);
           });
         }
       },

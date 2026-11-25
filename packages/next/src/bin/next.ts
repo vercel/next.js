@@ -38,6 +38,11 @@ import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
+import { captureOriginalEnv } from '../lib/upgrade/original-env'
+
+// Before anything below changes process.env, so agent upgrades can hand the
+// coding agent the user's environment.
+captureOriginalEnv()
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
@@ -200,6 +205,14 @@ program
   )
   .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
   .addOption(new Option('--experimental-analyze').hideHelp())
+  .addOption(new Option('--no-lint').hideHelp())
+  .on('option:no-lint', () => {
+    program.error(
+      'error: The --no-lint option has been removed in Next.js 16. next build no longer runs linting.\n' +
+        'Remove --no-lint from your build command and run ESLint or Biome directly if needed.\n' +
+        'Read more: https://nextjs.org/docs/app/guides/upgrading/version-16#next-lint-command'
+    )
+  })
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',

@@ -1,4 +1,4 @@
-package main
+package __NEXT_GO_PACKAGE__
 
 import (
 	"net/http"
@@ -117,9 +117,16 @@ func nextGoNormalizeURL(r *http.Request) bool {
 	}
 	rawPath, rawQuery, hasQuery := strings.Cut(target, "?")
 	path := nextGoParsePath(rawPath)
-	// Assigning URL.pathname reparses dot segments, including ones exposed by
-	// removing a transport suffix, such as /a/...rsc becoming /a/.. and then /.
-	path = nextGoParsePath(nextGoNormalizeRSCPath(path))
+	path = nextGoNormalizeRSCPath(path)
+	// Assigning URL.pathname reparses dot segments. If removing a transport
+	// suffix exposes one, such as /a/...rsc becoming /a/.. and then /, the proxy
+	// could authorize the parent while an adapter routes the original path to a
+	// protected handler. Reject literal and percent-encoded forms instead.
+	reparsedPath := nextGoParsePath(path)
+	if reparsedPath != path {
+		return false
+	}
+	path = reparsedPath
 	if nextGoIsDataPath(path) || nextGoHasRSCSegment(path) {
 		return false
 	}
@@ -337,7 +344,13 @@ func nextGoFormEncode(value string) string {
 	return strings.ReplaceAll(value, " ", "+")
 }
 
-func nextGoHandler() http.HandlerFunc {
+// NextInternalGoHandler is called by the entrypoint that Next.js generates. It is
+// not part of the proxy API.
+func NextInternalGoHandler(trustInternalHeaders bool) http.HandlerFunc {
+	return nextGoHandler(trustInternalHeaders)
+}
+
+func nextGoHandler(nextGoTrustInternalHeaders bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Bound normalization work before decoding or allocating query values.
 		// Count separators directly, including empty parameters.

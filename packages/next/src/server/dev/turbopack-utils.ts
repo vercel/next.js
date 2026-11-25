@@ -130,6 +130,7 @@ export type ClientState = {
   messages: Map<string, HmrMessageSentToBrowser>
   turbopackUpdates: TurbopackUpdate[]
   subscriptions: Map<string, AsyncIterator<any>>
+  hmrVersionChecked: boolean
 }
 
 export type ClientStateMap = WeakMap<ws, ClientState>
@@ -612,8 +613,8 @@ export function hasEntrypointForKey(
 // hooks only used by the dev server.
 type HandleEntrypointsHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
-  /** Applies a native proxy's static config from its written descriptor. */
-  loadNativeMiddleware: () => Promise<void>
+  /** Applies a native proxy's config, or fails closed if no entry was written. */
+  loadNativeMiddleware: (entryPath: string | undefined) => Promise<void>
   propagateServerField: (
     field: PropagateToWorkersField,
     args: any
@@ -800,22 +801,17 @@ export async function handleEntrypoints({
           }
         }
       }
-      // A failed native compile publishes no descriptor; keep the last config.
-      if (
-        writtenEndpoint.value.type === 'native' &&
-        writtenEndpoint.value.entryPath
-      ) {
-        await dev.hooks.loadNativeMiddleware()
+      // A failed native compile publishes no descriptor. Still update routing
+      // so stale restrictive matchers cannot let requests bypass the proxy.
+      if (writtenEndpoint.value.type === 'native') {
+        await dev.hooks.loadNativeMiddleware(writtenEndpoint.value.entryPath)
       }
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
 
-      if (dev && middlewareConfig) {
+      if (dev && middlewareConfig && writtenEndpoint.value.type !== 'native') {
         dev.serverFields.middleware = {
-          // TODO(as-any): pre-existing cast, not yet reviewed
-          // eslint-disable-next-line @next/internal/no-as-any
-          match: null as any,
           page: '/',
           runtime: 'edge',
           matchers: middlewareConfig.matchers,

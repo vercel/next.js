@@ -1311,7 +1311,7 @@ pub struct LightningCssFeatures {
 }
 
 /// `experimental.imgOptSafeMode`. `assignDefaultsAndValidate` normalizes this to the object form
-/// with both fields set, but the boolean form is accepted too.
+/// with every field set, but the boolean form is accepted too.
 #[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum ImgOptSafeMode {
@@ -1319,7 +1319,6 @@ pub enum ImgOptSafeMode {
     #[serde(rename_all = "camelCase")]
     Options {
         next_image: Option<bool>,
-        image_response: Option<bool>,
     },
 }
 
@@ -1329,10 +1328,7 @@ impl ImgOptSafeMode {
     fn is_enabled(&self) -> bool {
         match self {
             ImgOptSafeMode::Bool(enabled) => *enabled,
-            ImgOptSafeMode::Options {
-                next_image,
-                image_response,
-            } => next_image.unwrap_or(false) || image_response.unwrap_or(false),
+            ImgOptSafeMode::Options { next_image } => next_image.unwrap_or(false),
         }
     }
 }

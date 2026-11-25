@@ -82,6 +82,10 @@ import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
+import {
+  getGoProxyMatcher,
+  InvalidGoProxyRequestError,
+} from './lib/native-proxy-matcher'
 import { loadEnvConfig } from '@next/env'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
@@ -1529,7 +1533,7 @@ export default class NextNodeServer extends BaseServer<
         { regexp: '.*', originalSource: '/:path*' },
       ]
       return {
-        match: getMiddlewareRouteMatcher(matchers),
+        match: getGoProxyMatcher(matchers),
         matchers,
         page: '/',
         runtime: 'go',
@@ -1832,7 +1836,12 @@ export default class NextNodeServer extends BaseServer<
               ? (request: Request) =>
                   // proxy.go normalizes the URL itself, so it receives the
                   // URL from before the adapter's proxy.ts normalization.
-                  this.nativeProxy!.invokeMiddleware(nativeEntry, request, url)
+                  this.nativeProxy!.invokeMiddleware(
+                    nativeEntry,
+                    request,
+                    url,
+                    params.request.originalRequest.rawHeaders
+                  )
               : undefined) ||
             middlewareModule.proxy ||
             middlewareModule.middleware ||
@@ -1941,13 +1950,22 @@ export default class NextNodeServer extends BaseServer<
       /* non-fatal we can't decode so can't match it */
     }
 
-    if (
-      !(
-        middleware.match(normalizedPathname, req, parsedUrl.query) ||
-        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
-      )
-    ) {
-      return handleFinished()
+    try {
+      if (
+        !(
+          middleware.match(normalizedPathname, req, parsedUrl.query) ||
+          middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+        )
+      ) {
+        return handleFinished()
+      }
+    } catch (error) {
+      if (error instanceof InvalidGoProxyRequestError) {
+        res.statusCode = 400
+        res.body('Bad Request').send()
+        return true
+      }
+      throw error
     }
 
     let result: Awaited<

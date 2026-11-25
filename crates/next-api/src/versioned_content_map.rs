@@ -2,6 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, GcRoot, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State,
@@ -97,11 +98,13 @@ impl VersionedContentMap {
 
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
-    /// Lists the aggregate-HMR *entry* chunks under `root` with their
+    /// Lists the aggregate-HMR *entry* chunks under `root` whose path relative to `root` is one of
+    /// `entry_paths`, with their
     /// [`VersionedContent`](turbopack_core::version::VersionedContent), sorted by path. Only
-    /// Node.js chunk-list content is returned. Callers scope which
-    /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
-    /// subscription passes `server/app` to include App Router entries only).
+    /// Node.js chunk-list content is returned.
+    ///
+    /// Paths are filtered before any asset is read, so a pull only depends on the requested
+    /// entries' assets, not on every server asset written so far.
     ///
     /// `map_path_to_op` is an `FxHashMap`, whose iteration order depends on
     /// bucket layout rather than insertion order, so the same set of paths can
@@ -113,6 +116,7 @@ impl VersionedContentMap {
     pub async fn server_hmr_chunks_in_path(
         self: Vc<Self>,
         root: FileSystemPath,
+        entry_paths: FrozenSet<RcStr>,
     ) -> Result<Vc<ServerHmrChunkLists>> {
         let this = self.await?;
         // `State::get` returns a lock guard, which can't be held across the
@@ -125,8 +129,8 @@ impl VersionedContentMap {
         let mut chunks = paths
             .into_iter()
             .filter_map(|path| {
-                let rel = root.get_path_to(&path)?;
-                Some((RcStr::from(rel), path))
+                let rel = RcStr::from(root.get_path_to(&path)?);
+                entry_paths.contains(&rel).then_some((rel, path))
             })
             .map(async |(name, path)| {
                 // Skip Redirect assets: they're symlinks with no file content,

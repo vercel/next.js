@@ -1,4 +1,4 @@
-package main
+package __NEXT_GO_PACKAGE__
 
 import (
 	"encoding/base64"

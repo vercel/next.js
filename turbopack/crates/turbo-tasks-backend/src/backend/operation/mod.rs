@@ -102,6 +102,18 @@ impl TaskLockCounter {
         }
     }
 
+    /// Increment the count from 1 to 2, for a second guard taken while exactly one is held (see
+    /// [`ExecuteContext::task_pair_upgrade`]). Panics if a different number of guards is alive.
+    fn acquire_second(&self) {
+        #[cfg(debug_assertions)]
+        if self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel) != 1 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+    }
+
     /// Decrement the count by 1.
     fn release(&self) {
         #[cfg(debug_assertions)]
@@ -1201,6 +1213,42 @@ impl<'e> ExecuteContext<'e> {
         )
     }
 
+    /// Like [`Self::task_pair`], when the first task is already locked: returns `task` together
+    /// with `task_id2`, without unlocking `task` when possible.
+    ///
+    /// `task_id2` is only try-locked while `task` stays locked, so this can't deadlock with a
+    /// thread that holds `task_id2` and waits for `task`. When that doesn't succeed right away (the
+    /// shard of `task_id2` is locked, or is the shard of `task`; `task_id2` isn't resident, or
+    /// isn't restored for `category`), or `task` isn't restored for `category`, `task` is unlocked
+    /// and this falls back to [`Self::task_pair`]. So, like with dropping `task` and calling
+    /// [`Self::task_pair`], callers can't rely on what they read from `task` before.
+    #[track_caller]
+    pub fn task_pair_upgrade(
+        &mut self,
+        task: TaskGuard<'e>,
+        task_id2: TaskId,
+        category: TaskDataCategory,
+    ) -> (TaskGuard<'e>, TaskGuard<'e>) {
+        // Just handle the common happy path, delegating difficult cases back to `task_pair``
+        if task.task.flags.is_restored(category)
+            && let Some(task2) = self.backend().storage.try_access_mut(task_id2)
+            && task2.flags.is_restored(category)
+        {
+            self.task_lock_counter.acquire_second();
+            #[cfg(debug_assertions)]
+            let task = {
+                let mut task = task;
+                task.category = category;
+                task
+            };
+            let task2 = TaskGuard::new(task2, task_id2, category, self.task_lock_counter.clone());
+            return (task, task2);
+        }
+        let task_id = task.id();
+        drop(task);
+        self.task_pair(task_id, task_id2, category)
+    }
+
     /// Opens two tasks that must **already exist** under a single lock acquisition (to atomically
     /// read/mutate an edge between them). Both ids are opened `MustExist` — an edge only exists
     /// between already-materialized tasks.
@@ -2022,6 +2070,56 @@ mod must_exist_tests {
             .access_mut(id)
             .flags
             .set_restored(category);
+    }
+
+    /// Upgrading a held task to a pair works for tasks in the same shard (which relocks both) and
+    /// in different shards (which keeps the held lock), and both guards write to the right tasks.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn task_pair_upgrade_returns_both_tasks() {
+        let tt = backend();
+        const TASKS: u32 = 256;
+        for id in 1..=TASKS {
+            resident(&tt, persistent(id), TaskDataCategory::All);
+        }
+        let mut ctx = ExecuteContext::new(&tt);
+        for id in 2..=TASKS {
+            let held = ctx.task(persistent(1), TaskDataCategory::Meta);
+            let (mut first, mut second) =
+                ctx.task_pair_upgrade(held, persistent(id), TaskDataCategory::All);
+            assert_eq!(first.id(), persistent(1));
+            assert_eq!(second.id(), persistent(id));
+            first.update_and_get_transient_ref_count(1);
+            second.update_and_get_transient_ref_count(1);
+        }
+        drop(ctx);
+        let storage = &tt.backend().storage;
+        assert_eq!(
+            storage.with_task(persistent(1), |t| t.gc_transient_ref_count()),
+            Some(TASKS - 1)
+        );
+        for id in 2..=TASKS {
+            assert_eq!(
+                storage.with_task(persistent(id), |t| t.gc_transient_ref_count()),
+                Some(1)
+            );
+        }
+    }
+
+    /// When the second task isn't resident, the upgrade falls back to `task_pair`, which keeps its
+    /// existence contract.
+    #[tokio::test(flavor = "multi_thread")]
+    #[should_panic(expected = "task_pair, MustExist")]
+    async fn task_pair_upgrade_rejects_a_missing_second_task() {
+        let tt = backend();
+        let present = persistent(1);
+        resident(&tt, present, TaskDataCategory::All);
+        let mut ctx = ExecuteContext::new(&tt);
+        let held = ctx.task(present, TaskDataCategory::All);
+        let _ = ctx.task_pair_upgrade(
+            held,
+            TaskId::new(TRANSIENT_TASK_BIT | 2).unwrap(),
+            TaskDataCategory::All,
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]

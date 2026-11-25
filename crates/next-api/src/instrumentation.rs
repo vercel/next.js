@@ -240,6 +240,7 @@ impl Endpoint for InstrumentationEndpoint {
                 }
                 .resolved_cell(),
                 project: this.project,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell())

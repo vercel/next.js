@@ -114,7 +114,10 @@ browser paths and compile browser entrypoints; analysis does not inspect transit
 Go packages or execute declarations.
 
 Consumers interpret names and generate their own entrypoints. Syntax errors are
-available while allowing the compiler to emit its usual diagnostics.
+available while allowing the compiler to emit its usual diagnostics. `selected_functions`
+and `selected_packages` cover only the files Go's package file selection includes for the
+session's GOOS, GOARCH and build tags with cgo disabled, for consumers that compile the
+sources as an importable package.
 
 Resolve `go_source_set(...).to_resolved().await?` once to capture an immutable source
 generation. Share that resolved handle with declaration analysis and
@@ -124,6 +127,29 @@ It detects stale analysis inputs and returns a validity token covering source se
 and transitive compiler inputs. Source names, bytes and directory membership must agree
 with analysis before the resulting executable is published. This remains best effort
 against concurrent writers, not a transactional filesystem snapshot.
+
+`go_package_bundle_from_sources(*sources, target_session, alias, generated)` compiles the
+selected directory as an ordinary, importable package instead of as `package main`. The
+directory is overlaid at `alias`, a module-relative virtual directory, so its import path
+is the module path (`GoSourceSet::module_path`) joined with `alias`. Source directory names
+therefore do not need to be valid import paths, such as `app/[id]`. Generated files under
+`alias` join that package; the remaining generated Go files form the importing `main`
+package and must share one directory. Source directories without a `go.mod` can supply one
+as a generated file. The package uses Go's normal file selection, including build tags.
+Go files directly in the package directory start with a `//line` directive in the overlay,
+so compiler diagnostics and stack traces name the source files; embedding those files
+therefore includes the directive. Other mirrored files, including `.go` files below embed
+patterns, keep their original bytes. Other diagnostics are mapped back to the source
+directory. Discovery mirrors the directory's regular files, plus the entries each embed
+pattern can match: a matched file by itself and a matched directory with its subtree, as
+Go selects them. Only directory listings along a pattern are observed, so an embed in a
+package at the project root does not walk `node_modules`. Discovery also tracks the source
+files Go reads. Nothing is written to the project.
+
+`go_source_failure(*sources, session, message)` returns a failed `GoBundleResult` for a
+source set the consumer does not compile, such as a directory that declares
+`package main`. It carries the source selection's inputs, so `read_with_validated_inputs`
+rereads the consumer's operation after edits that may resolve the failure.
 
 `GoSessionPool` lazily probes `GoToolchainOptions`, constructs persistent host or target
 sessions, retains their restored cancellation handles, and leases module-cache watchers.

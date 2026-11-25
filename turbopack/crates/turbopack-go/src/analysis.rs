@@ -1,5 +1,5 @@
 //! Cached Go syntax queries. Frameworks interpret declarations and generate their own entrypoints.
-use std::{collections::BTreeMap, io::Read, sync::atomic::Ordering};
+use std::{collections::BTreeMap, io::Read, path::Path, sync::atomic::Ordering};
 
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
@@ -22,13 +22,21 @@ pub struct GoDeclarations {
     /// All package-level functions of the analyzed files, including unexported names such as
     /// `main`. Methods are excluded.
     pub functions: Vec<RcStr>,
+    /// Package clauses recovered from parsed files, sorted and deduplicated, including files
+    /// with syntax errors. The compiler reports any disagreement between package clauses.
+    #[serde(default)]
+    pub packages: Vec<RcStr>,
+    /// `functions` restricted to files that Go's package file selection includes for the
+    /// session's GOOS, GOARCH and build tags, with cgo disabled. File name suffixes such as
+    /// `_windows.go` and `//go:build` constraints apply, as for an imported package.
+    #[serde(default)]
+    pub selected_functions: Vec<RcStr>,
+    /// `packages` restricted to the same selected files.
+    #[serde(default)]
+    pub selected_packages: Vec<RcStr>,
     /// Exported package-level `var` and `const` declarations of the analyzed files, keyed by
-    /// name. Each value is a
-    /// JSON document with the declaration's `pos`, whether it is `constant`, its file's
-    /// `imports`, and a syntax description of its initializer: composite literals (with their
-    /// type as written and keyed or positional elements), string and integer literals, and
-    /// `true`/`false`. Every other expression is `{"kind":"unsupported"}`. Nothing is evaluated.
-    pub values: BTreeMap<RcStr, RcStr>,
+    /// name. Initializers describe syntax only; nothing is evaluated.
+    pub values: BTreeMap<RcStr, GoDeclaration>,
     /// Parsing errors are retained without preventing the compiler from emitting its normal
     /// diagnostics. Callers can still generate an entrypoint from valid declarations.
     pub syntax_errors: Vec<RcStr>,
@@ -44,6 +52,69 @@ pub struct GoBrowserEntry {
     pub file: RcStr,
     pub line: u32,
     pub column: u32,
+}
+
+/// An exported package-level value and the imports in the file declaring it.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoDeclaration {
+    pub pos: RcStr,
+    pub constant: bool,
+    /// The declared type as written, or `None` for an untyped declaration.
+    #[serde(default, rename = "type")]
+    pub type_name: Option<RcStr>,
+    pub imports: Vec<GoImport>,
+    pub value: GoValue,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoImport {
+    pub name: RcStr,
+    pub path: RcStr,
+}
+
+/// A supported initializer expression. All other Go expressions remain unsupported.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum GoValue {
+    String {
+        pos: RcStr,
+        value: RcStr,
+    },
+    Int {
+        pos: RcStr,
+        value: i64,
+    },
+    Bool {
+        pos: RcStr,
+        value: bool,
+    },
+    Composite {
+        pos: RcStr,
+        #[serde(rename = "type")]
+        type_name: Option<RcStr>,
+        elements: Vec<GoValueElement>,
+    },
+    Unsupported {
+        pos: RcStr,
+    },
+}
+
+impl GoValue {
+    pub fn pos(&self) -> &str {
+        match self {
+            Self::String { pos, .. }
+            | Self::Int { pos, .. }
+            | Self::Bool { pos, .. }
+            | Self::Composite { pos, .. }
+            | Self::Unsupported { pos } => pos,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoValueElement {
+    pub key: Option<RcStr>,
+    pub value: GoValue,
 }
 
 #[turbo_tasks::function]
@@ -91,8 +162,14 @@ pub async fn go_declarations_with_assets(
         "asset_package": asset_package,
         "asset_package_name": asset_package_name,
     }))?;
+    let arguments = [
+        format!("-goos={}", go_context.goos),
+        format!("-goarch={}", go_context.goarch),
+        format!("-tags={}", go_context.tags),
+    ];
+    let arguments: Vec<&Path> = arguments.iter().map(Path::new).collect();
     let report = match go_context
-        .run_executable_with_input(&path, &[], Some(&input))
+        .run_executable_with_input(&path, &arguments, Some(&input))
         .await
     {
         Ok(report) => report,

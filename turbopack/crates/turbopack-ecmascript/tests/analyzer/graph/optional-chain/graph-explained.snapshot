@@ -1,0 +1,1 @@
+cfg (const after eval) = {"path": "./target.js"}

@@ -130,10 +130,10 @@ import {
   traceLocalSpan,
 } from '../lib/trace/local-span-recorder'
 import {
-  importRequestInsightSpans,
   isRequestInsightsEnabled,
   startRequestInsight,
 } from '../lib/trace/request-insights'
+import { importRequestInsightSpans } from '../lib/trace/import-request-insight-spans'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,

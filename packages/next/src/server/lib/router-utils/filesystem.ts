@@ -40,6 +40,7 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getGoProxyMatcher } from '../native-proxy-matcher'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import {
   APP_PATH_ROUTES_MANIFEST,
@@ -551,7 +552,11 @@ export async function setupFsCheck(opts: {
         middlewareManifest.middleware?.['/']?.matchers
       )
     } else if (functionsConfigManifest?.functions['/_middleware']) {
-      middlewareMatcher = getMiddlewareRouteMatcher(
+      const getMatcher =
+        functionsConfigManifest.functions['/_middleware'].runtime === 'go'
+          ? getGoProxyMatcher
+          : getMiddlewareRouteMatcher
+      middlewareMatcher = getMatcher(
         functionsConfigManifest.functions['/_middleware'].matchers ?? [
           { regexp: '.*', originalSource: '/:path*' },
         ]

@@ -4,14 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -333,6 +336,120 @@ func TestForwardsAResponseBeforeTheUploadFinishes(t *testing.T) {
 				t.Errorf("remaining body = %q, want %q", body, want)
 			}
 		})
+	}
+}
+
+// Go's server guesses a Content-Type from the body unless the header map has
+// a Content-Type entry when the final WriteHeader arrives. Whether a guess
+// shows up on the wire depends on whether the proxy's flush timer sends the
+// headers before the first body write, so this checks the header map at that
+// call instead, which doesn't depend on timing.
+func TestAddsNoContentTypeAfterAnEarlyHint(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Link", "</a.css>; rel=preload")
+		w.WriteHeader(http.StatusEarlyHints)
+		delete(w.Header(), "Link")
+		w.Header()["Content-Type"] = nil
+		w.Write([]byte("<html>hello</html>"))
+	}))
+	t.Cleanup(upstream.Close)
+	public := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}
+	handler := newProxy(upstream.Listener.Addr().String(), public, 4*time.Second, testToken)
+
+	w := &finalHeaderRecorder{header: http.Header{}}
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://shop.example.com/", nil))
+	if w.codes != "103,200" {
+		t.Fatalf("WriteHeader calls %q, want 103,200", w.codes)
+	}
+	if !w.finalHasContentType {
+		t.Error("no Content-Type entry when the final WriteHeader arrived, so Go's server would guess one")
+	}
+	if v := w.header["Content-Type"]; len(v) != 0 {
+		t.Errorf("Content-Type %q, want none", v)
+	}
+}
+
+// finalHeaderRecorder is a ResponseWriter that records each WriteHeader code
+// and whether the header map had a Content-Type entry at the final one.
+type finalHeaderRecorder struct {
+	header              http.Header
+	codes               string
+	finalHasContentType bool
+	wroteFinal          bool
+}
+
+func (f *finalHeaderRecorder) Header() http.Header { return f.header }
+
+func (f *finalHeaderRecorder) WriteHeader(code int) {
+	if f.wroteFinal {
+		return
+	}
+	if f.codes != "" {
+		f.codes += ","
+	}
+	f.codes += strconv.Itoa(code)
+	if code >= 200 {
+		f.wroteFinal = true
+		_, f.finalHasContentType = f.header["Content-Type"]
+	}
+}
+
+func (f *finalHeaderRecorder) Write(p []byte) (int, error) {
+	f.WriteHeader(http.StatusOK)
+	return len(p), nil
+}
+
+func (f *finalHeaderRecorder) Flush() {}
+
+// The Early Hints themselves still reach the client, each with its own Link
+// header, and nothing from them leaks into the final response.
+func TestPassesOnEveryEarlyHint(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Link", "</a.css>; rel=preload")
+		w.WriteHeader(http.StatusEarlyHints)
+		w.Header().Set("Link", "</b.js>; rel=preload")
+		w.WriteHeader(http.StatusEarlyHints)
+		// Go's server, unlike Node's writeEarlyHints, keeps headers set for a
+		// 1xx and sends them again with the final response; clear them so the
+		// stand-in for Node sends only what Node would.
+		delete(w.Header(), "Link")
+		w.Header()["Content-Type"] = nil
+		w.Write([]byte("<html>hello</html>"))
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, get("/"))
+	reader := bufio.NewReader(conn)
+	// http.ReadResponse returns a 1xx as it is; Go's client would skip it.
+	var links []string
+	for {
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode == http.StatusEarlyHints {
+			links = append(links, res.Header.Get("Link"))
+			continue
+		}
+		io.Copy(io.Discard, res.Body)
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("final status %d, want 200", res.StatusCode)
+		}
+		if v, ok := res.Header["Content-Type"]; ok {
+			t.Errorf("final Content-Type %q, want none", v)
+		}
+		if v := res.Header.Get("Link"); v != "" {
+			t.Errorf("final response has Link %q from an Early Hint", v)
+		}
+		break
+	}
+	want := []string{"</a.css>; rel=preload", "</b.js>; rel=preload"}
+	if strings.Join(links, "|") != strings.Join(want, "|") {
+		t.Errorf("Early Hints Link headers %q, want %q", links, want)
 	}
 }
 
@@ -857,6 +974,91 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 				t.Errorf("answered %q, want 408 Request Timeout", answer)
 			}
 		})
+	}
+}
+
+// Response bodies go through pooled buffers; concurrent responses larger than
+// one buffer must each arrive whole and unmixed.
+func TestKeepsConcurrentLargeBodiesIntact(t *testing.T) {
+	body := func(id string) []byte {
+		return bytes.Repeat([]byte(id), 100*1024/len(id))
+	}
+	addr, seen := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write(body(r.URL.Query().Get("id")))
+	})
+	// startProxy's upstream records every request; keep its queue drained.
+	go func() {
+		for range seen {
+		}
+	}()
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < 8; j++ {
+				id := fmt.Sprintf("<%02d-%d>", i, j)
+				res, err := http.Get("http://" + addr + "/?id=" + id)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				got, err := io.ReadAll(res.Body)
+				res.Body.Close()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if !bytes.Equal(got, body(id)) {
+					t.Errorf("response %s: got %d bytes that differ from what Node sent", id, len(got))
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+// A buffer is zeroed when it goes back to the pool, so nothing from the
+// response that used it is left for the next one.
+func TestZeroesBuffersReturnedToThePool(t *testing.T) {
+	pool := bufferPool{pool: sync.Pool{}}
+	buf := pool.Get()
+	copy(buf, "an earlier response's body")
+	pool.Put(buf)
+	// Put clears the buffer in place, so buf shows what the pool now holds.
+	if bytes.ContainsFunc(buf, func(r rune) bool { return r != 0 }) {
+		t.Errorf("buffer still holds data after Put: %q", buf[:32])
+	}
+}
+
+func TestLimitsThreadsUnlessGOMAXPROCSIsSet(t *testing.T) {
+	cases := []struct {
+		env     string
+		current int
+		want    int
+	}{
+		{env: "", current: 16, want: 4},
+		{env: "", current: 8, want: 4},
+		{env: "", current: 4, want: 4},
+		{env: "", current: 2, want: 2},
+		{env: "", current: 1, want: 1},
+		{env: "8", current: 8, want: 8},
+		{env: "2", current: 2, want: 2},
+		{env: "1", current: 1, want: 1},
+		// Go ignores values that aren't a positive number, so Switchyard's
+		// limit still applies.
+		{env: "08", current: 8, want: 8},
+		{env: "0", current: 16, want: 4},
+		{env: "many", current: 16, want: 4},
+		{env: "+8", current: 16, want: 4},
+		{env: "-8", current: 16, want: 4},
+		{env: " 8", current: 16, want: 4},
+		{env: "2147483648", current: 16, want: 4}, // above 32 bits
+	}
+	for _, c := range cases {
+		if got := threadsToUse(c.env, c.current); got != c.want {
+			t.Errorf("threadsToUse(%q, %d) = %d, want %d", c.env, c.current, got, c.want)
+		}
 	}
 }
 
@@ -1399,4 +1601,143 @@ func TestUpgradedConnectionsGiveTheirSlotBack(t *testing.T) {
 	if peers[0] != peers[1] {
 		t.Errorf("requests reached Node from %v while a tunnel was open, want one kept connection", peers)
 	}
+}
+
+// startRawUpstream runs a minimal HTTP/1.1 server in place of Node, so a test
+// can see how each connection from Switchyard ends. It answers "ok" with
+// keep-alive, holds requests to /slow without answering, and answers an
+// upgrade with 101 and then reads the tunnel to its end. For every connection
+// it reports what it read after its last request and the error that ended
+// the connection: io.EOF for a FIN, a reset error for a reset.
+func startRawUpstream(t *testing.T) (string, <-chan connEnd, <-chan struct{}) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	ends := make(chan connEnd, 16)
+	held := make(chan struct{}, 16)
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				reader := bufio.NewReader(conn)
+				for {
+					req, err := http.ReadRequest(reader)
+					if err != nil {
+						ends <- connEnd{err: err}
+						return
+					}
+					io.Copy(io.Discard, req.Body)
+					switch {
+					case req.Header.Get("Upgrade") != "":
+						io.WriteString(conn, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+						data, err := io.ReadAll(reader)
+						if err == nil {
+							err = io.EOF
+						}
+						ends <- connEnd{data: string(data), err: err}
+						return
+					case req.URL.Path == "/slow":
+						held <- struct{}{}
+						_, err := reader.ReadByte()
+						ends <- connEnd{err: err}
+						return
+					default:
+						io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+					}
+				}
+			}()
+		}
+	}()
+
+	public, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	switchyard := newServer(newProxy(ln.Addr().String(), public.Addr().(*net.TCPAddr), time.Minute, testToken), time.Minute, 5*time.Second, 0, 16<<10)
+	go switchyard.Serve(public)
+	t.Cleanup(func() { switchyard.Close() })
+	return public.Addr().String(), ends, held
+}
+
+type connEnd struct {
+	data string
+	err  error
+}
+
+func waitForEnd(t *testing.T, ends <-chan connEnd) connEnd {
+	t.Helper()
+	select {
+	case end := <-ends:
+		return end
+	case <-time.After(5 * time.Second):
+		t.Fatal("the connection to Node never ended")
+		return connEnd{}
+	}
+}
+
+// Every client connection gets its own connections to Node, so a FIN close,
+// which keeps the loopback port in TIME_WAIT on Switchyard's side, would cost
+// one port per short-lived client. Switchyard resets the connections to Node
+// it closes instead, whether they are idle or their request was abandoned.
+func TestResetsConnectionsToNodeWhenTheirClientsLeave(t *testing.T) {
+	addr, ends, held := startRawUpstream(t)
+
+	t.Run("after a response", func(t *testing.T) {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		conn.Close()
+		if end := waitForEnd(t, ends); !errors.Is(end.err, syscall.ECONNRESET) {
+			t.Errorf("idle connection to Node ended with %v, want a reset", end.err)
+		}
+	})
+
+	t.Run("during a request", func(t *testing.T) {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(conn, "GET /slow HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		<-held
+		conn.Close()
+		if end := waitForEnd(t, ends); !errors.Is(end.err, syscall.ECONNRESET) {
+			t.Errorf("abandoned connection to Node ended with %v, want a reset", end.err)
+		}
+	})
+}
+
+// A reset could drop the last bytes a client sent through an upgraded
+// tunnel, so tunnels to Node still close the usual way.
+func TestClosesUpgradedTunnelsToNodeCleanly(t *testing.T) {
+	addr, ends, _ := startRawUpstream(t)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(conn, "GET /socket HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil || res.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("upgrade: %v %v", res, err)
+	}
+	io.WriteString(conn, "last words")
+	conn.(*net.TCPConn).CloseWrite()
+	end := waitForEnd(t, ends)
+	if end.data != "last words" || end.err != io.EOF {
+		t.Errorf("tunnel to Node ended with %q and %v, want %q and a clean close", end.data, end.err, "last words")
+	}
+	conn.Close()
 }

@@ -4,17 +4,8 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'http'
+import { distinctHeaders, prepareNativeRequestHeaders } from './native-headers'
 
-const HOP_BY_HOP_HEADERS = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-])
 // These fields use list syntax (Set-Cookie instead preserves separate field lines).
 const MERGED_RESPONSE_HEADERS = new Set([
   'set-cookie',
@@ -27,16 +18,6 @@ const MERGED_RESPONSE_HEADERS = new Set([
   'cache-control',
 ])
 
-function distinctHeaders(message: IncomingMessage): Record<string, string[]> {
-  // Node's headersDistinct getter throws for names inherited from Object.prototype.
-  const headers: Record<string, string[]> = Object.create(null)
-  for (let i = 0; i < message.rawHeaders.length; i += 2) {
-    const name = message.rawHeaders[i].toLowerCase()
-    ;(headers[name] ||= []).push(message.rawHeaders[i + 1])
-  }
-  return headers
-}
-
 /** Forwards an admitted request to an authenticated worker's HTTP listener. */
 export function proxyNativeRequest(
   req: IncomingMessage,
@@ -45,41 +26,11 @@ export function proxyNativeRequest(
   target: { port: number; agent: Agent; token: string },
   assets?: string
 ): Promise<void> {
-  // Discard client-supplied internal Next.js headers.
-  // Authenticate forwarded requests with this Go worker's token.
-  // Use normalized headers so proxy.ts request-header mutations are respected.
-  const rawValues = distinctHeaders(req)
-  const connection = String(req.headers.connection || '').toLowerCase()
-  const connectionHeaders = connection
-    ? new Set(connection.split(',').map((name) => name.trim()))
-    : undefined
-  const headers: typeof req.headers = Object.create(null)
-  for (const name in req.headers) {
-    if (
-      !Object.hasOwn(req.headers, name) ||
-      HOP_BY_HOP_HEADERS.has(name) ||
-      connectionHeaders?.has(name) ||
-      name.startsWith('x-next-internal-')
-    ) {
-      continue
-    }
-    const value = req.headers[name]
-    const raw = rawValues[name]
-    headers[name] =
-      raw &&
-      raw.length > 1 &&
-      value === raw.join(name === 'cookie' ? '; ' : ', ')
-        ? raw
-        : value
-  }
+  const { headers, hasBody } = prepareNativeRequestHeaders(req)
   // Header overrides can remove Content-Length. Transfer-Encoding is hop-by-hop,
   // so regenerate framing for the admitted body instead of relying on Node's
   // method-specific defaults (DELETE and OPTIONS do not default to chunking).
-  if (
-    headers['content-length'] === undefined &&
-    (rawValues['transfer-encoding'] ||
-      rawValues['content-length']?.some((value) => Number(value) > 0))
-  ) {
+  if (headers['content-length'] === undefined && hasBody) {
     headers['transfer-encoding'] = 'chunked'
   }
   headers['x-next-internal-go-token'] = target.token

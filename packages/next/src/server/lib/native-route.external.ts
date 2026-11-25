@@ -1,11 +1,18 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
-import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
+import {
+  Agent,
+  request,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'http'
 import { join, relative, isAbsolute } from 'path'
 import { PassThrough, Readable, pipeline, type Transform } from 'stream'
 import { createBrotliDecompress, createUnzip } from 'zlib'
 import { proxyNativeRequest } from './native-route-proxy'
+import { prepareNativeRequestHeaders } from './native-headers'
 
 const noop = () => {}
 
@@ -78,13 +85,17 @@ export type NativeRouteWorkerEvent =
       tokenHeader: string
       token: string
     }>
-  | Readonly<{ event: 'gone'; address: string }>
+  // token identifies the worker: a new worker can get an exited one's port.
+  | Readonly<{ event: 'gone'; address: string; token: string }>
 
 let workerObserver: ((event: NativeRouteWorkerEvent) => void) | undefined
 
-/** Registers the one observer of every NativeRouteManager's workers. */
+/**
+ * Registers the one observer of every NativeRouteManager's workers, replacing
+ * any earlier one. Pass undefined to stop observing.
+ */
 export function observeNativeRouteWorkers(
-  observer: (event: NativeRouteWorkerEvent) => void
+  observer: ((event: NativeRouteWorkerEvent) => void) | undefined
 ) {
   workerObserver = observer
 }
@@ -92,7 +103,11 @@ export function observeNativeRouteWorkers(
 function reportGone(worker: Worker) {
   if (worker.announced.size === 0) return
   worker.announced.clear()
-  workerObserver?.({ event: 'gone', address: `127.0.0.1:${worker.port}` })
+  workerObserver?.({
+    event: 'gone',
+    address: `127.0.0.1:${worker.port}`,
+    token: worker.token,
+  })
 }
 
 /** Owns worker activation and lifetime, never compilation or filesystem watching. */
@@ -371,27 +386,25 @@ export class NativeRouteManager {
   async invokeMiddleware(
     entry: string,
     req: Request,
-    originalUrl: string = req.url
+    originalUrl: string = req.url,
+    rawHeaders: string[] = []
   ): Promise<Response> {
     req.signal.throwIfAborted()
     const { worker } = await this.getWorker('/_middleware', entry)
     req.signal.throwIfAborted()
     const url = new URL(req.url)
     const target = new URL(originalUrl)
-    const headers: Record<string, string> = Object.create(null)
-    for (const [name, value] of req.headers) {
-      if (
-        name.startsWith('x-next-internal-') ||
-        name === 'connection' ||
-        name === 'transfer-encoding' ||
-        name === 'content-length' ||
-        name === 'keep-alive' ||
-        name === 'expect'
-      )
-        continue
-      headers[name] = value
-    }
-    headers.host = req.headers.get('host') || url.host
+    const requestHeaders: IncomingHttpHeaders = Object.fromEntries(req.headers)
+    const setCookie = req.headers.getSetCookie()
+    if (setCookie.length) requestHeaders['set-cookie'] = setCookie
+    const { headers } = prepareNativeRequestHeaders({
+      headers: requestHeaders,
+      rawHeaders,
+    })
+    // The adapter clones the body, so its original framing no longer applies.
+    delete headers['content-length']
+    delete headers.expect
+    headers.host = headers.host || url.host
     headers['x-forwarded-proto'] = url.protocol.slice(0, -1)
     headers['x-next-internal-go-token'] = worker.token
     headers['x-next-internal-go-rewrite-host'] = url.host

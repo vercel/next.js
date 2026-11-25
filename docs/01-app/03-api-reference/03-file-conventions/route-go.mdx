@@ -7,7 +7,7 @@ version: experimental
 `route.go` defines a Go Route Handler (API endpoint) in the App Router using Go's `net/http` request and response APIs.
 
 ```go filename="app/api/hello/route.go" highlight={10}
-package main
+package route
 
 import (
   "encoding/json"
@@ -49,6 +49,8 @@ module.exports = {
 Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path. Go is required for `next dev` and `next build`. `next start` runs the compiled executables without the Go compiler. Applications without Go handlers do not require Go.
 
 To import SDK packages such as `next/go/proxy`, your project needs a Go module. Create one with `go mod init example.com/app` if needed, using `go 1.21` or newer in `go.mod`. `next dev` and `next build` add the `next/go` requirement and a local replacement pointing to the SDK in your installed `next` package. Commit the updated `go.mod`.
+
+Both commands refresh the replacement when the installed SDK moves, including after pnpm upgrades, and log any changes. This can update a committed `go.mod` during CI builds.
 
 ## Reference
 
@@ -99,7 +101,7 @@ In development and self-hosted deployments, Next.js selects the handler after ro
 Next.js generates a helper in the route package for reading individual decoded parameter values:
 
 ```go filename="app/blog/[...slug]/route.go" highlight={10}
-package main
+package route
 
 import (
   "encoding/json"
@@ -125,11 +127,11 @@ Use `ParamValues` when you need to distinguish an encoded slash within a segment
 
 ### Handler Convention
 
-Each route directory is an executable `package main`. Method functions must be declared in `route.go`; only that file is parsed to find them. Sibling `.go` files compile with it but are not scanned for handlers. Next.js generates method dispatch and the `main` function. Do not define `main` yourself or create `zz_next_route_*.go` files, which are reserved for generated code.
+Each route directory is an ordinary Go package, such as `package route`. It cannot be `package main`: Next.js generates the program entrypoint and imports the route directory as a package. Method functions can be declared in `route.go` or a compiled sibling `.go` file. Next.js generates method dispatch in the route package. Do not create `zz_next_route_*.go` files, which are reserved for generated code.
 
-All sibling `.go` files except `_test.go` compile together with `route.go` and must use `package main`. Platform filename suffixes and build constraints do not select these sibling files. Put platform-dependent implementations in imported packages, where Go applies its normal selection rules. Shared packages can use ordinary module imports, including `internal` packages.
+Sibling `.go` files compile together with `route.go` and must use the same package name. Go applies its normal file selection to the route package, including build constraints, platform filename suffixes, and excluding `_test.go` files. Files that Go excludes, such as a `//go:build ignore` generator, can use any package name, including `main`. Declare method functions in files that are always compiled. Shared packages can use ordinary module imports, including `internal` packages that are visible from the route directory, such as `<module>/internal/...` or `<module>/app/internal/...` for a route under `app`.
 
-Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper. Run the route through Next.js to test its integration. Brackets and parentheses in route directory names do not need Go import paths.
+Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper. Run the route through Next.js to test its integration. Brackets, parentheses, and other characters in route directory names do not need to form valid Go import paths: Next.js compiles the route package from a virtual directory and reports errors and stack traces against the original files. For the same reason, embedding a `.go` file from the route directory itself with `go:embed` yields its source preceded by a `//line` directive. A route without a `go.mod` in its directory or a parent directory within the project uses the language version of the installed Go toolchain.
 
 Go routes support `app`, `src/app`, [route groups](/docs/app/api-reference/file-conventions/route-groups), and [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes). A Go handler cannot share its URL with another Route Handler or page.
 
@@ -148,7 +150,7 @@ A handler panic aborts its HTTP connection. An error response can be sent only i
 Read cookies with `r.Cookie` and set them with `http.SetCookie` before writing the response:
 
 ```go filename="app/api/cookies/route.go" highlight={10,17}
-package main
+package route
 
 import (
   "fmt"
@@ -182,7 +184,7 @@ To delete a cookie, set a cookie with the same name and path and a negative `Max
 Read request headers with `r.Header.Get` and set response headers with `w.Header().Set`:
 
 ```go filename="app/api/headers/route.go" highlight={10,11}
-package main
+package route
 
 import (
   "fmt"
@@ -203,7 +205,7 @@ Use `w.Header().Add` to append multiple values, including multiple `Set-Cookie` 
 Use `http.Redirect` with the destination and status:
 
 ```go filename="app/api/redirect/route.go" highlight={6}
-package main
+package route
 
 import "net/http"
 
@@ -217,7 +219,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
 Use `r.PathValue` to read a [dynamic segment](/docs/app/api-reference/file-conventions/dynamic-routes):
 
 ```go filename="app/items/[slug]/route.go" highlight={9}
-package main
+package route
 
 import (
   "fmt"
@@ -236,7 +238,7 @@ For `/items/a`, `r.PathValue("slug")` returns `"a"`. For catch-all and optional 
 Use `r.URL.Query()` to read query parameters. `Get` returns the first value; indexing the map returns all values for that key.
 
 ```go filename="app/api/search/route.go" highlight={9,12,13}
-package main
+package route
 
 import (
   "encoding/json"
@@ -260,7 +262,7 @@ For `/api/search?query=hello&tag=go&tag=next`, the response contains `"query": "
 Write and flush each response chunk with `http.Flusher`. Observe the request context to stop work when the client disconnects:
 
 ```go filename="app/api/stream/route.go" highlight={10,22,28}
-package main
+package route
 
 import (
   "fmt"
@@ -300,7 +302,7 @@ Deployment platforms may apply their own buffering and timeout limits.
 Decode a JSON request body with `json.NewDecoder`:
 
 ```go filename="app/items/route.go" highlight={13}
-package main
+package route
 
 import (
   "encoding/json"
@@ -328,7 +330,7 @@ func POST(w http.ResponseWriter, r *http.Request) {
 Use `r.ParseMultipartForm` to read multipart form data. Its argument limits the file data held in memory; use `http.MaxBytesReader` to limit the total request body size.
 
 ```go filename="app/api/form/route.go" highlight={7,12}
-package main
+package route
 
 import "net/http"
 
@@ -352,7 +354,7 @@ For URL-encoded forms, use `r.ParseForm` instead.
 Set CORS headers on the response. Define `OPTIONS` explicitly when a preflight response needs these headers; the automatic `OPTIONS` response only supplies `Allow`.
 
 ```go filename="app/api/cors/route.go" highlight={9,14}
-package main
+package route
 
 import (
   "fmt"
@@ -383,7 +385,7 @@ To set CORS headers for multiple routes, use [Proxy](/docs/app/api-reference/fil
 Read the raw request body before verifying a webhook signature. JSON decoding can change the representation a provider signed.
 
 ```go filename="app/api/webhook/route.go" highlight={10}
-package main
+package route
 
 import (
   "io"
@@ -410,7 +412,7 @@ Go handlers read `r.Body` directly and do not use the Pages Router `bodyParser` 
 Set the content type and write the response body to return XML or other non-UI content:
 
 ```go filename="app/rss.xml/route.go" highlight={9}
-package main
+package route
 
 import (
   "fmt"
@@ -433,7 +435,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
 Method functions can call an unexported helper while setting different response statuses:
 
 ```go filename="app/users/[id]/route.go" highlight={9,13}
-package main
+package route
 
 import (
   "fmt"
@@ -468,7 +470,9 @@ Go Route Handlers always execute dynamically. JavaScript exports such as `dynami
 
 ## Deployment
 
-For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export and `output: 'standalone'` are unsupported.
+For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable.
+
+[`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) copies each Go executable into `.next/standalone` with its permissions, so `node .next/standalone/server.js` serves Go routes without a Go toolchain. The standalone output targets the build host's operating system and architecture.
 
 Go Route Handlers have no build-time prerendering mode, so they cannot produce static response files for [`output: 'export'`](/docs/app/guides/static-exports#route-handlers).
 

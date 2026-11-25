@@ -11,7 +11,7 @@ import {
   writeFile,
 } from 'fs/promises'
 import * as os from 'os'
-import { dirname, join } from 'path'
+import { delimiter, dirname, join } from 'path'
 import * as Log from '../build/output/log'
 import { ensureGoSdk, ensureGoSdkQueued } from './go-sdk'
 
@@ -185,6 +185,245 @@ afterEach(async () => {
 
     expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
     expect(() => build(route, ['route.go'])).not.toThrow()
+  })
+
+  // These names cannot be created on Windows, but Go rejects them as package
+  // paths on every platform. Turbopack still compiles their named source files.
+  ;(process.platform === 'win32' ? describe.skip : describe)(
+    'Go import-path restrictions',
+    () => {
+      it.each([
+        'aux',
+        'con',
+        'nul',
+        'prn',
+        'com1',
+        'lpt1',
+        'AUX.txt',
+        'trailing.',
+      ])(
+        'detects imports when Go rejects the route directory %s',
+        async (folder) => {
+          const dir = await temporaryDirectory()
+          await writeModule(dir, 'example.com/app')
+          const route = join(dir, 'app', folder)
+          await write(join(route, 'route.go'), PROXY)
+          const sdkDir = await installNext(dir, '16.0.0')
+
+          await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+          expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+          expect(() => build(route, ['route.go'])).not.toThrow()
+        }
+      )
+    }
+  )
+
+  it.each(['proxy.go', 'app/api/route.go'])(
+    'inspects explicitly selected build-tagged source %s',
+    async (entry) => {
+      const dir = await temporaryDirectory()
+      await writeModule(dir, 'example.com/app')
+      const file = join(dir, entry)
+      await write(file, `//go:build next_sdk_custom\n\n${PROXY}`)
+      const sdkDir = await installNext(dir, '16.0.0')
+
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+      expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(() =>
+        build(dirname(file), [entry.split('/').pop()!])
+      ).not.toThrow()
+    }
+  )
+
+  it('inspects platform-suffixed siblings selected by the native compiler', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'proxy.go'), PLAIN)
+    await write(
+      join(dir, 'helper_plan9.go'),
+      'package main\n\nimport "next/go/proxy"\n\nvar _ = proxy.Next\n'
+    )
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+    expect(() => build(dir, ['proxy.go', 'helper_plan9.go'])).not.toThrow()
+  })
+
+  it('keeps package-mode selection for ordinary Go dependencies', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'proxy.go'), PLAIN)
+    await write(join(dir, 'internal/library/value.go'), 'package library\n')
+    await write(
+      join(dir, 'internal/library/value_plan9.go'),
+      'package library\n\nimport "next/go/proxy"\n\nvar _ = proxy.Next\n'
+    )
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).not.toMatch(/next\/go/)
+  })
+
+  it.each(['testdata', 'vendor/nested'])(
+    'sets up actual route.go files under %s without scanning fixture modules',
+    async (folder) => {
+      const dir = await temporaryDirectory()
+      await writeModule(dir, 'example.com/app')
+      const route = join(dir, 'app', folder)
+      await write(join(route, 'route.go'), PROXY)
+      // This is not a route and must never be passed to go mod edit.
+      await write(
+        join(dir, 'app/testdata/unused/go.mod'),
+        'invalid module fixture'
+      )
+      await write(join(dir, 'app/testdata/unused/helper.go'), PROXY)
+      const sdkDir = await installNext(dir, '16.0.0')
+
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+      expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(Log.warn).not.toHaveBeenCalled()
+      expect(() => build(route, ['route.go'])).not.toThrow()
+    }
+  )
+
+  it('ignores ambient Go module, workspace and build-flag settings', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'proxy.go'), PROXY)
+    const sdkDir = await installNext(dir, '16.0.0')
+    const configDir = await temporaryDirectory()
+    const goEnvFile = join(configDir, 'go-env')
+    await write(goEnvFile, 'GO111MODULE=off\nGOFLAGS=-mod=vendor\n')
+    const overrides = {
+      GOENV: goEnvFile,
+      GO111MODULE: 'off',
+      GOWORK: join(configDir, 'missing.work'),
+      GOFLAGS: '-mod=vendor',
+      GOOS: 'js',
+      GOARCH: 'wasm',
+    }
+    const previous = Object.fromEntries(
+      Object.keys(overrides).map((key) => [key, process.env[key]])
+    )
+    try {
+      Object.assign(process.env, overrides)
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+    }
+
+    expect(Log.warn).not.toHaveBeenCalled()
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+    expect(() => build(dir)).not.toThrow()
+  })
+  ;(process.platform === 'linux' ? describe : describe.skip)(
+    'Linux cache locations',
+    () => {
+      it('preserves XDG_CACHE_HOME when the home directory cannot hold a Go cache', async () => {
+        const dir = await temporaryDirectory()
+        await writeModule(dir, 'example.com/app')
+        await write(join(dir, 'proxy.go'), PROXY)
+        const sdkDir = await installNext(dir, '16.0.0')
+        const outside = await temporaryDirectory()
+        const unavailableHome = join(outside, 'unavailable-home')
+        await write(unavailableHome, 'not a directory')
+        const overrides = {
+          HOME: unavailableHome,
+          XDG_CACHE_HOME: join(outside, 'cache'),
+          GOCACHE: '',
+          GOMODCACHE: join(outside, 'modules'),
+        }
+        const previous = Object.fromEntries(
+          Object.keys(overrides).map((key) => [key, process.env[key]])
+        )
+        try {
+          Object.assign(process.env, overrides)
+          await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+        } finally {
+          for (const [key, value] of Object.entries(previous)) {
+            if (value === undefined) delete process.env[key]
+            else process.env[key] = value
+          }
+        }
+
+        expect(Log.warn).not.toHaveBeenCalled()
+        expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+        expect(() => build(dir)).not.toThrow()
+      })
+    }
+  )
+
+  it('never invokes VCS for uncached private dependencies during SDK discovery', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'proxy.go'), PROXY)
+    await write(
+      join(dir, 'private.go'),
+      'package main\n\nimport _ "github.com/next-sdk-offline-fixture/private"\n'
+    )
+    await write(
+      join(dir, 'go.mod'),
+      (await goMod(dir)) +
+        '\nrequire github.com/next-sdk-offline-fixture/private v1.0.0\n'
+    )
+    // Without sum entries, -mod=readonly stops at a missing-checksum error
+    // before reaching VCS, making this a false-green network regression test.
+    // Synthetic sums are enough to reach the failing fake Git below; nothing
+    // is downloaded or checksum-validated.
+    const checksum = 'h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    await write(
+      join(dir, 'go.sum'),
+      `github.com/next-sdk-offline-fixture/private v1.0.0 ${checksum}\n` +
+        `github.com/next-sdk-offline-fixture/private v1.0.0/go.mod ${checksum}\n`
+    )
+    const sdkDir = await installNext(dir, '16.0.0')
+    const outside = await temporaryDirectory()
+    const marker = join(outside, 'git-invoked')
+    const gitSource = join(outside, 'fake-git.go')
+    const gitBinary = join(
+      outside,
+      process.platform === 'win32' ? 'git.exe' : 'git'
+    )
+    await write(
+      gitSource,
+      `package main\nimport "os"\nfunc main() { os.WriteFile(${JSON.stringify(marker)}, []byte("invoked"), 0600); os.Exit(1) }\n`
+    )
+    execFileSync(go, ['build', '-o', gitBinary, gitSource], { stdio: 'pipe' })
+    const overrides = {
+      PATH: `${outside}${delimiter}${process.env.PATH ?? ''}`,
+      GOPRIVATE: 'github.com/next-sdk-offline-fixture/*',
+      GONOPROXY: '*',
+      GOSUMDB: 'off',
+      GOVCS: '*:all',
+      GOMODCACHE: join(outside, 'modcache'),
+    }
+    const previous = Object.fromEntries(
+      Object.keys(overrides).map((key) => [key, process.env[key]])
+    )
+    try {
+      Object.assign(process.env, overrides)
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+    }
+
+    await expect(readFile(marker, 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+    expect(Log.warn).not.toHaveBeenCalled()
+    expect(await goMod(dir)).toMatch(/^\s*next\/go v0\.0\.0$/m)
   })
 
   it('lets modules that declare an older go version require the SDK', async () => {

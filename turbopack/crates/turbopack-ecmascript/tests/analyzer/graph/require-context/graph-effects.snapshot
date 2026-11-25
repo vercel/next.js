@@ -95,7 +95,7 @@
             ),
         ],
         span: 70..85,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(
@@ -269,7 +269,7 @@
             ),
         ],
         span: 164..179,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -430,7 +430,7 @@
                     ),
                 ],
                 span: 34..40,
-                in_truthiness_context: false,
+                usage: Escapes,
             },
             MemberCall {
                 obj: Variable(
@@ -549,7 +549,7 @@
             ),
         ],
         span: 34..46,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: MemberCall(

@@ -17,6 +17,7 @@ import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
 import { getPendingFutureDefaults } from './future-defaults'
+import { restoreOriginalEnv } from './original-env'
 import { isCI } from '../../server/ci-info'
 
 type NudgeOptions = {
@@ -509,6 +510,9 @@ export async function runUpgrade(
   policy: NudgeKind,
   nudgeId: string | null
 ) {
+  // This process carries NODE_ENV, NEXT_RUNTIME, and .env values for dev or
+  // build. Start the upgrade, and the agent it launches, without them.
+  restoreOriginalEnv()
   // The agent's dev/build commands must not trigger this explicit request again.
   delete process.env.__NEXT_AGENT_UPGRADE
   updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })

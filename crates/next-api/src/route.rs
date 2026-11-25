@@ -267,19 +267,23 @@ pub struct Endpoints(Vec<ResolvedVc<Box<dyn Endpoint>>>);
 pub async fn endpoint_write_to_disk(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
 ) -> Result<Vc<EndpointOutputPaths>> {
+    Ok(*endpoint_write_to_disk_output(*endpoint).await?.output_paths)
+}
+
+#[turbo_tasks::function]
+async fn endpoint_write_to_disk_output(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Result<Vc<EndpointOutput>> {
     let output_op = output_assets_operation(endpoint);
-    let EndpointOutput {
-        project,
-        output_paths,
-        ..
-    } = *output_op.connect().await?;
+    let output = output_op.connect();
+    let project = output.await?.project;
 
     project
         .emit_all_output_assets(endpoint_output_assets_operation(output_op))
         .as_side_effect()
         .await?;
 
-    Ok(*output_paths)
+    Ok(output)
 }
 
 #[turbo_tasks::function(operation)]
@@ -297,11 +301,20 @@ async fn endpoint_output_assets_operation(
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_write_to_disk_operation(
     endpoint: OperationVc<OptionEndpoint>,
-) -> Result<Vc<EndpointOutputPaths>> {
+) -> Result<Vc<WrittenEndpoint>> {
     Ok(if let Some(endpoint) = *endpoint.connect().await? {
-        endpoint_write_to_disk(*endpoint)
+        let output = endpoint_write_to_disk_output(*endpoint).await?;
+        WrittenEndpoint {
+            output_paths: (*output.output_paths.await?).clone(),
+            native_build: output.native_build.clone(),
+        }
+        .cell()
     } else {
-        EndpointOutputPaths::NotFound.cell()
+        WrittenEndpoint {
+            output_paths: EndpointOutputPaths::NotFound,
+            native_build: None,
+        }
+        .cell()
     })
 }
 
@@ -333,6 +346,8 @@ pub struct EndpointOutput {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub output_paths: ResolvedVc<EndpointOutputPaths>,
     pub project: ResolvedVc<Project>,
+    /// Live Go input validation is independent of stable endpoint path metadata.
+    pub native_build: Option<turbopack_go::GoBundleResult>,
     /// The chunks the endpoint's page loads on first load, for the route bundle stats of
     /// production builds. `None` for endpoints that don't render a page, and outside of production
     /// builds.
@@ -357,8 +372,8 @@ pub enum FirstLoadChunks {
 #[derive(Debug, Clone)]
 pub enum EndpointOutputPaths {
     Native {
-        executable_path: RcStr,
-        build: turbopack_go::GoBundleResult,
+        /// The descriptor has a stable path; it names the content-addressed executable.
+        entry_path: RcStr,
     },
     NodeJs {
         /// Relative to the root_path
@@ -372,12 +387,22 @@ pub enum EndpointOutputPaths {
         client_paths: Vec<RcStr>,
     },
     NotFound,
-    /// Keep failed inputs available to request-side validation, without publishing an executable.
-    /// Configuration failures carry the selected sources' inputs; `None` means there is nothing
-    /// to validate.
-    NativeFailed {
-        build: Option<turbopack_go::GoBundleResult>,
-    },
+}
+
+/// A publication result, including live validation state that must not invalidate path metadata.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
+pub struct WrittenEndpoint {
+    pub output_paths: EndpointOutputPaths,
+    pub native_build: Option<turbopack_go::GoBundleResult>,
+}
+
+impl WrittenEndpoint {
+    pub fn native_build_succeeded(&self) -> bool {
+        self.native_build
+            .as_ref()
+            .is_some_and(|build| matches!(build.outcome, turbopack_go::GoBuildOutcome::Success(_)))
+    }
 }
 
 /// The routes as map from pathname to route. (pathname includes the leading
@@ -389,12 +414,10 @@ pub struct Routes(OrderedAutoMap<RcStr, Route>);
 /// JavaScript and edge output require no additional validation.
 pub async fn read_with_validated_endpoint<T, F: Future<Output = Result<T>>>(
     read: impl FnMut() -> F,
-    get_output: impl Fn(&T) -> Option<&EndpointOutputPaths>,
+    get_output: impl Fn(&T) -> Option<&WrittenEndpoint>,
 ) -> Result<T> {
-    turbopack_go::read_with_validated_inputs(read, |value| match get_output(value) {
-        Some(EndpointOutputPaths::Native { build, .. }) => Some(build),
-        Some(EndpointOutputPaths::NativeFailed { build }) => build.as_ref(),
-        _ => None,
+    turbopack_go::read_with_validated_inputs(read, |value| {
+        get_output(value).and_then(|output| output.native_build.as_ref())
     })
     .await
 }

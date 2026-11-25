@@ -42,22 +42,48 @@ function defaultSdkDirectory(): string {
 }
 
 async function go(cwd: string, args: string[]): Promise<string> {
+  // Like the compiler, inherit only OS/toolchain locations and explicit cache
+  // settings. GOPRIVATE and GONOPROXY can bypass GOPROXY=off; GO111MODULE,
+  // GOFLAGS, cross-compilation flags, and the user's go env file can also
+  // change discovery independently of the compilation that follows it.
+  const env: NodeJS.ProcessEnv = {
+    NODE_ENV: process.env.NODE_ENV,
+    GOENV: 'off',
+    GO111MODULE: 'on',
+    GOWORK: 'off',
+    GOFLAGS: '',
+    GOPROXY: 'off',
+    GOSUMDB: 'off',
+    GOVCS: '*:off',
+    GOTOOLCHAIN: 'local',
+    GOTELEMETRY: 'off',
+    CGO_ENABLED: '0',
+  }
+  for (const name of [
+    'PATH',
+    'HOME',
+    'XDG_CACHE_HOME',
+    'USERPROFILE',
+    'LOCALAPPDATA',
+    'APPDATA',
+    'SystemRoot',
+    'TEMP',
+    'TMP',
+    'TMPDIR',
+    'GOROOT',
+    'GOCACHE',
+    'GOMODCACHE',
+    'GOPATH',
+  ]) {
+    if (process.env[name] !== undefined) env[name] = process.env[name]
+  }
   const { stdout } = await execFileAsync(
     process.env.TURBOPACK_GO || 'go',
     args,
     {
       cwd,
       maxBuffer: 64 * 1024 * 1024,
-      // Match the environment Turbopack builds with: no workspace, no network,
-      // no toolchain switching, and no user GOFLAGS such as -mod=mod.
-      env: {
-        ...process.env,
-        GOWORK: 'off',
-        GOFLAGS: '',
-        GOPROXY: 'off',
-        GOTOOLCHAIN: 'local',
-        CGO_ENABLED: '0',
-      },
+      env,
     }
   )
   return stdout
@@ -86,34 +112,44 @@ function ancestorModule(dir: string, rootDir: string): string | undefined {
 }
 
 /**
- * Finds the Go package directories in the project, and the modules nested in
- * it. Skips what Go's `./...` skips (`.` and `_` prefixes, `testdata`, a
- * module's `vendor` directory), plus `node_modules`, the build output, and
- * symlinks, which Turbopack rejects as Go sources.
+ * Find project packages and modules, including actual Go entries in route
+ * directories that Go's wildcard patterns ignore. Unused testdata/vendor
+ * fixtures must not cause their modules to be edited.
  */
 async function scanProject(
   dir: string,
   distDir: string | undefined
-): Promise<{ packages: string[]; modules: string[] }> {
+): Promise<{
+  packages: string[]
+  modules: string[]
+  handlers: Set<string>
+}> {
   const packages: string[] = []
   const modules: string[] = []
-  const pending = [dir]
+  const handlers = new Set<string>()
+  const srcDir = path.join(dir, 'src')
+  const rootAppDir = path.join(dir, 'app')
+  const appDir = existsSync(rootAppDir) ? rootAppDir : path.join(srcDir, 'app')
+  const pending = [{ directory: dir, ignoredByGo: false }]
   while (pending.length) {
-    const current = pending.pop()!
+    const { directory: current, ignoredByGo } = pending.pop()!
     let entries
     try {
       entries = await fs.readdir(current, { withFileTypes: true })
     } catch {
       continue
     }
-    let hasGo = false
-    // Go only gives vendor a meaning at a module root; elsewhere, such as
-    // app/vendor/route.go, it is an ordinary package. testdata is skipped like
-    // Go's `./...` and `all` do, so go mod tidy would drop a requirement that
-    // only testdata needs.
     const isModuleRoot = entries.some(
       (entry) => entry.isFile() && entry.name === 'go.mod'
     )
+    const isHandler = entries.some(
+      (entry) =>
+        entry.isFile() &&
+        ((entry.name === 'route.go' && isInside(appDir, current)) ||
+          (entry.name === 'proxy.go' &&
+            (current === dir || current === srcDir)))
+    )
+    let hasGo = false
     for (const entry of entries) {
       const { name } = entry
       if (entry.isFile()) {
@@ -123,56 +159,86 @@ async function scanProject(
         entry.isDirectory() &&
         !name.startsWith('.') &&
         !name.startsWith('_') &&
-        name !== 'node_modules' &&
-        name !== 'testdata' &&
-        !(name === 'vendor' && isModuleRoot)
+        name !== 'node_modules'
       ) {
         const child = path.join(current, name)
-        if (child !== distDir) pending.push(child)
+        const childIgnored =
+          ignoredByGo ||
+          name === 'testdata' ||
+          (name === 'vendor' && isModuleRoot) ||
+          path.basename(current) === 'vendor'
+        if (child === distDir || (childIgnored && !isInside(appDir, child))) {
+          continue
+        }
+        pending.push({ directory: child, ignoredByGo: childIgnored })
       }
     }
-    if (hasGo) packages.push(current)
+    if (hasGo && (!ignoredByGo || isHandler)) packages.push(current)
+    if (isHandler) handlers.add(current)
   }
-  return { packages, modules }
+  return { packages, modules, handlers }
 }
 
-// Characters Go accepts in import path elements. Route directories such as
-// `[id]` and `(group)` fall outside them.
+// Quickly route directories such as `[id]` and `(group)` to named-file listing.
+// Go also rejects some names using only these characters; let go list report
+// those below rather than duplicating its import-path validation rules.
 const IMPORT_PATH = /^[A-Za-z0-9._~/+-]*$/
 
-const LIST = ['list', '-e', '-mod=readonly', '-deps', '-f', '{{.ImportPath}}']
+const LIST = [
+  'list',
+  '-e',
+  '-mod=readonly',
+  '-deps',
+  '-f',
+  // A package with no directory failed to load. Prefix its matching command
+  // patterns with ! so the caller can retry those directories by filename.
+  '{{.ImportPath}}{{if not .Dir}}{{range .Match}}\n!{{.}}{{end}}{{end}}',
+]
 
 /** Whether any of the packages, their tests, or their dependencies import the SDK. */
 async function importsSdk(
   moduleDir: string,
-  packages: string[]
+  packages: string[],
+  handlers: Set<string>
 ): Promise<boolean> {
   const patterns: string[] = []
-  const byFiles: string[] = []
+  const byFiles = new Set<string>()
   for (const pkg of packages) {
     const relative = path.relative(moduleDir, pkg).split(path.sep).join('/')
     if (IMPORT_PATH.test(relative)) {
       patterns.push(relative ? `./${relative}` : '.')
     } else {
-      byFiles.push(pkg)
+      byFiles.add(pkg)
     }
+    // Turbopack compiles a handler's regular non-test files by name, ignoring
+    // build tags and platform suffixes. Inspect that same selection even when
+    // package-mode listing succeeds but omits one of those source files.
+    if (handlers.has(pkg)) byFiles.add(pkg)
   }
   // -e reports packages that fail to load, including the SDK while its
   // requirement is still missing, instead of failing the whole listing.
   const outputs: string[] = []
   if (patterns.length) {
-    outputs.push(await go(moduleDir, [...LIST, '-test', ...patterns]))
+    const output = await go(moduleDir, [...LIST, '-test', ...patterns])
+    outputs.push(output)
+    for (const line of output.split('\n')) {
+      if (!line.startsWith('!')) continue
+      // Only retry a directory we scanned, never a dependency's reported path.
+      const pkg = path.resolve(moduleDir, line.slice(1))
+      if (packages.includes(pkg)) byFiles.add(pkg)
+    }
   }
   // A directory that is not a valid import path cannot be named as a package,
   // so list its files instead, like Turbopack compiles it.
   for (const pkg of byFiles) {
-    const files = (await fs.readdir(pkg)).filter(
-      (name) =>
-        name.endsWith('.go') &&
-        !name.endsWith('_test.go') &&
-        !name.startsWith('.') &&
-        !name.startsWith('_')
-    )
+    const files = (await fs.readdir(pkg, { withFileTypes: true }))
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.endsWith('.go') &&
+          !entry.name.endsWith('_test.go')
+      )
+      .map((entry) => entry.name)
     if (files.length) outputs.push(await go(pkg, [...LIST, ...files]))
   }
   return outputs.some((output) =>
@@ -198,7 +264,8 @@ function replacementPath(moduleDir: string, sdkDir: string): string {
 async function ensureModule(
   moduleDir: string,
   packages: string[],
-  sdkDir: string
+  sdkDir: string,
+  handlers: Set<string>
 ): Promise<void> {
   const goMod: GoMod = JSON.parse(await go(moduleDir, ['mod', 'edit', '-json']))
   const replacement = goMod.Replace?.find(
@@ -218,7 +285,7 @@ async function ensureModule(
   const required = goMod.Require?.some(({ Path }) => Path === GO_SDK_MODULE)
   // Only add the requirement when the SDK is imported. `go mod tidy` removes an
   // unused one, and adding it back on every start would fight it.
-  const require = !required && (await importsSdk(moduleDir, packages))
+  const require = !required && (await importsSdk(moduleDir, packages, handlers))
   // Go ignores a replacement for a module that is not required, so leave the
   // go.mod of a module that does not use the SDK, such as a Go service that
   // lives in the project directory, untouched.
@@ -319,7 +386,11 @@ export async function ensureGoSdk(options: GoSdkOptions): Promise<void> {
         : options.distDir
     const sdkDir = realpathSync(options.sdkDir ?? defaultSdkDirectory())
 
-    const { packages, modules: nested } = await scanProject(dir, distDir)
+    const {
+      packages,
+      modules: nested,
+      handlers,
+    } = await scanProject(dir, distDir)
     const ancestor = ancestorModule(dir, rootDir)
     const modules = [...nested, ...(ancestor ? [ancestor] : [])]
     // Assign each package to its nearest module, as Go does.
@@ -347,7 +418,7 @@ export async function ensureGoSdk(options: GoSdkOptions): Promise<void> {
     }
     for (const [moduleDir, modulePackages] of packagesByModule) {
       try {
-        await ensureModule(moduleDir, modulePackages, sdkDir)
+        await ensureModule(moduleDir, modulePackages, sdkDir, handlers)
       } catch (error) {
         Log.warn(
           `Could not map ${GO_SDK_MODULE} to the installed Next.js in ${path.join(moduleDir, 'go.mod')}: ${error instanceof Error ? error.message : String(error)}`

@@ -1,5 +1,5 @@
 //! Tracked source selection shared by declaration analysis and compilation.
-use std::{collections::BTreeMap, io::Read};
+use std::{collections::BTreeMap, io::Read, path::Path};
 
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
@@ -29,6 +29,8 @@ pub struct GoSourceSet {
     pub root: FileSystemPath,
     /// Source bytes keyed by module-relative names; generated sources are supplied separately.
     pub files: BTreeMap<RcStr, RcStr>,
+    /// The `module` directive of the selected go.mod; `None` only when there is no go.mod.
+    pub module_path: Option<RcStr>,
     inputs: Inputs,
     dirty: bool,
     boundary: FileSystemPath,
@@ -53,16 +55,21 @@ pub async fn go_source_set(
     let go_context = &session.await?.go_context;
     let mut tracker = Tracker::new(&boundary, &project, go_context);
     let mut root = directory.clone();
+    let mut module_path = None;
     loop {
         let module = root.join("go.mod")?;
-        tracker
-            .file(
-                &to_sys_path(module.clone())
-                    .await?
-                    .context("Go module requires a disk filesystem")?,
-            )
-            .await?;
-        if module.read().await?.is_content() {
+        let module_file = to_sys_path(module.clone())
+            .await?
+            .context("Go module requires a disk filesystem")?;
+        tracker.file(&module_file).await?;
+        if let FileContent::Content(content) = &*module.read().await? {
+            let mut source = String::new();
+            content.read().read_to_string(&mut source)?;
+            // Callers generate a go.mod only when none exists. Report a go.mod without a module
+            // path here, instead of as a conflict with that generated go.mod.
+            module_path = Some(module_directive(&source).with_context(|| {
+                format!("{}: no module declaration in go.mod", module_file.display())
+            })?);
             break;
         }
         if root == boundary {
@@ -90,6 +97,7 @@ pub async fn go_source_set(
                 )
                 .await?;
             let mut names = vec![];
+            // DETERMINISM: Sources enter a BTreeMap before analysis or compilation.
             if let DirectoryContent::Entries(entries) = &*directory.read_dir().await? {
                 for (name, entry) in entries {
                     if name.ends_with(".go")
@@ -133,10 +141,57 @@ pub async fn go_source_set(
     Ok(source_generation(
         root,
         files,
+        module_path,
         tracker.inputs,
         tracker.dirty,
         boundary,
     ))
+}
+
+/// Read the module path from go.mod, including the block form `module ( path )`. Go validates
+/// the file again when it builds.
+fn module_directive(go_mod: &str) -> Option<RcStr> {
+    fn path(token: &str) -> Option<RcStr> {
+        let token = token.trim();
+        let path = if token.starts_with('"') {
+            serde_json::from_str::<String>(token).ok()?
+        } else if let Some(token) = token.strip_prefix('`') {
+            token.strip_suffix('`')?.to_owned()
+        } else {
+            token.to_owned()
+        };
+        (!path.is_empty()).then(|| path.into())
+    }
+    let mut lines = go_mod
+        .lines()
+        .map(|line| line.split("//").next().unwrap_or_default().trim());
+    while let Some(line) = lines.next() {
+        let Some(rest) = line.strip_prefix("module") else {
+            continue;
+        };
+        if !rest.starts_with(|ch: char| ch.is_whitespace() || matches!(ch, '"' | '`' | '(')) {
+            continue;
+        }
+        let rest = rest.trim();
+        let Some(block) = rest.strip_prefix('(') else {
+            return path(rest);
+        };
+        // A block holds one line per directive; `module` accepts exactly one.
+        for line in std::iter::once(block.trim()).chain(lines) {
+            let (line, closed) = match line.strip_suffix(')') {
+                Some(line) => (line.trim(), true),
+                None => (line, false),
+            };
+            if !line.is_empty() {
+                return path(line);
+            }
+            if closed {
+                return None;
+            }
+        }
+        return None;
+    }
+    None
 }
 
 // Discovery can rerun and redirect its output, but a captured generation must keep its
@@ -146,6 +201,7 @@ pub async fn go_source_set(
 fn source_generation(
     root: FileSystemPath,
     files: BTreeMap<RcStr, RcStr>,
+    module_path: Option<RcStr>,
     inputs: Inputs,
     dirty: bool,
     boundary: FileSystemPath,
@@ -153,6 +209,7 @@ fn source_generation(
     GoSourceSet {
         root,
         files,
+        module_path,
         inputs,
         dirty,
         boundary,
@@ -168,6 +225,66 @@ pub async fn go_bundle_from_sources(
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
+    bundle_sources(sources, session, generated, None).await
+}
+
+/// Compile generated entry files that import the selected sources as an ordinary package.
+///
+/// The selected directory is overlaid at `alias`, a module-relative directory that must not
+/// exist. Its import path is the module path joined with `alias`, so source directory names
+/// do not need to be valid import paths. Generated files under `alias` join that package;
+/// the other generated Go files form the `main` package and must share one directory.
+///
+/// Go applies `internal` visibility to the alias path, not the source path. Place the alias
+/// below every `x` whose `x/internal/...` packages the sources import, and place the `main`
+/// package where it may import the alias.
+#[turbo_tasks::function]
+pub async fn go_package_bundle_from_sources(
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    alias: RcStr,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Result<Vc<GoBundleResult>> {
+    bundle_sources(sources, session, generated, Some(alias)).await
+}
+
+/// A failed result for a source set the consumer rejected before compiling it, such as a
+/// package the consumer cannot import. It carries the source selection's inputs, so
+/// `read_with_validated_inputs` notices edits that may resolve the failure.
+#[turbo_tasks::function]
+pub async fn go_source_failure(
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    message: RcStr,
+) -> Result<Vc<GoBundleResult>> {
+    let sources = sources.await?;
+    let outcome = if sources.dirty || !sources.inputs.is_current().await? {
+        // As in `bundle_sources`: invalidate the stale observations so a retry rereads them.
+        let project = to_sys_path(sources.boundary.clone())
+            .await?
+            .context("Go sources require a disk filesystem")?;
+        Tracker::new(&sources.boundary, &project, &session.await?.go_context)
+            .invalidate()
+            .await?;
+        GoBuildOutcome::Retry
+    } else {
+        GoBuildOutcome::Failed(message)
+    };
+    Ok(GoBundleResult {
+        outcome,
+        inputs: sources.inputs.clone(),
+        root: sources.boundary.clone(),
+        session,
+    }
+    .cell())
+}
+
+async fn bundle_sources(
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
+    alias: Option<RcStr>,
+) -> Result<Vc<GoBundleResult>> {
     let sources = sources.await?;
     let go_context = &session.await?.go_context;
     let mut stale = sources.dirty || !sources.inputs.is_current().await?;
@@ -179,12 +296,35 @@ pub async fn go_bundle_from_sources(
             session,
         }
     } else {
+        let (files, aliases) = match alias {
+            None => (sources.files.keys().cloned().collect(), BTreeMap::new()),
+            Some(alias) => {
+                let first = sources
+                    .files
+                    .keys()
+                    .next()
+                    .context("Go package has no source files")?;
+                let directory = Path::new(first.as_str())
+                    .parent()
+                    .context("Go source has no directory")?
+                    .to_str()
+                    .context("non-UTF8 Go path")?;
+                ensure!(
+                    alias
+                        .split('/')
+                        .all(|part| !part.is_empty() && part != "." && part != ".."),
+                    "Go package alias must be a module-relative directory: {alias}"
+                );
+                (vec![], BTreeMap::from([(alias, RcStr::from(directory))]))
+            }
+        };
         let result = bundle(
             sources.root.clone(),
             sources.boundary.clone(),
-            sources.files.keys().cloned().collect(),
+            files,
             *session,
             generated,
+            aliases,
         )
         .await?;
         stale = !result.is_current().await? || !sources.inputs.is_current().await?;
@@ -219,36 +359,32 @@ pub async fn go_bundle_from_sources(
     Ok(result.cell())
 }
 
-/// A failure decided from the selected sources alone, before compiling, such as invalid
-/// static configuration in an entrypoint. It carries the selection's observations, so
-/// request-side validation notices when a fix to those sources has not been read yet,
-/// exactly like a compiler failure.
-#[turbo_tasks::function]
-pub async fn go_failure_from_sources(
-    sources: ResolvedVc<GoSourceSet>,
-    session: ResolvedVc<GoBuildSession>,
-    message: RcStr,
-) -> Result<Vc<GoBundleResult>> {
-    let sources = sources.await?;
-    let go_context = &session.await?.go_context;
-    let stale = sources.dirty || !sources.inputs.is_current().await?;
-    if stale {
-        let project = to_sys_path(sources.boundary.clone())
-            .await?
-            .context("Go sources require a disk filesystem")?;
-        Tracker::new(&sources.boundary, &project, go_context)
-            .invalidate()
-            .await?;
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn module_directive_reads_plain_quoted_and_commented_paths() {
+        for (go_mod, expected) in [
+            (
+                "module example.com/app\n\ngo 1.24\n",
+                Some("example.com/app"),
+            ),
+            (
+                "// comment\nmodule \"example.com/q\" // trailing\n",
+                Some("example.com/q"),
+            ),
+            ("module `example.com/raw`\n", Some("example.com/raw")),
+            ("modules example.com/no\n", None),
+            ("go 1.24\n", None),
+            (
+                "module (\n\texample.com/blk // comment\n)\n\ngo 1.24\n",
+                Some("example.com/blk"),
+            ),
+            ("module(\n\n\t\"example.com/q\"\n)\n", Some("example.com/q")),
+            ("module (\n)\n\ngo 1.24\n", None),
+        ] {
+            assert_eq!(module_directive(go_mod).as_deref(), expected, "{go_mod}");
+        }
     }
-    Ok(GoBundleResult {
-        outcome: if stale {
-            GoBuildOutcome::Retry
-        } else {
-            GoBuildOutcome::Failed(message)
-        },
-        inputs: sources.inputs.clone(),
-        root: sources.boundary.clone(),
-        session,
-    }
-    .cell())
 }

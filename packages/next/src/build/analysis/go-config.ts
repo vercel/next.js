@@ -1,8 +1,22 @@
 import { readFile } from 'fs/promises'
 import { z } from 'next/dist/compiled/zod'
 import type { NextConfig } from '../../server/config-shared'
-import { MiddlewareConfigInputSchema } from '../segment-config/middleware/middleware-config'
-import { getMiddlewareMatchers } from './get-page-static-info'
+import {
+  RSC_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
+} from '../../lib/constants'
+import { tryToParsePath } from '../../lib/try-to-parse-path'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
+import { getCookieConditionDuplicatePattern } from '../../shared/lib/router/utils/cookie-condition'
+import { formatZodError } from '../../shared/lib/zod'
+import {
+  MiddlewareConfigInputSchema,
+  SourceSchema,
+  type MiddlewareConfigMatcherInput,
+} from '../segment-config/middleware/middleware-config'
+
+const appRouteTransportSuffix = `${escapeStringRegexp(RSC_SUFFIX)}|${escapeStringRegexp(RSC_SEGMENTS_DIR_SUFFIX)}/.+${escapeStringRegexp(RSC_SEGMENT_SUFFIX)}`
 
 const routeSchema = z
   .object({
@@ -20,6 +34,62 @@ function invalid(sourcePath: string, error: unknown): Error {
   return new Error(
     `Invalid static Go config in ${sourcePath}: ${error instanceof Error ? error.message : String(error)}`
   )
+}
+
+function createGoProxyMatchers(
+  matcherOrMatchers: MiddlewareConfigMatcherInput,
+  { basePath }: Pick<NextConfig, 'basePath'>
+) {
+  const matchers = Array.isArray(matcherOrMatchers)
+    ? matcherOrMatchers
+    : [matcherOrMatchers]
+
+  return matchers.flatMap((matcher) => {
+    const { source: originalSource, ...conditions } =
+      typeof matcher === 'string' ? { source: matcher } : matcher
+    const isRoot = originalSource === '/'
+    // Match the same page through data, RSC, and segment-prefetch requests.
+    const suffix = isRoot
+      ? `(/?index|/?index\\.json|/?index(?:${appRouteTransportSuffix}))?`
+      : `{(\\.json|${appRouteTransportSuffix})}?`
+    const source = `${basePath || ''}/:nextData(_next/data/[^/]{1,})?${originalSource}${suffix}`
+
+    // Expansion can make an otherwise valid literal invalid. Throw so dev can
+    // fail closed and recover after an edit without terminating the server.
+    const result = SourceSchema.safeParse(source)
+    if (!result.success) {
+      throw formatZodError('Failed to parse Go proxy matcher', result.error)
+    }
+
+    const compiled = {
+      ...conditions,
+      regexp: tryToParsePath(result.data).regexStr!,
+      originalSource,
+    }
+    const cookieNames = new Set(
+      [...(conditions.has || []), ...(conditions.missing || [])].flatMap(
+        (condition) => (condition.type === 'cookie' ? [condition.key] : [])
+      )
+    )
+    // The platform can otherwise skip the Go executable and dispatch directly
+    // to JavaScript, whose cookie parser keeps the last duplicate. These extra
+    // matches only invoke the validator: it rejects the request before Proxy.
+    return [
+      compiled,
+      ...Array.from(cookieNames, (name) => ({
+        regexp: compiled.regexp,
+        originalSource,
+        locale: conditions.locale,
+        has: [
+          {
+            type: 'header' as const,
+            key: 'cookie',
+            value: getCookieConditionDuplicatePattern(name),
+          },
+        ],
+      })),
+    ]
+  })
 }
 
 // Turbopack reads `var Config` from the same Go syntax analysis that discovers
@@ -53,9 +123,12 @@ export async function readGoProxyConfig(
     proxySchema
   )
   try {
+    if (nextConfig.i18n) {
+      throw new Error('proxy.go does not support the i18n configuration')
+    }
+    const matchers = createGoProxyMatchers(matcher ?? '/:path*', nextConfig)
     return {
-      // An omitted matcher matches every path.
-      matchers: getMiddlewareMatchers(matcher ?? '/:path*', nextConfig),
+      matchers,
     }
   } catch (error) {
     throw invalid(sourcePath, error)
