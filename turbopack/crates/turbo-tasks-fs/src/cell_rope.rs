@@ -96,6 +96,10 @@ impl CellRope {
     }
 
     /// Like [`CellRope::read`], but reads the cells without tracking a dependency on them.
+    ///
+    /// Only for callers that don't need to be invalidated when the cells change, because they
+    /// already depend on the content another way: e.g. writing a [`ComposedFile`] compares the
+    /// bytes with a content hash computed by a tracked read, and retries on a mismatch.
     pub fn read_untracked(&self) -> impl IntoFuture<Output = Result<Rope>, IntoFuture: Send> + '_ {
         self.read_segments(false)
     }
@@ -128,6 +132,8 @@ impl CellRope {
                     let cell = if tracked {
                         cell.await?
                     } else {
+                        // INVALIDATION: only `read_untracked` gets here. Its callers check the
+                        // bytes against a hash they track elsewhere, see `read_untracked`.
                         cell.untracked().await?
                     };
                     builder.concat(&cell);
@@ -136,6 +142,7 @@ impl CellRope {
                     let (cell, skip) = if tracked {
                         (cell.await?, skip.await?)
                     } else {
+                        // INVALIDATION: only `read_untracked` gets here, see `Cell` above.
                         (cell.untracked().await?, skip.untracked().await?)
                     };
                     builder.concat(&skip_range((*cell).clone(), &skip)?);
@@ -144,6 +151,7 @@ impl CellRope {
                     let rope = if tracked {
                         rope.await?
                     } else {
+                        // INVALIDATION: only `read_untracked` gets here, see `Cell` above.
                         rope.untracked().await?
                     };
                     nested.push((rope, 0));
@@ -365,6 +373,8 @@ mod tests {
 
     #[turbo_tasks::function(operation, root)]
     async fn read_untracked_operation(rope: ResolvedVc<CellRope>) -> Result<Vc<RcStr>> {
+        // INVALIDATION: the test reads the bytes without depending on the rope or its cells on
+        // purpose, to exercise the untracked read path.
         Ok(Vc::cell(
             rope.untracked()
                 .await?
