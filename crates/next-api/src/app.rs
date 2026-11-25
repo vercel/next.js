@@ -1388,9 +1388,15 @@ impl Endpoint for GoEndpoint {
             }
             .cell());
         }
-        // Static configuration and `Proxy` are read only from the entrypoint. Route method
-        // handlers are discovered across the compiled source files below.
-        let analysis = go_declarations(*sources, vec![RcStr::from(handler_name)], session).await?;
+        // Static configuration is read only from the entrypoint. Handler functions can live
+        // in any of the compiled source files.
+        let entry = go_declarations(*sources, vec![RcStr::from(handler_name)], session).await?;
+        let analysis = go_declarations(
+            *sources,
+            source_set.files.keys().cloned().collect(),
+            session,
+        )
+        .await?;
         if is_proxy {
             ensure!(
                 analysis.functions.iter().any(|name| name == "Proxy"),
@@ -1399,7 +1405,7 @@ impl Endpoint for GoEndpoint {
         }
         // Static `var Config` is read from the same syntax analysis and published in the
         // descriptor, so Next.js never parses Go entrypoints separately.
-        let config = match go_entry_config(&analysis.functions, &analysis.values, is_proxy) {
+        let config = match go_entry_config(&entry.functions, &entry.values, is_proxy) {
             Ok(config) => config,
             Err(message) => {
                 // The failure depends on the entry's source, so keep the selection's inputs
@@ -1428,16 +1434,6 @@ impl Endpoint for GoEndpoint {
                 }
                 .cell());
             }
-        };
-        let analysis = if is_proxy {
-            analysis
-        } else {
-            go_declarations(
-                *sources,
-                source_set.files.keys().cloned().collect(),
-                session,
-            )
-            .await?
         };
         let methods = analysis.functions.iter().filter(|name| {
             matches!(

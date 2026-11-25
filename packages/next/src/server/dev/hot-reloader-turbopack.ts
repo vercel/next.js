@@ -1346,24 +1346,35 @@ export async function createHotReloaderTurbopack(
                 // longer applies.
                 const message =
                   error instanceof Error ? error.message : String(error)
-                const issue: Issue = {
-                  severity: 'error',
-                  stage: 'analyze',
-                  filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
-                  title: {
-                    type: 'text',
-                    value: entryPath
-                      ? 'Invalid proxy.go Config'
-                      : 'Failed to compile proxy.go',
-                  },
-                  description: { type: 'text', value: message },
-                  documentationLink: '',
-                }
                 const key = getEntryKey('root', 'server', 'middleware')
                 const issues = currentEntryIssues.get(key) ?? new Map()
-                issues.set(getIssueKey(issue), issue)
-                currentEntryIssues.set(key, issues)
-                Log.error(message)
+                const hasCompilationError =
+                  !entryPath &&
+                  [...issues.values()].some(
+                    (issue) =>
+                      issue.severity === 'error' || issue.severity === 'fatal'
+                  )
+                // processMiddleware already records and logs compiler errors.
+                // Add an issue only for descriptor validation or as a fallback
+                // when the failed compile did not report its own diagnostic.
+                if (!hasCompilationError) {
+                  const issue: Issue = {
+                    severity: 'error',
+                    stage: 'analyze',
+                    filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
+                    title: {
+                      type: 'text',
+                      value: entryPath
+                        ? 'Invalid proxy.go Config'
+                        : 'Failed to compile proxy.go',
+                    },
+                    description: { type: 'text', value: message },
+                    documentationLink: '',
+                  }
+                  issues.set(getIssueKey(issue), issue)
+                  currentEntryIssues.set(key, issues)
+                  Log.error(message)
+                }
                 serverFields.goProxyConfigError = message
                 matchers = [{ regexp: '^/.*$', originalSource: '/:path*' }]
               }
