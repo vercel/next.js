@@ -145,10 +145,9 @@ describe('turbopack-loader-invalidation', () => {
     it('re-runs the loader when changing a loader package with conditional exports', () =>
       expectChangeWhileRunning(cases.conditionalExportsLoader))
 
-    // Not covered while running: a file read at module load and reported with `addDependency`.
-    // The reported dependency invalidates the evaluation, but the result appears to depend on
-    // whether a pooled worker that already loaded the loader module serves it, so a gate would
-    // be flaky.
+    // Not covered here: a file read at module load and reported with `addDependency`. Whether the
+    // result is stale depends on which pooled worker serves the evaluation, which other loaders
+    // in this suite affect. See `turbopack-loader-module-state` for an isolated test.
   })
 
   describe('while stopped', () => {
