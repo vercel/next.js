@@ -1229,7 +1229,7 @@ func startSwitchyardFor(t *testing.T, handler http.HandlerFunc) string {
 	}
 	proxy := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken)
 	switchyard := newServer(proxy, 5*time.Second, 5*time.Second, 0, 16<<10, testHeaderLines)
-	go switchyard.Serve(ln)
+	go switchyard.Serve(clientListener{ln})
 	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String()
 }

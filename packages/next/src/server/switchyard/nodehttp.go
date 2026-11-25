@@ -5,9 +5,14 @@ package main
 // Shared by the paths that answer for Node.
 
 import (
+	"context"
+	"errors"
+	"io"
+	"net"
 	"net/http"
 	"net/textproto"
 	"strings"
+	"sync/atomic"
 )
 
 // The hop-by-hop headers Go's proxy removes from every request and response
@@ -76,6 +81,78 @@ func keepHopHeaders(h http.Header) http.Header {
 	}
 	return kept
 }
+
+// Node parity: a client may stop sending (shut down its side of the
+// connection) right after its request and still read the answer. Node's
+// server answers it. Go's server instead cancels the request as soon as it
+// reads the end, so the client got a 502. Switchyard keeps the request to
+// Node going instead, and Go's server closes the connection after the answer.
+//
+// Node also ends its side of the socket then, so an answer that isn't ready
+// at once is lost; Switchyard still delivers it (README.md). Passing the end
+// on to Node would make Switchyard the side that closes its connection to
+// Node first, which leaves that connection's loopback port unusable for
+// minutes (see keptConn.Close).
+
+// clientListener hands Go's server clientConns.
+type clientListener struct{ net.Listener }
+
+func (l clientListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &clientConn{Conn: conn, ended: atomic.Bool{}}, nil
+}
+
+// clientConn is a client's connection that records when the client has
+// stopped sending: a read returns io.EOF. Go's server reads the connection
+// in the background while a request runs, and cancels the request when such
+// a read fails, after this is recorded.
+type clientConn struct {
+	net.Conn
+	ended atomic.Bool
+}
+
+func (c *clientConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if errors.Is(err, io.EOF) {
+		c.ended.Store(true)
+	}
+	return n, err
+}
+
+// CloseWrite passes on Go's server's graceful close (closeWriteAndWait),
+// which it skips for a connection without one.
+func (c *clientConn) CloseWrite() error {
+	if cw, ok := c.Conn.(interface{ CloseWrite() error }); ok {
+		return cw.CloseWrite()
+	}
+	return nil
+}
+
+// endWithClient makes the Node request in r outlive a client that stops
+// sending. Any other end of the client's connection, or of the request, still
+// cancels it. The returned func releases the request once the response is
+// done.
+func endWithClient(r *http.Request) (*http.Request, func()) {
+	conn, ok := r.Context().Value(clientConnKey{}).(*clientConn)
+	if !ok {
+		return r, func() {}
+	}
+	ctx, cancel := context.WithCancel(context.WithoutCancel(r.Context()))
+	stop := context.AfterFunc(r.Context(), func() {
+		if !conn.ended.Load() {
+			cancel()
+		}
+	})
+	return r.WithContext(ctx), func() {
+		stop()
+		cancel()
+	}
+}
+
+type clientConnKey struct{}
 
 // nodeHeaderBytes counts header bytes the way Node's HTTP parser does
 // (TrackHeader in Node's src/node_http_parser.cc): the variable part of the
