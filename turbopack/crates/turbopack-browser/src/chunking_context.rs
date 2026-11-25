@@ -1269,17 +1269,15 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn worker_loader_chunk_item(
-        self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        self: ResolvedVc<Self>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
         worker_type: WorkerType,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        let chunking_context =
-            ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self.to_resolved().await?);
         Ok(
-            WorkerLoaderModule::new(module, worker_type, availability_info)
-                .as_chunk_item(module_graph, *chunking_context),
+            WorkerLoaderModule::new(*module, worker_type, availability_info)
+                .as_chunk_item(*module_graph, Vc::upcast(*self)),
         )
     }
 

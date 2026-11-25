@@ -579,9 +579,9 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
         worker_type: WorkerType,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>>;
 
