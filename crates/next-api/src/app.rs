@@ -35,6 +35,7 @@ use next_core::{
     },
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
+    pages_structure::PagesDirectoryStructure,
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use smallvec::smallvec;
@@ -75,14 +76,13 @@ use turbopack_core::{
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
     GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_bundle_from_sources, go_declarations, go_failure_from_sources, go_source_set,
+    go_bundle_from_sources, go_declarations, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::FontManifest,
-    go_config::go_entry_config,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft::{EndpointTraceResult, trace_endpoint},
@@ -1180,6 +1180,77 @@ pub(crate) fn go_proxy_endpoint(
     )
 }
 
+/// Renders the Go proxy handler with the configuration that proxy.ts URL
+/// normalization depends on.
+fn go_proxy_handler_source(skip_proxy_url_normalize: bool, base_path: &str) -> Result<String> {
+    let source = include_str!("templates/go_proxy_handler.go");
+    let placeholder = "const nextGoSkipProxyURLNormalize = false";
+    ensure!(
+        source.contains(placeholder),
+        "Go proxy template is missing the skipProxyUrlNormalize placeholder"
+    );
+    let source = source.replacen(
+        placeholder,
+        &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
+        1,
+    );
+    let placeholder = "const nextGoProxyBasePath = \"\"";
+    ensure!(
+        source.contains(placeholder),
+        "Go proxy template is missing the basePath placeholder"
+    );
+    Ok(source.replacen(
+        placeholder,
+        &format!(
+            "const nextGoProxyBasePath = {}",
+            serde_json::to_string(base_path)?
+        ),
+        1,
+    ))
+}
+
+/// proxy.go only supports App Router applications. Pages Router routing (data
+/// requests and locales) would need its own URL normalization in Go to match
+/// proxy.ts.
+async fn go_proxy_unsupported_reason(project: Vc<Project>) -> Result<Option<RcStr>> {
+    let pages = project.pages_project().pages_structure().await?;
+    let mut has_pages_routes = false;
+    for directory in pages.pages.iter().chain(pages.api.iter()) {
+        if pages_directory_has_routes(**directory).await? {
+            has_pages_routes = true;
+            break;
+        }
+    }
+    if has_pages_routes {
+        return Ok(Some(rcstr!(
+            "proxy.go is only supported in App Router applications. Move the routes in the pages \
+             directory to the app directory, or use proxy.ts."
+        )));
+    }
+    if project.next_config().i18n().await?.is_some() {
+        return Ok(Some(rcstr!(
+            "proxy.go does not support the i18n configuration, which only applies to the Pages \
+             Router. Remove i18n from your Next.js config, or use proxy.ts."
+        )));
+    }
+    Ok(None)
+}
+
+/// Whether a pages directory contains a route. `_app`, `_document` and `_error`
+/// are not routes.
+async fn pages_directory_has_routes(directory: Vc<PagesDirectoryStructure>) -> Result<bool> {
+    let directory = directory.await?;
+    if !directory.items.is_empty() {
+        return Ok(true);
+    }
+    for child in &directory.children {
+        if Box::pin(pages_directory_has_routes(**child)).await? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
     Ok(project.next_mode().await?.is_production()
         && *project.next_config().is_using_adapter().await?)
@@ -1216,7 +1287,9 @@ impl Issue for GoRouteIssue {
         Ok(self.path.clone())
     }
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!("Unable to compile route.go")))
+        Ok(StyledString::Text(
+            format!("Unable to compile {}", self.path.file_name()).into(),
+        ))
     }
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.message.clone())))
@@ -1238,6 +1311,21 @@ impl Endpoint for GoEndpoint {
                 } else {
                     rcstr!("route.go requires experimental.goRoutes: true")
                 },
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
+        if is_proxy && let Some(message) = go_proxy_unsupported_reason(*project).await? {
+            GoRouteIssue {
+                path: this.path.clone(),
+                message,
             }
             .resolved_cell()
             .emit();
@@ -1299,47 +1387,13 @@ impl Endpoint for GoEndpoint {
             }
             .cell());
         }
-        // Only the entrypoint file is parsed: handlers, `Proxy` and `var Config` must live there.
-        // The rest of the package is compiled but not analyzed.
-        let analysis = go_declarations(*sources, vec![RcStr::from(handler_name)], session).await?;
+        let analysis = go_declarations(*sources, session).await?;
         if is_proxy {
             ensure!(
                 analysis.functions.iter().any(|name| name == "Proxy"),
                 "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
             );
         }
-        // Static `var Config` is read from the same syntax analysis and published in the
-        // descriptor, so Next.js never parses Go entrypoints separately.
-        let config = match go_entry_config(&analysis.functions, &analysis.values, is_proxy) {
-            Ok(config) => config,
-            Err(message) => {
-                // The failure depends on the entry's source, so keep the selection's inputs
-                // for request-side validation: a request right after the fix must not get
-                // this stale failure.
-                let result = go_failure_from_sources(*sources, session, message.into()).await?;
-                if matches!(result.outcome, GoBuildOutcome::Retry) {
-                    bail!("Go route inputs changed during analysis; retry the request")
-                }
-                if let GoBuildOutcome::Failed(message) = &result.outcome {
-                    GoRouteIssue {
-                        path: this.path.clone(),
-                        message: message.clone(),
-                    }
-                    .resolved_cell()
-                    .emit();
-                }
-                return Ok(EndpointOutput {
-                    project,
-                    output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed {
-                        build: Some((*result).clone()),
-                    }
-                    .resolved_cell(),
-                    first_load_chunks: None,
-                }
-                .cell());
-            }
-        };
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
@@ -1361,7 +1415,10 @@ impl Endpoint for GoEndpoint {
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
         let handler = if is_proxy {
-            include_str!("templates/go_proxy_handler.go").to_owned()
+            go_proxy_handler_source(
+                *project.next_config().skip_proxy_url_normalize().await?,
+                base_path.as_deref().unwrap_or(""),
+            )?
         } else {
             include_str!("templates/go_route_handler.go").replace(
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",
@@ -1402,10 +1459,28 @@ impl Endpoint for GoEndpoint {
             ),
         ]);
         let result = go_bundle_from_sources(*sources, session, generated).await?;
-        ensure!(
-            result.is_current().await?,
-            "Go route inputs changed during compilation; retry the request"
-        );
+        // Inputs that changed while compiling invalidate this task, which recomputes. Until
+        // then, publish nothing and leave the retry to request-side validation, instead of
+        // failing change subscriptions with an internal error. Editing files next to a Go
+        // entry, such as `next.config.ts` or `pages/` beside `proxy.go`, can race a compile.
+        if matches!(result.outcome, GoBuildOutcome::Retry) || !result.is_current().await? {
+            // Without a watcher, as in `next build`, nothing recomputes this task and build
+            // output is not validated per request, so fail instead of omitting the executable.
+            ensure!(
+                watch,
+                "Go route inputs changed during compilation; run the build again"
+            );
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed {
+                    build: Some((*result).clone()),
+                }
+                .resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
         let content = match &result.outcome {
             GoBuildOutcome::Success(content) => *content,
             GoBuildOutcome::Failed(message) => {
@@ -1426,6 +1501,7 @@ impl Endpoint for GoEndpoint {
                 }
                 .cell());
             }
+            // Handled above.
             GoBuildOutcome::Retry => {
                 bail!("Go inputs changed during compilation; retry the request")
             }
@@ -1442,7 +1518,7 @@ impl Endpoint for GoEndpoint {
         let entry = format!("{output_name}.native.json");
         let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
-        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch, "config": config });
+        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
         if is_proxy {
             descriptor["source"] =
                 serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
@@ -2371,17 +2447,25 @@ impl AppEndpoint {
                     .should_write_nft_manifests()
                     .await?
                 {
+                    let mut additional_assets = Vec::with_capacity(
+                        client_reference_manifest.iter().len()
+                            + loadable_manifest_output
+                                .iter()
+                                .map(|m| m.len())
+                                .sum::<usize>(),
+                    );
+                    additional_assets.extend(
+                        client_reference_manifest
+                            .iter()
+                            .chain(loadable_manifest_output.iter().flat_map(|m| &**m))
+                            .map(|m| **m),
+                    );
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
                             Some(app_function_name(&app_entry.original_name).into()),
                             *rsc_chunk,
-                            client_reference_manifest
-                                .iter()
-                                .copied()
-                                .chain(loadable_manifest_output.iter().flat_map(|m| &**m).copied())
-                                .map(|m| *m)
-                                .collect(),
+                            additional_assets,
                             self.trace_result(),
                         )
                         .to_resolved()
@@ -3108,5 +3192,20 @@ impl AppEndpointOutput {
             AppEndpointOutput::NodeJs { client_assets, .. }
             | AppEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::go_proxy_handler_source;
+
+    #[test]
+    fn renders_go_proxy_handler_configuration() {
+        let source = go_proxy_handler_source(false, "").unwrap();
+        assert!(source.contains("const nextGoSkipProxyURLNormalize = false\n"));
+        assert!(source.contains("const nextGoProxyBasePath = \"\"\n"));
+        let source = go_proxy_handler_source(true, "/docs").unwrap();
+        assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
+        assert!(source.contains("const nextGoProxyBasePath = \"/docs\"\n"));
     }
 }

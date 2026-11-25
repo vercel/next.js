@@ -59,7 +59,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { ensureGoSdkQueued } from '../../../lib/go-sdk'
+import { ensureGoSdkQueued, goSdkOptions } from '../../../lib/go-sdk'
 
 import {
   isMiddlewareFile,
@@ -171,11 +171,6 @@ export type ServerFields = {
   >[]
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   resetFetch?: () => void
-  /**
-   * Why proxy.go's static Config is invalid, while it is. Requests then fail
-   * with this error instead of running without the proxy.
-   */
-  goProxyConfigError?: string
 }
 
 /**
@@ -245,14 +240,9 @@ async function startWatcher(
 
   fs.mkdirSync(distDir, { recursive: true })
 
-  const goSdkOptions = {
-    dir,
-    rootDir:
-      nextConfig.turbopack?.root || nextConfig.outputFileTracingRoot || dir,
-    distDir,
-  }
+  const goSdk = goSdkOptions(dir, distDir, nextConfig)
   if (nextConfig.experimental.goRoutes) {
-    await ensureGoSdkQueued(goSdkOptions)
+    await ensureGoSdkQueued(goSdk)
   }
 
   // Create server info to store in the lockfile itself
@@ -736,12 +726,7 @@ async function startWatcher(
             // TODO(as-any): pre-existing cast, not yet reviewed
             // eslint-disable-next-line @next/internal/no-as-any
             match: null as any,
-            // proxy.go matchers come from Turbopack's compiled descriptor (see
-            // loadNativeMiddleware); keep them across file system events.
-            matchers: (fileBase === 'proxy.go' &&
-            serverFields.middleware?.runtime === 'go'
-              ? serverFields.middleware.matchers
-              : staticInfo.middleware?.matchers) || [
+            matchers: staticInfo.middleware?.matchers || [
               { regexp: '^/.*$', originalSource: '/:path*' },
             ],
             ...(fileBase === 'proxy.go'
@@ -1006,10 +991,12 @@ async function startWatcher(
         }
       }
 
-      // A Go source can start importing next/go after startup. Add the go.mod
-      // requirement then; Turbopack tracks go.mod and recompiles the handler.
+      // A Go route or Proxy file can start importing next/go after startup.
+      // Add the go.mod requirement before it is compiled; Turbopack tracks
+      // go.mod. Other Go sources are covered when Turbopack recompiles the
+      // endpoints that import them (see the hot reloader).
       if (goFileChange && nextConfig.experimental.goRoutes) {
-        void ensureGoSdkQueued(goSdkOptions)
+        void ensureGoSdkQueued(goSdk)
       }
 
       // Also set on the initial scan, so that typed env definitions exist
@@ -1341,10 +1328,6 @@ async function startWatcher(
 
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareEntry
-      // A removed or replaced proxy.go takes its Config error with it.
-      if (middlewareEntry?.runtime !== 'go') {
-        serverFields.goProxyConfigError = undefined
-      }
 
       await propagateServerField(opts, 'middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
@@ -1675,15 +1658,6 @@ async function startWatcher(
 
     async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
-      // An invalid proxy.go Config fails the request, like a proxy that does
-      // not compile, rather than skipping the proxy and serving routes it may
-      // protect. `next build` fails on the same Config.
-      if (
-        serverFields.middleware?.runtime === 'go' &&
-        serverFields.goProxyConfigError
-      ) {
-        throw new ModuleBuildError(serverFields.goProxyConfigError)
-      }
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,

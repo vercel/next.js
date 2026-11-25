@@ -611,8 +611,6 @@ export function hasEntrypointForKey(
 // hooks only used by the dev server.
 type HandleEntrypointsHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
-  /** Applies a native proxy's static config from its written descriptor. */
-  loadNativeMiddleware: () => Promise<void>
   propagateServerField: (
     field: PropagateToWorkersField,
     args: any
@@ -790,12 +788,14 @@ export async function handleEntrypoints({
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
-      // A failed native compile publishes no descriptor; keep the last config.
-      if (
-        writtenEndpoint.value.type === 'native' &&
-        writtenEndpoint.value.entryPath
-      ) {
-        await dev.hooks.loadNativeMiddleware()
+      if (logErrors && writtenEndpoint.value.type === 'native') {
+        // A Go proxy that failed to build has no fallback, so report its
+        // errors in the terminal as well as in the overlay.
+        for (const issue of writtenEndpoint.issues) {
+          if (issue.severity === 'error' || issue.severity === 'fatal') {
+            Log.error(formatIssue(issue))
+          }
+        }
       }
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =

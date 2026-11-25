@@ -87,9 +87,9 @@ function ancestorModule(dir: string, rootDir: string): string | undefined {
 
 /**
  * Finds the Go package directories in the project, and the modules nested in
- * it. Skips what Go's `./...` skips (`.` and `_` prefixes, `testdata`), plus
- * `node_modules`, `vendor`, the build output, and symlinks, which Turbopack
- * rejects as Go sources.
+ * it. Skips what Go's `./...` skips (`.` and `_` prefixes, `testdata`, a
+ * module's `vendor` directory), plus `node_modules`, the build output, and
+ * symlinks, which Turbopack rejects as Go sources.
  */
 async function scanProject(
   dir: string,
@@ -107,6 +107,13 @@ async function scanProject(
       continue
     }
     let hasGo = false
+    // Go only gives vendor a meaning at a module root; elsewhere, such as
+    // app/vendor/route.go, it is an ordinary package. testdata is skipped like
+    // Go's `./...` and `all` do, so go mod tidy would drop a requirement that
+    // only testdata needs.
+    const isModuleRoot = entries.some(
+      (entry) => entry.isFile() && entry.name === 'go.mod'
+    )
     for (const entry of entries) {
       const { name } = entry
       if (entry.isFile()) {
@@ -117,8 +124,8 @@ async function scanProject(
         !name.startsWith('.') &&
         !name.startsWith('_') &&
         name !== 'node_modules' &&
-        name !== 'vendor' &&
-        name !== 'testdata'
+        name !== 'testdata' &&
+        !(name === 'vendor' && isModuleRoot)
       ) {
         const child = path.join(current, name)
         if (child !== distDir) pending.push(child)
@@ -355,12 +362,39 @@ export async function ensureGoSdk(options: GoSdkOptions): Promise<void> {
 }
 
 let queue: Promise<void> = Promise.resolve()
+let pending: Promise<void> | undefined
 
 /**
  * Like `ensureGoSdk`, but serialized, so the dev server can call it whenever Go
  * sources change without concurrent `go mod edit` runs.
  */
 export function ensureGoSdkQueued(options: GoSdkOptions): Promise<void> {
-  queue = queue.then(() => ensureGoSdk(options))
-  return queue
+  // Calls made while a run is waiting to start share it: it reads the files
+  // when it starts, so it covers every change made before then. The dev server
+  // calls this for each recompiled Go endpoint, often several at once.
+  if (pending) return pending
+  const run = queue.then(() => {
+    pending = undefined
+    return ensureGoSdk(options)
+  })
+  pending = run
+  queue = run
+  return run
+}
+
+/** The SDK options for a Next.js project, as `next dev` and `next build` use them. */
+export function goSdkOptions(
+  dir: string,
+  distDir: string,
+  nextConfig: {
+    turbopack?: { root?: string }
+    outputFileTracingRoot?: string
+  }
+): GoSdkOptions {
+  return {
+    dir,
+    rootDir:
+      nextConfig.turbopack?.root || nextConfig.outputFileTracingRoot || dir,
+    distDir,
+  }
 }

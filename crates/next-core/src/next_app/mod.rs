@@ -389,7 +389,7 @@ impl Display for PathSegment {
 /// request path.
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Default, Encode, Decode)]
-pub struct AppPath(pub Vec<PathSegment>);
+pub struct AppPath(pub Box<[PathSegment]>);
 
 impl AppPath {
     pub fn is_dynamic(&self) -> bool {
@@ -515,7 +515,7 @@ impl AppPath {
         canonical_segments.push(target);
         canonical_segments.extend_from_slice(&self.0[interception_index + 1..]);
 
-        Some(AppPath(canonical_segments))
+        Some(AppPath(canonical_segments.into_boxed_slice()))
     }
 
     /// Returns whether the supplied ordinary route patterns cover every URL matched by this

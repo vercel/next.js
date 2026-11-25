@@ -147,8 +147,8 @@ describe('static Go config diagnostics', () => {
   const cases = [
     {
       file: 'proxy.go',
-      from: 'var Config = next.ProxyConfig{',
-      to: 'var Config = next.ProxyConfig{MaxDuration: 11,',
+      from: 'var Config = proxy.Config{',
+      to: 'var Config = proxy.Config{MaxDuration: 11,',
       error: 'unsupported Config field MaxDuration',
     },
     {
