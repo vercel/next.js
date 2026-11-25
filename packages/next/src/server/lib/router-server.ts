@@ -570,9 +570,10 @@ export async function initialize(opts: {
         }
       }
 
-      // Only Request Insights in dev records the router-to-render handoff, so
-      // `next start` traces keep their existing root span. The request is
-      // already inside its identity scope, so the span gets its request ID.
+      // Only Request Insights in dev records the router-to-render handoff. The
+      // request is already inside its identity scope, so the span gets its
+      // request ID. It isn't exported, so `BaseServer.handleRequest` still
+      // takes the root (see `NextTracerImpl.trace`).
       const recordRenderHandoff =
         opts.dev && getRequestMeta(req, 'requestInsightsIdentity') !== undefined
 
