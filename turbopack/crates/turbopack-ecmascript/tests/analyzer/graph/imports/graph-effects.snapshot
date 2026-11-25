@@ -4,7 +4,7 @@
         export: Some(
             "default",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -43,7 +43,7 @@
         export: Some(
             "a",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -80,7 +80,7 @@
     ImportedBinding {
         esm_reference_index: 6,
         export: None,
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
