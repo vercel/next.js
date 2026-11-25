@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="24776b7f-22e0-684b-d260-4af76b268cd2")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="e7e77ae2-ff5d-1a37-6eb2-f8f7e63810a8")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -531,7 +531,22 @@ contextPrototype.r = commonJsRequire;
 }
 /**
  * `require.context` and require/import expression runtime.
- */ function moduleContext(map) {
+ */ function moduleContext(mapOrIds) {
+    let map;
+    if (Array.isArray(mapOrIds)) {
+        const parentModule = this.m;
+        map = {};
+        for(let i = 0; i < mapOrIds.length; i += 2){
+            const id = mapOrIds[i + 1];
+            map[mapOrIds[i]] = {
+                id: ()=>id,
+                // inlined require implementation, which gives an ignored module empty exports
+                module: ()=>id === undefined ? {} : getOrInstantiateModuleFromParent(id, parentModule).exports
+            };
+        }
+    } else {
+        map = mapOrIds;
+    }
     function moduleContext(id) {
         id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
@@ -2701,5 +2716,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=24776b7f-22e0-684b-d260-4af76b268cd2
+//# debugId=e7e77ae2-ff5d-1a37-6eb2-f8f7e63810a8
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
