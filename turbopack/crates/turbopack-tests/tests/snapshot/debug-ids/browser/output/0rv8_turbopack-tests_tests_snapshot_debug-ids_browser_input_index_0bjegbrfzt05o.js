@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="09b5a6c0-de83-6ff7-ddfd-0834b951bad4")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="61857f1b-8d87-8391-bb4c-d9cbb549f997")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -870,12 +870,14 @@ const availableModuleChunks = new Map();
 // register their module factories; CSS chunks resolved by the runtime are recorded
 // when their stylesheet is available. CSS in initial HTML is included by the getter
 // below. Unlike CSS, JS factories remain installed after a script is removed.
-const loadedChunkPaths = new Set();
+// Created on the first registration.
+let loadedChunkPaths;
 function registerLoadedChunk(chunk) {
+    if (loadedChunkPaths === undefined) loadedChunkPaths = new Set();
     loadedChunkPaths.add(getPathFromScript(chunk));
 }
 function unregisterLoadedChunk(chunkPath) {
-    loadedChunkPaths.delete(chunkPath);
+    loadedChunkPaths?.delete(chunkPath);
 }
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
@@ -2750,5 +2752,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=09b5a6c0-de83-6ff7-ddfd-0834b951bad4
+//# debugId=61857f1b-8d87-8391-bb4c-d9cbb549f997
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

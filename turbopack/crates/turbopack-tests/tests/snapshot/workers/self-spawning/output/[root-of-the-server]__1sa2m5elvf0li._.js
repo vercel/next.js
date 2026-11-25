@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__1y7-swagcgl08._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__1sa2m5elvf0li._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -96,4 +96,4 @@ function generateCreateWorker(entrypoint, moduleChunks) {
 __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/worker.js [test] (ecmascript, worker loader)")(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"], Worker);
 })]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__1y7-swagcgl08._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__1sa2m5elvf0li._.js.map

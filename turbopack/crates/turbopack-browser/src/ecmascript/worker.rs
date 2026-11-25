@@ -282,6 +282,19 @@ fn generate_worker_bootstrap_code(
         "##,
     )?;
 
+    if shared_runtime {
+        // Appended only after `nextChunkUrls` is built: the runtime chunk doesn't register through
+        // `TURBOPACK_NEXT_CHUNK_URLS`.
+        writedoc!(
+            code,
+            r##"
+
+            // Load the runtime last so it drains the registrations of the chunks loaded before it.
+            if (runtimeUrl) loadOrder.push(runtimeUrl);
+            "##,
+        )?;
+    }
+
     writedoc!(
         code,
         r##"
@@ -293,43 +306,20 @@ fn generate_worker_bootstrap_code(
         globals_js
     )?;
 
-    if shared_runtime {
-        writedoc!(
-            code,
-            r##"
+    writedoc!(
+        code,
+        r##"
 
-            if (loadOrder.length > 0 || runtimeUrl) {{
-                var scriptsToLoad = [];
-                for (var i = 0; i < loadOrder.length; i++) {{
-                    scriptsToLoad.push(sameOriginUrl(loadOrder[i]));
-                }}
-
-                // Load the runtime last so it drains the registrations enqueued above.
-                if (runtimeUrl) {{
-                    scriptsToLoad.push(sameOriginUrl(runtimeUrl));
-                }}
-
-                importScripts.apply(self, scriptsToLoad);
+        if (loadOrder.length > 0) {{
+            var scriptsToLoad = [];
+            for (var i = 0; i < loadOrder.length; i++) {{
+                scriptsToLoad.push(sameOriginUrl(loadOrder[i]));
             }}
-            }})();
-            "##,
-        )?;
-    } else {
-        writedoc!(
-            code,
-            r##"
-
-            if (loadOrder.length > 0) {{
-                var scriptsToLoad = [];
-                for (var i = 0; i < loadOrder.length; i++) {{
-                    scriptsToLoad.push(sameOriginUrl(loadOrder[i]));
-                }}
-                importScripts.apply(self, scriptsToLoad);
-            }}
-            }})();
-            "##,
-        )?;
-    }
+            importScripts.apply(self, scriptsToLoad);
+        }}
+        }})();
+        "##,
+    )?;
 
     Ok(code.build())
 }

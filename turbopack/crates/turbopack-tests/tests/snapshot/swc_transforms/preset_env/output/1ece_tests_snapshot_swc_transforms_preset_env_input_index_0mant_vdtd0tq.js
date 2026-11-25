@@ -1150,12 +1150,14 @@ var availableModuleChunks = new Map();
 // register their module factories; CSS chunks resolved by the runtime are recorded
 // when their stylesheet is available. CSS in initial HTML is included by the getter
 // below. Unlike CSS, JS factories remain installed after a script is removed.
-var loadedChunkPaths = new Set();
+// Created on the first registration.
+var loadedChunkPaths;
 function registerLoadedChunk(chunk) {
+    if (loadedChunkPaths === undefined) loadedChunkPaths = new Set();
     loadedChunkPaths.add(getPathFromScript(chunk));
 }
 function unregisterLoadedChunk(chunkPath) {
-    loadedChunkPaths.delete(chunkPath);
+    loadedChunkPaths === null || loadedChunkPaths === void 0 ? void 0 : loadedChunkPaths.delete(chunkPath);
 }
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {

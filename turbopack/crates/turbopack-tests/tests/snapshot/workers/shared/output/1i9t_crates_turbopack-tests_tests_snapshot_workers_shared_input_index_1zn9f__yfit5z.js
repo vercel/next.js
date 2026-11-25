@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_0nj0x2tzn01a2.js",
-    {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1qzlx3fyrcrsq.js","output/[root-of-the-server]__1t51a13-p1kgv._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)"]}
+    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_1zn9f__yfit5z.js",
+    {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1qzlx3fyrcrsq.js","output/[root-of-the-server]__0dy7198c7yxhf._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
 var chunksToRegister = globalThis["TURBOPACK"];
@@ -869,12 +869,14 @@ const availableModuleChunks = new Map();
 // register their module factories; CSS chunks resolved by the runtime are recorded
 // when their stylesheet is available. CSS in initial HTML is included by the getter
 // below. Unlike CSS, JS factories remain installed after a script is removed.
-const loadedChunkPaths = new Set();
+// Created on the first registration.
+let loadedChunkPaths;
 function registerLoadedChunk(chunk) {
+    if (loadedChunkPaths === undefined) loadedChunkPaths = new Set();
     loadedChunkPaths.add(getPathFromScript(chunk));
 }
 function unregisterLoadedChunk(chunkPath) {
-    loadedChunkPaths.delete(chunkPath);
+    loadedChunkPaths?.delete(chunkPath);
 }
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
@@ -2749,4 +2751,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_0nj0x2tzn01a2.js.map
+//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_1zn9f__yfit5z.js.map

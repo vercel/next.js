@@ -110,14 +110,16 @@ const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 // register their module factories; CSS chunks resolved by the runtime are recorded
 // when their stylesheet is available. CSS in initial HTML is included by the getter
 // below. Unlike CSS, JS factories remain installed after a script is removed.
-const loadedChunkPaths: Set<ChunkPath> = new Set()
+// Created on the first registration.
+let loadedChunkPaths: Set<ChunkPath> | undefined
 
 function registerLoadedChunk(chunk: ChunkPath | ChunkScript): void {
+  if (loadedChunkPaths === undefined) loadedChunkPaths = new Set()
   loadedChunkPaths.add(getPathFromScript(chunk))
 }
 
 function unregisterLoadedChunk(chunkPath: ChunkPath): void {
-  loadedChunkPaths.delete(chunkPath)
+  loadedChunkPaths?.delete(chunkPath)
 }
 
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.

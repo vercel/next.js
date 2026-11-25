@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__1t51a13-p1kgv._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__0dy7198c7yxhf._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -111,4 +111,4 @@ __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapsh
 
 __turbopack_context__.q("/static/worker.1n36e5vaxakik.js");})]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__1t51a13-p1kgv._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__0dy7198c7yxhf._.js.map

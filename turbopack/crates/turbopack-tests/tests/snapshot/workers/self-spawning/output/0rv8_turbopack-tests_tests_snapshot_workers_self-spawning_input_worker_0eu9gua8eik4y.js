@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/0rv8_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0gq1vd23kc2iu.js",
-    {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_07hs0yaq7iorj.js","output/[root-of-the-server]__0cxc43sfkk7nl._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/worker.js [test] (ecmascript)"]}
+    "output/0rv8_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0eu9gua8eik4y.js",
+    {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_07hs0yaq7iorj.js","output/[root-of-the-server]__03vfglhs9mdqf._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/worker.js [test] (ecmascript)"]}
 ]);
 (() => {
 var chunksToRegister = globalThis["TURBOPACK"];
@@ -869,12 +869,14 @@ const availableModuleChunks = new Map();
 // register their module factories; CSS chunks resolved by the runtime are recorded
 // when their stylesheet is available. CSS in initial HTML is included by the getter
 // below. Unlike CSS, JS factories remain installed after a script is removed.
-const loadedChunkPaths = new Set();
+// Created on the first registration.
+let loadedChunkPaths;
 function registerLoadedChunk(chunk) {
+    if (loadedChunkPaths === undefined) loadedChunkPaths = new Set();
     loadedChunkPaths.add(getPathFromScript(chunk));
 }
 function unregisterLoadedChunk(chunkPath) {
-    loadedChunkPaths.delete(chunkPath);
+    loadedChunkPaths?.delete(chunkPath);
 }
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
@@ -2749,4 +2751,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0gq1vd23kc2iu.js.map
+//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0eu9gua8eik4y.js.map

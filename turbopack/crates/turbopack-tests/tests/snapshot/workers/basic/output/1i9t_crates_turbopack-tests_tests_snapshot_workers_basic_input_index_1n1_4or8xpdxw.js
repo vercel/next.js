@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/0rv8_turbopack-tests_tests_snapshot_workers_self-spawning_input_index_1c-c-aey8_5_x.js",
-    {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0s54-fsguz95q.js","output/[root-of-the-server]__1y7-swagcgl08._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/index.js [test] (ecmascript)"]}
+    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_1n1_4or8xpdxw.js",
+    {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_13pih40wzlzjh.js","output/[root-of-the-server]__152dw9rc9z329._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
 var chunksToRegister = globalThis["TURBOPACK"];
@@ -869,12 +869,14 @@ const availableModuleChunks = new Map();
 // register their module factories; CSS chunks resolved by the runtime are recorded
 // when their stylesheet is available. CSS in initial HTML is included by the getter
 // below. Unlike CSS, JS factories remain installed after a script is removed.
-const loadedChunkPaths = new Set();
+// Created on the first registration.
+let loadedChunkPaths;
 function registerLoadedChunk(chunk) {
+    if (loadedChunkPaths === undefined) loadedChunkPaths = new Set();
     loadedChunkPaths.add(getPathFromScript(chunk));
 }
 function unregisterLoadedChunk(chunkPath) {
-    loadedChunkPaths.delete(chunkPath);
+    loadedChunkPaths?.delete(chunkPath);
 }
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths() {
@@ -2749,4 +2751,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_index_1c-c-aey8_5_x.js.map
+//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_1n1_4or8xpdxw.js.map
