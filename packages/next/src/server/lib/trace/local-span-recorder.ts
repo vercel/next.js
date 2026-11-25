@@ -57,7 +57,8 @@ export type LocalSpanOptions = {
   spanId?: string
   parentSpanId?: string
   delegateSpan?: Span
-  openTelemetry?: { options: SpanOptions; context: Context }
+  /** Starts the delegate; `name` defaults to the local name, `context` to the active one. */
+  openTelemetry?: { name?: string; options: SpanOptions; context?: Context }
   publicParentSpan?: Span
   isolateOpenTelemetry?: boolean
   clock?: { start: bigint; end(time?: Parameters<Span['end']>[0]): bigint }
@@ -90,7 +91,7 @@ export function createRecordingSpan(
   let delegateSpan = options.delegateSpan
   if (!delegateSpan && options.openTelemetry) {
     delegateSpan = getTracerInstance().startSpan(
-      options.name,
+      options.openTelemetry.name ?? options.name,
       options.openTelemetry.options,
       options.openTelemetry.context
     )
@@ -189,11 +190,34 @@ export function withLocalSpan<T>(
   return getLocalSpanAsyncStorage().run({ span, publicContext }, fn)
 }
 
-type TraceLocalSpanOptions = Omit<RequestSpanOptions, 'parent'> & {
+/**
+ * Runs `fn` with `span` as the active local span. A non-isolated span also
+ * makes its OpenTelemetry span active (or clears it), so nested Next.js spans
+ * export under it.
+ */
+export function runInLocalSpan<T>(span: Span, fn: () => T): T {
+  const { context, trace } = api
+  let publicContext = context.active()
+  if (!isOpenTelemetryIsolatedSpan(span)) {
+    const publicSpan = getOpenTelemetrySpan(span)
+    publicContext = publicSpan
+      ? trace.setSpan(publicContext, publicSpan)
+      : trace.deleteSpan(publicContext)
+  }
+  return context.with(publicContext, () =>
+    withLocalSpan(span, fn, trace.getSpanContext(publicContext))
+  )
+}
+
+type TraceLocalSpanOptions = Omit<
+  RequestSpanOptions,
+  'parent' | 'delegateSpan' | 'isolateOpenTelemetry' | 'publicParentSpan'
+> & {
   parentSpan?: Span | null
 }
 
-// Validation operations deliberately isolate local context from the app SDK.
+// Validation operations isolate local context from the app SDK unless they
+// export a delegate or their parent isn't isolated (isolation is inherited).
 // Only request callbacks inherit an active request parent and establish scope.
 export function traceLocalSpan<T>(
   options: TraceLocalSpanOptions & { synchronous: true },
@@ -209,12 +233,18 @@ export function traceLocalSpan<T>(
 ): T | Promise<T> {
   const run = () => {
     const parent = parentSpan === undefined ? getActiveLocalSpan() : parentSpan
+    const isolateOpenTelemetry =
+      !options.openTelemetry &&
+      (parent ? isOpenTelemetryIsolatedSpan(parent) : true)
     const span = createLocalSpan({
       ...options,
       parent,
-      isolateOpenTelemetry: true,
+      isolateOpenTelemetry,
+      publicParentSpan: isolateOpenTelemetry
+        ? undefined
+        : api.trace.getSpan(api.context.active()),
     })
-    const execute = () => withLocalSpan(span, () => fn(span))
+    const execute = () => runInLocalSpan(span, () => fn(span))
     return options.synchronous
       ? recordSpan({ span, synchronous: true }, execute)
       : recordSpan({ span }, execute)
@@ -233,6 +263,7 @@ export type LocalSpanRecorder = {
   isOpenTelemetryIsolatedSpan: typeof isOpenTelemetryIsolatedSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
   isLocalSpanSinkActive: typeof isLocalSpanSinkActive
+  runInLocalSpan: typeof runInLocalSpan
   traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
 }
@@ -252,6 +283,7 @@ export function registerLocalSpanRecorder({
       ? isLocalSpanSinkActive
       : isLocalSpanRecordingEnabled,
     isLocalSpanSinkActive,
+    runInLocalSpan,
     traceLocalSpan,
     withLocalSpan,
   })
