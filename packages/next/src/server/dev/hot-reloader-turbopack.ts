@@ -2332,7 +2332,15 @@ export async function createHotReloaderTurbopack(
 
   async function handleProjectUpdates() {
     const BUILDING_MESSAGE_DEFER_MS = 100
-    for await (const updateMessage of project.updateInfoSubscribe(30)) {
+    // An update ends once no foreground job has run for this long. Server
+    // component changes are announced at the end, so every edit waits this
+    // long before browsers refetch. Turbopack already keeps an update open
+    // while a job is running, so the window only has to bridge the gap
+    // between jobs.
+    const UPDATE_AGGREGATION_MS = 5
+    for await (const updateMessage of project.updateInfoSubscribe(
+      UPDATE_AGGREGATION_MS
+    )) {
       switch (updateMessage.updateType) {
         case 'start': {
           updateInProgress = true
