@@ -1,0 +1,4 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0s54-fsguz95q.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/worker.js [test] (ecmascript, worker loader)",((__turbopack_context__) => {
+
+__turbopack_context__.v((createWorker, WorkerConstructor, workerOptions) => createWorker("output/0ce9_turbopack-tests_tests_snapshot_workers_self-spawning_output_0uy0mninb8pht._.js", ["output/0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_07hs0yaq7iorj.js","output/[root-of-the-server]__0cxc43sfkk7nl._.js","output/0rv8_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0gq1vd23kc2iu.js"])(WorkerConstructor, workerOptions));
+})]);

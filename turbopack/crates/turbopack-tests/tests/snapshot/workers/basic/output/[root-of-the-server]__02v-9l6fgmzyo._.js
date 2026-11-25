@@ -51,13 +51,15 @@ __turbopack_context__.s([
     // Nested workers re-import their parent's chunks because module factories
     // cannot be transferred across realms.
     //
-    // These must be registered *before* the worker's own chunks, for two reasons:
-    //  1. The worker's evaluate chunk instantiates the entry module, whose
-    //     factory may live in one of these chunks.
-    //  2. A worker loader has the same module id in every chunk group (its ident
-    //     deliberately excludes availability info), but carries a different chunk
-    //     list per group. Loading the worker's own chunks last means its version
-    //     wins, so a nested worker gets the correctly-pruned chunk list.
+    // These must be registered *before* the worker's own chunks: the worker's
+    // evaluate chunk instantiates the entry module, whose factory may live in one
+    // of these chunks.
+    //
+    // A worker loader has the same module id in every chunk group (its ident
+    // excludes availability info) but a different chunk list per group. The
+    // runtime keeps the first factory registered for an id, so the preloaded
+    // (parent's) copy wins. That is still correct: it was pruned against modules
+    // the parent had loaded, and all of those are forwarded again by this list.
     // They travel in their own params slot — first, since they load first.
     const preloadChunkPaths = (typeof importScripts !== 'undefined' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
     const chunkUrls = workerChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath)).reverse();

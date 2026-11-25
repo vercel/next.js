@@ -1,0 +1,99 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__1y7-swagcgl08._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
+"use strict";
+
+// Embedded worker-runtime helper. This file is bundled as a regular module and
+// `__turbopack_require__`d by the module containing the worker call. That module
+// passes this helper's default export to its generated web-worker loader.
+//
+// The chunk-URL builder, the chunk base path and the asset suffix are read from
+// the shared `__turbopack_chunk_relative_url__` / `__turbopack_chunk_base_path__`
+// / `__turbopack_chunk_asset_suffix__` runtime primitives. The worker base-path
+// override and forwarded-global names are baked into this module at build time by
+// `turbopack-ecmascript` replacing the `_TURBOPACK_WORKER_BASE_PATH_` /
+// `_TURBOPACK_WORKER_FORWARDED_GLOBALS_` free variables, and the forwarded-global
+// values are read from `globalThis`.
+__turbopack_context__.s([
+    "default",
+    ()=>generateCreateWorker
+]);
+/**
+ * Creates a web worker by instantiating the given WorkerConstructor with the
+ * appropriate URL and options.
+ *
+ * The entrypoint is a pre-compiled worker runtime file. The params configure
+ * which module chunks to load and which module to run as the entry point.
+ *
+ * The params are a JSON array of the following structure:
+ * `[PRELOAD_CHUNK_URLS, TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ *
+ * `PRELOAD_CHUNK_URLS` comes first because it is loaded first.
+ *
+ * @param WorkerConstructor The Worker or SharedWorker constructor
+ * @param entrypoint path to the worker entrypoint chunk
+ * @param moduleChunks list of module chunk paths to load
+ * @param workerOptions options to pass to the Worker constructor (optional)
+ */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
+    const isSharedWorker = WorkerConstructor.name === 'SharedWorker';
+    // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
+    // module chunks loaded inside the worker, keeping them same-origin to each
+    // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
+    // `null` falls back; an empty string is treated as a literal empty prefix.
+    const workerBasePath = null ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
+    // The worker's own chunks. Kept in their original order (and reversed the
+    // same way as before) so the shared runtime chunk — emitted last by
+    // `evaluated_chunk_group` — ends up first and the bootstrap can `shift()` it
+    // off to load it after everything else.
+    const workerChunkPaths = moduleChunks.map((chunk)=>typeof chunk === 'string' ? chunk : chunk.path);
+    const workerChunkSet = new Set(workerChunkPaths);
+    // Only a worker created by another worker inherits availability. A worker
+    // created by a page has a self-contained chunk group and must not import all
+    // the page's JS chunks. Workers have no `document`, including shared workers.
+    // Nested workers re-import their parent's chunks because module factories
+    // cannot be transferred across realms.
+    //
+    // These must be registered *before* the worker's own chunks: the worker's
+    // evaluate chunk instantiates the entry module, whose factory may live in one
+    // of these chunks.
+    //
+    // A worker loader has the same module id in every chunk group (its ident
+    // excludes availability info) but a different chunk list per group. The
+    // runtime keeps the first factory registered for an id, so the preloaded
+    // (parent's) copy wins. That is still correct: it was pruned against modules
+    // the parent had loaded, and all of those are forwarded again by this list.
+    // They travel in their own params slot — first, since they load first.
+    const preloadChunkPaths = (typeof importScripts !== 'undefined' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
+    const chunkUrls = workerChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath)).reverse();
+    const preloadUrls = preloadChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath));
+    const params = [
+        preloadUrls,
+        chunkUrls,
+        /*TURBOPACK member replacement*/ __turbopack_context__.X,
+        workerBasePath
+    ];
+    const globals = [];
+    for(let i = 0; i < globals.length; i++){
+        params.push(globalThis[globals[i]]);
+    }
+    const url = new URL(/*TURBOPACK member replacement*/ __turbopack_context__.h(entrypoint, workerBasePath), location.origin);
+    const paramsJson = JSON.stringify(params);
+    if (isSharedWorker) {
+        url.searchParams.set('params', paramsJson);
+    } else {
+        url.hash = '#params=' + encodeURIComponent(paramsJson);
+    }
+    // Remove type: "module" from options since our worker entrypoint is not a module
+    const options = workerOptions ? {
+        ...workerOptions,
+        type: undefined
+    } : undefined;
+    return new WorkerConstructor(url, options);
+}
+function generateCreateWorker(entrypoint, moduleChunks) {
+    return (WorkerConstructor, workerOptions)=>createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions);
+}
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
+
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/worker.js [test] (ecmascript, worker loader)")(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"], Worker);
+})]);
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__1y7-swagcgl08._.js.map

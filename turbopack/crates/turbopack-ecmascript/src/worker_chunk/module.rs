@@ -290,7 +290,8 @@ impl Module for WorkerLoaderModule {
         // Must be the *same* memoized call that `ChunkingContext::worker_loader_chunk_item_ident`
         // uses, so the id the `new Worker(...)` codegen looks up and the id this chunk item is
         // registered under agree. `availability_info` is intentionally not part of the ident, so
-        // the same worker has one id across chunk groups.
+        // the same worker has one id across chunk groups. The content ident includes it (see
+        // `chunk_item_content_ident`).
         worker_loader_asset_ident_for(*self.inner, self.worker_type)
     }
 
@@ -428,6 +429,42 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             ..Default::default()
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content_ident(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<AssetIdent>> {
+        // A web worker loader's code embeds the worker's chunk list, which depends on
+        // `availability_info`, while `ident()` deliberately leaves it out so the loader has one id
+        // across chunk groups. Like `AsyncLoaderModule`, add the availability to the content ident,
+        // or chunks holding differently pruned loaders get the same output path (e.g. a
+        // self-spawning worker's entry chunk in the page-spawned and in the nested chunk group).
+        //
+        // `AvailabilityInfo::ident()` covers the available chunk groups. What it leaves out is
+        // determined by them for web worker loaders (see `make_chunk_group`):
+        // - `in_web_worker` is set for every web worker loader.
+        // - The entry group is always absent: a page-spawned loader gets
+        //   `AvailabilityInfo::root()`, only `Entry` chunk groups set an entry group, and those are
+        //   never chunked inside a worker.
+        // - `in_async_module` is only ever set when entering an `Async` chunk group, which then is
+        //   itself among the available chunk groups, and it is never cleared inside a worker.
+        // Node worker thread loaders always have root availability, so their content ident stays
+        // `ident()`.
+        let this = self.await?;
+        Ok(
+            if let Some(availability_ident) = this.availability_info.ident().await? {
+                self.ident()
+                    .owned()
+                    .await?
+                    .with_modifier(availability_ident)
+                    .into_vc()
+            } else {
+                self.ident()
+            },
+        )
     }
 
     #[turbo_tasks::function]
