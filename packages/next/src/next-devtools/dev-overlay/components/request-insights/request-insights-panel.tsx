@@ -93,7 +93,12 @@ export function RequestInsightsPanel() {
   const [pausedRequests, setPausedRequests] = useState<
     readonly RequestInsight[] | null
   >(null)
-  const requests = pausedRequests ?? state.requestInsights
+  // The store appends in arrival order; the list shows newest first.
+  const liveRequests = useMemo(
+    () => [...state.requestInsights].reverse(),
+    [state.requestInsights]
+  )
+  const requests = pausedRequests ?? liveRequests
   const isPaused = pausedRequests !== null
   const filterResult = useMemo(
     () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
@@ -192,9 +197,7 @@ export function RequestInsightsPanel() {
                         className="request-insights-settings-item"
                         closeOnClick={false}
                         onCheckedChange={(checked) =>
-                          setPausedRequests(
-                            checked ? [...state.requestInsights] : null
-                          )
+                          setPausedRequests(checked ? liveRequests : null)
                         }
                       >
                         <span
