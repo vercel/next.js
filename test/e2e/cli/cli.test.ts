@@ -428,6 +428,44 @@ describe('CLI Usage', () => {
     })
   })
 
+  describe('docs', () => {
+    it('finds and reads a section from the installed docs', async () => {
+      const { stdout } = await next.runCommand([
+        'docs',
+        'search',
+        'useLinkStatus pending',
+      ])
+      const results: { id: string; description: string }[] = JSON.parse(stdout)
+      expect(results.length).toBeLessThanOrEqual(3)
+      const result = results.find(({ id }) =>
+        id.includes('/use-link-status.md')
+      )
+      expect(result).toBeDefined()
+      const read = await next.runCommand(['docs', 'retrieve', result!.id])
+      expect(read.stdout).toContain('useLinkStatus')
+      expect(read.stdout).toContain('use-link-status.md:')
+    })
+
+    it('returns an empty list when none of the query terms match', async () => {
+      const { stdout } = await next.runCommand([
+        'docs',
+        'search',
+        'gibberishzznonword',
+      ])
+      expect(JSON.parse(stdout)).toEqual([])
+    })
+
+    it('rejects IDs outside the bundled docs', async () => {
+      const { stderr, code } = await next.runCommand([
+        'docs',
+        'retrieve',
+        '../package.json',
+      ])
+      expect(code).not.toBe(0)
+      expect(stderr).toContain('Unknown documentation ID')
+    })
+  })
+
   describe('no command', () => {
     test('--help', async () => {
       const help = await next.runCommand(['--help'])

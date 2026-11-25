@@ -584,6 +584,24 @@ program
   })
   .usage('[directory] [options]')
 
+const docs = program
+  .command('docs')
+  .description('Search and read the documentation installed with Next.js.')
+
+docs
+  .command('search <query...>')
+  .description('Find relevant documentation sections by task or API name.')
+  .action((query: string[]) =>
+    import('../cli/next-docs.js').then((mod) => mod.searchDocs(query))
+  )
+
+docs
+  .command('retrieve <id> [line]')
+  .description('Read a documentation section returned by search.')
+  .action((id: string, line?: string) =>
+    import('../cli/next-docs.js').then((mod) => mod.retrieveDocs(id, line))
+  )
+
 program
   .command('telemetry')
   .description(
