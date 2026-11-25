@@ -13,7 +13,10 @@ import (
 //	{"event":"table","table":{...}}      the route table, once the router loaded
 //	{"event":"worker","page":"/api/users/[id]/route",
 //	 "address":"127.0.0.1:51300","tokenHeader":"x-next-internal-go-token",
-//	 "token":"…"}                         a route.go worker is ready for a page
+//	 "token":"…","route":"/api/users/[id]"}
+//	                                      a route.go worker is ready for a page;
+//	                                      route is the route ID it selects
+//	                                      from x-matched-path
 //	{"event":"gone","address":"127.0.0.1:51300","token":"…"}
 //	                                      that worker takes no new requests
 type controlMessage struct {
@@ -23,6 +26,7 @@ type controlMessage struct {
 	Address     string          `json:"address"`
 	TokenHeader string          `json:"tokenHeader"`
 	Token       string          `json:"token"`
+	Route       string          `json:"route"`
 }
 
 // readControl calls apply for each line on r until r ends. A line that isn't
