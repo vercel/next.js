@@ -50,6 +50,8 @@ Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path
 
 To import SDK packages such as `next/go/proxy`, your project needs a Go module. Create one with `go mod init example.com/app` if needed, using `go 1.21` or newer in `go.mod`. `next dev` and `next build` add the `next/go` requirement and a local replacement pointing to the SDK in your installed `next` package. Commit the updated `go.mod`.
 
+Both commands refresh the replacement when the installed SDK moves, including after pnpm upgrades, and log any changes. This can update a committed `go.mod` during CI builds.
+
 ## Reference
 
 ### HTTP Methods
