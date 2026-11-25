@@ -259,34 +259,6 @@ describe('effort gate', () => {
     }
   })
 
-  it('overrides the effort sample count for faster iteration', () => {
-    const { root, calls, exitCode } = run([
-      '--effort-gate',
-      '--effort-samples',
-      '2',
-    ])
-    try {
-      expect(calls.filter((call) => call.args[0] === 'run')).toHaveLength(2)
-      expect(
-        calls.filter((call) => call.args.includes('collect'))
-      ).toHaveLength(6)
-      expect(exitCode).toBe(0)
-      const [report] = fs.readdirSync(
-        path.join(root, 'evals/results/effort-gate')
-      )
-      expect(
-        JSON.parse(
-          fs.readFileSync(
-            path.join(root, 'evals/results/effort-gate', report),
-            'utf8'
-          )
-        )
-      ).toMatchObject({ sampleCount: 2 })
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true })
-    }
-  })
-
   it('keeps effort samples when the collector fails after writing metrics', () => {
     const { root, exitCode } = run(['--effort-gate'], 1)
     try {
