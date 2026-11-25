@@ -43,6 +43,10 @@
           if (isArrayImpl(value)) return "[...]";
           if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
             return "client";
+          if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
+            return "LedgerData";
+          if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+            return "LedgerTotal";
           value = objectName(value);
           return "Object" === value ? "{...}" : value;
         case "function":
@@ -130,6 +134,10 @@
         objKind = "<" + describeElementType(objectOrArray.type) + "/>";
       else {
         if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
+        if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE)
+          return "LedgerData";
+        if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+          return "LedgerTotal";
         if (jsxPropsParents.has(objectOrArray)) {
           objKind = jsxPropsParents.get(objectOrArray);
           objKind = "<" + (describeElementType(objKind) || "...");
@@ -9391,11 +9399,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-a8342585-20261117" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-89d7b2b4-20261123" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-a8342585-20261117\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-89d7b2b4-20261123\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -9526,6 +9534,8 @@
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable"),
+      REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+      REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
@@ -10983,6 +10993,7 @@
         cacheSignal: function () {
           throw Error("Not implemented.");
         },
+        units: null,
         getOwner: function () {
           return null === currentTaskInDEV
             ? null
@@ -11444,5 +11455,5 @@
         }
       };
     };
-    exports.version = "19.3.0-canary-a8342585-20261117";
+    exports.version = "19.3.0-canary-89d7b2b4-20261123";
   })();

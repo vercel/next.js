@@ -34,7 +34,6 @@ import type {
   Project,
   Entrypoints,
   NodeJsPartialHmrUpdate,
-  ServerHmrVersion,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -223,37 +222,6 @@ declare global {
     | undefined
 }
 
-/**
- * Collects the output chunk paths touched by a partial HMR update. Both
- * single-chunk `EcmascriptMergedUpdate`s and `ChunkListUpdate`s (which nest
- * per-chunk deltas inside `merged`) are flattened so the manifest cache can be
- * invalidated for every affected chunk after a successful apply.
- */
-function collectUpdatedChunkPaths(
-  instruction: NodeJsPartialHmrUpdate['instruction']
-): string[] {
-  const paths = new Set<string>()
-  if (instruction.type === 'EcmascriptMergedUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-  } else if (instruction.type === 'ChunkListUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-    for (const merged of instruction.merged ?? []) {
-      for (const chunkPath of Object.keys(merged.chunks ?? {})) {
-        paths.add(chunkPath)
-      }
-    }
-  } else {
-    throw new Error(
-      `[Server HMR] unreachable: unknown HMR instruction type ${(instruction as { type: string }).type}`
-    )
-  }
-  return Array.from(paths)
-}
-
 function setupServerHmr(
   project: Project,
   {
@@ -265,15 +233,15 @@ function setupServerHmr(
   }
 ) {
   let pending = Promise.resolve()
-  // Each pull snapshots only the requested endpoint's entries. Keep independent
-  // baselines so building one route does not discard another route's version.
-  const versions = new Map<string, ServerHmrVersion>()
+  // What the server runtimes have loaded lives in Turbopack, which diffs each
+  // requested route against it.
   let needsReEvaluation = false
 
-  async function recover() {
+  async function recover(entryPaths: string[]) {
     try {
       await reEvaluateAllModulesExpensive()
-      versions.clear()
+      // The requested route loads from scratch next.
+      await project.resetServerHmrState(entryPaths)
       needsReEvaluation = false
     } catch (error) {
       console.error('[Server HMR] Re-evaluating modules failed:', error)
@@ -283,22 +251,15 @@ function setupServerHmr(
   function apply(entryPaths: string[]): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
-        await recover()
+        await recover(entryPaths)
         return
       }
 
       try {
-        const versionKey = [...entryPaths].sort().join('\0')
         // `issues` is intentionally dropped: this pull scans project-wide chunk
         // lists, so its issues may belong to an unrelated or removed route, and
         // endpoint writes already report route-scoped issues.
-        const { value: update } = await project.getServerHmrUpdate(
-          versions.get(versionKey),
-          entryPaths
-        )
-        if (update.version) {
-          versions.set(versionKey, update.version)
-        }
+        const { value: update } = await project.getServerHmrUpdate(entryPaths)
         switch (update.kind) {
           case 'none':
             return
@@ -306,20 +267,24 @@ function setupServerHmr(
             const handlers = globalThis.__turbopack_server_hmr_handlers__
             if (!handlers || handlers.size === 0) return
 
-            const payload: NodeJsPartialHmrUpdate = {
-              type: 'partial',
-              instruction: update.instruction,
-            }
             if (typeof __turbopack_server_hmr_apply__ === 'function') {
               try {
-                __turbopack_server_hmr_apply__(payload)
-                mirrorModuleStateToDevValidationWorker({
-                  type: 'apply',
-                  update: payload,
-                })
+                // Each update targets one runtime directory, so it is routed
+                // only to its own runtime.
+                for (const instruction of update.updates) {
+                  const payload: NodeJsPartialHmrUpdate = {
+                    type: 'partial',
+                    instruction,
+                  }
+                  __turbopack_server_hmr_apply__(payload)
+                  mirrorModuleStateToDevValidationWorker({
+                    type: 'apply',
+                    update: payload,
+                  })
+                }
 
-                const updatedChunkPaths = collectUpdatedChunkPaths(
-                  update.instruction
+                const updatedChunkPaths = update.updates.flatMap(
+                  (instruction) => Object.keys(instruction.chunks ?? {})
                 )
                 if (updatedChunkPaths.length > 0) {
                   await onApplied(updatedChunkPaths)
@@ -344,16 +309,22 @@ function setupServerHmr(
       }
 
       needsReEvaluation = true
-      await recover()
+      await recover(entryPaths)
     })
     pending = applyPromise
     return applyPromise
   }
 
   function reset(): Promise<void> {
-    const resetState = () => {
-      versions.clear()
+    const resetState = async () => {
       needsReEvaluation = false
+      try {
+        await project.resetServerHmrState()
+      } catch (error) {
+        // Keep the queue usable; the next pull re-evaluates everything instead.
+        needsReEvaluation = true
+        console.error('[Server HMR] Clearing the loaded state failed:', error)
+      }
     }
     const resetPromise = pending.then(resetState, resetState)
     pending = resetPromise
@@ -1793,6 +1764,7 @@ export async function createHotReloaderTurbopack(
           clientIssues,
           messages: new Map(),
           turbopackUpdates: [],
+          hmrVersionChecked: false,
           subscriptions,
         })
 
@@ -1935,19 +1907,29 @@ export async function createHotReloaderTurbopack(
 
           // Turbopack messages
           switch (parsedData.type) {
-            case 'turbopack-subscribe':
+            case 'turbopack-subscribe': {
+              // Check the version once per connection, on its first versioned subscription. That
+              // catches updates missed through stale HTML or a dropped connection. Later mismatches
+              // are skipped, since lazily compiling a chunk list advances the version without the
+              // client missing an update.
+              const state = clientStates.get(client)
               if (
                 parsedData.hmrVersion !== undefined &&
-                parsedData.hmrVersion !== String(clientHmrVersion)
+                state &&
+                !state.hmrVersionChecked
               ) {
-                sendToClient(client, {
-                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-                  data: 'HMR hash mismatch',
-                })
-                break
+                state.hmrVersionChecked = true
+                if (parsedData.hmrVersion !== String(clientHmrVersion)) {
+                  sendToClient(client, {
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+                    data: 'HMR hash mismatch',
+                  })
+                  break
+                }
               }
               subscribeToClientHmrEvents(client, parsedData.path)
               break
+            }
 
             case 'turbopack-unsubscribe':
               unsubscribeFromClientHmrEvents(client, parsedData.path)

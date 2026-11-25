@@ -38,6 +38,7 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 - `packages/eslint-plugin-next/` - ESLint rules for Next.js
 - `packages/font/` - `next/font` implementation
 - `packages/third-parties/` - Third-party script integrations
+- `packages/next-mcp/` - `@next/mcp`, MCP servers from App Router route handlers
 
 ### README files
 
@@ -434,6 +435,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
+- `$rust-turbopack` - Rust/Turbopack build, test, snapshot, and benchmarking workflow (cargo, nextest, UPDATE=1, clippy, Miri, wasi)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$run-tests` - test bootstrap in a fresh checkout, CI env matching, fixture gitignore traps, flaky-test reproduction
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
@@ -491,12 +493,6 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 ### Test Gotchas
 
 Test-writing gotchas (PPR under cache components, mode-specific setup, log assertions, stack traces, router act tests) are in `test/AGENTS.md`. Running tests outside the happy path (fresh-checkout bootstrap, CI env flags, smoke tests, flaky tests, ignored fixture files) is in `$run-tests`.
-
-### Rust/Cargo
-
-- cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
-- **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
-- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`) — prefer `crate::`-rooted paths. This makes imports consistent and easier to grep for.
 
 ### Node.js Source Maps
 

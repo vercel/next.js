@@ -23,6 +23,7 @@
             ),
         ),
         span: 9..17,
+        target_escapes: true,
     },
     DestructuredMember {
         obj: Call(
@@ -48,6 +49,7 @@
             ),
         ),
         span: 19..29,
+        target_escapes: true,
     },
     DestructuredMember {
         obj: Call(
@@ -73,6 +75,7 @@
             ),
         ),
         span: 31..35,
+        target_escapes: true,
     },
     FreeVar {
         var: "require",
@@ -185,6 +188,7 @@
             ),
         ),
         span: 63..71,
+        target_escapes: true,
     },
     FreeVar {
         var: "require",
@@ -526,7 +530,7 @@
                             ),
                         ],
                         span: 171..183,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                     Call {
                         func: Variable(
@@ -1269,7 +1273,7 @@
                             ),
                         ],
                         span: 345..361,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                     Call {
                         func: Variable(
@@ -1588,7 +1592,7 @@
                             ),
                         ],
                         span: 419..431,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                     Member {
                         obj: FreeVar(
@@ -1706,7 +1710,7 @@
                             ),
                         ],
                         span: 438..454,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                     Call {
                         func: Variable(
@@ -1977,7 +1981,7 @@
                             ),
                         ],
                         span: 512..518,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                     Member {
                         obj: Variable(
@@ -2041,7 +2045,7 @@
                             ),
                         ],
                         span: 522..532,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                     Call {
                         func: Variable(
@@ -2302,7 +2306,7 @@
                             ),
                         ],
                         span: 592..598,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                     Call {
                         func: Variable(

@@ -1,7 +1,7 @@
 1 -> 2 free var = FreeVar(Object)
 
 0 -> 3 member call = Object*0*["keys"](???*1*)
-- *0* Object: The global Object variable
+- *0* Object: The global Object constructor
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -40,7 +40,7 @@
 - *7* Object*8*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *8* Object: The global Object variable
+- *8* Object: The global Object constructor
 - *9* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *10* ???*11*[i]
@@ -52,7 +52,7 @@
 - *12* Object*13*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *13* Object: The global Object variable
+- *13* Object: The global Object constructor
 - *14* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *15* ???*16*[key]

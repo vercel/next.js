@@ -503,9 +503,11 @@ function assignDefaultsAndValidate(
   }
 
   if (result.experimental.goRoutes) {
-    if (result.output) {
+    // Go handlers always execute dynamically, so they cannot be prerendered
+    // into static export files. Standalone output copies their executables.
+    if (result.output === 'export') {
       throw new Error(
-        '`route.go` and `proxy.go` do not support standalone or static export output'
+        '`route.go` and `proxy.go` do not support `output: "export"`'
       )
     }
   }

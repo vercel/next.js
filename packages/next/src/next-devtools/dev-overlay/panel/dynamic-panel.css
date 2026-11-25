@@ -12,7 +12,8 @@
   min-width: var(--panel-min-width);
   min-height: var(--panel-min-height);
   max-width: var(--panel-max-width);
-  max-height: var(--panel-max-height);
+  /* Never taller than the window; the content scrolls instead. */
+  max-height: min(var(--panel-max-height, 100vh), calc(100vh - 32px));
 }
 
 /* Panel content container styles */
@@ -27,9 +28,12 @@
   flex-direction: column;
 }
 
-/* Draggable content area styles */
-.draggable-content {
+/* Draggable content area styles. Scoped to the panel so it wins over the
+   global [data-nextjs-scrollable-content] { overflow: hidden } reset, which
+   otherwise clips panels whose content is taller than the panel. */
+.panel-content-container .draggable-content {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   border-radius: inherit;
   border-top-left-radius: 0;

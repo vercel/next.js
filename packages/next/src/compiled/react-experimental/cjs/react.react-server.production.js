@@ -50,6 +50,8 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+  REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+  REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -280,7 +282,7 @@ function createCacheRoot() {
   return new WeakMap();
 }
 function createCacheNode() {
-  return { s: 0, v: void 0, o: null, p: null };
+  return { s: 0, v: void 0, o: null, p: null, u: null };
 }
 var reportGlobalError =
     "function" === typeof reportError
@@ -370,14 +372,19 @@ exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
+exports.addToLedger = function (ledger, entry) {
+  var dispatcher = ReactSharedInternals.A;
+  null !== dispatcher &&
+    void 0 !== dispatcher.addToLedger &&
+    dispatcher.addToLedger(ledger, entry >>> 0);
+};
 exports.cache = function (fn) {
   return function () {
     var dispatcher = ReactSharedInternals.A;
     if (!dispatcher) return fn.apply(null, arguments);
-    var fnMap = dispatcher.getCacheForType(createCacheRoot);
-    dispatcher = fnMap.get(fn);
-    void 0 === dispatcher &&
-      ((dispatcher = createCacheNode()), fnMap.set(fn, dispatcher));
+    var fnMap = dispatcher.getCacheForType(createCacheRoot),
+      fnNode = fnMap.get(fn);
+    void 0 === fnNode && ((fnNode = createCacheNode()), fnMap.set(fn, fnNode));
     fnMap = 0;
     for (var l = arguments.length; fnMap < l; fnMap++) {
       var arg = arguments[fnMap];
@@ -385,34 +392,65 @@ exports.cache = function (fn) {
         "function" === typeof arg ||
         ("object" === typeof arg && null !== arg)
       ) {
-        var objectCache = dispatcher.o;
-        null === objectCache && (dispatcher.o = objectCache = new WeakMap());
-        dispatcher = objectCache.get(arg);
-        void 0 === dispatcher &&
-          ((dispatcher = createCacheNode()), objectCache.set(arg, dispatcher));
+        var objectCache = fnNode.o;
+        null === objectCache && (fnNode.o = objectCache = new WeakMap());
+        fnNode = objectCache.get(arg);
+        void 0 === fnNode &&
+          ((fnNode = createCacheNode()), objectCache.set(arg, fnNode));
       } else
-        (objectCache = dispatcher.p),
-          null === objectCache && (dispatcher.p = objectCache = new Map()),
-          (dispatcher = objectCache.get(arg)),
-          void 0 === dispatcher &&
-            ((dispatcher = createCacheNode()),
-            objectCache.set(arg, dispatcher));
+        (objectCache = fnNode.p),
+          null === objectCache && (fnNode.p = objectCache = new Map()),
+          (fnNode = objectCache.get(arg)),
+          void 0 === fnNode &&
+            ((fnNode = createCacheNode()), objectCache.set(arg, fnNode));
     }
-    if (1 === dispatcher.s) return dispatcher.v;
-    if (2 === dispatcher.s) throw dispatcher.v;
+    if (1 === fnNode.s)
+      return (
+        null !== dispatcher.units &&
+          null !== fnNode.u &&
+          dispatcher.units.hit(fnNode.u),
+        fnNode.v
+      );
+    if (2 === fnNode.s)
+      throw (
+        (null !== dispatcher.units &&
+          null !== fnNode.u &&
+          dispatcher.units.hit(fnNode.u),
+        fnNode.v)
+      );
+    dispatcher = dispatcher.units;
     try {
-      var result = fn.apply(null, arguments);
-      fnMap = dispatcher;
-      fnMap.s = 1;
-      return (fnMap.v = result);
+      if (null !== dispatcher) {
+        fnMap = [];
+        l = 0;
+        for (var l$3 = arguments.length; l < l$3; l++) fnMap[l] = arguments[l];
+        var result = dispatcher.miss(fnNode, fn, fnMap);
+      } else result = fn.apply(null, arguments);
+      l$3 = fnNode;
+      l$3.s = 1;
+      return (l$3.v = result);
     } catch (error) {
-      throw ((result = dispatcher), (result.s = 2), (result.v = error), error);
+      throw ((result = fnNode), (result.s = 2), (result.v = error), error);
     }
   };
 };
 exports.cacheSignal = function () {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.cacheSignal() : null;
+};
+exports.captureLedgers = function (input, ledgers) {
+  for (var totals = [], i = 0; i < ledgers.length; i++)
+    totals.push({
+      $$typeof: REACT_LEDGER_TOTAL_TYPE,
+      type: ledgers[i],
+      then: function () {
+        throw Error(formatProdErrorMessage(669));
+      }
+    });
+  return {
+    data: { $$typeof: REACT_LEDGER_DATA_TYPE, totals: totals, input: input },
+    ledgers: totals
+  };
 };
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
@@ -469,6 +507,9 @@ exports.createElement = function (type, config, children) {
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
   return ReactElement(type, key, props);
+};
+exports.createMaskLedger = function () {
+  return { kind: 1 };
 };
 exports.createRef = function () {
   return { current: null };
@@ -579,4 +620,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.3.0-experimental-a8342585-20261117";
+exports.version = "19.3.0-experimental-89d7b2b4-20261123";

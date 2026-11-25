@@ -38,6 +38,8 @@ Use standard Go APIs for everything else, such as `http.Redirect` for redirects 
 
 Pass `proxy.WithRequestHeaders(headers)` to `proxy.Next` or `proxy.Rewrite` to replace the downstream request headers. Omit the option or use `proxy.WithRequestHeaders(nil)` to keep them unchanged. An empty `http.Header{}` removes them all.
 
+Hop-by-hop headers, such as `Connection`, `Keep-Alive`, `Upgrade`, `Transfer-Encoding`, and headers named by `Connection`, are ignored. Cloning `r.Header` also forwards `X-Forwarded-Proto` downstream. Delete it from the clone if the downstream request should not receive it.
+
 ### Config
 
 Declare `Config` in `proxy.go` to choose which requests run the proxy. Without a matcher, it runs on every request.
@@ -105,6 +107,14 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 
 - Go Proxy runs on every request unless `Config.Matcher` limits it.
 - Other `.go` files in the same directory as `proxy.go` are compiled with it and must use `package main`. Do not define a `main` function; Next.js generates it. If your project root already contains Go code, put the proxy in `src/proxy.go`, and put shared code in packages that `proxy.go` imports.
-- Go Proxy is only supported in App Router applications. A build fails if the project also has Pages Router routes or an `i18n` configuration.
-- `r.URL` is the URL a JavaScript Proxy would receive. Requests that the route could interpret differently from Proxy, such as paths with an encoded `.rsc` suffix, receive a `404` response before Proxy runs. Requests with a query string over 64 KiB or 4,096 parameters receive a `414` response.
-- Go Proxy requires Turbopack.
+- Go Proxy is only supported in App Router applications. A build fails when the project also contains Pages Router routes (pages or API routes in the `pages` directory) or sets the `i18n` configuration. Custom `_app`, `_document`, and `_error` files are allowed.
+- `r.URL` matches the request URL that a JavaScript Proxy receives, with these exceptions so that Go Proxy authorizes the same resource the route uses:
+  - Query values ending in `.rsc` are kept as sent.
+  - Query parameters whose names start with `nxtP` or `nxtI` are kept as sent.
+  - Segment prefetch requests use the URL of their page.
+  - Requests whose path still ends in `.rsc` after the RSC suffix is removed, including through percent-encoding such as `%2Ersc`, receive a `404` response before Go Proxy runs.
+- Requests with a query string larger than 64 KiB or more than 4,096 parameters receive a `414 URI Too Long` response before Go Proxy runs. Empty parameters count toward this limit.
+- Only one proxy file is supported. Go and JavaScript proxies cannot be combined.
+- Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
+- Go Proxy requires Turbopack and runs as a compiled Go executable.
+- Self-hosting uses `next build` and `next start`, or [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) with `node .next/standalone/server.js`. `output: 'export'` is unsupported. Platform deployments require an adapter that supports Go middleware.

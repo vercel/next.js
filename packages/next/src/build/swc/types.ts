@@ -14,7 +14,6 @@ import type {
   TraceQueryResult,
   MemoryEvictionMode,
   NapiTurbopackGcOptions,
-  ServerHmrVersion as NativeServerHmrVersion,
   LockfileError,
   LockfileResult,
   projectCompilationEventsSubscribe,
@@ -274,17 +273,14 @@ export interface NodeJsPartialHmrUpdate {
   instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
-/** Opaque baseline for the next pull. */
-export type ServerHmrVersion = ExternalObject<NativeServerHmrVersion>
-
 /** Restores the union flattened by napi. */
 export type ServerHmrUpdate =
-  | { kind: 'none'; version?: ServerHmrVersion }
-  | { kind: 'restart'; version: ServerHmrVersion }
+  | { kind: 'none' }
+  | { kind: 'restart' }
   | {
       kind: 'partial'
-      version: ServerHmrVersion
-      instruction: NodeJsPartialHmrUpdate['instruction']
+      /** One update per runtime directory, each touching only its chunks. */
+      updates: NodeJsEcmascriptMergedUpdate[]
     }
 
 export interface HmrChunkNames {
@@ -357,10 +353,20 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
+  /**
+   * Pulls the update that brings the server runtimes up to date for the route
+   * with these entries, and records the route's modules as loaded.
+   */
   getServerHmrUpdate(
-    from: ServerHmrVersion | undefined,
     entryPaths: string[]
   ): Promise<TurbopackResult<ServerHmrUpdate>>
+
+  /**
+   * Forgets what the server runtimes have loaded. Must be called whenever all
+   * server modules are re-evaluated. When the runtimes load a route next, pass
+   * its entries to record its modules as loaded.
+   */
+  resetServerHmrState(entryPaths?: string[]): Promise<void>
 
   clientHmrEvents(
     identifier: string

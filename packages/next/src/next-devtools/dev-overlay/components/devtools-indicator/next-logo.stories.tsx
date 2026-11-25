@@ -9,7 +9,6 @@ const meta: Meta<typeof NextLogo> = {
     layout: 'centered',
   },
   args: {
-    'aria-label': 'Open Next.js DevTools',
     onTriggerClick: () => console.log('Logo clicked'),
   },
   decorators: [
@@ -111,6 +110,36 @@ export const WithSingleError: Story = {
         buildingIndicator: false,
         renderingIndicator: false,
         cacheIndicator: 'ready',
+      },
+    }),
+  ],
+}
+
+export const WithInsight: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      instantErrorCount: 1,
+    }),
+  ],
+}
+
+export const WithIssuesAndInsights: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 5,
+      instantErrorCount: 3,
+    }),
+  ],
+}
+
+export const WithHiddenIndicatorAndInsight: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      instantErrorCount: 1,
+      state: {
+        disableDevIndicator: true,
       },
     }),
   ],

@@ -205,6 +205,12 @@ pub struct ClientReferenceManifest {
     pub entry_name: RcStr,
     pub client_references: ResolvedVc<ClientReferenceGraphResult>,
     pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
+    /// In development, the page's HMR chunk list register chunk(s). They are appended to the
+    /// chunks of every client component (`clientModules[].chunks`), so when a client-side
+    /// navigation loads the page's client components, it also loads the chunk list and
+    /// subscribes to updates for them. A full page load gets them from `rootMainFilesTree` in the
+    /// build manifest instead.
+    pub hmr_chunk_list: Option<ResolvedVc<OutputAssets>>,
     pub client_chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub ssr_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
     pub async_module_info: ResolvedVc<AsyncModulesInfo>,
@@ -261,6 +267,7 @@ async fn build_manifest(
         entry_name,
         client_references,
         client_references_chunks,
+        hmr_chunk_list,
         client_chunking_context,
         ssr_chunking_context,
         async_module_info,
@@ -370,6 +377,31 @@ async fn build_manifest(
 
         let mut client_reference_chunk_paths: FxHashSet<RcStr> = FxHashSet::default();
 
+        // Not added to `client_reference_chunk_paths`, as they are not chunks of any client
+        // reference module.
+        let hmr_chunk_list_urls = if let Some(hmr_chunk_list) = hmr_chunk_list {
+            hmr_chunk_list
+                .await?
+                .iter()
+                .map(async |chunk| {
+                    let chunk_path = chunk.path().await?;
+                    let Some(path) = client_relative_path.get_path_to(&chunk_path) else {
+                        return Ok(None);
+                    };
+                    if !path.ends_with(".js") {
+                        return Ok(None);
+                    }
+                    let mut url =
+                        String::with_capacity(prefix_path.len() + path.len() + suffix_path.len());
+                    write!(url, "{prefix_path}{}{suffix_path}", encode_uri_path(path))?;
+                    Ok(Some(RcStr::from(url)))
+                })
+                .try_flat_join()
+                .await?
+        } else {
+            Vec::new()
+        };
+
         for (client_reference_module, client_reference_module_ref) in client_references_ecmascript {
             let app_client_reference_ty =
                 ClientReferenceType::EcmascriptClientReference(client_reference_module);
@@ -411,7 +443,7 @@ async fn build_manifest(
                     client_reference_chunk_paths.insert(RcStr::from(path.as_str()));
                 }
 
-                let chunk_paths = js_chunks
+                let mut chunk_paths = js_chunks
                     .into_iter()
                     .map(async |(chunk, path)| {
                         // Size for the common case where nothing needs escaping, so this is the
@@ -440,6 +472,7 @@ async fn build_manifest(
                     })
                     .try_join()
                     .await?;
+                chunk_paths.extend(hmr_chunk_list_urls.iter().cloned().map(ClientChunk::Path));
 
                 let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
 

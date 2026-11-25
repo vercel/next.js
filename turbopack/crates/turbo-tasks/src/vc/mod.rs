@@ -460,8 +460,7 @@ where
         let RawVcUnpacked::TaskCell(task, index) = self.node.resolve().await?.unpack() else {
             unreachable!("resolve always returns a TaskCell");
         };
-        crate::turbo_tasks().drop_task_cell_content_hint(task, index);
-        Ok(())
+        crate::turbo_tasks().drop_task_cell_content_hint(task, index)
     }
 
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the

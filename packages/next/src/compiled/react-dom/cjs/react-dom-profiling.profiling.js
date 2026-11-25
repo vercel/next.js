@@ -11306,7 +11306,7 @@ function attachSuspenseRetryListeners(finishedWork, wakeables) {
           restorePendingUpdaters(inProgressRoot, inProgressLanes);
         else throw Error(formatProdErrorMessage(413));
       var retry = resolveRetryWakeable.bind(null, finishedWork, wakeable);
-      wakeable.then(retry, retry);
+      attachContextPreservingListener(wakeable, retry);
     }
   });
 }
@@ -13293,7 +13293,8 @@ var DefaultAsyncDispatcher = {
     },
     cacheSignal: function () {
       return readContext(CacheContext).controller.signal;
-    }
+    },
+    units: null
   },
   PossiblyWeakMap = "function" === typeof WeakMap ? WeakMap : Map,
   executionContext = 0,
@@ -15237,7 +15238,20 @@ function attachPingListener(root, wakeable, lanes) {
     threadIDs.add(lanes),
     (pingCache = pingSuspendedRoot.bind(null, root, wakeable, lanes)),
     isDevToolsPresent && restorePendingUpdaters(root, lanes),
-    wakeable.then(pingCache, pingCache));
+    attachContextPreservingListener(wakeable, pingCache));
+}
+function attachContextPreservingListener(wakeable, listener) {
+  if ("function" !== typeof Promise) wakeable.then(listener, listener);
+  else {
+    var resolve = noop$1;
+    new Promise(function (r) {
+      resolve = r;
+    }).then(listener);
+    listener = function () {
+      return resolve();
+    };
+    wakeable.then(listener, listener);
+  }
 }
 function pingSuspendedRoot(root, wakeable, pingedLanes) {
   var pingCache = root.pingCache;
@@ -20525,14 +20539,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2365 = React.version;
 if (
-  "19.3.0-canary-a8342585-20261117" !==
+  "19.3.0-canary-89d7b2b4-20261123" !==
   isomorphicReactPackageVersion$jscomp$inline_2365
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2365,
-      "19.3.0-canary-a8342585-20261117"
+      "19.3.0-canary-89d7b2b4-20261123"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20554,10 +20568,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2929 = {
   bundleType: 0,
-  version: "19.3.0-canary-a8342585-20261117",
+  version: "19.3.0-canary-89d7b2b4-20261123",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-a8342585-20261117"
+  reconcilerVersion: "19.3.0-canary-89d7b2b4-20261123"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2930 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20828,7 +20842,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-a8342585-20261117";
+exports.version = "19.3.0-canary-89d7b2b4-20261123";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

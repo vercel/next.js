@@ -1973,11 +1973,16 @@ impl AppEndpoint {
         // root_main_files_per_page so it is serialized under rootMainFilesTree[page] in
         // the build manifest. The server renderer reads rootMainFilesTree[pagePath] first
         // (required-scripts.tsx), so only the correct page's register chunk is loaded.
+        //
+        // rootMainFilesTree is only used for the bootstrap scripts of a full page load. A
+        // client-side navigation loads the page's client reference chunks from the RSC
+        // payload instead, so the register chunk is also passed to the client reference
+        // manifest, which appends it to the chunks of each of the page's client components.
         let is_hot_module_replacement_enabled = project
             .client_compile_time_info()
             .await?
             .hot_module_replacement_enabled;
-        let page_hmr_chunks = if is_app_page && is_hot_module_replacement_enabled {
+        let page_hmr_chunk_list = if is_app_page && is_hot_module_replacement_enabled {
             let client_components_chunks_ident =
                 AssetIdent::from_path(project.project_path().owned().await?)
                     .with_modifier(rcstr!("client-components"))
@@ -1985,12 +1990,21 @@ impl AppEndpoint {
                     .into_vc();
             let client_reference_chunks =
                 get_client_references_chunks_for_hmr(*client_references_chunks);
-            client_chunking_context
-                .hmr_chunk_list(
-                    client_components_chunks_ident,
-                    client_reference_chunks,
-                    HmrChunkListSource::Entry,
-                )
+            Some(
+                client_chunking_context
+                    .hmr_chunk_list(
+                        client_components_chunks_ident,
+                        client_reference_chunks,
+                        HmrChunkListSource::Entry,
+                    )
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
+        let page_hmr_chunks = if let Some(page_hmr_chunk_list) = page_hmr_chunk_list {
+            page_hmr_chunk_list
                 .await?
                 .iter()
                 .copied()
@@ -2233,6 +2247,7 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
+                    hmr_chunk_list: page_hmr_chunk_list,
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
@@ -2605,7 +2620,7 @@ impl AppEndpoint {
                                         NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     )
                                     .await?;
-                                merged.as_ref().map(|group| group.chunk_group.key())
+                                merged.as_ref().and_then(|group| group.kind.key())
                             };
 
                             ensure!(

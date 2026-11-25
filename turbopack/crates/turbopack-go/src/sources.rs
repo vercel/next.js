@@ -90,6 +90,7 @@ pub async fn go_source_set(
                 )
                 .await?;
             let mut names = vec![];
+            // DETERMINISM: Sources enter a BTreeMap before analysis or compilation.
             if let DirectoryContent::Entries(entries) = &*directory.read_dir().await? {
                 for (name, entry) in entries {
                     if name.ends_with(".go")

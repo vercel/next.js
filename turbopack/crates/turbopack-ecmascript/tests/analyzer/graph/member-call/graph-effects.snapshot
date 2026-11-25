@@ -42,7 +42,7 @@
             ),
         ],
         span: 35..43,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Member {
         obj: Variable(
@@ -96,7 +96,7 @@
             ),
         ],
         span: 70..82,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -363,7 +363,7 @@
                     ),
                 ],
                 span: 139..153,
-                in_truthiness_context: false,
+                usage: Access,
             },
         ],
         ast_path: [
@@ -403,7 +403,7 @@
             ),
         ],
         span: 139..160,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: Member(
@@ -713,7 +713,7 @@
                     ),
                 ],
                 span: 200..214,
-                in_truthiness_context: false,
+                usage: Access,
             },
         ],
         ast_path: [
@@ -753,7 +753,7 @@
             ),
         ],
         span: 200..221,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: Member(
@@ -961,7 +961,7 @@
             ),
         ],
         span: 304..313,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Member {
         obj: Variable(
@@ -1015,7 +1015,7 @@
             ),
         ],
         span: 348..360,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(

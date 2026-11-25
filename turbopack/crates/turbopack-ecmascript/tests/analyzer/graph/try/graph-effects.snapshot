@@ -259,7 +259,7 @@
             ),
         ],
         span: 108..114,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
