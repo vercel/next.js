@@ -1138,14 +1138,14 @@ export interface ExperimentalConfig {
   /**
    * Compile client dynamic import targets when they are first used in development.
    *
-   * Defaults to `true`.
+   * Defaults to `false`.
    */
   turbopackLazyDynamicImports?: boolean
 
   /**
    * Compile SSR dynamic import targets when they are first reached during server rendering in development.
    *
-   * Defaults to `true`.
+   * Defaults to `false`.
    */
   turbopackLazyDynamicImportsSSR?: boolean
 
@@ -2650,8 +2650,6 @@ export const defaultConfig = Object.freeze({
     hideLogsAfterAbort: false,
     mcpServer: true,
     exposeRuntimeErrorsToHMR: false,
-    turbopackLazyDynamicImports: true,
-    turbopackLazyDynamicImportsSSR: true,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week

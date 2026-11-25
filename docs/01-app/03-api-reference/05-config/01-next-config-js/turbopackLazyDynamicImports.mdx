@@ -7,14 +7,14 @@ related:
     - app/api-reference/config/next-config-js/turbopackLazyDynamicImportsSSR
 ---
 
-The `experimental.turbopackLazyDynamicImports` option defers compiling client-side dynamic `import()` targets until the browser first requests them during `next dev`. It is enabled by default. To disable it, set the option to `false`:
+The `experimental.turbopackLazyDynamicImports` option defers compiling client-side dynamic `import()` targets until the browser first requests them during `next dev`.
 
 ```ts filename="next.config.ts" switcher highlight={5}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    turbopackLazyDynamicImports: false,
+    turbopackLazyDynamicImports: true,
   },
 }
 
@@ -25,7 +25,7 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    turbopackLazyDynamicImports: false,
+    turbopackLazyDynamicImports: true,
   },
 }
 
@@ -84,7 +84,7 @@ export function GreetingButton() {
 
 > **Good to know:**
 >
-> - The option defaults to `true` and only affects Turbopack during `next dev`. It does not change production builds.
+> - The option defaults to `false` and only affects Turbopack during `next dev`. It does not change production builds.
 > - Errors in a deferred module appear when Turbopack first compiles that module.
 > - Some [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic) targets are still compiled eagerly.
 > - To defer dynamic imports reached while rendering Client Components on the server, use [`turbopackLazyDynamicImportsSSR`](/docs/app/api-reference/config/next-config-js/turbopackLazyDynamicImportsSSR).
@@ -93,5 +93,4 @@ export function GreetingButton() {
 
 | Version   | Changes                                                                |
 | --------- | ---------------------------------------------------------------------- |
-| `v16.5.0` | `experimental.turbopackLazyDynamicImports` is enabled by default.      |
 | `v16.4.0` | `experimental.turbopackLazyDynamicImports` configuration option added. |
