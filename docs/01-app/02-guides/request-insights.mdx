@@ -45,7 +45,7 @@ module.exports = nextConfig
 
 This option enables both the **Request Insights** panel in the development overlay and the `next experimental-request-insights` CLI. If the development server is already running, restart it before continuing.
 
-Open `http://localhost:3000/reports` and reproduce the slowdown. Request Insights retains the completed request in the current development session.
+Open `http://localhost:3000/reports` and reproduce the slowdown. The development server keeps the most recent completed requests in memory until it restarts.
 
 ### Step 2: Find the request in the overlay
 
@@ -55,7 +55,7 @@ Select the `/reports` request that took several seconds. Use the route, duration
 
 ### Step 3: Inspect the request timeline
 
-Selecting a request opens its overview, trace, and recorded fetches. The trace places each operation on the request timeline and shows its duration.
+Selecting a request opens its overview, trace, and recorded fetches. The trace places each operation on the request timeline and shows its duration. Spans can overlap or contain other spans, so use their position and nesting to tell nested work apart from separate delays. Each fetch also shows its URL, cache status, and duration.
 
 In this example, `ResolveMetadata.generateMetadata` contains a 3.53-second `/metadata` fetch and spans 3.54 seconds of the 3.65-second request. Compilation and rendering complete in milliseconds, so they do not explain the slowdown. The next step is to inspect `generateMetadata` and the data it awaits.
 
@@ -66,12 +66,6 @@ In this example, `ResolveMetadata.generateMetadata` contains a 3.53-second `/met
   width="1954"
   height="880"
 />
-
-Spans can overlap or contain other spans. Their position and nesting distinguish nested work from separate delays. For fetches, the panel also shows the URL, cache status, and duration.
-
-Component intervals are elapsed render time. They do not prove that the component used the CPU for the entire interval. Inspect source only after the timeline has localized the slow operation.
-
-If rendering dominates but the timeline does not identify the responsible function, collect a CPU profile. A CPU profile is not needed in this example because the timeline already attributes 3.54 seconds to metadata generation.
 
 ### Step 4: Inspect requests from the command line
 
