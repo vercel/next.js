@@ -38,6 +38,11 @@ impl Completion {
 // no #[turbo_tasks::value_impl] to inline new into the caller task
 // this ensures it's re-created on each execution
 impl Completion {
+    /// An [`OperationVc`] of [`Completion::immutable`], for APIs that take a completion operation.
+    pub fn immutable_operation() -> OperationVc<Self> {
+        immutable_completion_operation()
+    }
+
     /// This will always be a new completion and invalidates the reading task.
     pub fn new() -> Vc<Self> {
         Completion::cell(Completion)
@@ -98,9 +103,9 @@ async fn wrap(completion: Vc<Completion>) -> Result<Vc<Completion>> {
 ///   [`CompletionBag::invalidation_count`] or [`CompletionBag::completed`] are invalidated when it
 ///   changes.
 ///
-/// The contained completions are not children of the bag's tasks, so a strongly consistent read of
-/// the bag doesn't wait for a dirty completion to be recomputed. A change is detected as soon as
-/// the changed completion has been recomputed, e.g. because its pusher reads it again.
+/// The contained completions are connected as children of the bag's tasks, so a strongly
+/// consistent read of the bag waits for every dirty contained completion to be recomputed. A
+/// change is therefore detected even when no pusher reads its completion again.
 #[turbo_tasks::value(
     serialization = "skip",
     eq = "manual",
@@ -126,23 +131,22 @@ impl CompletionBag {
     /// Adds `completion` to the bag. This doesn't invalidate the dependents of the bag. Adding a
     /// completion that is already contained is a no-op.
     ///
-    /// This reads `completion`, so the calling task depends on it.
-    pub async fn push(&self, completion: ResolvedVc<Completion>) -> Result<()> {
+    /// This connects and reads `completion`, so the calling task depends on it.
+    pub async fn push(&self, completion: OperationVc<Completion>) -> Result<()> {
         // Record the value the caller observed, so that a change between this push and the next
         // execution of `detect_invalidations` is still detected.
-        let current = completion.await?;
+        let current = completion.connect().await?;
         if !crate::turbo_tasks().is_tracking_dependencies() {
             // Without dependency tracking nothing is invalidated, so there is nothing to detect.
             // Mutating the state would also try to invalidate the readers, which isn't allowed
             // in this mode.
             return Ok(());
         }
-        let operation = completion_operation(completion);
-        if self.completions.get_untracked().contains_key(&operation) {
+        if self.completions.get_untracked().contains_key(&completion) {
             return Ok(());
         }
         self.completions
-            .update_conditionally(|completions| match completions.entry(operation) {
+            .update_conditionally(|completions| match completions.entry(completion) {
                 Entry::Occupied(_) => false,
                 Entry::Vacant(entry) => {
                     entry.insert(current);
@@ -227,8 +231,7 @@ impl CompletionBag {
     }
 }
 
-/// Wraps a completion into an [`OperationVc`], so it can be stored in a [`State`].
 #[turbo_tasks::function(operation)]
-fn completion_operation(completion: ResolvedVc<Completion>) -> Vc<Completion> {
-    *completion
+fn immutable_completion_operation() -> Vc<Completion> {
+    Completion::immutable()
 }

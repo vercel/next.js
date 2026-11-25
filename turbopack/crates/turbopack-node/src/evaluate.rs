@@ -552,8 +552,9 @@ pub(crate) trait EvaluateContext {
 
     fn pool(&self) -> OperationVc<EvaluatePool>;
     /// Re-executes the evaluation when it changes. It's also pushed into the pool's
-    /// [`CompletionBag`], so that the pool kills its workers when it changes.
-    fn additional_invalidation(&self) -> ResolvedVc<Completion>;
+    /// [`CompletionBag`], so that the pool kills its workers when it changes. It's an operation,
+    /// so that a strongly consistent read of the pool waits for it to be recomputed.
+    fn additional_invalidation(&self) -> OperationVc<Completion>;
     fn keep_alive(&self) -> bool {
         false
     }
@@ -612,7 +613,7 @@ pub(crate) async fn custom_evaluate(
     // has to kill its workers before this evaluation acquires one. The strongly consistent read
     // below waits for that.
     let additional_invalidation = evaluate_context.additional_invalidation();
-    additional_invalidation.await?;
+    additional_invalidation.connect().await?;
 
     // Read this strongly consistent, since we don't want to run inconsistent
     // node.js code.
@@ -800,7 +801,7 @@ pub async fn evaluate(
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
     args: Vec<EvaluateArg>,
-    additional_invalidation: ResolvedVc<Completion>,
+    additional_invalidation: OperationVc<Completion>,
     debug: bool,
 ) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(BasicEvaluateContext {
@@ -914,7 +915,7 @@ struct BasicEvaluateContext {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
     args: Vec<EvaluateArg>,
-    additional_invalidation: ResolvedVc<Completion>,
+    additional_invalidation: OperationVc<Completion>,
     debug: bool,
 }
 
@@ -937,7 +938,7 @@ impl EvaluateContext for BasicEvaluateContext {
         )
     }
 
-    fn additional_invalidation(&self) -> ResolvedVc<Completion> {
+    fn additional_invalidation(&self) -> OperationVc<Completion> {
         self.additional_invalidation
     }
 

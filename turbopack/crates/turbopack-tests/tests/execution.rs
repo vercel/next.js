@@ -736,7 +736,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         Vc::upcast(chunking_context),
         module_graph,
         vec![],
-        Completion::immutable(),
+        Completion::immutable_operation(),
         should_debug("execution_test"),
     )
     .await?;

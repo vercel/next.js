@@ -28,7 +28,7 @@ fn create_bag_operation() -> Vc<CompletionBag> {
 }
 
 /// A completion that changes whenever `step` changes.
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 async fn step_completion(step: ResolvedVc<Step>) -> Result<Vc<Completion>> {
     let _ = *step.await?.get();
     Ok(Completion::new())
@@ -38,8 +38,7 @@ async fn step_completion(step: ResolvedVc<Step>) -> Result<Vc<Completion>> {
 /// invalidation into the pool.
 #[turbo_tasks::function(operation, root)]
 async fn push_operation(bag: ResolvedVc<CompletionBag>, step: ResolvedVc<Step>) -> Result<Vc<()>> {
-    let completion = step_completion(*step).to_resolved().await?;
-    bag.await?.push(completion).await?;
+    bag.await?.push(step_completion(step)).await?;
     Ok(Vc::cell(()))
 }
 
@@ -107,6 +106,19 @@ async fn completion_bag_invalidation() {
             .await?;
         assert_eq!(*dependent.read_strongly_consistent().await?, 2);
         assert_eq!(DEPENDENT_EXECUTIONS.load(Ordering::SeqCst), 3);
+
+        // A strongly consistent read of the dependent waits for a changed contained completion,
+        // even when its pusher doesn't read it again.
+        let step_c_op = create_step_operation(3);
+        let step_c = step_c_op.resolve().strongly_consistent().await?;
+        push_operation(bag, step_c)
+            .read_strongly_consistent()
+            .await?;
+        assert_eq!(*dependent.read_strongly_consistent().await?, 2);
+        let step_c_state = step_c_op.read_strongly_consistent().await?;
+        step_c_state.set(1);
+        assert_eq!(*dependent.read_strongly_consistent().await?, 3);
+        assert_eq!(DEPENDENT_EXECUTIONS.load(Ordering::SeqCst), 4);
 
         anyhow::Ok(())
     })

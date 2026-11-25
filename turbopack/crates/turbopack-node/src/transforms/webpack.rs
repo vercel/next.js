@@ -320,14 +320,17 @@ async fn build_files_changed(
 /// semantics (`paths: [contextDir, resourceDir]` in `webpack-loaders.ts`).
 /// Loaders that fail to resolve are skipped so that the transform degrades to
 /// the previous (non-invalidating) behavior instead of breaking the build.
-#[turbo_tasks::function]
+///
+/// This is an operation, so that the evaluation pool can connect it and wait for it to be
+/// recomputed.
+#[turbo_tasks::function(operation)]
 async fn loaders_changed(
-    loaders: Vc<WebpackLoaderItems>,
+    loaders: ResolvedVc<WebpackLoaderItems>,
     project_path: FileSystemPath,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    resolve_options_context: Vc<ResolveOptionsContext>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    resolve_options_context: ResolvedVc<ResolveOptionsContext>,
 ) -> Result<Vc<Completion>> {
-    let options = resolve_options(project_path.clone(), resolve_options_context);
+    let options = resolve_options(project_path.clone(), *resolve_options_context);
     let origin_path = project_path.clone().join("_")?;
 
     let completions = loaders
@@ -491,13 +494,11 @@ impl WebpackLoadersProcessedAsset {
             // Invalidate the transform when a loader module (or any of its
             // transitive dependencies) changes.
             let loaders_changed = loaders_changed(
-                *transform.loaders,
+                transform.loaders,
                 project_path.clone(),
-                *transform.config_tracing_context,
-                *transform.resolve_options_context,
-            )
-            .to_resolved()
-            .await?;
+                transform.config_tracing_context,
+                transform.resolve_options_context,
+            );
 
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
@@ -720,7 +721,7 @@ pub(super) struct WebpackLoaderContext {
     pub(super) resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub(super) asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub(super) args: Vec<EvaluateArg>,
-    pub(super) additional_invalidation: ResolvedVc<Completion>,
+    pub(super) additional_invalidation: OperationVc<Completion>,
     /// Names of the loaders being applied to the source, in pipeline order.
     /// Used to enrich error messages and issue details so users know which
     /// loader chain was running when an error occurred.
@@ -773,7 +774,7 @@ impl EvaluateContext for WebpackLoaderContext {
         )
     }
 
-    fn additional_invalidation(&self) -> ResolvedVc<Completion> {
+    fn additional_invalidation(&self) -> OperationVc<Completion> {
         self.additional_invalidation
     }
 

@@ -193,9 +193,11 @@ struct ProcessPostCssResult {
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
-#[turbo_tasks::function]
+/// This is an operation, so that the evaluation pool can connect it and wait for it to be
+/// recomputed.
+#[turbo_tasks::function(operation)]
 async fn config_changed(
-    asset_context: Vc<Box<dyn AssetContext>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<Completion>> {
     let config_asset = asset_context
@@ -209,7 +211,7 @@ async fn config_changed(
         any_source_content_changed_of_module(config_asset)
             .to_resolved()
             .await?,
-        extra_configs_changed(asset_context, postcss_config_path)
+        extra_configs_changed(*asset_context, postcss_config_path)
             .to_resolved()
             .await?,
     ])
@@ -496,9 +498,7 @@ impl PostCssTransformedAsset {
         let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
-        let config_changed = config_changed(*self.config_tracing_context, config_path.clone())
-            .to_resolved()
-            .await?;
+        let config_changed = config_changed(self.config_tracing_context, config_path.clone());
 
         let postcss_executor =
             postcss_executor(*evaluate_context, project_path.clone(), config_path).module();

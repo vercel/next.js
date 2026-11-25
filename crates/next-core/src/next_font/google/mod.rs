@@ -811,7 +811,7 @@ async fn get_mock_stylesheet(
         *chunking_context,
         module_graph,
         vec![],
-        Completion::immutable(),
+        Completion::immutable_operation(),
         should_debug("next_font::google"),
     )
     .await?;
