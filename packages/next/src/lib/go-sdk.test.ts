@@ -171,6 +171,33 @@ afterEach(async () => {
     expect(() => build(route, ['route.go'])).not.toThrow()
   })
 
+  // These names cannot be created on Windows, but Go rejects them as package
+  // paths on every platform. Turbopack still compiles their named source files.
+  ;(process.platform === 'win32' ? it.skip : it).each([
+    'aux',
+    'con',
+    'nul',
+    'prn',
+    'com1',
+    'lpt1',
+    'AUX.txt',
+    'trailing.',
+  ])(
+    'detects imports when Go rejects the route directory %s',
+    async (folder) => {
+      const dir = await temporaryDirectory()
+      await writeModule(dir, 'example.com/app')
+      const route = join(dir, 'app', folder)
+      await write(join(route, 'route.go'), PROXY)
+      const sdkDir = await installNext(dir, '16.0.0')
+
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+      expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(() => build(route, ['route.go'])).not.toThrow()
+    }
+  )
+
   it('lets modules that declare an older go version require the SDK', async () => {
     // -mod=readonly refuses to raise the go line, so the SDK must not declare
     // a newer one than the application.
