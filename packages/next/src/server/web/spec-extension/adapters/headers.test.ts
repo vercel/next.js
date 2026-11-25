@@ -237,16 +237,16 @@ describe('HeadersAdapter', () => {
       expect(sealed.get('x-custom-header')).toBe('custom')
 
       // These methods are not available on the sealed instance
-      expect(() =>
-        (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrow(ReadonlyHeadersError)
-      expect(() =>
-        (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrow(ReadonlyHeadersError)
-      expect(() => (sealed as any).delete('x-custom-header')).toThrow(
+      expect(() => sealed.append('x-custom-header', 'custom2')).toThrow(
         ReadonlyHeadersError
       )
-      expect(() => (sealed as any).set('x-custom-header', 'custom2')).toThrow(
+      expect(() => sealed.append('x-custom-header', 'custom2')).toThrow(
+        ReadonlyHeadersError
+      )
+      expect(() => sealed.delete('x-custom-header')).toThrow(
+        ReadonlyHeadersError
+      )
+      expect(() => sealed.set('x-custom-header', 'custom2')).toThrow(
         ReadonlyHeadersError
       )
 
@@ -264,13 +264,13 @@ describe('HeadersAdapter', () => {
       expect(sealed).toBeInstanceOf(Headers)
 
       // These methods are not available on the sealed instance
-      expect(() =>
-        (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrow(ReadonlyHeadersError)
-      expect(() => (sealed as any).delete('x-custom-header')).toThrow(
+      expect(() => sealed.append('x-custom-header', 'custom2')).toThrow(
         ReadonlyHeadersError
       )
-      expect(() => (sealed as any).set('x-custom-header', 'custom2')).toThrow(
+      expect(() => sealed.delete('x-custom-header')).toThrow(
+        ReadonlyHeadersError
+      )
+      expect(() => sealed.set('x-custom-header', 'custom2')).toThrow(
         ReadonlyHeadersError
       )
 
@@ -291,13 +291,13 @@ describe('HeadersAdapter', () => {
       expect(sealed).toBeInstanceOf(Headers)
 
       // These methods are not available on the sealed instance
-      expect(() =>
-        (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrow(ReadonlyHeadersError)
-      expect(() => (sealed as any).delete('x-custom-header')).toThrow(
+      expect(() => sealed.append('x-custom-header', 'custom2')).toThrow(
         ReadonlyHeadersError
       )
-      expect(() => (sealed as any).set('x-custom-header', 'custom2')).toThrow(
+      expect(() => sealed.delete('x-custom-header')).toThrow(
+        ReadonlyHeadersError
+      )
+      expect(() => sealed.set('x-custom-header', 'custom2')).toThrow(
         ReadonlyHeadersError
       )
 
@@ -427,9 +427,7 @@ describe('HeadersAdapter', () => {
         expect(headers.get('rsc')).toBe('1')
         expect(headers.get('x-nextjs-request-id')).toBe('req-1')
 
-        expect(() => (sealed as any).delete('rsc')).toThrow(
-          ReadonlyHeadersError
-        )
+        expect(() => sealed.delete('rsc')).toThrow(ReadonlyHeadersError)
         expect(headers.get('rsc')).toBe('1')
       })
 

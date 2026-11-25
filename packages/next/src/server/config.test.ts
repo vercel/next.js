@@ -1,4 +1,11 @@
-import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { mkdtemp, rm, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import {
+  PHASE_INFO,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from '../api/constants'
 import {
   getStrictRouteMatchingDefaultWarning,
   STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
@@ -17,6 +24,35 @@ describe('loadConfig', () => {
     const configModule = await import('./config')
     loadConfig = configModule.default
   })
+  it.each([true, false])(
+    'links removed experimental.dynamicIO=%s to the migration guide',
+    async (dynamicIO) => {
+      const dir = await mkdtemp(join(tmpdir(), 'next-config-dynamic-io-'))
+      const previousMode = process.env.__NEXT_TEST_MODE
+      process.env.__NEXT_TEST_MODE = 'jest'
+
+      try {
+        await writeFile(
+          join(dir, 'next.config.js'),
+          `module.exports = ${JSON.stringify({ experimental: { dynamicIO } })}`
+        )
+
+        await expect(
+          loadConfig(PHASE_PRODUCTION_BUILD, dir, { silent: false })
+        ).rejects.toThrow(
+          'Learn more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        )
+      } finally {
+        if (previousMode === undefined) {
+          delete process.env.__NEXT_TEST_MODE
+        } else {
+          process.env.__NEXT_TEST_MODE = previousMode
+        }
+        await rm(dir, { recursive: true, force: true })
+      }
+    }
+  )
+
   describe('nextConfig.images defaults', () => {
     it('should assign a `images.remotePatterns` when using assetPrefix', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
@@ -350,39 +386,38 @@ describe('loadConfig', () => {
     })
   })
 
-  describe('experimental.durableUseCacheEntries', () => {
-    const originalTurbopack = process.env.TURBOPACK
-
-    afterEach(() => {
-      if (originalTurbopack === undefined) {
-        delete process.env.TURBOPACK
-      } else {
-        process.env.TURBOPACK = originalTurbopack
-      }
-    })
-
-    it('throws when using webpack', async () => {
-      delete process.env.TURBOPACK
-
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: { durableUseCacheEntries: true },
-          },
-        })
-      ).rejects.toThrow(/only supported with Turbopack/)
-    })
-
-    it('is preserved when using Turbopack', async () => {
-      process.env.TURBOPACK = '1'
-
+  describe('instrumentationInject', () => {
+    it('defaults to an empty array, so modifyConfig can push to it', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: { durableUseCacheEntries: true },
-        },
+        customConfig: {},
       })
+      expect(result.instrumentationInject).toEqual([])
+    })
 
-      expect(result.experimental.durableUseCacheEntries).toBe(true)
+    it('gives each load its own array, so a push does not leak into later loads', async () => {
+      const first = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+      first.instrumentationInject.push('./x.js')
+      first.instrumentationClientInject.push('./y.js')
+
+      const second = await loadConfig(PHASE_PRODUCTION_SERVER, __dirname, {
+        customConfig: {},
+      })
+      expect(second).toMatchObject({
+        instrumentationInject: [],
+        instrumentationClientInject: [],
+      })
+    })
+
+    it('is accepted by the config schema', () => {
+      expect(
+        configSchema.safeParse({ instrumentationInject: ['./script.js'] })
+          .success
+      ).toBe(true)
+      expect(
+        configSchema.safeParse({ instrumentationInject: 'script.js' }).success
+      ).toBe(false)
     })
   })
 })

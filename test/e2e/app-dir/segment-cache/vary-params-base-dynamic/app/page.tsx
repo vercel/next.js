@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { LinkAccordion } from '../components/link-accordion'
 import { RevalidateControls } from '../components/revalidate-controls'
 
 export default function HomePage() {
@@ -36,18 +35,6 @@ export default function HomePage() {
           >
             Navigate: globex/portal/settings/domains
           </Link>
-        </li>
-      </ul>
-      <ul>
-        <li>
-          <LinkAccordion href="/acme/dashboard">
-            Team project: acme/dashboard
-          </LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/globex/portal">
-            Team project: globex/portal
-          </LinkAccordion>
         </li>
       </ul>
       <RevalidateControls />

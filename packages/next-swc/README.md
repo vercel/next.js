@@ -36,10 +36,10 @@ pnpm build-wasm
 Due to platform differences napi bindings selectively enables supported features.
 See below tables for the currently enabled features.
 
-| arch\platform | Linux(gnu) | Linux(musl) | Darwin    | Windows   |
-| ------------- | ---------- | ----------- | --------- | --------- |
-| x64           | a,b,d,f    | a,b,d,f     | a,b,d,f   | a,b,d,f   |
-| aarch64       | a,d,f      | a,d,f       | a,b,d,f   | a,b,c     |
+| arch\platform | Linux(gnu) | Linux(musl) | Darwin  | Windows |
+| ------------- | ---------- | ----------- | ------- | ------- |
+| x64           | a,b,d,f    | a,b,d,f     | a,b,d,f | a,b,d,f |
+| aarch64       | a,d,f      | a,d,f       | a,b,d,f | a,b,c   |
 
 - a: `turbo_tasks_malloc`
 - b: `turbo_tasks_malloc_custom_allocator`

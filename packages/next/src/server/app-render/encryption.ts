@@ -225,6 +225,7 @@ export const encryptActionBoundArgs = React.cache(
     const cachedEncrypted = resumeDataCache?.encryptedBoundArgs.get(cacheKey)
 
     if (cachedEncrypted) {
+      endReadIfStarted()
       return cachedEncrypted
     }
 

@@ -1,5 +1,10 @@
 #![cfg_attr(target_os = "wasi", feature(wasi_ext))]
+#![feature(core_io_borrowed_buf)]
 #![feature(once_cell_try)]
+// The positional `BorrowedCursor` reads `pread_buf` uses: unix gates them behind `read_buf_at`,
+// Windows behind `seek_read_exact_seek_write_all`, WASI behind `wasi_ext`.
+#![cfg_attr(unix, feature(read_buf_at))]
+#![cfg_attr(windows, feature(seek_read_exact_seek_write_all))]
 #![feature(sync_unsafe_cell)]
 // Miri compiles a reduced test subset, leaving helpers from disabled tests intentionally unused.
 #![cfg_attr(miri, allow(dead_code, unused_imports))]
@@ -26,6 +31,7 @@ mod shared_bytes;
 pub mod sst_filter;
 pub mod static_sorted_file;
 mod static_sorted_file_builder;
+mod unreadable;
 mod value_block_count_tracker;
 mod value_buf;
 mod write_batch;
@@ -39,6 +45,7 @@ pub use db::{
     CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
     TurboPersistence, read_current_version,
 };
+pub use unreadable::CacheFileUnreadable;
 
 /// Controls how SST and meta files are read from disk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

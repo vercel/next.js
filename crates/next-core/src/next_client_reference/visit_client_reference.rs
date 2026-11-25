@@ -27,6 +27,9 @@ use crate::{
     Copy, Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub struct ClientReference {
+    /// The module whose reference creates the client/SSR chunk group.
+    pub parent_module: ResolvedVc<Box<dyn Module>>,
+    /// The server component used to order this reference in the output.
     pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
     pub ty: ClientReferenceType,
 }
@@ -162,6 +165,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                 parent_module,
                 include_traced,
                 include_binding_usage,
+                false,
             )
             .await?;
 

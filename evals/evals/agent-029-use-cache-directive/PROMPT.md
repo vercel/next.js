@@ -1,6 +1,6 @@
 You are building an admin product catalog page for an e-commerce team.
 
-The catalog is read-heavy and should feel fast for day-to-day browsing, so avoid re-querying product data on every request.
+The app should use Next.js Cache Components. The catalog is read-heavy and should feel fast for day-to-day browsing, so avoid re-querying product data on every request. Configure the project for this behavior.
 
 Admins can trigger a "Sync latest catalog" action from the page when upstream ERP/PIM data changes (pricing, inventory, availability). After submitting, they should be able to continue working immediately, even if the product list is briefly stale.
 

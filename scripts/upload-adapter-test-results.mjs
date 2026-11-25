@@ -5,7 +5,6 @@ import { spawn } from 'node:child_process'
 
 const RESULT_FILE_SUFFIX = '.results.json'
 const DEFAULT_ENDPOINT = 'https://nextjs.org/api/adapter-test-results'
-const COMMIT_SHA_PATTERN = /^[0-9a-f]{7,40}$/i
 const BOOLEAN_ARGS = new Set(['help', 'dry-run'])
 const IGNORED_DIRECTORIES = new Set([
   '.git',
@@ -26,17 +25,15 @@ function usage() {
       '',
       'Usage:',
       '  node scripts/upload-adapter-test-results.mjs \\',
-      '    --results-root ~/dev/next.js \\',
-      '    --provider vercel \\',
-      '    --secret "$ADAPTER_TEST_RESULTS_SECRET" \\',
-      '    --commit-sha "$(git -C ~/dev/next.js rev-parse HEAD)"',
+      '    --results-root adapter-test-results',
       '',
-      'Required:',
-      '  --provider <name>       or ADAPTER_TEST_RESULTS_PROVIDER',
-      '  --secret <secret>       or ADAPTER_TEST_RESULTS_SECRET',
-      '  --commit-sha <sha>      or ADAPTER_TEST_RESULTS_COMMIT_SHA or GITHUB_SHA',
+      'Auth: GitHub Actions OIDC. Mints an OIDC token and sends it as a Bearer',
+      'token. Requires a GitHub Actions job with `id-token: write`. Provider and',
+      'commit SHA are derived server-side from the token claims.',
       '',
       'Optional:',
+      '  --audience <url>        or ADAPTER_TEST_RESULTS_AUDIENCE;',
+      '                          default: the endpoint URL',
       `  --results-root <path>   default: ${process.cwd()}`,
       `  --endpoint <url>        default: ${DEFAULT_ENDPOINT}`,
       '  --zip-out <path>        write zip to disk before upload',
@@ -206,6 +203,26 @@ async function createArchive(resultsRoot, files) {
   }
 }
 
+async function mintGitHubActionsOidcToken(audience) {
+  const requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL
+  const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN
+  if (!requestUrl || !requestToken) {
+    return null
+  }
+  const url = new URL(requestUrl)
+  url.searchParams.set('audience', audience)
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${requestToken}` },
+  })
+  if (!response.ok) {
+    throw new Error(
+      `Failed to mint GitHub OIDC token: ${response.status} ${await response.text()}`
+    )
+  }
+  const { value } = await response.json()
+  return value
+}
+
 async function main() {
   const args = parseArgs(process.argv)
 
@@ -214,18 +231,12 @@ async function main() {
     return
   }
 
-  const provider =
-    args.provider || process.env.ADAPTER_TEST_RESULTS_PROVIDER || ''
-  const secret = args.secret || process.env.ADAPTER_TEST_RESULTS_SECRET || ''
-  const commitSha =
-    args['commit-sha'] ||
-    process.env.ADAPTER_TEST_RESULTS_COMMIT_SHA ||
-    process.env.GITHUB_SHA ||
-    ''
   const endpoint =
     args.endpoint ||
     process.env.ADAPTER_TEST_RESULTS_ENDPOINT ||
     DEFAULT_ENDPOINT
+  const audience =
+    args.audience || process.env.ADAPTER_TEST_RESULTS_AUDIENCE || endpoint
   const inputRoot = args['results-root'] || process.cwd()
   const resultsRoot = path.resolve(resolvePathWithHome(String(inputRoot)))
   const zipOutArg = args['zip-out']
@@ -233,24 +244,6 @@ async function main() {
     ? path.resolve(resolvePathWithHome(String(zipOutArg)))
     : null
   const dryRun = Boolean(args['dry-run'])
-
-  if (!provider) {
-    throw new Error(
-      'Missing provider. Pass --provider or ADAPTER_TEST_RESULTS_PROVIDER.'
-    )
-  }
-
-  if (!secret) {
-    throw new Error(
-      'Missing secret. Pass --secret or ADAPTER_TEST_RESULTS_SECRET.'
-    )
-  }
-
-  if (!commitSha || !COMMIT_SHA_PATTERN.test(String(commitSha))) {
-    throw new Error(
-      'Invalid commit SHA. Pass --commit-sha (7-40 hex chars), ADAPTER_TEST_RESULTS_COMMIT_SHA, or GITHUB_SHA.'
-    )
-  }
 
   const stat = await fs.stat(resultsRoot).catch(() => null)
   if (!stat || !stat.isDirectory()) {
@@ -281,15 +274,21 @@ async function main() {
     return
   }
 
+  const headers = { 'content-type': 'application/zip' }
+
+  console.log(`Auth: GitHub Actions OIDC (audience ${audience})`)
+  const oidcToken = await mintGitHubActionsOidcToken(audience)
+  if (!oidcToken) {
+    throw new Error(
+      'GitHub Actions OIDC token unavailable. Run in a GitHub Actions job with `id-token: write`.'
+    )
+  }
+  headers.authorization = `Bearer ${oidcToken}`
+
   console.log(`Uploading to: ${endpoint}`)
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/zip',
-      'x-adapter-test-results-provider': String(provider),
-      'x-adapter-test-results-secret': String(secret),
-      'x-adapter-test-results-commit-sha': String(commitSha),
-    },
+    headers,
     body: archive,
   })
 

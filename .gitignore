@@ -3,7 +3,11 @@ dist
 !.github/actions/*/dist
 .next
 .next-profiles
-target
+# Rust build output, one per Cargo workspace. Don't ignore every directory named
+# `target`: test fixtures use it as a route segment.
+/target
+/rspack/target
+/test/e2e/swc-plugins-env/plugin/target
 packages/next/wasm/@next
 tarballs/
 packages/**/*.tgz
@@ -82,12 +86,4 @@ CLAUDE.local.md
 
 index.scip
 
-# Evals
-evals/.tarballs/
-evals/experiments/
-evals/results/
-evals/agent-results.json
-
-# Upgrade eval execution artifacts
-evals/next-upgrade/.work/
-evals/next-upgrade/results/
+.env*

@@ -117,13 +117,18 @@ async function requestHandler(
 
   const closeController = new CloseController()
 
-  const routeMatch: RouteMatch = { resolvedPathname }
+  const routeMatch: RouteMatch = {
+    resolvedPathname,
+    // The Vary header is currently added after rendering in the Edge adapter.
+    couldBeIntercepted: false,
+  }
   const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
   const renderContextBase: Omit<
     AppPageRouteHandlerContext,
     'parsedRequestHeaders'
   > = {
     requestUrl: baseReq.url,
+    requestHeaders: baseReq.headers,
     serverActionRequestMetadata,
     page: normalizedSrcPage,
     routeMatch,
@@ -137,6 +142,7 @@ async function requestHandler(
       clientAssetToken,
     },
     fallbackRouteParams: null,
+    stagedFallbackParams: null,
 
     renderOpts: {
       App: () => null,
@@ -207,8 +213,7 @@ async function requestHandler(
           nextConfig.experimental.durableUseCacheEntries
         ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-        clientTraceMetadata:
-          nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientTraceMetadata: nextConfig.experimental.clientTraceMetadata || [],
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -220,6 +225,8 @@ async function requestHandler(
           nextConfig.cacheComponents === true &&
           (pageRouteModule.isDev === true ||
             nextConfig.experimental.exposeTestingApiInProductionBuild === true),
+        externalBrowserRuntime:
+          nextConfig.experimental.externalBrowserRuntime === true,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
@@ -267,7 +274,7 @@ async function requestHandler(
     const headers = new Headers()
     finalStatus = metadata.statusCode || baseRes.statusCode || 200
     // Pull any fetch metrics from the render onto the request.
-    ;(req as any).fetchMetrics = metadata.fetchMetrics
+    req.fetchMetrics = metadata.fetchMetrics
 
     // Set content type
     const contentType = result.contentType || 'text/html; charset=utf-8'
@@ -399,6 +406,9 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
+      if (!closeController.isClosed) {
+        closeController.dispatchClose()
+      }
       const silenceLog = false
       await pageRouteModule.onRequestError(
         baseReq,
@@ -460,15 +470,21 @@ export async function handler(
       headers: toNodeOutgoingHttpHeaders(request.headers),
       nextConfig: {
         basePath: process.env.__NEXT_BASE_PATH,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         i18n: process.env.__NEXT_I18N_CONFIG as any,
         trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
         experimental: {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           cacheLife: process.env.__NEXT_CACHE_LIFE as any,
           authInterrupts: Boolean(
             process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
           ),
-          clientParamParsingOrigins: process.env
-            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+          clientParamParsingOrigins:
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
         },
       },
       page: {

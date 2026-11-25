@@ -14,7 +14,8 @@ import type {
   TraceQueryResult,
   MemoryEvictionMode,
   NapiTurbopackGcOptions,
-  ServerHmrVersion as NativeServerHmrVersion,
+  LockfileError,
+  LockfileResult,
   projectCompilationEventsSubscribe,
   projectFeatureUsage,
   projectInvalidateFileSystemCache,
@@ -24,6 +25,7 @@ import type {
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
+export type { LockfileError }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
@@ -103,8 +105,8 @@ export interface Binding {
   lockfileTryAcquire(
     path: string,
     content?: string | null
-  ): Promise<Lockfile | null>
-  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
+  ): Promise<LockfileResult>
+  lockfileTryAcquireSync(path: string, content?: string | null): LockfileResult
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
   codeFrameColumns(
@@ -271,17 +273,14 @@ export interface NodeJsPartialHmrUpdate {
   instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
-/** Opaque baseline for the next pull. */
-export type ServerHmrVersion = ExternalObject<NativeServerHmrVersion>
-
 /** Restores the union flattened by napi. */
 export type ServerHmrUpdate =
-  | { kind: 'none'; version?: ServerHmrVersion }
-  | { kind: 'restart'; version: ServerHmrVersion }
+  | { kind: 'none' }
+  | { kind: 'restart' }
   | {
       kind: 'partial'
-      version: ServerHmrVersion
-      instruction: NodeJsPartialHmrUpdate['instruction']
+      /** One update per runtime directory, each touching only its chunks. */
+      updates: NodeJsEcmascriptMergedUpdate[]
     }
 
 export interface HmrChunkNames {
@@ -354,10 +353,20 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
+  /**
+   * Pulls the update that brings the server runtimes up to date for the route
+   * with these entries, and records the route's modules as loaded.
+   */
   getServerHmrUpdate(
-    from: ServerHmrVersion | undefined,
     entryPaths: string[]
   ): Promise<TurbopackResult<ServerHmrUpdate>>
+
+  /**
+   * Forgets what the server runtimes have loaded. Must be called whenever all
+   * server modules are re-evaluated. When the runtimes load a route next, pass
+   * its entries to record its modules as loaded.
+   */
+  resetServerHmrState(entryPaths?: string[]): Promise<void>
 
   clientHmrEvents(
     identifier: string
@@ -411,7 +420,7 @@ export type Route =
       }[]
     }
   | {
-      type: 'app-route'
+      type: 'app-route' | 'app-route-go'
       originalName: string
       hasActionManifest: boolean
       endpoint: Endpoint
@@ -469,6 +478,15 @@ export type ServerPath = {
 }
 
 export type WrittenEndpoint =
+  | {
+      type: 'native'
+      /** Absent when native compilation failed before publishing an executable. */
+      entryPath?: string
+      serverHmrEntryPaths: []
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
   | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
@@ -559,7 +577,7 @@ export type AppRoute =
       rscHmrEndpoint: Endpoint
     }
   | {
-      type: 'app-route'
+      type: 'app-route' | 'app-route-go'
       hasActionManifest: boolean
       endpoint: Endpoint
     }

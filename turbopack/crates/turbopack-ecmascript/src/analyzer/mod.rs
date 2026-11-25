@@ -66,7 +66,9 @@ pub mod test_utils {
 
     use super::{
         ConstantValue, JsValue, JsValueUrlKind, Modified, ModuleValue, WellKnownFunctionKind,
-        WellKnownObjectKind, builtin::early_replace_builtin, well_known::replace_well_known,
+        WellKnownObjectKind,
+        builtin::early_replace_builtin,
+        well_known::{replace_well_known, replace_well_known_global},
     };
     use crate::{
         analyzer::{
@@ -88,11 +90,14 @@ pub mod test_utils {
     /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor<'a>(
         arena: &'a ThreadLocal<Bump>,
-        v: JsValue<'a>,
+        mut v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
     ) -> Result<(JsValue<'a>, Modified)> {
         let ImportAttributes { ignore, .. } = *attributes;
+        if replace_well_known_global(&mut v, ignore) {
+            return Ok((v, Modified::Yes));
+        }
         let mut new_value = match v {
             JsValue::Call(_, ref call)
                 if matches!(
@@ -223,17 +228,9 @@ pub mod test_utils {
                     true,
                     rcstr!("ignored import"),
                 ),
-                "Worker" => JsValue::unknown_if(
-                    ignore,
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
-                    true,
-                    rcstr!("ignored Worker constructor"),
-                ),
+                // Globals like `process` or `URL` are handled by `replace_well_known_global`
+                // above.
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-                "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
-                "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
-                "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, rcstr!("unknown global")),
             },
             JsValue::Module(ref mv) => {
@@ -268,7 +265,8 @@ mod tests {
     use rustc_hash::FxHashMap;
     use swc_core::{
         common::{
-            FilePathMapping, GLOBALS, Globals, Mark, SourceMap, comments::SingleThreadedComments,
+            FileName, FilePathMapping, GLOBALS, Globals, Mark, SourceMap,
+            comments::SingleThreadedComments,
         },
         ecma::{
             ast::{EsVersion, Id},
@@ -365,7 +363,6 @@ mod tests {
                 &m,
                 &eval_context,
                 AnalyzeMode::code_generation_and_tracing(),
-                true,
                 SpecifiedModuleType::EcmaScript,
                 true,
                 false,
@@ -515,7 +512,10 @@ mod tests {
                     let mut new_args = Vec::with_capacity(args.len());
                     for arg in args {
                         match arg {
-                            EffectArg::Value(v) => {
+                            EffectArg::Value(v, effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(
                                     resolve(
                                         arena,
@@ -547,7 +547,10 @@ mod tests {
                                         .map(|e| (i, e)),
                                 );
                             }
-                            EffectArg::Spread => {
+                            EffectArg::Spread(effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(JsValue::unknown_empty(true, rcstr!("spread")));
                             }
                         }
@@ -664,7 +667,10 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
                         0
                     }
-                    Effect::TypeOf { mut arg, .. } => {
+                    Effect::TypeOf {
+                        mut arg, effects, ..
+                    } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
                         let (arg, steps) = resolve(
                             &arena,
                             &var_graph,
@@ -734,11 +740,17 @@ mod tests {
                         ));
                         0
                     }
+                    Effect::Member {
+                        base_effects: effects,
+                        ..
+                    }
+                    | Effect::In { effects, .. } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
+                        0
+                    }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::Member { .. }
-                    | Effect::DestructuredMember { .. }
-                    | Effect::In { .. } => 0,
+                    | Effect::DestructuredMember { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {
@@ -776,6 +788,75 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    /// Builds the var graph for `src` (parsed as a sloppy script unless it uses module syntax)
+    /// and returns whether a direct `eval` was detected.
+    fn detect_direct_eval(src: &str) -> bool {
+        let cm: Arc<SourceMap> = Arc::new(SourceMap::new(FilePathMapping::empty()));
+        let globals = Globals::new();
+        GLOBALS.set(&globals, || {
+            let fm = cm.new_source_file(FileName::Anon.into(), src.to_string());
+            let mut m = parse_file_as_program(
+                &fm,
+                Default::default(),
+                EsVersion::latest(),
+                None,
+                &mut vec![],
+            )
+            .unwrap();
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+            let eval_context = EvalContext::new(
+                Some(&m),
+                unresolved_mark,
+                top_level_mark,
+                Default::default(),
+                None,
+            );
+            let arena = Bump::new();
+            create_graph(
+                &arena,
+                &m,
+                &eval_context,
+                AnalyzeMode::code_generation(),
+                SpecifiedModuleType::Automatic,
+                false,
+                false,
+            )
+            .has_direct_eval
+        })
+    }
+
+    #[test]
+    fn direct_eval_detection() {
+        for src in [
+            "eval('x')",
+            "(eval)('x')",
+            "((eval))('x')",
+            "function f() { return eval('x') }",
+            "(() => { eval('x') })()",
+            "class C { m() { eval('x') } }",
+            "if (cond) { eval('x') }",
+            "export const v = eval('x')",
+        ] {
+            assert!(detect_direct_eval(src), "expected direct eval: {src}");
+        }
+
+        for src in [
+            "(0, eval)('x')",
+            "globalThis.eval('x')",
+            "window.eval('x')",
+            "eval?.('x')",
+            "const e = eval; e('x')",
+            "new eval('x')",
+            "function f(eval) { return eval('x') }",
+            "var eval = (x) => x; eval('x')",
+            "export const v = 1",
+        ] {
+            assert!(!detect_direct_eval(src), "expected no direct eval: {src}");
+        }
     }
 
     async fn resolve<'a>(

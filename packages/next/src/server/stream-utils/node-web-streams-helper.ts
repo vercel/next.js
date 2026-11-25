@@ -14,6 +14,7 @@ import {
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -22,6 +23,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
+import { htmlEscapeAttributeString } from '../../shared/lib/htmlescape'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -33,6 +35,54 @@ function voidCatch() {
 // Notably we cannot do the same for TextDecoder because it is stateful
 // when handling streaming data
 const encoder = new TextEncoder()
+
+/** Encode only when a consumer requires bytes; retain binary views as-is. */
+export function encodeTextChunk(chunk: string | Uint8Array): Uint8Array {
+  return typeof chunk === 'string' ? encoder.encode(chunk) : chunk
+}
+
+/** Adapt a Node stream to the byte contract used by Web response consumers. */
+export function nodeToWebByteStream(
+  stream: import('node:stream').Readable
+): ReadableStream<Uint8Array> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'Node.js Readable cannot be converted to a web stream in the edge runtime'
+    )
+  } else {
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    const webStream = Readable.toWeb(stream) as ReadableStream<
+      string | Uint8Array
+    >
+    // Readable.toWeb preserves object-mode strings; it does not encode them.
+    // Already-byte streams need no additional transform.
+    if (!stream.readableObjectMode && stream.readableEncoding === null) {
+      return webStream as ReadableStream<Uint8Array>
+    }
+    return webStream.pipeThrough(
+      new TransformStream<string | Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          controller.enqueue(encodeTextChunk(chunk))
+        },
+      })
+    )
+  }
+}
 
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
@@ -537,9 +587,9 @@ export function createHeadInsertionTransformStream(
   })
 }
 
-async function createClientResumeScriptInsertionTransformStream(): Promise<
-  TransformStream<Uint8Array, Uint8Array>
-> {
+async function createClientResumeScriptInsertionTransformStream(
+  nonce: string | undefined
+): Promise<TransformStream<Uint8Array, Uint8Array>> {
   const segmentPath = '/_full'
   const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
@@ -548,7 +598,10 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
     undefined //       headers[NEXT_URL]
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
+  const nonceAttribute = nonce
+    ? ` nonce="${htmlEscapeAttributeString(nonce)}"`
+    : ''
+  const NEXT_CLIENT_RESUME_SCRIPT = `<script${nonceAttribute}>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({
@@ -1016,8 +1069,8 @@ export async function continueDynamicPrerender(
   ])
 }
 
-type ContinueStaticPrerenderOptions = {
-  inlinedDataStream: ReadableStream<Uint8Array>
+type ContinueStaticPrerenderOptions<TStream = ReadableStream<Uint8Array>> = {
+  inlinedDataStream: TStream
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   deploymentId: string | undefined
@@ -1049,6 +1102,12 @@ export async function continueStaticPrerender(
   ])
 }
 
+export type ContinueStaticFallbackPrerenderOptions<
+  TStream = ReadableStream<Uint8Array>,
+> = ContinueStaticPrerenderOptions<TStream> & {
+  nonce: string | undefined
+}
+
 export async function continueStaticFallbackPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
   {
@@ -1056,7 +1115,8 @@ export async function continueStaticFallbackPrerender(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     deploymentId,
-  }: ContinueStaticPrerenderOptions
+    nonce,
+  }: ContinueStaticFallbackPrerenderOptions
 ) {
   // Same as `continueStaticPrerender`, but also inserts an additional script
   // to instruct the client to start fetching the hydration data as early
@@ -1069,7 +1129,7 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    await createClientResumeScriptInsertionTransformStream(),
+    await createClientResumeScriptInsertionTransformStream(nonce),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

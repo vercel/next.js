@@ -1,29 +1,16 @@
-import { spawn } from 'node:child_process'
-import { openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { startNextServer } from './__agent_eval__/next-test-utils.mjs'
 
-const log = openSync('/tmp/agent-055-next-dev.log', 'a')
-const dev = spawn('npm', ['run', 'dev'], {
+const app = await startNextServer({
+  mode: 'dev',
+  port: 3100,
   detached: true,
-  stdio: ['ignore', log, log],
+  logFile: '/tmp/agent-057-next-dev.log',
 })
-dev.unref()
 
-const deadline = Date.now() + 30_000
-while (Date.now() < deadline) {
-  try {
-    const response = await fetch('http://localhost:3100')
-    if (response.ok) break
-  } catch {}
-  await new Promise((resolve) => setTimeout(resolve, 250))
-}
-
-const response = await fetch('http://localhost:3100')
-if (!response.ok) {
-  throw new Error(`next dev failed to start: ${response.status}`)
-}
-
-const reportsResponse = await fetch('http://localhost:3100/reports/acme')
+const reportsResponse = await fetch(`${app.url}/reports/acme`)
 if (!reportsResponse.ok) {
+  await app.stop()
   throw new Error(`reports route failed to compile: ${reportsResponse.status}`)
 }
 

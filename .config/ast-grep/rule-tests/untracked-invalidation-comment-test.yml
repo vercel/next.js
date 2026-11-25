@@ -1,0 +1,108 @@
+id: untracked-invalidation-comment
+valid:
+  - |
+    async fn example() {
+        // INVALIDATION: Changes to this value must not invalidate this task.
+        value.untracked().await?;
+    }
+  - |
+    async fn example() {
+        // INVALIDATION: Only the initial value is needed to
+        // initialize the state for this session.
+        let state = VersionState::new(
+            value
+                .read_trait_strongly_consistent()
+                .untracked()
+                .await?,
+        ).await?;
+    }
+  - |
+    async fn example() {
+        Some({
+            // INVALIDATION: The span name does not affect the result.
+            Some(value.ident_string().untracked().await?)
+        })
+    }
+  - |
+    async fn example() {
+        let result = value
+            // INVALIDATION: Changes to this value must not invalidate this task.
+            .untracked()
+            .await?;
+    }
+  - |
+    async fn example() {
+        // INVALIDATION: Changes to this value must not invalidate this task.
+        value.untracked().await?
+    }
+  - 'value.tracked();'
+  - 'untracked(value);'
+  - 'value.untracked();'
+  - 'value.untracked()?;'
+  - 'value.untracked().owned().await?;'
+  - 'other(value.untracked()).await?;'
+  - |
+    async fn example() {
+        // INVALIDATION: Changes to this value must not invalidate this task.
+        value.untracked().await;
+    }
+invalid:
+  - 'value.untracked().await;'
+  - 'value.untracked().await.unwrap();'
+  - '(value.untracked().await, other())?;'
+  - |
+    async fn example() {
+        value
+            .untracked()
+            .await;
+    }
+  - 'value.untracked().await?;'
+  - |
+    async fn example() {
+        let result = value
+            .untracked()
+            .await?;
+    }
+  - |
+    async fn example() {
+        // This is intentionally untracked.
+        value.untracked().await?;
+    }
+  - |
+    async fn example() {
+        // Explanation: INVALIDATION: this is not the required prefix.
+        value.untracked().await?;
+    }
+  - |
+    async fn example() {
+        /* INVALIDATION: A block comment is not the required line comment. */
+        value.untracked().await?;
+    }
+  - |
+    async fn example() {
+        /// INVALIDATION: A doc comment is not the required line comment.
+        value.untracked().await?;
+    }
+  - |
+    async fn example() {
+        // INVALIDATION: This explains a different statement.
+        other();
+        value.untracked().await?;
+    }
+  - |
+    // INVALIDATION: A comment on the function does not explain its calls.
+    async fn example() {
+        value.untracked().await?;
+    }
+  - |
+    async fn example() {
+        // INVALIDATION: A comment outside the block does not explain its calls.
+        if condition {
+            value.untracked().await?;
+        }
+    }
+  - |
+    async fn example() {
+        value.untracked().await?;
+        // INVALIDATION: This comment comes after the call.
+    }

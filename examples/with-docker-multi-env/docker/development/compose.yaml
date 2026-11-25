@@ -6,3 +6,6 @@ services:
     image: with-docker-multi-env-development
     ports:
       - "3001:3000"
+    environment:
+      # Read from your shell, for example `API_SECRET=... make start-development`.
+      API_SECRET: ${API_SECRET:-}

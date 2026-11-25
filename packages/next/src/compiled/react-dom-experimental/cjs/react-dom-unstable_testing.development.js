@@ -5462,10 +5462,9 @@
       var length = 32 - clz32(totalChildren) + baseLength;
       if (30 < length) {
         var numberOfOverflowBits = baseLength - (baseLength % 5);
-        length = (
-          baseIdWithLeadingBit &
-          ((1 << numberOfOverflowBits) - 1)
-        ).toString(32);
+        length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+          .toString(32)
+          .padStart(numberOfOverflowBits / 5, "0");
         baseIdWithLeadingBit >>= numberOfOverflowBits;
         baseLength -= numberOfOverflowBits;
         treeContextId =
@@ -9471,39 +9470,60 @@
       return mountDeferredValueImpl(hook, value, initialValue);
     }
     function updateDeferredValue(value, initialValue) {
-      var hook = updateWorkInProgressHook();
+      var hook = updateWorkInProgressHook(),
+        prevState = currentHook.memoizedState;
       return updateDeferredValueImpl(
         hook,
-        currentHook.memoizedState,
+        prevState.value,
+        prevState.isInitial,
         value,
         initialValue
       );
     }
     function rerenderDeferredValue(value, initialValue) {
       var hook = updateWorkInProgressHook();
-      return null === currentHook
-        ? mountDeferredValueImpl(hook, value, initialValue)
-        : updateDeferredValueImpl(
-            hook,
-            currentHook.memoizedState,
-            value,
-            initialValue
-          );
+      if (null === currentHook)
+        return mountDeferredValueImpl(hook, value, initialValue);
+      var prevState = currentHook.memoizedState;
+      return updateDeferredValueImpl(
+        hook,
+        prevState.value,
+        prevState.isInitial,
+        value,
+        initialValue
+      );
     }
     function mountDeferredValueImpl(hook, value, initialValue) {
       if (
         void 0 === initialValue ||
+        objectIs(value, initialValue) ||
         (0 !== (renderLanes & 1073741824) &&
           0 === (workInProgressRootRenderLanes & 261930))
       )
-        return (hook.memoizedState = value);
-      hook.memoizedState = initialValue;
+        return (hook.memoizedState = { value: value, isInitial: !1 }), value;
+      hook.memoizedState = { value: initialValue, isInitial: !0 };
       hook = requestDeferredLane();
       currentlyRenderingFiber.lanes |= hook;
       workInProgressRootSkippedLanes |= hook;
       return initialValue;
     }
-    function updateDeferredValueImpl(hook, prevValue, value, initialValue) {
+    function updateDeferredValueImpl(
+      hook,
+      prevValue,
+      prevIsInitial,
+      value,
+      initialValue
+    ) {
+      if (prevIsInitial) {
+        if (objectIs(value, prevValue))
+          return (hook.memoizedState = { value: value, isInitial: !1 }), value;
+        if (void 0 !== initialValue)
+          return (
+            (hook = mountDeferredValueImpl(hook, value, initialValue)),
+            objectIs(hook, prevValue) || (didReceiveUpdate = !0),
+            hook
+          );
+      }
       if (objectIs(value, prevValue)) return value;
       if (null !== currentTreeHiddenStackCursor.current)
         return (
@@ -9516,7 +9536,11 @@
         (0 !== (renderLanes & 1073741824) &&
           0 === (workInProgressRootRenderLanes & 261930))
       )
-        return (didReceiveUpdate = !0), (hook.memoizedState = value);
+        return (
+          (didReceiveUpdate = !0),
+          (hook.memoizedState = { value: value, isInitial: !1 }),
+          value
+        );
       hook = requestDeferredLane();
       currentlyRenderingFiber.lanes |= hook;
       workInProgressRootSkippedLanes |= hook;
@@ -16283,7 +16307,7 @@
                 "Expected finished root and lanes to be set. This is a bug in React."
               );
           var retry = resolveRetryWakeable.bind(null, finishedWork, wakeable);
-          wakeable.then(retry, retry);
+          attachContextPreservingListener(wakeable, retry);
         }
       });
     }
@@ -19808,20 +19832,29 @@
       spawnedLane,
       didAttemptEntireTree
     ) {
-      suspendedLanes = getEntangledLanes(root, suspendedLanes);
-      suspendedLanes &= ~workInProgressRootPingedLanes;
-      suspendedLanes &= ~workInProgressRootInterleavedUpdatedLanes;
+      var entangledLanes = getEntangledLanes(root, suspendedLanes),
+        prewarmedLanes = 0;
+      0 !== (entangledLanes & 1073741824)
+        ? (prewarmedLanes = entangledLanes & ~(suspendedLanes | 1073741824))
+        : (suspendedLanes = entangledLanes);
+      entangledLanes =
+        workInProgressRootPingedLanes |
+        workInProgressRootInterleavedUpdatedLanes;
+      suspendedLanes &= ~entangledLanes;
+      prewarmedLanes &= ~entangledLanes;
       root.suspendedLanes |= suspendedLanes;
       root.pingedLanes &= ~suspendedLanes;
-      didAttemptEntireTree && (root.warmLanes |= suspendedLanes);
+      didAttemptEntireTree &&
+        (root.warmLanes = root.warmLanes | suspendedLanes | prewarmedLanes);
       didAttemptEntireTree = root.expirationTimes;
-      for (var lanes = suspendedLanes; 0 < lanes; ) {
-        var index = 31 - clz32(lanes),
-          lane = 1 << index;
-        didAttemptEntireTree[index] = -1;
-        lanes &= ~lane;
+      for (prewarmedLanes = suspendedLanes; 0 < prewarmedLanes; ) {
+        entangledLanes = 31 - clz32(prewarmedLanes);
+        var lane = 1 << entangledLanes;
+        didAttemptEntireTree[entangledLanes] = -1;
+        prewarmedLanes &= ~lane;
       }
       0 !== spawnedLane &&
+        0 !== (suspendedLanes & 261930) &&
         markSpawnedDeferredLane(root, spawnedLane, suspendedLanes);
     }
     function flushSyncWork$1() {
@@ -20318,7 +20351,8 @@
       previousRenderStartTime = root.timeoutHandle;
       previousRenderStartTime !== noTimeout &&
         ((root.timeoutHandle = noTimeout),
-        cancelTimeout(previousRenderStartTime));
+        cancelTimeout(previousRenderStartTime),
+        markRootPinged$1(root, pendingEffectsLanes));
       previousRenderStartTime = root.cancelPendingCommit;
       null !== previousRenderStartTime &&
         ((root.cancelPendingCommit = null), previousRenderStartTime());
@@ -22184,7 +22218,25 @@
         threadIDs.add(lanes),
         (pingCache = pingSuspendedRoot.bind(null, root, wakeable, lanes)),
         isDevToolsPresent && restorePendingUpdaters(root, lanes),
-        wakeable.then(pingCache, pingCache));
+        attachContextPreservingListener(wakeable, pingCache));
+    }
+    function attachContextPreservingListener(wakeable, listener) {
+      if (
+        "function" !== typeof Promise ||
+        null !== ReactSharedInternals.actQueue ||
+        isConcurrentActEnvironment()
+      )
+        wakeable.then(listener, listener);
+      else {
+        var resolve = noop$1;
+        new Promise(function (r) {
+          resolve = r;
+        }).then(listener);
+        listener = function () {
+          return resolve();
+        };
+        wakeable.then(listener, listener);
+      }
     }
     function pingSuspendedRoot(root, wakeable, pingedLanes) {
       var pingCache = root.pingCache;
@@ -22251,7 +22303,9 @@
           retryCache = boundaryFiber.stateNode;
           break;
         case 22:
-          retryCache = boundaryFiber.stateNode._retryCache;
+          retryCache = boundaryFiber.stateNode;
+          if (null === retryCache) return;
+          retryCache = retryCache._retryCache;
           break;
         default:
           throw Error(
@@ -23052,7 +23106,10 @@
               case ANIMATION_START:
                 SyntheticEventCtor = SyntheticAnimationEvent;
                 break;
+              case TRANSITION_CANCEL:
               case TRANSITION_END:
+              case TRANSITION_RUN:
+              case TRANSITION_START:
                 SyntheticEventCtor = SyntheticTransitionEvent;
                 break;
               case "scroll":
@@ -26564,17 +26621,24 @@
                   { cause: error }
                 );
           case "InvalidStateError":
-            if (
-              "View transition was skipped because document visibility state is hidden." ===
-                error.message ||
-              "Skipping view transition because document visibility state has become hidden." ===
-                error.message ||
-              "Skipping view transition because viewport size changed." ===
-                error.message ||
-              "Transition was aborted because of invalid state" ===
-                error.message
-            )
-              return null;
+            switch (error.message) {
+              case "Transition was aborted because of invalid state":
+              case "Transition was aborted because of invalid state.":
+              case "Transition was aborted because of invalid state. Document hidden":
+              case "Transition was aborted because of invalid state. Viewport size changed":
+              case "Skipped ViewTransition due to document being hidden":
+              case "Skipped view transition due to viewport resize":
+              case "View transition was skipped because document visibility state is hidden.":
+              case "Skipping view transition because document visibility state has become hidden.":
+              case "Skipping view transition because viewport size changed.":
+                return null;
+              case "Transition was aborted because of invalid state. Snapshot capture failed":
+              case "Transition was aborted because of invalid state. Animation start failed":
+                return Error(
+                  "A ViewTransition could not start. This usually means that two elements have the same view-transition-name at the same time. Check the console for details.",
+                  { cause: error }
+                );
+            }
         }
       return error;
     }
@@ -32682,6 +32746,7 @@
         cacheSignal: function () {
           return readContext(CacheContext).controller.signal;
         },
+        units: null,
         getOwner: function () {
           return current;
         }
@@ -33804,11 +33869,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-99c106c4-20261014" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-89d7b2b4-20261123" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-99c106c4-20261014\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-89d7b2b4-20261123\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33845,10 +33910,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-99c106c4-20261014",
+          version: "19.3.0-experimental-89d7b2b4-20261123",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-99c106c4-20261014"
+          reconcilerVersion: "19.3.0-experimental-89d7b2b4-20261123"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -34162,5 +34227,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-99c106c4-20261014";
+    exports.version = "19.3.0-experimental-89d7b2b4-20261123";
   })();

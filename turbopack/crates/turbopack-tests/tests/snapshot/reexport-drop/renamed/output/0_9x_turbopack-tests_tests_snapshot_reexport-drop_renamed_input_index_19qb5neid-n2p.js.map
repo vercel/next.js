@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-drop/renamed/input/origin.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-drop/renamed/input/index.js"],"sourcesContent":["export const x = 'X_USED_MARKER'\n","import { y } from './lib.js'\n\nconsole.log(y)\n"],"names":["x"],"mappings":";;;;;;AAAO,MAAMA,IAAI;;;;ACEjB,QAAQ,GAAG,CAAC"}}]
-}

@@ -204,7 +204,7 @@ describe('API routes', () => {
       body: `{"message":Invalid"}`,
     })
     expect(data.status).toEqual(400)
-    expect(data.statusText).toEqual('Invalid JSON')
+    expect(await data.text()).toEqual('Invalid JSON')
   })
 
   // TODO: Investigate this test flaking
@@ -228,7 +228,7 @@ describe('API routes', () => {
       expect(error.code).toBe('EPIPE')
     } else {
       expect(res.status).toEqual(413)
-      expect(res.statusText).toEqual('Body exceeded 1mb limit')
+      expect(await res.text()).toEqual('Body exceeded 1mb limit')
     }
   })
 
@@ -475,34 +475,44 @@ describe('API routes', () => {
   })
 
   it('should warn if response body is larger than 4MB', async () => {
-    let res = await next.fetch('/api/large-response')
-    expect(res.ok).toBeTruthy()
-    expect(next.cliOutput).toContain(
-      'API response for /api/large-response exceeds 4MB. API Routes are meant to respond quickly.'
-    )
-
-    res = await next.fetch('/api/large-chunked-response')
-    expect(res.ok).toBeTruthy()
-    expect(next.cliOutput).toContain(
-      'API response for /api/large-chunked-response exceeds 4MB. API Routes are meant to respond quickly.'
-    )
+    for (const [path, bytes] of [
+      ['/api/large-response', 4 * 1024 * 1024],
+      ['/api/large-chunked-response', 4 * 1024 * 1024 + 1],
+    ] as const) {
+      const outputIndex = next.cliOutput.length
+      const response = await next.fetch(path)
+      expect(response.ok).toBeTruthy()
+      if (path === '/api/large-chunked-response') {
+        expect(response.headers.get('transfer-encoding')).toBe('chunked')
+        expect(response.headers.get('content-length')).toBeNull()
+      }
+      // Complete the request before starting the next large response. Leaving
+      // an unread body holds its connection and server-side writes open.
+      expect((await response.arrayBuffer()).byteLength).toBe(bytes)
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          `API response for ${path} exceeds 4MB. API Routes are meant to respond quickly.`
+        )
+      })
+    }
   })
 
   it('should not warn if response body is larger than 4MB with responseLimit config = false', async () => {
-    await retry(async () => {
-      let res = await next.fetch('/api/large-response-with-config')
-      expect(res.ok).toBeTruthy()
-      expect(next.cliOutput).not.toContain(
-        'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
-      )
-    })
+    const response = await next.fetch('/api/large-response-with-config')
+    expect(response.ok).toBeTruthy()
+    expect((await response.arrayBuffer()).byteLength).toBe(4 * 1024 * 1024)
+    expect(next.cliOutput).not.toContain(
+      'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
+    )
   })
 
   it('should warn with configured size if response body is larger than configured size', async () => {
-    await retry(async () => {
-      let res = await next.fetch('/api/large-response-with-config-size')
-      expect(res.ok).toBeTruthy()
-      expect(next.cliOutput).toContain(
+    const outputIndex = next.cliOutput.length
+    const response = await next.fetch('/api/large-response-with-config-size')
+    expect(response.ok).toBeTruthy()
+    expect((await response.arrayBuffer()).byteLength).toBe(6 * 1024 * 1024)
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toContain(
         'API response for /api/large-response-with-config-size exceeds 5MB. API Routes are meant to respond quickly.'
       )
     })

@@ -11,6 +11,6 @@ export async function reject() {
 }
 
 export async function revalidate() {
-  revalidatePath('/', 'layout')
+  revalidatePath('/adr', 'layout')
   return 'revalidated'
 }

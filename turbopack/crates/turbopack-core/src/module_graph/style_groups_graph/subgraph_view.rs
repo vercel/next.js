@@ -14,7 +14,7 @@ use petgraph::{
 use rustc_hash::FxHashSet;
 
 /// Read-only view over a directed weighted graph. Production code uses the `&DiGraph<N, u32>`
-/// implementation; tests also use [`SubgraphView`] to exercise algorithms on filtered subsets.
+/// implementation; tests also use `SubgraphView` to exercise algorithms on filtered subsets.
 #[allow(dead_code)] // Some methods are kept for symmetry with the JS PoC; not all are used yet.
 pub(super) trait ReadonlyGraph<'a>: Copy {
     type NodesIter: Iterator<Item = NodeIndex>;

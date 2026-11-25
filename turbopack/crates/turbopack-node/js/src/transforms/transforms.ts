@@ -42,6 +42,10 @@ export type IpcRequestMessage =
       file: string
     }
   | {
+      type: 'trackFileStat'
+      file: string
+    }
+  | {
       type: 'importModule'
       lookupPath: string
       request: string

@@ -1,6 +1,7 @@
 //@ts-check
 
 const path = require('path')
+const os = require('os')
 const _glob = require('glob')
 const fs = require('fs')
 const fsp = require('fs/promises')
@@ -8,6 +9,7 @@ const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
+const treeKill = require('tree-kill')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const { getBrowserLaunch } = require('./test/lib/browsers/launch')
 const glob = promisify(_glob)
@@ -54,12 +56,13 @@ class TestProfile {
   ignoredVars
   cachingEnabled
 
-  constructor({ group = '', type = '', testPattern = '' } = {}) {
+  constructor({ group = '', type = '', testPattern = '', runCount = 1 } = {}) {
     this.cachingEnabled = !!(
       process.env.CI &&
       process.env.GITHUB_SHA &&
       !process.env.NEXT_FLAKE_DETECTION &&
-      !process.env.NEXT_TEST_SKIP_RESULT_CACHE
+      !process.env.NEXT_TEST_SKIP_RESULT_CACHE &&
+      runCount === 1
     )
 
     // Snapshot env at construction time so dynamic vars set during the run
@@ -164,6 +167,11 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .boolean('timings')
   .boolean('write-timings')
   .number('retries')
+  .number('runs')
+  .describe(
+    'runs',
+    'Total runs per selected suite, sharing the concurrency limit (default: 1)'
+  )
   .boolean('debug')
   .string('g')
   .alias('g', 'group')
@@ -185,6 +193,7 @@ function escapeRegexp(str) {
 
 /**
  * @typedef {{ file: string, excludedCases: string[] }} TestFile
+ * @typedef {TestFile & { runNumber: number }} TestRun
  */
 
 const GROUP = process.env.CI ? '##[group]' : ''
@@ -257,7 +266,8 @@ const mockTrace = () => ({
 // `examples/` additionally excludes test files inside example apps, which run
 // with each example's own jest/vitest setup instead of this runner.
 const configuredTestTypes = [...Object.values(testFilters), 'examples/']
-/** @type {Map<string, { output: string, failedCases: string[] }>} */
+// The run ID prevents a passing run from clearing another run's failure.
+/** @type {Map<string, { file: string, output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 
 // GitHub drops the whole job summary of a step if it exceeds 1MiB:
@@ -300,10 +310,10 @@ async function maybeLogSummary() {
     const sha = getHeadSha()
     const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? '').split('/')
 
-    const suites = [...errorsPerTests.keys()].sort().map((test) => {
-      const { output, failedCases } = errorsPerTests.get(test)
+    const suites = [...errorsPerTests.keys()].sort().map((testRunId) => {
+      const { file, output, failedCases } = errorsPerTests.get(testRunId)
       return {
-        testPath: test,
+        testPath: file,
         mode: process.env.NEXT_TEST_MODE,
         isTurbopack: !!process.env.IS_TURBOPACK_TEST,
         isRspack: !!process.env.NEXT_RSPACK,
@@ -347,6 +357,130 @@ let exiting = false
  */
 let sharedBrowserServer
 
+/**
+ * @type {string | undefined}
+ */
+let testRunsDirectory
+
+/**
+ * Jest children that are still running, with the output buffered so far.
+ * Used to print that output when the run is cancelled.
+ * @type {Map<import('child_process').ChildProcess, { label: string, start: number, outputChunks: { type: string, chunk: Buffer | string }[], closed: Promise<unknown> }>}
+ */
+const runningTestRuns = new Map()
+
+/**
+ * The signal that cancelled the run, if any.
+ * @type {NodeJS.Signals | null}
+ */
+let cancelSignal = null
+
+/**
+ * Upper bound for killing processes and flushing output after a cancellation
+ * signal. It stays below the 7.5s the GitHub Actions runner waits after
+ * SIGINT before it sends SIGTERM.
+ */
+const CANCEL_CLEANUP_TIMEOUT_MS = 5_000
+
+/**
+ * How long to wait for killed jest children to close their stdio, so that
+ * output still in their pipes is printed too. Part of the cleanup timeout.
+ */
+const CANCEL_CHILD_CLOSE_TIMEOUT_MS = 2_000
+
+/** @param {number} ms */
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Writes to stdout and waits for it to drain when its buffer is full.
+ * @param {Buffer | string} chunk
+ */
+const writeStdout = async (chunk) => {
+  if (!process.stdout.write(chunk)) {
+    await new Promise((resolve) => process.stdout.once('drain', resolve))
+  }
+}
+
+/**
+ * When CI cancels a job or a step times out, the runner sends SIGINT to the
+ * step process and SIGTERM 7.5s later. Without this handler the buffered
+ * output of the test files that are still running would be lost, which hides
+ * what a hung test was doing. Kill the jest process trees and the shared
+ * browser, print the output of the cancelled test files, and exit.
+ *
+ * This deliberately skips `cleanUpAndExit`: its summary and directory cleanup
+ * can take longer than the runner's grace period.
+ *
+ * The step only receives these signals if `node run-tests.js` is the step
+ * process itself, so the workflows `exec` it.
+ *
+ * @param {NodeJS.Signals} signal
+ */
+const handleCancelSignal = async (signal) => {
+  const code = 128 + os.constants.signals[signal]
+  if (cancelSignal) {
+    // A second signal while cleaning up: exit right away.
+    process.exit(code)
+  }
+  cancelSignal = signal
+  // Don't let a normal exit that is already in progress race this one.
+  exiting = true
+  // Start the deadline first so slow cleanup or a stalled log reader can't
+  // keep the process alive.
+  setTimeout(() => process.exit(code), CANCEL_CLEANUP_TIMEOUT_MS)
+  // The log reader may already be gone. Don't crash before killing children.
+  process.stdout.on('error', () => {})
+
+  // Kill before writing anything: writes can stall on a slow log reader.
+  const cancelledRuns = [...runningTestRuns.entries()]
+  const cancelledAt = Date.now()
+  const killed = Promise.all([
+    ...cancelledRuns.map(
+      ([child, _]) =>
+        new Promise((resolve) => {
+          if (child.pid === undefined) return resolve(undefined)
+          // Don't kill the jest process on its own first: its descendants
+          // (next servers, browsers) would be reparented and missed.
+          treeKill(child.pid, 'SIGKILL', () => resolve(undefined))
+        })
+    ),
+    sharedBrowserServer?.kill().catch(() => {}),
+  ])
+
+  process.stdout.write(
+    `\nReceived ${signal}, cancelling ${cancelledRuns.length} running test file(s)\n`
+  )
+
+  // A killed child can still have output in its stdout/stderr pipes. Wait for
+  // them to close so that output is in `outputChunks` before printing it.
+  await Promise.race([
+    Promise.all(cancelledRuns.map(([, { closed }]) => closed)),
+    delay(CANCEL_CHILD_CLOSE_TIMEOUT_MS),
+  ])
+
+  for (const [, { label, start, outputChunks }] of cancelledRuns) {
+    const elapsed = `${((cancelledAt - start) / 1000).toFixed(1)}s`
+    await writeStdout(
+      `❌ ${label} output (cancelled by ${signal} after ${elapsed}):\n`
+    )
+    if (outputChunks.length === 0) {
+      await writeStdout('(no buffered output)\n')
+    }
+    for (const { chunk } of outputChunks) {
+      await writeStdout(chunk)
+    }
+    await writeStdout(`\nend of ${label} output\n`)
+  }
+
+  // Writes complete in order, so this callback fires once all of the output
+  // above has been handed off.
+  await new Promise((resolve) => {
+    process.stdout.write(`exiting with code ${code}\n`, resolve)
+  })
+  await killed
+  process.exit(code)
+}
+
 const cleanUpAndExit = async (code) => {
   if (exiting) {
     return
@@ -364,6 +498,9 @@ const cleanUpAndExit = async (code) => {
       recursive: true,
       force: true,
     })
+  }
+  if (testRunsDirectory && !process.env.NEXT_TEST_SKIP_CLEANUP) {
+    await fsp.rm(testRunsDirectory, { recursive: true, force: true })
   }
   if (process.env.CI) {
     await maybeLogSummary()
@@ -413,13 +550,34 @@ async function main() {
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    runCount: argv.runs ?? 1,
     requireTimings: argv.requireTimings ?? false,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
     printTests: argv.printTests ?? false,
   }
   let numRetries = options.retries
+  if (!Number.isSafeInteger(options.runCount) || options.runCount < 1) {
+    throw new Error('--runs must be a positive integer')
+  }
+  if (options.runCount > 1 && process.env.NEXT_SKIP_ISOLATE) {
+    throw new Error(
+      'Multiple runs of a suite require isolated test fixtures; unset NEXT_SKIP_ISOLATE'
+    )
+  }
   const hideOutput = !options.debug && !options.dry
+
+  if (!options.dry) {
+    /** @param {NodeJS.Signals} signal */
+    const onSignal = (signal) => {
+      handleCancelSignal(signal).catch((err) => {
+        console.error('Failed to cancel test run:', err)
+        process.exit(128 + os.constants.signals[signal])
+      })
+    }
+    process.on('SIGINT', onSignal)
+    process.on('SIGTERM', onSignal)
+  }
 
   let filterTestsBy
 
@@ -439,6 +597,12 @@ async function main() {
     }
   }
 
+  if (options.runCount > 1 && numRetries !== 0) {
+    // Retry cleanup resets the suite's files in the shared checkout.
+    // Other runs may still need those files.
+    throw new Error('Multiple runs of a suite require --retries 0')
+  }
+
   console.log(
     'Running tests with concurrency:',
     options.concurrency,
@@ -450,12 +614,14 @@ async function main() {
     group: String(options.group || ''),
     type: String(options.type || ''),
     testPattern: String(options.testPattern || ''),
+    runCount: options.runCount,
   })
   profile.log()
 
   // Only fetch/update shared timing data during grouped CI runs to avoid
   // individual test runs from polluting the timing data
-  const shouldUseSharedTimings = options.timings && options.group
+  const shouldUseSharedTimings =
+    options.timings && options.group && options.runCount === 1
 
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
@@ -693,13 +859,33 @@ ${ENDGROUP}`)
       process.env.BROWSER_NAME || 'chrome',
       { headless: true } // matches per-test env below
     )
-    sharedBrowserServer = await browserType.launchServer(launchOptions)
+    sharedBrowserServer = await browserType.launchServer({
+      ...launchOptions,
+      // Playwright's own handlers would exit on SIGINT, or close the browser
+      // and keep running on SIGTERM, before the buffered test output is
+      // printed. `handleCancelSignal` kills the server instead.
+      handleSIGINT: false,
+      handleSIGTERM: false,
+    })
     process.env.NEXT_TEST_BROWSER_WS_ENDPOINT = sharedBrowserServer.wsEndpoint()
   }
 
-  const sema = new Sema(options.concurrency, { capacity: tests.length })
-  const outputSema = new Sema(1, { capacity: tests.length })
-  const children = new Set()
+  // Expand after sharding so all runs of each suite share a runner and browser.
+  const testRuns = tests.flatMap((test) =>
+    Array.from({ length: options.runCount }, (_, index) => ({
+      ...test,
+      runNumber: index + 1,
+    }))
+  )
+
+  if (options.runCount > 1 && !options.dry) {
+    testRunsDirectory = await fsp.mkdtemp(
+      path.join(process.env.NEXT_TEST_DIR || os.tmpdir(), 'next-test-runs-')
+    )
+  }
+
+  const sema = new Sema(options.concurrency, { capacity: testRuns.length })
+  const outputSema = new Sema(1, { capacity: testRuns.length })
   const jestPath = path.join(
     __dirname,
     'node_modules',
@@ -709,10 +895,44 @@ ${ENDGROUP}`)
   let firstError = true
   let hadFailures = false
 
-  const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
+  /**
+   * @param {TestRun} testRun
+   */
+  const getTestRunId = (testRun) =>
+    options.runCount === 1
+      ? testRun.file
+      : `${testRun.file}.run-${testRun.runNumber}`
+
+  /**
+   * @param {TestRun} testRun
+   */
+  const getTestRunLabel = (testRun) =>
+    options.runCount === 1
+      ? testRun.file
+      : `${testRun.file} (run ${testRun.runNumber}/${options.runCount})`
+
+  /**
+   * @param {TestRun} testRun
+   */
+  const getTraceDirectory = (testRun) =>
+    path.join(
+      __dirname,
+      'test/traces',
+      path
+        .relative(path.join(__dirname, 'test'), testRun.file)
+        .replace(/\//g, '-'),
+      ...(options.runCount === 1 ? [] : [`run-${testRun.runNumber}`])
+    )
+
+  const runTestOnce = (
+    /** @type {TestRun} */ testRun,
+    isFinalRun,
+    isRetry,
+    /** @type {string | undefined} */ testDirectory
+  ) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
-      let outputChunks = []
+      const outputChunks = []
 
       const args = [
         ...(process.env.CI ? ['--ci'] : []),
@@ -721,14 +941,14 @@ ${ENDGROUP}`)
         '--no-cache',
         '--verbose',
         ...(isTestJob
-          ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
+          ? ['--json', `--outputFile=${getTestRunId(testRun)}${RESULTS_EXT}`]
           : []),
-        test.file,
-        ...(test.excludedCases.length === 0
+        testRun.file,
+        ...(testRun.excludedCases.length === 0
           ? []
           : [
               '--testNamePattern',
-              `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
+              `^(?!(?:${testRun.excludedCases.map(escapeRegexp).join('|')})$).`,
             ]),
       ]
       const deferNextTestWasm = !!process.env.NEXT_TEST_WASM
@@ -743,6 +963,12 @@ ${ENDGROUP}`)
         // Only use this in tests.
         // For implementation forks, use `process.env.CI` instead
         NEXT_TEST_CI: process.env.CI,
+        ...(options.runCount > 1
+          ? {
+              NEXT_TEST_RUN_NUMBER: String(testRun.runNumber),
+              NEXT_TEST_DIR: testDirectory,
+            }
+          : {}),
 
         ...(options.local
           ? {}
@@ -757,7 +983,10 @@ ${ENDGROUP}`)
               // Format the output of junit report to include the test name
               // For the debugging purpose to compare actual run list to the generated reports
               // [NOTE]: This won't affect if junit reporter is not enabled
-              JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+              JEST_JUNIT_OUTPUT_NAME: getTestRunId(testRun).replaceAll(
+                '/',
+                '_'
+              ),
               // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
               // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
               // [NOTE]: This won't affect if junit reporter is not enabled
@@ -765,7 +994,8 @@ ${ENDGROUP}`)
                 `${process.env.NEXT_TEST_MODE ?? 'default'}`,
                 options.group,
                 options.type,
-                test.file,
+                testRun.file,
+                ...(options.runCount > 1 ? [`run-${testRun.runNumber}`] : []),
               ]
                 .filter(Boolean)
                 .join(':'),
@@ -809,6 +1039,10 @@ ${ENDGROUP}`)
         return resolve(new Date().getTime() - start)
       }
 
+      // Don't start new jest processes once the run has been cancelled. The
+      // cancellation handler exits the process.
+      if (cancelSignal) return
+
       const child = spawn(jestPath, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: {
@@ -821,10 +1055,17 @@ ${ENDGROUP}`)
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
 
-      children.add(child)
+      runningTestRuns.set(child, {
+        label: getTestRunLabel(testRun),
+        start,
+        outputChunks,
+        closed: new Promise((resolve) => child.once('close', resolve)),
+      })
 
       child.on('exit', async (code, signal) => {
-        children.delete(child)
+        runningTestRuns.delete(child)
+        // The cancellation handler already printed the output and is exiting.
+        if (cancelSignal) return
         const isChildExitWithNonZero = code !== 0 || signal !== null
         if (isChildExitWithNonZero) {
           if (hideOutput) {
@@ -832,9 +1073,11 @@ ${ENDGROUP}`)
             const isExpanded = firstError
             if (isExpanded) {
               firstError = false
-              process.stdout.write(`❌ ${test.file} output:\n`)
+              process.stdout.write(`❌ ${getTestRunLabel(testRun)} output:\n`)
             } else {
-              process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
+              process.stdout.write(
+                `${GROUP}❌ ${getTestRunLabel(testRun)} output\n`
+              )
             }
 
             let output = ''
@@ -846,13 +1089,21 @@ ${ENDGROUP}`)
             }
 
             if (process.env.CI) {
-              errorsPerTests.set(test.file, { output, failedCases: [] })
+              errorsPerTests.set(getTestRunId(testRun), {
+                file: testRun.file,
+                output,
+                failedCases: [],
+              })
             }
 
             if (isExpanded) {
-              process.stdout.write(`end of ${test.file} output\n`)
+              process.stdout.write(
+                `end of ${getTestRunLabel(testRun)} output\n`
+              )
             } else {
-              process.stdout.write(`end of ${test.file} output\n${ENDGROUP}\n`)
+              process.stdout.write(
+                `end of ${getTestRunLabel(testRun)} output\n${ENDGROUP}\n`
+              )
             }
             outputSema.release()
           }
@@ -873,16 +1124,7 @@ ${ENDGROUP}`)
           process.env.PRESERVE_TRACES_OUTPUT
         if (!shouldPreserveTracesOutput) {
           await fsp
-            .rm(
-              path.join(
-                __dirname,
-                'test/traces',
-                path
-                  .relative(path.join(__dirname, 'test'), test.file)
-                  .replace(/\//g, '-')
-              ),
-              { recursive: true, force: true }
-            )
+            .rm(getTraceDirectory(testRun), { recursive: true, force: true })
             .catch(() => {})
         }
 
@@ -943,11 +1185,14 @@ ${ENDGROUP}`)
     }
   }
 
-  const runTest = async (/** @type {TestFile} */ test) => {
+  const runTest = async (/** @type {TestRun} */ testRun) => {
+    const testDirectory = testRunsDirectory
+      ? await fsp.mkdtemp(path.join(testRunsDirectory, 'run-'))
+      : undefined
     // On CI retry attempts, skip tests that already passed on this commit
-    if (cachedPassedTests.has(test.file)) {
+    if (cachedPassedTests.has(testRun.file)) {
       console.log(
-        `${test.file} already passed on this commit (cached) — skipping`
+        `${testRun.file} already passed on this commit (cached) — skipping`
       )
       return
     }
@@ -955,22 +1200,30 @@ ${ENDGROUP}`)
     let passed = false
 
     for (let i = 0; i < numRetries + 1; i++) {
+      if (cancelSignal) return
       try {
-        console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
-        const time = await runTestOnce(test, i === numRetries, i > 0)
+        console.log(
+          `Starting ${getTestRunLabel(testRun)} retry ${i}/${numRetries}`
+        )
+        const time = await runTestOnce(
+          testRun,
+          i === numRetries,
+          i > 0,
+          testDirectory
+        )
         timings.push({
-          file: test.file,
+          file: testRun.file,
           time,
         })
         passed = true
         console.log(
-          `${test.file} finished on retry ${i}/${numRetries} in ${time / 1000}s`
+          `${getTestRunLabel(testRun)} finished on retry ${i}/${numRetries} in ${time / 1000}s`
         )
         break
       } catch (err) {
         if (i < numRetries) {
           try {
-            let testDir = path.dirname(path.join(__dirname, test.file))
+            let testDir = path.dirname(path.join(__dirname, testRun.file))
 
             // if test is nested in a test folder traverse up a dir to ensure
             // we clean up relevant test files
@@ -982,22 +1235,24 @@ ${ENDGROUP}`)
             await exec(`git checkout "${testDir}"`)
           } catch (err) {}
         } else {
-          console.error(`${test.file} failed due to ${err}`)
+          console.error(`${getTestRunLabel(testRun)} failed due to ${err}`)
         }
       }
     }
 
     if (passed) {
-      recordPassed(test.file)
+      recordPassed(testRun.file)
       // The test may have failed on an earlier attempt; don't report tests
       // that ultimately passed in the job summary.
-      errorsPerTests.delete(test.file)
+      errorsPerTests.delete(getTestRunId(testRun))
     }
 
     if (!passed) {
       hadFailures = true
       // "failed to pass within" is a keyword parsed by next-pr-webhook
-      console.error(`${test.file} failed to pass within ${numRetries} retries`)
+      console.error(
+        `${testRun.file} failed to pass within ${numRetries} retries`
+      )
     }
 
     // Emit test output, parsed by the commenter webhook to notify about failing tests.
@@ -1005,7 +1260,7 @@ ${ENDGROUP}`)
     if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
-          `${test.file}${RESULTS_EXT}`,
+          `${getTestRunId(testRun)}${RESULTS_EXT}`,
           'utf8'
         )
         const obj = JSON.parse(testsOutput)
@@ -1025,7 +1280,7 @@ ${ENDGROUP}`)
             }
           }
           // Update errorsPerTests with failed case names
-          const existing = errorsPerTests.get(test.file)
+          const existing = errorsPerTests.get(getTestRunId(testRun))
           if (existing) {
             existing.failedCases = failedCases
           }
@@ -1034,6 +1289,9 @@ ${ENDGROUP}`)
         obj.processEnv = {
           NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
           HEADLESS: process.env.HEADLESS,
+          ...(options.runCount > 1
+            ? { NEXT_TEST_RUN_NUMBER: String(testRun.runNumber) }
+            : {}),
         }
         await outputSema.acquire()
         if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
@@ -1051,13 +1309,13 @@ ${ENDGROUP}`)
   }
 
   const results = await Promise.allSettled(
-    tests.map(async (test) => {
+    testRuns.map(async (testRun) => {
       // TODO: Use explicit resource management instead of this acquire/release
       // pattern once CI runs with Node.js 24+.
       await sema.acquire()
 
       try {
-        await runTest(test)
+        await runTest(testRun)
       } finally {
         sema.release()
       }

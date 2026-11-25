@@ -3,26 +3,16 @@ a = 1
 b = "foo"
 
 c = (1 | "foo" | ???*0*)
-- *0* [][???*1*]
+- *0* [][global*1*["index"]]
   ⚠️  unknown array prototype methods or values
-- *1* ???*2*["index"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *1* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 d1 = [1, "foo"]
 
 d2 = (1 | "foo" | ???*0*)
-- *0* [][???*1*]
+- *0* [][global*1*["index"]]
   ⚠️  unknown array prototype methods or values
-- *1* ???*2*["index"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *1* global: The Node.js global object: https://nodejs.org/api/globals.html#global
 
 d3 = ("foo" | ???*0*)
 - *0* unknown mutation

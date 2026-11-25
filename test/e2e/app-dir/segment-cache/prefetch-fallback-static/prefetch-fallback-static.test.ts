@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-import { PrefetchHint } from 'next/src/shared/lib/app-router-types'
-import { createRouterAct } from 'router-act'
+import { StaticAttemptHints } from 'next/src/shared/lib/app-router-types'
+import { createRouterAct, waitForSuccessfulISRFallbackRetry } from 'router-act'
 import type * as Playwright from 'playwright'
 import {
   HintsManifest,
@@ -45,7 +45,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
     expect('\n' + extractPrerenderedRouteInfo(next.cliOutput) + '\n')
       .toMatchInlineSnapshot(`
      "
-     ┌ ○ /
+     ┌ ◐ /
      ├ ○ /_not-found
      ├   /static-for-some-params/[slug]
      │ ├ ◐ /static-for-some-params/[slug]
@@ -67,9 +67,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
     )
 
     // we only care about the static hints, inlining is not relevant.
-    const hintsMask =
-      PrefetchHint.ShouldAttemptStaticShell |
-      PrefetchHint.ShouldAttemptStaticPrefetch
+    const hintsMask = StaticAttemptHints
 
     // The page awaits static params, so:
     // - the shell can be static (ShouldAttemptStaticShell hint set),
@@ -81,16 +79,16 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
       )
     ).toMatchInlineSnapshot(`
      {
-       "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+       "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
        "slots": {
          "children": {
-           "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+           "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
            "slots": {
              "children": {
-               "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+               "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
                "slots": {
                  "children": {
-                   "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+                   "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
                    "slots": null,
                  },
                },
@@ -117,9 +115,6 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
     'This page only accesses runtime data for some param values.'
 
   describe('when the param was not prerendered and an ISR fallback was served', () => {
-    /** The router waits 2s before retrying ISR fallbacks. */
-    const ISR_RETRY_DELAY = 2000 + 500
-
     const usedSlugs = new Set<string>()
     /**
      * Used to prevent accidental slug re-use across tests.
@@ -138,10 +133,19 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
       return slug
     }
 
+    // To ensure that the pages that haven't been prerendered yet, we append
+    // a unique cache-buster value to all slugs (passed to the index page via a search param)
+    let unique: string = Date.now() + ''
+    beforeEach(() => {
+      unique = Date.now() + ''
+    })
+    const indexPageWithUnique = () => `/?unique=${unique}`
+    const slugWithUnique = (slug: string) => `${slug}_u${unique}`
+
     describe('when the prefetch did not use runtime data during the prerender', () => {
       it('prefetch="auto": retries the static request, and does not use a runtime prefetch', async () => {
         let page: Playwright.Page
-        const browser = await next.browser('/', {
+        const browser = await next.browser(indexPageWithUnique(), {
           beforePageLoad(p: Playwright.Page) {
             page = p
           },
@@ -149,59 +153,47 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
         // The route was not prerendered during build.
         // It does not use runtime data based on the slug.
-        const slug = trackUsedSlug('not-prerendered_no-cookies_prefetch-auto')
+        const slug = trackUsedSlug(slugWithUnique('not-prerendered_no-cookies'))
         const href = `/static-for-some-params/${slug}`
         const prefetch = 'auto'
-        await act(async () => {
-          await act(
-            async () => {
-              // Reveal a prefetch-auto link to the route, but delay the initial request.
-              await act(
-                () =>
-                  browser
-                    .elementByCss(linkAccordionSelector({ href, prefetch }))
-                    .click(),
-                [
-                  // Static shell/prefetch (based on hint) yields an ISR fallback
-                  {
-                    includes: STATIC_SHELL_CONTENT,
-                    kind: 'static',
-                    block: true,
-                  },
-                  // It's a fallback, so it should not contain params.
-                  {
-                    includes: `Slug: ${slug}`,
-                    block: 'reject',
-                  },
-                ]
-              )
-            },
-            // After this act()'s callback, the initial request is resolved.
-            // It yielded an ISR fallback, so the router should retry it.
-            // But the retry is delayed, so initially nothing happens.
-            'no-requests'
-          )
-          // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
-        }, [
-          // The retried request yields a concrete prerender with params.
-          {
-            includes: `Slug: ${slug}`,
-            kind: 'static',
+
+        await act(
+          async () => {
+            // Reveal a prefetch-auto link to the route, but delay the initial request.
+            await act(
+              () =>
+                browser
+                  .elementByCss(linkAccordionSelector({ href, prefetch }))
+                  .click(),
+              [
+                // Static shell/prefetch (based on hint) yields an ISR fallback
+                {
+                  includes: STATIC_SHELL_CONTENT,
+                  kind: 'static',
+                  block: true,
+                },
+                // It's a fallback, so it should not contain params.
+                {
+                  includes: `Slug: ${slug}`,
+                  block: 'reject',
+                },
+              ]
+            )
           },
-          // NO Runtime prefetch to get the content (not requested by link)
-          // or runtime requests of any kind
-          {
-            includes: '',
-            kind: 'runtime',
-            block: 'reject',
-          },
-        ])
+          // After this act()'s callback, the initial request is resolved.
+          // It yielded an ISR fallback, so the router should retry it.
+          // But the retry is delayed, so initially nothing happens.
+          'no-requests'
+        )
+        await waitForSuccessfulISRFallbackRetry(act, {
+          includes: `Slug: ${slug}`,
+          kind: 'static',
+        })
       })
 
       it('prefetch={true}: waits for the ISR retry instead of using a runtime prefetch', async () => {
         let page: Playwright.Page
-        const browser = await next.browser('/', {
+        const browser = await next.browser(indexPageWithUnique(), {
           beforePageLoad(p: Playwright.Page) {
             page = p
           },
@@ -209,64 +201,51 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
         // The route was not prerendered during build.
         // It does not use runtime data based on the slug.
-        const slug = trackUsedSlug('not-prerendered_no-cookies_prefetch-true')
+        const slug = trackUsedSlug(slugWithUnique('not-prerendered_no-cookies'))
         const href = `/static-for-some-params/${slug}`
         const prefetch = true
 
-        await act(async () => {
-          await act(
-            async () => {
-              // Reveal a prefetch-true link to the route, but delay the initial request.
-              await act(
-                () =>
-                  browser
-                    .elementByCss(linkAccordionSelector({ href, prefetch }))
-                    .click(),
-                [
-                  // Static shell/prefetch (based on hint) yields an ISR fallback
-                  {
-                    includes: STATIC_SHELL_CONTENT,
-                    kind: 'static',
-                    block: true,
-                  },
-                  // It's a fallback, so it should not contain params.
-                  {
-                    includes: `Slug: ${slug}`,
-                    block: 'reject',
-                  },
-                ]
-              )
-            },
-            // After this act()'s callback, the blocked static request is resolved.
-            // It yielded an ISR fallback, so the router retries it. The retry is the
-            // same request, still in flight, so the link waits for it instead of
-            // sending a runtime prefetch.
-            'no-requests'
-          )
-          // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
-        }, [
-          // The retried request yields a concrete prerender with params.
-          {
-            includes: `Slug: ${slug}`,
-            kind: 'static',
+        await act(
+          async () => {
+            // Reveal a prefetch-true link to the route, but delay the initial request.
+            await act(
+              () =>
+                browser
+                  .elementByCss(linkAccordionSelector({ href, prefetch }))
+                  .click(),
+              [
+                // Static shell/prefetch (based on hint) yields an ISR fallback
+                {
+                  includes: STATIC_SHELL_CONTENT,
+                  kind: 'static',
+                  block: true,
+                },
+                // It's a fallback, so it should not contain params.
+                {
+                  includes: `Slug: ${slug}`,
+                  block: 'reject',
+                },
+              ]
+            )
           },
-          // The concrete page is cache complete, so no runtime prefetch.
-          {
-            includes: '',
-            kind: 'runtime',
-            block: 'reject',
-          },
-        ])
+          // After this act()'s callback, the blocked static request is resolved.
+          // It yielded an ISR fallback, so the router retries it. The retry is the
+          // same request, still in flight, so the link waits for it instead of
+          // sending a runtime prefetch.
+          'no-requests'
+        )
+
+        await waitForSuccessfulISRFallbackRetry(act, {
+          includes: `Slug: ${slug}`,
+          kind: 'static',
+        })
       })
 
       describe('with ensureStatic', () => {
         describe('ensureStatic = "shell"', () => {
-          // FIXME: Flaky test
-          // @force-gate !deploy
           it('prefetch={true}: waits for the ISR retry instead of using a runtime prefetch', async () => {
             let page: Playwright.Page
-            const browser = await next.browser('/', {
+            const browser = await next.browser(indexPageWithUnique(), {
               beforePageLoad(p: Playwright.Page) {
                 page = p
               },
@@ -280,67 +259,52 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
             // The `ensureStatic` config should not change the behavior from the default, because
             // it affects the shell, not the prefetch.
             const slug = trackUsedSlug(
-              'not-prerendered_no-cookies_ensure-static-shell'
+              slugWithUnique('not-prerendered_no-cookies_es-shell')
             )
             const href = `/static-for-some-params/${slug}/ensure-static/shell`
             const prefetch = true
 
-            await act(async () => {
-              await act(
-                async () => {
-                  // Reveal a prefetch-true link to the route, but delay the initial request.
-                  await act(
-                    () =>
-                      browser
-                        .elementByCss(linkAccordionSelector({ href, prefetch }))
-                        .click(),
-                    [
-                      // Static shell/prefetch (based on hint) yields an ISR fallback
-                      {
-                        includes: STATIC_SHELL_CONTENT,
-                        kind: 'static',
-                        block: true,
-                      },
-                      // It's a fallback, so it should not contain params.
-                      {
-                        includes: `Slug: ${slug}`,
-                        block: 'reject',
-                      },
-                    ]
-                  )
-                },
-                // After this act()'s callback, the blocked static request is resolved.
-                // It yielded an ISR fallback, so the router retries it. The retry is the
-                // same request, still in flight, so the link waits for it instead of
-                // sending a runtime prefetch.
-                'no-requests'
-              )
-              // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
-            }, [
-              // The retried request yields a concrete prerender with params.
-              {
-                includes: `Slug: ${slug}`,
-                kind: 'static',
+            await act(
+              async () => {
+                // Reveal a prefetch-true link to the route, but delay the initial request.
+                await act(
+                  () =>
+                    browser
+                      .elementByCss(linkAccordionSelector({ href, prefetch }))
+                      .click(),
+                  [
+                    // Static shell/prefetch (based on hint) yields an ISR fallback
+                    {
+                      includes: STATIC_SHELL_CONTENT,
+                      kind: 'static',
+                      block: true,
+                    },
+                    // It's a fallback, so it should not contain params.
+                    {
+                      includes: `Slug: ${slug}`,
+                      block: 'reject',
+                    },
+                  ]
+                )
               },
-              // The concrete page is cache complete, so no runtime prefetch.
-              {
-                includes: '',
-                kind: 'runtime',
-                block: 'reject',
-              },
-            ])
+              // After this act()'s callback, the blocked static request is resolved.
+              // It yielded an ISR fallback, so the router retries it. The retry is the
+              // same request, still in flight, so the link waits for it instead of
+              // sending a runtime prefetch.
+              'no-requests'
+            )
+
+            await waitForSuccessfulISRFallbackRetry(act, {
+              includes: `Slug: ${slug}`,
+              kind: 'static',
+            })
           })
         })
 
         describe('ensureStatic = "prefetch"', () => {
-          // FIXME: Flaky test
-          // @force-gate !deploy
           it('prefetch={true}: does not use a runtime prefetch as a replacement for not-yet-available ISR content', async () => {
             let page: Playwright.Page
-            const browser = await next.browser('/', {
+            const browser = await next.browser(indexPageWithUnique(), {
               beforePageLoad(p: Playwright.Page) {
                 page = p
               },
@@ -354,13 +318,13 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
             // The `ensureStatic` config should change the behavior from the default, because it
             // disallows using runtime prefetches altogether.
             const slug = trackUsedSlug(
-              'not-prerendered_no-cookies_ensure-static-prefetch'
+              slugWithUnique('not-prerendered_no-cookies_es-prefetch')
             )
             const href = `/static-for-some-params/${slug}/ensure-static/prefetch`
             const prefetch = true
 
-            await act(async () => {
-              await act(async () => {
+            await act(
+              async () => {
                 // Reveal a prefetch-true link to the route, but delay the initial request.
                 await act(
                   () =>
@@ -381,34 +345,18 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
                     },
                   ]
                 )
-              }, [
-                // After this act()'s callback, the blocked static request is resolved.
-                // The router sees that it's an ISR fallback and kicks off the ISR retry loop.
-                // Unlike the default behavior, it should NOT use a runtime request for the
-                // missing content, because the route has `ensureStatic = "prefetch"`, so
-                // runtime prefetches are not allowed.
-                {
-                  includes: '',
-                  kind: 'runtime',
-                  block: 'reject',
-                },
-              ])
-              // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
-            }, [
-              // The retried request yields a concrete prerender with params.
-              {
-                includes: `Slug: ${slug}`,
-                kind: 'static',
               },
-              {
-                includes: '',
-                kind: 'runtime',
-                block: 'reject',
-              },
-            ])
+              // After this act()'s callback, the blocked static request is resolved.
+              // It yielded an ISR fallback, so the router retries it. The retry is the
+              // same request, still in flight, so the link waits for it instead of
+              // sending a runtime prefetch.
+              'no-requests'
+            )
+
+            await waitForSuccessfulISRFallbackRetry(act, {
+              includes: `Slug: ${slug}`,
+              kind: 'static',
+            })
           })
         })
       })
@@ -419,11 +367,9 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
       // above, because it can't know the slug. We only find out that the page
       // needs runtime data once the retry gets the concrete prerender.
 
-      // FIXME: Flaky test
-      // @force-gate !deploy
       it('prefetch="auto": does not use a runtime prefetch', async () => {
         let page: Playwright.Page
-        const browser = await next.browser('/', {
+        const browser = await next.browser(indexPageWithUnique(), {
           beforePageLoad(p: Playwright.Page) {
             page = p
           },
@@ -432,64 +378,50 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
 
         // The route was not prerendered during build.
         // It used runtime data based on the slug.
-        const slug = trackUsedSlug('not-prerendered_yes-cookies_prefetch-auto')
+        const slug = trackUsedSlug(
+          slugWithUnique('not-prerendered_yes-cookies')
+        )
         const href = `/static-for-some-params/${slug}`
         const prefetch = 'auto'
 
-        await act(async () => {
-          await act(
-            async () => {
-              // Reveal a prefetch-auto link to the route, but delay the initial request.
-              await act(
-                () =>
-                  browser
-                    .elementByCss(linkAccordionSelector({ href, prefetch }))
-                    .click(),
-                [
-                  // Static shell/prefetch (based on hint) yields an ISR fallback
-                  {
-                    includes: STATIC_SHELL_CONTENT,
-                    kind: 'static',
-                    block: true,
-                  },
-                  // It's a fallback, so it should not contain params.
-                  {
-                    includes: `Slug: ${slug}`,
-                    block: 'reject',
-                  },
-                ]
-              )
-            },
-            // After this act()'s callback, the initial request is resolved.
-            // It yielded an ISR fallback, so the router should retry it.
-            // But the retry is delayed, so initially nothing happens.
-            'no-requests'
-          )
-
-          // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
-        }, [
-          // The retried request yields a concrete prerender with params.
-          {
-            includes: `Slug: ${slug}`,
-            kind: 'static',
+        await act(
+          async () => {
+            // Reveal a prefetch-auto link to the route, but delay the initial request.
+            await act(
+              () =>
+                browser
+                  .elementByCss(linkAccordionSelector({ href, prefetch }))
+                  .click(),
+              [
+                // Static shell/prefetch (based on hint) yields an ISR fallback
+                {
+                  includes: STATIC_SHELL_CONTENT,
+                  kind: 'static',
+                  block: true,
+                },
+                // It's a fallback, so it should not contain params.
+                {
+                  includes: `Slug: ${slug}`,
+                  block: 'reject',
+                },
+              ]
+            )
           },
+          // After this act()'s callback, the initial request is resolved.
+          // It yielded an ISR fallback, so the router should retry it.
+          // But the retry is delayed, so initially nothing happens.
+          'no-requests'
+        )
 
-          // NO Runtime prefetch to get the content (not requested by link)
-          // or runtime requests of any kind
-          {
-            includes: '',
-            kind: 'runtime',
-            block: 'reject',
-          },
-        ])
+        await waitForSuccessfulISRFallbackRetry(act, {
+          includes: `Slug: ${slug}`,
+          kind: 'static',
+        })
       })
 
-      // FIXME: Flaky test
-      // @force-gate !deploy
       it('prefetch={true}: waits for the ISR retry, then uses a runtime prefetch because the page needs one', async () => {
         let page: Playwright.Page
-        const browser = await next.browser('/', {
+        const browser = await next.browser(indexPageWithUnique(), {
           beforePageLoad(p: Playwright.Page) {
             page = p
           },
@@ -498,48 +430,53 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
 
         // The route was not prerendered during build.
         // It used runtime data based on the slug.
-        const slug = trackUsedSlug('not-prerendered_yes-cookies_prefetch-true')
+        const slug = trackUsedSlug(
+          slugWithUnique('not-prerendered_yes-cookies')
+        )
         const href = `/static-for-some-params/${slug}`
         const prefetch = true
 
+        await act(
+          async () => {
+            // Reveal a prefetch-true link to the route, but delay the initial request.
+            await act(
+              () =>
+                browser
+                  .elementByCss(linkAccordionSelector({ href, prefetch }))
+                  .click(),
+              [
+                // Static shell/prefetch (based on hint) yields an ISR fallback
+                {
+                  includes: STATIC_SHELL_CONTENT,
+                  kind: 'static',
+                  block: true,
+                },
+                // It's a fallback, so it should not contain params.
+                {
+                  includes: `Slug: ${slug}`,
+                  block: 'reject',
+                },
+              ]
+            )
+          },
+          // After this act()'s callback, the blocked static request is resolved.
+          // It yielded an ISR fallback, so the router retries it. The retry is the
+          // same request, still in flight, so the link waits for it instead of
+          // sending a runtime prefetch.
+          'no-requests'
+        )
+
+        // The retried request yields a concrete prerender with params.
+        // It also says that the route needs a runtime prefetch (because it used
+        // runtime data) but we already did one.
         await act(async () => {
-          await act(
-            async () => {
-              // Reveal a prefetch-true link to the route, but delay the initial request.
-              await act(
-                () =>
-                  browser
-                    .elementByCss(linkAccordionSelector({ href, prefetch }))
-                    .click(),
-                [
-                  // Static shell/prefetch (based on hint) yields an ISR fallback
-                  {
-                    includes: STATIC_SHELL_CONTENT,
-                    kind: 'static',
-                    block: true,
-                  },
-                  // It's a fallback, so it should not contain params.
-                  {
-                    includes: `Slug: ${slug}`,
-                    block: 'reject',
-                  },
-                ]
-              )
-            },
-            // After this act()'s callback, the blocked static request is resolved.
-            // It yielded an ISR fallback, so the router retries it. The retry is the
-            // same request, still in flight, so the link waits for it instead of
-            // sending a runtime prefetch.
-            'no-requests'
-          )
-          // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
-        }, [
-          // The retried request yields a concrete prerender with params.
-          {
+          await waitForSuccessfulISRFallbackRetry(act, {
             includes: `Slug: ${slug}`,
             kind: 'static',
-          },
+            block: true,
+          })
+        }, [
+          // After the outer act() callback, the blocked concrete response resolves.
           // The concrete page needs runtime data, so now the link uses a
           // runtime prefetch.
           {
@@ -551,11 +488,9 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
 
       describe('with ensureStatic', () => {
         describe('ensureStatic = "shell"', () => {
-          // FIXME: Flaky test
-          // @force-gate !deploy
           it('prefetch={true}: waits for the ISR retry, then uses a runtime prefetch because the page needs one', async () => {
             let page: Playwright.Page
-            const browser = await next.browser('/', {
+            const browser = await next.browser(indexPageWithUnique(), {
               beforePageLoad(p: Playwright.Page) {
                 page = p
               },
@@ -568,51 +503,49 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
             // The `ensureStatic` config should not affect the behavior here, because runtime
             // data is only used in the prefetch, not the shell.
             const slug = trackUsedSlug(
-              'not-prerendered_yes-cookies_ensure-static-shell'
+              slugWithUnique('not-prerendered_yes-cookies_es-shell')
             )
             const href = `/static-for-some-params/${slug}/ensure-static/shell`
             const prefetch = true
 
+            await act(
+              async () => {
+                // Reveal a prefetch-true link to the route, but delay the initial request.
+                await act(
+                  () =>
+                    browser
+                      .elementByCss(linkAccordionSelector({ href, prefetch }))
+                      .click(),
+                  [
+                    // Static shell/prefetch (based on hint) yields an ISR fallback
+                    {
+                      includes: STATIC_SHELL_CONTENT,
+                      kind: 'static',
+                      block: true,
+                    },
+                    // It's a fallback, so it should not contain params.
+                    {
+                      includes: `Slug: ${slug}`,
+                      block: 'reject',
+                    },
+                  ]
+                )
+              },
+              // After this act()'s callback, the blocked static request is resolved.
+              // It yielded an ISR fallback, so the router retries it. The retry is the
+              // same request, still in flight, so the link waits for it instead of
+              // sending a runtime prefetch.
+              'no-requests'
+            )
+
             await act(async () => {
-              await act(
-                async () => {
-                  // Reveal a prefetch-true link to the route, but delay the initial request.
-                  await act(
-                    () =>
-                      browser
-                        .elementByCss(linkAccordionSelector({ href, prefetch }))
-                        .click(),
-                    [
-                      // Static shell/prefetch (based on hint) yields an ISR fallback
-                      {
-                        includes: STATIC_SHELL_CONTENT,
-                        kind: 'static',
-                        block: true,
-                      },
-                      // It's a fallback, so it should not contain params.
-                      {
-                        includes: `Slug: ${slug}`,
-                        block: 'reject',
-                      },
-                    ]
-                  )
-                },
-                // After this act()'s callback, the blocked static request is resolved.
-                // It yielded an ISR fallback, so the router retries it. The retry is the
-                // same request, still in flight, so the link waits for it instead of
-                // sending a runtime prefetch.
-                'no-requests'
-              )
-              // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
-            }, [
-              // The retried request yields a concrete prerender with params.
-              {
+              await waitForSuccessfulISRFallbackRetry(act, {
                 includes: `Slug: ${slug}`,
                 kind: 'static',
-              },
+                block: true,
+              })
+            }, [
+              // After the outer act() callback, the blocked concrete response resolves.
               // The concrete page needs runtime data, so now the link uses a
               // runtime prefetch.
               {
@@ -624,11 +557,9 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
         })
 
         describe('ensureStatic = "prefetch"', () => {
-          // FIXME: Flaky test
-          // @force-gate !deploy
           it('prefetch={true}: does not use a runtime prefetch as a replacement for not-yet-available ISR content', async () => {
             let page: Playwright.Page
-            const browser = await next.browser('/', {
+            const browser = await next.browser(indexPageWithUnique(), {
               beforePageLoad(p: Playwright.Page) {
                 page = p
               },
@@ -642,13 +573,13 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
             // The `ensureStatic` config SHOULD change the behavior here -- we should ignore the
             // fact that runtime data was used, and only use static requests anyway.
             const slug = trackUsedSlug(
-              'not-prerendered_yes-cookies_ensure-static-prefetch'
+              slugWithUnique('not-prerendered_yes-cookies_es-prefetch')
             )
             const href = `/static-for-some-params/${slug}/ensure-static/prefetch`
             const prefetch = true
 
-            await act(async () => {
-              await act(async () => {
+            await act(
+              async () => {
                 // Reveal a prefetch-true link to the route, but delay the initial request.
                 await act(
                   () =>
@@ -669,34 +600,18 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
                     },
                   ]
                 )
-              }, [
-                // After this act()'s callback, the blocked static request is resolved.
-                // The router sees that it's an ISR fallback and kicks off the ISR retry loop.
-                // Unlike the default behavior, it should NOT use a runtime request for the
-                // missing content, because the route has `ensureStatic = "prefetch"`, so
-                // runtime prefetches are not allowed.
-                {
-                  includes: '',
-                  kind: 'runtime',
-                  block: 'reject',
-                },
-              ])
-              // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
-            }, [
-              // The retried request yields a concrete prerender with params.
-              {
-                includes: `Slug: ${slug}`,
-                kind: 'static',
               },
-              {
-                includes: '',
-                kind: 'runtime',
-                block: 'reject',
-              },
-            ])
+              // After this act()'s callback, the blocked static request is resolved.
+              // It yielded an ISR fallback, so the router retries it. The retry is the
+              // same request, still in flight, so the link waits for it instead of
+              // sending a runtime prefetch.
+              'no-requests'
+            )
+
+            await waitForSuccessfulISRFallbackRetry(act, {
+              includes: `Slug: ${slug}`,
+              kind: 'static',
+            })
           })
         })
       })

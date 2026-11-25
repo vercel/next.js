@@ -134,11 +134,11 @@ describe('Cache Components Dev Errors', () => {
         if (isTurbopack) {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+             "description": "Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
              "environmentLabel": null,
              "label": "Build Error",
              "source": "./app/page.tsx (1:14)
-           Error: Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+           Error: Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
            > 1 | export const revalidate = 10
                |              ^^^^^^^^^^",
              "stack": [],
@@ -147,11 +147,11 @@ describe('Cache Components Dev Errors', () => {
         } else if (isRspack) {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+             "description": "  ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
              "environmentLabel": null,
              "label": "Build Error",
              "source": "./app/page.tsx
-             ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+             ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
                    │    ,-[1:1]
                    │  1 | export const revalidate = 10
                    │    :              ^^^^^^^^^^
@@ -166,11 +166,11 @@ describe('Cache Components Dev Errors', () => {
         } else {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
              "environmentLabel": null,
              "label": "Build Error",
              "source": "./app/page.tsx
-           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
               ,-[1:1]
             1 | export const revalidate = 10
               :              ^^^^^^^^^^

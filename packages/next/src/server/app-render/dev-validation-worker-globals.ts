@@ -7,12 +7,13 @@ import type { StageEndTimes } from './instant-validation/instant-validation'
 import type { AdvanceableRenderStage } from './staged-rendering'
 import type { RenderOpts } from './types'
 import type { NonPartial } from '../../shared/lib/typescript-utils'
+import type { LocalSpanBatch } from '../lib/trace/span-store'
 
 /**
  * Cross-module handoff for the dev validation worker (client-module warmup,
  * static-shell validation, and instant-config validation all run on it). A
  * symbol on `globalThis` decouples the dev-server entry point (which installs
- * the jest-worker pool) from the read site in `runDevValidationInBackground`
+ * the worker pool) from the read site in `runDevValidationInBackground`
  * inside `app-render.tsx`, avoiding a direct import of dev-only pool code from
  * the render module. When the symbol is not set (e.g. because the feature flag
  * is disabled), `getDevValidationWorker()` returns undefined and the caller
@@ -132,14 +133,21 @@ export interface DevValidationInstallFields {
  * the main-thread snapshot plus the pool's install-time fields.
  */
 export type DevValidationWorkerMessage = DevValidationSnapshot &
-  DevValidationInstallFields
+  DevValidationInstallFields & {
+    captureLocalSpans: boolean
+  }
 
 /**
  * The RSC-encoded `{ errors }` Flight chunks for the dev overlay,
- * or null when validation produced no errors or was aborted. The worker also
- * logs the errors to its own stderr (piped to the parent) with code frames.
+ * or null when validation produced no errors or was aborted. A completed
+ * worker trace is returned as one bounded batch for the parent realm to
+ * consume. The worker also logs errors to its own stderr (piped to the parent)
+ * with code frames.
  */
-export type DevValidationWorkerResult = Uint8Array[] | null
+export type DevValidationWorkerResult = {
+  chunks: Uint8Array[] | null
+  localSpans: LocalSpanBatch | null
+}
 
 /**
  * Worker hook installed by the dev server. Given the render snapshot and the
@@ -152,7 +160,10 @@ export type DevValidationWorkerResult = Uint8Array[] | null
  */
 export type DevValidationWorker = (
   snapshot: DevValidationSnapshot,
-  validationAbortSignal: AbortSignal
+  validationAbortSignal: AbortSignal,
+  options?: {
+    captureLocalSpans?: boolean
+  }
 ) => Promise<DevValidationWorkerResult>
 
 interface WorkerHolder {

@@ -35,6 +35,7 @@ node_modules/.pnpm/lodash-es@4.17.21/node_modules/lodash-es/_Map.js
 ```
 
 Use `--graph` to print a crude visualization of the module graph to determine why certain files were included:
+
 ```
 $ cargo run -p turbopack-nft bench/heavy-npm-deps/app/page.js --graph
 FILELIST:
@@ -47,8 +48,8 @@ FILELIST:
         [workspace]/node_modules/.pnpm/lodash-es@4.17.21/node_modules/lodash-es/_createMathOperation.js
 ```
 
-
 By default, no warnings and errors are printed (aligning with the Next.js Turbopack behavior which silences any tracing warnings in node_modules as they are non-actionable anyway), but can be enabled with `--show-issues`:
+
 ```
 $ cargo run -p turbopack-nft ... --show-issues
 [workspace]/packages/next/dist/build/jest/jest.js

@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, atom},
-    base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{
@@ -27,7 +26,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -35,7 +34,10 @@ use turbopack_core::{
     source::Source,
 };
 
-use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
+use crate::{
+    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH},
+    swc_comments::MutableComments,
+};
 
 /// Additional options for SWC's preset-env, beyond the browserslist-derived
 /// targets that are already provided by the `Environment`.
@@ -66,8 +68,8 @@ pub struct PresetEnvConfig {
     pub loose: Option<bool>,
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value(task_input)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>, ResolvedVc<PresetEnvConfig>),
@@ -97,7 +99,7 @@ pub enum EcmascriptInputTransform {
     },
 }
 
-#[turbo_tasks::value(shared, operation)]
+#[turbo_tasks::value(shared, operation, task_input)]
 #[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactCompilerTransformOptions {
@@ -107,7 +109,7 @@ pub struct ReactCompilerTransformOptions {
     pub enable_preserve_existing_memoization_guarantees: Option<bool>,
 }
 
-#[turbo_tasks::value(shared, operation)]
+#[turbo_tasks::value(shared, operation, task_input)]
 #[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ReactCompilerCompilationMode {
@@ -130,7 +132,7 @@ impl ReactCompilerCompilationMode {
 #[turbo_tasks::value(transparent)]
 pub struct OptionReactCompilerTransformOptions(Option<ReactCompilerTransformOptions>);
 
-#[turbo_tasks::value(shared, operation)]
+#[turbo_tasks::value(shared, operation, task_input)]
 #[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub enum ReactCompilerTarget {
     #[default]
@@ -171,25 +173,33 @@ impl CustomTransformer for TransformPlugin {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone, Hash)]
-pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
+pub struct EcmascriptInputTransforms(Box<[EcmascriptInputTransform]>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptInputTransforms {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
+        Vc::cell(Box::default())
     }
 
+    /// Creates a cell from a list of transforms. Being a task function, equal lists share the same
+    /// cell, so the result can be used as a cache key (e.g. for module identity).
     #[turbo_tasks::function]
-    pub async fn extend(self: Vc<Self>, other: Vc<EcmascriptInputTransforms>) -> Result<Vc<Self>> {
-        let mut transforms = self.owned().await?;
-        transforms.extend(other.owned().await?);
-        Ok(Vc::cell(transforms))
+    pub fn new(transforms: Vec<EcmascriptInputTransform>) -> Vc<Self> {
+        Vc::cell(transforms.into_boxed_slice())
+    }
+
+    /// Concatenates the given transform lists (in order) into a single interned cell.
+    #[turbo_tasks::function]
+    pub async fn concat(parts: Vec<ResolvedVc<Self>>) -> Result<Vc<Self>> {
+        let parts = parts.into_iter().try_join().await?;
+        let transforms = parts.iter().flat_map(|part| part.iter().copied()).collect();
+        Ok(Self::new(transforms))
     }
 }
 
 pub struct TransformContext<'a> {
-    pub comments: &'a SwcComments,
+    pub comments: &'a MutableComments,
     pub top_level_mark: Mark,
     pub unresolved_mark: Mark,
     pub source_map: &'a Arc<SourceMap>,

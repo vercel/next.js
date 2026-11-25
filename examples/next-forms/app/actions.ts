@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import postgres from "postgres";
 import { z } from "zod";
 
-let sql = postgres(process.env.DATABASE_URL || process.env.POSTGRES_URL!, {
+let sql = postgres(process.env.DATABASE_URL!, {
   ssl: "allow",
 });
 

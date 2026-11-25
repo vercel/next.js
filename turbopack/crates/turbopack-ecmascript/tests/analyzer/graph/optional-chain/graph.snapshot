@@ -1,0 +1,27 @@
+[
+    (
+        "cfg",
+        Object {
+            total_nodes: 3,
+            parts: [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "path",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "./target.js",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            mutability: Mutable,
+        },
+    ),
+]

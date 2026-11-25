@@ -1,3 +1,4 @@
+mod len_prefixed;
 #[doc(hidden)]
 pub mod macro_helpers;
 pub mod serde_self_describing;
@@ -13,6 +14,8 @@ use bincode::{
 };
 use turbo_tasks_hash::DeterministicHasher;
 
+pub use crate::len_prefixed::encode_len_prefixed;
+
 pub const TURBO_BINCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();
 /// Same as standard config, but since we aren't encoding we don't benefit from varint
 /// optimizations.
@@ -21,7 +24,7 @@ pub const TURBO_BINCODE_HASH_CONFIG: bincode::config::Configuration<
     bincode::config::Fixint,
     bincode::config::NoLimit,
 > = TURBO_BINCODE_CONFIG.with_fixed_int_encoding();
-pub type TurboBincodeBuffer = SmallVec<[u8; 16]>;
+pub type TurboBincodeBuffer = Vec<u8>;
 pub type TurboBincodeEncoder<'a> =
     EncoderImpl<TurboBincodeWriter<'a>, bincode::config::Configuration>;
 pub type TurboBincodeDecoder<'a> =
@@ -37,10 +40,10 @@ pub fn new_turbo_bincode_decoder(buffer: &[u8]) -> TurboBincodeDecoder<'_> {
     DecoderImpl::new(TurboBincodeReader::new(buffer), TURBO_BINCODE_CONFIG, ())
 }
 
-/// Encode the value into a new [`SmallVec`] using a [`TurboBincodeEncoder`].
+/// Encode the value into a new [`TurboBincodeBuffer`] using a [`TurboBincodeEncoder`].
 ///
 /// Note: If you can re-use a buffer, you should. That will always be cheaper than creating a new
-/// [`SmallVec`].
+/// [`TurboBincodeBuffer`].
 pub fn turbo_bincode_encode<T: Encode>(value: &T) -> Result<TurboBincodeBuffer, EncodeError> {
     let mut buffer = TurboBincodeBuffer::new();
     turbo_bincode_encode_into(value, &mut buffer)?;
@@ -82,6 +85,7 @@ impl<'a> TurboBincodeWriter<'a> {
 }
 
 impl Writer for TurboBincodeWriter<'_> {
+    #[inline(always)]
     fn write(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {
         self.buffer.extend_from_slice(bytes);
         Ok(())
@@ -216,163 +220,6 @@ macro_rules! impl_decode_for_turbo_bincode_decode {
             }
         }
     };
-}
-
-pub mod indexmap {
-    use std::hash::{BuildHasher, Hash};
-
-    use ::indexmap::IndexMap;
-
-    use super::*;
-
-    pub fn encode<E, K, V, S>(map: &IndexMap<K, V, S>, encoder: &mut E) -> Result<(), EncodeError>
-    where
-        E: Encoder,
-        K: Encode,
-        V: Encode,
-    {
-        usize::encode(&map.len(), encoder)?;
-        for (k, v) in map {
-            K::encode(k, encoder)?;
-            V::encode(v, encoder)?;
-        }
-        Ok(())
-    }
-
-    pub fn decode<Context, D, K, V, S>(decoder: &mut D) -> Result<IndexMap<K, V, S>, DecodeError>
-    where
-        D: Decoder<Context = Context>,
-        K: Decode<Context> + Eq + Hash,
-        V: Decode<Context>,
-        S: BuildHasher + Default,
-    {
-        let len = usize::decode(decoder)?;
-        let mut map = IndexMap::with_capacity_and_hasher(len, Default::default());
-        for _i in 0..len {
-            map.insert(K::decode(decoder)?, V::decode(decoder)?);
-        }
-        Ok(map)
-    }
-
-    pub fn borrow_decode<'de, Context, D, K, V, S>(
-        decoder: &mut D,
-    ) -> Result<IndexMap<K, V, S>, DecodeError>
-    where
-        D: BorrowDecoder<'de, Context = Context>,
-        K: BorrowDecode<'de, Context> + Eq + Hash,
-        V: BorrowDecode<'de, Context>,
-        S: BuildHasher + Default,
-    {
-        let len = usize::decode(decoder)?;
-        let mut map = IndexMap::with_capacity_and_hasher(len, Default::default());
-        for _i in 0..len {
-            map.insert(K::borrow_decode(decoder)?, V::borrow_decode(decoder)?);
-        }
-        Ok(map)
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use bincode::{decode_from_slice, encode_to_vec};
-
-        use super::*;
-
-        #[test]
-        fn test_roundtrip() {
-            let cfg = bincode::config::standard();
-
-            #[derive(Encode, Decode)]
-            struct Wrapper(#[bincode(with = "crate::indexmap")] IndexMap<String, u32>);
-
-            let map1 = Wrapper(IndexMap::from([
-                ("key1".to_string(), 12345u32),
-                ("key2".to_string(), 23456u32),
-            ]));
-
-            let map2: Wrapper = decode_from_slice(&encode_to_vec(&map1, cfg).unwrap(), cfg)
-                .unwrap()
-                .0;
-
-            assert_eq!(map1.0, map2.0);
-        }
-    }
-}
-
-pub mod indexset {
-    use std::hash::{BuildHasher, Hash};
-
-    use ::indexmap::IndexSet;
-
-    use super::*;
-
-    pub fn encode<E, T, S>(set: &IndexSet<T, S>, encoder: &mut E) -> Result<(), EncodeError>
-    where
-        E: Encoder,
-        T: Encode,
-    {
-        usize::encode(&set.len(), encoder)?;
-        for item in set {
-            T::encode(item, encoder)?;
-        }
-        Ok(())
-    }
-
-    pub fn decode<Context, D, T, S>(decoder: &mut D) -> Result<IndexSet<T, S>, DecodeError>
-    where
-        D: Decoder<Context = Context>,
-        T: Decode<Context> + Eq + Hash,
-        S: BuildHasher + Default,
-    {
-        let len = usize::decode(decoder)?;
-        let mut set = IndexSet::with_capacity_and_hasher(len, Default::default());
-        for _i in 0..len {
-            set.insert(T::decode(decoder)?);
-        }
-        Ok(set)
-    }
-
-    pub fn borrow_decode<'de, Context, D, T, S>(
-        decoder: &mut D,
-    ) -> Result<IndexSet<T, S>, DecodeError>
-    where
-        D: BorrowDecoder<'de, Context = Context>,
-        T: BorrowDecode<'de, Context> + Eq + Hash,
-        S: BuildHasher + Default,
-    {
-        let len = usize::decode(decoder)?;
-        let mut set = IndexSet::with_capacity_and_hasher(len, Default::default());
-        for _i in 0..len {
-            set.insert(T::borrow_decode(decoder)?);
-        }
-        Ok(set)
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use bincode::{decode_from_slice, encode_to_vec};
-
-        use super::*;
-
-        #[test]
-        fn test_roundtrip() {
-            let cfg = bincode::config::standard();
-
-            #[derive(Encode, Decode)]
-            struct Wrapper(#[bincode(with = "crate::indexset")] IndexSet<String>);
-
-            let set1 = Wrapper(IndexSet::from([
-                "value1".to_string(),
-                "value2".to_string(),
-                "value3".to_string(),
-            ]));
-
-            let set2: Wrapper = decode_from_slice(&encode_to_vec(&set1, cfg).unwrap(), cfg)
-                .unwrap()
-                .0;
-
-            assert_eq!(set1.0, set2.0);
-        }
-    }
 }
 
 pub mod mime_option {

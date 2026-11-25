@@ -20,7 +20,7 @@ async fn test_transitive_emitting() {
         #[turbo_tasks::function(operation, root)]
         async fn operation() -> Result<Vc<()>> {
             let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
-            let result_val = result_op.connect().await?;
+            let result_val = result_op.read_strongly_consistent().await?;
             let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
             assert_eq!(list.len(), 2);
             let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
@@ -69,7 +69,7 @@ async fn test_multi_emitting() {
         #[turbo_tasks::function(operation, root)]
         async fn operation() -> Result<Vc<()>> {
             let result_op = my_multi_emitting_function();
-            let result_val = result_op.connect().await?;
+            let result_val = result_op.read_strongly_consistent().await?;
             let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
             assert_eq!(list.len(), 2);
             let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
@@ -182,7 +182,8 @@ struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
 async fn my_collecting_function() -> Result<Vc<Thing>> {
     let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
     let result_vc = result_op.connect();
-    result_vc.await?;
+    // Collectibles are only stable after a strongly consistent read of their source.
+    result_op.read_strongly_consistent().await?;
     result_op.drop_collectibles::<Box<dyn ValueToString>>();
     Ok(result_vc)
 }
@@ -219,11 +220,12 @@ async fn my_transitive_emitting_function(key: RcStr, key2: RcStr) -> Result<Vc<T
 }
 
 #[turbo_tasks::function(operation, root)]
-fn my_transitive_emitting_function_collectibles(
+async fn my_transitive_emitting_function_collectibles(
     key: RcStr,
     key2: RcStr,
 ) -> Result<Vc<Collectibles>> {
     let result_op = my_transitive_emitting_function(key, key2);
+    result_op.read_strongly_consistent().await?;
     Ok(Vc::cell(
         result_op.peek_collectibles::<Box<dyn ValueToString>>(),
     ))
@@ -238,7 +240,7 @@ async fn my_transitive_emitting_function_with_child_scope(
     let _ = key3;
     let thing_op = my_transitive_emitting_function(key, key2);
     let thing_vc = thing_op.connect();
-    thing_vc.await?;
+    thing_op.read_strongly_consistent().await?;
     let list = thing_op.peek_collectibles::<Box<dyn ValueToString>>();
     assert_eq!(list.len(), 2);
     Ok(thing_vc)

@@ -6,6 +6,13 @@ import { deserialize } from 'node:v8'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
 
+// The test runs two production builds, and webpack builds are much slower than
+// Turbopack, so the default 60s per-test budget is too tight on slower CI
+// runners. Turbopack keeps the default.
+if (process.env.IS_WEBPACK_TEST) {
+  jest.setTimeout(120_000)
+}
+
 describe('dynamicParams: false with a cache retained across builds', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 

@@ -28,14 +28,8 @@ pub async fn embed_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
 pub async fn embed_static_code(
     asset_context: Vc<Box<dyn AssetContext>>,
     path: RcStr,
-    generate_source_map: bool,
 ) -> Result<Vc<Code>> {
-    Ok(StaticEcmascriptCode::new(
-        asset_context,
-        embed_file_path(path).owned().await?,
-        generate_source_map,
-    )
-    .code())
+    Ok(StaticEcmascriptCode::new(asset_context, embed_file_path(path).owned().await?).code())
 }
 
 /// Returns an [ImportMap] containing:

@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_custom_transforms::transforms::server_actions::{
-    Config, ServerActionsMode, server_actions,
+    Config, LazyGet, LazyValue, ServerActionsMode, server_actions,
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{LazyReadRef, ResolvedVc, Vc, VcRead, VcValueType};
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
@@ -64,6 +66,19 @@ async fn next_server_actions_transform_plugin(
     }) as Box<dyn CustomTransformer + Send + Sync>))
 }
 
+/// Provides a lazily read cell to the transform: the read is only kept when the transform accesses
+/// it.
+struct LazyRead<T: VcValueType>(LazyReadRef<T>);
+
+impl<T: VcValueType> LazyGet<<T::Read as VcRead<T>>::Target> for LazyRead<T>
+where
+    LazyReadRef<T>: Send + Sync,
+{
+    fn get(&self) -> &<T::Read as VcRead<T>>::Target {
+        self.0.get()
+    }
+}
+
 #[derive(Debug)]
 struct NextServerActions {
     is_react_server_layer: bool,
@@ -77,6 +92,11 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        // The hash salt (the encryption key) is only needed for modules with server functions,
+        // and the cache kinds only for `"use cache: <kind>"` directives. `lazy_reader` allows us
+        // to drop these dependencies in the common case.
+        let encryption_key = self.encryption_key.lazy_reader().await?;
+        let cache_kinds = self.cache_kinds.lazy_reader().await?;
         let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
             Some(ctx.query_str.clone()),
@@ -84,8 +104,8 @@ impl CustomTransformer for NextServerActions {
                 is_react_server_layer: self.is_react_server_layer,
                 is_development: self.mode.is_development(),
                 use_cache_enabled: self.use_cache_enabled,
-                hash_salt: self.encryption_key.await?.to_string(),
-                cache_kinds: self.cache_kinds.owned().await?,
+                hash_salt: LazyValue::lazy(Arc::new(LazyRead(encryption_key))),
+                cache_kinds: LazyValue::lazy(Arc::new(LazyRead(cache_kinds))),
             },
             ctx.comments.clone(),
             ctx.unresolved_mark,

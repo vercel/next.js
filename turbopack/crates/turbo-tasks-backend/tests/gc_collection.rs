@@ -12,7 +12,7 @@ use turbo_tasks::{ResolvedVc, TaskId, Vc, prevent_gc};
 
 use crate::{
     gc_fixture::{Constant, Selector, create_constant, create_selector},
-    util::create_tt,
+    util::{create_persistence_dir, create_tt, reopen_tt_with_gc_ttl},
 };
 
 /// The `TaskId` backing a `Vc`'s `TaskOutput` node.
@@ -218,7 +218,11 @@ async fn construction_pin_is_released_after_connecting_task() {
 /// safe after the backend has stopped, which `RootTask::Drop` relies on.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dispose_root_task_releases_anchored_subgraph() {
-    let (tt, _persistence_dir) = create_tt("dispose_root_task_releases_anchored_subgraph");
+    // The leaf is recorded as a GC root while the root task holds it, so after disposal it waits
+    // for its TTL. Keep the TTL short so it ages out inside the test.
+    const TTL: std::time::Duration = std::time::Duration::from_millis(50);
+    let persistence_dir = create_persistence_dir("dispose_root_task_releases_anchored_subgraph");
+    let tt = reopen_tt_with_gc_ttl(&persistence_dir, TTL);
 
     // The root sends the leaf's id out via a oneshot rather than a `run_once` probe: a probe is its
     // own transient `Once` task that would also connect the leaf, and `Once` tasks are never
@@ -260,15 +264,23 @@ async fn dispose_root_task_releases_anchored_subgraph() {
         .await
         .unwrap();
     // Two: the leaf, and the disposed root_task` itself. The `root_task` is a transient task, and
-    // transient tasks are collectible, so releasing the last reference to the subgraph reclaims
-    // both.
-    assert_eq!(
+    // transient tasks are collectible. The leaf is a recorded root, so it waits for its TTL.
+    let first = tt
+        .backend()
+        .snapshot_and_evict_for_testing(&tt)
+        .gc_stats()
+        .collected;
+    assert_eq!(first, 1, "only the transient root task is collected first");
+    assert!(
         tt.backend()
-            .snapshot_and_evict_for_testing(&tt)
-            .gc_stats()
-            .collected,
-        2
+            .persisted_gc_roots_for_testing()
+            .iter()
+            .any(|(id, _)| *id == leaf_id),
+        "the released leaf remains a recorded root until its TTL"
     );
+    tokio::time::sleep(TTL + std::time::Duration::from_millis(50)).await;
+    let second = tt.backend().gc_for_testing(&tt);
+    assert_eq!(second, 1, "the aged-out leaf is collected");
 
     // Disposal after the backend has stopped (the whole task map is dropped by `stop`), as a
     // `RootTask` finalized during Node worker teardown would be.

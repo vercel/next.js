@@ -9,7 +9,6 @@ import type {
 
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
-export type ServerHmrVersion = { readonly __tag: unique symbol }
 export type NextTurboTasks = { readonly __tag: unique symbol }
 export type RefCell<_T = unknown> = { readonly __tag: unique symbol }
 export type FlushGuard = { readonly __tag: unique symbol }
@@ -139,15 +138,27 @@ export declare function lightningCssTransformStyleAttribute(
   opts: object
 ): unknown
 
+/** OS failures are returned as data so JS can distinguish retryable errors from unsupported locks. */
+export interface LockfileError {
+  message: string
+  transient: boolean
+  unsupported: boolean
+}
+
+export type LockfileResult =
+  | { type: 'acquired'; lockfile: { __napiType: 'Lockfile' } }
+  | { type: 'wouldBlock' }
+  | { type: 'error'; error: LockfileError }
+
 export declare function lockfileTryAcquire(
   path: string,
   content?: string | undefined | null
-): Promise<{ __napiType: 'Lockfile' } | null>
+): Promise<LockfileResult>
 
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null
-): { __napiType: 'Lockfile' } | null
+): LockfileResult
 
 export declare function lockfileUnlock(lockfile: {
   __napiType: 'Lockfile'
@@ -446,6 +457,8 @@ export interface NapiProjectOptions {
   nextVersion: RcStr
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /** Retains shallow source maps for `analyze` without changing the emitted source map variant. */
+  ensureShallowSourceMaps?: boolean
 }
 
 /** Keep in sync with [`next_core::next_config::Rewrite`] */
@@ -482,9 +495,11 @@ export interface NapiRoute {
 
 export interface NapiServerHmrUpdate {
   kind: 'none' | 'partial' | 'restart'
-  /** `unknown` forces the TypeScript boundary to narrow the payload. */
-  instruction?: unknown
-  version?: ExternalObject<ServerHmrVersion>
+  /**
+   * For `partial`: one merged update per runtime directory, each touching only chunks of its
+   * runtime. `unknown` forces the TypeScript boundary to narrow the payload.
+   */
+  updates?: unknown
 }
 
 export interface NapiSource {
@@ -640,9 +655,12 @@ export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult<undefined>>
 
+/**
+ * Pulls the update that brings the server runtimes up to date for the route with the given
+ * entries, and records the route's modules as loaded.
+ */
 export declare function projectGetServerHmrUpdate(
   project: { __napiType: 'Project' },
-  from: ExternalObject<ServerHmrVersion> | undefined | null,
   entryPaths: Array<RcStr>
 ): Promise<TurbopackResult<NapiServerHmrUpdate>>
 
@@ -676,17 +694,27 @@ export declare function projectNew(
 ): Promise<TurbopackResult<{ project: { __napiType: 'Project' } }>>
 
 /**
- * Runs exit handlers for the project registered using the [`ExitHandler`] API.
+ * Runs resource cleanup and exit handlers for the project registered using the [`ExitHandler`]
+ * API.
  *
- * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
- * one.
+ * This cleanup is included in `project_shutdown`, so callers should normally use only one API.
  */
 export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
 
 /**
- * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+ * Forgets what the server runtimes have loaded. Must be called whenever all server modules are
+ * re-evaluated. When the runtimes load a route next, pass its entries to record its modules as
+ * loaded.
+ */
+export declare function projectResetServerHmrState(
+  project: { __napiType: 'Project' },
+  entryPaths?: Array<RcStr> | undefined | null
+): Promise<void>
+
+/**
+ * Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
  *
  * This is used in builds where it's important that we completely persist turbo-tasks to disk, but
  * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
@@ -791,6 +819,11 @@ export interface TraceMemorySummary {
   peak: number
   /** Highest memory-pressure byte in the range (0 = no pressure). */
   maxPressure: number
+  /**
+   * Largest process memory footprint (RSS) in bytes in the range (0 = not
+   * reported by the platform).
+   */
+  maxFootprint: number
 }
 
 /** Options for `query_trace_spans`. */
@@ -954,10 +987,12 @@ export interface TraceSpanInfo {
    * fields instead.
    *
    * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
-   * active_worker_threads]`: `bytes` is TurboMalloc memory usage,
+   * footprint, active_worker_threads]`: `bytes` is TurboMalloc memory usage,
    * `pressure` is the memory-pressure byte (0 = no pressure, higher = more
-   * pressure), and `active_worker_threads` counts non-parked Tokio scheduler
-   * workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
+   * pressure), `footprint` is the process memory footprint (RSS) in bytes
+   * (0 = not reported by the platform), and `active_worker_threads` counts
+   * non-parked Tokio scheduler workers. `100 ticks = 1 µs`. Capped and
+   * downsampled by the store.
    */
   memorySamples: Array<Array<number>>
   /**

@@ -38,6 +38,11 @@ import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
+import { captureOriginalEnv } from '../lib/upgrade/original-env'
+
+// Before anything below changes process.env, so agent upgrades can hand the
+// coding agent the user's environment.
+captureOriginalEnv()
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
@@ -110,8 +115,10 @@ class NextRootCommand extends Command {
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
       if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+        process.env.NEXT_RUNTIME = 'nodejs'
       }
 
       if (
@@ -769,6 +776,19 @@ internal
   )
 
 internal
+  .command('agent-feedback', { hidden: true })
+  .argument(
+    '[report]',
+    'An unpadded base64url-encoded schema version 5 report. Reads from standard input when omitted.'
+  )
+  .option('--dry-run', 'Print the review URL without opening a browser.')
+  .action((report: string | undefined, options: { dryRun?: boolean }) => {
+    return import('../cli/internal/agent-feedback.js').then((mod) =>
+      mod.nextFeedback(report, options)
+    )
+  })
+
+internal
   .command('trace')
   .alias('turbo-trace-server')
   .argument('file', 'Trace file to serve.')
@@ -904,7 +924,7 @@ internal
 internal
   .command('static-routes-info')
   .description(
-    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories.'
+    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories. Loads executable build manifests. Only analyze builds you trust.'
   )
   .argument(
     '[directory]',

@@ -59,6 +59,10 @@ pub mod invalidation_reasons {
     /// Indicates that the user explicitly clicked a button or ran a command that invalidates the
     /// cache.
     pub const USER_REQUEST: &str = concat!(module_path!(), "::USER_REQUEST");
+    /// This invalidation reason is used by [`crate::turbo_backing_storage`] when the database
+    /// could not be opened, e.g. because files were deleted or modified from outside, and was
+    /// deleted and replaced by an empty one.
+    pub const UNREADABLE: &str = concat!(module_path!(), "::UNREADABLE");
 }
 
 /// Atomically create an invalidation marker.
@@ -109,7 +113,7 @@ pub(crate) fn invalidate_db(base_path: &Path, reason_code: &str) -> anyhow::Resu
 /// This should be run with the base (non-versioned) path.
 ///
 /// In most cases, you should prefer a higher-level API like
-/// [`crate::KeyValueDatabaseBackingStorage::open_versioned_on_disk`] to this one.
+/// [`TurboBackingStorage::open_versioned_on_disk`](crate::TurboBackingStorage::open_versioned_on_disk) to this one.
 pub(crate) fn check_db_invalidation_and_cleanup(
     base_path: &Path,
 ) -> anyhow::Result<StartupCacheState> {

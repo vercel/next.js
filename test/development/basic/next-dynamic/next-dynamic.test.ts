@@ -1,6 +1,6 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitForNoRedbox, renderViaHTTP, check } from 'next-test-utils'
 
 const customDocumentGipContent = `\
@@ -115,6 +115,8 @@ describe('next/dynamic', () => {
             /Browser hydrated/
           )
 
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           if ((global as any).browserName === 'chrome') {
             const logs = await browser.log()
 
@@ -207,7 +209,7 @@ describe('next/dynamic', () => {
         }
       })
 
-      if (!(global as any).isNextDev) {
+      if (!isNextDev) {
         it('should not include ssr:false imports to server trace', async () => {
           const trace = JSON.parse(
             await next.readFile('.next/server/pages/dynamic/no-ssr.js.nft.json')

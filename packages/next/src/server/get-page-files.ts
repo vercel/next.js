@@ -4,6 +4,10 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 export type BuildManifest = {
   devFiles: readonly string[]
   polyfillFiles: readonly string[]
+  // The standalone browser runtime that applies React's instruction set when
+  // `experimental.externalBrowserRuntime` is enabled. Absent otherwise. There is
+  // at most one, so this is a single path rather than a list.
+  externalBrowserRuntimeFile?: string
   lowPriorityFiles: readonly string[]
   rootMainFiles: readonly string[]
   // this is a separate field for flying shuttle to allow

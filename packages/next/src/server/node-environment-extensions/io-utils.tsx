@@ -64,8 +64,7 @@ export function io(expression: string, type: SyncIOApiType) {
           case RenderStage.ShellStatic:
           case RenderStage.PrefetchStatic_prefetchApi:
           case RenderStage.PrefetchStatic:
-          case RenderStage.NavigationStatic:
-          case RenderStage.Static: {
+          case RenderStage.NavigationStatic: {
             syncIOError = createSyncIOError(workStore.route, expression, type)
             break
           }

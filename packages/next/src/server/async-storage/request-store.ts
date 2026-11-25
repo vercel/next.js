@@ -182,7 +182,7 @@ function mergeMiddlewareCookies(
 }
 
 export function createRequestStoreForRender(
-  req: RequestContext['req'],
+  headers: IncomingHttpHeaders,
   res: RequestContext['res'],
   url: RequestContext['url'],
   rootParams: Params,
@@ -198,7 +198,7 @@ export function createRequestStoreForRender(
   return createRequestStore({
     // Pages start in render phase by default
     phase: 'render',
-    headers: req.headers,
+    headers,
     onUpdateCookies:
       onUpdateCookies ??
       (res
@@ -344,6 +344,8 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (globalThis as any).__serverComponentsHmrCache,
     hmrRefreshHash,
     stagedFallbackParams,

@@ -24,7 +24,8 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, scrollBehavior } = action
+  const { url, isExternalUrl, navigateType, scrollBehavior, preparation } =
+    action
 
   if (isExternalUrl) {
     return completeHardNavigation(state, url, navigateType)
@@ -49,8 +50,11 @@ export function navigateReducer(
     state.root,
     state.tree,
     state.nextUrl,
-    FreshnessPolicy.Default,
+    process.env.__NEXT_PREPARE_NAVIGATION && preparation !== null
+      ? FreshnessPolicy.CommitPrepared
+      : FreshnessPolicy.Default,
     scrollBehavior,
-    navigateType
+    navigateType,
+    preparation
   )
 }

@@ -23,6 +23,12 @@ async function Short({ id }: { id: string }) {
   return id
 }
 
+async function NonPrefetchable({ id }: { id: string }) {
+  'use cache'
+  cacheLife('nonPrefetchable')
+  return id
+}
+
 async function Dynamic() {
   await connection()
   return null
@@ -33,9 +39,14 @@ async function CachedStuff() {
   await innermost('inner')
 
   return (
-    <Suspense>
-      <Short id="short" />
-    </Suspense>
+    <>
+      <Suspense>
+        <Short id="short" />
+      </Suspense>
+      <Suspense>
+        <NonPrefetchable id="non-prefetchable" />
+      </Suspense>
+    </>
   )
 }
 

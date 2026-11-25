@@ -5,7 +5,7 @@ use unsize::Coercion;
 /// Attempt to downcast a [`triomphe::Arc<dyn Any + Send +
 /// Sync>`][`triomphe::Arc`] to a concrete type.
 ///
-/// Checks that the downcast is safe using [`Any::is`].
+/// Checks that the downcast is safe using [`Any::is`](https://doc.rust-lang.org/std/any/trait.Any.html#method.is).
 ///
 /// Ported from [`std::sync::Arc::downcast`] to [`triomphe::Arc`].
 pub fn downcast_triomphe_arc<T: Any + Send + Sync>(

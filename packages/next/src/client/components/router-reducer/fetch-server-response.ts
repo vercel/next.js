@@ -14,6 +14,10 @@ import type {
 
 import {
   type NEXT_ROUTER_PREFETCH_HEADER,
+  type NEXT_ROUTER_PREFETCH_STATIC,
+  type NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  type NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  type NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
   type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
@@ -103,7 +107,11 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2' | '3'
+  [NEXT_ROUTER_PREFETCH_HEADER]?:
+    | typeof NEXT_ROUTER_PREFETCH_STATIC
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
@@ -698,7 +706,10 @@ export async function createFetch(
       //
       // Append the cache busting search param to the redirected URL and
       // fetch again.
-      // TODO: We should abort the previous request.
+      //
+      // Cancel the body of the response we're discarding, so the browser
+      // aborts the request instead of leaving it open.
+      browserResponse.body?.cancel().catch(() => {})
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
       browserResponse = await fetch(fetchUrl, fetchOptions)

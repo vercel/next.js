@@ -1,4 +1,5 @@
 import './node-environment'
+import type { NativeRouteManager } from './lib/native-route.external'
 import './require-hook'
 import './node-polyfill-crypto'
 
@@ -12,6 +13,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type {
+  FunctionsConfigManifest,
   PrerenderManifest,
   PreviewPropsManifest,
   RoutesManifest,
@@ -602,7 +604,11 @@ export default class NextNodeServer extends BaseServer<
     // Dev definitions retain source filenames for watcher bookkeeping. API
     // execution still needs to load the compiled server bundle.
     const modulePath = this.isDev
-      ? join(this.distDir, 'server', `${match.definition.bundlePath}.js`)
+      ? join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          `${match.definition.bundlePath}.js`
+        )
       : match.definition.filename
     const module = (await loader.load(modulePath)) as {
       handler: (
@@ -648,8 +654,12 @@ export default class NextNodeServer extends BaseServer<
         'invariant: imageOptimizer should not be called in minimal mode'
       )
     } else {
-      const { imageOptimizer, fetchExternalImage, fetchInternalImage } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
+      const {
+        imageOptimizer,
+        fetchExternalImage,
+        fetchInternalImage,
+        getImageOptimizerTransformOptions,
+      } = require('./image-optimizer') as typeof import('./image-optimizer')
 
       const handleInternalReq = async (
         newReq: IncomingMessage,
@@ -697,14 +707,16 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
-            this.nextConfig.images.maximumResponseBody,
-            handleInternalReq
+            handleInternalReq,
+            this.nextConfig.images
           )
 
-      return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
-        isDev: this.dev,
-        previousCacheEntry,
-      })
+      return imageOptimizer(
+        imageUpstream,
+        paramsResult,
+        getImageOptimizerTransformOptions(this.nextConfig),
+        { isDev: this.dev, previousCacheEntry }
+      )
     }
   }
 
@@ -1087,6 +1099,43 @@ export default class NextNodeServer extends BaseServer<
       // for the same request.
       addRequestMeta(req, 'match', match)
 
+      if (
+        this.nextConfig.experimental.goRoutes &&
+        match.definition.kind === RouteKind.APP_ROUTE_GO
+      ) {
+        if (this.dev) {
+          await this.ensurePage({
+            page: match.definition.page,
+            definition: match.definition,
+            clientOnly: false,
+            appPaths: null,
+            url: req.url,
+          })
+        }
+        const entry = this.getAppPathsManifest()?.[match.definition.page]
+        if (!entry) {
+          throw new InvariantError('Missing Go route manifest entry')
+        }
+        if (!this.nativeRoutes) {
+          const { NativeRouteManager } =
+            require('./lib/native-route.external') as typeof import('./lib/native-route.external')
+          this.nativeRoutes = new NativeRouteManager(this.distDir, this.dev)
+          if (this.nativeRoutePages)
+            this.nativeRoutes.reconcile(this.nativeRoutePages)
+        }
+        await this.nativeRoutes.invoke(
+          match.definition.page,
+          entry,
+          req.originalRequest,
+          res.originalResponse,
+          formatUrl({
+            pathname: this.nextConfig.basePath + pathname,
+            query,
+          })
+        )
+        return true
+      }
+
       // TODO-APP: move this to a route handler
       const edgeFunctionsPages = this.getEdgeFunctionsPages()
       for (const edgeFunctionsPage of edgeFunctionsPages) {
@@ -1185,6 +1234,7 @@ export default class NextNodeServer extends BaseServer<
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
+    definition?: RouteMatch['definition']
     url?: string
   }): Promise<void> {
     throw new Error(
@@ -1463,26 +1513,41 @@ export default class NextNodeServer extends BaseServer<
   protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
-    if (!middleware) {
-      const middlewareModule = await this.loadNodeMiddleware()
-
-      if (middlewareModule) {
-        return {
-          match: getMiddlewareRouteMatcher(
-            middlewareModule.config?.matchers || [
-              { regexp: '.*', originalSource: '/:path*' },
-            ]
-          ),
-          page: '/',
-        }
+    if (middleware) {
+      return {
+        match: getMiddlewareMatcher(middleware),
+        matchers: middleware.matchers,
+        page: '/',
+        runtime: 'edge',
       }
-
-      return
     }
 
-    return {
-      match: getMiddlewareMatcher(middleware),
-      page: '/',
+    const config = this.getMiddlewareConfig()
+    if (!config) return
+    if (config.runtime === 'go') {
+      const matchers = config.matchers || [
+        { regexp: '.*', originalSource: '/:path*' },
+      ]
+      return {
+        match: getMiddlewareRouteMatcher(matchers),
+        matchers,
+        page: '/',
+        runtime: 'go',
+        nativeEntry: config.nativeEntry,
+      }
+    }
+
+    const middlewareModule = await this.loadNodeMiddleware()
+    if (middlewareModule) {
+      const matchers = middlewareModule.config?.matchers || [
+        { regexp: '.*', originalSource: '/:path*' },
+      ]
+      return {
+        match: getMiddlewareRouteMatcher(matchers),
+        matchers,
+        page: '/',
+        runtime: 'nodejs',
+      }
     }
   }
 
@@ -1562,29 +1627,38 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  private getMiddlewareConfig() {
+    if (process.env.NEXT_MINIMAL) return
+    try {
+      const manifest: FunctionsConfigManifest = require(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          FUNCTIONS_CONFIG_MANIFEST
+        )
+      )
+      return manifest.functions['/_middleware']
+    } catch (err) {
+      if (
+        !isError(err) ||
+        (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND')
+      ) {
+        throw err
+      }
+    }
+  }
+
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
-        const functionsConfig = this.dev
-          ? {}
-          : require(
-              join(
-                /* turbopackIgnore: true */ this.distDir,
-                'server',
-                FUNCTIONS_CONFIG_MANIFEST
-              )
-            )
-
-        if (this.dev || functionsConfig?.functions?.['/_middleware']) {
-          // if used with top level await, this will be a promise
-          return require(
-            join(
-              /* turbopackIgnore: true */ this.distDir,
-              'server',
-              'middleware.js'
-            )
+        // if used with top level await, this will be a promise
+        return require(
+          join(
+            /* turbopackIgnore: true */ this.distDir,
+            'server',
+            'middleware.js'
           )
-        }
+        )
       } catch (err) {
         if (
           isError(err) &&
@@ -1603,12 +1677,10 @@ export default class NextNodeServer extends BaseServer<
    * middleware manifest.
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
+    const middleware = await this.getMiddleware()
+    if (!middleware) return false
+    if (middleware.runtime !== 'edge') return true
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
-    const nodeMiddleware = await this.loadNodeMiddleware()
-
-    if (!info && nodeMiddleware) {
-      return true
-    }
     return Boolean(info && info.paths.length > 0)
   }
 
@@ -1691,10 +1763,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     await this.ensureMiddleware(params.request.url)
-    const middlewareInfo = this.getEdgeFunctionInfo({
-      page: middleware.page,
-      middleware: true,
-    })
+    const middlewareInfo =
+      middleware.runtime === 'edge'
+        ? this.getEdgeFunctionInfo({ page: middleware.page, middleware: true })
+        : undefined
 
     const method = (params.request.method || 'GET').toUpperCase()
     const requestData = {
@@ -1710,7 +1782,9 @@ export default class NextNodeServer extends BaseServer<
       page,
       body:
         method !== 'GET' && method !== 'HEAD'
-          ? (getRequestMeta(params.request, 'clonableBody') as any)
+          ? // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            (getRequestMeta(params.request, 'clonableBody') as any)
           : undefined,
 
       signal: signalFromNodeResponse(params.response.originalResponse),
@@ -1720,20 +1794,26 @@ export default class NextNodeServer extends BaseServer<
       | UnwrapPromise<ReturnType<typeof import('./web/sandbox').run>>
       | undefined
 
-    // if no middleware info check for Node.js middleware
-    // this is not in the middleware-manifest as that historically
-    // has only included edge-functions, we need to do a breaking
-    // version bump for that manifest to write this info there if
-    // we decide we want to
-    if (!middlewareInfo) {
-      let middlewareModule
-      middlewareModule = await this.loadNodeMiddleware()
+    // Node.js and Go middleware are described outside the Edge manifest.
+    if (middleware.runtime !== 'edge') {
+      const nativeEntry =
+        middleware.runtime === 'go' ? middleware.nativeEntry : undefined
+      const middlewareModule = nativeEntry
+        ? undefined
+        : await this.loadNodeMiddleware()
 
-      if (!middlewareModule) {
+      if (!nativeEntry && !middlewareModule) {
         throw new MiddlewareNotFoundError()
       }
-      const adapterFn: typeof import('./web/adapter').adapter =
-        middlewareModule.default || middlewareModule
+      const adapterFn: typeof import('./web/adapter').adapter = nativeEntry
+        ? (require('./web/adapter') as typeof import('./web/adapter')).adapter
+        : middlewareModule.default || middlewareModule
+
+      if (nativeEntry && !this.nativeProxy) {
+        const { NativeRouteManager } =
+          require('./lib/native-route.external') as typeof import('./lib/native-route.external')
+        this.nativeProxy = new NativeRouteManager(this.distDir, this.dev)
+      }
 
       const hasRequestBody =
         !['HEAD', 'GET'].includes(params.request.method) &&
@@ -1741,30 +1821,37 @@ export default class NextNodeServer extends BaseServer<
 
       try {
         // Node.js middleware runs in-process, inside the active
-        // `handleRequest` span. Detach that span so the middleware span
-        // becomes a sibling root (or parents to an incoming traceparent),
-        // matching edge middleware which runs in a detached sandbox.
-        result = await getTracer().runWithDetachedContext(() =>
-          adapterFn({
-            handler:
-              middlewareModule.proxy ||
-              middlewareModule.middleware ||
-              middlewareModule,
-            request: {
-              ...requestData,
-              body: hasRequestBody
-                ? requestData.body.cloneBodyStream()
-                : undefined,
-            },
-            page: 'middleware',
-          })
-        )
+        // `handleRequest` span, so the middleware span (and the trace context
+        // it forwards to the render) stays in the request's trace.
+        result = await adapterFn({
+          skipProxyUrlNormalize: nativeEntry
+            ? (this.nextConfig.skipProxyUrlNormalize ?? false)
+            : undefined,
+          handler:
+            (nativeEntry
+              ? (request: Request) =>
+                  // proxy.go normalizes the URL itself, so it receives the
+                  // URL from before the adapter's proxy.ts normalization.
+                  this.nativeProxy!.invokeMiddleware(nativeEntry, request, url)
+              : undefined) ||
+            middlewareModule.proxy ||
+            middlewareModule.middleware ||
+            middlewareModule,
+          request: {
+            ...requestData,
+            body: hasRequestBody
+              ? requestData.body.cloneBodyStream()
+              : undefined,
+          },
+          page: nativeEntry ? '/proxy' : 'middleware',
+        })
       } finally {
         if (hasRequestBody) {
           await requestData.body.finalize()
         }
       }
     } else {
+      if (!middlewareInfo) throw new MiddlewareNotFoundError()
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
       result = await run({
@@ -1887,7 +1974,15 @@ export default class NextNodeServer extends BaseServer<
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {
-          if (key !== 'content-encoding' && value !== undefined) {
+          // The body may have been transparently decoded, so the framing
+          // headers of the encoded body no longer apply. Matches
+          // FORBIDDEN_HEADERS in send-response.ts.
+          if (
+            key !== 'content-length' &&
+            key !== 'content-encoding' &&
+            key !== 'transfer-encoding' &&
+            value !== undefined
+          ) {
             res.setHeader(key, value as string | string[])
           }
         }
@@ -2108,6 +2203,8 @@ export default class NextNodeServer extends BaseServer<
       onError: params.onError,
       onWarning: params.onWarning,
       incrementalCache:
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (globalThis as any).__incrementalCache ||
         getRequestMeta(params.req, 'incrementalCache'),
       serverComponentsHmrCache: getRequestMeta(
@@ -2131,8 +2228,14 @@ export default class NextNodeServer extends BaseServer<
     // TODO: (wyattjoh) investigate improving this
 
     result.response.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase()
+      // `x-middleware-set-cookie` is an internal header not needed for the response
+      if (lowerKey === 'x-middleware-set-cookie') {
+        return
+      }
+
       // The append handling is special cased for `set-cookie`.
-      if (key.toLowerCase() === 'set-cookie') {
+      if (lowerKey === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
         for (const cookie of splitCookiesString(value)) {
           params.res.appendHeader(key, cookie)
@@ -2190,7 +2293,19 @@ export default class NextNodeServer extends BaseServer<
     this.cleanupListeners.add(listener)
   }
 
+  protected reconcileNativeRoutes(pages: ReadonlySet<string>) {
+    this.nativeRoutePages = pages
+    this.nativeRoutes?.reconcile(pages)
+  }
+
+  private nativeRoutePages: ReadonlySet<string> | undefined = undefined
+
+  private nativeRoutes: NativeRouteManager | undefined = undefined
+  private nativeProxy: NativeRouteManager | undefined = undefined
+
   async close(): Promise<void> {
+    await this.nativeRoutes?.close()
+    await this.nativeProxy?.close()
     await this.cleanupListeners.runAll()
   }
 
