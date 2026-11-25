@@ -880,7 +880,11 @@ async function getProducts() {
 
 ### Sitemaps that read the current time
 
-A [`sitemap.js`](/docs/app/api-reference/file-conventions/metadata/sitemap) file is a special Route Handler, so it prerenders under the same condition. A sitemap that sets `lastModified: new Date()` was prerendered at build time before. With Cache Components, it is generated on every request, and the build does not report an error. Check the route table that `next build` prints, where a prerendered sitemap is marked `○` (Static). Unlike a `GET` export, the `sitemap` function accepts the `use cache` directive directly. See [prerendering a sitemap with Cache Components](/docs/app/api-reference/file-conventions/metadata/sitemap#prerendering-with-cache-components) for an example.
+**Add `use cache` and `cacheLife` to a `sitemap` function that sets `lastModified` with `new Date()`.**
+
+Unlike a `GET` export, the `sitemap` function in a [`sitemap.js`](/docs/app/api-reference/file-conventions/metadata/sitemap) file accepts the `use cache` directive directly, so make the function `async` and add the directive to it. See [prerendering a sitemap with Cache Components](/docs/app/api-reference/file-conventions/metadata/sitemap#prerendering-with-cache-components) for an example.
+
+Before Cache Components, a sitemap that reads the current time was prerendered at build time. With Cache Components and without the directive, the sitemap is generated on every request, and the build does not report an error. To confirm the result, check the route table that `next build` prints, where a prerendered sitemap is marked `○` (Static).
 
 ## `generateMetadata` and `generateViewport`
 
