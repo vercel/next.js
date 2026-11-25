@@ -11447,7 +11447,7 @@ function isBypassingCachesInDev(
 
 function WarnForBypassCachesInDev({ route }: { route: string }) {
   warnOnce(
-    `Route ${route} is rendering with server caches disabled. For this request, Next.js skips Cache Components validation in development, so errors that \`next build\` reports for this route may not appear, and Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
+    `Route ${route} is rendering with server caches disabled. For this request, Next.js skips Cache Components and instant navigation validation, so errors for this route may not be reported, including ones that are only reported in development. Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
   )
   return null
 }

@@ -10,7 +10,7 @@ This can also happen when [`draftMode`](/docs/app/api-reference/functions/draft-
 
 A browser test that intercepts requests causes it too. See [Automated browser tests](#automated-browser-tests).
 
-For a request handled this way, Next.js also skips Cache Components validation. A route that reads uncached or request-time data outside `<Suspense>` renders without the error it would normally report, and `next build` can still fail on it.
+For a request handled this way, Next.js also skips validation: both the Cache Components errors for uncached or request-time data read outside `<Suspense>`, and [instant navigation validation](/docs/app/api-reference/file-conventions/route-segment-config/instant). The route renders without the errors it would normally report. `next build` reports some of them later. Instant navigation validation runs in development only by default, so those errors are not reported anywhere.
 
 Bypassing caches while in development mode affects the debugging experience of Cache Components and Instant Insights. Read on to understand more about how Next.js handles caches in development mode and what changes when they are intentionally bypassed.
 
@@ -36,7 +36,7 @@ If this warning appears while Draft Mode is enabled, it is expected. Draft Mode 
 
 Intercepting requests turns off the browser's HTTP cache. In Playwright, registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) is enough, even when the handler's URL pattern never matches a request. Chromium then sends `cache-control: no-cache` with every request, including the request for the page itself.
 
-Next.js cannot tell this request from a hard refresh, so it bypasses server caches and skips validation for it. A test that intercepts requests can therefore pass in `next dev` on a route that fails `next build`.
+Next.js cannot tell this request from a hard refresh, so it bypasses server caches and skips validation for it. A test that intercepts requests can therefore pass in `next dev` on a route that fails `next build`, or on a route with an instant navigation error that only development reports.
 
 To keep validation in a test:
 
