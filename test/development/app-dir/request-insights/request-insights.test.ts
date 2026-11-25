@@ -1829,10 +1829,10 @@ describe('request insights', () => {
 
     expect(result.code).toBe(0)
     expect(result.stdout).toContain('request request-12345678')
-    expect(result.stdout).toContain('+100ms 3.40s slow metadata fetch')
+    expect(result.stdout).toContain('+100 ms 3.40 s slow metadata fetch')
     expect(result.stdout).toContain('span span-2 parent span-1')
     expect(result.stdout).toContain(
-      '+100ms 3.40s 200 skip (cache: no-store) GET https://example.com/metadata'
+      '+100 ms 3.40 s 200 skip (cache: no-store) GET https://example.com/metadata'
     )
 
     const json = await runWithResponse(

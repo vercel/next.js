@@ -148,3 +148,14 @@ export function getRequestInsightSource(
 export function getRequestInsightKey(insight: RequestInsightIdentity): string {
   return `${getRequestInsightKind(insight)}:${insight.requestId}`
 }
+
+/**
+ * Whether `insight` describes the request with `requestId`: the request itself
+ * or an Instant Insights entry for it, which shares its request ID.
+ */
+export function isRequestInsightFor(
+  insight: Pick<RequestInsightIdentity, 'requestId'>,
+  requestId: string
+): boolean {
+  return insight.requestId === requestId
+}

@@ -1,14 +1,19 @@
 import path from 'path'
 import { readLockfileContent, parseDevServerInfo } from '../build/lockfile'
 import { getProjectDir } from '../lib/get-project-dir'
+import { formatDuration } from '../shared/lib/format-duration'
 import {
   getRequestInsightKind,
+  isRequestInsightFor,
   type RequestInsight,
   type RequestInsightFetch,
   type RequestInsightKind,
   type RequestInsightsSnapshot,
 } from '../shared/lib/request-insights'
-import { summarizeRequestInsight } from '../shared/lib/request-insights-summary'
+import {
+  summarizeRequestInsight,
+  type RequestInsightSummary,
+} from '../shared/lib/request-insights-summary'
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import {
@@ -98,28 +103,26 @@ async function loadSnapshot(
     : await discoverDevServerUrl(directory)
   const endpoint = new URL(REQUEST_INSIGHTS_DEV_ENDPOINT, devServerUrl)
 
-  const response = await fetch(endpoint).catch((error) => {
+  const response = await fetch(endpoint).catch((error) =>
     printAndExit(
-      `Failed to reach ${endpoint.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      1
+      `Failed to reach ${endpoint.toString()}: ${error instanceof Error ? error.message : String(error)}`
     )
-    throw error
-  })
+  )
 
   const text = await response.text()
   let data: unknown
   try {
     data = JSON.parse(text)
   } catch {
-    printAndExit(`Invalid response from ${endpoint.toString()}: ${text}`, 1)
+    printAndExit(`Invalid response from ${endpoint.toString()}: ${text}`)
   }
 
   if (!response.ok) {
-    printAndExit(getResponseError(data, response.status), 1)
+    printAndExit(getResponseError(data, response.status))
   }
 
   if (!isRequestInsightsSnapshot(data)) {
-    return exitWithError(
+    return printAndExit(
       `Invalid response from ${endpoint.toString()}: expected requests and fetches to be arrays.`
     )
   }
@@ -127,7 +130,26 @@ async function loadSnapshot(
   return data
 }
 
-function summarizeListRequest(request: RequestInsight) {
+type RequestInsightListEntry = Pick<
+  RequestInsightSummary,
+  | 'requestId'
+  | 'source'
+  | 'route'
+  | 'url'
+  | 'startTime'
+  | 'durationMs'
+  | 'status'
+  | 'statusCode'
+  | 'isRsc'
+  | 'spanCount'
+  | 'fetchCount'
+  | 'cacheStatuses'
+  | 'hasError'
+> & { kind: RequestInsightKind }
+
+function summarizeListRequest(
+  request: RequestInsight
+): RequestInsightListEntry {
   const summary = summarizeRequestInsight(request)
   return {
     requestId: summary.requestId,
@@ -238,25 +260,35 @@ function findRequest(
   const candidates = kind
     ? requests.filter((request) => getRequestInsightKind(request) === kind)
     : requests
-  const exact = candidates.filter((request) => request.requestId === id)
-  const matches =
-    exact.length > 0
-      ? exact
-      : candidates.filter((request) => request.requestId.startsWith(id))
-  if (matches.length === 0) {
-    return exitWithError(`No retained request matches "${id}".`)
+  const requestId = resolveRequestId(
+    candidates.map((request) => request.requestId),
+    id
+  )
+  const related = candidates.filter((request) =>
+    isRequestInsightFor(request, requestId)
+  )
+  // `get` shows one entry; the request wins over its Instant Insights entry
+  // unless --kind asks for the latter.
+  return (
+    related.find((request) => getRequestInsightKind(request) === 'request') ??
+    related[0]
+  )
+}
+
+function resolveRequestId(requestIds: string[], id: string): string {
+  if (requestIds.includes(id)) return id
+  const matches = new Set(
+    requestIds.filter((requestId) => requestId.startsWith(id))
+  )
+  if (matches.size === 0) {
+    return printAndExit(`No retained request matches "${id}".`)
   }
-  const matchedIds = new Set(matches.map((request) => request.requestId))
-  if (matchedIds.size > 1) {
-    return exitWithError(
-      `Request ID prefix "${id}" is ambiguous (${matchedIds.size} matches).`
+  if (matches.size > 1) {
+    return printAndExit(
+      `Request ID prefix "${id}" is ambiguous (${matches.size} matches).`
     )
   }
-  // Instant Insights entries share the request ID of the request they validated.
-  return (
-    matches.find((request) => getRequestInsightKind(request) === 'request') ??
-    matches[0]
-  )
+  return [...matches][0]
 }
 
 async function discoverDevServerUrl(directory?: string): Promise<URL> {
@@ -280,13 +312,9 @@ async function discoverDevServerUrl(directory?: string): Promise<URL> {
     )
   }
 
-  return exitWithError(
+  return printAndExit(
     `Unable to discover a running Next.js dev server from ${lockfilePath}. Start next dev or pass --url.`
   )
-}
-
-function exitWithError(message: string): never {
-  return printAndExit(message, 1) as never
 }
 
 function getResponseError(data: unknown, status: number): string {
@@ -329,28 +357,18 @@ function parseDevServerUrl(value: string): URL {
   try {
     url = new URL(value)
   } catch {
-    return exitWithError(
+    return printAndExit(
       `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`
     )
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return exitWithError(
+    return printAndExit(
       `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`
     )
   }
 
   return url
-}
-
-function formatDuration(durationMs: number | undefined): string {
-  if (typeof durationMs !== 'number') {
-    return '-'
-  }
-
-  return durationMs < 1000
-    ? `${Math.round(durationMs)}ms`
-    : `${(durationMs / 1000).toFixed(2)}s`
 }
 
 function shortId(id: string | undefined): string {
