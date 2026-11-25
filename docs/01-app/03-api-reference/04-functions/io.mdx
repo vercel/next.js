@@ -55,6 +55,34 @@ In this route `CurrentTime` is wrapped in a `<Suspense>` boundary, during preren
 
 In a Client Component, React's [`use`](https://react.dev/reference/react/use) hook can consume `io()`. This suspends static prerendering but still allows request-time server rendering. It does not make the component browser-only or preserve a generated value for hydration.
 
+For example, use a wrapper to exclude a library Client Component from static prerendering while retaining request-time server rendering. Here, `Widget` represents a library component whose SSR setup already preserves its initial data for hydration, such as through a dehydrated query cache. Render `DeferredWidget` inside a parent `<Suspense>` boundary, as shown in the Server Component example above.
+
+```tsx filename="app/deferred-widget.tsx" highlight={8} switcher
+'use client'
+
+import { use } from 'react'
+import { io } from 'next/cache'
+import { Widget } from './widget'
+
+export function DeferredWidget() {
+  use(io())
+  return <Widget />
+}
+```
+
+```jsx filename="app/deferred-widget.js" highlight={8} switcher
+'use client'
+
+import { use } from 'react'
+import { io } from 'next/cache'
+import { Widget } from './widget'
+
+export function DeferredWidget() {
+  use(io())
+  return <Widget />
+}
+```
+
 An unstable read during Client Component rendering already interrupts prerendering. Put a parent `<Suspense>` boundary above that component and choose how to preserve its output for hydration or render it only in the browser. See the guidance for [time](/docs/messages/blocking-prerender-current-time-client), [random values](/docs/messages/blocking-prerender-random-client), and [crypto](/docs/messages/blocking-prerender-crypto-client). Adding `use(io())` directly before `Date.now()` or `Math.random()` does not make the first browser render match the server HTML.
 
 ## When you don't need `io()`
