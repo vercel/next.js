@@ -2075,7 +2075,9 @@ async fn handle_dynamic_import_with_linked_args(
             error_mode,
             export_usage,
             resolve_override,
-            lazy_compilation,
+            // A lazy compilation proxy evaluates (and loads) its target when it's evaluated, which
+            // would defeat `import.defer()`: deferred imports are compiled eagerly.
+            lazy_compilation && !deferred,
             deferred,
         )
         .await?;

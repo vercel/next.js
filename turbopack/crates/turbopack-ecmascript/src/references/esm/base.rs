@@ -686,8 +686,8 @@ pub struct EsmAssetReference {
     pub module_fragments_enabled: bool,
     pub is_pure_import: bool,
     /// Created by an `import defer * as ns from "..."` declaration: the referenced module is
-    /// loaded with the importer, but only evaluated on first access to the namespace (see
-    /// [`EsmAssetReference::is_effectively_deferred`]).
+    /// loaded with the importer, but only evaluated on first access to the namespace (unless it's
+    /// an async module).
     pub deferred: bool,
     /// Created by an `import defer` declaration, even when the evaluation isn't deferred (because
     /// the module is also imported eagerly). The namespace is a deferred namespace object when

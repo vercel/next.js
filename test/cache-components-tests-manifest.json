@@ -190,6 +190,7 @@
       "test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts",
       "test/e2e/app-dir/hooks/hooks.test.ts",
       "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.ts",
+      "test/e2e/app-dir/import-defer-edge/import-defer-edge.test.ts",
       "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts",
       "test/e2e/app-dir/interception-dynamic-segment-middleware/interception-dynamic-segment-middleware.test.ts",
       "test/e2e/app-dir/interception-middleware-rewrite/interception-middleware-rewrite.test.ts",
