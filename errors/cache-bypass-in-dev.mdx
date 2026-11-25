@@ -40,8 +40,8 @@ Next.js cannot tell this request from a hard refresh, so it bypasses server cach
 
 To keep validation in a test:
 
-- To check what is visible before dynamic content arrives, use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations). It does not intercept requests, so validation still runs and its errors appear in the `next dev` terminal and in the browser console.
-- If a test needs request interception, for example to simulate a failed request, also load the route in a browser context that registers no route handler.
+- To check what is visible before dynamic content arrives, use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations). It does not intercept requests.
+- If a test needs request interception, for example to simulate a failed request, also load the route in a browser context that registers no route handler. Validation errors then appear in the `next dev` terminal and in the browser console.
 
 ## Useful Links
 
