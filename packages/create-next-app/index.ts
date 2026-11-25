@@ -132,6 +132,18 @@ const program = new Command(packageJson.name)
   .parse(process.argv)
 
 const opts = program.opts()
+
+function printMissingProjectDirectory(reason?: string): void {
+  console.log(
+    (reason ? `\n${reason}` : '') +
+      '\nPlease specify the project directory:\n' +
+      `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
+      'For example:\n' +
+      `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
+      `Run ${cyan(`${program.name()} --help`)} to see all options.`
+  )
+}
+
 const { args } = program
 
 const packageManager: PackageManager = !!opts.useNpm
@@ -172,20 +184,44 @@ async function run(): Promise<void> {
   }
 
   if (!projectPath) {
-    const res = await prompts({
-      onState: onPromptState,
-      type: 'text',
-      name: 'path',
-      message: 'What is your project named?',
-      initial: 'my-app',
-      validate: (name) => {
-        const validation = validateNpmName(basename(resolve(name)))
-        if (validation.valid) {
-          return true
-        }
-        return 'Invalid project name: ' + validation.problems[0]
+    // When stdin ends before a name is submitted (e.g. piped or closed input
+    // in a non-interactive environment), the prompt would never resolve and
+    // the process would silently exit. Explain how to pass the name instead.
+    let projectNameSubmitted = false
+    const onStdinEnd = () => {
+      if (!projectNameSubmitted) {
+        // Re-enable the terminal cursor hidden by the prompt.
+        process.stdout.write('\x1B[?25h\n')
+        printMissingProjectDirectory(
+          'No project name was provided and stdin is not interactive.'
+        )
+        process.exit(1)
+      }
+    }
+    process.stdin.once('end', onStdinEnd)
+
+    const res = await prompts(
+      {
+        onState: onPromptState,
+        type: 'text',
+        name: 'path',
+        message: 'What is your project named?',
+        initial: 'my-app',
+        validate: (name) => {
+          const validation = validateNpmName(basename(resolve(name)))
+          if (validation.valid) {
+            return true
+          }
+          return 'Invalid project name: ' + validation.problems[0]
+        },
       },
-    })
+      {
+        onSubmit: () => {
+          projectNameSubmitted = true
+        },
+      }
+    )
+    process.stdin.off('end', onStdinEnd)
 
     if (typeof res.path === 'string') {
       projectPath = res.path.trim()
@@ -193,13 +229,7 @@ async function run(): Promise<void> {
   }
 
   if (!projectPath) {
-    console.log(
-      '\nPlease specify the project directory:\n' +
-        `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
-        'For example:\n' +
-        `  ${cyan(opts.name())} ${green('my-next-app')}\n\n` +
-        `Run ${cyan(`${opts.name()} --help`)} to see all options.`
-    )
+    printMissingProjectDirectory()
     process.exit(1)
   }
 

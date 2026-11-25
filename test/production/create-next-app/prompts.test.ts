@@ -70,6 +70,43 @@ describe('create-next-app prompts', () => {
     })
   })
 
+  it('should print usage and exit if stdin ends before a directory name is provided', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp([], { cwd }, nextTgzFilename)
+
+      let output = ''
+      childProcess.stdout.on('data', (data) => {
+        output += data
+      })
+      childProcess.stderr.on('data', (data) => {
+        output += data
+      })
+
+      const exited = new Promise<number | null>((resolve) => {
+        childProcess.on('exit', resolve)
+      })
+
+      // Wait for the prompt, then close stdin without answering, as happens
+      // in a non-interactive environment.
+      await retry(async () => {
+        expect(output).toContain('What is your project named?')
+      })
+      childProcess.stdin.end()
+
+      expect(await exited).toBe(1)
+      const cleanOutput = stripAnsi(output)
+      expect(cleanOutput).toContain(
+        'No project name was provided and stdin is not interactive.'
+      )
+      expect(cleanOutput).toContain('Please specify the project directory:')
+      expect(cleanOutput).toContain('create-next-app <project-directory>')
+      expect(cleanOutput).toContain(
+        'Run create-next-app --help to see all options.'
+      )
+      expect(cleanOutput).not.toContain('Unexpected error')
+    })
+  })
+
   it('should use default for --ts when other flags are provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'ts-js'
