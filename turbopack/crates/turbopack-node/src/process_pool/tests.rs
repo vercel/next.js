@@ -269,7 +269,7 @@ async fn test_pool_kill_all_workers_concurrent() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_pool_kill_all_workers_queued_operation() {
     run_once_without_cache_check(&REGISTRATION, async {
-        let pool = std::sync::Arc::new(create_test_pool(1).await.unwrap());
+        let pool = create_test_pool(1).await.unwrap();
 
         let mut running = pool.operation().await.unwrap();
         let old_pid = send_recv(&mut running, serde_json::json!({"running": true}))
@@ -277,23 +277,24 @@ async fn test_pool_kill_all_workers_queued_operation() {
             .pid;
 
         // An operation that is still waiting for the concurrency permit while the workers are
-        // killed.
-        let queued = tokio::spawn({
-            let pool = pool.clone();
-            async move {
-                let mut op = pool.operation().await.unwrap();
-                send_recv(&mut op, serde_json::json!({"queued": true}))
-                    .await
-                    .pid
-            }
-        });
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        // killed. Polling it once makes sure it's queued before the kill.
+        let queued = pool.operation();
+        tokio::pin!(queued);
+        assert!(
+            futures::poll!(&mut queued).is_pending(),
+            "expected the operation to wait for the concurrency permit"
+        );
         pool.kill_all_workers();
         drop(running);
 
-        // The queued operation gets a process that only ran code after the kill, so that process
-        // is kept for reuse.
-        let queued_pid = queued.await.unwrap();
+        // The queued operation gets a process that only ran evaluations after the kill, so that
+        // process is kept for reuse.
+        let queued_pid = {
+            let mut op = queued.await.unwrap();
+            send_recv(&mut op, serde_json::json!({"queued": true}))
+                .await
+                .pid
+        };
         assert_ne!(
             old_pid, queued_pid,
             "expected a fresh process after killing"

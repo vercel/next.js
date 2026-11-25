@@ -150,8 +150,8 @@ impl WorkerThreadPool {
                     self.state.stats.lock().add_booting_worker();
                 }
                 let worker_id = create_worker(self.worker_options.clone()).await?;
-                // The worker hasn't run any code yet, so it belongs to the current generation
-                // even if the pool killed all workers while it was booting.
+                // The worker hasn't run an evaluation yet, so it belongs to the current
+                // generation even if the pool killed all workers while it was booting.
                 let generation = *self.state.generation.lock();
 
                 {

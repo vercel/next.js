@@ -58,9 +58,9 @@ struct NodeJsPoolProcess {
     recent_stderr: RecentLines,
     debug: bool,
     cpu_time_invested: Duration,
-    /// The pool generation this process belongs to. Set when the process is ready to start its
-    /// first operation and whenever it's returned to the idle queue, so a process that ran code
-    /// from before a `kill_all_workers` keeps an older generation.
+    /// The pool generation this process belongs to. Set when the process is ready to run its
+    /// first evaluation, and kept while it's returned to the idle queue for the same generation,
+    /// so a process that ran an evaluation before a `kill_all_workers` keeps an older generation.
     generation: u64,
 }
 
@@ -812,9 +812,9 @@ impl EvaluateOperation for ChildProcessPool {
                         s.finished_booting_worker();
                     }
                     drop(bootup_permit);
-                    // The process hasn't run any code yet, so it belongs to the current generation
-                    // even if the pool killed all workers while it was booting. Hold the lock
-                    // while pushing, so that a concurrent kill can't miss it.
+                    // The process hasn't run an evaluation yet, so it belongs to the current
+                    // generation even if the pool killed all workers while it was booting. Hold the
+                    // lock while pushing, so that a concurrent kill can't miss it.
                     let current_generation = pool_generation.lock();
                     process.generation = *current_generation;
                     idle_processes.push(process, &ACTIVE_POOLS);
@@ -869,8 +869,8 @@ impl ChildProcessPool {
                     self.stats.lock().add_booting_worker();
                 }
                 let (mut process, bootup_time) = self.create_process().await?;
-                // The process hasn't run any code yet, so it belongs to the current generation
-                // even if the pool killed all workers while it was booting.
+                // The process hasn't run an evaluation yet, so it belongs to the current
+                // generation even if the pool killed all workers while it was booting.
                 process.generation = *self.generation.lock();
                 // Update the worker count
                 {
