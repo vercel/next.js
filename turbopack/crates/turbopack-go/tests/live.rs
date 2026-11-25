@@ -756,6 +756,45 @@ async fn directory_replacements_outside_the_module_resolve_within_the_boundary()
         .replace("node_modules/sdk/sdk.go", "sdk-v1", "sdk-v2")
         .await?;
     assert_eq!(session.run_bytes(build().await?).await?.trim(), "sdk-v2");
+    // The workspace itself can also be a module required by the application.
+    // Its sources are still inside the boundary, even though the replacement
+    // directory is an ancestor of the main module rather than a sibling.
+    session
+        .write("go.mod", "module example.com/workspace\ngo 1.24\n")
+        .await?;
+    session
+        .write(
+            "library/value.go",
+            "package library\nconst Message = \"parent-v1\"\n",
+        )
+        .await?;
+    session
+        .write(
+            "apps/web/go.mod",
+            &format!(
+                "{module}require example.com/workspace v0.0.0\nreplace next/go => \
+                 ../../node_modules/sdk\nreplace example.com/workspace => ../..\n"
+            ),
+        )
+        .await?;
+    session
+        .write(
+            &format!("{directory}/main.go"),
+            "package main\nimport (\n\t\"fmt\"\n\t\"example.com/workspace/library\"\n\tnext \
+             \"next/go\"\n)\nfunc main() { fmt.Println(next.Message, library.Message) }\n",
+        )
+        .await?;
+    assert_eq!(
+        session.run_bytes(build().await?).await?.trim(),
+        "sdk-v2 parent-v1"
+    );
+    session
+        .replace("library/value.go", "parent-v1", "parent-v2")
+        .await?;
+    assert_eq!(
+        session.run_bytes(build().await?).await?.trim(),
+        "sdk-v2 parent-v2"
+    );
     // The boundary still applies: a replacement leaving the project root is rejected.
     session
         .write(
