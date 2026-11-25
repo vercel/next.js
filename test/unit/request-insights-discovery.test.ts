@@ -7,7 +7,7 @@ const repository = path.join(__dirname, '../..')
 
 function collect(events: unknown[]) {
   const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'request-insights-effort-')
+    path.join(os.tmpdir(), 'request-insights-discovery-')
   )
   try {
     fs.writeFileSync(
@@ -27,7 +27,7 @@ function collect(events: unknown[]) {
         'evals/metrics/report.mjs',
         'collect',
         root,
-        'request-insights-effort',
+        'request-insights-discovery',
       ],
       { cwd: repository }
     )
@@ -52,8 +52,7 @@ it('records guided diagnosis before project inspection', () => {
         file_path: '/workspace/node_modules/next/dist/agent-faq.md',
       }),
       toolCall('file_read', {
-        file_path:
-          '/workspace/.claude/skills/next-performance/references/request-latency.md',
+        file_path: '/workspace/.claude/skills/next-performance/SKILL.md',
       }),
       toolCall('file_read', {
         file_path:
@@ -100,6 +99,9 @@ it('ignores dev logs and dependencies read before diagnosis', () => {
       toolCall('file_read', { file_path: '/tmp/agent-063-next-dev.log' }),
       toolCall('file_read', {
         file_path: '/workspace/node_modules/next/dist/server/next-server.js',
+      }),
+      toolCall('shell', {
+        command: 'cat node_modules/next/dist/server/next-server.js',
       }),
       toolCall('shell', {
         command: 'npx next experimental-request-insights list --json',

@@ -94,6 +94,6 @@
     "skills": ["next-performance"],
     "publish": false,
     "timeout": 900,
-    "metrics": "request-insights-effort"
+    "metrics": "request-insights-discovery"
   }
 }

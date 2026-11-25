@@ -39,6 +39,8 @@ await retry(async () => {
   if (!response.ok) throw new Error('collector is not ready')
 })
 
+// Not startNextServer: its readiness probe of `/` 404s here and would become
+// the first request, absorbing compilation and instrumentation cost.
 const logPath = '/tmp/agent-063-next-dev.log'
 const log = openSync(logPath, 'w')
 const next = spawn(
@@ -50,7 +52,7 @@ const next = spawn(
     env: {
       ...process.env,
       NEXT_TELEMETRY_DISABLED: '1',
-      NEXT_EVAL_EXPERIMENTAL: '{"requestInsights":true}',
+      EVAL_REQUEST_INSIGHTS: '1',
       OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:4318',
       REPORT_SERVICE_URL: 'http://127.0.0.1:4318',
     },
@@ -64,14 +66,10 @@ await retry(async () => {
   if (!output.includes('Ready in')) throw new Error('dev server is not ready')
 }, 60_000)
 
-const started = performance.now()
 const response = await fetch('http://127.0.0.1:3100/reports')
 await response.text()
-const duration = performance.now() - started
-if (!response.ok || duration < 3000) {
-  throw new Error(
-    `slow request was not prepared (${response.status}, ${duration}ms)`
-  )
+if (!response.ok) {
+  throw new Error(`slow request was not prepared (${response.status})`)
 }
 
 await retry(async () => {
@@ -90,7 +88,6 @@ await retry(async () => {
   if (!request) throw new Error('retained metadata trace is not ready')
 })
 
-rmSync('.next/dev/request-insights.ndjson.gz', { force: true })
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 delete packageJson.scripts['eval:setup']
 writeFileSync('package.json', `${JSON.stringify(packageJson, null, 2)}\n`)
