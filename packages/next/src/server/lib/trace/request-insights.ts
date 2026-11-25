@@ -24,6 +24,9 @@ import { getLatestPageRequestInsightKeys } from '../../../shared/lib/request-ins
 import { AppRenderSpan } from './constants'
 export { isRequestInsightsEnabled }
 
+export const REQUEST_INSIGHTS_DISABLED_ERROR =
+  'Request Insights is disabled by experimental.requestInsights = false.'
+
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
 const REQUEST_INSIGHTS_STORE_KEY = Symbol.for('@next/request-insights-store')

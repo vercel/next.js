@@ -1322,8 +1322,8 @@ describe('background request insights', () => {
     )
   })
 
-  it('keeps request insights disabled unless opted in', () => {
-    delete process.env.__NEXT_REQUEST_INSIGHTS
+  it('keeps request insights disabled when opted out', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'false'
     traceBackground('compile-path', () => undefined)
     expect(getRequestInsightsSnapshot().requests).toEqual([])
   })
