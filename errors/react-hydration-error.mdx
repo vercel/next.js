@@ -31,7 +31,9 @@ Ensure that the component renders the same content on the server and during the 
 
 ### Solution 1: Rendering client-specific values with Suspense
 
-When content depends on browser-only APIs or settings, defer that rendering to the browser. With React 19.3, call `use(browser())` in a Client Component inside `<Suspense>`. The fallback can show useful server-rendered content or a placeholder.
+If the browser can reuse a server-generated value, generate it once in a Server Component and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components). Use the same formatting on the server and during hydration.
+
+When content depends on browser-only APIs or settings, defer that rendering to the browser. With React 19.3, call `use(browser())` in a Client Component inside a parent `<Suspense>` boundary. The fallback can show useful server-rendered content or a placeholder. The `use(browser())` call suspends during server rendering; wrapping a Client Component in `<Suspense>` alone does not make it browser-only.
 
 See the [client-specific rendering and fallback choices](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
 
@@ -61,7 +63,7 @@ export default function Page() {
 
 ### Solution 3: Using `suppressHydrationWarning`
 
-Sometimes content will inevitably differ between the server and client, such as a timestamp. You can silence the hydration mismatch warning by adding `suppressHydrationWarning={true}` to the element.
+When you intentionally allow an element's text or attributes to differ between the server and client, such as a browser-formatted date, you can silence the hydration mismatch warning by adding `suppressHydrationWarning={true}` to the element.
 
 ```jsx
 <time dateTime="2016-10-25" suppressHydrationWarning />

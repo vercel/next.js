@@ -16,7 +16,7 @@ Using an **inline script** that runs synchronously as the browser parses the HTM
 
 ## Choose an approach
 
-Choose an approach based on the initial experience you want and whether the value needs an ongoing subscription:
+If the browser can reuse a server-generated value, [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) and use the same formatting during server rendering and hydration. For browser-specific values, choose an approach based on the initial experience you want and whether the value needs an ongoing subscription:
 
 | Goal                                                     | Approach                                                                 | Before React loads                          |
 | -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
@@ -541,7 +541,11 @@ export function ThemeToggle() {
 
 With React 19.3, call `use(browser())` in a Client Component to defer its rendering to the browser. Wrap the component in `<Suspense>` with a fallback.
 
-Here's an example:
+A `<Suspense>` boundary shows its fallback when a child suspends. Wrapping a Client Component in `<Suspense>` alone does not make it browser-only. In this example, `use(browser())` suspends during server rendering.
+
+Deferring prerendering with [`io()`](/docs/app/api-reference/functions/io) still allows request-time server rendering. It does not make a component browser-only or preserve generated values for hydration. Generating a fresh timestamp or random value on both the server and browser can still cause a mismatch. State and refs alone do not transfer those values between environments.
+
+The following component receives a `serverLabel` prop to display as its fallback:
 
 ```tsx filename="app/components/browser-date.tsx" switcher
 'use client'
@@ -555,15 +559,15 @@ function BrowserDate({ date }: { date: string }) {
   return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
 }
 
-export function LocalDate({ date }: { date: string }) {
+export function LocalDate({
+  date,
+  serverLabel,
+}: {
+  date: string
+  serverLabel: string
+}) {
   return (
-    <Suspense
-      fallback={
-        <time dateTime={date} suppressHydrationWarning>
-          {new Date(date).toLocaleDateString()}
-        </time>
-      }
-    >
+    <Suspense fallback={<time dateTime={date}>{serverLabel}</time>}>
       <BrowserDate date={date} />
     </Suspense>
   )
@@ -582,26 +586,44 @@ function BrowserDate({ date }) {
   return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
 }
 
-export function LocalDate({ date }) {
+export function LocalDate({ date, serverLabel }) {
   return (
-    <Suspense
-      fallback={
-        <time dateTime={date} suppressHydrationWarning>
-          {new Date(date).toLocaleDateString()}
-        </time>
-      }
-    >
+    <Suspense fallback={<time dateTime={date}>{serverLabel}</time>}>
       <BrowserDate date={date} />
     </Suspense>
   )
 }
 ```
 
-The server renders the fallback date in its own locale. `suppressHydrationWarning` silences a possible text mismatch in that fallback during hydration.
+Compute `serverLabel` in a Server Component and pass it to `LocalDate`:
 
-Once `BrowserDate` is ready, React replaces the fallback with the browser-formatted date, coordinating the update with other pending Suspense reveals. The displayed date can still change.
+```tsx filename="app/page.tsx" switcher
+import { LocalDate } from '@/app/components/browser-date'
 
-A shared placeholder doesn't need `suppressHydrationWarning`. For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+export default function Page() {
+  const date = '2026-06-15T18:00:00Z'
+  const serverLabel = new Date(date).toLocaleDateString()
+
+  return <LocalDate date={date} serverLabel={serverLabel} />
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { LocalDate } from '@/app/components/browser-date'
+
+export default function Page() {
+  const date = '2026-06-15T18:00:00Z'
+  const serverLabel = new Date(date).toLocaleDateString()
+
+  return <LocalDate date={date} serverLabel={serverLabel} />
+}
+```
+
+The fallback uses the same `serverLabel` prop on the server and during hydration, so it doesn't need `suppressHydrationWarning`. The browser formats the date only inside `BrowserDate`, after `use(browser())` allows rendering to continue.
+
+Once `BrowserDate` is ready, React replaces the fallback with the browser-formatted date, coordinating the update with other pending Suspense reveals. This avoids a hydration mismatch, but the displayed date can still change. If browser formatting must be visible before React loads, use the [inline script approach](#fixing-it-with-an-inline-script).
+
+A shared placeholder also avoids a hydration mismatch. For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ### Subscribing to browser values
 
