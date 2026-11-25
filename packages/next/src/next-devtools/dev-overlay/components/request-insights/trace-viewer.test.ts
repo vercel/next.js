@@ -685,7 +685,7 @@ describe('request insights trace viewer', () => {
     )
   })
 
-  it('distinguishes Next.js, application, and OpenTelemetry spans', () => {
+  it('uses exactly Next.js and Application categories', () => {
     const request = createRequest({
       spans: [
         {
@@ -710,49 +710,19 @@ describe('request insights trace viewer', () => {
           name: 'custom database span',
           startTime: 120,
           durationMs: 10,
-          attributes: {
-            'next.span_category': 'opentelemetry',
-            'db.operation.name': 'SELECT',
-          },
-        },
-        {
-          name: 'flag',
-          startTime: 130,
-          durationMs: 5,
-          attributes: {
-            'next.span_category': 'opentelemetry',
-            'feature_flag.key': 'checkout-redesign',
-            'feature_flag.result.variant': 'treatment',
-          },
         },
       ],
     })
 
     expect(
-      getTraceItems(request, true).map(
-        ({ label, category, attributeLabel }) => ({
-          label,
-          category,
-          attributeLabel,
-        })
-      )
+      getTraceItems(request, true).map(({ label, category }) => ({
+        label,
+        category,
+      }))
     ).toEqual([
-      { label: 'render', category: 'nextjs', attributeLabel: undefined },
-      {
-        label: 'generate metadata /',
-        category: 'application',
-        attributeLabel: undefined,
-      },
-      {
-        label: 'custom database span',
-        category: 'opentelemetry',
-        attributeLabel: 'SELECT',
-      },
-      {
-        label: 'flag',
-        category: 'opentelemetry',
-        attributeLabel: 'checkout-redesign = treatment',
-      },
+      { label: 'render', category: 'nextjs' },
+      { label: 'generate metadata /', category: 'application' },
+      { label: 'custom database span', category: 'application' },
     ])
   })
 
