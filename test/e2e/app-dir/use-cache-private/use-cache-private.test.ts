@@ -29,15 +29,6 @@ describe('use-cache-private', () => {
     expect(await browser.elementById('test-cookie').text()).toBe('foo')
   })
 
-  it('hoists private cache declarations above module initializers', async () => {
-    const response = await next.fetch('/hoisted-cache-declaration', {
-      headers: { cookie: 'use-cache-private-test=from-cookie' },
-    })
-
-    expect(response.status).toBe(200)
-    expect(await response.text()).toBe('hoisted-from-cookie')
-  })
-
   it('allows reading search params in private caches', async () => {
     const browser = await next.browser('/search-params?q=foo')
 

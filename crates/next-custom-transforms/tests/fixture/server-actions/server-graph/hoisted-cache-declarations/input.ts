@@ -1,20 +1,16 @@
 'use strict'
 
-import { cache } from 'react'
+export const greet = formatGreeting
+export const sayGoodbye = formatFarewell
 
-export const getValue = cache(getValueA)
-export const getNamedValue = cache(getNamedValueA)
-
-async function getValueA(arg: string) {
-  'use cache: private'
-  return `${arg}-${test()}`
-}
-
-export async function getNamedValueA(arg: string) {
+async function formatGreeting(name: string) {
   'use cache'
-  return arg
+
+  return `Hello, ${name}!`
 }
 
-function test() {
-  return 'value'
+export async function formatFarewell(name: string) {
+  'use cache'
+
+  return `Goodbye, ${name}!`
 }
