@@ -312,7 +312,13 @@ function main() {
     .boolean('effort-gate')
     .describe(
       'effort-gate',
-      'Compare five sequential baseline and skill effort samples'
+      'Compare five sequential baseline, agents-md, and skill effort samples'
+    )
+    .number('effort-samples')
+    .default('effort-samples', 5)
+    .describe(
+      'effort-samples',
+      'Samples per variant for --effort-gate (default: 5)'
     )
     .string('agent')
     .describe('agent', 'Override the coding agent for every selected variant')
@@ -348,6 +354,18 @@ function main() {
       }
       if (!Number.isInteger(argv.runs) || argv.runs < 1) {
         throw new Error('--runs must be a positive integer')
+      }
+      if (!Number.isInteger(argv.effortSamples) || argv.effortSamples < 1) {
+        throw new Error('--effort-samples must be a positive integer')
+      }
+      const effortSamplesSpecified = process.argv
+        .slice(2)
+        .some(
+          (arg) =>
+            arg === '--effort-samples' || arg.startsWith('--effort-samples=')
+        )
+      if (effortSamplesSpecified && !argv.effortGate) {
+        throw new Error('--effort-samples requires --effort-gate')
       }
       if (
         argv.effortGate &&
@@ -430,10 +448,12 @@ function main() {
       : availableVariants
   if (argv.effortGate) {
     variants = variants.filter(({ suffix }) =>
-      ['baseline', 'skills'].includes(suffix)
+      ['baseline', 'agents-md', 'skills'].includes(suffix)
     )
-    if (variants.length !== 2) {
-      throw new Error('--effort-gate requires baseline and skills variants')
+    if (variants.length !== 3) {
+      throw new Error(
+        '--effort-gate requires baseline, agents-md, and skills variants'
+      )
     }
   }
   // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
@@ -495,7 +515,7 @@ function main() {
   const samples = Object.fromEntries(variants.map(({ suffix }) => [suffix, []]))
   let result
   let previousResults
-  const iterations = argv.effortGate ? 5 : 1
+  const iterations = argv.effortGate ? argv.effortSamples : 1
   for (let iteration = 1; iteration <= iterations; iteration++) {
     if (argv.effortGate)
       console.log(`> Effort sample ${iteration}/${iterations}`)
@@ -603,20 +623,35 @@ function main() {
     )
   let effortGateFailed = false
   if (argv.effortGate && !result.error && result.status === 0) {
-    const gate = evaluateEffortGate(samples.baseline, samples.skills)
-    for (const variant of ['baseline', 'skills']) {
+    const gate = evaluateEffortGate(
+      samples.baseline,
+      samples['agents-md'],
+      samples.skills
+    )
+    for (const variant of ['baseline', 'agents-md', 'skills']) {
       console.log(
         `${variant} samples: ${samples[variant]
           .map(({ status, inputTokens }) => `${inputTokens} (${status})`)
           .join(', ')}`
       )
-      const cliFirst = samples[variant].filter(
-        (sample) => sample.collector?.requestInsightsCliFirst
+      const diagnosticFirst = samples[variant].filter(
+        (sample) => sample.collector?.requestInsightsBeforeProjectInspection
       ).length
-      console.log(`${variant} CLI-first: ${cliFirst}/5`)
+      const searchedDocs = samples[variant].filter(
+        (sample) => sample.collector?.bundledDocsSearches?.length
+      ).length
+      const readDocs = samples[variant].filter(
+        (sample) => sample.collector?.bundledDocsReads?.length
+      ).length
+      console.log(
+        `${variant} Request Insights before project inspection: ${diagnosticFirst}/${gate.sampleCount}`
+      )
+      console.log(
+        `${variant} bundled docs searched/read: ${searchedDocs}/${gate.sampleCount}, ${readDocs}/${gate.sampleCount}`
+      )
     }
     console.log(
-      `Effort gate: baseline median ${gate.baselineMedian}, skills median ${gate.skillsMedian}, reduction ${(gate.reduction * 100).toFixed(1)}%, pass rate ${gate.baselinePasses}/5 vs ${gate.skillsPasses}/5`
+      `Effort gate: baseline median ${gate.baselineMedian}, agents-md median ${gate.agentsMdMedian}, skills median ${gate.skillsMedian}; reduction vs baseline ${(gate.agentsMdReduction * 100).toFixed(1)}% agents-md, ${(gate.skillsReduction * 100).toFixed(1)}% skills; pass rate ${gate.baselinePasses}/${gate.sampleCount} baseline, ${gate.agentsMdPasses}/${gate.sampleCount} agents-md, ${gate.skillsPasses}/${gate.sampleCount} skills`
     )
     const reportDirectory = path.join(EVALS_DIR, 'results', 'effort-gate')
     fs.mkdirSync(reportDirectory, { recursive: true })

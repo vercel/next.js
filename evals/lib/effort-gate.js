@@ -3,12 +3,23 @@ function median(values) {
   return sorted[Math.floor(sorted.length / 2)]
 }
 
-function evaluateEffortGate(baseline, skills, minimumReduction = 0.4) {
-  if (baseline.length !== 5 || skills.length !== 5) {
-    throw new Error('Effort gate requires five baseline and skill samples')
+function evaluateEffortGate(
+  baseline,
+  agentsMd,
+  skills,
+  minimumReduction = 0.4
+) {
+  if (
+    baseline.length === 0 ||
+    agentsMd.length !== baseline.length ||
+    skills.length !== baseline.length
+  ) {
+    throw new Error(
+      'Effort gate requires equal, non-empty baseline, agents-md, and skill samples'
+    )
   }
   if (
-    [...baseline, ...skills].some(
+    [...baseline, ...agentsMd, ...skills].some(
       (sample) =>
         !Number.isFinite(sample.inputTokens) || sample.inputTokens <= 0
     )
@@ -17,9 +28,14 @@ function evaluateEffortGate(baseline, skills, minimumReduction = 0.4) {
   }
 
   const baselineMedian = median(baseline.map((sample) => sample.inputTokens))
+  const agentsMdMedian = median(agentsMd.map((sample) => sample.inputTokens))
   const skillsMedian = median(skills.map((sample) => sample.inputTokens))
-  const reduction = 1 - skillsMedian / baselineMedian
+  const agentsMdReduction = 1 - agentsMdMedian / baselineMedian
+  const skillsReduction = 1 - skillsMedian / baselineMedian
   const baselinePasses = baseline.filter(
+    (sample) => sample.status === 'passed'
+  ).length
+  const agentsMdPasses = agentsMd.filter(
     (sample) => sample.status === 'passed'
   ).length
   const skillsPasses = skills.filter(
@@ -27,12 +43,17 @@ function evaluateEffortGate(baseline, skills, minimumReduction = 0.4) {
   ).length
 
   return {
-    passed: skillsPasses >= baselinePasses && reduction >= minimumReduction,
+    passed:
+      skillsPasses >= baselinePasses && skillsReduction >= minimumReduction,
     baselineMedian,
+    agentsMdMedian,
     skillsMedian,
-    reduction,
+    agentsMdReduction,
+    skillsReduction,
     baselinePasses,
+    agentsMdPasses,
     skillsPasses,
+    sampleCount: baseline.length,
   }
 }
 

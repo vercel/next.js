@@ -72,7 +72,10 @@ function run(
               calls.push({ command, args })
               if (args[0] === 'run') {
                 agentRun++
-                for (const variant of ['baseline', 'skills']) {
+                const resultVariants = effortGate
+                  ? ['baseline', 'agents-md', 'skills']
+                  : ['baseline', 'skills']
+                for (const variant of resultVariants) {
                   const timestamp = effortGate
                     ? `2026-11-${String(agentRun).padStart(2, '0')}`
                     : '2026-11-02'
@@ -87,12 +90,14 @@ function run(
                 write(
                   path.relative(root, path.join(directory, 'metrics.json')),
                   {
-                    status: directory.split(path.sep).includes('baseline')
-                      ? 'passed'
-                      : skillStatus,
+                    status: directory.split(path.sep).includes('skills')
+                      ? skillStatus
+                      : 'passed',
                     inputTokens: directory.split(path.sep).includes('baseline')
                       ? 100
-                      : skillTokens,
+                      : directory.split(path.sep).includes('agents-md')
+                        ? 60
+                        : skillTokens,
                   }
                 )
               }
@@ -176,17 +181,58 @@ describe('normal eval metrics workflow', () => {
 })
 
 describe('effort gate', () => {
-  it('compares five sequential baseline and skill samples', () => {
+  it('compares five sequential baseline, agents-md, and skill samples', () => {
     const { root, calls, exitCode } = run(['--effort-gate'])
     try {
       expect(calls.filter((call) => call.args[0] === 'run')).toHaveLength(5)
       expect(
         calls.filter((call) => call.args.includes('collect'))
-      ).toHaveLength(10)
+      ).toHaveLength(15)
       expect(exitCode).toBe(0)
+      const reports = fs.readdirSync(
+        path.join(root, 'evals/results/effort-gate')
+      )
+      expect(reports).toHaveLength(1)
       expect(
-        fs.readdirSync(path.join(root, 'evals/results/effort-gate'))
-      ).toHaveLength(1)
+        JSON.parse(
+          fs.readFileSync(
+            path.join(root, 'evals/results/effort-gate', reports[0]),
+            'utf8'
+          )
+        )
+      ).toMatchObject({
+        agentsMdMedian: 60,
+        agentsMdPasses: 5,
+        samples: { 'agents-md': expect.any(Array) },
+      })
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('overrides the effort sample count for faster iteration', () => {
+    const { root, calls, exitCode } = run([
+      '--effort-gate',
+      '--effort-samples',
+      '2',
+    ])
+    try {
+      expect(calls.filter((call) => call.args[0] === 'run')).toHaveLength(2)
+      expect(
+        calls.filter((call) => call.args.includes('collect'))
+      ).toHaveLength(6)
+      expect(exitCode).toBe(0)
+      const [report] = fs.readdirSync(
+        path.join(root, 'evals/results/effort-gate')
+      )
+      expect(
+        JSON.parse(
+          fs.readFileSync(
+            path.join(root, 'evals/results/effort-gate', report),
+            'utf8'
+          )
+        )
+      ).toMatchObject({ sampleCount: 2 })
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }
