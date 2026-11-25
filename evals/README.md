@@ -184,11 +184,12 @@ pnpm eval <configured-eval> --effort-gate \
 
 The gate runs five sequential samples each for baseline, bundled-docs discovery
 through `agents-md`, and the configured skill. With a pre-stack tarball, it runs
-that package first against the same fixture and grader. It reports pass rate,
-median input tokens, bundled-doc discovery, and whether Request Insights ran
-before project inspection for every variant. The skill must match or exceed the
-baseline pass rate and reduce median input tokens by at least 40%. Normal eval
-runs do not execute this gate.
+that package first against the same fixture and grader. It reports pass rate
+and median input tokens for every variant, plus any bundled-doc discovery and
+Request Insights ordering the eval's configured collector records. Samples
+without a token count are left out of the median but still count against the
+pass rate. The skill must match or exceed the baseline pass rate and reduce
+median input tokens by at least 40%. Normal eval runs do not execute this gate.
 
 Run a group from `eval.suites.json` with `--suite`:
 
