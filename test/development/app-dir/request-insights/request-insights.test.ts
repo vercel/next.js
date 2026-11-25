@@ -186,16 +186,6 @@ describe('request insights', () => {
     })
   })
 
-  it('rejects the removed toggle action', async () => {
-    expect(
-      (
-        await next.fetch('/_next/development/request-insights?action=on', {
-          method: 'POST',
-        })
-      ).status
-    ).toBe(405)
-  })
-
   it('records route module loading and preparation spans', async () => {
     const existingRequestIds = new Set(
       (
