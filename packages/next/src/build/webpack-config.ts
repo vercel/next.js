@@ -9,6 +9,7 @@ import fs from 'fs'
 import { getDefineEnv } from './define-env'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
+import { serializeCompressForNativeBindings } from '../server/lib/compression'
 import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackBundledLayer,
@@ -578,7 +579,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         appDir,
         hasReactRefresh: dev && isClient,
-        nextConfig: config,
+        nextConfig: serializeCompressForNativeBindings(config),
         jsConfig,
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,

@@ -24,6 +24,7 @@ import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker/index'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
+import { normalizeCompressConfig } from '../server/lib/compression'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
@@ -4866,6 +4867,31 @@ export default async function build(
               hasStatic500: useDefaultStatic500,
               requiredServerFiles: requiredServerFilesManifest.files,
             })
+          })
+      }
+
+      const compressionConfig = normalizeCompressConfig(config.compress)
+      if (compressionConfig?.staticPrecompress) {
+        await nextBuildSpan
+          .traceChild('precompress-static-assets')
+          .traceAsyncFn(async () => {
+            const { precompressStaticAssets } =
+              require('./precompress-static-assets') as typeof import('./precompress-static-assets')
+            const precompressResult = await precompressStaticAssets({
+              distDir,
+              algorithms: compressionConfig.algorithms,
+              threshold: compressionConfig.threshold,
+              gzipLevel: compressionConfig.gzipLevel,
+              brotliQuality: compressionConfig.brotliQuality,
+              zstdLevel: compressionConfig.zstdLevel,
+            })
+            if (precompressResult.sidecars > 0) {
+              Log.info(
+                `Pre-compressed ${precompressResult.sidecars} static asset variants (${Math.round(
+                  precompressResult.bytesSaved / 1024
+                )} KiB saved when served pre-compressed)`
+              )
+            }
           })
       }
 

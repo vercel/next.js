@@ -11,6 +11,7 @@ import { trace } from '../../trace'
 import { normalizePath } from '../../lib/normalize-path'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import { printBuildErrors } from '../print-build-errors'
+import { serializeCompressForNativeBindings } from '../../server/lib/compression'
 
 export type AnalyzeContext = {
   config: NextConfigComplete
@@ -57,7 +58,7 @@ export async function turbopackAnalyze(
       rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
-      nextConfig: config,
+      nextConfig: serializeCompressForNativeBindings(config),
       ensureShallowSourceMaps: true,
       watch: {
         enable: false,
