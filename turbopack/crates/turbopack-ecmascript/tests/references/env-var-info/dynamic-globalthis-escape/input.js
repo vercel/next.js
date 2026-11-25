@@ -1,1 +1,0 @@
-foo(globalThis.process.env)

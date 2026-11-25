@@ -1,4 +1,0 @@
-runtime_all: true
-runtime: [
-    "propertyIsEnumerable",
-]

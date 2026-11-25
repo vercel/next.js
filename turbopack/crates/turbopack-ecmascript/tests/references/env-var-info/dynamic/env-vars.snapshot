@@ -1,0 +1,266 @@
+=== CASE: dynamic-computed-destructuring-key-assign ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-computed-destructuring-key-rest ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-computed-destructuring-key ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-computed-env-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-computed-env-export ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-computed-env-variable-key-export ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-computed-env-variable-key ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-default-import-node ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-default-import ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-destructure-computed ===
+runtime_all: true
+runtime: [
+    "FOO1",
+]
+
+=== CASE: dynamic-destructured-env-binding ===
+runtime_all: true
+runtime: [
+    "FOO4",
+]
+runtime_existence: [
+    "FOO5",
+]
+
+=== CASE: dynamic-destructured-env-default-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-destructured-env-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-destructured-env-expr-target ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-destructured-env-renamed-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-destructured-env-rest ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-destructured-env-use-before-declaration ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-destructuring-assign-result-arg ===
+runtime_all: true
+runtime: [
+    "FOO1",
+]
+
+=== CASE: dynamic-destructuring-assign-result-init ===
+runtime_all: true
+runtime: [
+    "FOO1",
+]
+
+=== CASE: dynamic-destructuring-assign-result-seq ===
+runtime_all: true
+runtime: [
+    "FOO1",
+]
+
+=== CASE: dynamic-escape-alternative-destructure-key ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-escape-alternative-key ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-export-destructured-env-shorthand ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-export-destructured-env ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-export-process-env ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-fn-default-rest-spread ===
+runtime_all: true
+runtime: [
+    "FOO1",
+]
+
+=== CASE: dynamic-fn-default ===
+runtime_all: true
+runtime: [
+    "FOO1",
+]
+
+=== CASE: dynamic-fn-process-env ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-global-member ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-globalthis-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-globalthis-member ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-has-own-property-computed-method ===
+runtime_all: true
+runtime: [
+    "hasOwnProperty",
+]
+
+=== CASE: dynamic-has-own-property-spread ===
+runtime_all: true
+runtime: [
+    "hasOwnProperty",
+]
+
+=== CASE: dynamic-has-own-property ===
+runtime_all: true
+runtime: [
+    "hasOwnProperty",
+]
+
+=== CASE: dynamic-in ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-logical-and-env-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-logical-env-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-loose-eq-env ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-member ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-named-import-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-named-import-reexport ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-namespace-import-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-namespace-import-member ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-optional-chain-destructure-key ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-optional-chain-destructure ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-optional-chain-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-optional-chain-in-key ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-optional-chain-in ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-optional-chain-member ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-optional-method-call ===
+runtime_all: true
+runtime: [
+    "hasOwnProperty",
+]
+
+=== CASE: dynamic-paren-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-process-alias-destructure ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-process-alias-escape ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-process-alias-in ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-process-alias ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-property-is-enumerable ===
+runtime_all: true
+runtime: [
+    "propertyIsEnumerable",
+]
+
+=== CASE: dynamic-rest-spread ===
+runtime_all: true
+runtime: [
+    "FOO1",
+]
+
+=== CASE: dynamic-value-of-call ===
+runtime_all: true
+runtime: []
+
+=== CASE: dynamic-value-of ===
+runtime_all: true
+runtime: [
+    "valueOf",
+]

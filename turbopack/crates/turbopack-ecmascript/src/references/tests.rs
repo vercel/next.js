@@ -10,13 +10,14 @@ use swc_core::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::{DiskFileSystem, File, FileContent, FileSystem};
 use turbopack_core::{
+    asset::AssetContent,
     compile_time_info::CompileTimeInfo,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
-    file_source::FileSource,
     free_var_references,
     ident::Layer,
+    virtual_source::VirtualSource,
 };
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
@@ -27,6 +28,7 @@ use crate::{
 
 #[fixture("tests/references/**/input.js")]
 fn fixture(input: PathBuf) {
+    let source = RcStr::from(std::fs::read_to_string(&input).unwrap());
     let input = RcStr::from(input.to_str().unwrap());
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -39,13 +41,17 @@ fn fixture(input: PathBuf) {
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            fixture_op(input.clone(), AnalyzeMode::code_generation())
+            fixture_op(
+                input.clone(),
+                source.clone(),
+                AnalyzeMode::code_generation(),
+            )
+            .read_strongly_consistent()
+            .await?;
+            fixture_op(input.clone(), source.clone(), AnalyzeMode::tracing())
                 .read_strongly_consistent()
                 .await?;
-            fixture_op(input.clone(), AnalyzeMode::tracing())
-                .read_strongly_consistent()
-                .await?;
-            fixture_op(input, AnalyzeMode::code_generation_and_tracing())
+            fixture_op(input, source, AnalyzeMode::code_generation_and_tracing())
                 .read_strongly_consistent()
                 .await?;
             anyhow::Ok(())
@@ -58,6 +64,7 @@ fn fixture(input: PathBuf) {
 async fn setup(
     root_dir: &str,
     file: &str,
+    source: &str,
     analyze_mode: AnalyzeMode,
 ) -> Result<ResolvedVc<EcmascriptModuleAsset>> {
     let fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(root_dir.into()));
@@ -92,9 +99,12 @@ async fn setup(
 
     let module = EcmascriptModuleAsset::builder(
         ResolvedVc::upcast(
-            FileSource::new(fs.root().await?.join(file).unwrap())
-                .to_resolved()
-                .await?,
+            VirtualSource::new(
+                fs.root().await?.join(file)?,
+                AssetContent::file(FileContent::Content(File::from(source)).cell()),
+            )
+            .to_resolved()
+            .await?,
         ),
         ResolvedVc::upcast(module_asset_context),
         EcmascriptInputTransforms::empty().to_resolved().await?,
@@ -114,46 +124,61 @@ async fn setup(
 }
 
 #[turbo_tasks::function(operation, root)]
-async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<()> {
+async fn fixture_op(input: RcStr, source: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<()> {
     let input = PathBuf::from(input.as_str());
-    let module = setup(
-        input.parent().unwrap().to_str().unwrap(),
-        input.file_name().unwrap().to_str().unwrap(),
-        analyze_mode,
-    )
-    .await?;
+    let mut output = Vec::new();
+    // Fixtures can group independent modules using named sections. Keep them isolated so an
+    // access in one case cannot mask a missing access in another.
+    let mut cases: Vec<_> = source
+        .split("\n// CASE: ")
+        .skip(1)
+        .map(|case| case.split_once('\n').unwrap())
+        .collect();
+    let grouped = !cases.is_empty();
+    if !grouped {
+        cases.push((
+            input.file_stem().unwrap().to_str().unwrap(),
+            source.as_str(),
+        ));
+    }
+    for (name, source) in cases {
+        let module = setup(
+            input.parent().unwrap().to_str().unwrap(),
+            &format!("{name}.js"),
+            source,
+            analyze_mode,
+        )
+        .await?;
+        let analysis = analyze_ecmascript_module(*module, None).await?;
+        let env_var_info = analysis.env_var_info.await?;
 
-    let analysis = analyze_ecmascript_module(*module, None).await?;
+        let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
+            env_var_info.runtime.iter().partition_map(|(name, mode)| {
+                if *mode == EnvVarAccessMode::Read {
+                    Either::Left(name)
+                } else {
+                    Either::Right(name)
+                }
+            });
 
-    let env_var_info = analysis.env_var_info.await?;
+        let mut value = format!(
+            "runtime_all: {}\nruntime: {runtime_read:#?}",
+            env_var_info.runtime_all
+        );
+        if !runtime_existence.is_empty() {
+            value.push_str(&format!("\nruntime_existence: {runtime_existence:#?}"));
+        }
 
-    let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
-        env_var_info.runtime.iter().partition_map(|(name, mode)| {
-            if *mode == EnvVarAccessMode::Read {
-                Either::Left(name)
-            } else {
-                Either::Right(name)
-            }
+        output.push(if grouped {
+            format!("=== CASE: {name} ===\n{value}\n")
+        } else {
+            value
         });
-
-    let mut value = format!(
-        "runtime_all: {}\nruntime: {runtime_read:#?}",
-        env_var_info.runtime_all
-    );
-    if !runtime_existence.is_empty() {
-        value.push_str(&format!("\nruntime_existence: {runtime_existence:#?}"));
     }
 
-    NormalizedOutput::from(value)
-        .compare_to_file(input.with_file_name(format!(
-            "env-vars{}.snapshot",
-            match (analyze_mode.is_codegen, analyze_mode.trace_file_references,) {
-                (true, true) => "",
-                (true, false) => ".codegen",
-                (false, true) => ".tracing",
-                (false, false) => ".tracing-import-only",
-            }
-        )))
+    // Environment variable usage must be identical in all analysis modes.
+    NormalizedOutput::from(output.join("\n"))
+        .compare_to_file(input.with_file_name("env-vars.snapshot"))
         .unwrap();
 
     Ok(())
