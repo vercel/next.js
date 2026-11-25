@@ -37,12 +37,15 @@ export function captureOriginalEnv(): void {
 // Every variable set after the capture is dropped, so a variable the upgrade
 // itself needs must be set after this call or match isToolingPolicy.
 export function restoreOriginalEnv(): void {
-  if (!originalEnv) {
-    return
+  if (originalEnv) {
+    restoreEnv(originalEnv)
   }
+}
 
+// Puts `process.env` back to `snapshot`, keeping tooling policy set since.
+export function restoreEnv(snapshot: Env): void {
   const env = process.env as Env
-  const restored: Env = { ...originalEnv }
+  const restored: Env = { ...snapshot }
   for (const key of Object.keys(env)) {
     if (env[key] !== undefined && isToolingPolicy(key)) {
       restored[key] = env[key]
