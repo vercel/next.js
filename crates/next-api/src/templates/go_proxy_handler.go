@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Proxy calls next.Next and next.Rewrite from the next/go SDK, which only set
+// Proxy calls proxy.Next and proxy.Rewrite from next/go/proxy, which only set
 // control headers. This writer turns those headers into the proxy response.
 type nextGoProxyWriter struct {
 	http.ResponseWriter

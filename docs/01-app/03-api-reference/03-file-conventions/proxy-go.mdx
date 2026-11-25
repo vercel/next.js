@@ -11,12 +11,12 @@ package main
 
 import (
   "net/http"
-  "next/go"
+  "next/go/proxy"
 )
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("x-proxy", "go")
-  next.Next(w)
+  proxy.Next(w)
 }
 ```
 
@@ -24,68 +24,54 @@ To use it, enable `experimental.goRoutes`, follow the [Go setup](/docs/app/api-r
 
 ## Reference
 
-Import the `next/go` package for the Proxy helpers. Next.js adds it to your `go.mod` when you first import it.
+Import `next/go/proxy` for the Proxy helpers. Next.js adds the `next/go` module to your `go.mod` when you first import one of its packages.
 
-| Helper                                     | Behavior                                   |
-| ------------------------------------------ | ------------------------------------------ |
-| `next.Next(w, options...)`                 | Continue routing the request.              |
-| `next.Rewrite(w, destination, options...)` | Route the request to another URL.          |
-| Return without calling either              | Send the response written to `w` directly. |
+| Helper                                      | Behavior                                   |
+| ------------------------------------------- | ------------------------------------------ |
+| `proxy.Next(w, options...)`                 | Continue routing the request.              |
+| `proxy.Rewrite(w, destination, options...)` | Route the request to another URL.          |
+| Return without calling either               | Send the response written to `w` directly. |
 
 Use standard Go APIs for everything else, such as `http.Redirect` for redirects and `http.SetCookie` for cookies. When the request continues or is rewritten, cookies set with `http.SetCookie` are available through [`cookies()`](/docs/app/api-reference/functions/cookies) in the page or route that handles it.
 
-> **Good to know**: The package is named `next`. If a function already has a variable named `next`, such as a `next http.Handler` parameter, import the package under another name: `nextgo "next/go"`.
+### WithRequestHeaders
 
-### ProxyOptions
-
-`next.Next` and `next.Rewrite` accept an optional `next.ProxyOptions` value to change the headers of the request that continues:
-
-```go
-type ProxyOptions struct {
-  Request RequestOptions
-}
-
-type RequestOptions struct {
-  Headers http.Header
-}
-```
-
-`Request.Headers` replaces the request headers. Leave it `nil` to keep them unchanged, or pass an empty `http.Header{}` to remove them all. Go keeps the host in `r.Host` instead of `r.Header`, so set it explicitly when you clone the headers.
+Pass `proxy.WithRequestHeaders(headers)` to `proxy.Next` or `proxy.Rewrite` to replace the downstream request headers. Omit the option or use `proxy.WithRequestHeaders(nil)` to keep them unchanged. An empty `http.Header{}` removes them all.
 
 ## Examples
 
 ### Rewriting a request
 
-Call `next.Rewrite` to serve another path while keeping the original URL in the browser.
+Call `proxy.Rewrite` to serve another path while keeping the original URL in the browser.
 
 ```go filename="proxy.go" highlight={10,14}
 package main
 
 import (
   "net/http"
-  "next/go"
+  "next/go/proxy"
 )
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
   if r.URL.Path == "/old-path" {
-    next.Rewrite(w, "/new-path")
+    proxy.Rewrite(w, "/new-path")
     return
   }
 
-  next.Next(w)
+  proxy.Next(w)
 }
 ```
 
 ### Modifying request headers
 
-Clone the incoming headers, change them, and pass them in `ProxyOptions`.
+Clone the incoming headers, change them, and pass them with `proxy.WithRequestHeaders`. Go keeps the host in `r.Host` instead of `r.Header`, so set it explicitly when you clone the headers.
 
-```go filename="proxy.go" highlight={13-16}
+```go filename="proxy.go" highlight={10-14}
 package main
 
 import (
   "net/http"
-  "next/go"
+  "next/go/proxy"
 )
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
@@ -93,10 +79,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
   headers.Set("Host", r.Host)
   headers.Set("x-proxy", "go")
   headers.Del("x-example")
-  options := next.ProxyOptions{
-    Request: next.RequestOptions{Headers: headers},
-  }
-  next.Next(w, options)
+  proxy.Next(w, proxy.WithRequestHeaders(headers))
 }
 ```
 

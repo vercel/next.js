@@ -5,33 +5,37 @@ The `next/go` module is the Go SDK for Next.js Go handlers, enabled with
 
 ## Proxy helpers
 
-`proxy.go` continues or rewrites requests with `next.Next` and `next.Rewrite`:
+Import `next/go/proxy` to continue or rewrite requests in `proxy.go`:
 
 ```go
 package main
 
 import (
     "net/http"
-    "next/go"
+    "next/go/proxy"
 )
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
     if r.URL.Path == "/old-path" {
-        next.Rewrite(w, "/new-path")
+        proxy.Rewrite(w, "/new-path")
         return
     }
-    next.Next(w)
+    proxy.Next(w)
 }
 ```
 
-Both accept at most one `next.ProxyOptions` value, whose `Request.Headers`
-replaces the downstream request headers. They only set control headers on the
-response; Next.js turns them into the proxy result.
+Use `proxy.WithRequestHeaders(headers)` with either helper to replace downstream
+request headers. No option, or `proxy.WithRequestHeaders(nil)`, keeps them unchanged;
+`proxy.WithRequestHeaders(http.Header{})` removes them all. Options apply in order,
+so the last `WithRequestHeaders` wins.
+
+`next/go` is the module path, not an importable root package. Import its subpackages;
+a plain `route.go` needs only the standard library.
 
 ## Module mapping
 
 The SDK is the `next/go` module shipped inside the installed `next` package.
-Code that imports it must be in a Go module. Once your Go code imports it,
+Code that imports one of its packages must be in a Go module. Once it does,
 `next dev` and `next build` add a requirement and a directory replacement to its
 real location in `go.mod`. They log when they change `go.mod`, the same way they
 reconfigure `tsconfig.json`:
@@ -48,7 +52,7 @@ replacement, always at the installed Next.js version, without downloads or
 
 - **Requirement:** Go ignores a replacement for a module that is not required. The
   requirement is added only when a Go source in the project, its tests, or a
-  package it imports uses `next/go`, and is never removed, so it agrees with
+  package it imports uses a `next/go/*` package, and is never removed, so it agrees with
   `go mod tidy`. During `next dev`, it is added when a route or Proxy file, or a
   package one of them imports, starts importing `next/go`: Next.js updates
   `go.mod` when the handler recompiles, then Turbopack compiles it again.
@@ -60,7 +64,7 @@ replacement, always at the installed Next.js version, without downloads or
 - **Monorepos:** the `go.mod` can be in the application, in a directory nested in
   it, or at the workspace root, and `next` can be installed anywhere inside
   Turbopack's root (`turbopack.root`), such as the workspace's `node_modules`.
-- **Libraries:** a Go package that imports `next/go` requires `next/go v0.0.0` in
+- **Libraries:** a Go package that imports `next/go/proxy` requires `next/go v0.0.0` in
   its own `go.mod`. The application's replacement applies to it too, so nothing
   needs to be published. Its own replacement, for developing it on its own, is
   ignored by applications.
@@ -70,9 +74,6 @@ replacement, always at the installed Next.js version, without downloads or
   newer can use it, even though Next.js requires a Go 1.24 toolchain. Next.js does
   not change the `go` line, and Go does not raise it in `-mod=readonly` builds, so
   raise an older `go` line to at least 1.21.
-- **Package name:** the package is named `next`. In middleware that already has a
-  `next http.Handler` parameter, import it under another name, such as
-  `nextgo "next/go"`.
 
 Other requirements and `go.sum` are left to Go. Versioned replacements and Go
 workspaces are not supported.

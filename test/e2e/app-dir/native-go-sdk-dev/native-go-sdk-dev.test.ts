@@ -21,9 +21,9 @@ describe('next/go SDK in development', () => {
       'internal/greet/greet.go',
       `package greet
 
-import "next/go"
+import "next/go/proxy"
 
-var _ next.ProxyOptions
+var _ proxy.Option
 
 func Message() string { return "sdk" }
 `

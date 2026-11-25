@@ -345,7 +345,7 @@ describe('native-proxy-go', () => {
     { helper: 'Rewrite', mode: 'replace' },
     { helper: 'Rewrite', mode: 'empty' },
   ])(
-    '$helper applies ProxyOptions with $mode request headers',
+    '$helper applies WithRequestHeaders with $mode request headers',
     async ({ helper, mode }) => {
       const query = new URLSearchParams({
         headers: mode,
@@ -408,14 +408,14 @@ describe('native-proxy-go', () => {
   )
 
   it.each(['next', 'rewrite'])(
-    'rejects multiple options for %s without stopping the worker',
+    '%s uses the last WithRequestHeaders option',
     async (helper) => {
-      expect(
-        (await next.fetch(`/native-proxy/invalid-${helper}-options`)).status
-      ).toBe(500)
-      const following = await next.fetch('/native-proxy/inspect')
-      expect(following.status).toBe(200)
-      expect(following.headers.get('x-go-proxy')).toBe('yes')
+      const response = await next.fetch(
+        `/native-proxy/options?headers=multiple&rewrite=${helper === 'rewrite' ? '1' : '0'}`
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({ fromGo: 'last' })
+      expect(response.headers.get('x-go-proxy')).toBe('yes')
     }
   )
 

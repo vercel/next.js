@@ -32,10 +32,10 @@ const PROXY = `package main
 
 import (
 \t"net/http"
-\t"next/go"
+\t"next/go/proxy"
 )
 
-func Proxy(w http.ResponseWriter, r *http.Request) { next.Next(w) }
+func Proxy(w http.ResponseWriter, r *http.Request) { proxy.Next(w) }
 
 func main() { http.HandleFunc("/", Proxy) }
 `
@@ -139,7 +139,7 @@ afterEach(async () => {
     await writeModule(dir, 'example.com/app')
     await write(
       join(dir, 'internal/mw/mw.go'),
-      `package mw\n\nimport (\n\t"net/http"\n\t"next/go"\n)\n\nfunc Continue(w http.ResponseWriter) { next.Next(w) }\n`
+      `package mw\n\nimport (\n\t"net/http"\n\t"next/go/proxy"\n)\n\nfunc Continue(w http.ResponseWriter) { proxy.Next(w) }\n`
     )
     await write(
       join(dir, 'proxy.go'),
@@ -161,7 +161,7 @@ afterEach(async () => {
     const route = join(dir, 'app/(group)/items/[id]')
     await write(
       join(route, 'route.go'),
-      `package main\n\nimport (\n\t"net/http"\n\t"next/go"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { next.Next(w) }\n\nfunc main() {}\n`
+      `package main\n\nimport (\n\t"net/http"\n\t"next/go/proxy"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { proxy.Next(w) }\n\nfunc main() {}\n`
     )
     const sdkDir = await installNext(dir, '16.0.0')
 
@@ -198,7 +198,7 @@ afterEach(async () => {
       const route = join(dir, 'app', folder)
       await write(
         join(route, 'route.go'),
-        `package main\n\nimport (\n\t"net/http"\n\t"next/go"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { next.Next(w) }\n\nfunc main() {}\n`
+        `package main\n\nimport (\n\t"net/http"\n\t"next/go/proxy"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { proxy.Next(w) }\n\nfunc main() {}\n`
       )
       const sdkDir = await installNext(dir, '16.0.0')
 
