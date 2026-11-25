@@ -9,6 +9,7 @@ type RequestInsight = {
   route: string
   spans: Array<{
     name?: string
+    category: 'nextjs' | 'application' | 'opentelemetry'
     traceId?: string
     spanId?: string
     parentSpanId?: string
@@ -81,8 +82,8 @@ describe.each([
       )
 
       expect(redis).toMatchObject({
+        category: 'opentelemetry',
         attributes: {
-          'next.span_category': 'opentelemetry',
           'db.operation.name': 'GET',
           'db.pool.idle': 3,
           'db.query.summary': 'GET account:123',
@@ -116,9 +117,7 @@ describe.each([
     await retry(async () => {
       const request = await getOtelSpanRequest()
       const otelSpanNames = request.spans
-        .filter(
-          (span) => span.attributes?.['next.span_category'] === 'opentelemetry'
-        )
+        .filter((span) => span.category === 'opentelemetry')
         .map((span) => span.name)
         .sort()
       expect(otelSpanNames).toEqual(['redis GET', 'replica lookup'])

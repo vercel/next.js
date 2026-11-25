@@ -36,6 +36,7 @@ export function EmitRequestInsightsSnapshot() {
               spans: [
                 {
                   name: 'Run validation',
+                  category: 'nextjs',
                   startTime: startTime + 200,
                   durationMs: 1,
                   status: 'ok',

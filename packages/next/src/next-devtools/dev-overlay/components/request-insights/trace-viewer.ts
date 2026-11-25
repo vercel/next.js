@@ -10,7 +10,7 @@ export type TraceItem = {
   spanId?: string
   parentSpanId?: string
   spanType?: string
-  category: 'nextjs' | 'application' | 'opentelemetry'
+  category: RequestInsightSpan['category']
   label: string
   attributeLabel?: string
   fullLabel?: string
@@ -206,7 +206,7 @@ function getSpanTraceItem(
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     spanType: typeof type === 'string' ? type : undefined,
-    category: getSpanCategory(span),
+    category: span.category,
     label: getSpanLabel(span),
     attributeLabel: getSpanAttributeLabel(span),
     startTime: span.startTime,
@@ -235,7 +235,7 @@ function getFetchTraceItem(
     spanId: matchingSpan?.spanId,
     parentSpanId: matchingSpan?.parentSpanId,
     spanType: FETCH_SPAN_TYPE,
-    category: matchingSpan ? getSpanCategory(matchingSpan) : 'application',
+    category: matchingSpan?.category ?? 'application',
     label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
     attributeLabel: matchingSpan && getSpanAttributeLabel(matchingSpan),
     fullLabel: `${method} ${url.fullUrl}`,
@@ -380,29 +380,8 @@ function getFetchIndex(span: RequestInsightSpan): number | undefined {
   return typeof index === 'number' ? index : undefined
 }
 
-function getSpanCategory(
-  span: RequestInsightSpan
-): 'nextjs' | 'application' | 'opentelemetry' {
-  const category = span.attributes?.['next.span_category']
-  if (
-    category === 'nextjs' ||
-    category === 'application' ||
-    category === 'opentelemetry'
-  ) {
-    return category
-  }
-
-  if (span.attributes?.['next.span_type'] === FETCH_SPAN_TYPE) {
-    return 'application'
-  }
-
-  return typeof span.attributes?.['next.span_type'] === 'string'
-    ? 'nextjs'
-    : 'application'
-}
-
 function getSpanAttributeLabel(span: RequestInsightSpan): string | undefined {
-  if (getSpanCategory(span) !== 'opentelemetry') {
+  if (span.category !== 'opentelemetry') {
     return undefined
   }
 

@@ -162,9 +162,7 @@ export function hasRequestInsightProxyActivity(
 export function hasRequestInsightOpenTelemetryActivity(
   request: RequestInsight
 ): boolean {
-  return request.spans.some(
-    (span) => span.attributes?.['next.span_category'] === 'opentelemetry'
-  )
+  return request.spans.some((span) => span.category === 'opentelemetry')
 }
 
 function getRequestInsightCacheStatuses(request: RequestInsight): string[] {

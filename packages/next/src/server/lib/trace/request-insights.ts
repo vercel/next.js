@@ -12,6 +12,7 @@ import {
   type RequestInsightProxyStatus,
   type RequestInsightRelation,
   type RequestInsightSource,
+  getRequestInsightSpanCategory,
   type RequestInsightSpan,
   type RequestInsightsSnapshot,
 } from '../../../shared/lib/request-insights'
@@ -440,12 +441,13 @@ function nameRequestSpan(span: RequestInsightSpan, route: string): void {
 }
 
 function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
+  const category = getRequestInsightSpanCategory(span)
   // Spans from the user's own OpenTelemetry SDK are opted in by registering
   // the processor, so they keep every attribute.
-  const isUserOpenTelemetrySpan =
-    span.attributes?.['next.span_category'] === 'opentelemetry'
+  const isUserOpenTelemetrySpan = category === 'opentelemetry'
   return {
     name: sanitizeSpanName(span),
+    category,
     startTime: span.startTime ?? span.timestamp,
     durationMs: span.durationMs,
     status: span.status,

@@ -236,16 +236,14 @@ export function captureOpenTelemetrySpanRecorder():
     const isError = span.status.code === SpanStatusCode.ERROR
     recordSpan({
       name: span.name,
+      category: 'opentelemetry',
       startTime: hrTimeToMilliseconds(span.startTime),
       durationMs: hrTimeToMilliseconds(span.duration),
       status: isError ? 'error' : 'ok',
       traceId,
       spanId,
       parentSpanId: span.parentSpanContext?.spanId ?? span.parentSpanId,
-      attributes: {
-        ...cleanSpanStoreAttributes(span.attributes),
-        'next.span_category': 'opentelemetry',
-      },
+      attributes: cleanSpanStoreAttributes(span.attributes),
       events: span.events.length
         ? span.events.map((event) => ({
             name: event.name,

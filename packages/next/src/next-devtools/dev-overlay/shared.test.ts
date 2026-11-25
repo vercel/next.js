@@ -136,6 +136,7 @@ describe('updateRequestInsights', () => {
     let totalBytes = 0
     for (let index = 0; index < 200; index++) {
       request.spans.push({
+        category: 'application' as const,
         name: 'render component',
         startTime: 100,
         spanId: String(index),
@@ -149,13 +150,19 @@ describe('updateRequestInsights', () => {
     expect(updates.every((update) => update.spans.length === 1)).toBe(true)
     expect(totalBytes).toBeLessThan(firstHalfBytes * 2.1)
     expect(updates[0].spans).toEqual([
-      { name: 'render component', startTime: 100, spanId: '0' },
+      {
+        category: 'application' as const,
+        name: 'render component',
+        startTime: 100,
+        spanId: '0',
+      },
     ])
   })
 
   it('splits large batches into bounded deltas without losing records', () => {
     const request = createRequestInsight(25)
     request.spans = Array.from({ length: 300 }, (_, index) => ({
+      category: 'application' as const,
       name: `span ${index}`,
       startTime: index,
     }))
@@ -181,9 +188,21 @@ describe('updateRequestInsights', () => {
   })
 
   it('appends only the unseen portion of a delta after a snapshot', () => {
-    const firstSpan = { name: 'first', startTime: 100 }
-    const secondSpan = { name: 'second', startTime: 110 }
-    const thirdSpan = { name: 'third', startTime: 120 }
+    const firstSpan = {
+      category: 'application' as const,
+      name: 'first',
+      startTime: 100,
+    }
+    const secondSpan = {
+      category: 'application' as const,
+      name: 'second',
+      startTime: 110,
+    }
+    const thirdSpan = {
+      category: 'application' as const,
+      name: 'third',
+      startTime: 120,
+    }
     const firstFetch = { url: '/first', startTime: 100 }
     const secondFetch = { url: '/second', startTime: 120 }
     const snapshot = {
@@ -210,7 +229,9 @@ describe('updateRequestInsights', () => {
   it('preserves span and fetch arrays when only metadata changes', () => {
     const previous = {
       ...createRequestInsight(25),
-      spans: [{ name: 'render', startTime: 100 }],
+      spans: [
+        { category: 'application' as const, name: 'render', startTime: 100 },
+      ],
       fetches: [{ url: '/data', startTime: 100 }],
     }
     const update = {
@@ -239,7 +260,9 @@ describe('updateRequestInsights', () => {
       ...first,
       spanOffset: 0,
       fetchOffset: 0,
-      spans: [{ name: 'late work', startTime: 120 }],
+      spans: [
+        { category: 'application' as const, name: 'late work', startTime: 120 },
+      ],
     }
 
     expect(
@@ -254,7 +277,9 @@ describe('updateRequestInsights', () => {
       ...createRequestInsight(25),
       spanOffset: 5,
       fetchOffset: 0,
-      spans: [{ name: 'late work', startTime: 120 }],
+      spans: [
+        { category: 'application' as const, name: 'late work', startTime: 120 },
+      ],
     }
     expect(updateRequestInsights([], delta)).toEqual([])
   })
@@ -292,14 +317,26 @@ describe('updateRequestInsights', () => {
       requestId: 'page',
       completedAt: 1,
       spans: [
-        { name: 'page', startTime: 1, attributes: { 'next.rsc': false } },
+        {
+          category: 'application' as const,
+          name: 'page',
+          startTime: 1,
+          attributes: { 'next.rsc': false },
+        },
       ],
     }
     const rsc = {
       ...createRequestInsight(25),
       requestId: 'rsc',
       completedAt: 2,
-      spans: [{ name: 'rsc', startTime: 2, attributes: { 'next.rsc': true } }],
+      spans: [
+        {
+          category: 'application' as const,
+          name: 'rsc',
+          startTime: 2,
+          attributes: { 'next.rsc': true },
+        },
+      ],
     }
     const api = Array.from(
       { length: MAX_LIVE_COMPLETED_REQUEST_INSIGHTS },

@@ -1,7 +1,9 @@
 import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+  getRequestInsightSpanCategory,
   type RequestInsight,
   type RequestInsightRelation,
+  type RequestInsightSpan,
 } from '../../../shared/request-insights'
 import { getRequestInsightFilterResult } from './request-filters'
 import {
@@ -17,10 +19,14 @@ import {
   getTraceRange,
 } from './trace-viewer'
 
-function createRequest(
-  overrides: Partial<Omit<RequestInsight, keyof RequestInsightRelation>> &
-    RequestInsightRelation = {}
-): RequestInsight {
+type SpanFixture = Omit<RequestInsightSpan, 'category'> &
+  Partial<Pick<RequestInsightSpan, 'category'>>
+
+function createRequest({
+  spans = [],
+  ...overrides
+}: Partial<Omit<RequestInsight, keyof RequestInsightRelation | 'spans'>> &
+  RequestInsightRelation & { spans?: SpanFixture[] } = {}): RequestInsight {
   return {
     requestId: 'request-1',
     source: 'unknown',
@@ -28,9 +34,12 @@ function createRequest(
     startTime: 100,
     durationMs: 100,
     status: 'ok',
-    spans: [],
     fetches: [],
     ...overrides,
+    // In place, so tests can still assert the trace viewer leaves spans intact.
+    spans: spans.map((span) =>
+      Object.assign(span, { category: getRequestInsightSpanCategory(span) })
+    ),
   }
 }
 
@@ -142,6 +151,16 @@ describe('request insights trace viewer', () => {
       spans: [
         {
           name: 'database query',
+          category: 'opentelemetry',
+          startTime: 100,
+        },
+      ],
+    })
+    const spoofedOtel = createRequest({
+      requestId: 'spoofed-otel',
+      spans: [
+        {
+          name: 'custom span',
           startTime: 100,
           attributes: { 'next.span_category': 'opentelemetry' },
         },
@@ -168,7 +187,7 @@ describe('request insights trace viewer', () => {
     ).toEqual([asset])
     expect(
       getRequestInsightFilterResult(
-        [page, rsc, api, asset, otel],
+        [page, rsc, api, asset, otel, spoofedOtel],
         ['activity:opentelemetry']
       ).requests
     ).toEqual([otel])
