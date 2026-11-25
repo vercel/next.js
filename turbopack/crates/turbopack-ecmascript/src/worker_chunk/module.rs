@@ -108,10 +108,14 @@ pub struct WorkerLoaderModule {
 impl WorkerLoaderModule {
     /// Creates the loader for a worker reference found while chunking a chunk group.
     ///
-    /// `availability_info` is only meaningful for web workers, where it is what unrolls a
-    /// self-spawning worker (see `chunk_group`). The Node branch builds a
-    /// *self-contained* entry chunk and must not prune already-available modules, so it is
-    /// normalized to [`AvailabilityInfo::root()`] here.
+    /// Both worker types have to cope with a worker that spawns itself; they differ in what
+    /// their loader embeds (see the worker loader comment in `make_chunk_group`). A web worker
+    /// loader embeds the paths of all chunks of the worker's chunk group, which may be content
+    /// hashes, so `availability_info` is what unrolls a self-spawning web worker (see
+    /// `chunk_group`). A Node worker thread loader embeds only the ident-derived entry chunk path
+    /// (see `node_worker_entry_path`), and its entry chunk must stay self-contained
+    /// because the Node.js `createWorker` has no preload list. So it is normalized to
+    /// [`AvailabilityInfo::root()`] here.
     ///
     /// That normalization is only defensive. Callers must *already* pass
     /// [`AvailabilityInfo::root()`] for [`WorkerType::NodeWorkerThread`]: the recursion a
@@ -296,11 +300,8 @@ impl Module for WorkerLoaderModule {
     }
 
     #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
-        // The loader is created after graph construction and has no module references.
-        // Its caller references and passes the `createWorker` helper at runtime; the worker
-        // entry is reached by the caller's `ChunkingType::Worker` edge.
-        Vc::cell(vec![])
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        bail!("WorkerLoaderModule::references should never be called")
     }
 
     #[turbo_tasks::function]

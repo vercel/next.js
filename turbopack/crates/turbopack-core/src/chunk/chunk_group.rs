@@ -203,28 +203,41 @@ pub async fn make_chunk_group(
 
     // Insert worker loaders for every worker module.
     //
-    // A worker started by a page needs a self-contained chunk group: page module factories
-    // cannot be transferred to the worker runtime. Only a worker started *inside* another
-    // worker inherits the enclosing worker's available modules. Its already-loaded chunks can
-    // then be re-imported by the child worker; the self-reference is available and bottoms out.
-    // Set the flag on either path so subsequent worker references can distinguish that case.
+    // A worker that spawns itself is rediscovered while chunking its own chunk group. For both
+    // worker types that raises the same two hazards: the nested `worker_loader_chunk_item` call
+    // must not create a new task per nesting level, and the loader's code must not depend on the
+    // content of the chunk it is placed in (`chunk content -> chunk path -> chunk content`). The
+    // two types avoid them differently because their loaders embed different things.
     //
-    // Node worker threads get `AvailabilityInfo::root()` instead, for two reasons:
+    // A web worker loader embeds the paths of *all* chunks of the worker's chunk group, and
+    // those paths may be content hashes. So a self-spawning web worker must not list its own
+    // chunks again: a worker started *inside* another worker inherits the enclosing worker's
+    // availability, the self-reference is then available and bottoms out, and the child worker
+    // re-imports the enclosing worker's already-loaded chunks at runtime (see `createWorker`).
+    // A worker started by a page needs a self-contained chunk group instead, because page module
+    // factories cannot be transferred to the worker runtime. Set the flag on either path so
+    // subsequent worker references can distinguish that case.
     //
-    // - Their entry chunk must stay self-contained. A Node worker thread runs in a fresh thread
-    //   that loads only that entry chunk, with no equivalent of the browser `createWorker` preload
-    //   list, so pruning already-available modules would leave it without factories.
+    // A Node worker thread loader embeds only the path of the worker's entry chunk, which is
+    // derived from the module ident and passed explicitly to `root_entry_chunk_group`. It does
+    // not depend on any chunk content, so there is no content cycle. It gets
+    // `AvailabilityInfo::root()`:
+    //
+    // - Its entry chunk must stay self-contained. The Node.js `createWorker` has no equivalent of
+    //   the browser preload list, so pruning already-available modules would leave the worker
+    //   thread without module factories.
     // - It keeps the arguments of the `worker_loader_chunk_item` task — and therefore its
-    //   memoization key — independent of nesting depth. A worker that spawns itself (`new
-    //   Worker(__filename)`) is rediscovered while chunking its own entry chunk group, and that
-    //   rediscovery has to land on the *same* task, or every level would create a new one and
-    //   recurse without end. This has to happen here, before the task call: arguments are hashed to
-    //   find the cached cell, so normalizing inside the task body would be too late.
+    //   memoization key — independent of nesting depth, so the rediscovery lands on the *same*
+    //   task. This has to happen here, before the task call: arguments are hashed to find the
+    //   cached cell, so normalizing inside the task body would be too late.
     //
     //   Availability cannot be used to *detect* that recursion either: for
     //   `new Worker(__filename)` the target module is the module containing the call, so the
     //   enclosing chunk group already lists it as its own entry and it looks "available" even
     //   on the first, non-recursive call.
+    //
+    // If the Node worker entry path ever became content-hashed, this approach would no longer
+    // avoid the content cycle.
     //
     // The referring module references the `createWorker` helper and passes it to the loader
     // at runtime. No origin or helper lookup is needed here — worker entry modules need only be

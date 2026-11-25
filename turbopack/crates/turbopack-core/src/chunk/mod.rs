@@ -376,9 +376,8 @@ pub enum ChunkingType {
         inherit_async: bool,
         merge_tag: Option<RcStr>,
     },
-    /// A worker loader is placed into the referencing chunk and the module is loaded in a
-    /// separate worker chunk group. The loader is created late during chunking with the
-    /// current availability info, so self-referencing workers unroll like async imports.
+    /// A worker loader is placed into the referencing chunk and loads the
+    /// separate chunk group in which the module is placed.
     Worker { ty: WorkerType },
     /// The module not placed in chunk group, but its references are still followed. This is used
     /// for NFT, to list all unbundled files that are still needed at runtime (some static assets,

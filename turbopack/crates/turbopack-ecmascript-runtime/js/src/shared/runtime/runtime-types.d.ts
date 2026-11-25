@@ -54,7 +54,11 @@ type GetChunkRelativeURL = (
   basePath?: string
 ) => ChunkUrl
 
-/** The JS chunk paths whose module factories are installed in this runtime. */
+/**
+ * The paths of all chunks loaded in this runtime: JS chunks whose module
+ * factories are installed, and CSS chunks (including stylesheets from the
+ * initial HTML).
+ */
 type GetLoadedChunkPaths = () => ChunkPath[]
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports
