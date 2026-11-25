@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use next_core::app_structure::FileSystemPathVec;
-use turbo_tasks::{Completion, ResolvedVc, Vc};
+use turbo_tasks::{FixintU64, ResolvedVc, Vc};
 use turbopack_core::module_graph::GraphEntries;
 
 use crate::{
@@ -29,13 +29,13 @@ impl Endpoint for EmptyEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        Completion::new()
+    fn server_changed(self: Vc<Self>) -> Vc<FixintU64> {
+        Vc::cell(0)
     }
 
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        Completion::new()
+    fn client_changed(self: Vc<Self>) -> Vc<FixintU64> {
+        Vc::cell(0)
     }
 
     #[turbo_tasks::function]

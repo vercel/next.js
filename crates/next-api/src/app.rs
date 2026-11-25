@@ -42,7 +42,7 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FixintU64, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
@@ -1591,14 +1591,14 @@ impl Endpoint for GoEndpoint {
         .cell())
     }
     #[turbo_tasks::function]
-    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .project()
             .server_changed(*self.output().await?.output_assets))
     }
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        Completion::immutable()
+    fn client_changed(self: Vc<Self>) -> Vc<FixintU64> {
+        Vc::cell(0)
     }
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries> {
@@ -2884,7 +2884,7 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .await?
             .app_project
@@ -2893,7 +2893,7 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .await?
             .app_project

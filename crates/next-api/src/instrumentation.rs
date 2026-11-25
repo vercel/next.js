@@ -6,7 +6,7 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, ResolvedVc, Vc};
+use turbo_tasks::{FixintU64, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -249,13 +249,13 @@ impl Endpoint for InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self.await?.project.server_changed(self.output_assets()))
     }
 
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        Completion::immutable()
+    fn client_changed(self: Vc<Self>) -> Vc<FixintU64> {
+        Vc::cell(0)
     }
 
     #[turbo_tasks::function]

@@ -9,7 +9,7 @@ use next_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, OrderedAutoMap, ResolvedVc,
+    FixintU64, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, OrderedAutoMap, ResolvedVc,
     TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
@@ -93,9 +93,9 @@ pub trait Endpoint {
     fn output(self: Vc<Self>) -> Vc<EndpointOutput>;
     // fn write_to_disk(self: Vc<Self>) -> Vc<EndpointOutputPaths>;
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion>;
+    fn server_changed(self: Vc<Self>) -> Vc<FixintU64>;
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion>;
+    fn client_changed(self: Vc<Self>) -> Vc<FixintU64>;
     /// The entry modules for the modules graph.
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
@@ -308,22 +308,22 @@ pub async fn endpoint_write_to_disk_operation(
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_server_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
-) -> Result<Vc<Completion>> {
+) -> Result<Vc<FixintU64>> {
     Ok(if let Some(endpoint) = *endpoint.connect().await? {
         endpoint.server_changed()
     } else {
-        Completion::new()
+        Vc::cell(0)
     })
 }
 
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_client_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
-) -> Result<Vc<Completion>> {
+) -> Result<Vc<FixintU64>> {
     Ok(if let Some(endpoint) = *endpoint.connect().await? {
         endpoint.client_changed()
     } else {
-        Completion::new()
+        Vc::cell(0)
     })
 }
 

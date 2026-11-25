@@ -50,8 +50,8 @@ use tracing::{Instrument, field::Empty};
 use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
+    FixintU64, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue, OperationVc,
+    OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
     TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
     turbo_tasks,
 };
@@ -60,6 +60,7 @@ use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
     FileSystemPath, VirtualFileSystem, invalidation,
 };
+use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
 use turbo_unix_path::join_path;
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
@@ -68,7 +69,6 @@ use turbopack::{
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     asset::AssetContent,
-    changed::content_changed,
     chunk::{
         ChunkType, ChunkingContext, EvaluatableAssets, UnusedReferences,
         chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
@@ -3014,18 +3014,18 @@ impl Project {
         }
     }
 
-    /// Completion when server side changes are detected in output assets
+    /// Changes when server side changes are detected in output assets
     /// referenced from the roots
     #[turbo_tasks::function]
-    pub async fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Result<Vc<Completion>> {
+    pub async fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Result<Vc<FixintU64>> {
         let path = self.node_root().owned().await?;
         Ok(any_output_changed(roots, path, true))
     }
 
-    /// Completion when client side changes are detected in output assets
+    /// Changes when client side changes are detected in output assets
     /// referenced from the roots
     #[turbo_tasks::function]
-    pub async fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Result<Vc<Completion>> {
+    pub async fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Result<Vc<FixintU64>> {
         let path = self.client_root().owned().await?;
         Ok(any_output_changed(roots, path, false))
     }
@@ -3389,41 +3389,73 @@ pub struct BaseAndFullModuleGraph {
 }
 
 #[turbo_tasks::function]
-async fn any_output_changed(
+fn any_output_changed(
     roots: Vc<OutputAssets>,
     path: FileSystemPath,
     server: bool,
-) -> Result<Vc<Completion>> {
-    let all_assets = expand_output_assets(
+) -> Vc<FixintU64> {
+    output_assets_version(changed_output_assets(roots, path, server))
+}
+
+/// The output assets that [`any_output_changed`] observes. A separate cell, so that recomputing it
+/// without a different result doesn't report a change.
+#[turbo_tasks::function]
+async fn changed_output_assets(
+    roots: Vc<OutputAssets>,
+    path: FileSystemPath,
+    server: bool,
+) -> Result<Vc<OutputAssets>> {
+    let assets = expand_output_assets(
         roots.await?.into_iter().map(ExpandOutputAssetsInput::Asset),
         true,
     )
+    .await?
+    .into_iter()
+    .map(|asset| {
+        let path = path.clone();
+        async move {
+            let asset_path = asset.path().await?;
+            Ok((!asset_path.path.ends_with(".map")
+                && (!server || !asset_path.path.ends_with(".css"))
+                && asset_path.is_inside_ref(&path))
+            .then_some(asset))
+        }
+    })
+    .try_flat_join()
     .await?;
-    let completions = all_assets
-        .into_iter()
-        .map(|m| {
-            let path = path.clone();
+    Ok(Vc::cell(assets))
+}
 
-            async move {
-                let asset_path = m.path().await?;
-                if !asset_path.path.ends_with(".map")
-                    && (!server || !asset_path.path.ends_with(".css"))
-                    && asset_path.is_inside_ref(&path)
-                {
-                    anyhow::Ok(Some(
-                        content_changed(*ResolvedVc::upcast(m))
-                            .to_resolved()
-                            .await?,
-                    ))
-                } else {
-                    Ok(None)
-                }
-            }
+/// A version of the paths and contents of `assets`. It doesn't change when they are recomputed with
+/// the same output, e.g. as new cells after the module graph changed.
+#[turbo_tasks::function]
+async fn output_assets_version(assets: Vc<OutputAssets>) -> Result<Vc<FixintU64>> {
+    let salt = Vc::cell(RcStr::default());
+    let mut versions = assets
+        .await?
+        .iter()
+        .map(async |asset| {
+            anyhow::Ok((
+                asset.path().await?.path.clone(),
+                turbopack_core::asset::Asset::content(**asset)
+                    .content_hash(salt, HashAlgorithm::default())
+                    .owned()
+                    .await?,
+            ))
         })
-        .try_flat_join()
+        .try_join()
         .await?;
-
-    Ok(Vc::<Completions>::cell(completions).completed())
+    // While the graph is recomputed, an asset can briefly be reached both as its old and its new
+    // cell. With the same path and content, they are the same output.
+    versions.sort_unstable();
+    versions.dedup();
+    let mut hasher = Xxh3Hash64Hasher::new();
+    hasher.write_value(versions.len());
+    for (path, hash) in versions {
+        hasher.write_value(path.as_str());
+        hasher.write_value(hash.as_deref().unwrap_or_default());
+    }
+    Ok(Vc::cell(hasher.finish()))
 }
 
 #[turbo_tasks::function(operation, root)]
