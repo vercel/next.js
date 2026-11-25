@@ -19,7 +19,7 @@ use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
     GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
     filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_source_set, read_with_validated_inputs,
+    go_declarations, go_package_bundle_from_sources, go_source_set, read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -1455,6 +1455,521 @@ fn selected_bundle(
         GoBuildSession::persistent("source-set-test".into(), options),
         generated,
     )
+}
+
+#[turbo_tasks::function(operation, root)]
+fn selected_package_bundle(
+    sources: ResolvedVc<GoSourceSet>,
+    options: GoBuildOptions,
+    alias: RcStr,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    go_package_bundle_from_sources(
+        *sources,
+        GoBuildSession::persistent("source-set-test".into(), options),
+        alias,
+        generated,
+    )
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
+    let session = Session::new().await?;
+    // Neither `(group)` nor `[id]` may appear in a Go import path.
+    let directory = "app/(group)/café a 100%/[id]";
+    let handler = [
+        "package route",
+        "import (",
+        "\t\"embed\"",
+        "\t\"example.com/native-fixture/app/internal/greeting\"",
+        "\t\"example.com/native-fixture/internal/message\"",
+        ")",
+        "//go:embed assets/*",
+        "var assets embed.FS",
+        "func Message() string {",
+        "\tasset, _ := assets.ReadFile(\"assets/message.txt\")",
+        "\t// Embedded .go files keep their bytes; only package files get line directives.",
+        "\tif snippet, _ := assets.ReadFile(\"assets/snippet.go\"); string(snippet) != \"package \
+         snippet\\n\" {",
+        "\t\tpanic(\"embedded snippet changed: \" + string(snippet))",
+        "\t}",
+        "\treturn sibling() + \":\" + string(asset) + \":\" + message.Text() + \":\" + \
+         greeting.Text() + \":\" + Generated()",
+        "}",
+    ]
+    .join("\n");
+    session
+        .write(&format!("{directory}/handler.go"), &handler)
+        .await?;
+    session
+        .write(
+            &format!("{directory}/sibling.go"),
+            "package route\n\nfunc sibling() string { return \"sibling-v1\" }\n",
+        )
+        .await?;
+    session
+        .write(&format!("{directory}/assets/message.txt"), "asset-v1")
+        .await?;
+    session
+        .write(
+            &format!("{directory}/assets/snippet.go"),
+            "package snippet\n",
+        )
+        .await?;
+    // Go excludes this generator from the package, so its package clause does not conflict.
+    session
+        .write(
+            &format!("{directory}/gen.go"),
+            "//go:build ignore\n\npackage main\n\nfunc main() {}\n",
+        )
+        .await?;
+    // `app/internal` is only visible to packages below `app`, so the alias must stay there.
+    session
+        .write(
+            "app/internal/greeting/greeting.go",
+            "package greeting\n\nfunc Text() string { return \"greeting\" }\n",
+        )
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let alias = rcstr!("app/_next_go_route_example");
+    let generated = BTreeMap::from([
+        (
+            rcstr!("app/_next_go_main/main.go"),
+            RcStr::from(
+                [
+                    "package main",
+                    "import (",
+                    "\t\"fmt\"",
+                    "\troute \"example.com/native-fixture/app/_next_go_route_example\"",
+                    ")",
+                    "func main() { fmt.Print(route.Message()) }",
+                ]
+                .join("\n"),
+            ),
+        ),
+        (
+            rcstr!("app/_next_go_route_example/zz_generated.go"),
+            rcstr!("package route\n\nfunc Generated() string { return \"generated\" }\n"),
+        ),
+    ]);
+    let build = || {
+        let root = root.clone();
+        let options = options.clone();
+        let alias = alias.clone();
+        let generated = generated.clone();
+        let tt = session.tt.clone();
+        async move {
+            tt.run_once(async move {
+                read_with_validated_inputs(
+                    || {
+                        let root = root.clone();
+                        let options = options.clone();
+                        let alias = alias.clone();
+                        let generated = generated.clone();
+                        async move {
+                            let sources = selected_sources(
+                                root.clone(),
+                                root.join(directory)?,
+                                GoSourceSelection::Directory,
+                                options.clone(),
+                            )
+                            .resolve()
+                            .strongly_consistent()
+                            .await?;
+                            assert_eq!(
+                                sources.await?.module_path.as_deref(),
+                                Some("example.com/native-fixture")
+                            );
+                            selected_package_bundle(sources, options, alias, generated)
+                                .read_strongly_consistent()
+                                .await
+                        }
+                    },
+                    |value| Some(&**value),
+                )
+                .await
+            })
+            .await
+        }
+    };
+    let session_ref = &session;
+    let output = move |result: turbo_tasks::ReadRef<GoBundleResult>| {
+        let tt = session_ref.tt.clone();
+        async move {
+            let bytes = tt
+                .run_once(async move {
+                    let GoBuildOutcome::Success(file) = &result.outcome else {
+                        anyhow::bail!("unexpected result: {:?}", result.outcome);
+                    };
+                    let file = file.await?;
+                    let FileContent::Content(file) = &*file else {
+                        anyhow::bail!("missing executable");
+                    };
+                    let mut bytes = vec![];
+                    file.read().read_to_end(&mut bytes)?;
+                    anyhow::Ok(bytes)
+                })
+                .await?;
+            session_ref.run_bytes(bytes).await
+        }
+    };
+    let first = output(build().await?).await?;
+    assert!(
+        first.starts_with("sibling-v1:asset-v1:") && first.ends_with(":greeting:generated"),
+        "{first}"
+    );
+    assert!(
+        std::fs::read_dir(session.project.join("app"))?.all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("_next_go")),
+        "virtual package directories must not be written to the project"
+    );
+    // Sources, embedded files, and their directory inventories remain compiler inputs.
+    session
+        .write(
+            &format!("{directory}/sibling.go"),
+            "package route\n\nfunc sibling() string { return \"sibling-v2\" }\n",
+        )
+        .await?;
+    assert!(
+        output(build().await?)
+            .await?
+            .starts_with("sibling-v2:asset-v1:")
+    );
+    session
+        .write(&format!("{directory}/assets/message.txt"), "asset-v2")
+        .await?;
+    assert!(
+        output(build().await?)
+            .await?
+            .starts_with("sibling-v2:asset-v2:")
+    );
+    // Diagnostics name the source files, not the virtual package directory.
+    session
+        .write(
+            &format!("{directory}/sibling.go"),
+            "package route\n\nfunc sibling() string { return missing() }\n",
+        )
+        .await?;
+    let result = build().await?;
+    let GoBuildOutcome::Failed(message) = &result.outcome else {
+        anyhow::bail!("unexpected result: {:?}", result.outcome);
+    };
+    let expected = session.project.join(directory).join("sibling.go:3:32:");
+    assert!(
+        message.contains(expected.to_str().unwrap()) && !message.contains("_next_go_route"),
+        "{message}"
+    );
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn embed_patterns_only_track_entries_they_can_match() -> Result<()> {
+    let session = Session::new().await?;
+    let directory = "app/[id]";
+    session
+        .write(
+            &format!("{directory}/route.go"),
+            &[
+                "package route",
+                "import \"embed\"",
+                "//go:embed message.txt",
+                "var message string",
+                "//go:embed *.tmpl",
+                "var templates embed.FS",
+                "func Message() string {",
+                "\ta, _ := templates.ReadFile(\"a.tmpl\")",
+                "\treturn message + \":\" + string(a)",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .await?;
+    session
+        .write(&format!("{directory}/message.txt"), "message-v1")
+        .await?;
+    session
+        .write(&format!("{directory}/a.tmpl"), "tmpl-a")
+        .await?;
+    // A file pattern or a leading wildcard must not mirror unrelated subtrees, such as
+    // `node_modules` beside a `proxy.go` at the project root.
+    session
+        .write(&format!("{directory}/node_modules/dep/index.js"), "")
+        .await?;
+    session
+        .write(&format!("{directory}/node_modules/dep/nested/index.js"), "")
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let alias = rcstr!("app/_next_go_route_example");
+    let generated = BTreeMap::from([(
+        rcstr!("app/_next_go_main/main.go"),
+        RcStr::from(
+            [
+                "package main",
+                "import (",
+                "\t\"fmt\"",
+                "\troute \"example.com/native-fixture/app/_next_go_route_example\"",
+                ")",
+                "func main() { fmt.Print(route.Message()) }",
+            ]
+            .join("\n"),
+        ),
+    )]);
+    let result = session
+        .tt
+        .run_once(async move {
+            read_with_validated_inputs(
+                || {
+                    let root = root.clone();
+                    let options = options.clone();
+                    let alias = alias.clone();
+                    let generated = generated.clone();
+                    async move {
+                        let sources = selected_sources(
+                            root.clone(),
+                            root.join(directory)?,
+                            GoSourceSelection::Directory,
+                            options.clone(),
+                        )
+                        .resolve()
+                        .strongly_consistent()
+                        .await?;
+                        selected_package_bundle(sources, options, alias, generated)
+                            .read_strongly_consistent()
+                            .await
+                    }
+                },
+                |value| Some(&**value),
+            )
+            .await
+        })
+        .await?;
+    let executable = result.clone();
+    let bytes = session
+        .tt
+        .run_once(async move {
+            let GoBuildOutcome::Success(file) = &executable.outcome else {
+                anyhow::bail!("unexpected result: {:?}", executable.outcome);
+            };
+            let file = file.await?;
+            let FileContent::Content(file) = &*file else {
+                anyhow::bail!("missing executable");
+            };
+            let mut bytes = vec![];
+            file.read().read_to_end(&mut bytes)?;
+            anyhow::Ok(bytes)
+        })
+        .await?;
+    assert_eq!(session.run_bytes(bytes).await?, "message-v1:tmpl-a");
+    let is_current = || {
+        let result = result.clone();
+        session
+            .tt
+            .run_once(async move { result.is_current().await })
+    };
+    assert!(is_current().await?, "an unchanged build must be current");
+    // Unmatched subtrees are not compiler inputs.
+    std::fs::write(
+        session
+            .project
+            .join(directory)
+            .join("node_modules/dep/added.js"),
+        "",
+    )?;
+    std::fs::write(
+        session
+            .project
+            .join(directory)
+            .join("node_modules/dep/nested/added.js"),
+        "",
+    )?;
+    assert!(is_current().await?, "unmatched subtrees must not be inputs");
+    // The directory a wildcard element is matched against remains an input.
+    std::fs::write(session.project.join(directory).join("b.tmpl"), "tmpl-b")?;
+    assert!(!is_current().await?, "new wildcard matches must be noticed");
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn go_mod_without_module_path_is_reported() -> Result<()> {
+    let session = Session::new().await?;
+    let directory = "app/no-module";
+    session
+        .write(&format!("{directory}/go.mod"), "go 1.24\n")
+        .await?;
+    session
+        .write(&format!("{directory}/route.go"), "package route\n")
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let error = session
+        .tt
+        .run_once(async move {
+            selected_sources(
+                root.clone(),
+                root.join(directory)?,
+                GoSourceSelection::Directory,
+                options,
+            )
+            .read_strongly_consistent()
+            .await
+        })
+        .await
+        .expect_err("a go.mod without a module path must not select sources");
+    let expected = format!(
+        "{}: no module declaration in go.mod",
+        session.project.join(directory).join("go.mod").display()
+    );
+    assert!(format!("{error:?}").contains(&expected), "{error:?}");
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn selected_declarations_follow_package_file_selection() -> Result<()> {
+    let session = Session::new().await?;
+    let directory = "app/[id]";
+    for (name, source) in [
+        ("route.go", "package route\nfunc GET() {}\n"),
+        (
+            "gen.go",
+            "//go:build ignore\n\npackage main\nfunc main() {}\n",
+        ),
+        ("other_plan9.go", "package other\nfunc POST() {}\n"),
+        ("cgo.go", "package route\nimport \"C\"\nfunc PUT() {}\n"),
+    ] {
+        session
+            .write(&format!("{directory}/{name}"), source)
+            .await?;
+    }
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let analyze = || {
+        let root = root.clone();
+        let options = options.clone();
+        session.tt.run_once(async move {
+            let sources = selected_sources(
+                root.clone(),
+                root.join(directory)?,
+                GoSourceSelection::Directory,
+                options.clone(),
+            )
+            .resolve()
+            .strongly_consistent()
+            .await?;
+            let declarations = selected_declarations(sources, options)
+                .read_strongly_consistent()
+                .await?;
+            Ok((sources, declarations))
+        })
+    };
+    let (_, declarations) = analyze().await?;
+    // Every parsed file is reported; only files Go compiles into the package are selected.
+    assert_eq!(
+        declarations.packages,
+        vec![rcstr!("main"), rcstr!("other"), rcstr!("route")]
+    );
+    assert_eq!(declarations.selected_packages, vec![rcstr!("route")]);
+    assert_eq!(declarations.selected_functions, vec![rcstr!("GET")]);
+    let build = |sources, package: &str| {
+        let options = options.clone();
+        let generated = BTreeMap::from([
+            (
+                rcstr!("app/_next_go_route/zz_generated.go"),
+                RcStr::from(format!("package {package}\n")),
+            ),
+            (
+                rcstr!("app/_next_go_main/main.go"),
+                rcstr!(
+                    "package main\nimport _ \
+                     \"example.com/native-fixture/app/_next_go_route\"\nfunc main() {}\n"
+                ),
+            ),
+        ]);
+        session.tt.run_once(async move {
+            selected_package_bundle(sources, options, rcstr!("app/_next_go_route"), generated)
+                .read_strongly_consistent()
+                .await
+        })
+    };
+    // Go checks the package clause of cgo files even when cgo is disabled.
+    session
+        .write(
+            &format!("{directory}/cgo.go"),
+            "package api\nimport \"C\"\nfunc PUT() {}\n",
+        )
+        .await?;
+    for handler in ["GET", "Proxy"] {
+        session
+            .write(
+                &format!("{directory}/route.go"),
+                &format!("package api\nfunc {handler}() {{ var value = }}\n"),
+            )
+            .await?;
+        let (sources, declarations) = analyze().await?;
+        assert_eq!(declarations.selected_packages, vec![rcstr!("api")]);
+        assert_eq!(declarations.selected_functions, vec![RcStr::from(handler)]);
+        assert!(!declarations.syntax_errors.is_empty());
+        // Consumers generate code using the recovered package and leave syntax errors to Go.
+        let package = declarations
+            .selected_packages
+            .first()
+            .map_or("route", |name| name.as_str());
+        let result = build(sources, package).await?;
+        let GoBuildOutcome::Failed(message) = &result.outcome else {
+            anyhow::bail!("unexpected result: {:?}", result.outcome);
+        };
+        assert!(
+            message.contains("route.go:2:") && message.contains("syntax error"),
+            "{message}"
+        );
+        assert!(
+            !message.contains("found packages") && !message.contains("zz_generated.go"),
+            "{message}"
+        );
+    }
+    session
+        .write(
+            &format!("{directory}/route.go"),
+            "package api\nfunc GET() {}\n",
+        )
+        .await?;
+    let (sources, declarations) = analyze().await?;
+    assert_eq!(declarations.selected_packages, vec![rcstr!("api")]);
+    assert!(declarations.syntax_errors.is_empty());
+    assert!(matches!(
+        build(sources, "api").await?.outcome,
+        GoBuildOutcome::Success(_)
+    ));
+    session
+        .write(
+            &format!("{directory}/route.go"),
+            "this is not a package clause\n",
+        )
+        .await?;
+    let (_, declarations) = analyze().await?;
+    assert!(declarations.selected_packages.is_empty());
+    assert!(!declarations.syntax_errors.is_empty());
+    session.stop().await;
+    Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

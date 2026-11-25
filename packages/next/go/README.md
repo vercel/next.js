@@ -8,7 +8,7 @@ The `next/go` module is the Go SDK for Next.js Go handlers, enabled with
 Import `next/go/proxy` to continue or rewrite requests in `proxy.go`:
 
 ```go
-package main
+package proxy
 
 import (
     "net/http"
@@ -52,8 +52,8 @@ replacement, always at the installed Next.js version, without downloads or
 
 - **Requirement:** added when a handler's selected source files, a Go package,
   its tests, or a dependency imports a `next/go/*` package. Handler directories
-  use the compiler's named-file selection, including build-tagged and
-  platform-suffixed siblings. Actual routes under `testdata` or `vendor` are
+  include build-tagged and platform-suffixed siblings so SDK requirements are
+  available across targets. Actual routes under `testdata` or `vendor` are
   included without treating unused Go fixture modules as application code.
   Next.js never removes a requirement. If `go mod tidy` removes one used only
   by a route that Go's wildcard patterns skip, Next.js adds it back when needed.

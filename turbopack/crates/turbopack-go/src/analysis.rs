@@ -1,5 +1,5 @@
 //! Cached Go syntax queries. Frameworks interpret declarations and generate their own entrypoints.
-use std::{collections::BTreeMap, io::Read, sync::atomic::Ordering};
+use std::{collections::BTreeMap, io::Read, path::Path, sync::atomic::Ordering};
 
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
@@ -20,6 +20,18 @@ pub struct GoDeclarations {
     /// All package-level functions of the analyzed files, including unexported names such as
     /// `main`. Methods are excluded.
     pub functions: Vec<RcStr>,
+    /// Package clauses recovered from parsed files, sorted and deduplicated, including files
+    /// with syntax errors. The compiler reports any disagreement between package clauses.
+    #[serde(default)]
+    pub packages: Vec<RcStr>,
+    /// `functions` restricted to files that Go's package file selection includes for the
+    /// session's GOOS, GOARCH and build tags, with cgo disabled. File name suffixes such as
+    /// `_windows.go` and `//go:build` constraints apply, as for an imported package.
+    #[serde(default)]
+    pub selected_functions: Vec<RcStr>,
+    /// `packages` restricted to the same selected files.
+    #[serde(default)]
+    pub selected_packages: Vec<RcStr>,
     /// Exported package-level `var` and `const` declarations of the analyzed files, keyed by
     /// name. Each value is a
     /// JSON document with the declaration's `pos`, whether it is `constant`, its file's
@@ -60,8 +72,14 @@ pub async fn go_declarations(
         })
         .collect::<Result<BTreeMap<_, _>>>()?;
     let input = serde_json::to_vec(&selected)?;
+    let arguments = [
+        format!("-goos={}", go_context.goos),
+        format!("-goarch={}", go_context.goarch),
+        format!("-tags={}", go_context.tags),
+    ];
+    let arguments: Vec<&Path> = arguments.iter().map(Path::new).collect();
     let report = match go_context
-        .run_executable_with_input(&path, &[], Some(&input))
+        .run_executable_with_input(&path, &arguments, Some(&input))
         .await
     {
         Ok(report) => report,

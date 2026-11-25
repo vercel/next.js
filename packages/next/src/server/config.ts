@@ -953,17 +953,14 @@ function assignDefaultsAndValidate(
     }
   }
 
-  // Normalize imgOptSafeMode: boolean | { nextImage?,
-  // imageResponse? } into a resolved object. `true` enables every feature, and
-  // omitted keys in the object form are disabled.
+  // Normalize imgOptSafeMode: boolean | { nextImage? } into a resolved object.
+  // `true` enables every feature, and omitted keys in the object form are
+  // disabled.
   const safeImgOpt = result.experimental.imgOptSafeMode
   const resolvedSafeImgOpt =
     typeof safeImgOpt === 'object'
-      ? {
-          nextImage: safeImgOpt.nextImage ?? false,
-          imageResponse: safeImgOpt.imageResponse ?? false,
-        }
-      : { nextImage: !!safeImgOpt, imageResponse: !!safeImgOpt }
+      ? { nextImage: safeImgOpt.nextImage ?? false }
+      : { nextImage: !!safeImgOpt }
   ;(result as NextConfigComplete).experimental.imgOptSafeMode =
     resolvedSafeImgOpt
 
