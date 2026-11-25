@@ -93,3 +93,37 @@ it('records symptom searches that precede late CLI discovery', () => {
     bundledDocsReads: [read],
   })
 })
+
+it('ignores dev logs and dependencies read before diagnosis', () => {
+  expect(
+    collect([
+      toolCall('file_read', { file_path: '/tmp/agent-063-next-dev.log' }),
+      toolCall('file_read', {
+        file_path: '/workspace/node_modules/next/dist/server/next-server.js',
+      }),
+      toolCall('shell', {
+        command: 'npx next experimental-request-insights list --json',
+      }),
+    ])
+  ).toMatchObject({ requestInsightsBeforeProjectInspection: true })
+})
+
+it('treats Grep and Glob tool calls like shell searches', () => {
+  const docsSearch = {
+    pattern: 'slow',
+    path: '/workspace/node_modules/next/dist/docs',
+  }
+  expect(
+    collect([
+      toolCall('grep', docsSearch),
+      toolCall('glob', { pattern: 'app/**/*.tsx' }),
+      toolCall('shell', {
+        command: 'npx next experimental-request-insights list --json',
+      }),
+    ])
+  ).toEqual({
+    requestInsightsBeforeProjectInspection: false,
+    bundledDocsSearches: [JSON.stringify(docsSearch)],
+    bundledDocsReads: [],
+  })
+})
