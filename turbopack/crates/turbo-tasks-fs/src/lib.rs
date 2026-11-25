@@ -51,7 +51,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 
 pub use crate::{
-    cell_rope::{CellRope, CellRopeBuilder, CellRopePart, OptionByteRange},
+    cell_rope::{CellRope, CellRopeBuilder, CellRopePart, ComposedFile, OptionByteRange},
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
         LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
@@ -93,6 +93,18 @@ pub trait FileSystem: ValueToString {
     fn raw_read_dir(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<RawDirectoryContent>;
     #[turbo_tasks::function]
     fn write(self: Vc<Self>, fs_path: FileSystemPath, content: Vc<FileContent>) -> Vc<()>;
+    /// Writes a file composed from other tasks' cells. See [`FileSystemPath::write_composed`].
+    ///
+    /// By default this writes the file's bytes with [`FileSystem::write`]. File systems that
+    /// persist writes can persist only the [`CellRope`] instead.
+    #[turbo_tasks::function]
+    fn write_composed(
+        self: Vc<Self>,
+        fs_path: FileSystemPath,
+        content: Vc<ComposedFile>,
+    ) -> Vc<()> {
+        self.write(fs_path, content.content())
+    }
     /// Creates a symbolic link. See [`WriteLinkContent`] and [`FileSystemPath::write_link`].
     #[turbo_tasks::function]
     fn write_link(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<WriteLinkContent>) -> Vc<()>;
