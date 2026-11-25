@@ -60,46 +60,16 @@ interface Worker {
   active: number
   retired: boolean
   killTimer: ReturnType<typeof setTimeout> | undefined
-  /** Pages already reported to the worker observer. */
-  announced: Set<string>
-}
-
-/**
- * What NativeRouteManager reports about its workers: a worker is ready to
- * serve a page, or a worker takes no new requests (it exited, or is being
- * retired). Switchyard (switchyard.ts) uses this to send
- * route.go requests to workers itself.
- */
-export type NativeRouteWorkerEvent =
-  | Readonly<{
-      event: 'worker'
-      page: string
-      address: string
-      tokenHeader: string
-      token: string
-    }>
-  | Readonly<{ event: 'gone'; address: string }>
-
-let workerObserver: ((event: NativeRouteWorkerEvent) => void) | undefined
-
-/** Registers the one observer of every NativeRouteManager's workers. */
-export function observeNativeRouteWorkers(
-  observer: (event: NativeRouteWorkerEvent) => void
-) {
-  workerObserver = observer
-}
-
-function reportGone(worker: Worker) {
-  if (worker.announced.size === 0) return
-  worker.announced.clear()
-  workerObserver?.({ event: 'gone', address: `127.0.0.1:${worker.port}` })
 }
 
 /** Owns worker activation and lifetime, never compilation or filesystem watching. */
 export class NativeRouteManager {
   private workers = new Map<string, Promise<Worker>>()
   private routes = new Map<string, string>()
-  private executablePaths = new Map<string, string | Promise<string>>()
+  private executablePaths = new Map<
+    string,
+    Promise<{ executable: string; assets?: string }>
+  >()
   private closed = false
   private activePages: ReadonlySet<string> | undefined
   private allWorkers = new Set<Worker>()
@@ -109,7 +79,9 @@ export class NativeRouteManager {
     private readonly dev: boolean
   ) {}
 
-  private async readExecutable(entry: string): Promise<string> {
+  private async readExecutable(
+    entry: string
+  ): Promise<{ executable: string; assets?: string }> {
     const descriptor = JSON.parse(
       await fs.readFile(
         /* turbopackIgnore: true */ join(
@@ -144,7 +116,12 @@ export class NativeRouteManager {
     if (localPath.startsWith('..') || isAbsolute(localPath)) {
       throw new Error('Native route executable is outside the server output')
     }
-    return executable
+    return {
+      executable,
+      assets: descriptor.assets
+        ? Buffer.from(JSON.stringify(descriptor.assets)).toString('base64')
+        : undefined,
+    }
   }
 
   private async start(executable: string): Promise<Worker> {
@@ -180,7 +157,6 @@ export class NativeRouteManager {
       active: 0,
       retired: false,
       killTimer: undefined,
-      announced: new Set(),
     }
     try {
       worker.port = await new Promise<number>((resolve, reject) => {
@@ -247,7 +223,6 @@ export class NativeRouteManager {
     )
     child.once('exit', () => {
       worker.retired = true
-      reportGone(worker)
       worker.agent.destroy()
       clearTimeout(worker.killTimer)
       this.allWorkers.delete(worker)
@@ -268,7 +243,6 @@ export class NativeRouteManager {
 
   private retire(worker: Worker) {
     worker.retired = true
-    reportGone(worker)
     worker.killTimer ??= setTimeout(() => worker.child.kill('SIGKILL'), 21_000)
     worker.killTimer.unref()
     if (worker.active === 0) {
@@ -277,19 +251,18 @@ export class NativeRouteManager {
     }
   }
 
-  private async getWorker(page: string, entry: string): Promise<Worker> {
+  private async getWorker(
+    page: string,
+    entry: string
+  ): Promise<{ worker: Worker; assets?: string }> {
     if (this.closed) throw new Error('Next.js server is closing')
     // Development output can change between requests; production output cannot.
-    let executable = this.dev ? undefined : this.executablePaths.get(entry)
-    if (!executable) {
-      executable = this.readExecutable(entry)
-      if (!this.dev) this.executablePaths.set(entry, executable)
+    let descriptor = this.dev ? undefined : this.executablePaths.get(entry)
+    if (!descriptor) {
+      descriptor = this.readExecutable(entry)
+      if (!this.dev) this.executablePaths.set(entry, descriptor)
     }
-    if (typeof executable !== 'string') {
-      const resolved = await executable
-      if (!this.dev) this.executablePaths.set(entry, resolved)
-      executable = resolved
-    }
+    const { executable, assets } = await descriptor
     if (this.closed) throw new Error('Next.js server is closing')
     if (this.activePages && !this.activePages.has(page)) {
       throw new Error('Native route was removed; retry the request')
@@ -321,17 +294,7 @@ export class NativeRouteManager {
       this.workers.delete(previous)
       old?.then((value) => this.retire(value)).catch(() => {})
     }
-    if (workerObserver && !worker.announced.has(page)) {
-      worker.announced.add(page)
-      workerObserver({
-        event: 'worker',
-        page,
-        address: `127.0.0.1:${worker.port}`,
-        tokenHeader: 'x-next-internal-go-token',
-        token: worker.token,
-      })
-    }
-    return worker
+    return { worker, assets }
   }
 
   async invoke(
@@ -341,34 +304,25 @@ export class NativeRouteManager {
     res: ServerResponse,
     url: string
   ): Promise<void> {
-    const worker = await this.getWorker(page, entry)
+    const { worker, assets } = await this.getWorker(page, entry)
     // Disconnects during descriptor resolution or startup predate the
     // transport listeners below. Do not dispatch those requests to Go.
     if (req.aborted || res.destroyed) return
     worker.active++
     try {
-      await proxyNativeRequest(req, res, url, worker)
+      await proxyNativeRequest(req, res, url, worker, assets)
     } finally {
       worker.active--
       if (worker.retired) this.retire(worker)
     }
   }
 
-  /**
-   * Return a response to Next's middleware adapter without finishing the client
-   * response. `originalUrl` is the URL before the adapter's proxy.ts
-   * normalization: proxy.go applies its own, stricter normalization.
-   */
-  async invokeMiddleware(
-    entry: string,
-    req: Request,
-    originalUrl: string = req.url
-  ): Promise<Response> {
+  /** Return a response to Next's middleware adapter without finishing the client response. */
+  async invokeMiddleware(entry: string, req: Request): Promise<Response> {
     req.signal.throwIfAborted()
-    const worker = await this.getWorker('/_middleware', entry)
+    const { worker } = await this.getWorker('/_middleware', entry)
     req.signal.throwIfAborted()
     const url = new URL(req.url)
-    const target = new URL(originalUrl)
     const headers: Record<string, string> = Object.create(null)
     for (const [name, value] of req.headers) {
       if (
@@ -407,8 +361,7 @@ export class NativeRouteManager {
           port: worker.port,
           agent: worker.agent,
           method: req.method,
-          // Forward the URL exactly, including an empty query.
-          path: target.href.slice(target.origin.length).split('#', 1)[0],
+          path: url.pathname + url.search,
           headers,
         })
         upstream = connection

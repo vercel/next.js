@@ -134,6 +134,22 @@ afterEach(async () => {
     expect(Log.info).not.toHaveBeenCalled()
   })
 
+  it('maps the same module for an assets-only import', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app', '1.21')
+    await write(
+      join(dir, 'app/api/route.go'),
+      `package main\n\nimport "next/go/assets"\n\nvar client = assets.Browser("app/client.ts")\n\nfunc main() {}\n`
+    )
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+    expect(await goMod(dir)).not.toMatch(/require next\/go\/(assets|proxy)/)
+    expect(() => build(join(dir, 'app/api'), ['route.go'])).not.toThrow()
+  })
+
   it('detects imports through local packages', async () => {
     const dir = await temporaryDirectory()
     await writeModule(dir, 'example.com/app')
