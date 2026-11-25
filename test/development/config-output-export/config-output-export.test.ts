@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  gate,
   waitForRedbox,
   waitForNoRedbox,
   getRedboxHeader,
@@ -193,7 +194,11 @@ describe('config-output-export', () => {
 
     it('should error with api routes function', async () => {
       const response = await next.fetch('/api/wow')
-      expect(response.status).toBe(404)
+      // Turbopack reports the check as an error issue, which every request
+      // shows until it is fixed. Webpack only logs it.
+      expect(response.status).toBe(
+        (await gate((conditions) => conditions.turbopack)) ? 500 : 404
+      )
       await retry(async () => {
         expect(next.cliOutput).toContain(
           'API Routes cannot be used with "output: export".'

@@ -21,11 +21,10 @@ use crate::{
         metadata::{
             GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
             match_local_metadata_file, normalize_metadata_route,
-            route::metadata_route_info_for_discovery,
         },
     },
     next_import_map::get_next_package,
-    route_discovery::{AuthoredFile, DevelopmentDiscovery, app_file_kind, authored_slot},
+    route_discovery::{AuthoredLayout, DevelopmentDiscovery, authored_slot},
 };
 
 // Next.js ignores underscores for routes but you can use %5f to still serve an underscored
@@ -190,8 +189,6 @@ pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
     pub subdirectories: BTreeMap<RcStr, ResolvedVc<DirectoryTree>>,
     pub modules: AppDirModules,
-    /// Candidates before route selection, including duplicate source extensions.
-    pub authored_files: Vec<AuthoredFile>,
     pub has_source_files: bool,
 }
 
@@ -314,7 +311,9 @@ impl DirectoryTree {
     }
 }
 
-/// Authored tooling information deliberately precedes loader-tree pruning and endpoint creation.
+/// Development facts that App routes don't carry: layouts, which have route types but no
+/// endpoint, parallel-route slots, and whether a root `not-found` file exists. Slots are read
+/// before loader-tree pruning, so a slot declared by a helper file still gets its type.
 #[turbo_tasks::function]
 pub async fn development_discovery(
     app_dir: FileSystemPath,
@@ -325,7 +324,6 @@ pub async fn development_discovery(
         has_root_not_found: root.await?.modules.not_found.is_some(),
         ..Default::default()
     };
-    let extensions = page_extensions.await?;
     let mut queue = vec![(String::new(), root.to_resolved().await?)];
     while let Some((prefix, tree)) = queue.pop() {
         let tree = tree.await?;
@@ -335,59 +333,18 @@ pub async fn development_discovery(
         {
             discovery.slots.push(slot);
         }
-        for candidate in &tree.authored_files {
-            // Global metadata conventions are only routes at the App root.
-            if candidate.kind == "app-metadata"
-                && !prefix.is_empty()
-                && match_global_metadata_file(candidate.source.file_name(), &extensions).is_some()
-            {
-                continue;
-            }
-            let mut candidate = candidate.clone();
-            if candidate.kind == "app-metadata" {
-                let dynamic = match_local_metadata_file(candidate.source.file_name(), &extensions)
-                    .map(|metadata| metadata.dynamic)
-                    .or_else(|| {
-                        match_global_metadata_file(candidate.source.file_name(), &extensions)
-                            .map(|metadata| metadata.dynamic)
-                    })
-                    .unwrap_or(false);
-                let metadata = if dynamic {
-                    MetadataItem::Dynamic {
-                        path: candidate.source.clone(),
-                    }
-                } else {
-                    MetadataItem::Static {
-                        path: candidate.source.clone(),
-                    }
-                };
-                // Malformed authored paths still belong in the tooling inventory while native
-                // entrypoint discovery reports the route diagnostic. Valid but pruned branches
-                // receive the same metadata URL as executable branches.
-                if let Ok(parent) = AppPage::parse(&normalize_underscore(&prefix)) {
-                    let name = get_metadata_route_name(metadata.clone()).await?;
-                    // Metadata nested inside a catch-all segment has no URL; entrypoint
-                    // discovery reports it, and the file stays in the inventory unnamed.
-                    if let Some(page) = parent
-                        .clone_push_str(&name)
-                        .ok()
-                        .and_then(|page| normalize_metadata_route(page).ok())
-                    {
-                        let info = metadata_route_info_for_discovery(page, metadata).await?;
-                        candidate.runtime_pathname =
-                            Some(AppPath::from(info.page.clone()).to_string().into());
-                    }
-                }
-            }
-            candidate.original_name = format!("{prefix}/{}", candidate.original_name).into();
-            discovery.files.push(candidate);
+        if let Some(layout) = &tree.modules.layout {
+            discovery.layouts.push(AuthoredLayout {
+                original_name: format!("{prefix}/layout").into(),
+                source: layout.clone(),
+            });
         }
         for (name, child) in tree.subdirectories.iter().rev() {
             queue.push((format!("{prefix}/{name}"), *child));
         }
     }
     discovery
-        .files
+        .layouts
         .sort_by(|a, b| a.source.path.cmp(&b.source.path));
     Ok(Vc::cell(Some(discovery)))
 }
@@ -437,7 +394,6 @@ async fn get_directory_tree_internal(
         return Ok(DirectoryTree {
             subdirectories: Default::default(),
             modules: AppDirModules::default(),
-            authored_files: Vec::new(),
             has_source_files: false,
         }
         .cell());
@@ -446,7 +402,6 @@ async fn get_directory_tree_internal(
 
     let mut subdirectories = BTreeMap::new();
     let mut modules = AppDirModules::default();
-    let mut authored_files = Vec::new();
     let mut has_source_files = false;
 
     let mut metadata_icon = Vec::new();
@@ -480,14 +435,6 @@ async fn get_directory_tree_internal(
                 if let Some((stem, ext)) = basename.split_once('.')
                     && (page_extensions_value.iter().any(|e| e == ext) || basename == "route.go")
                 {
-                    if let Some(kind) = app_file_kind(stem) {
-                        authored_files.push(AuthoredFile {
-                            kind,
-                            original_name: stem.into(),
-                            source: file.clone(),
-                            runtime_pathname: None,
-                        });
-                    }
                     match stem {
                         "page" => modules.page = Some(file.clone()),
                         "layout" => modules.layout = Some(file.clone()),
@@ -520,13 +467,6 @@ async fn get_directory_tree_internal(
                     || match_global_metadata_file(basename, &page_extensions_value).is_some()
                 {
                     has_source_files = true;
-                    let stem = basename.rsplit_once('.').map_or(basename.as_str(), |(stem, _)| stem);
-                    authored_files.push(AuthoredFile {
-                        kind: rcstr!("app-metadata"),
-                        original_name: stem.into(),
-                        source: file.clone(),
-                        runtime_pathname: None,
-                    });
                 }
 
                 let Some(MetadataFileMatch {
@@ -598,11 +538,9 @@ async fn get_directory_tree_internal(
     modules.metadata.twitter = sort(metadata_twitter);
     modules.metadata.open_graph = sort(metadata_open_graph);
 
-    authored_files.sort_by(|a, b| a.source.path.cmp(&b.source.path));
     Ok(DirectoryTree {
         subdirectories,
         modules,
-        authored_files,
         has_source_files,
     }
     .cell())
@@ -634,16 +572,18 @@ impl AppPageLoaderTree {
         }
     }
 
-    /// Structural page identities that participate in the finalized loader tree. These may
-    /// include pages from parallel branches that have no separate endpoint for this URL.
-    pub fn collect_app_paths(&self, pages: &mut FxIndexSet<RcStr>) -> Result<()> {
-        if self.modules.page.is_some() {
+    /// Structural page identities that participate in the finalized loader tree, each with its
+    /// page file. These may include pages from parallel branches that have no separate endpoint
+    /// for this URL.
+    pub fn collect_app_paths(&self, pages: &mut FxIndexMap<RcStr, FileSystemPath>) -> Result<()> {
+        if let Some(page) = &self.modules.page {
             pages.insert(
                 self.page
                     .clone()
                     .complete(PageType::Page)?
                     .to_string()
                     .into(),
+                page.clone(),
             );
         }
         for tree in self.parallel_routes.values() {

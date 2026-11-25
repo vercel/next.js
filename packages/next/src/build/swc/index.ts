@@ -537,16 +537,19 @@ function bindingToApi(
   } & (
     | {
         type: 'page'
+        sourcePath: string
         htmlEndpoint: NapiEndpoint
         dataEndpoint: NapiEndpoint
       }
     | {
         type: 'page-api'
+        sourcePath: string
         endpoint: NapiEndpoint
       }
     | {
         type: 'app-page'
         appPaths: string[]
+        appPathSources: string[]
         isInternal: boolean
         pages: {
           originalName: string
@@ -557,6 +560,7 @@ function bindingToApi(
     | {
         type: 'app-route' | 'app-route-go'
         originalName: string
+        sourcePath: string
         runtimePage: string
         runtimePathname: string
         staticMetadataSource?: string
@@ -776,13 +780,9 @@ function bindingToApi(
             )
           } else {
             yield {
-              value: {
-                development: (
-                  entrypoints.value as Partial<NapiEntrypoints> | null
-                )?.development,
-              },
+              value: {},
               issues: entrypoints.issues,
-            } as TurbopackResult<Pick<RawEntrypoints, 'development'>>
+            } as TurbopackResult<{}>
           }
         }
       })()
@@ -1249,6 +1249,7 @@ function bindingToApi(
         case 'page':
           route = {
             type: 'page',
+            sourcePath: nativeRoute.sourcePath,
             htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
             dataEndpoint: new EndpointImpl(nativeRoute.dataEndpoint),
           }
@@ -1256,6 +1257,7 @@ function bindingToApi(
         case 'page-api':
           route = {
             type: 'page-api',
+            sourcePath: nativeRoute.sourcePath,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }
           break
@@ -1263,6 +1265,10 @@ function bindingToApi(
           route = {
             type: 'app-page',
             appPaths: nativeRoute.appPaths,
+            pageFiles: nativeRoute.appPaths.map((appPath, index) => ({
+              appPath,
+              sourcePath: nativeRoute.appPathSources[index],
+            })),
             isInternal: nativeRoute.isInternal,
             pages: nativeRoute.pages.map((page) => ({
               originalName: page.originalName,
@@ -1276,6 +1282,7 @@ function bindingToApi(
           route = {
             type: nativeRoute.type,
             originalName: nativeRoute.originalName,
+            sourcePath: nativeRoute.sourcePath,
             runtimePage: nativeRoute.runtimePage,
             runtimePathname: nativeRoute.runtimePathname,
             staticMetadataSource: nativeRoute.staticMetadataSource,

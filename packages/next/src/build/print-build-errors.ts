@@ -21,6 +21,20 @@ export function isStrictRouteMatchingIssue(issue: Issue): boolean {
   )
 }
 
+const PAGES_FILE_ISSUE_TITLES = new Set([
+  'Duplicate page detected',
+  'Nested Middleware is not allowed',
+  'API Routes cannot be used with "output: export".',
+])
+
+/**
+ * The Pages Router file checks that Turbopack reports from its scan of the
+ * pages directory. They leave routes to serve, like strict route matching.
+ */
+export function isPagesFileIssue(issue: Issue): boolean {
+  return PAGES_FILE_ISSUE_TITLES.has(renderStyledStringToErrorAnsi(issue.title))
+}
+
 export function formatWarningsHeader(count: number): string {
   return `Turbopack build encountered ${count} ${count === 1 ? 'warning' : 'warnings'}:`
 }

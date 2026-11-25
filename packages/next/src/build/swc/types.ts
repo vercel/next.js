@@ -205,21 +205,11 @@ export interface Instrumentation {
   edge: Endpoint
 }
 
-/** Authored files used by development tooling, before routes are merged or pruned. */
-export interface AuthoredRouteFile {
-  kind:
-    | 'app-page'
-    | 'app-route'
-    | 'app-layout'
-    | 'app-default'
-    | 'app-special'
-    | 'app-metadata'
-    | 'pages'
-    | 'pages-api'
+/** An App layout. Layouts have route types but no route of their own. */
+export interface AuthoredLayout {
+  /** The layout's App path, e.g. `/(shop)/cart/layout`. */
   originalName: string
   sourcePath: string
-  /** Metadata routes can have a generated URL that differs from the authored filename. */
-  runtimePathname?: string
 }
 
 export interface AuthoredRouteSlot {
@@ -227,9 +217,9 @@ export interface AuthoredRouteSlot {
   parent: string
 }
 
-/** Development discovery is separate from the effective request-routing inventory. */
+/** Development facts that routes don't carry. Routes carry their own source files. */
 export interface DevelopmentDiscovery {
-  files: AuthoredRouteFile[]
+  layouts: AuthoredLayout[]
   slots: AuthoredRouteSlot[]
   hasTypeScriptFiles: boolean
   hasRootNotFound: boolean
@@ -245,11 +235,6 @@ export interface RawEntrypoints {
   pagesAppEndpoint: Endpoint
   pagesErrorEndpoint: Endpoint
 }
-
-// Compilation diagnostics may suppress runtime routes while authored-file discovery still updates.
-export type EntrypointsUpdate =
-  | RawEntrypoints
-  | Pick<RawEntrypoints, 'development'>
 
 interface BaseUpdate {
   resource: {
@@ -389,7 +374,7 @@ export interface Project {
   featureUsage(): Promise<BuildFeatureUsage[]>
 
   entrypointsSubscribe(): AsyncIterableIterator<
-    TurbopackResult<EntrypointsUpdate>
+    TurbopackResult<RawEntrypoints | {}>
   >
 
   /**
@@ -453,6 +438,8 @@ export type Route =
   | {
       type: 'app-page'
       appPaths: string[]
+      /** Each page file in the route's loader tree, by its entry in `appPaths`. */
+      pageFiles: { appPath: string; sourcePath: string }[]
       isInternal: boolean
       pages: {
         originalName: string
@@ -463,6 +450,8 @@ export type Route =
   | {
       type: 'app-route' | 'app-route-go'
       originalName: string
+      /** The route file, or the metadata file for a metadata route. */
+      sourcePath: string
       runtimePage: string
       runtimePathname: string
       staticMetadataSource?: string
@@ -471,11 +460,13 @@ export type Route =
     }
   | {
       type: 'page'
+      sourcePath: string
       htmlEndpoint: Endpoint
       dataEndpoint: Endpoint
     }
   | {
       type: 'page-api'
+      sourcePath: string
       endpoint: Endpoint
     }
 

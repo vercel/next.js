@@ -2,21 +2,19 @@ import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
 import type {
-  DevelopmentDiscovery,
+  AuthoredLayout,
   RawEntrypoints,
+  Route,
 } from '../../../build/swc/types'
 import { createDefineEnv } from '../../../build/swc'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
-import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import {
   getPossibleInstrumentationHookFilenames,
   getPossibleMiddlewareFilenames,
-  NestedMiddlewareError,
 } from '../../../build/utils'
 import * as Log from '../../../build/output/log'
-import { cyan } from '../../../lib/picocolors'
 import type { RouteInfo } from '../../../build/file-classifier'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { buildCustomRoute } from './filesystem'
@@ -54,12 +52,10 @@ export async function createTurbopackRoutePublisher(
   const typesDir = path.join(distDir, 'types')
   const validatorFilePath = path.join(typesDir, 'validator.ts')
   let sortedRoutes: string[] = []
-  let development: DevelopmentDiscovery | undefined
+  let latestEntrypoints: RawEntrypoints | undefined
   let previousFilters: string | undefined
   let previousTooling: string | undefined
   let wroteEnvTypes = false
-  let previousDuplicates = new Set<string>()
-  let previousNestedMiddleware = ''
   let clientRouterFilters:
     | ReturnType<typeof createClientRouterFilter>
     | undefined
@@ -67,45 +63,6 @@ export async function createTurbopackRoutePublisher(
   // from the native inventory, including unimported helpers and private folders.
   let enabledTypeScript = await verifyTypeScript(opts)
   const configuredBeforeFiles = [...opts.fsChecker.rewrites.beforeFiles]
-
-  function reportAuthoredDiagnostics(inventory: DevelopmentDiscovery) {
-    const pages = new Map<string, string>()
-    const duplicates = new Set<string>()
-    const nestedMiddleware: string[] = []
-    for (const file of inventory.files) {
-      if (file.kind !== 'pages' && file.kind !== 'pages-api') continue
-      const previous = pages.get(file.originalName)
-      if (previous) {
-        duplicates.add(file.originalName)
-        if (!previousDuplicates.has(file.originalName)) {
-          Log.warn(
-            `Duplicate page detected. ${cyan(path.posix.join('pages', path.relative(opts.pagesDir!, previous).replace(/\\/g, '/')))} and ${cyan(path.posix.join('pages', path.relative(opts.pagesDir!, file.sourcePath).replace(/\\/g, '/')))} both resolve to ${cyan(file.originalName)}.`
-          )
-        }
-      }
-      pages.set(file.originalName, file.sourcePath)
-      if (file.originalName.endsWith('/_middleware')) {
-        nestedMiddleware.push(file.originalName)
-      }
-      if (nextConfig.output === 'export' && file.kind === 'pages-api') {
-        Log.error(
-          'API Routes cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      }
-    }
-    previousDuplicates = duplicates
-    const signature = nestedMiddleware.sort().join('\n')
-    if (signature && signature !== previousNestedMiddleware) {
-      Log.error(
-        new NestedMiddlewareError(
-          nestedMiddleware,
-          dir,
-          (opts.pagesDir || opts.appDir)!
-        ).message
-      )
-    }
-    previousNestedMiddleware = signature
-  }
 
   async function updateExportPathMap() {
     if (typeof nextConfig.exportPathMap !== 'function') return
@@ -134,57 +91,29 @@ export async function createTurbopackRoutePublisher(
     )
   }
 
-  async function writeTooling(inventory: DevelopmentDiscovery) {
-    if (!enabledTypeScript && inventory.hasTypeScriptFiles) {
+  async function writeTooling(entrypoints: RawEntrypoints) {
+    const development = entrypoints.development
+    if (!development) return
+    if (!enabledTypeScript && development.hasTypeScriptFiles) {
       enabledTypeScript = await verifyTypeScript(opts).catch(() => false)
     }
     if (!enabledTypeScript) return
-    const signature = JSON.stringify(inventory)
+    const {
+      pageRoutes,
+      pageApiRoutes,
+      appRoutes,
+      appRouteHandlers,
+      layoutRoutes,
+    } = getRouteTypeInputs(entrypoints.routes, development.layouts)
+    const signature = JSON.stringify([
+      pageRoutes,
+      pageApiRoutes,
+      appRoutes,
+      appRouteHandlers,
+      layoutRoutes,
+      development.slots,
+    ])
     if (signature === previousTooling) return
-    const pageRoutes: RouteInfo[] = []
-    const pageApiRoutes: RouteInfo[] = []
-    const appRoutes: RouteInfo[] = []
-    const appRouteHandlers: RouteInfo[] = []
-    const layoutRoutes: RouteInfo[] = []
-    // Preserve extension priority for duplicate authored candidates, including
-    // files excluded from the executable inventory by strict route matching.
-    const compare = sortByPageExts(nextConfig.pageExtensions)
-    for (const file of [...inventory.files].sort((a, b) =>
-      compare(a.sourcePath, b.sourcePath)
-    )) {
-      const route = normalizeAppPath(file.originalName).replace(/%5F/g, '_')
-      const item = { route, filePath: file.sourcePath }
-      switch (file.kind) {
-        case 'pages':
-          pageRoutes.push({ ...item, route: file.originalName })
-          break
-        case 'pages-api':
-          pageApiRoutes.push({ ...item, route: file.originalName })
-          break
-        case 'app-page':
-          appRoutes.push(item)
-          break
-        case 'app-route':
-          appRouteHandlers.push(item)
-          break
-        case 'app-metadata':
-          if (file.runtimePathname) {
-            appRouteHandlers.push({ ...item, route: file.runtimePathname })
-          }
-          break
-        case 'app-layout':
-          layoutRoutes.push({
-            ...item,
-            route: route.replace(/\/layout$/, '') || '/',
-          })
-          break
-        case 'app-default':
-        case 'app-special':
-          // Defaults and special files (error, loading, not-found and so on)
-          // have no route types of their own.
-          break
-      }
-    }
     const manifest = await createRouteTypesManifest({
       dir,
       pageRoutes,
@@ -192,7 +121,7 @@ export async function createTurbopackRoutePublisher(
       appRoutes,
       appRouteHandlers,
       layoutRoutes,
-      slots: inventory.slots,
+      slots: development.slots,
       redirects: nextConfig.redirects,
       rewrites: nextConfig.rewrites,
       validatorFilePath,
@@ -282,13 +211,10 @@ export async function createTurbopackRoutePublisher(
   // exportPathMap.
   async function publishTooling(
     hotReloader: NextJsHotReloaderInterface,
-    inventory: DevelopmentDiscovery | undefined,
+    entrypoints: RawEntrypoints | undefined,
     runtimeChanged: boolean
   ) {
-    if (inventory) {
-      development = inventory
-      reportAuthoredDiagnostics(inventory)
-    }
+    if (entrypoints) latestEntrypoints = entrypoints
     if (runtimeChanged && nextConfig.experimental.clientRouterFilter) {
       clientRouterFilters = createClientRouterFilter(
         Object.keys(serverFields.appPathRoutes || {}),
@@ -303,7 +229,7 @@ export async function createTurbopackRoutePublisher(
         await updateDefines(hotReloader)
       }
     }
-    if (inventory) await writeTooling(inventory)
+    if (entrypoints) await writeTooling(entrypoints)
     await updateExportPathMap()
     await writeEnvTypes()
   }
@@ -350,7 +276,7 @@ export async function createTurbopackRoutePublisher(
     },
     async publish(
       hotReloader: NextJsHotReloaderInterface,
-      inventory?: DevelopmentDiscovery,
+      entrypoints?: RawEntrypoints,
       runtimeChanged = false
     ) {
       // As with the old route watcher, a failure in the first publication
@@ -373,7 +299,7 @@ export async function createTurbopackRoutePublisher(
         ).catch(handleError)
       }
       const tooling = enqueue(() =>
-        publishTooling(hotReloader, inventory, runtimeChanged)
+        publishTooling(hotReloader, entrypoints, runtimeChanged)
       ).catch(handleError)
       // Startup still waits for the rest, as it waited for the old route
       // watcher's first pass. Later updates run it in the background.
@@ -427,7 +353,7 @@ export async function createTurbopackRoutePublisher(
                 await hotReloader.invalidate({
                   reloadAfterInvalidation: envChanged,
                 })
-                if (development) await writeTooling(development)
+                if (latestEntrypoints) await writeTooling(latestEntrypoints)
                 await updateExportPathMap()
                 await writeEnvTypes(true)
               })
@@ -491,6 +417,75 @@ export async function createTurbopackRoutePublisher(
       })
     },
   }
+}
+
+type RouteTypeInputs = Record<
+  | 'pageRoutes'
+  | 'pageApiRoutes'
+  | 'appRoutes'
+  | 'appRouteHandlers'
+  | 'layoutRoutes',
+  RouteInfo[]
+>
+
+/**
+ * Sorts Turbopack's routes and the App layouts into the groups route types are
+ * written from. Each route carries the file it was compiled from.
+ */
+export function getRouteTypeInputs(
+  routes: ReadonlyMap<string, Route>,
+  layouts: readonly AuthoredLayout[]
+): RouteTypeInputs {
+  const inputs: RouteTypeInputs = {
+    pageRoutes: [],
+    pageApiRoutes: [],
+    appRoutes: [],
+    appRouteHandlers: [],
+    layoutRoutes: [],
+  }
+  const appRoute = (page: string) => normalizeAppPath(page).replace(/%5F/g, '_')
+  for (const [pathname, route] of routes) {
+    switch (route.type) {
+      case 'page':
+        inputs.pageRoutes.push({ route: pathname, filePath: route.sourcePath })
+        break
+      case 'page-api':
+        inputs.pageApiRoutes.push({
+          route: pathname,
+          filePath: route.sourcePath,
+        })
+        break
+      case 'app-page':
+        for (const { appPath, sourcePath } of route.pageFiles) {
+          inputs.appRoutes.push({
+            route: appRoute(appPath),
+            filePath: sourcePath,
+          })
+        }
+        break
+      case 'app-route':
+      case 'app-route-go':
+        inputs.appRouteHandlers.push({
+          // A metadata route can serve a different URL from its file name,
+          // such as `sitemap.ts` serving `/sitemap.xml`.
+          route:
+            route.runtimePage === route.originalName
+              ? appRoute(route.originalName)
+              : route.runtimePathname,
+          filePath: route.sourcePath,
+        })
+        break
+      case 'conflict':
+        break
+    }
+  }
+  for (const layout of layouts) {
+    inputs.layoutRoutes.push({
+      route: appRoute(layout.originalName).replace(/\/layout$/, '') || '/',
+      filePath: layout.sourcePath,
+    })
+  }
+  return inputs
 }
 
 export type TurbopackRoutePublisher = Awaited<

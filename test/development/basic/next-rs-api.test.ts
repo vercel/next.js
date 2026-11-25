@@ -410,34 +410,44 @@ describe('next.rs api', () => {
     expect(entrypoints.value.value.routes.get('/app')).toMatchObject({
       type: 'app-page',
       appPaths: ['/app/page'],
+      pageFiles: [
+        {
+          appPath: '/app/page',
+          sourcePath: join(next.testDir, 'app/app/page.tsx'),
+        },
+      ],
       isInternal: false,
     })
     expect(entrypoints.value.value.routes.get('/_not-found')).toMatchObject({
       type: 'app-page',
       appPaths: [],
+      pageFiles: [],
       isInternal: true,
     })
     expect(entrypoints.value.value.routes.get('/route-nodejs')).toMatchObject({
       type: 'app-route',
       originalName: '/route-nodejs/route',
+      sourcePath: join(next.testDir, 'app/route-nodejs/route.ts'),
       runtimePage: '/route-nodejs/route',
       runtimePathname: '/route-nodejs',
+    })
+    expect(entrypoints.value.value.routes.get('/')).toMatchObject({
+      type: 'page',
+      sourcePath: join(next.testDir, 'pages/index.js'),
+    })
+    expect(entrypoints.value.value.routes.get('/api/nodejs')).toMatchObject({
+      type: 'page-api',
+      sourcePath: join(next.testDir, 'pages/api/nodejs.js'),
     })
     expect(entrypoints.value.value.development).toMatchObject({
       hasRootNotFound: false,
       authoredPagesSpecialRoutes: [],
-      files: expect.arrayContaining([
+      layouts: [
         {
-          kind: 'app-layout',
           originalName: '/layout',
           sourcePath: join(next.testDir, 'app/layout.tsx'),
         },
-        {
-          kind: 'pages',
-          originalName: '/',
-          sourcePath: join(next.testDir, 'pages/index.js'),
-        },
-      ]),
+      ],
     })
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
     await entrypointsSubscription.return()
@@ -456,11 +466,11 @@ describe('next.rs api', () => {
     }
   }
 
-  it('should publish authored tooling changes without creating executable routes', async () => {
+  it('should report layouts and slots that have no route', async () => {
     const subscription = project.entrypointsSubscribe()
-    const hasSource = (entrypoints: RawEntrypoints, source: string) =>
-      entrypoints.development?.files.some(
-        (file) => file.sourcePath === join(next.testDir, source)
+    const hasLayout = (entrypoints: RawEntrypoints, source: string) =>
+      entrypoints.development?.layouts.some(
+        (layout) => layout.sourcePath === join(next.testDir, source)
       )
     try {
       await waitForEntrypoints(subscription, () => true)
@@ -469,11 +479,10 @@ describe('next.rs api', () => {
         'export default function Layout({ children }) { return children }'
       )
       let entrypoints = await waitForEntrypoints(subscription, (value) =>
-        hasSource(value, 'app/inventory-layout-only/layout.tsx')
+        hasLayout(value, 'app/inventory-layout-only/layout.tsx')
       )
       expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
-      expect(entrypoints.development?.files).toContainEqual({
-        kind: 'app-layout',
+      expect(entrypoints.development?.layouts).toContainEqual({
         originalName: '/inventory-layout-only/layout',
         sourcePath: join(next.testDir, 'app/inventory-layout-only/layout.tsx'),
       })
@@ -534,12 +543,6 @@ describe('next.rs api', () => {
             slot.parent === '/inventory-layout-only'
         )
       )
-      expect(
-        hasSource(
-          entrypoints,
-          'app/inventory-layout-only/@declarations/types.d.ts'
-        )
-      ).toBe(false)
       expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
 
       await next.patchFile(
@@ -557,9 +560,6 @@ describe('next.rs api', () => {
       expect(entrypoints.routes.has('/inventory-declarations/types.d')).toBe(
         false
       )
-      expect(
-        hasSource(entrypoints, 'pages/inventory-declarations/types.d.ts')
-      ).toBe(false)
 
       // Renaming only the extension still needs to refresh type-generator imports.
       await next.renameFile(
@@ -569,8 +569,8 @@ describe('next.rs api', () => {
       entrypoints = await waitForEntrypoints(
         subscription,
         (value) =>
-          hasSource(value, 'app/inventory-layout-only/layout.jsx') &&
-          !hasSource(value, 'app/inventory-layout-only/layout.tsx')
+          hasLayout(value, 'app/inventory-layout-only/layout.jsx') &&
+          !hasLayout(value, 'app/inventory-layout-only/layout.tsx')
       )
       expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
 
@@ -604,7 +604,7 @@ describe('next.rs api', () => {
     }
   })
 
-  it('should publish authored files alongside conflicting route diagnostics', async () => {
+  it('should keep publishing routes and layouts alongside conflicting route diagnostics', async () => {
     const subscription = project.entrypointsSubscribe()
     try {
       await waitForEntrypoints(subscription, () => true)
@@ -625,122 +625,33 @@ describe('next.rs api', () => {
         if (result.done) throw new Error('Entrypoints subscription ended')
         const value = result.value.value
         if (
-          'development' in value &&
-          value.development?.files.some(
-            (file) =>
-              file.sourcePath ===
+          !('routes' in value) ||
+          !value.routes.has('/inventory-conflict/sitemap.xml') ||
+          !value.development?.layouts.some(
+            (layout) =>
+              layout.sourcePath ===
               join(next.testDir, 'app/inventory-conflict/layout.tsx')
           )
         ) {
-          if (
-            !value.development.files.some(
-              (file) =>
-                file.runtimePathname === '/inventory-conflict/sitemap.xml'
-            )
-          )
-            continue
-          expect('routes' in value).toBe(true)
-          if ('routes' in value)
-            expect(value.routes.get('/')).toMatchObject({ type: 'conflict' })
-          expect(value.development.files).toEqual(
-            expect.arrayContaining([
-              expect.objectContaining({
-                kind: 'app-metadata',
-                sourcePath: join(
-                  next.testDir,
-                  'app/inventory-conflict/sitemap.ts'
-                ),
-                runtimePathname: '/inventory-conflict/sitemap.xml',
-              }),
-            ])
-          )
-          expect(
-            result.value.issues.some((issue) => issue.severity === 'error')
-          ).toBe(true)
-          break
+          continue
         }
+        expect(value.routes.get('/')).toMatchObject({ type: 'conflict' })
+        expect(
+          value.routes.get('/inventory-conflict/sitemap.xml')
+        ).toMatchObject({
+          type: 'app-route',
+          sourcePath: join(next.testDir, 'app/inventory-conflict/sitemap.ts'),
+          runtimePathname: '/inventory-conflict/sitemap.xml',
+        })
+        expect(
+          result.value.issues.some((issue) => issue.severity === 'error')
+        ).toBe(true)
+        break
       }
     } finally {
       await subscription.return()
       await next.deleteFile('app/page.js')
       await next.deleteFile('app/inventory-conflict')
-    }
-  })
-
-  it('should keep healthy endpoints available when a shadowed metadata file is malformed', async () => {
-    const subscription = project.entrypointsSubscribe()
-    const multi = `export function generateSitemaps() { return [{ id: 0 }] }
-      export default function sitemap() { return [] }`
-    try {
-      await waitForEntrypoints(subscription, () => true)
-      await next.patchFile('app/inventory-duplicate/sitemap.js', multi)
-      await next.patchFile(
-        'app/inventory-duplicate/sitemap.ts',
-        'export default function sitemap() { return [] }'
-      )
-      const before = await waitForEntrypoints(
-        subscription,
-        (value) =>
-          value.development?.files.filter(
-            (file) => file.originalName === '/inventory-duplicate/sitemap'
-          ).length === 2
-      )
-      const selected = before.routes.get('/inventory-duplicate/sitemap.xml')
-      if (selected?.type !== 'app-route')
-        throw new Error('Missing sitemap endpoint')
-      // Determine the native winner instead of assuming filesystem enumeration order.
-      const shadowed = selected.runtimePathname.endsWith('/sitemap.xml')
-        ? 'app/inventory-duplicate/sitemap.js'
-        : 'app/inventory-duplicate/sitemap.ts'
-      // Make the loser multi-dynamic first, so the malformed source will change its tooling
-      // pathname back to the single sitemap URL and produce an observable update.
-      const multiPathname = '/inventory-duplicate/sitemap/[__metadata_id__]'
-      if (
-        !before.development?.files.some(
-          (file) =>
-            file.sourcePath === join(next.testDir, shadowed) &&
-            file.runtimePathname === multiPathname
-        )
-      ) {
-        await next.patchFile(shadowed, multi)
-        await waitForEntrypoints(subscription, (value) =>
-          value.development?.files.some(
-            (file) =>
-              file.sourcePath === join(next.testDir, shadowed) &&
-              file.runtimePathname === multiPathname
-          )
-        )
-      }
-      await next.patchFile(shadowed, 'export default function broken(')
-      while (true) {
-        const result = await subscription.next()
-        if (result.done) throw new Error('Entrypoints subscription ended')
-        const value = result.value.value
-        if (
-          'development' in value &&
-          value.development?.files.some(
-            (file) =>
-              file.sourcePath === join(next.testDir, shadowed) &&
-              file.runtimePathname === '/inventory-duplicate/sitemap.xml'
-          )
-        ) {
-          expect(
-            result.value.issues.filter((issue) => issue.severity === 'error')
-          ).toEqual([])
-          expect('routes' in value).toBe(true)
-          if ('routes' in value) {
-            expect(
-              value.routes.get('/inventory-duplicate/sitemap.xml')
-            ).toMatchObject({
-              runtimePathname: selected.runtimePathname,
-            })
-          }
-          break
-        }
-      }
-    } finally {
-      await subscription.return()
-      await next.deleteFile('app/inventory-duplicate')
     }
   })
 
@@ -783,15 +694,11 @@ describe('next.rs api', () => {
         originalName: '/inventory-metadata/sitemap.xml/route',
         runtimePage: '/inventory-metadata/sitemap/[__metadata_id__]/route',
       })
-      expect(entrypoints.development?.files).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            kind: 'app-metadata',
-            sourcePath: join(next.testDir, 'app/inventory-metadata/sitemap.ts'),
-            runtimePathname: '/inventory-metadata/sitemap/[__metadata_id__]',
-          }),
-        ])
-      )
+      expect(
+        entrypoints.routes.get('/inventory-metadata/sitemap.xml')
+      ).toMatchObject({
+        sourcePath: join(next.testDir, 'app/inventory-metadata/sitemap.ts'),
+      })
 
       await next.patchFile(
         'app/inventory-metadata/icon.svg',

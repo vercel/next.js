@@ -1084,12 +1084,6 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// Development file inventory, independent of endpoint diagnostics.
-    #[turbo_tasks::function]
-    pub fn development_discovery(self: Vc<Self>) -> Vc<OptionDevelopmentDiscovery> {
-        self.project().development_discovery()
-    }
-
     /// See [`Project::hmr_chunk_names`].
     #[turbo_tasks::function]
     pub fn hmr_chunk_names(self: Vc<Self>) -> Vc<Vec<RcStr>> {
@@ -1661,6 +1655,7 @@ impl Project {
                 Route::Page {
                     html_endpoint,
                     data_endpoint,
+                    ..
                 } => {
                     if !app_dir_only {
                         endpoint_groups.push((
@@ -1683,7 +1678,7 @@ impl Project {
                         add_pages_entries = true;
                     }
                 }
-                Route::PageApi { endpoint } => {
+                Route::PageApi { endpoint, .. } => {
                     if !app_dir_only {
                         endpoint_groups.push((
                             EndpointGroupKey::Route(key.clone()),
@@ -2348,8 +2343,9 @@ impl Project {
         Ok(ProjectFeatureUsageSummary { features }.cell())
     }
 
-    /// Authored development files do not depend on compiling valid executable entrypoints. This
-    /// remains available when route diagnostics temporarily prevent creating those entrypoints.
+    /// Development facts that routes don't carry (layouts, slots, which Pages special files exist,
+    /// whether TypeScript is in use). It also emits the Pages Router file checks as issues. It is
+    /// part of the entrypoints, so it updates only while the entrypoints can be built.
     #[turbo_tasks::function]
     pub async fn development_discovery(self: Vc<Self>) -> Result<Vc<OptionDevelopmentDiscovery>> {
         if !self.next_mode().await?.is_development() {
@@ -2364,9 +2360,6 @@ impl Project {
         }
         let pages = self.pages_project();
         if let Some(pages_discovery) = &*pages.development_discovery().await? {
-            discovery
-                .files
-                .extend(pages_discovery.files.iter().cloned());
             discovery.authored_pages_special_routes =
                 pages_discovery.authored_pages_special_routes.clone();
         }

@@ -128,6 +128,7 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import {
+  isPagesFileIssue,
   isStrictRouteMatchingIssue,
   printBuildErrors,
 } from '../../build/print-build-errors'
@@ -605,7 +606,7 @@ export async function createHotReloaderTurbopack(
 
   const currentTopLevelIssues: TopLevelIssuesMap = new Map()
   const currentEntryIssues: EntryIssuesMap = new Map()
-  let previousStrictRouteMatchingIssues = ''
+  let previousRouteStructureIssues = ''
 
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
@@ -1218,17 +1219,19 @@ export async function createHotReloaderTurbopack(
     state.clientIssues.delete(key)
   }
 
-  // Strict route-matching problems are top-level Error issues that still leave
-  // routes to serve, and the handler prints top-level issues only when no
-  // routes are returned. Print them and the looseRouteMatching hint when they
-  // change, as the old route watcher did.
-  function reportStrictRouteMatchingIssues(issues: Issue[]) {
-    const strictIssues = issues.filter(isStrictRouteMatchingIssue)
-    const signature = strictIssues.map(formatIssue).join('\n')
-    if (signature === previousStrictRouteMatchingIssues) return
-    previousStrictRouteMatchingIssues = signature
-    if (strictIssues.length === 0) return
-    printBuildErrors({ value: undefined, issues: strictIssues }, true, {
+  // Strict route-matching problems and the Pages Router file checks are
+  // top-level issues that still leave routes to serve, and the handler prints
+  // top-level issues only when no routes are returned. Print them (and the
+  // looseRouteMatching hint) when they change, as the old route watcher did.
+  function reportRouteStructureIssues(issues: Issue[]) {
+    const routeIssues = issues.filter(
+      (issue) => isStrictRouteMatchingIssue(issue) || isPagesFileIssue(issue)
+    )
+    const signature = routeIssues.map(formatIssue).join('\n')
+    if (signature === previousRouteStructureIssues) return
+    previousRouteStructureIssues = signature
+    if (routeIssues.length === 0) return
+    printBuildErrors({ value: undefined, issues: routeIssues }, true, {
       strictRouteMatchingDefaultWarning:
         getStrictRouteMatchingDefaultWarning(nextConfig),
     })
@@ -1249,21 +1252,21 @@ export async function createHotReloaderTurbopack(
       // Always process issues/diagnostics, even if there are no entrypoints yet
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
-      // Tooling stays available even when a route-structure error prevents
-      // constructing endpoints. Retain the last valid runtime inventory.
+      // A route-structure error can prevent constructing endpoints. Keep the
+      // last valid routes; route types also wait until the error is fixed.
       if (!('routes' in entrypoints.value)) {
         printBuildErrors(entrypoints, true, {
           strictRouteMatchingDefaultWarning:
             getStrictRouteMatchingDefaultWarning(nextConfig),
         })
 
-        await routePublisher.publish(hotReloader, entrypoints.value.development)
+        await routePublisher.publish(hotReloader)
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
         continue
       }
 
-      reportStrictRouteMatchingIssues(entrypoints.issues)
+      reportRouteStructureIssues(entrypoints.issues)
 
       try {
         routeSnapshot = routePublisher.install(entrypoints.value)
@@ -1271,7 +1274,7 @@ export async function createHotReloaderTurbopack(
         // Keep both routing and compiler state from the last valid update.
         // At startup they remain empty until the user fixes the invalid routes.
         Log.warn('Failed to reload dynamic routes:', error)
-        await routePublisher.publish(hotReloader, entrypoints.value.development)
+        await routePublisher.publish(hotReloader, entrypoints.value)
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
         continue
@@ -1346,11 +1349,7 @@ export async function createHotReloaderTurbopack(
         },
       })
 
-      await routePublisher.publish(
-        hotReloader,
-        entrypoints.value.development,
-        true
-      )
+      await routePublisher.publish(hotReloader, entrypoints.value, true)
 
       if (addedRoutes.length > 0 || removedRoutes.length > 0) {
         // When the list of routes changes a new manifest should be fetched for Pages Router.

@@ -225,11 +225,9 @@ export interface NapiAssetPath {
   contentHash: RcStr
 }
 
-export interface NapiAuthoredRouteFile {
-  kind: RcStr
+export interface NapiAuthoredLayout {
   originalName: RcStr
   sourcePath: RcStr
-  runtimePathname?: RcStr
 }
 
 export interface NapiAuthoredRouteSlot {
@@ -291,7 +289,7 @@ export interface NapiDefineEnv {
 }
 
 export interface NapiDevelopmentDiscovery {
-  files: Array<NapiAuthoredRouteFile>
+  layouts: Array<NapiAuthoredLayout>
   slots: Array<NapiAuthoredRouteSlot>
   hasTypeScriptFiles: boolean
   hasRootNotFound: boolean
@@ -509,7 +507,11 @@ export interface NapiRoute {
   type: string
   pages?: Array<AppPageNapiRoute>
   appPaths?: Array<RcStr>
+  /** The page file for each entry of `app_paths`, in the same order. */
+  appPathSources?: Array<RcStr>
   isInternal?: boolean
+  /** The file the developer wrote for this route, for development tooling such as route types. */
+  sourcePath?: RcStr
   runtimePage?: RcStr
   runtimePathname?: RcStr
   staticMetadataSource?: RcStr

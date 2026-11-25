@@ -43,7 +43,7 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexSet, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt,
+    Completion, FxIndexMap, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt,
     ValueToString, Vc, fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
@@ -95,8 +95,8 @@ use crate::{
     project::{BaseAndFullModuleGraph, Project},
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, FirstLoadChunks, ModuleGraphs,
-        Route, Routes,
+        AppPageRoute, AppPathSource, Endpoint, EndpointOutput, EndpointOutputPaths,
+        FirstLoadChunks, ModuleGraphs, Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
@@ -1091,12 +1091,15 @@ pub async fn app_entry_point_to_route(
             is_internal,
             ..
         } => {
-            let mut app_paths = FxIndexSet::default();
+            let mut app_paths = FxIndexMap::default();
             if !is_internal {
                 loader_tree.await?.collect_app_paths(&mut app_paths)?;
             }
             Route::AppPage {
-                app_paths: app_paths.into_iter().collect(),
+                app_paths: app_paths
+                    .into_iter()
+                    .map(|(page, source)| AppPathSource { page, source })
+                    .collect(),
                 is_internal,
                 pages: pages
                     .into_iter()
@@ -1139,6 +1142,7 @@ pub async fn app_entry_point_to_route(
             }
             Route::AppGoRoute {
                 original_name: page.to_string().into(),
+                source: path.clone(),
                 endpoint: ResolvedVc::upcast(
                     GoEndpoint {
                         project: app_project.project().to_resolved().await?,
@@ -1151,6 +1155,7 @@ pub async fn app_entry_point_to_route(
         }
         AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
+            source: path.clone(),
             runtime_page: page.to_string().into(),
             runtime_pathname: AppPath::from(page.clone()).to_string().into(),
             static_metadata_source: None,
@@ -1173,6 +1178,7 @@ pub async fn app_entry_point_to_route(
             let info = metadata_route_info_for_discovery(page.clone(), metadata.clone()).await?;
             Route::AppRoute {
                 original_name: page.to_string().into(),
+                source: metadata.clone().into_path(),
                 runtime_page: info.page.to_string().into(),
                 runtime_pathname: AppPath::from(info.page.clone()).to_string().into(),
                 static_metadata_source,

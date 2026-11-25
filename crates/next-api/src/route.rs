@@ -28,27 +28,41 @@ pub struct AppPageRoute {
     pub rsc_hmr_endpoint: ResolvedVc<Box<dyn Endpoint>>,
 }
 
+/// A page that participates in an App page route, with the page file the developer wrote.
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
+pub struct AppPathSource {
+    /// The structural page identity, e.g. `/blog/[slug]/page`.
+    pub page: RcStr,
+    pub source: FileSystemPath,
+}
+
+/// A route and its endpoints. `source` is the file the developer wrote for the route; development
+/// tooling such as route types reads it.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum Route {
     Page {
         html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
         data_endpoint: Option<ResolvedVc<Box<dyn Endpoint>>>,
+        source: FileSystemPath,
     },
     PageApi {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        source: FileSystemPath,
     },
     AppPage {
         pages: Vec<AppPageRoute>,
-        app_paths: Vec<RcStr>,
+        app_paths: Vec<AppPathSource>,
         is_internal: bool,
     },
     AppGoRoute {
         original_name: RcStr,
+        source: FileSystemPath,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppRoute {
         original_name: RcStr,
+        source: FileSystemPath,
         runtime_page: RcStr,
         runtime_pathname: RcStr,
         static_metadata_source: Option<FileSystemPath>,

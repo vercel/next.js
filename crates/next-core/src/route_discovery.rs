@@ -1,21 +1,22 @@
-//! Authored development files, separate from the effective routes used to serve requests.
+//! Development facts about authored files that routes don't carry: App layouts, parallel-route
+//! slots, which Pages special files exist, and whether the project uses TypeScript. Routes carry
+//! their own source files, so this is not a list of every file.
 //!
 //! Keep filesystem paths in their native representation here. Absolute host paths are only
 //! materialized by the bindings, rather than persisted in turbo-tasks cache entries.
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 
+/// An App layout. Layouts have route types but no endpoint of their own.
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
-pub struct AuthoredFile {
-    pub kind: RcStr,
+pub struct AuthoredLayout {
+    /// The layout's App path, e.g. `/(shop)/cart/layout`.
     pub original_name: RcStr,
     pub source: FileSystemPath,
-    /// Metadata naming can depend on generator exports even in branches with no endpoint.
-    pub runtime_pathname: Option<RcStr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
@@ -26,7 +27,7 @@ pub struct AuthoredSlot {
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
 pub struct DevelopmentDiscovery {
-    pub files: Vec<AuthoredFile>,
+    pub layouts: Vec<AuthoredLayout>,
     pub slots: Vec<AuthoredSlot>,
     pub has_type_script_files: bool,
     pub has_root_not_found: bool,
@@ -87,16 +88,4 @@ pub async fn has_typescript_files(directory: FileSystemPath) -> Result<Vc<bool>>
         }
     }
     Ok(Vc::cell(false))
-}
-
-pub fn app_file_kind(stem: &str) -> Option<RcStr> {
-    Some(match stem {
-        "page" => rcstr!("app-page"),
-        "route" => rcstr!("app-route"),
-        "layout" => rcstr!("app-layout"),
-        "default" => rcstr!("app-default"),
-        "error" | "global-error" | "global-not-found" | "loading" | "template" | "forbidden"
-        | "unauthorized" | "not-found" => rcstr!("app-special"),
-        _ => return None,
-    })
 }

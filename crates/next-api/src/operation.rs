@@ -11,7 +11,7 @@ use turbopack_core::issue::CollectibleIssuesExt;
 
 use crate::{
     entrypoints::Entrypoints,
-    route::{Endpoint, Route},
+    route::{AppPathSource, Endpoint, Route},
 };
 
 /// Based on [`Entrypoints`], but with [`OperationVc<Endpoint>`][OperationVc] for every endpoint.
@@ -93,12 +93,14 @@ impl EntrypointsOperation {
 
 fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) -> RouteOperation {
     match route {
-        Route::Page { .. } => RouteOperation::Page {
+        Route::Page { source, .. } => RouteOperation::Page {
             html_endpoint: pick_endpoint(entrypoints, EndpointSelector::RoutePageHtml(key.clone())),
             data_endpoint: pick_endpoint(entrypoints, EndpointSelector::RoutePageData(key)),
+            source: source.clone(),
         },
-        Route::PageApi { .. } => RouteOperation::PageApi {
+        Route::PageApi { source, .. } => RouteOperation::PageApi {
             endpoint: pick_endpoint(entrypoints, EndpointSelector::RoutePageApi(key)),
+            source: source.clone(),
         },
         Route::AppPage {
             pages,
@@ -123,12 +125,18 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                 })
                 .collect(),
         },
-        Route::AppGoRoute { original_name, .. } => RouteOperation::AppGoRoute {
+        Route::AppGoRoute {
+            original_name,
+            source,
+            ..
+        } => RouteOperation::AppGoRoute {
             original_name: original_name.clone(),
+            source: source.clone(),
             endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
         },
         Route::AppRoute {
             original_name,
+            source,
             runtime_page,
             runtime_pathname,
             static_metadata_source,
@@ -136,6 +144,7 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
             ..
         } => RouteOperation::AppRoute {
             original_name: original_name.clone(),
+            source: source.clone(),
             runtime_page: runtime_page.clone(),
             runtime_pathname: runtime_pathname.clone(),
             static_metadata_source: static_metadata_source.clone(),
@@ -199,7 +208,7 @@ async fn pick_endpoint(
             }
         }
         EndpointSelector::RoutePageApi(name) => {
-            if let Some(Route::PageApi { endpoint }) = endpoints.routes.get(&name) {
+            if let Some(Route::PageApi { endpoint, .. }) = endpoints.routes.get(&name) {
                 Some(*endpoint)
             } else {
                 None
@@ -251,21 +260,25 @@ pub enum RouteOperation {
     Page {
         html_endpoint: OperationVc<OptionEndpoint>,
         data_endpoint: OperationVc<OptionEndpoint>,
+        source: FileSystemPath,
     },
     PageApi {
         endpoint: OperationVc<OptionEndpoint>,
+        source: FileSystemPath,
     },
     AppPage {
         pages: Vec<AppPageRouteOperation>,
-        app_paths: Vec<RcStr>,
+        app_paths: Vec<AppPathSource>,
         is_internal: bool,
     },
     AppGoRoute {
         original_name: RcStr,
+        source: FileSystemPath,
         endpoint: OperationVc<OptionEndpoint>,
     },
     AppRoute {
         original_name: RcStr,
+        source: FileSystemPath,
         runtime_page: RcStr,
         runtime_pathname: RcStr,
         static_metadata_source: Option<FileSystemPath>,

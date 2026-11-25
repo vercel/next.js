@@ -153,6 +153,47 @@ describe('native route discovery', () => {
     }
   })
 
+  it('reports nested middleware files in the terminal', async () => {
+    await expectPage('/pages-route', 'Pages route')
+    const outputStart = next.cliOutput.length
+    try {
+      await next.patchFile(
+        'pages/nested/_middleware.js',
+        'export default function middleware() {}'
+      )
+      await retry(async () => {
+        expect(next.cliOutput.slice(outputStart)).toContain(
+          'Nested Middleware is not allowed'
+        )
+      }, routeUpdateTimeout)
+    } finally {
+      await next.deleteFile('pages/nested')
+    }
+    await expectPage('/pages-route', 'Pages route')
+  })
+
+  it('reports duplicate pages in the terminal', async () => {
+    await expectPage('/pages-route', 'Pages route')
+    const outputStart = next.cliOutput.length
+    try {
+      // pages/pages-route.tsx already serves /pages-route.
+      await next.patchFile(
+        'pages/pages-route/index.tsx',
+        'export default function Page() { return <p>Duplicate</p> }'
+      )
+      await retry(async () => {
+        expect(next.cliOutput.slice(outputStart)).toContain(
+          'Duplicate page detected'
+        )
+      }, routeUpdateTimeout)
+      // A duplicate page is a warning, so pages keep working.
+      await expectPage('/', 'hello world')
+    } finally {
+      await next.deleteFile('pages/pages-route')
+    }
+    await expectPage('/pages-route', 'Pages route')
+  })
+
   it('updates proxy presence and matchers without the route watcher', async () => {
     const proxy = (matcher: string) => `
       import { NextResponse } from 'next/server'

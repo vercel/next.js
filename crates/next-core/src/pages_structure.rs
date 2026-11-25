@@ -1,16 +1,34 @@
 use anyhow::{Result, bail};
+use async_trait::async_trait;
+use bincode::{Decode, Encode};
+use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
+use turbo_tasks::{
+    NonLocalValue, OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc,
+    debug::ValueDebugFormat,
+};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
     RealPathErrorType,
 };
+use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
 
 use crate::{
     next_import_map::get_next_package,
-    route_discovery::{AuthoredFile, DevelopmentDiscovery, OptionDevelopmentDiscovery},
+    route_discovery::{DevelopmentDiscovery, OptionDevelopmentDiscovery},
 };
+
+/// A file in the pages directory that names a route, before extension precedence chooses one
+/// module. The development checks in [development_discovery] read these; they are not sent to
+/// JavaScript.
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
+pub struct PagesFile {
+    /// The route the file names, e.g. `/about` for both `about.tsx` and `about/index.tsx`.
+    pub original_name: RcStr,
+    pub source: FileSystemPath,
+    pub is_api: bool,
+}
 
 /// A final route in the pages directory.
 #[turbo_tasks::value]
@@ -90,8 +108,8 @@ pub struct PagesDirectoryStructure {
     pub next_router_path: FileSystemPath,
     pub items: Vec<ResolvedVc<PagesStructureItem>>,
     pub children: Vec<ResolvedVc<PagesDirectoryStructure>>,
-    /// Every authored candidate, before extension precedence chooses a module.
-    pub authored_files: Vec<AuthoredFile>,
+    /// Every file that names a route, before extension precedence chooses a module.
+    pub authored_files: Vec<PagesFile>,
 }
 
 #[turbo_tasks::value_impl]
@@ -182,8 +200,7 @@ async fn get_pages_structure_for_root_directory(
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
                             continue;
                         };
-                        authored_files.push(AuthoredFile {
-                            kind: rcstr!("pages"),
+                        authored_files.push(PagesFile {
                             original_name: format!(
                                 "/{}",
                                 next_router_path_for_basename(next_router_path.clone(), basename)?
@@ -191,7 +208,7 @@ async fn get_pages_structure_for_root_directory(
                             )
                             .into(),
                             source: project_path.join(name)?,
-                            runtime_pathname: None,
+                            is_api: false,
                         });
                         let base_path = project_path.join(basename)?;
                         match basename {
@@ -386,17 +403,11 @@ async fn get_pages_structure_for_directory(
                             "index" => next_router_path.clone(),
                             _ => next_router_path.join(basename)?,
                         };
-                        authored_files.push(AuthoredFile {
-                            kind: if next_router_path.path == "api"
-                                || next_router_path.path.starts_with("api/")
-                            {
-                                rcstr!("pages-api")
-                            } else {
-                                rcstr!("pages")
-                            },
+                        authored_files.push(PagesFile {
                             original_name: format!("/{}", item_next_router_path.path).into(),
                             source: project_path.join(name)?,
-                            runtime_pathname: None,
+                            is_api: next_router_path.path == "api"
+                                || next_router_path.path.starts_with("api/"),
                         });
                         let base_path = project_path.join(name)?;
                         let item_original_name = next_router_path.join(basename)?;
@@ -472,13 +483,17 @@ fn next_router_path_for_basename(
     })
 }
 
-/// Retains authored files even when no executable Pages endpoint exists yet.
+/// Development facts about the pages directory, and the checks that read every file in it:
+/// duplicate pages, nested `_middleware` files, and API routes with `output: export`. The checks
+/// emit issues; `next build` and Webpack dev run their own JavaScript versions of them.
 #[turbo_tasks::function]
 pub async fn development_discovery(
     structure: Vc<PagesStructure>,
+    is_export: bool,
 ) -> Result<Vc<OptionDevelopmentDiscovery>> {
     let structure = structure.await?;
     let mut discovery = DevelopmentDiscovery::default();
+    let mut files = Vec::new();
     let mut queue: Vec<_> = structure
         .pages
         .iter()
@@ -487,25 +502,137 @@ pub async fn development_discovery(
         .collect();
     while let Some(directory) = queue.pop() {
         let directory = directory.await?;
-        for candidate in &directory.authored_files {
-            if matches!(
-                candidate.original_name.as_str(),
-                "/_app" | "/_document" | "/_error"
-            ) && !discovery
-                .authored_pages_special_routes
-                .contains(&candidate.original_name)
-            {
-                discovery
-                    .authored_pages_special_routes
-                    .push(candidate.original_name.clone());
-            }
-            discovery.files.push(candidate.clone());
-        }
+        files.extend(directory.authored_files.iter().cloned());
         queue.extend(directory.children.iter().copied());
     }
-    discovery
-        .files
-        .sort_by(|a, b| a.source.path.cmp(&b.source.path));
+    files.sort_by(|a, b| a.source.path.cmp(&b.source.path));
+    for file in &files {
+        if matches!(
+            file.original_name.as_str(),
+            "/_app" | "/_document" | "/_error"
+        ) && !discovery
+            .authored_pages_special_routes
+            .contains(&file.original_name)
+        {
+            discovery
+                .authored_pages_special_routes
+                .push(file.original_name.clone());
+        }
+    }
     discovery.authored_pages_special_routes.sort();
+    if let Some(pages) = structure.pages {
+        emit_pages_file_issues(&files, &*pages.await?, is_export);
+    }
     Ok(Vc::cell(Some(discovery)))
+}
+
+/// Emits the checks that the old JavaScript route watcher ran over every file in `pages`.
+fn emit_pages_file_issues(files: &[PagesFile], pages: &PagesDirectoryStructure, is_export: bool) {
+    let mut by_route = FxHashMap::<&str, Vec<&PagesFile>>::default();
+    for file in files {
+        by_route
+            .entry(file.original_name.as_str())
+            .or_default()
+            .push(file);
+    }
+    let mut duplicates: Vec<_> = by_route
+        .into_iter()
+        .filter(|(_, files)| files.len() > 1)
+        .collect();
+    duplicates.sort_by_key(|(route, _)| *route);
+    for (route, files) in duplicates {
+        let (last, rest) = files
+            .split_last()
+            .expect("duplicates have more than one file");
+        let rest = rest
+            .iter()
+            .map(|file| file.source.path.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        PagesFileIssue {
+            severity: IssueSeverity::Warning,
+            path: last.source.clone(),
+            title: rcstr!("Duplicate page detected"),
+            description: format!("{rest} and {} both resolve to {route}.", last.source.path).into(),
+        }
+        .resolved_cell()
+        .emit();
+    }
+
+    let nested_middleware: Vec<_> = files
+        .iter()
+        .filter(|file| file.original_name.ends_with("/_middleware"))
+        .collect();
+    if let Some(first) = nested_middleware.first() {
+        // The project-level file goes next to the pages directory: `/middleware` or
+        // `/src/middleware`.
+        let parent = pages.project_path.parent().path.clone();
+        let single_file = if parent.is_empty() {
+            "/middleware".to_string()
+        } else {
+            format!("/{parent}/middleware")
+        };
+        PagesFileIssue {
+            severity: IssueSeverity::Error,
+            path: first.source.clone(),
+            title: rcstr!("Nested Middleware is not allowed"),
+            description: format!(
+                "Found:\n{}\nPlease move your code to a single file at {single_file} \
+                 instead.\nRead More - https://nextjs.org/docs/messages/nested-middleware",
+                nested_middleware
+                    .iter()
+                    .map(|file| format!("pages{}", file.original_name))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+            .into(),
+        }
+        .resolved_cell()
+        .emit();
+    }
+
+    if is_export && let Some(api_route) = files.iter().find(|file| file.is_api) {
+        PagesFileIssue {
+            severity: IssueSeverity::Error,
+            path: api_route.source.clone(),
+            title: rcstr!("API Routes cannot be used with \"output: export\"."),
+            description: rcstr!(
+                "See more info here: https://nextjs.org/docs/advanced-features/static-html-export"
+            ),
+        }
+        .resolved_cell()
+        .emit();
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct PagesFileIssue {
+    severity: IssueSeverity,
+    path: FileSystemPath,
+    title: RcStr,
+    description: RcStr,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for PagesFileIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(self.title.clone()))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.description.clone())))
+    }
 }
