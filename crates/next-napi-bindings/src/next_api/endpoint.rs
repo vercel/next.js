@@ -12,8 +12,8 @@ use next_api::{
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
-        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
-        read_with_validated_endpoint,
+        endpoint_lazy_changed_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation, read_with_validated_endpoint,
     },
 };
 use tracing::Instrument;
@@ -308,6 +308,40 @@ async fn endpoint_client_changed_with_issues_operation(
     } else {
         Err(err)
     }
+}
+
+#[tracing::instrument(level = "info", name = "get lazy endpoint changes", skip_all)]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn endpoint_lazy_changed_subscribe(
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    server: bool,
+    key: RcStr,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<undefined>) => void")]
+    func: FunctionRef<TurbopackResult<()>, ()>,
+) -> napi::Result<External<SubscriptionTask>> {
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
+    let endpoint_op = ****endpoint;
+    subscribe_to_changes(
+        turbopack_ctx,
+        &env,
+        &func,
+        move || {
+            let key = key.clone();
+            async move {
+                Ok(*endpoint_lazy_changed_operation(endpoint_op, server, key)
+                    .read_strongly_consistent()
+                    .await?)
+            }
+            .instrument(tracing::info_span!("lazy changes subscription"))
+        },
+        |_| {
+            Ok(TurbopackResult {
+                result: (),
+                issues: vec![],
+            })
+        },
+    )
 }
 
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]

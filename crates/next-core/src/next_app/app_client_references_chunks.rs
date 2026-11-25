@@ -15,6 +15,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
+use turbopack_ecmascript::async_chunk::proxy::activation_key_from_chunk_path;
 
 use crate::{
     next_client_reference::{
@@ -533,6 +534,18 @@ pub async fn get_client_references_chunks_for_hmr(
         // covered by the page's HMR subscription, not just the page module itself.
         extras.extend(chunk_group.all_assets().await?.iter().copied());
     }
+    // The manifest chunk of a lazily compiled import is only loaded once the import is activated,
+    // which changes it, and the import's own chunk list covers its chunks from then on. Listing it
+    // here would send an update to every page with the import when it is activated.
+    let extras = extras
+        .into_iter()
+        .map(async |asset| {
+            Ok(activation_key_from_chunk_path(&asset.path().await?.path)
+                .is_none()
+                .then_some(asset))
+        })
+        .try_flat_join()
+        .await?;
     // client_component_ssr_chunks are intentionally excluded: they run on the server
     // (Node.js/Edge), not in the browser, so they don't belong in the client HMR chunk list.
     Ok(Vc::cell(extras.into_iter().collect()))

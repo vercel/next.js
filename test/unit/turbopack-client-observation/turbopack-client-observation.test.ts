@@ -29,6 +29,7 @@ function createEndpoint() {
     writeToDisk: jest.fn().mockResolvedValue(written),
     clientChanged: jest.fn().mockResolvedValue(changes()),
     serverChanged: jest.fn().mockResolvedValue(changes()),
+    lazyChanged: jest.fn().mockResolvedValue(changes()),
   } satisfies Endpoint
 }
 

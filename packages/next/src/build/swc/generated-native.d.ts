@@ -81,6 +81,13 @@ export declare function endpointClientChangedSubscribe(
   func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
+export declare function endpointLazyChangedSubscribe(
+  endpoint: { __napiType: 'Endpoint' },
+  server: boolean,
+  key: RcStr,
+  func: (err: Error, value: TurbopackResult<undefined>) => void
+): { __napiType: 'RootTask' }
+
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,

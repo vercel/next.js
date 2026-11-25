@@ -52,7 +52,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FixintU64, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue, OperationVc,
     OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
+    TryJoinIterExt, Vc,
+    debug::ValueDebugFormat,
+    fxindexmap,
+    graph::{AdjacencyMap, GraphTraversal},
+    message_queue::TraceEvent,
     turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -94,7 +98,7 @@ use turbopack_core::{
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
-        expand_output_assets,
+        get_referenced_assets,
     },
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -3030,6 +3034,32 @@ impl Project {
         Ok(any_output_changed(roots, path, false))
     }
 
+    /// Changes when server side changes are detected in the output assets of the lazily
+    /// compiled dynamic import `key` that `roots` reference. [`Project::server_changed`] doesn't
+    /// include them.
+    #[turbo_tasks::function]
+    pub async fn lazy_server_changed(
+        self: Vc<Self>,
+        roots: Vc<OutputAssets>,
+        key: RcStr,
+    ) -> Result<Vc<FixintU64>> {
+        let path = self.node_root().owned().await?;
+        Ok(lazy_output_changed(roots, path, true, key))
+    }
+
+    /// Changes when client side changes are detected in the output assets of the lazily
+    /// compiled dynamic import `key` that `roots` reference. [`Project::client_changed`] doesn't
+    /// include them.
+    #[turbo_tasks::function]
+    pub async fn lazy_client_changed(
+        self: Vc<Self>,
+        roots: Vc<OutputAssets>,
+        key: RcStr,
+    ) -> Result<Vc<FixintU64>> {
+        let path = self.client_root().owned().await?;
+        Ok(lazy_output_changed(roots, path, false, key))
+    }
+
     /// Whether Pages Router endpoints are emitted, which is exactly when `get_all_endpoint_groups`
     /// adds the `/_app` endpoint (i.e. there is at least one Pages Router route).
     #[turbo_tasks::function]
@@ -3388,41 +3418,166 @@ pub struct BaseAndFullModuleGraph {
     pub binding_usage_info: Option<OperationVc<BindingUsageInfo>>,
 }
 
+/// The [`activation_key`][turbopack_ecmascript::async_chunk::proxy::activation_key] of the lazily
+/// compiled dynamic import whose manifest chunk or chunk list `asset` is.
+async fn lazy_compilation_boundary_key(
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<Option<RcStr>> {
+    Ok(activation_key_from_chunk_path(&asset.path().await?.path))
+}
+
+/// The output assets reachable from some roots, split at the manifest chunks of lazily compiled
+/// dynamic imports. Activating an import changes only what is behind its manifest chunk, so
+/// `entry` is unaffected by activations.
+type OutputAssetList = Vec<ResolvedVc<Box<dyn OutputAsset>>>;
+
+#[turbo_tasks::value(shared)]
+struct LazyPartition {
+    /// The assets reached without crossing a manifest chunk of a lazily compiled import.
+    entry: OutputAssetList,
+    /// For each lazily compiled import, wherever it is reached (also nested in another import),
+    /// its manifest chunks and the assets behind them, without crossing the manifest chunks of
+    /// other imports.
+    lazy: Vec<(RcStr, OutputAssetList)>,
+}
+
+/// Expands `roots` once, like [`turbopack_core::output::expand_output_assets`], and partitions
+/// the result.
+#[turbo_tasks::function]
+async fn lazy_partition(roots: Vc<OutputAssets>) -> Result<Vc<LazyPartition>> {
+    let roots = roots
+        .await?
+        .iter()
+        .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
+        .collect::<Vec<_>>();
+    let graph = AdjacencyMap::new()
+        .visit(roots.iter().copied(), |input: ExpandOutputAssetsInput| {
+            get_referenced_assets(true, input)
+        })
+        .await
+        .completed()?;
+
+    let keys = graph
+        .postorder_topological()
+        .filter_map(|node| match node {
+            ExpandOutputAssetsInput::Asset(asset) => Some(*asset),
+            ExpandOutputAssetsInput::Reference(_) => None,
+        })
+        .map(async |asset| {
+            Ok(lazy_compilation_boundary_key(asset)
+                .await?
+                .map(|key| (ExpandOutputAssetsInput::Asset(asset), key)))
+        })
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .collect::<FxHashMap<_, _>>();
+
+    // The assets reached from `starts` without visiting the manifest chunks of imports other than
+    // `key`.
+    let collect = |starts: Vec<ExpandOutputAssetsInput>, key: Option<&RcStr>| {
+        let mut visited = turbo_tasks::FxIndexSet::default();
+        let mut stack = starts;
+        stack.reverse();
+        while let Some(node) = stack.pop() {
+            if keys
+                .get(&node)
+                .is_some_and(|node_key| Some(node_key) != key)
+                || !visited.insert(node)
+            {
+                continue;
+            }
+            if let Some(children) = graph.get(&node) {
+                let children = children.map(|(child, _)| *child).collect::<Vec<_>>();
+                stack.extend(children.into_iter().rev());
+            }
+        }
+        visited
+            .into_iter()
+            .filter_map(|node| match node {
+                ExpandOutputAssetsInput::Asset(asset) => Some(asset),
+                ExpandOutputAssetsInput::Reference(_) => None,
+            })
+            .collect::<Vec<_>>()
+    };
+
+    let mut boundaries = FxIndexMap::<RcStr, Vec<ExpandOutputAssetsInput>>::default();
+    for node in graph.postorder_topological() {
+        if let Some(key) = keys.get(node) {
+            boundaries.entry(key.clone()).or_default().push(*node);
+        }
+    }
+    let lazy = boundaries
+        .into_iter()
+        .map(|(key, starts)| {
+            let assets = collect(starts, Some(&key));
+            (key, assets)
+        })
+        .collect();
+
+    Ok(LazyPartition {
+        entry: collect(roots, None),
+        lazy,
+    }
+    .cell())
+}
+
+/// Changes when the output behind the manifest chunk of the lazily compiled dynamic import
+/// `key` changes, as reached from `roots`. It is computed for the first time when the import is
+/// activated, so a subscriber that reads it then only observes changes made after that.
+#[turbo_tasks::function]
+fn lazy_output_changed(
+    roots: Vc<OutputAssets>,
+    path: FileSystemPath,
+    server: bool,
+    key: RcStr,
+) -> Vc<FixintU64> {
+    output_assets_version(changed_output_assets(roots, path, server, Some(key)))
+}
+
 #[turbo_tasks::function]
 fn any_output_changed(
     roots: Vc<OutputAssets>,
     path: FileSystemPath,
     server: bool,
 ) -> Vc<FixintU64> {
-    output_assets_version(changed_output_assets(roots, path, server))
+    output_assets_version(changed_output_assets(roots, path, server, None))
 }
 
-/// The output assets that [`any_output_changed`] observes. A separate cell, so that recomputing it
-/// without a different result doesn't report a change.
+/// The output assets that [`any_output_changed`] (for `key: None`) or [`lazy_output_changed`]
+/// observe. A separate cell, so that recomputing it without a different result doesn't report a
+/// change.
 #[turbo_tasks::function]
 async fn changed_output_assets(
     roots: Vc<OutputAssets>,
     path: FileSystemPath,
     server: bool,
+    key: Option<RcStr>,
 ) -> Result<Vc<OutputAssets>> {
-    let assets = expand_output_assets(
-        roots.await?.into_iter().map(ExpandOutputAssetsInput::Asset),
-        true,
-    )
-    .await?
-    .into_iter()
-    .map(|asset| {
-        let path = path.clone();
-        async move {
-            let asset_path = asset.path().await?;
-            Ok((!asset_path.path.ends_with(".map")
-                && (!server || !asset_path.path.ends_with(".css"))
-                && asset_path.is_inside_ref(&path))
-            .then_some(asset))
-        }
-    })
-    .try_flat_join()
-    .await?;
+    let partition = lazy_partition(roots).await?;
+    let assets = match &key {
+        Some(key) => partition
+            .lazy
+            .iter()
+            .find(|(lazy_key, _)| lazy_key == key)
+            .map(|(_, assets)| assets.clone())
+            .unwrap_or_default(),
+        None => partition.entry.clone(),
+    };
+    let assets = assets
+        .into_iter()
+        .map(|asset| {
+            let path = path.clone();
+            async move {
+                let asset_path = asset.path().await?;
+                Ok((!asset_path.path.ends_with(".map")
+                    && (!server || !asset_path.path.ends_with(".css"))
+                    && asset_path.is_inside_ref(&path))
+                .then_some(asset))
+            }
+        })
+        .try_flat_join()
+        .await?;
     Ok(Vc::cell(assets))
 }
 

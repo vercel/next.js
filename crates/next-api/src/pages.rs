@@ -1956,6 +1956,24 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn lazy_server_changed(self: Vc<Self>, key: RcStr) -> Result<Vc<FixintU64>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .lazy_server_changed(self.output().server_assets(), key))
+    }
+
+    #[turbo_tasks::function]
+    async fn lazy_client_changed(self: Vc<Self>, key: RcStr) -> Result<Vc<FixintU64>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .lazy_client_changed(self.output().client_assets(), key))
+    }
+
+    #[turbo_tasks::function]
     async fn analyze_client_entries(self: Vc<Self>) -> Result<Vc<AnalyzeClientEntries>> {
         let is_html = self.await?.ty == PageEndpointType::Html;
         let server_modules = vec![self.internal_ssr_chunk_module().await?.ssr_module];

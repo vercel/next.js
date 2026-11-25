@@ -903,6 +903,24 @@ function bindingToApi(
       await serverSubscription.next()
       return serverSubscription
     }
+
+    async lazyChanged(
+      server: boolean,
+      key: string
+    ): Promise<AsyncIterableIterator<TurbopackResult<void>>> {
+      const lazySubscription = subscribe<TurbopackResult<void>>(
+        false,
+        async (callback) =>
+          binding.endpointLazyChangedSubscribe(
+            this._nativeEndpoint,
+            server,
+            key,
+            callback
+          )
+      )
+      await lazySubscription.next()
+      return lazySubscription
+    }
   }
 
   async function serializeNextConfig(

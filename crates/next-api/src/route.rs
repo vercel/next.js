@@ -96,6 +96,18 @@ pub trait Endpoint {
     fn server_changed(self: Vc<Self>) -> Vc<FixintU64>;
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<FixintU64>;
+    /// Server side changes to the output of the lazily compiled dynamic import `key`, which
+    /// [`Endpoint::server_changed`] doesn't include.
+    #[turbo_tasks::function]
+    fn lazy_server_changed(self: Vc<Self>, _key: RcStr) -> Vc<FixintU64> {
+        Vc::cell(0)
+    }
+    /// Client side changes to the output of the lazily compiled dynamic import `key`, which
+    /// [`Endpoint::client_changed`] doesn't include.
+    #[turbo_tasks::function]
+    fn lazy_client_changed(self: Vc<Self>, _key: RcStr) -> Vc<FixintU64> {
+        Vc::cell(0)
+    }
     /// The entry modules for the modules graph.
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
@@ -322,6 +334,23 @@ pub async fn endpoint_client_changed_operation(
 ) -> Result<Vc<FixintU64>> {
     Ok(if let Some(endpoint) = *endpoint.connect().await? {
         endpoint.client_changed()
+    } else {
+        Vc::cell(0)
+    })
+}
+
+#[turbo_tasks::function(operation, root)]
+pub async fn endpoint_lazy_changed_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+    server: bool,
+    key: RcStr,
+) -> Result<Vc<FixintU64>> {
+    Ok(if let Some(endpoint) = *endpoint.connect().await? {
+        if server {
+            endpoint.lazy_server_changed(key)
+        } else {
+            endpoint.lazy_client_changed(key)
+        }
     } else {
         Vc::cell(0)
     })

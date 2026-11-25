@@ -602,6 +602,23 @@ export async function createHotReloaderTurbopack(
 
   // Dev specific
   const changeSubscriptions: ChangeSubscriptions = new Map()
+  type ChangeListener = {
+    endpoint: Endpoint
+    server: boolean
+    onChange: (change: TurbopackResult<void>) => Promise<void> | void
+  }
+  // What the entries' change subscriptions do on a change, which also applies to changes behind
+  // their activated lazy imports.
+  const changeListeners = new Map<EntryKey, ChangeListener>()
+  // The lazily compiled dynamic imports that have been activated, by the entry that imports them.
+  const activatedLazyKeys = new Map<EntryKey, Set<string>>()
+  const lazyChangeSubscriptions = new Map<
+    string,
+    {
+      listener: ChangeListener
+      changed: Promise<AsyncIterableIterator<TurbopackResult<void>>>
+    }
+  >()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
   let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
@@ -1057,6 +1074,14 @@ export async function createHotReloaderTurbopack(
 
     const changedPromise = endpoint.clientChanged()
     changeSubscriptions.set(key, changedPromise)
+    // No browser message or server cache invalidation: connected clients
+    // still receive ordinary CSS/JS HMR through their chunk subscriptions.
+    const listener: ChangeListener = {
+      endpoint,
+      server: false,
+      onChange: markClientHmrChange,
+    }
+    setChangeListener(key, listener)
     let changed: Awaited<typeof changedPromise>
     try {
       // Resolves after the native baseline is established, not when consumption
@@ -1064,6 +1089,7 @@ export async function createHotReloaderTurbopack(
       changed = await changedPromise
     } catch (error) {
       changeSubscriptions.delete(key)
+      deleteChangeListener(key, listener)
       sendHmr(key, {
         type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
         data: `error in ${key} client subscription: ${error}`,
@@ -1074,8 +1100,6 @@ export async function createHotReloaderTurbopack(
     void (async () => {
       try {
         for await (const _change of changed) {
-          // No browser message or server cache invalidation: connected clients
-          // still receive ordinary CSS/JS HMR through their chunk subscriptions.
           markClientHmrChange()
         }
       } catch (error) {
@@ -1087,6 +1111,7 @@ export async function createHotReloaderTurbopack(
         if (changeSubscriptions.get(key) === changedPromise) {
           changeSubscriptions.delete(key)
         }
+        deleteChangeListener(key, listener)
       }
     })()
   }
@@ -1111,11 +1136,10 @@ export async function createHotReloaderTurbopack(
 
     const changedPromise = endpoint[`${side}Changed`](includeIssues)
     changeSubscriptions.set(key, changedPromise)
-    try {
-      const changed = await changedPromise
-
-      for await (const change of changed) {
-        processIssues(currentEntryIssues, key, change, false, true)
+    const listener: ChangeListener = {
+      endpoint,
+      server: side === 'server',
+      onChange: async (change) => {
         // TODO: Get an actual content hash from Turbopack.
         const message = await createMessage(
           change,
@@ -1124,6 +1148,16 @@ export async function createHotReloaderTurbopack(
         if (message) {
           sendHmr(key, message)
         }
+      },
+    }
+    // Before the baseline, so that an import activated meanwhile subscribes to this listener.
+    setChangeListener(key, listener)
+    try {
+      const changed = await changedPromise
+
+      for await (const change of changed) {
+        processIssues(currentEntryIssues, key, change, false, true)
+        await listener.onChange(change)
       }
     } catch (e) {
       changeSubscriptions.delete(key)
@@ -1132,8 +1166,119 @@ export async function createHotReloaderTurbopack(
         sendHmr(key, payload)
       }
       return
+    } finally {
+      deleteChangeListener(key, listener)
     }
     changeSubscriptions.delete(key)
+  }
+
+  function setChangeListener(key: EntryKey, listener: ChangeListener) {
+    const previous = changeListeners.get(key)
+    if (previous) {
+      deleteChangeListener(key, previous)
+    }
+    changeListeners.set(key, listener)
+    for (const lazyKey of activatedLazyKeys.get(key) ?? []) {
+      void subscribeToLazyChange(key, lazyKey)
+    }
+  }
+
+  function deleteChangeListener(key: EntryKey, listener: ChangeListener) {
+    if (changeListeners.get(key) === listener) {
+      changeListeners.delete(key)
+    }
+    for (const [id, subscription] of lazyChangeSubscriptions) {
+      if (subscription.listener === listener) {
+        lazyChangeSubscriptions.delete(id)
+        subscription.changed.then(
+          (changed) => changed.return?.(),
+          () => {}
+        )
+      }
+    }
+  }
+
+  // Activating a lazily compiled dynamic import changes the output of the entries that import it
+  // without any of their sources changing, so their change subscriptions don't include what is
+  // behind the import. Its own subscription starts after the activation and reports later changes
+  // to the entries' subscriptions. `side` is where `chunkPath` is loaded.
+  async function subscribeToLazyChanges(
+    chunkPath: string,
+    keys: EntryKey[],
+    side: 'client' | 'server'
+  ) {
+    const lazyKey = chunkPath.match(/lazy-compilation-[0-9a-f]{16}/)?.[0]
+    if (!lazyKey) {
+      return
+    }
+    const entryKeys = new Set<EntryKey>()
+    for (const key of keys) {
+      const { type, page } = splitEntryKey(key)
+      entryKeys.add(getEntryKey(type, side, page))
+    }
+    await Promise.all(
+      [...entryKeys].map((key) => {
+        let lazyKeys = activatedLazyKeys.get(key)
+        if (!lazyKeys) {
+          lazyKeys = new Set()
+          activatedLazyKeys.set(key, lazyKeys)
+        }
+        lazyKeys.add(lazyKey)
+        // Without a listener yet, `setChangeListener` subscribes once there is one.
+        return subscribeToLazyChange(key, lazyKey)
+      })
+    )
+  }
+
+  async function subscribeToLazyChange(key: EntryKey, lazyKey: string) {
+    const listener = changeListeners.get(key)
+    if (!listener) {
+      return
+    }
+    const id = `${key} ${lazyKey}`
+    const existing = lazyChangeSubscriptions.get(id)
+    if (existing?.listener === listener) {
+      await existing.changed.catch(() => {})
+      return
+    }
+
+    const changedPromise = listener.endpoint.lazyChanged(
+      listener.server,
+      lazyKey
+    )
+    const subscription = { listener, changed: changedPromise }
+    lazyChangeSubscriptions.set(id, subscription)
+    let changed: Awaited<typeof changedPromise>
+    try {
+      changed = await changedPromise
+    } catch (error) {
+      lazyChangeSubscriptions.delete(id)
+      sendHmr(key, {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in ${key} lazy subscription: ${error}`,
+      })
+      return
+    }
+
+    void (async () => {
+      try {
+        for await (const change of changed) {
+          if (changeListeners.get(key) !== listener) {
+            break
+          }
+          await listener.onChange(change)
+        }
+      } catch (error) {
+        sendHmr(key, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+          data: `error in ${key} lazy subscription: ${error}`,
+        })
+      } finally {
+        if (lazyChangeSubscriptions.get(id) === subscription) {
+          lazyChangeSubscriptions.delete(id)
+        }
+      }
+    })()
   }
 
   async function unsubscribeFromClientChanges(key: EntryKey) {
@@ -1591,6 +1736,7 @@ export async function createHotReloaderTurbopack(
                 url: req.url,
               })
             }
+            await subscribeToLazyChanges(chunkPath, keys, 'client')
           }
         } catch (err) {
           console.error(err)
@@ -2489,6 +2635,7 @@ export async function createHotReloaderTurbopack(
           }
         }
       }
+      await subscribeToLazyChanges(chunkPath, keys, 'server')
       deleteCache([join(distDir, chunkPath)])
     }
 

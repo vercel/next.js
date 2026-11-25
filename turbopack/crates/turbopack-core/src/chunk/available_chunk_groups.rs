@@ -142,6 +142,29 @@ impl AvailableChunkGroups {
         .cell())
     }
 
+    /// A hash identifying the modules that are available, unlike [`AvailableChunkGroups::hash`],
+    /// which identifies the chunk groups. Chunk group identities depend on the shape of the whole
+    /// module graph, so they can change while the same modules stay available.
+    #[turbo_tasks::function]
+    pub async fn modules_hash(&self) -> Result<Vc<FixintU64>> {
+        let modules = self
+            .module_graph
+            .chunk_group_info()
+            .module_ident_hashes_by_chunk_groups()
+            .await?;
+        let (mut sum, mut count) = (0u64, 0u64);
+        for modules in modules.iter() {
+            if !modules.chunk_groups.is_disjoint(&self.chunk_groups) {
+                sum = sum.wrapping_add(modules.ident_hash_sum);
+                count += modules.count;
+            }
+        }
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_value(count);
+        hasher.write_value(sum);
+        Ok(Vc::cell(hasher.finish()))
+    }
+
     /// A hash identifying the available chunk groups, used to distinguish assets that are
     /// generated for different availability.
     ///

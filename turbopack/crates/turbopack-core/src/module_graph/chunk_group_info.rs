@@ -29,6 +29,21 @@ pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>);
 #[turbo_tasks::value(transparent)]
 pub struct ChunkGroupIdentHashes(#[bincode(fixint)] Vec<u64>);
 
+/// The modules that are in the same chunk groups, see
+/// [`ChunkGroupInfo::module_ident_hashes_by_chunk_groups`].
+#[derive(Debug, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+pub struct ModulesInChunkGroups {
+    pub chunk_groups: Bitset,
+    /// The wrapping sum of the [`chunk_group_ident_hash`]es of the idents of the modules.
+    #[bincode(fixint)]
+    pub ident_hash_sum: u64,
+    #[bincode(fixint)]
+    pub count: u64,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ModuleIdentHashesByChunkGroups(Vec<ModulesInChunkGroups>);
+
 /// The hash of a [`ChunkGroupKey::ident_str`], i.e. of the identity of one chunk group.
 pub fn chunk_group_ident_hash(ident: &str) -> u64 {
     let mut hasher = Xxh3Hash64Hasher::new();
@@ -284,6 +299,44 @@ impl ChunkGroupInfo {
     #[turbo_tasks::function]
     pub fn module_chunk_groups(&self) -> Vc<ModuleToChunkGroups> {
         *self.module_chunk_groups
+    }
+
+    /// The modules grouped by the chunk groups that contain them, with the identity of each group
+    /// of modules. Computed once per graph, so that identifying the modules of an availability
+    /// only needs to visit each distinct set of chunk groups, not each module.
+    #[turbo_tasks::function]
+    pub async fn module_ident_hashes_by_chunk_groups(
+        &self,
+    ) -> Result<Vc<ModuleIdentHashesByChunkGroups>> {
+        let module_chunk_groups = self.module_chunk_groups.await?;
+        let hashes = module_chunk_groups
+            .iter()
+            .map(async |(module, chunk_groups)| {
+                Ok((
+                    chunk_groups,
+                    chunk_group_ident_hash(&module.ident().to_string().await?),
+                ))
+            })
+            .try_join()
+            .await?;
+        let mut by_chunk_groups = FxIndexMap::<&Bitset, (u64, u64)>::default();
+        for (chunk_groups, hash) in hashes {
+            let (sum, count) = by_chunk_groups.entry(chunk_groups).or_default();
+            *sum = sum.wrapping_add(hash);
+            *count += 1;
+        }
+        Ok(Vc::cell(
+            by_chunk_groups
+                .into_iter()
+                .map(
+                    |(chunk_groups, (ident_hash_sum, count))| ModulesInChunkGroups {
+                        chunk_groups: chunk_groups.clone(),
+                        ident_hash_sum,
+                        count,
+                    },
+                )
+                .collect(),
+        ))
     }
 
     /// The keyed async module -> chunk groups containing its loader map. Read a single entry
