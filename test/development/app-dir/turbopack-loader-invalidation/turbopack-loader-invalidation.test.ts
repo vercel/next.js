@@ -49,7 +49,7 @@ const workingCases: Array<[string, Case]> = [
   ['a CommonJS module required by the loader', cases.cjsRequire],
   ['a transitively required CommonJS module', cases.nestedCjsRequire],
   ['a JSON file required by the loader', cases.jsonRequire],
-  ['a module imported by an ESM loader', cases.esmImport],
+  ['a module statically imported by an ES module', cases.esmImport],
   ['a module required with a computed path', cases.computedRequire],
   ['a file reported with addDependency', cases.addDependency],
   ['a module loaded with import()', cases.dynamicImport],
@@ -145,9 +145,10 @@ describe('turbopack-loader-invalidation', () => {
     it('re-runs the loader when changing a loader package with conditional exports', () =>
       expectChangeWhileRunning(cases.conditionalExportsLoader))
 
-    // Not covered while running: a file read at module load and reported with `addDependency`
-    // re-runs the loader, but whether a reused pool worker still holds the old value depends on
-    // which worker serves the evaluation, so the result is nondeterministic.
+    // Not covered while running: a file read at module load and reported with `addDependency`.
+    // The reported dependency invalidates the evaluation, but the result appears to depend on
+    // whether a pooled worker that already loaded the loader module serves it, so a gate would
+    // be flaky.
   })
 
   describe('while stopped', () => {

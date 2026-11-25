@@ -10,7 +10,7 @@ module.exports = {
       '*.c02.txt': rule('./loaders/c02.js'),
       '*.c03.txt': rule('./loaders/c03.js'),
       '*.c04.txt': rule('./loaders/c04.js'),
-      '*.c05.txt': rule('./loaders/c05.mjs'),
+      '*.c05.txt': rule('./loaders/c05.js'),
       '*.c06.txt': rule('./loaders/c06.js'),
       '*.c08.txt': rule('./loaders/c08.js'),
       '*.c09.txt': rule('./loaders/c09.js'),
