@@ -549,8 +549,11 @@ fn replacement_directory(
             part => directory.push(part),
         }
     }
+    // An application can depend on a module at a workspace ancestor. Contain
+    // it within the source boundary, but do not map another module onto the
+    // main module's own directory.
     ensure!(
-        directory.starts_with(boundary) && !project.starts_with(&directory),
+        directory.starts_with(boundary) && directory != project,
         "Go module replacements must point to a directory inside the project root: {} => {}",
         replacement.old.path,
         replacement.new.path
