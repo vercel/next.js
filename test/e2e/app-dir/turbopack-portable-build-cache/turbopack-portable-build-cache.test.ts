@@ -246,6 +246,7 @@ describe('turbopack-portable-build-cache', () => {
          "turbo_tasks_fs::disk::DiskFileSystem::new_internal",
          "turbopack_node::evaluate::common_node_env",
          "turbopack_node::evaluate::create_evaluate_pool_assets_operation",
+         "turbopack_node::evaluate::evaluated_args_operation",
          "turbopack_node::evaluate::get_evaluate_pool",
          "turbopack_node::transforms::webpack::evaluate_webpack_loader",
        ]

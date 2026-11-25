@@ -2,21 +2,22 @@ use std::{iter, process::ExitStatus, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
 use async_trait::async_trait;
+use base64::Engine;
 use bincode::{Decode, Encode};
 use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::Value as JsonValue;
+use serde_json::{Map as JsonMap, Value as JsonValue};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
     duration_span, parallel::available_parallelism,
     resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
 use turbopack_core::{
-    asset::AssetContent,
+    asset::{Asset, AssetContent},
     changed::content_changed,
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
@@ -44,7 +45,22 @@ use crate::{
     source_map::StructuredError,
 };
 
+/// How the content of a source is passed to the evaluated JavaScript, see
+/// [`EvaluateArg::SourceContent`].
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Encode, Decode)]
+pub enum SourceContentEncoding {
+    /// A string. Content that isn't valid UTF-8 is an error.
+    Text,
+    /// A string, or `{ binary: <base64> }` for content that isn't valid UTF-8 (e.g. images), so
+    /// that the JavaScript can pass a `Buffer` on instead.
+    TextOrBinary,
+}
+
 /// An argument passed to the evaluated JavaScript.
+///
+/// All arguments of an evaluation are converted to JSON together and read strongly consistent
+/// right before the evaluation runs.
 #[turbo_tasks::task_input]
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub enum EvaluateArg {
@@ -52,15 +68,44 @@ pub enum EvaluateArg {
     /// Passed as a string: A path relative to the evaluation working directory when both are on the
     /// same filesystem, otherwise an absolute system path (e.g. for an additional root).
     ///
-    /// This is converted when the evaluation runs, so that machine-specific system paths aren't
-    /// stored in task inputs or cells.
+    /// This is converted when the evaluation runs, and the converted arguments aren't persisted, so
+    /// that machine-specific system paths aren't stored in the persistent cache.
     Path(FileSystemPath),
+    /// The content of `source`, passed as described by `encoding`. When the source doesn't exist,
+    /// the evaluation doesn't run and returns `None`.
+    SourceContent {
+        source: ResolvedVc<Box<dyn Source>>,
+        encoding: SourceContentEncoding,
+    },
 }
 
 impl EvaluateArg {
-    async fn to_json(&self, cwd: &FileSystemPath) -> Result<EvaluatedArg> {
-        Ok(match self {
-            Self::Vc(value) => EvaluatedArg::ReadRef(value.await?),
+    /// Returns `None` for the content of a source that doesn't exist.
+    async fn to_json(&self, cwd: &FileSystemPath) -> Result<Option<JsonValue>> {
+        Ok(Some(match self {
+            Self::Vc(value) => value.owned().await?,
+            Self::SourceContent { source, encoding } => {
+                let AssetContent::File(file) = *source.content().await? else {
+                    bail!("Only the content of file sources can be passed to an evaluation");
+                };
+                let FileContent::Content(file_content) = &*file.await? else {
+                    return Ok(None);
+                };
+                let content = file_content.content();
+                match (content.to_str(), encoding) {
+                    (Ok(text), _) => text.into_owned().into(),
+                    (Err(err), SourceContentEncoding::Text) => return Err(err),
+                    (Err(_), SourceContentEncoding::TextOrBinary) => {
+                        JsonValue::Object(JsonMap::from_iter(iter::once((
+                            "binary".to_string(),
+                            JsonValue::from(
+                                base64::engine::general_purpose::STANDARD
+                                    .encode(content.to_bytes()),
+                            ),
+                        ))))
+                    }
+                }
+            }
             Self::Path(path) => {
                 let path = if let Some(relative) = cwd.get_relative_path_to(path) {
                     // prefer to give the loader a relative path if we can, to reduce the risk of
@@ -78,24 +123,50 @@ impl EvaluateArg {
                         .into_string()
                         .map_err(|path| anyhow!("{path:?} is not valid UTF-8"))?
                 };
-                EvaluatedArg::Owned(JsonValue::String(path))
+                JsonValue::String(path)
             }
-        })
+        }))
     }
 }
 
-#[derive(Serialize)]
-#[serde(untagged)]
-enum EvaluatedArg {
-    ReadRef(ReadRef<JsonValue>),
-    Owned(JsonValue),
+/// The arguments of an evaluation, converted to JSON.
+///
+/// Not persisted: [`EvaluateArg::Path`] can convert to a machine-specific system path.
+#[turbo_tasks::value(shared, serialization = "skip")]
+enum EvaluatedArgs {
+    Args(#[turbo_tasks(unsafe_ignore)] Vec<JsonValue>),
+    /// An [`EvaluateArg::SourceContent`] refers to a source that doesn't exist.
+    SourceNotFound,
+}
+
+/// Converts the arguments of an evaluation to JSON.
+///
+/// [`custom_evaluate`] reads this strongly consistent right before running the JavaScript, so that
+/// the conversion has settled on the current state of everything the arguments are computed from.
+/// The evaluation also depends on the files the JavaScript reads, which can include files that
+/// arguments are computed from (e.g. a webpack loader resource, see
+/// [`EvaluateArg::SourceContent`]). A change to such a file can therefore re-run the evaluation
+/// directly, while an eventually consistent read of the arguments could still return the previous
+/// values. For example, loaders that cache by the resource's mtime would then cache their output
+/// for the previous content.
+#[turbo_tasks::function(operation, root)]
+async fn evaluated_args_operation(
+    args: Vec<EvaluateArg>,
+    cwd: FileSystemPath,
+) -> Result<Vc<EvaluatedArgs>> {
+    let args = args.iter().map(|arg| arg.to_json(&cwd)).try_join().await?;
+    Ok(match args.into_iter().collect::<Option<Vec<_>>>() {
+        Some(args) => EvaluatedArgs::Args(args),
+        None => EvaluatedArgs::SourceNotFound,
+    }
+    .cell())
 }
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptOutgoingMessage<'a> {
     #[serde(rename_all = "camelCase")]
-    Evaluate { args: &'a [EvaluatedArg] },
+    Evaluate { args: &'a [JsonValue] },
     Result {
         id: u64,
         data: Option<JsonValue>,
@@ -457,20 +528,20 @@ pub(crate) trait EvaluateContext {
 pub(crate) async fn custom_evaluate(
     evaluate_context: impl EvaluateContext,
 ) -> Result<Vc<Option<RcStr>>> {
+    let cwd = evaluate_context.cwd().owned().await?;
+    let args_op = evaluated_args_operation(evaluate_context.args().to_vec(), cwd);
+    // Read this strongly consistent, see `evaluated_args_operation`.
+    let args = args_op.read_strongly_consistent().await?;
+    let EvaluatedArgs::Args(args) = &*args else {
+        return Ok(Vc::cell(None));
+    };
+
     let pool_op = evaluate_context.pool();
     let mut state = Default::default();
 
     // Read this strongly consistent, since we don't want to run inconsistent
     // node.js code.
     let pool = pool_op.read_strongly_consistent().await?;
-
-    let cwd = evaluate_context.cwd().owned().await?;
-    let args = evaluate_context
-        .args()
-        .iter()
-        .map(|arg| arg.to_json(&cwd))
-        .try_join()
-        .await?;
     // Assume this is a one-off operation, so we can kill the process
     // TODO use a better way to decide that.
     let kill = !evaluate_context.keep_alive();
@@ -485,7 +556,7 @@ pub(crate) async fn custom_evaluate(
             let mut operation = pool.operation().await?;
             operation
                 .send(Bytes::from(serde_json::to_vec(
-                    &EvalJavaScriptOutgoingMessage::Evaluate { args: &args },
+                    &EvalJavaScriptOutgoingMessage::Evaluate { args },
                 )?))
                 .await?;
             Ok(operation)
