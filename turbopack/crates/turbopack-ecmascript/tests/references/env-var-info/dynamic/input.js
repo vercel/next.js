@@ -241,7 +241,7 @@ import { env as importedEnvEscape } from 'node:process'
 import { env as importedEnvAliasEscape } from 'process'
 
 foo(importedEnvEscape)
-bar({ e: importedEnvAliasEscape })
+bar({ importedEnvAliasEscape })
 
 // CASE: dynamic-named-import-reexport
 import { env as importedEnvReexport } from 'process'
