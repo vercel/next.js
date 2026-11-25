@@ -331,7 +331,6 @@ describe('request insights', () => {
       },
     })
     expect(getRequestInsightsSnapshot().requests[0].completedAt).toBeUndefined()
-    expect(getRequestInsightsSnapshot().requests[0].completedAt).toBeUndefined()
 
     recordSpan({
       name: 'final route handler',

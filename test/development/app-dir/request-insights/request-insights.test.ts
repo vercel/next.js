@@ -186,6 +186,13 @@ describe('request insights', () => {
     })
   })
 
+  it('allows only GET, HEAD, and OPTIONS on the endpoint', async () => {
+    const endpoint = '/_next/development/request-insights'
+    expect((await next.fetch(endpoint, { method: 'HEAD' })).status).toBe(200)
+    expect((await next.fetch(endpoint, { method: 'OPTIONS' })).status).toBe(204)
+    expect((await next.fetch(endpoint, { method: 'POST' })).status).toBe(405)
+  })
+
   it('records route module loading and preparation spans', async () => {
     const existingRequestIds = new Set(
       (
