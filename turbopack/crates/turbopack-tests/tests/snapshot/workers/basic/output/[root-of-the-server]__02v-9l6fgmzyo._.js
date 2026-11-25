@@ -67,12 +67,11 @@ __turbopack_context__.s([
     // off to load it after everything else.
     const workerChunkPaths = moduleChunks.map((chunk)=>typeof chunk === 'string' ? chunk : chunk.path);
     const workerChunkSet = new Set(workerChunkPaths);
-    // Chunks already loaded in the runtime creating this worker. Worker chunk
-    // groups use normal (nested) availability info, so modules the creating
-    // runtime already has are *not* in `moduleChunks`. The worker realm needs its
-    // own copies of those factories (functions can't be structured-cloned), so we
-    // hand over the chunk paths and let the worker re-import them — cheap, since
-    // the browser has them cached.
+    // Only a worker created by another worker inherits availability. A worker
+    // created by a page has a self-contained chunk group and must not import all
+    // the page's JS chunks. Workers have no `document`, including shared workers.
+    // Nested workers re-import their parent's chunks because module factories
+    // cannot be transferred across realms.
     //
     // These must be registered *before* the worker's own chunks, for two reasons:
     //  1. The worker's evaluate chunk instantiates the entry module, whose
@@ -82,7 +81,7 @@ __turbopack_context__.s([
     //     list per group. Loading the worker's own chunks last means its version
     //     wins, so a nested worker gets the correctly-pruned chunk list.
     // They travel in their own params slot — first, since they load first.
-    const preloadChunkPaths = (typeof /*TURBOPACK member replacement*/ __turbopack_context__.G === 'function' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
+    const preloadChunkPaths = (typeof document === 'undefined' && typeof /*TURBOPACK member replacement*/ __turbopack_context__.G === 'function' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
     const chunkUrls = workerChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath)).reverse();
     const preloadUrls = preloadChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath));
     const params = [
