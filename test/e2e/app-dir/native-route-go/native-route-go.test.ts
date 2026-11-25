@@ -1,5 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, fetchViaRawHttp, findPort, retry } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  fetchViaRawHttp,
+  findPort,
+  initNextServerScript,
+  killApp,
+  retry,
+} from 'next-test-utils'
 import { request } from 'http'
 import { promises as fs } from 'fs'
 import { dirname, join, relative } from 'path'
@@ -1199,6 +1206,90 @@ describe('native-route-go', () => {
   }
 })
 
+// Standalone output is a self-hosted production build.
+// @force-gate turbopack && start
+describe('native-route-go with standalone output', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    // Standalone output is self-hosted with `node server.js`; see README.md for
+    // the deploy coverage boundary.
+    skipDeployment: true,
+  })
+
+  it('serves Go routes from .next/standalone/server.js without a Go toolchain', async () => {
+    await next.patchFile('next.config.ts', (config) =>
+      config.replace('experimental:', "output: 'standalone',\n  experimental:")
+    )
+    const result = await next.build()
+    expect(result.exitCode).toBe(0)
+    expect(result.cliOutput).not.toContain('Failed to copy traced files')
+
+    const standaloneDir = join(next.testDir, '.next/standalone')
+    const manifest = await next.readJSON(
+      '.next/standalone/.next/server/app-paths-manifest.json'
+    )
+    const entry = manifest['/(group)/native/[id]/route']
+    expect(entry).toMatch(/\.native\.json$/)
+    const descriptor = JSON.parse(
+      await fs.readFile(join(standaloneDir, '.next/server', entry), 'utf8')
+    )
+    const metadata = await fs.stat(
+      join(standaloneDir, '.next/server', descriptor.executable)
+    )
+    if (process.platform !== 'win32') expect(metadata.mode & 0o111).not.toBe(0)
+
+    // The standalone server must not fall back to the original build output.
+    await next.renameFolder('.next/standalone', 'standalone')
+    await next.renameFolder('.next', '.next-original')
+
+    const port = await findPort()
+    let output = ''
+    const server = await initNextServerScript(
+      join(next.testDir, 'standalone/server.js'),
+      /- Local:/,
+      {
+        ...process.env,
+        PORT: String(port),
+        HOSTNAME: '127.0.0.1',
+        TURBOPACK_GO: '/missing-go-toolchain',
+      },
+      undefined,
+      {
+        cwd: next.testDir,
+        onStdout: (message) => (output += message),
+        onStderr: (message) => (output += message),
+      }
+    )
+    try {
+      const origin = `http://127.0.0.1:${port}`
+      const response = await fetchViaHTTP(origin, '/native/standalone')
+      expect(response.status).toBe(201)
+      expect(response.headers.get('x-native-route')).toBe('yes')
+      expect(await response.json()).toMatchObject({
+        id: 'standalone',
+        sibling: 'sibling-v1',
+        embedded: expect.any(String),
+        proxy: '1',
+      })
+
+      const rewritten = await fetchViaHTTP(origin, '/alias')
+      expect(rewritten.status).toBe(201)
+      expect((await rewritten.json()).id).toBe('123')
+
+      await expectAutomaticMethods((method) =>
+        fetchViaHTTP(origin, '/methods', undefined, { method })
+      )
+
+      const js = await fetchViaHTTP(origin, '/js')
+      expect(js.status).toBe(200)
+    } finally {
+      await killApp(server)
+    }
+    expect(output).not.toContain('Error')
+  })
+})
+
 // @force-gate turbopack
 describe('native-route-go in src/app', () => {
   const { next, skipped } = nextTestSetup({
@@ -1254,6 +1345,26 @@ describe('native route diagnostics', () => {
         expect(result.exitCode).not.toBe(0)
         expect(result.cliOutput).toContain(
           'route.go requires experimental.goRoutes: true'
+        )
+      }
+    )
+  })
+  it('rejects static export output', async () => {
+    await next.patchFile(
+      'next.config.ts',
+      (config) =>
+        config!.replace('experimental:', "output: 'export',\n  experimental:"),
+      async () => {
+        const result = await next.runCommand(['build', '--turbopack'], {
+          env: {
+            TURBOPACK_GO: '/missing-go-toolchain',
+            IS_TURBOPACK_TEST: '1',
+            IS_WEBPACK_TEST: '',
+          },
+        })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.cliOutput).toContain(
+          '`route.go` and `proxy.go` do not support `output: "export"`'
         )
       }
     )
