@@ -458,7 +458,9 @@ Go Route Handlers always execute dynamically. JavaScript exports such as `dynami
 
 ## Deployment
 
-For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export and `output: 'standalone'` are unsupported.
+For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable.
+
+[`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) copies each Go executable into `.next/standalone` with its permissions, so `node .next/standalone/server.js` serves Go routes without a Go toolchain. The standalone output targets the build host's operating system and architecture.
 
 Go Route Handlers have no build-time prerendering mode, so they cannot produce static response files for [`output: 'export'`](/docs/app/guides/static-exports#route-handlers).
 
