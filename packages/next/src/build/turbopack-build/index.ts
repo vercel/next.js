@@ -7,6 +7,9 @@ export function turbopackBuild(
 ): ReturnType<typeof turbopackBuildImpl> {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   return nextBuildSpan
-    .traceChild('run-turbopack')
+    .traceChild('run-turbopack', undefined, {
+      recordToInsights: true,
+      scope: true,
+    })
     .traceAsyncFn(() => turbopackBuildImpl(telemetry))
 }

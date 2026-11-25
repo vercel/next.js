@@ -1,7 +1,8 @@
-import type {
-  RequestInsight,
-  RequestInsightFetch,
-  RequestInsightSpan,
+import {
+  getRequestInsightKind,
+  type RequestInsight,
+  type RequestInsightFetch,
+  type RequestInsightSpan,
 } from '../../../shared/request-insights'
 import { getFetchUrlPresentation } from './fetch-label'
 
@@ -71,6 +72,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   MIDDLEWARE_SPAN_TYPE,
   'DevBundlerService.ensurePage',
+  'compile-path',
   'BaseServer.render',
   LOAD_COMPONENTS_SPAN_TYPE,
   'LoadComponents.loadRouteModule',
@@ -161,7 +163,10 @@ export function getTraceItems(
   })
 
   const nestedItems = nestTraceItems(items)
-  return verbose ? nestedItems : getDefaultTraceItems(nestedItems)
+  // Background entries only contain Next.js work, so nothing in them is internal.
+  return verbose || getRequestInsightKind(request) === 'background'
+    ? nestedItems
+    : getDefaultTraceItems(nestedItems)
 }
 
 export function getTraceRange(request: RequestInsight): TraceRange {

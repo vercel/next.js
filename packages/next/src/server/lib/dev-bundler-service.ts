@@ -21,6 +21,15 @@ import {
  * The DevBundlerService provides an interface to perform tasks with the
  * bundler while in development.
  */
+const SEPARATELY_BUILT_ENTRIES = new Set([
+  '/middleware',
+  '/src/middleware',
+  '/proxy',
+  '/src/proxy',
+  '/instrumentation',
+  '/src/instrumentation',
+])
+
 export class DevBundlerService {
   public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
   public setCacheStatus: NextJsHotReloaderInterface['setCacheStatus']
@@ -87,6 +96,15 @@ export class DevBundlerService {
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
     definition
   ) => {
+    // Turbopack builds these entries separately and returns immediately, so a
+    // span would show a misleading 0 ms compile.
+    if (
+      process.env.TURBOPACK &&
+      !definition.definition &&
+      SEPARATELY_BUILT_ENTRIES.has(definition.page)
+    ) {
+      return this.bundler.hotReloader.ensurePage(definition)
+    }
     // TODO: remove after ensure is pulled out of server
     return await getTracer().trace(
       DevBundlerServiceSpan.ensurePage,

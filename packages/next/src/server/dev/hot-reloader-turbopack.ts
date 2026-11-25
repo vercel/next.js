@@ -1,3 +1,4 @@
+import { trace } from '../../trace'
 import type { Socket } from 'net'
 import { mkdir } from 'fs/promises'
 import { realpathSync } from 'fs'
@@ -60,7 +61,6 @@ import {
   clearModuleContext,
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import { trace } from '../../trace'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -1723,7 +1723,8 @@ export async function createHotReloaderTurbopack(
                   updatedModules: parsedData.updatedModules,
                   page: parsedData.page,
                   isPageHidden: parsedData.isPageHidden,
-                }
+                },
+                { recordToInsights: true }
               )
               break
 

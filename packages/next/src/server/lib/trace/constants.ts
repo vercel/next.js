@@ -109,6 +109,7 @@ enum DevBundlerServiceSpan {
 
 enum RouterSpan {
   executeRoute = 'Router.executeRoute',
+  invokeRender = 'Router.invokeRender',
 }
 
 enum NodeSpan {
