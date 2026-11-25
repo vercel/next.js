@@ -7,7 +7,7 @@ version: experimental
 `proxy.go` runs Go code before routing a request, using Go's `net/http` request and response APIs.
 
 ```go filename="proxy.go" highlight={5,7}
-package main
+package proxy
 
 import "net/http"
 
@@ -69,7 +69,7 @@ Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
 Call `Rewrite` to route a request to another path while keeping the original URL in the browser. Call `Next` for requests that should continue without a rewrite.
 
 ```go filename="proxy.go" highlight={7,11}
-package main
+package proxy
 
 import "net/http"
 
@@ -88,7 +88,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 Clone the incoming headers, apply changes, and pass them through `ProxyOptions.Request.Headers`. The same options value works with `Next` and `Rewrite`.
 
 ```go filename="proxy.go" highlight={10-13}
-package main
+package proxy
 
 import "net/http"
 

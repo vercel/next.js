@@ -80,6 +80,10 @@ func analyze() error {
 		file, err := parser.ParseFile(token.NewFileSet(), name, sources[name], parser.SkipObjectResolution)
 		if err != nil {
 			errors = append(errors, err.Error())
+		}
+		// ParseFile returns a partial AST on syntax errors. Retain its package and
+		// declarations so generated files do not mask the compiler's diagnostics.
+		if file == nil || file.Name == nil || file.Name.Name == "" {
 			continue
 		}
 		// A file whose constraints cannot be evaluated is left for the compiler to report.
@@ -89,7 +93,7 @@ func analyze() error {
 		}
 		// MatchFile leaves cgo files to the importer, which ignores them when cgo is disabled.
 		for _, spec := range file.Imports {
-			if spec.Path.Value == `"C"` {
+			if spec.Path != nil && spec.Path.Value == `"C"` {
 				selected = false
 			}
 		}
@@ -99,7 +103,7 @@ func analyze() error {
 		}
 		// Include unexported package functions too; callers decide which names have meaning.
 		for _, declaration := range file.Decls {
-			if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil {
+			if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil && function.Name != nil && function.Name.Name != "" {
 				functions[function.Name.Name] = true
 				if selected {
 					selectedFunctions[function.Name.Name] = true

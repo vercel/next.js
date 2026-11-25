@@ -1656,9 +1656,10 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
         path: rcstr!(""),
     };
     let options = session.go_context.options.clone();
-    let declarations = session
-        .tt
-        .run_once(async move {
+    let analyze = || {
+        let root = root.clone();
+        let options = options.clone();
+        session.tt.run_once(async move {
             let sources = selected_sources(
                 root.clone(),
                 root.join(directory)?,
@@ -1668,11 +1669,13 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
             .resolve()
             .strongly_consistent()
             .await?;
-            selected_declarations(sources, options)
+            let declarations = selected_declarations(sources, options)
                 .read_strongly_consistent()
-                .await
+                .await?;
+            Ok((sources, declarations))
         })
-        .await?;
+    };
+    let (_, declarations) = analyze().await?;
     // Every parsed file is reported; only files Go compiles into the package are selected.
     assert_eq!(
         declarations.packages,
@@ -1680,6 +1683,85 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     );
     assert_eq!(declarations.selected_packages, vec![rcstr!("route")]);
     assert_eq!(declarations.selected_functions, vec![rcstr!("GET")]);
+    let build = |sources, package: &str| {
+        let options = options.clone();
+        let generated = BTreeMap::from([
+            (
+                rcstr!("app/_next_go_route/zz_generated.go"),
+                RcStr::from(format!("package {package}\n")),
+            ),
+            (
+                rcstr!("app/_next_go_main/main.go"),
+                rcstr!(
+                    "package main\nimport _ \
+                     \"example.com/native-fixture/app/_next_go_route\"\nfunc main() {}\n"
+                ),
+            ),
+        ]);
+        session.tt.run_once(async move {
+            selected_package_bundle(sources, options, rcstr!("app/_next_go_route"), generated)
+                .read_strongly_consistent()
+                .await
+        })
+    };
+    // Go checks the package clause of cgo files even when cgo is disabled.
+    session
+        .write(
+            &format!("{directory}/cgo.go"),
+            "package api\nimport \"C\"\nfunc PUT() {}\n",
+        )
+        .await?;
+    for handler in ["GET", "Proxy"] {
+        session
+            .write(
+                &format!("{directory}/route.go"),
+                &format!("package api\nfunc {handler}() {{ var value = }}\n"),
+            )
+            .await?;
+        let (sources, declarations) = analyze().await?;
+        assert_eq!(declarations.selected_packages, vec![rcstr!("api")]);
+        assert_eq!(declarations.selected_functions, vec![RcStr::from(handler)]);
+        assert!(!declarations.syntax_errors.is_empty());
+        // Consumers generate code using the recovered package and leave syntax errors to Go.
+        let package = declarations
+            .selected_packages
+            .first()
+            .map_or("route", |name| name.as_str());
+        let result = build(sources, package).await?;
+        let GoBuildOutcome::Failed(message) = &result.outcome else {
+            anyhow::bail!("unexpected result: {:?}", result.outcome);
+        };
+        assert!(
+            message.contains("route.go:2:") && message.contains("syntax error"),
+            "{message}"
+        );
+        assert!(
+            !message.contains("found packages") && !message.contains("zz_generated.go"),
+            "{message}"
+        );
+    }
+    session
+        .write(
+            &format!("{directory}/route.go"),
+            "package api\nfunc GET() {}\n",
+        )
+        .await?;
+    let (sources, declarations) = analyze().await?;
+    assert_eq!(declarations.selected_packages, vec![rcstr!("api")]);
+    assert!(declarations.syntax_errors.is_empty());
+    assert!(matches!(
+        build(sources, "api").await?.outcome,
+        GoBuildOutcome::Success(_)
+    ));
+    session
+        .write(
+            &format!("{directory}/route.go"),
+            "this is not a package clause\n",
+        )
+        .await?;
+    let (_, declarations) = analyze().await?;
+    assert!(declarations.selected_packages.is_empty());
+    assert!(!declarations.syntax_errors.is_empty());
     session.stop().await;
     Ok(())
 }

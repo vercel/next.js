@@ -20,8 +20,8 @@ pub struct GoDeclarations {
     /// All package-level functions, including unexported names such as `main`. Methods are
     /// excluded.
     pub functions: Vec<RcStr>,
-    /// Package clauses of the parsed files, sorted and deduplicated. Files with syntax errors
-    /// are omitted; the compiler reports any disagreement between package clauses.
+    /// Package clauses recovered from parsed files, sorted and deduplicated, including files
+    /// with syntax errors. The compiler reports any disagreement between package clauses.
     #[serde(default)]
     pub packages: Vec<RcStr>,
     /// `functions` restricted to files that Go's package file selection includes for the
