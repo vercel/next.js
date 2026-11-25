@@ -33,16 +33,22 @@ class FakeAsyncLocalStorage<Store extends {}>
   }
 }
 
-const maybeGlobalAsyncLocalStorage =
-  // TODO(as-any): pre-existing cast, not yet reviewed
-  // eslint-disable-next-line @next/internal/no-as-any
-  typeof globalThis !== 'undefined' && (globalThis as any).AsyncLocalStorage
+// Read on use: modules that load before node-environment installs the global
+// must still get real storages once it exists.
+function getGlobalAsyncLocalStorage(): typeof AsyncLocalStorage | undefined {
+  return (
+    globalThis as typeof globalThis & {
+      AsyncLocalStorage?: typeof AsyncLocalStorage
+    }
+  ).AsyncLocalStorage
+}
 
 export function createAsyncLocalStorage<
   Store extends {},
 >(): AsyncLocalStorage<Store> {
-  if (maybeGlobalAsyncLocalStorage) {
-    return new maybeGlobalAsyncLocalStorage()
+  const GlobalAsyncLocalStorage = getGlobalAsyncLocalStorage()
+  if (GlobalAsyncLocalStorage) {
+    return new GlobalAsyncLocalStorage<Store>()
   }
   return new FakeAsyncLocalStorage()
 }
@@ -84,12 +90,13 @@ export function getOrCreateGlobalAsyncLocalStorage<Store extends {}>(
   return (globalStore[key] ??= createAsyncLocalStorage<Store>())
 }
 
-export function bindSnapshot<T>(
+export function bindSnapshot<T extends (...args: any[]) => any>(
   // WARNING: Don't pass a named function to this argument! See: https://github.com/facebook/react/pull/34911
   fn: T
 ): T {
-  if (maybeGlobalAsyncLocalStorage) {
-    return maybeGlobalAsyncLocalStorage.bind(fn)
+  const GlobalAsyncLocalStorage = getGlobalAsyncLocalStorage()
+  if (GlobalAsyncLocalStorage) {
+    return GlobalAsyncLocalStorage.bind(fn)
   }
   return FakeAsyncLocalStorage.bind(fn)
 }
@@ -98,8 +105,9 @@ export function createSnapshot(): <R, TArgs extends any[]>(
   fn: (...args: TArgs) => R,
   ...args: TArgs
 ) => R {
-  if (maybeGlobalAsyncLocalStorage) {
-    return maybeGlobalAsyncLocalStorage.snapshot()
+  const GlobalAsyncLocalStorage = getGlobalAsyncLocalStorage()
+  if (GlobalAsyncLocalStorage) {
+    return GlobalAsyncLocalStorage.snapshot()
   }
   return function (fn: any, ...args: any[]) {
     return fn(...args)
