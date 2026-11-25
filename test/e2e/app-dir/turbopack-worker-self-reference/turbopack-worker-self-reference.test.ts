@@ -7,12 +7,21 @@ const expected =
 describe('self-referencing web workers', () => {
   const { next, isTurbopack } = nextTestSetup({ files: __dirname })
 
-  it('reports loaded CSS chunk paths in the browser runtime', async () => {
+  it('reports only loaded JS chunk paths in the browser runtime', async () => {
     const browser = await next.browser('/')
+    // The page imports a stylesheet; make sure it is applied so the assertion
+    // below shows CSS chunks are excluded rather than simply not loaded yet.
+    await retry(async () => {
+      expect(
+        await browser.elementByCss('#shared').getComputedCss('color')
+      ).toBe('rgb(18, 52, 86)')
+    })
     await browser.elementByCss('#inspect-chunks').click()
     const paths = await browser.elementByCss('#loaded-chunk-paths').text()
     if (isTurbopack) {
-      expect(paths).toMatch(/\.css(?:,|$)/)
+      const entries = paths.split(',').filter(Boolean)
+      expect(entries.length).toBeGreaterThan(0)
+      expect(entries.filter((path) => !path.endsWith('.js'))).toEqual([])
     } else {
       expect(paths).toBe('unavailable')
     }

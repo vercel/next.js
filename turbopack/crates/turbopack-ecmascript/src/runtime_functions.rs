@@ -93,7 +93,8 @@ pub const TURBOPACK_REQUIRE_STUB: &TurbopackRuntimeFunctionShortcut = make_short
 pub const TURBOPACK_REQUIRE_REAL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("t");
 pub const TURBOPACK_GLOBAL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("g");
 pub const TURBOPACK_CHUNK_RELATIVE_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("h");
-pub const TURBOPACK_GET_LOADED_CHUNK_PATHS: &TurbopackRuntimeFunctionShortcut = make_shortcut!("G");
+pub const TURBOPACK_GET_LOADED_JS_CHUNK_PATHS: &TurbopackRuntimeFunctionShortcut =
+    make_shortcut!("G");
 pub const TURBOPACK_RUNTIME_ROOT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("w");
 pub const TURBOPACK_CHUNK_BASE_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("b");
 pub const TURBOPACK_ASSET_SUFFIX: &TurbopackRuntimeFunctionShortcut = make_shortcut!("X");
@@ -135,8 +136,8 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
         TURBOPACK_CHUNK_RELATIVE_URL,
     ),
     (
-        "__turbopack_get_loaded_chunk_paths__",
-        TURBOPACK_GET_LOADED_CHUNK_PATHS,
+        "__turbopack_get_loaded_js_chunk_paths__",
+        TURBOPACK_GET_LOADED_JS_CHUNK_PATHS,
     ),
     ("__turbopack_chunk_base_path__", TURBOPACK_CHUNK_BASE_PATH),
     ("__turbopack_chunk_asset_suffix__", TURBOPACK_ASSET_SUFFIX),

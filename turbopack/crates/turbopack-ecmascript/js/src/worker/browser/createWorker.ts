@@ -17,8 +17,8 @@ declare const __turbopack_chunk_relative_url__: (
 declare const __turbopack_chunk_base_path__: string
 declare const __turbopack_chunk_asset_suffix__: string
 
-// Paths of all chunks loaded in this runtime, including stylesheets in a page.
-declare const __turbopack_get_loaded_chunk_paths__: () => string[]
+// Paths of the JS chunks whose module factories are installed in this runtime.
+declare const __turbopack_get_loaded_js_chunk_paths__: () => string[]
 
 declare const _TURBOPACK_WORKER_FORWARDED_GLOBALS_: string[]
 declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
@@ -72,7 +72,7 @@ function createWorker(
   // Only a worker created by another worker inherits availability. A worker
   // created by a page has a self-contained chunk group and must not import all
   // the page's JS chunks. Workers have no `document`, including shared workers.
-  // Nested workers re-import their parent's chunks because module factories
+  // Nested workers re-import their parent's JS chunks because module factories
   // cannot be transferred across realms.
   //
   // These must be registered *before* the worker's own chunks: the worker's
@@ -87,7 +87,7 @@ function createWorker(
   // They travel in their own params slot — first, since they load first.
   const preloadChunkPaths = (
     typeof importScripts !== 'undefined'
-      ? __turbopack_get_loaded_chunk_paths__()
+      ? __turbopack_get_loaded_js_chunk_paths__()
       : []
   ).filter((chunkPath) => !workerChunkSet.has(chunkPath))
 

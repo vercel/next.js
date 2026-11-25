@@ -48,7 +48,7 @@ __turbopack_context__.s([
     // Only a worker created by another worker inherits availability. A worker
     // created by a page has a self-contained chunk group and must not import all
     // the page's JS chunks. Workers have no `document`, including shared workers.
-    // Nested workers re-import their parent's chunks because module factories
+    // Nested workers re-import their parent's JS chunks because module factories
     // cannot be transferred across realms.
     //
     // These must be registered *before* the worker's own chunks: the worker's

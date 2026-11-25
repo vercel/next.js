@@ -1146,45 +1146,17 @@ var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TU
 // the chunk again, so entries are added with `cacheLoadPromise`.
 var availableModules = new Map();
 var availableModuleChunks = new Map();
-// Paths of successfully loaded chunks in registration/load order. JS chunks
-// register their module factories; CSS chunks resolved by the runtime are recorded
-// when their stylesheet is available. CSS in initial HTML is included by the getter
-// below. Unlike CSS, JS factories remain installed after a script is removed.
-// Created on the first registration.
-var loadedChunkPaths;
-function registerLoadedChunk(chunk) {
-    if (loadedChunkPaths === undefined) loadedChunkPaths = new Set();
-    loadedChunkPaths.add(getPathFromScript(chunk));
+// Paths of the JS chunks whose module factories are installed in this runtime,
+// in registration order. Chunks that only evaluate (runtime params) are not
+// recorded. Created on the first registration.
+var loadedJsChunkPaths;
+function registerLoadedJsChunk(chunk) {
+    if (loadedJsChunkPaths === undefined) loadedJsChunkPaths = new Set();
+    loadedJsChunkPaths.add(getPathFromScript(chunk));
 }
-function unregisterLoadedChunk(chunkPath) {
-    loadedChunkPaths === null || loadedChunkPaths === void 0 ? void 0 : loadedChunkPaths.delete(chunkPath);
-}
-// Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
-function getLoadedChunkPaths() {
-    var _ref;
-    var _BACKEND_getExtraLoadedChunkPaths, _BACKEND;
-    var paths = new Set(loadedChunkPaths);
-    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-    try {
-        for(var _iterator = ((_ref = (_BACKEND_getExtraLoadedChunkPaths = (_BACKEND = BACKEND).getExtraLoadedChunkPaths) === null || _BACKEND_getExtraLoadedChunkPaths === void 0 ? void 0 : _BACKEND_getExtraLoadedChunkPaths.call(_BACKEND)) !== null && _ref !== void 0 ? _ref : [])[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-            var path = _step.value;
-            paths.add(path);
-        }
-    } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-    } finally{
-        try {
-            if (!_iteratorNormalCompletion && _iterator.return != null) {
-                _iterator.return();
-            }
-        } finally{
-            if (_didIteratorError) {
-                throw _iteratorError;
-            }
-        }
-    }
-    return Array.from(paths);
+// Runtime primitive exposed as `__turbopack_get_loaded_js_chunk_paths__`.
+function getLoadedJsChunkPaths() {
+    return loadedJsChunkPaths ? Array.from(loadedJsChunkPaths) : [];
 }
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 var chunkComponents = new Map();
@@ -1596,8 +1568,8 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
-// Shared runtime primitive: paths of all chunks loaded in this runtime.
-browserContextPrototype.G = getLoadedChunkPaths;
+// Shared runtime primitive: paths of the JS chunks loaded in this runtime.
+browserContextPrototype.G = getLoadedJsChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -1722,7 +1694,7 @@ function registerChunk(registration) {
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1);
         // Module factories are available as soon as their chunk registers.
-        registerLoadedChunk(chunk);
+        registerLoadedJsChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -1936,36 +1908,6 @@ var BACKEND;
  */ var chunkResolvers = new Map();
 (function() {
     BACKEND = {
-        getExtraLoadedChunkPaths: function getExtraLoadedChunkPaths() {
-            if (typeof document === 'undefined') return [];
-            // Initial stylesheets can be inserted directly by the HTML before the
-            // runtime starts; they never go through the chunk loader.
-            var paths = [];
-            var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-            try {
-                for(var _iterator = document.querySelectorAll('link[rel="stylesheet"][href]')[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-                    var link = _step.value;
-                    var href = link.getAttribute('href');
-                    if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
-                        paths.push(chunkUrlToPath(href));
-                    }
-                }
-            } catch (err) {
-                _didIteratorError = true;
-                _iteratorError = err;
-            } finally{
-                try {
-                    if (!_iteratorNormalCompletion && _iterator.return != null) {
-                        _iterator.return();
-                    }
-                } finally{
-                    if (_didIteratorError) {
-                        throw _iteratorError;
-                    }
-                }
-            }
-            return paths;
-        },
         registerChunk: function registerChunk(chunk, params) {
             return _async_to_generator(function() {
                 var chunkPath, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
@@ -2066,11 +2008,6 @@ var BACKEND;
                 promise: promise,
                 resolve: function resolve1() {
                     resolver.resolved = true;
-                    // CSS chunks have no module factories and never call registerChunk.
-                    // Record them when the stylesheet is available instead.
-                    if (isCss(chunkUrl)) {
-                        registerLoadedChunk(chunkUrlToPath(chunkUrl));
-                    }
                     resolve();
                 },
                 reject: reject

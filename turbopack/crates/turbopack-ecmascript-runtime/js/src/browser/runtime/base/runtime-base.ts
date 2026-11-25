@@ -85,12 +85,6 @@ interface RuntimeBackend {
    * loaded. A failed load is not cached, so a later call retries it.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
-  /**
-   * Paths of chunks the backend considers loaded outside of `registerChunk`/
-   * `registerLoadedChunk` (e.g. stylesheets already present in the initial HTML,
-   * which never go through the chunk loader). Called on demand; not cached.
-   */
-  getExtraLoadedChunkPaths?: () => ChunkPath[]
 }
 
 interface DevRuntimeBackend {
@@ -106,29 +100,19 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-// Paths of successfully loaded chunks in registration/load order. JS chunks
-// register their module factories; CSS chunks resolved by the runtime are recorded
-// when their stylesheet is available. CSS in initial HTML is included by the getter
-// below. Unlike CSS, JS factories remain installed after a script is removed.
-// Created on the first registration.
-let loadedChunkPaths: Set<ChunkPath> | undefined
+// Paths of the JS chunks whose module factories are installed in this runtime,
+// in registration order. Chunks that only evaluate (runtime params) are not
+// recorded. Created on the first registration.
+let loadedJsChunkPaths: Set<ChunkPath> | undefined
 
-function registerLoadedChunk(chunk: ChunkPath | ChunkScript): void {
-  if (loadedChunkPaths === undefined) loadedChunkPaths = new Set()
-  loadedChunkPaths.add(getPathFromScript(chunk))
+function registerLoadedJsChunk(chunk: ChunkPath | ChunkScript): void {
+  if (loadedJsChunkPaths === undefined) loadedJsChunkPaths = new Set()
+  loadedJsChunkPaths.add(getPathFromScript(chunk))
 }
 
-function unregisterLoadedChunk(chunkPath: ChunkPath): void {
-  loadedChunkPaths?.delete(chunkPath)
-}
-
-// Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
-function getLoadedChunkPaths(): ChunkPath[] {
-  const paths = new Set(loadedChunkPaths)
-  for (const path of BACKEND.getExtraLoadedChunkPaths?.() ?? []) {
-    paths.add(path)
-  }
-  return Array.from(paths)
+// Runtime primitive exposed as `__turbopack_get_loaded_js_chunk_paths__`.
+function getLoadedJsChunkPaths(): ChunkPath[] {
+  return loadedJsChunkPaths ? Array.from(loadedJsChunkPaths) : []
 }
 
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
@@ -560,8 +544,8 @@ browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl
 
-// Shared runtime primitive: paths of all chunks loaded in this runtime.
-browserContextPrototype.G = getLoadedChunkPaths
+// Shared runtime primitive: paths of the JS chunks loaded in this runtime.
+browserContextPrototype.G = getLoadedJsChunkPaths
 
 /**
  * Return the ChunkPath from a ChunkScript.

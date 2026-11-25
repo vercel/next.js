@@ -55,11 +55,10 @@ type GetChunkRelativeURL = (
 ) => ChunkUrl
 
 /**
- * The paths of all chunks loaded in this runtime: JS chunks whose module
- * factories are installed, and CSS chunks (including stylesheets from the
- * initial HTML).
+ * The paths of the JS chunks whose module factories are installed in this
+ * runtime, in registration order.
  */
-type GetLoadedChunkPaths = () => ChunkPath[]
+type GetLoadedJsChunkPaths = () => ChunkPath[]
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports
 type RuntimeRequire = (request: string) => Exports
@@ -179,7 +178,7 @@ interface TurbopackBaseContext<M> {
   l: LoadChunk
   L: LoadChunkByUrl
   h: GetChunkRelativeURL
-  G: GetLoadedChunkPaths
+  G: GetLoadedJsChunkPaths
   w: string
   P: ResolveAbsolutePath
   F: ResolveFileUrl

@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { sharedValue } from './shared'
 import './loaded.css'
 
-declare const __turbopack_get_loaded_chunk_paths__: (() => string[]) | undefined
+declare const __turbopack_get_loaded_js_chunk_paths__:
+  | (() => string[])
+  | undefined
 
 export default function Page() {
   const [response, setResponse] = useState('idle')
@@ -32,8 +34,8 @@ export default function Page() {
         id="inspect-chunks"
         onClick={() =>
           setLoadedChunks(
-            typeof __turbopack_get_loaded_chunk_paths__ === 'function'
-              ? __turbopack_get_loaded_chunk_paths__().join(',')
+            typeof __turbopack_get_loaded_js_chunk_paths__ === 'function'
+              ? __turbopack_get_loaded_js_chunk_paths__().join(',')
               : 'unavailable'
           )
         }

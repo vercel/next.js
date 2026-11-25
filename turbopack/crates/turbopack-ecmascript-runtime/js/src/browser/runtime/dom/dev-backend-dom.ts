@@ -23,7 +23,6 @@ let DEV_BACKEND: DevRuntimeBackend
       const baseChunkUrl = chunkUrl.split('?')[0]
 
       if (isCss(chunkUrl)) {
-        unregisterLoadedChunk(chunkUrlToPath(chunkUrl))
         for (const link of findChunkLinks(baseChunkUrl)) {
           link.remove()
         }
@@ -90,8 +89,8 @@ let DEV_BACKEND: DevRuntimeBackend
           // loading the new one.
           for (const previousLink of previousLinks) previousLink.remove()
 
-          // CSS chunks do not register themselves; record the reloaded stylesheet.
-          registerLoadedChunk(chunkUrlToPath(chunkUrl))
+          // CSS chunks do not register themselves, and as such must be marked as
+          // loaded instantly.
           resolve()
         }
 
