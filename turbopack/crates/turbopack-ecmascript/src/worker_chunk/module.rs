@@ -20,7 +20,7 @@ use turbopack_core::{
     resolve::{ExportUsage, ModuleResolveResult},
 };
 
-use super::worker_type::WorkerType;
+use turbopack_core::chunk::worker_type::WorkerType;
 use crate::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
