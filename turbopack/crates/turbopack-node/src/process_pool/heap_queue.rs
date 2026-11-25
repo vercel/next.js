@@ -1,48 +1,52 @@
-use std::{collections::BinaryHeap, sync::Arc};
+use std::collections::BinaryHeap;
 
+use anyhow::{Result, bail};
 use parking_lot::Mutex;
-use tokio::sync::{AcquireError, Semaphore};
+use tokio::sync::Semaphore;
 
+/// A queue of idle items that hands out the greatest item first.
+///
+/// The queue can be [closed](Self::close): this drops every queued item, and items pushed
+/// afterwards are dropped immediately instead of being queued.
 pub(super) struct HeapQueue<T> {
-    heap: Mutex<BinaryHeap<T>>,
+    /// `None` once the queue is closed.
+    heap: Mutex<Option<BinaryHeap<T>>>,
+    /// One permit per queued item. Closed together with the queue.
     semaphore: Semaphore,
 }
 
 impl<T: Ord> HeapQueue<T> {
     pub(super) fn new() -> Self {
         Self {
-            heap: Mutex::new(BinaryHeap::new()),
+            heap: Mutex::new(Some(BinaryHeap::new())),
             semaphore: Semaphore::new(0),
         }
     }
 
-    pub(super) fn push(self: &Arc<Self>, item: T, active_queues: &Mutex<Vec<Arc<Self>>>) {
-        {
-            let mut heap = self.heap.lock();
-            if heap.is_empty() {
-                // If the heap was empty, add this queue to the active queues
-                let mut queues = active_queues.lock();
-                queues.push(self.clone());
-            }
-            heap.push(item);
-        }
+    /// Queues `item`. If the queue is closed, `item` is dropped instead.
+    pub(super) fn push(&self, item: T) {
+        let mut heap = self.heap.lock();
+        let Some(heap) = heap.as_mut() else {
+            return;
+        };
+        heap.push(item);
+        // Add the permit while holding the lock, so that `close` can't run in between and leave
+        // a permit without an item behind.
         self.semaphore.add_permits(1);
     }
 
-    pub(super) async fn pop(
-        self: &Arc<Self>,
-        active_queues: &Mutex<Vec<Arc<Self>>>,
-    ) -> Result<T, AcquireError> {
-        self.semaphore.acquire().await?.forget();
+    /// Waits for an item and takes it out of the queue. Fails once the queue is closed.
+    pub(super) async fn pop(&self) -> Result<T> {
+        let Ok(permit) = self.semaphore.acquire().await else {
+            bail!("the idle queue was closed");
+        };
+        permit.forget();
         let mut heap = self.heap.lock();
-        let item = heap.pop().unwrap();
-        if heap.is_empty() {
-            // If the heap is empty, remove this queue from the active queues
-            let mut queues = active_queues.lock();
-            if let Some(pos) = queues.iter().position(|q| Arc::ptr_eq(q, self)) {
-                queues.remove(pos);
-            }
-        }
+        // Every permit belongs to a queued item, so the heap only lacks the item if it was closed
+        // after the permit was acquired.
+        let Some(item) = heap.as_mut().and_then(|heap| heap.pop()) else {
+            bail!("the idle queue was closed");
+        };
         Ok(item)
     }
 
@@ -53,8 +57,10 @@ impl<T: Ord> HeapQueue<T> {
             self.semaphore.add_permits(n);
             return;
         }
-        let mut heap: parking_lot::lock_api::MutexGuard<'_, parking_lot::RawMutex, BinaryHeap<T>> =
-            self.heap.lock();
+        let mut heap = self.heap.lock();
+        let Some(heap) = heap.as_mut() else {
+            return;
+        };
         // We must only pop n items even if there are more since we only have n permits
         let top = heap.pop().unwrap();
         n -= 1;
@@ -65,23 +71,36 @@ impl<T: Ord> HeapQueue<T> {
         self.semaphore.add_permits(1);
     }
 
-    pub(super) fn reduce_to_zero(self: &Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) {
+    pub(super) fn reduce_to_zero(&self) {
         // Drain the semaphore permits
         let n = self.semaphore.forget_permits(usize::MAX);
         if n == 0 {
             return;
         }
         let mut heap = self.heap.lock();
+        let Some(heap) = heap.as_mut() else {
+            return;
+        };
         // We must only pop n items even if there are more since we only have n permits
         for _ in 0..n {
             heap.pop();
         }
-        if heap.is_empty() {
-            // If the heap is empty, remove this queue from the active queues
-            let mut queues = active_queues.lock();
-            if let Some(pos) = queues.iter().position(|q| Arc::ptr_eq(q, self)) {
-                queues.remove(pos);
-            }
-        }
+    }
+
+    /// Closes the queue: drops every queued item and makes [`Self::push`] drop the items it is
+    /// given from now on.
+    pub(super) fn close(&self) {
+        let items = {
+            let mut heap = self.heap.lock();
+            self.semaphore.close();
+            heap.take()
+        };
+        // Drop the items outside of the lock.
+        drop(items);
+    }
+
+    #[cfg(test)]
+    pub(super) fn len(&self) -> usize {
+        self.heap.lock().as_ref().map_or(0, |heap| heap.len())
     }
 }

@@ -574,11 +574,47 @@ impl NodeJsPoolProcess {
     }
 }
 
-type IdleProcessQueues = Mutex<Vec<Arc<HeapQueue<NodeJsPoolProcess>>>>;
+type IdleProcessQueue = Arc<HeapQueue<NodeJsPoolProcess>>;
 
-/// All non-empty `IdleProcessQueues`s of the whole application.
+/// The idle process queues of all live [`ChildProcessPool`]s of the whole application.
 /// This is used to scale down processes globally.
-static ACTIVE_POOLS: LazyLock<IdleProcessQueues> = LazyLock::new(Default::default);
+///
+/// A pool registers its queue when it is created, and its [`PoolRegistration`] unregisters it
+/// when the pool is dropped.
+static ACTIVE_POOLS: LazyLock<Mutex<Vec<IdleProcessQueue>>> = LazyLock::new(Default::default);
+
+/// Publishes a pool's idle process queue in [`ACTIVE_POOLS`] for as long as the pool is alive.
+///
+/// The pool is owned by its `EvaluatePool` cell. When the cell is dropped (e.g. replaced after an
+/// invalidation, evicted, or dropped when turbo-tasks shuts down), this unregisters the queue and
+/// closes it: its idle processes are killed, and processes that in-flight operations or pre-warming
+/// return to it later are killed instead of being kept.
+struct PoolRegistration {
+    idle_processes: IdleProcessQueue,
+}
+
+impl PoolRegistration {
+    fn new(idle_processes: IdleProcessQueue) -> Self {
+        ACTIVE_POOLS.lock().push(idle_processes.clone());
+        Self { idle_processes }
+    }
+}
+
+impl Drop for PoolRegistration {
+    fn drop(&mut self) {
+        {
+            let mut pools = ACTIVE_POOLS.lock();
+            if let Some(pos) = pools
+                .iter()
+                .position(|q| Arc::ptr_eq(q, &self.idle_processes))
+            {
+                pools.swap_remove(pos);
+            }
+        }
+        // Close the queue after releasing `ACTIVE_POOLS`: dropping the idle processes kills them.
+        self.idle_processes.close();
+    }
+}
 
 /// Arguments needed to spawn a new Node.js process. Extracted so that
 /// `pre_warm` can clone them once instead of cloning each pool field
@@ -637,7 +673,10 @@ struct ChildProcessPool {
     assets_root: FileSystemPath,
     project_dir: FileSystemPath,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
-    idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
+    idle_processes: IdleProcessQueue,
+    /// Keeps `idle_processes` registered in [`ACTIVE_POOLS`] until the pool is dropped.
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    _registration: PoolRegistration,
     /// Semaphore to limit the number of concurrent operations in general
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
@@ -667,30 +706,95 @@ impl ChildProcessPool {
         concurrency: usize,
         debug: bool,
     ) -> EvaluatePool {
+        Self::new(
+            cwd,
+            entrypoint,
+            env,
+            assets_for_source_mapping,
+            assets_root,
+            project_dir,
+            concurrency,
+            debug,
+        )
+        .into_evaluate_pool()
+    }
+
+    fn new(
+        cwd: PathBuf,
+        entrypoint: PathBuf,
+        env: FxHashMap<RcStr, RcStr>,
+        assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+        assets_root: FileSystemPath,
+        project_dir: FileSystemPath,
+        concurrency: usize,
+        debug: bool,
+    ) -> Self {
+        let idle_processes = Arc::new(HeapQueue::new());
+        Self {
+            cwd,
+            entrypoint,
+            env,
+            assets_for_source_mapping,
+            assets_root,
+            project_dir,
+            concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
+            bootup_semaphore: Arc::new(Semaphore::new(1)),
+            _registration: PoolRegistration::new(idle_processes.clone()),
+            idle_processes,
+            shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
+            shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
+            debug,
+            stats: Default::default(),
+        }
+    }
+
+    fn into_evaluate_pool(self) -> EvaluatePool {
+        let assets_for_source_mapping = self.assets_for_source_mapping;
+        let assets_root = self.assets_root.clone();
+        let project_dir = self.project_dir.clone();
         EvaluatePool::new(
-            Box::new(Self {
-                cwd,
-                entrypoint,
-                env,
-                assets_for_source_mapping,
-                assets_root: assets_root.clone(),
-                project_dir: project_dir.clone(),
-                concurrency_semaphore: Arc::new(Semaphore::new(if debug {
-                    1
-                } else {
-                    concurrency
-                })),
-                bootup_semaphore: Arc::new(Semaphore::new(1)),
-                idle_processes: Arc::new(HeapQueue::new()),
-                shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
-                shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
-                debug,
-                stats: Default::default(),
-            }),
+            Box::new(self),
             assets_for_source_mapping,
             assets_root,
             project_dir,
         )
+    }
+
+    /// A handle that observes this pool's idle process queue without keeping it alive.
+    #[cfg(test)]
+    fn test_handle(&self) -> PoolTestHandle {
+        PoolTestHandle {
+            idle_processes: Arc::downgrade(&self.idle_processes),
+        }
+    }
+}
+
+#[cfg(test)]
+struct PoolTestHandle {
+    idle_processes: std::sync::Weak<HeapQueue<NodeJsPoolProcess>>,
+}
+
+#[cfg(test)]
+impl PoolTestHandle {
+    /// Whether the pool's idle process queue is registered in [`ACTIVE_POOLS`].
+    fn is_registered(&self) -> bool {
+        let Some(idle_processes) = self.idle_processes.upgrade() else {
+            return false;
+        };
+        ACTIVE_POOLS
+            .lock()
+            .iter()
+            .any(|q| Arc::ptr_eq(q, &idle_processes))
+    }
+
+    /// The number of idle processes in the pool's queue. 0 once the queue is closed or dropped.
+    fn idle_count(&self) -> usize {
+        self.idle_processes.upgrade().map_or(0, |q| q.len())
+    }
+
+    /// Whether anything (the pool, an operation, or pre-warming) still references the queue.
+    fn is_queue_alive(&self) -> bool {
+        self.idle_processes.strong_count() > 0
     }
 }
 
@@ -796,7 +900,9 @@ impl EvaluateOperation for ChildProcessPool {
                         s.finished_booting_worker();
                     }
                     drop(bootup_permit);
-                    idle_processes.push(process, &ACTIVE_POOLS);
+                    // If the pool was dropped in the meantime, the queue is closed and this kills
+                    // the process.
+                    idle_processes.push(process);
                 }
                 Err(_e) => {
                     let mut s = stats.lock();
@@ -824,7 +930,7 @@ impl ChildProcessPool {
         };
 
         select! {
-            idle_process_result = self.idle_processes.pop(&ACTIVE_POOLS) => {
+            idle_process_result = self.idle_processes.pop() => {
                 let process = idle_process_result.context("acquiring idle process permit")?;
                 Ok((process, AcquiredPermits::Idle { _concurrency_permit: concurrency_permit }))
             },
@@ -878,7 +984,7 @@ impl ChildProcessPool {
     fn scale_zero() {
         let pools = ACTIVE_POOLS.lock().clone();
         for pool in pools {
-            pool.reduce_to_zero(&ACTIVE_POOLS);
+            pool.reduce_to_zero();
         }
     }
 }
@@ -888,7 +994,7 @@ struct ChildProcessOperation {
     // This is used for drop
     #[allow(dead_code)]
     permits: AcquiredPermits,
-    idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
+    idle_processes: IdleProcessQueue,
     start: Instant,
     stats: Arc<Mutex<NodeJsPoolStats>>,
     allow_process_reuse: bool,
@@ -983,7 +1089,9 @@ impl Drop for ChildProcessOperation {
             }
             if self.allow_process_reuse {
                 process.cpu_time_invested += elapsed;
-                self.idle_processes.push(process, &ACTIVE_POOLS);
+                // If the pool was dropped in the meantime, the queue is closed and this kills the
+                // process.
+                self.idle_processes.push(process);
             }
         }
     }
