@@ -3,8 +3,6 @@ import execa from 'execa'
 import fs from 'fs'
 import path from 'path'
 import stripAnsi from 'strip-ansi'
-import { retry } from 'next-test-utils'
-import { gunzipSync } from 'zlib'
 
 describe('lockfile', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
@@ -31,17 +29,6 @@ describe('lockfile', () => {
       appUrl: expect.any(String),
       startedAt: expect.any(Number),
     })
-
-    const journalPath = path.join(distDir, 'request-insights.ndjson.gz')
-    const readJournal = () =>
-      gunzipSync(fs.readFileSync(journalPath)).toString('utf8')
-    await retry(() => {
-      expect(readJournal().length).toBeGreaterThan(0)
-    })
-    const recordedHistory = readJournal()
-    expect(fs.existsSync(path.join(distDir, 'request-insights.ndjson'))).toBe(
-      false
-    )
 
     // Try to start another dev server - should fail with helpful error
     const { stdout, stderr, exitCode } = await execa(
@@ -77,7 +64,6 @@ describe('lockfile', () => {
     )
     expect(output).toMatch(errorPattern)
     expect(exitCode).toBe(1)
-    expect(readJournal().startsWith(recordedHistory)).toBe(true)
 
     // Make sure the other instance of `next dev` didn't mess anything up
     await browser.refresh()

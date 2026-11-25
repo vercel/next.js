@@ -19,12 +19,6 @@ import {
   type RequestInsight,
   type RequestInsightFetch,
 } from '../../../shared/request-insights'
-import {
-  getRequestInsightFetchCount,
-  getRequestInsightSpanCount,
-  isRequestInsightSummary,
-  type RequestInsightListItem,
-} from '../../../shared/request-insights-summary'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { ACTION_DEVTOOLS_CONFIG } from '../../shared'
 import { saveDevToolsConfig } from '../../utils/save-devtools-config'
@@ -64,10 +58,6 @@ import {
   getTraceRange,
   type TraceItem,
 } from './trace-viewer'
-import {
-  loadRequestInsightDetail,
-  useRequestInsightsHistory,
-} from './request-insights-history'
 import './request-insights-panel.css'
 
 const CopyErrorContext = createContext<(error: string | null) => void>(() => {})
@@ -100,15 +90,10 @@ export function RequestInsightsPanel() {
   const toggleFilter = (filter: RequestInsightFilter) => {
     setActiveFilters((filters) => toggleRequestInsightFilter(filters, filter))
   }
-  const history = useRequestInsightsHistory({
-    activeFilters,
-    liveRequests: state.requestInsights,
-    showInternal: showInternalInList,
-  })
   const [pausedRequests, setPausedRequests] = useState<
-    readonly RequestInsightListItem[] | null
+    readonly RequestInsight[] | null
   >(null)
-  const requests = pausedRequests ?? history.unfilteredRequests
+  const requests = pausedRequests ?? state.requestInsights
   const isPaused = pausedRequests !== null
   const filterResult = useMemo(
     () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
@@ -132,41 +117,10 @@ export function RequestInsightsPanel() {
     visibleRequests,
     selectedRequestKey
   )
-  const selectedListItem =
-    visibleRequests.find(
+  const selectedRequest =
+    requests.find(
       (request) => getRequestInsightKey(request) === activeRequestKey
     ) ?? null
-  const [historicalRequest, setHistoricalRequest] = useState<{
-    key: string
-    request: RequestInsight
-  } | null>(null)
-  useEffect(() => {
-    if (!selectedListItem || !isRequestInsightSummary(selectedListItem)) {
-      return
-    }
-
-    const controller = new AbortController()
-    const key = getRequestInsightKey(selectedListItem)
-    void loadRequestInsightDetail(selectedListItem, controller.signal)
-      .then((request) => {
-        if (request) {
-          setHistoricalRequest({ key, request })
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          console.error('Failed to load Request Insights detail', error)
-        }
-      })
-    return () => controller.abort()
-  }, [selectedListItem])
-  const selectedRequest = selectedListItem
-    ? isRequestInsightSummary(selectedListItem)
-      ? historicalRequest?.key === getRequestInsightKey(selectedListItem)
-        ? historicalRequest.request
-        : null
-      : selectedListItem
-    : null
   const initialRequestId = self.__next_r
   const internalRequests = useMemo(
     () => requests.filter((request) => isInternalRequestInsight(request)),
@@ -177,15 +131,9 @@ export function RequestInsightsPanel() {
     : internalRequests.filter((request) => request.status === 'error').length
   // Only offer the internal-activity toggle once the session has captured
   // internal activity to reveal.
-  const showInternalToggle =
-    internalRequests.length > 0 ||
-    history.optionCounts['activity:instant-insights'] > 0
+  const showInternalToggle = internalRequests.length > 0
 
-  if (
-    requests.length === 0 &&
-    history.totalRequestCount === 0 &&
-    !history.loading
-  ) {
+  if (requests.length === 0) {
     return (
       <div className="request-insights-empty">
         Request insights will appear after the next App Router request.
@@ -213,9 +161,7 @@ export function RequestInsightsPanel() {
               activeFilters={activeFilters}
               onReset={() => setActiveFilters([])}
               onToggle={toggleFilter}
-              optionCounts={
-                isPaused ? filterResult.optionCounts : history.optionCounts
-              }
+              optionCounts={filterResult.optionCounts}
               shadowRoot={shadowRoot}
             />
             <div className="request-insights-settings">
@@ -247,7 +193,7 @@ export function RequestInsightsPanel() {
                         closeOnClick={false}
                         onCheckedChange={(checked) =>
                           setPausedRequests(
-                            checked ? [...history.unfilteredRequests] : null
+                            checked ? [...state.requestInsights] : null
                           )
                         }
                       >
@@ -310,28 +256,11 @@ export function RequestInsightsPanel() {
         {activeFilters.length > 0 ? (
           <div className="request-insights-filter-status">
             <span>
-              {isPaused
-                ? filterResult.matchingRequestCount
-                : history.matchingRequestCount}{' '}
-              of{' '}
-              {isPaused
-                ? filterResult.totalRequestCount
-                : history.totalRequestCount}{' '}
-              requests
+              {filterResult.matchingRequestCount} of{' '}
+              {filterResult.totalRequestCount} requests
             </span>
             <button onClick={() => setActiveFilters([])} type="button">
               Reset
-            </button>
-          </div>
-        ) : null}
-        {!isPaused && history.hasNewer ? (
-          <div className="request-insights-filter-status">
-            <button
-              disabled={history.loading}
-              onClick={history.loadNewer}
-              type="button"
-            >
-              Load newer requests
             </button>
           </div>
         ) : null}
@@ -356,9 +285,7 @@ export function RequestInsightsPanel() {
             activeRequestKey={activeRequestKey}
             contextMenuRequestKey={contextMenuRequestKey}
             entries={listEntries}
-            hasMore={!isPaused && history.hasMore}
             initialRequestId={initialRequestId}
-            loading={history.loading}
             onContextMenuOpenChange={(requestKey, open) => {
               setContextMenuRequestKey((openRequestKey) => {
                 if (open) {
@@ -367,20 +294,14 @@ export function RequestInsightsPanel() {
                 return openRequestKey === requestKey ? null : openRequestKey
               })
             }}
-            onLoadMore={history.loadMore}
             onSelect={setSelectedRequestKey}
             shadowRoot={shadowRoot}
-            truncated={history.truncated}
           />
         )}
       </div>
 
       {selectedRequest ? (
         <RequestDetails request={selectedRequest} verbose={verbose} />
-      ) : selectedListItem ? (
-        <div className="request-insights-details-loading">
-          Loading request details…
-        </div>
       ) : null}
     </div>
   )
@@ -392,26 +313,18 @@ function VirtualRequestList({
   activeRequestKey,
   contextMenuRequestKey,
   entries,
-  hasMore,
   initialRequestId,
-  loading,
   onContextMenuOpenChange,
-  onLoadMore,
   onSelect,
   shadowRoot,
-  truncated,
 }: {
   activeRequestKey: string | null
   contextMenuRequestKey: string | null
   entries: readonly RequestListEntry[]
-  hasMore: boolean
   initialRequestId: string | undefined
-  loading: boolean
   onContextMenuOpenChange: (requestKey: string, open: boolean) => void
-  onLoadMore: () => void
   onSelect: (requestKey: string) => void
   shadowRoot: ShadowRoot
-  truncated: boolean
 }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const scrollbarDragRef = useRef<{
@@ -444,8 +357,7 @@ function VirtualRequestList({
     Math.ceil((scrollTop + viewportHeight) / REQUEST_ROW_HEIGHT) +
       REQUEST_ROW_OVERSCAN
   )
-  const footerHeight = loading || hasMore || truncated ? 32 : 0
-  const contentHeight = entries.length * REQUEST_ROW_HEIGHT + footerHeight
+  const contentHeight = entries.length * REQUEST_ROW_HEIGHT
   const maxScrollTop = Math.max(0, contentHeight - viewportHeight)
   const scrollbarTrackHeight = Math.max(
     0,
@@ -477,16 +389,6 @@ function VirtualRequestList({
       startScrollTop + (pointerDelta / scrollbarThumbTravel) * maxScrollTop
   }
 
-  useEffect(() => {
-    if (
-      hasMore &&
-      !loading &&
-      viewportHeight > entries.length * REQUEST_ROW_HEIGHT
-    ) {
-      onLoadMore()
-    }
-  }, [entries.length, hasMore, loading, onLoadMore, viewportHeight])
-
   return (
     <div
       aria-label="Requests"
@@ -497,14 +399,6 @@ function VirtualRequestList({
           return
         }
         setScrollTop(viewport.scrollTop)
-        if (
-          hasMore &&
-          !loading &&
-          viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <
-            REQUEST_ROW_HEIGHT * 4
-        ) {
-          onLoadMore()
-        }
       }}
       ref={viewportRef}
       role="region"
@@ -542,22 +436,6 @@ function VirtualRequestList({
               </div>
             )
           })}
-        {footerHeight > 0 ? (
-          <div
-            className="request-insights-history-status"
-            style={{
-              transform: `translateY(${entries.length * REQUEST_ROW_HEIGHT}px)`,
-            }}
-          >
-            {loading
-              ? 'Loading earlier requests…'
-              : hasMore
-                ? 'Scroll to load earlier requests'
-                : truncated
-                  ? 'Older requests were discarded to keep history within 50 MB.'
-                  : null}
-          </div>
-        ) : null}
       </div>
       {maxScrollTop > 0 ? (
         <div
@@ -726,7 +604,7 @@ function RequestRow({
   onContextMenuOpenChange,
   onSelect,
 }: {
-  request: RequestInsightListItem
+  request: RequestInsight
   nested: boolean
   pageLoad: boolean
   selected: boolean
@@ -788,8 +666,8 @@ function RequestRow({
           <span>{clockTime}</span>
         </span>
         <span className="request-insights-meta request-insights-fetch-summary">
-          {getRequestInsightFetchCount(request)
-            ? `${getRequestInsightFetchCount(request)} fetch${getRequestInsightFetchCount(request) === 1 ? '' : 'es'}`
+          {request.fetches.length
+            ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
             : 'No fetches'}
         </span>
       </ContextMenu.Trigger>
@@ -836,12 +714,12 @@ function RequestContextMenuPreview({
   request,
   requestUrl,
 }: {
-  request: RequestInsightListItem
+  request: RequestInsight
   requestUrl: string
 }) {
   const statusCode = getRequestInsightStatusCode(request)
-  const fetchCount = getRequestInsightFetchCount(request)
-  const spanCount = getRequestInsightSpanCount(request)
+  const fetchCount = request.fetches.length
+  const spanCount = request.spans.length
 
   return (
     <>

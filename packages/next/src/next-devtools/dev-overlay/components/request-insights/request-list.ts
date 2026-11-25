@@ -7,14 +7,19 @@ import {
   type RequestInsightSpan,
 } from '../../../shared/request-insights'
 import {
-  getRequestInsightIsRsc as getRequestInsightListItemIsRsc,
-  getRequestInsightStatusCode as getRequestInsightListItemStatusCode,
-  hasRequestInsightProxyActivity as hasRequestInsightListItemProxyActivity,
-  type RequestInsightListItem,
+  getRequestInsightIsRsc,
+  getRequestInsightStatusCode,
+  hasRequestInsightProxyActivity,
 } from '../../../shared/request-insights-summary'
 
+export {
+  getRequestInsightIsRsc,
+  getRequestInsightStatusCode,
+  hasRequestInsightProxyActivity,
+}
+
 export function getActiveRequestKey(
-  requests: readonly RequestInsightListItem[],
+  requests: readonly RequestInsight[],
   selectedRequestKey: string | null
 ): string | null {
   if (
@@ -37,12 +42,12 @@ export function isInternalRequestInsight(
 }
 
 export type RequestListEntry = {
-  request: RequestInsightListItem
+  request: RequestInsight
   nested: boolean
 }
 
 export function getRequestListEntries(
-  requests: readonly RequestInsightListItem[],
+  requests: readonly RequestInsight[],
   showInternal: boolean
 ): RequestListEntry[] {
   if (!showInternal) {
@@ -51,7 +56,7 @@ export function getRequestListEntries(
       .map((request) => ({ request, nested: false }))
   }
 
-  const internalByRequestId = new Map<string, RequestInsightListItem[]>()
+  const internalByRequestId = new Map<string, RequestInsight[]>()
   const parentRequestIds = new Set<string>()
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
@@ -142,7 +147,7 @@ const REQUEST_INSIGHT_ROW_TYPES: Readonly<
 }
 
 export function getRequestInsightRowType(
-  request: RequestInsightListItem,
+  request: RequestInsight,
   pageLoad = false
 ): RequestInsightRowTypePresentation {
   switch (getRequestInsightSource(request)) {
@@ -166,12 +171,6 @@ export function getRequestInsightRowType(
     case 'unknown':
       return REQUEST_INSIGHT_ROW_TYPES.unknown
   }
-}
-
-export function hasRequestInsightProxyActivity(
-  request: RequestInsightListItem
-): boolean {
-  return hasRequestInsightListItemProxyActivity(request)
 }
 
 export function getCanonicalRequestSpan(
@@ -202,18 +201,6 @@ export function getCanonicalRequestSpan(
   return latestMatchedRouteSpan ?? latestRequestSpan
 }
 
-export function getRequestInsightStatusCode(
-  request: RequestInsightListItem
-): number | undefined {
-  return getRequestInsightListItemStatusCode(request)
-}
-
-export function getRequestInsightIsRsc(
-  request: RequestInsightListItem
-): boolean | undefined {
-  return getRequestInsightListItemIsRsc(request)
-}
-
 export type RequestInsightRepresentation =
   | 'html'
   | 'rsc'
@@ -221,7 +208,7 @@ export type RequestInsightRepresentation =
   | 'unknown'
 
 export function getRequestInsightRepresentation(
-  request: RequestInsightListItem
+  request: RequestInsight
 ): RequestInsightRepresentation {
   switch (getRequestInsightSource(request)) {
     case 'page': {
@@ -241,7 +228,7 @@ export function getRequestInsightRepresentation(
 }
 
 export function getRequestInsightSummaryTypeLabel(
-  request: RequestInsightListItem
+  request: RequestInsight
 ): string {
   const rowType = getRequestInsightRowType(request)
   if (rowType.type === 'instant-insights') {
@@ -260,7 +247,7 @@ export function getRequestInsightSummaryTypeLabel(
 }
 
 export function isPageLoadRequest(
-  request: RequestInsightListItem,
+  request: RequestInsight,
   initialRequestId: string | undefined
 ): boolean {
   return (
