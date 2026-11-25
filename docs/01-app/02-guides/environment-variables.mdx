@@ -138,6 +138,19 @@ export default defineConfig({
 })
 ```
 
+`@next/env` is published as a CommonJS module. In a native ES module, such as a `.mjs` or `.mts` file or a file in a package with `"type": "module"`, Node.js can't find the named export and throws `SyntaxError: Named export 'loadEnvConfig' not found`. In those files, import the default export and read `loadEnvConfig` from it:
+
+```js filename="envConfig.mjs"
+import nextEnv from '@next/env'
+
+const { loadEnvConfig } = nextEnv
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+Keep the named import in files that your tooling compiles to CommonJS, where the default import can be `undefined`.
+
 ### Referencing Other Variables
 
 Next.js will automatically expand variables that use `$` to reference other variables e.g. `$VARIABLE` inside of your `.env*` files. This allows you to reference other secrets. For example:
@@ -262,6 +275,8 @@ export default async () => {
   loadEnvConfig(projectDir)
 }
 ```
+
+If your setup file runs as a native ES module, use the default import shown in [Loading Environment Variables with `@next/env`](#loading-environment-variables-with-nextenv).
 
 ## Environment Variable Load Order
 
