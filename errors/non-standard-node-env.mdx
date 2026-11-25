@@ -22,9 +22,11 @@ Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpec
 
 ### `NODE_ENV` during `next build`
 
-`next build` creates a production build by default: the compiled code assumes `NODE_ENV=production`, so the code that runs during the build (for example, while prerendering pages) must use the same value. If `NODE_ENV` is set to anything other than `production` or `test` when you run `next build`, Next.js warns and uses `NODE_ENV=production` for the rest of the build.
+`next build` creates a production build by default: the compiled code assumes `NODE_ENV=production`, so the code that runs during the build (for example, while prerendering pages) must use the same value. If `NODE_ENV` is set to anything other than `production` or `test` when you run `next build`, the build fails before compiling.
 
-If you intentionally want a development build, enable `experimental.allowDevelopmentBuild` in `next.config.js` and set `NODE_ENV=development` explicitly. Next.js then compiles development code, so the build stays consistent. `next build --debug-prerender` enables this option for you, to help debug errors thrown while prerendering your own pages.
+To fix it, remove `NODE_ENV` from your environment (for example your shell profile, Dockerfile or CI settings) and from your `.env*` files. Next.js sets the correct value for you.
+
+If you intentionally want a development build, enable `experimental.allowDevelopmentBuild` in `next.config.js` and set `NODE_ENV=development` explicitly. Next.js then compiles development code, so the build stays consistent and can prerender pages. `next build --debug-prerender` enables this option for you, to help debug errors thrown while prerendering your own pages.
 
 ## Possible Ways to Fix It
 

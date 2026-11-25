@@ -1220,11 +1220,12 @@ export default async function build(
 
       // Without `experimental.allowDevelopmentBuild` (which `--debug-prerender`
       // also enables), the bundles inline `process.env.NODE_ENV` as
-      // 'production'. Keeping another value at runtime makes modules that read
-      // it at runtime disagree with the bundles. With 'development' this loads
+      // 'production'. Any other runtime value makes modules that read it at
+      // runtime disagree with the bundles. With 'development' this loads
       // development builds next to the production ones (e.g. two copies of
-      // React), which fails during prerendering. Use 'production' for the rest
-      // of the build and its workers instead. 'test' is left as-is.
+      // React), which fails during prerendering. Changing the value here can't
+      // fix it: `next.config` was already evaluated with it, and workers would
+      // evaluate it again with a different value. Fail before compiling.
       const nodeEnv = process.env.NODE_ENV
       if (
         nodeEnv &&
@@ -1232,12 +1233,14 @@ export default async function build(
         nodeEnv !== 'test' &&
         !config.experimental.allowDevelopmentBuild
       ) {
-        Log.warn(
-          `"NODE_ENV" is set to "${nodeEnv}", but \`next build\` creates a production build by default. Using NODE_ENV=production for this build. ` +
-            `Remove NODE_ENV from your environment and \`.env*\` files, or enable \`experimental.allowDevelopmentBuild\` to create a development build. ` +
+        const err = new Error(
+          `"NODE_ENV" is set to "${nodeEnv}", but \`next build\` creates a production build. ` +
+            `Remove NODE_ENV from your environment and \`.env*\` files. ` +
+            `To create a development build instead, set NODE_ENV=development and enable \`experimental.allowDevelopmentBuild\`. ` +
             `Read more: https://nextjs.org/docs/messages/non-standard-node-env`
-        )
-        Object.assign(process.env, { NODE_ENV: 'production' })
+        ) as NextError
+        err.code = 'NON_STANDARD_NODE_ENV_BUILD'
+        throw err
       }
 
       // Resolve selective build paths now that the page extensions are known.

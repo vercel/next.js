@@ -122,8 +122,15 @@ describe('Non-Standard NODE_ENV', () => {
 
       it('should show the warning with NODE_ENV set to development with next build', async () => {
         const start = next.cliOutput.length
-        await next.build()
-        expect(next.cliOutput.slice(start)).toContain(warningText)
+        const { exitCode } = await next.build()
+        const output = next.cliOutput.slice(start)
+        expect(output).toContain(warningText)
+        // The build then fails before compiling, see
+        // test/production/app-dir/build-node-env-development.
+        expect(output).toContain(
+          '"NODE_ENV" is set to "development", but `next build` creates a production build.'
+        )
+        expect(exitCode).not.toBe(0)
       })
     })
 
@@ -136,8 +143,8 @@ describe('Non-Standard NODE_ENV', () => {
       it('should show the warning with NODE_ENV set to development with next start', async () => {
         // Build without NODE_ENV=development. Matches the original integration
         // test, which only sets NODE_ENV=development for `next start` (not
-        // `next build`). `next build` with NODE_ENV=development is covered by
-        // test/production/app-dir/build-node-env-development.
+        // `next build`). `next build` with NODE_ENV=development fails, which is
+        // covered by test/production/app-dir/build-node-env-development.
         await next.build()
         next.env.NODE_ENV = 'development'
         // `next.start()` resets `cliOutput` to '' so we do not need to slice
