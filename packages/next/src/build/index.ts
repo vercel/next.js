@@ -1730,7 +1730,6 @@ export default async function build(
             routeTypesManifest,
             path.join(distDir, 'types', 'root-params.d.ts')
           )
-
           // The TypeScript CLI type check includes every file in tsconfig,
           // so types left behind by a stopped `next dev` would fail it after
           // routes are moved or deleted. `next dev` writes below the
