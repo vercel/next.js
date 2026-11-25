@@ -27,6 +27,7 @@ import {
 } from '../../telemetry/events/agent-upgrade'
 import { Telemetry } from '../../telemetry/storage'
 import { interopDefault } from '../interop-default'
+import { bold, cyan, dim } from '../picocolors'
 import {
   chooseOption,
   selectOption,
@@ -1269,15 +1270,34 @@ async function installScheduledUpgrade({
     }
 
     const url = pullUrl(pull)
-    Log.info(`Setup draft: ${url}`)
-    Log.info(
-      `Register a Vercel AI Gateway API key as the repository secret ${SECRET} in https://github.com/${repo}/settings/secrets/actions. The hosted ${auth === 'codex-ai-gateway-api-key' ? 'Codex' : 'Claude Code'} agent uses it.`
-    )
-    Log.info(
-      `Register a fine-grained personal access token with contents, pull-requests, and workflows write access as the repository secret ${PUBLISH_SECRET}. The workflow opens upgrade drafts with it, and a draft also moves the workflow to the release it upgrades to.`
-    )
-    Log.info(
-      'Review the draft, mark it ready and merge it. In Actions, open Next.js upgrade and select Run workflow to run it immediately.'
+    const agent = auth === 'codex-ai-gateway-api-key' ? 'Codex' : 'Claude Code'
+    const secretCommand = (name: string) =>
+      cyan(`gh secret set ${name} --repo ${repo}`)
+    // Short lines the user can act on in order, with commands to copy.
+    Log.bootstrap(
+      [
+        '',
+        `  ${bold('Setup draft opened')}`,
+        `  ${cyan(url)}`,
+        '',
+        `  ${bold('Finish setup in three steps')}`,
+        '',
+        `  ${bold('1. Add the agent key')}`,
+        `     A Vercel AI Gateway API key for the hosted ${agent} agent.`,
+        `     ${dim('Create one:')} https://vercel.com/docs/ai-gateway`,
+        `     ${secretCommand(SECRET)}`,
+        '',
+        `  ${bold('2. Add the publication token')}`,
+        '     A fine-grained personal access token for this repository with',
+        '     read and write access to Contents, Pull requests, and Workflows.',
+        `     ${dim('Create one:')} https://github.com/settings/personal-access-tokens/new`,
+        `     ${secretCommand(PUBLISH_SECRET)}`,
+        '',
+        `  ${bold('3. Merge the setup draft')}`,
+        '     Mark it ready and merge it. Upgrades then run every week.',
+        `     ${dim('Run one now:')} Actions > Next.js upgrade > Run workflow`,
+        '',
+      ].join('\n')
     )
     return { status: 'draft_created', url }
   } catch (error) {

@@ -292,13 +292,17 @@ describe('next upgrade --ci', () => {
     })
     expect(result.status).toBe(0)
     expect(result.output).toContain(setupUrl)
+    // The next steps name both required secrets with a command to register each.
     expect(result.output).toContain(
-      'Register a Vercel AI Gateway API key as the repository secret NEXT_UPGRADE_AGENT_API_KEY'
+      'gh secret set NEXT_UPGRADE_AGENT_API_KEY --repo example/consumer'
     )
-    // Both secrets are required.
     expect(result.output).toContain(
-      'Register a fine-grained personal access token with contents, pull-requests, and workflows write access as the repository secret NEXT_UPGRADE_PUBLISH_TOKEN'
+      'gh secret set NEXT_UPGRADE_PUBLISH_TOKEN --repo example/consumer'
     )
+    expect(result.output).toContain(
+      'read and write access to Contents, Pull requests, and Workflows.'
+    )
+    expect(result.output).toContain('hosted Codex agent')
     // Setup asks and reports; the draft shows the group and the workflow.
     expect(result.output).not.toContain('group affects')
     expect(result.output).not.toContain('uses: vercel/next.js')
