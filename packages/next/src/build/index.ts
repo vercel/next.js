@@ -4960,6 +4960,22 @@ export default async function build(
       deferWarningsToExit = true
     }
 
+    // A development NODE_ENV can make `next build` mix production output with
+    // development runtime code. Prerender failures can then hide that cause,
+    // so add one hint after the page errors unless a development build was
+    // requested on purpose (`--debug-prerender` enables
+    // `allowDevelopmentBuild`).
+    if (
+      isError(e) &&
+      e.code === 'NEXT_EXPORT_ERROR' &&
+      process.env.NODE_ENV === 'development' &&
+      !debugPrerender &&
+      !NextBuildContext.config?.experimental.allowDevelopmentBuild
+    ) {
+      e.message +=
+        '\n\nThe build failed while "NODE_ENV" was set to "development". This can cause prerender errors such as "Cannot read properties of null (reading \'useContext\')". Unset "NODE_ENV" or set it to "production" when running `next build`. Read more: https://nextjs.org/docs/messages/non-standard-node-env'
+    }
+
     // A build can fail before the success path awaits this check. Surface an
     // independent nudge failure so its retry receipt never hides the full
     // reminder on the next build.
