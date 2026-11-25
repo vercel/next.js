@@ -54,7 +54,6 @@ const next = spawn(process.execPath, [nextBin, 'dev', '--port', '3100'], {
   env: {
     ...process.env,
     NEXT_TELEMETRY_DISABLED: '1',
-    EVAL_REQUEST_INSIGHTS: '1',
     OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:4318',
     REPORT_SERVICE_URL: 'http://127.0.0.1:4318',
   },

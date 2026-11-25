@@ -23,7 +23,6 @@ function recordSpan(span: Omit<SpanStoreRecord, 'timestamp' | 'category'>) {
   recordStoreSpan({ category: 'application', ...span })
 }
 
-const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 
 function restoreEnv(name: string, value: string | undefined) {
@@ -37,12 +36,10 @@ function restoreEnv(name: string, value: string | undefined) {
 describe('request insights', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     registerRequestInsightsExporter()
   })
 
   afterEach(() => {
-    restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
     clearRequestInsightsForTest()
   })

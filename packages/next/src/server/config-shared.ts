@@ -665,9 +665,10 @@ export interface ExperimentalConfig {
    */
   exposeTestingApiInProductionBuild?: boolean
   /**
-   * Show Request Insights in the dev tools indicator. Request Insights records
-   * the local framework spans needed to explain App Router request, render,
-   * fetch, and cache behavior without requiring an external OTEL collector.
+   * Request Insights records the local framework spans needed to explain App
+   * Router request, render, fetch, and cache behavior during `next dev`
+   * without an external OTEL collector. Enabled by default; set to `false` to
+   * disable recording, the dev tools panel, and the CLI endpoint.
    */
   requestInsights?: boolean
   extensionAlias?: Record<string, any>
@@ -2604,7 +2605,7 @@ export const defaultConfig = Object.freeze({
     fullySpecified: false,
     swcTraceProfiling: false,
     forceSwcTransforms: false,
-    requestInsights: false,
+    requestInsights: true,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
