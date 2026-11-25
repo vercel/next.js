@@ -7,61 +7,42 @@ function median(values) {
 }
 
 // Crashed or timed-out runs have no token count; they still count against the pass rate.
-function medianTokens(samples) {
+function medianInputTokens(samples) {
   const tokens = samples
     .map((sample) => sample.inputTokens)
     .filter((value) => Number.isFinite(value) && value > 0)
   return tokens.length === 0 ? null : median(tokens)
 }
 
-function evaluateEffortGate(
-  baseline,
-  agentsMd,
-  skills,
-  minimumReduction = 0.4
-) {
-  if (
-    baseline.length === 0 ||
-    agentsMd.length !== baseline.length ||
-    skills.length !== baseline.length
-  ) {
-    throw new Error(
-      'Effort gate requires equal, non-empty baseline, agents-md, and skill samples'
-    )
-  }
-  const baselineMedian = medianTokens(baseline)
-  const agentsMdMedian = medianTokens(agentsMd)
-  const skillsMedian = medianTokens(skills)
-  const reduction = (value) =>
-    value === null || baselineMedian === null
-      ? null
-      : 1 - value / baselineMedian
-  const agentsMdReduction = reduction(agentsMdMedian)
-  const skillsReduction = reduction(skillsMedian)
-  const baselinePasses = baseline.filter(
-    (sample) => sample.status === 'passed'
-  ).length
-  const agentsMdPasses = agentsMd.filter(
-    (sample) => sample.status === 'passed'
-  ).length
-  const skillsPasses = skills.filter(
-    (sample) => sample.status === 'passed'
-  ).length
-
+/** @param {Record<string, Array<{ status: string, inputTokens?: number | null }>>} samples keyed by variant suffix */
+function evaluateEffortGate(samples, minimumReduction = 0.4) {
+  const baselineMedian = medianInputTokens(samples.baseline)
+  const variants = Object.fromEntries(
+    Object.entries(samples).map(([suffix, variantSamples]) => {
+      const variantMedian = medianInputTokens(variantSamples)
+      return [
+        suffix,
+        {
+          medianInputTokens: variantMedian,
+          reduction:
+            variantMedian === null || baselineMedian === null
+              ? null
+              : 1 - variantMedian / baselineMedian,
+          passes: variantSamples.filter(({ status }) => status === 'passed')
+            .length,
+        },
+      ]
+    })
+  )
+  const { baseline, skills } = variants
   return {
     passed:
-      skillsReduction !== null &&
-      skillsPasses >= baselinePasses &&
-      skillsReduction >= minimumReduction,
-    baselineMedian,
-    agentsMdMedian,
-    skillsMedian,
-    agentsMdReduction,
-    skillsReduction,
-    baselinePasses,
-    agentsMdPasses,
-    skillsPasses,
-    sampleCount: baseline.length,
+      skills.reduction !== null &&
+      skills.passes >= baseline.passes &&
+      skills.reduction >= minimumReduction,
+    minimumReduction,
+    sampleCount: samples.baseline.length,
+    variants,
   }
 }
 

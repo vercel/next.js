@@ -11,9 +11,12 @@ const { evaluateEffortGate } = require('../../evals/lib/effort-gate')
 
 function run(
   args: string[],
-  collectorStatus = 0,
-  skillTokens: number | null = 50,
-  skillStatus = 'passed'
+  {
+    collectorStatus = 0,
+    skillTokens = 50 as number | null,
+    skillStatus = 'passed',
+    dependsOnNext = false,
+  } = {}
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-metrics-'))
   const preStackTarball = path.join(root, 'pre-stack-next.tgz')
@@ -27,7 +30,12 @@ function run(
     fs.mkdirSync(path.dirname(target), { recursive: true })
     fs.writeFileSync(target, JSON.stringify(value))
   }
-  write(`evals/evals/${fixture}/package.json`, { private: true })
+  write(
+    `evals/evals/${fixture}/package.json`,
+    dependsOnNext ? { dependencies: { next: '*' } } : { private: true }
+  )
+  if (dependsOnNext)
+    fs.mkdirSync(path.join(root, 'packages/next/dist'), { recursive: true })
   write('evals/eval.suites.json', { regression: [fixture] })
   const effortGate = args.includes('--effort-gate')
   write('evals/eval.config.json', {
@@ -65,8 +73,11 @@ function run(
       require(name: string) {
         if (name === './evals/lib/pack')
           return {
-            packPackage() {
-              throw new Error('Pinned fixture must not pack Next.js')
+            packPackage(_: string, target: string) {
+              if (!dependsOnNext)
+                throw new Error('Pinned fixture must not pack Next.js')
+              fs.mkdirSync(path.dirname(target), { recursive: true })
+              fs.writeFileSync(target, '')
             },
           }
         if (name === './evals/lib/environment') return { linkEnvironment() {} }
@@ -138,7 +149,7 @@ describe('normal eval metrics workflow', () => {
         '--model',
         'openai/gpt-6-sol',
       ],
-      1
+      { collectorStatus: 1 }
     )
     try {
       expect(calls[0].args).toEqual(['run', 'baseline', 'skills', '--force'])
@@ -189,27 +200,27 @@ describe('normal eval metrics workflow', () => {
 describe('effort gate', () => {
   it('leaves samples without token counts out of the median', () => {
     expect(
-      evaluateEffortGate(
-        [
+      evaluateEffortGate({
+        baseline: [
           { inputTokens: 100, status: 'passed' },
           { inputTokens: null, status: 'failed' },
         ],
-        [
+        'agents-md': [
           { inputTokens: 60, status: 'passed' },
           { inputTokens: 60, status: 'passed' },
         ],
-        [
+        skills: [
           { inputTokens: null, status: 'failed' },
           { inputTokens: null, status: 'failed' },
-        ]
-      )
+        ],
+      })
     ).toMatchObject({
       passed: false,
-      baselineMedian: 100,
-      agentsMdReduction: 0.4,
-      skillsMedian: null,
-      skillsReduction: null,
-      baselinePasses: 1,
+      variants: {
+        baseline: { medianInputTokens: 100, passes: 1 },
+        'agents-md': { reduction: 0.4 },
+        skills: { medianInputTokens: null, reduction: null },
+      },
     })
   })
 
@@ -218,15 +229,17 @@ describe('effort gate', () => {
       inputTokens.map((tokens) => ({ inputTokens: tokens, status: 'passed' }))
 
     expect(
-      evaluateEffortGate(
-        samples([100, 200]),
-        samples([50, 100]),
-        samples([25, 75])
-      )
+      evaluateEffortGate({
+        baseline: samples([100, 200]),
+        'agents-md': samples([50, 100]),
+        skills: samples([25, 75]),
+      })
     ).toMatchObject({
-      baselineMedian: 150,
-      agentsMdMedian: 75,
-      skillsMedian: 50,
+      variants: {
+        baseline: { medianInputTokens: 150 },
+        'agents-md': { medianInputTokens: 75 },
+        skills: { medianInputTokens: 50 },
+      },
     })
   })
 
@@ -250,8 +263,7 @@ describe('effort gate', () => {
           )
         )
       ).toMatchObject({
-        agentsMdMedian: 60,
-        agentsMdPasses: 5,
+        variants: { 'agents-md': { medianInputTokens: 60, passes: 5 } },
         samples: { 'agents-md': expect.any(Array) },
       })
     } finally {
@@ -260,7 +272,7 @@ describe('effort gate', () => {
   })
 
   it('keeps effort samples when the collector fails after writing metrics', () => {
-    const { root, exitCode } = run(['--effort-gate'], 1)
+    const { root, exitCode } = run(['--effort-gate'], { collectorStatus: 1 })
     try {
       expect(exitCode).toBe(0)
       const [report] = fs.readdirSync(
@@ -280,13 +292,16 @@ describe('effort gate', () => {
   })
 
   it('prepends a pre-stack package to the effort comparison', () => {
-    const { root, calls, exitCode } = run([
-      '--effort-gate',
-      '--effort-samples',
-      '2',
-      '--effort-pre-stack-tarball',
-      '__PRE_STACK_TARBALL__',
-    ])
+    const { root, calls, exitCode } = run(
+      [
+        '--effort-gate',
+        '--effort-samples',
+        '2',
+        '--effort-pre-stack-tarball',
+        '__PRE_STACK_TARBALL__',
+      ],
+      { dependsOnNext: true }
+    )
     try {
       expect(
         calls.filter((call) => call.args.includes('collect'))
@@ -299,7 +314,6 @@ describe('effort gate', () => {
       expect(config).toContain(
         JSON.stringify(path.join(root, 'pre-stack-next.tgz'))
       )
-      expect(config).toContain('{ requireNextApp: true }')
       const [report] = fs.readdirSync(
         path.join(root, 'evals/results/effort-gate')
       )
@@ -316,12 +330,25 @@ describe('effort gate', () => {
     }
   })
 
+  it('rejects a pre-stack tarball for a fixture that does not use Next.js', () => {
+    expect(() =>
+      run([
+        '--effort-gate',
+        '--effort-pre-stack-tarball',
+        '__PRE_STACK_TARBALL__',
+      ])
+    ).toThrow('requires a fixture that depends on Next.js')
+  })
+
   it.each([
     ['token reduction', 80, 'passed'],
     ['pass rate', 70, 'failed'],
     ['token count', null, 'failed'],
   ])('fails when the skill misses the %s gate', (_, tokens, status) => {
-    const { root, exitCode } = run(['--effort-gate'], 0, tokens, status)
+    const { root, exitCode } = run(['--effort-gate'], {
+      skillTokens: tokens,
+      skillStatus: status,
+    })
     try {
       expect(exitCode).toBe(1)
       expect(
