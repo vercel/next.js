@@ -471,7 +471,7 @@ function main() {
       variants.unshift({
         suffix: 'pre-stack',
         imports: `import { installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
-        setup: `await installNextJs(sandbox, ${JSON.stringify(path.resolve(argv.effortPreStackTarball))})\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)`,
+        setup: `await installNextJs(sandbox, ${JSON.stringify(path.resolve(argv.effortPreStackTarball))}, { requireNextApp: true })\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)`,
       })
     }
   }
@@ -585,14 +585,24 @@ function main() {
           ],
           { cwd: ROOT, stdio: 'inherit', env: process.env }
         )
-        if (measured.error || measured.status !== 0) {
+        const metricsPath = path.join(run, 'metrics.json')
+        // report.mjs still writes tokens and status when only the collector fails.
+        if (
+          measured.error ||
+          (measured.status !== 0 && !fs.existsSync(metricsPath))
+        ) {
           result = measured
           collectionFailed = true
           break
         }
-        samples[variant.suffix].push(
-          JSON.parse(fs.readFileSync(path.join(run, 'metrics.json'), 'utf8'))
-        )
+        const sample = JSON.parse(fs.readFileSync(metricsPath, 'utf8'))
+        if (measured.status !== 0) {
+          console.error(
+            `Collector failed for ${variant.suffix}; keeping its token count. See ${path.join(run, 'metrics-error.json')}.`
+          )
+          sample.collectorFailed = true
+        }
+        samples[variant.suffix].push(sample)
       }
       if (collectionFailed) break
       result = { ...result, status: 0 }

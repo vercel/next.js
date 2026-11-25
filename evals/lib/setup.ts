@@ -41,9 +41,16 @@ async function isNextApp(sandbox: Sandbox): Promise<boolean> {
  */
 export async function installNextJs(
   sandbox: Sandbox,
-  tarballPath = process.env.NEXT_EVAL_TARBALL
+  tarballPath = process.env.NEXT_EVAL_TARBALL,
+  { requireNextApp = false } = {}
 ): Promise<void> {
   if (!(await isNextApp(sandbox))) {
+    // A skipped pre-stack install would silently rerun the baseline.
+    if (requireNextApp) {
+      throw new Error(
+        'Fixture does not depend on Next.js, so the tarball cannot be installed'
+      )
+    }
     console.log('> Fixture does not depend on Next.js; leaving it untouched')
     return
   }
