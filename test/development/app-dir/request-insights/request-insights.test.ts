@@ -38,9 +38,11 @@ type RequestInsight = {
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
+    startTime?: number
     durationMs: number
     statusCode: number
     cacheStatus: string
+    cacheReason?: string
     method: string
     url: string
   }>
@@ -113,7 +115,7 @@ describe('request insights', () => {
     shouldResetRequestInsightsConfig = false
   })
 
-  async function runWithResponse(body: unknown, args: string[] = []) {
+  async function runWithResponse(body: unknown, args: string[]) {
     const requestedPaths: string[] = []
     const server = createServer((req, res) => {
       requestedPaths.push(req.url ?? '')
@@ -127,14 +129,11 @@ describe('request insights', () => {
 
     try {
       const address = server.address() as AddressInfo
-      const [subcommand, ...subcommandArgs] = args
-      const hasSubcommand = subcommand === 'list' || subcommand === 'get'
       const result = await next.runCommand([
         'experimental-request-insights',
-        ...(hasSubcommand ? [subcommand] : []),
+        ...args,
         '--url',
         `http://127.0.0.1:${address.port}`,
-        ...(hasSubcommand ? subcommandArgs : args),
       ])
       return { result, requestedPaths }
     } finally {
@@ -145,7 +144,10 @@ describe('request insights', () => {
   }
 
   it('discovers the running dev server from the project lockfile', async () => {
-    const result = await next.runCommand(['experimental-request-insights'])
+    const result = await next.runCommand([
+      'experimental-request-insights',
+      'list',
+    ])
 
     if (result.code !== 0) {
       throw new Error(result.cliOutput)
@@ -1776,7 +1778,7 @@ describe('request insights', () => {
           { ...createRequest(3, 7), kind: 'instant-insights' },
         ],
       },
-      ['--limit', '1']
+      ['list', '--limit', '1']
     )
 
     expect(result.code).toBe(0)
@@ -1805,11 +1807,17 @@ describe('request insights', () => {
           durationMs: 3400,
           spanId: 'span-2',
           parentSpanId: 'span-1',
-          attributes: {
-            'http.url': 'https://example.com/metadata',
-            'next.fetch.cache_status': 'skip',
-            'next.fetch.cache_reason': 'cache: no-store',
-          },
+        },
+      ],
+      fetches: [
+        {
+          startTime: 101,
+          durationMs: 3400,
+          statusCode: 200,
+          cacheStatus: 'skip',
+          cacheReason: 'cache: no-store',
+          method: 'GET',
+          url: 'https://example.com/metadata',
         },
       ],
     } satisfies RequestInsight
@@ -1824,7 +1832,7 @@ describe('request insights', () => {
     expect(result.stdout).toContain('+100ms 3.40s slow metadata fetch')
     expect(result.stdout).toContain('span span-2 parent span-1')
     expect(result.stdout).toContain(
-      'fetch https://example.com/metadata cache skip (cache: no-store)'
+      '+100ms 3.40s 200 skip (cache: no-store) GET https://example.com/metadata'
     )
 
     const json = await runWithResponse(
@@ -1919,6 +1927,7 @@ describe('request insights', () => {
     async (url) => {
       const result = await next.runCommand([
         'experimental-request-insights',
+        'list',
         '--url',
         url,
       ])
@@ -1931,8 +1940,8 @@ describe('request insights', () => {
   )
 
   it.each([
-    { body: { requests: null }, args: ['--json'] },
-    { body: { requests: [{ fetches: null }] }, args: [] },
+    { body: { requests: null }, args: ['list', '--json'] },
+    { body: { requests: [{ fetches: null }] }, args: ['list'] },
   ])('rejects malformed responses', async ({ body, args }) => {
     const { result } = await runWithResponse(body, args)
 
