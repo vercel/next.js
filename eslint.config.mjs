@@ -66,6 +66,10 @@ export default defineConfig([
           caller: {
             supportsTopLevelAwait: true,
           },
+          // `import defer * as ns from '...'` and `import.defer('...')`
+          parserOpts: {
+            plugins: ['deferredImportEvaluation'],
+          },
         },
       },
     },

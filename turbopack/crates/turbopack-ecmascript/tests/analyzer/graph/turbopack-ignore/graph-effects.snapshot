@@ -51,6 +51,7 @@
         span: 19..58,
         in_try: false,
         export_usage: All,
+        deferred: false,
     },
     FreeVar {
         var: "require",
@@ -197,6 +198,7 @@
         span: 133..174,
         in_try: false,
         export_usage: All,
+        deferred: false,
     },
     FreeVar {
         var: "require",

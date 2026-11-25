@@ -467,6 +467,26 @@ pub(crate) struct ImportMap {
     /// CommonJS imports: stores the "resolved" imports (eg. `const { a } = require("m")`)
     /// and the generic whole-module imports (eg. `const x = require("m")`).
     cjs_imports: CjsImports,
+
+    /// Indices of references created by `import defer * as ns from "m"` declarations
+    /// ([TC39 proposal-defer-import-eval](https://github.com/tc39/proposal-defer-import-eval)).
+    /// The referenced module is loaded with the importer, but only evaluated on first access of a
+    /// property of the namespace.
+    ///
+    /// A reference is only deferred when the same module isn't also imported eagerly by this
+    /// module (by an `import` or `export ... from` declaration), as the eager import would
+    /// evaluate it anyway.
+    deferred_references: FxHashSet<usize>,
+
+    /// Indices of all references created by `import defer` declarations, including those whose
+    /// evaluation isn't deferred (see [ImportMap::deferred_references]). Their namespace is still
+    /// a deferred namespace object when used as a value.
+    deferred_namespace_references: FxHashSet<usize>,
+    /// For the binding references of a deferred import, the index of the evaluation reference
+    /// of the same declaration. Bindings may be resolved to another module that defines the
+    /// export (when following re-exports), so evaluating the deferred module has to evaluate the
+    /// evaluation reference's target first.
+    deferred_evaluation_references: FxHashMap<usize, usize>,
 }
 
 #[derive(Default, Debug)]
@@ -867,7 +887,12 @@ impl ImportMap {
             state: Default::default(),
             program_decl_usage: Default::default(),
             current_module_item_order: 0,
+            eagerly_imported_paths: Default::default(),
         };
+
+        // References created by `import defer` declarations, and the module paths that are also
+        // imported eagerly. Combined into `deferred_references` after the analysis.
+        let mut deferred_candidates: FxHashSet<usize> = FxHashSet::default();
 
         // A prepass to detect imports to be able to rewrite import+export pairs to true reexports
         if let Program::Module(m) = m {
@@ -879,16 +904,25 @@ impl ImportMap {
                             continue;
                         }
                         analyzer.data.has_imports = true;
+                        let first_new_reference = analyzer.data.references.len();
+                        let is_deferred = import.phase == ImportPhase::Defer;
+                        if !is_deferred {
+                            analyzer
+                                .eagerly_imported_paths
+                                .insert(import.src.value.clone());
+                        }
                         let annotations = ImportAnnotations::parse(import.with.as_deref());
                         let internal_symbol = parse_with(import.with.as_deref());
-                        if internal_symbol.is_none() {
-                            analyzer.ensure_reference(
+                        let evaluation_reference = if internal_symbol.is_none() {
+                            Some(analyzer.ensure_reference(
                                 import.span,
                                 import.src.value.clone(),
                                 ImportedSymbol::ModuleEvaluation,
                                 annotations.clone(),
-                            );
-                        }
+                            ))
+                        } else {
+                            None
+                        };
 
                         for s in &import.specifiers {
                             if s.is_type_only() {
@@ -932,6 +966,21 @@ impl ImportMap {
                                 annotations,
                             );
                         }
+                        if is_deferred {
+                            let new_references =
+                                first_new_reference..analyzer.data.references.len();
+                            if let Some(evaluation_reference) = evaluation_reference {
+                                for i in new_references.clone() {
+                                    if i != evaluation_reference {
+                                        analyzer
+                                            .data
+                                            .deferred_evaluation_references
+                                            .insert(i, evaluation_reference);
+                                    }
+                                }
+                            }
+                            deferred_candidates.extend(new_references);
+                        }
                     }
                     // We need to call ensure_reference in this loop to ensure that the reference
                     // order of all hoisted imports (be it import or reexport) is correct.
@@ -939,6 +988,9 @@ impl ImportMap {
                         if export.type_only {
                             continue;
                         }
+                        analyzer
+                            .eagerly_imported_paths
+                            .insert(export.src.value.clone());
                         let annotations = ImportAnnotations::parse(export.with.as_deref());
                         analyzer.ensure_reference(
                             export.span,
@@ -952,6 +1004,7 @@ impl ImportMap {
                             continue;
                         }
                         if let Some(ref src) = export.src {
+                            analyzer.eagerly_imported_paths.insert(src.value.clone());
                             let annotations = ImportAnnotations::parse(export.with.as_deref());
                             let internal_symbol = parse_with(export.with.as_deref());
                             if internal_symbol.is_none() || export.specifiers.is_empty() {
@@ -971,9 +1024,43 @@ impl ImportMap {
 
         m.visit_with(&mut analyzer);
 
+        let eagerly_imported_paths = std::mem::take(&mut analyzer.eagerly_imported_paths);
         data.import_usage = analyzer.program_decl_usage.compute_import_usage();
 
+        // A module that is also imported eagerly by this module is evaluated anyway, so deferring
+        // it would only add overhead.
+        data.deferred_references = deferred_candidates
+            .iter()
+            .copied()
+            .filter(|&i| !eagerly_imported_paths.contains(&data.references[i].module_path))
+            .collect();
+        data.deferred_namespace_references = deferred_candidates;
+
         data
+    }
+
+    /// Whether the reference at the given index is a deferred import (`import defer * as ns from
+    /// "m"`), see [ImportMap::deferred_references].
+    pub fn is_deferred(&self, esm_reference_index: usize) -> bool {
+        self.deferred_references.contains(&esm_reference_index)
+    }
+
+    /// Whether the reference at the given index was created by an `import defer` declaration,
+    /// even when its evaluation isn't deferred, see [ImportMap::deferred_namespace_references].
+    pub fn is_deferred_namespace(&self, esm_reference_index: usize) -> bool {
+        self.deferred_namespace_references
+            .contains(&esm_reference_index)
+    }
+
+    /// The index of the evaluation reference belonging to the deferred binding reference at the
+    /// given index, see [ImportMap::deferred_evaluation_references].
+    pub fn deferred_evaluation_reference(&self, esm_reference_index: usize) -> Option<usize> {
+        if !self.is_deferred(esm_reference_index) {
+            return None;
+        }
+        self.deferred_evaluation_references
+            .get(&esm_reference_index)
+            .copied()
     }
 
     pub(crate) fn should_import_all(&self, esm_reference_index: usize) -> bool {
@@ -1051,6 +1138,10 @@ struct Analyzer<'a> {
 
     /// Index of the top-level module item currently being analyzed.
     current_module_item_order: usize,
+
+    /// Module paths that are imported eagerly, which prevents `import defer` of the same module
+    /// from being deferred.
+    eagerly_imported_paths: FxHashSet<Wtf8Atom>,
 
     state: analyzer_state::AnalyzerState,
 }

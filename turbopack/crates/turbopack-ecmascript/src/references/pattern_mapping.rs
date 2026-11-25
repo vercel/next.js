@@ -1,8 +1,8 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{ArrayLit, CallExpr, Callee, Expr, ExprOrSpread, Lit},
@@ -28,13 +28,17 @@ use turbopack_core::{
 };
 
 use crate::{
-    references::util::{
-        request_to_string, throw_module_not_found_error_expr, throw_module_not_found_expr,
-        throw_module_not_found_expr_async,
+    references::{
+        esm::base::DeferredNamespaceKey,
+        util::{
+            request_to_string, throw_module_not_found_error_expr, throw_module_not_found_expr,
+            throw_module_not_found_expr_async,
+        },
     },
     runtime_functions::{
-        TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
-        TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
+        TURBOPACK_ASYNC_LOADER, TURBOPACK_DEFER_NAMESPACE, TURBOPACK_EXTERNAL_IMPORT,
+        TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT, TURBOPACK_IMPORT_DEFER,
+        TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
     },
     utils::module_id_to_lit,
 };
@@ -209,12 +213,113 @@ impl SinglePatternMapping {
             }),
         }
     }
+    /// Like [`SinglePatternMapping::create_import`], but for `import.defer(...)`: the promise
+    /// resolves to a deferred namespace, which evaluates the module on first access. Async
+    /// modules are evaluated eagerly instead. `targets` describes the possible target modules (see
+    /// [`DeferTargets`]).
+    ///
+    /// ESM externals are async modules, so they are always evaluated eagerly.
+    pub fn create_import_defer(&self, key_expr: Cow<'_, Expr>, targets: &DeferTargets) -> Expr {
+        match self {
+            Self::ModuleLoader(module_id) => {
+                // The async loader evaluates async modules eagerly.
+                let defer = match targets.get(module_id).and_then(|t| t.exports.as_deref()) {
+                    Some(exports) => export_names_array(exports),
+                    None => quote!("true" as Expr),
+                };
+                quote!("$turbopack_async_loader($id, $defer)" as Expr,
+                    turbopack_async_loader: Expr = TURBOPACK_ASYNC_LOADER.into(),
+                    id: Expr = module_id_to_lit(module_id),
+                    defer: Expr = defer
+                )
+            }
+            Self::Module(module_id)
+                if let Some(DeferTarget {
+                    exports,
+                    async_flag: Some(async_flag),
+                }) = targets.get(module_id) =>
+            {
+                // Without async chunk loading: the async flag module tells whether the module
+                // is async (and has to be evaluated eagerly).
+                let exports = match exports {
+                    Some(exports) => export_names_array(exports),
+                    None => quote!("void 0" as Expr),
+                };
+                Expr::Call(CallExpr {
+                    callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
+                    args: vec![ExprOrSpread {
+                        spread: None,
+                        expr: quote_expr!(
+                            "() => $turbopack_require($flag) ? Promise.resolve($turbopack_import($id)).then((ns) => $turbopack_defer_namespace(() => ns, $exports, $id)) : $turbopack_defer_namespace($turbopack_import_defer($id), $exports, $id)",
+                            turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
+                            flag: Expr = module_id_to_lit(async_flag),
+                            turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                            turbopack_import_defer: Expr = TURBOPACK_IMPORT_DEFER.into(),
+                            turbopack_defer_namespace: Expr = TURBOPACK_DEFER_NAMESPACE.into(),
+                            id: Expr = module_id_to_lit(module_id),
+                            exports: Expr = exports,
+                        ),
+                    }],
+                    span: DUMMY_SP,
+                    ..Default::default()
+                })
+            }
+            Self::External(request, ExternalType::CommonJs) => Expr::Call(CallExpr {
+                callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
+                args: vec![ExprOrSpread {
+                    spread: None,
+                    expr: quote_expr!(
+                        "() => $turbopack_defer_namespace($turbopack_import_defer(() => $turbopack_external_require($arg, () => require($arg), true)), void 0, $key)",
+                        turbopack_defer_namespace: Expr = TURBOPACK_DEFER_NAMESPACE.into(),
+                        turbopack_import_defer: Expr = TURBOPACK_IMPORT_DEFER.into(),
+                        turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                        arg: Expr = key_expr.into_owned(),
+                        key: Expr = DeferredNamespaceKey::External(request.clone()).to_expr()
+                    ),
+                }],
+                span: DUMMY_SP,
+                ..Default::default()
+            }),
+            _ => self.create_import(key_expr),
+        }
+    }
+}
+
+/// A possible target module of an `import.defer()`, see [`DeferTargets`].
+#[derive(Debug, Clone, Default)]
+pub struct DeferTarget {
+    /// The statically known export names of the module, used to create the deferred namespace
+    /// with getters instead of a `Proxy`.
+    pub exports: Option<Arc<[RcStr]>>,
+    /// The id of the [`crate::async_chunk::async_flag::AsyncModuleFlagModule`] of the module.
+    pub async_flag: Option<ModuleId>,
+}
+
+/// The possible target modules of an `import.defer()`, by the module id used in the pattern
+/// mapping (the id of the module, or of its async loader).
+pub type DeferTargets = FxHashMap<ModuleId, DeferTarget>;
+
+fn export_names_array(exports: &[RcStr]) -> Expr {
+    Expr::Array(ArrayLit {
+        span: DUMMY_SP,
+        elems: exports
+            .iter()
+            .map(|export| {
+                Some(ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Lit(Lit::Str(export.as_str().into()))),
+                })
+            })
+            .collect(),
+    })
 }
 
 #[derive(Clone, Copy)]
-enum ImportMode {
+enum ImportMode<'a> {
     Require,
     Import,
+    /// `import.defer()`, see [`SinglePatternMapping::create_import_defer`]
+    ImportDefer(&'a DeferTargets),
 }
 
 /// Creates the context of a request with a dynamic part. It is given to the runtime as
@@ -241,23 +346,34 @@ fn create_context(
                 CONTEXT_MODE_IMPORT
             }
         }
+        // Every module is given as a function that imports it deferred
+        ImportMode::ImportDefer(_) => CONTEXT_MODE_IMPORT,
     };
 
     let mut elems = Vec::with_capacity(map.len() * 2);
     for (key, entry) in map {
-        let module = match (mode, entry) {
-            (_, SinglePatternMapping::Ignored | SinglePatternMapping::Dropped) => {
+        let module = match (import_mode, mode, entry) {
+            (_, _, SinglePatternMapping::Ignored | SinglePatternMapping::Dropped) => {
                 quote!("undefined" as Expr)
             }
-            (CONTEXT_MODE_REQUIRE | CONTEXT_MODE_IMPORT, SinglePatternMapping::Module(id))
-            | (CONTEXT_MODE_ASYNC_LOADER, SinglePatternMapping::ModuleLoader(id)) => {
-                module_id_to_lit(id)
-            }
+            (
+                ImportMode::Require | ImportMode::Import,
+                CONTEXT_MODE_REQUIRE | CONTEXT_MODE_IMPORT,
+                SinglePatternMapping::Module(id),
+            )
+            | (
+                ImportMode::Import,
+                CONTEXT_MODE_ASYNC_LOADER,
+                SinglePatternMapping::ModuleLoader(id),
+            ) => module_id_to_lit(id),
             _ => quote!(
                 "() => $module" as Expr,
                 module: Expr = match import_mode {
                     ImportMode::Require => entry.create_require(Cow::Borrowed(key_expr)),
                     ImportMode::Import => entry.create_import(Cow::Borrowed(key_expr)),
+                    ImportMode::ImportDefer(targets) => {
+                        entry.create_import_defer(Cow::Borrowed(key_expr), targets)
+                    }
                 }
             ),
         };
@@ -333,6 +449,23 @@ impl PatternMapping {
             PatternMapping::Single(pm) => pm.create_import(Cow::Owned(key_expr)),
             PatternMapping::Map(map) => {
                 let module_context = create_context(map, &key_expr, ImportMode::Import);
+
+                quote!("$module_context.import($key)" as Expr,
+                    module_context: Expr = module_context,
+                    key: Expr = key_expr
+                )
+            }
+        }
+    }
+
+    /// `import.defer(...)`. For a dynamic request (mapping to multiple modules), every module of
+    /// the context is imported with [`SinglePatternMapping::create_import_defer`].
+    pub fn create_import_defer(&self, key_expr: Expr, targets: &DeferTargets) -> Expr {
+        match self {
+            PatternMapping::Single(pm) => pm.create_import_defer(Cow::Owned(key_expr), targets),
+            PatternMapping::Map(map) => {
+                let module_context =
+                    create_context(map, &key_expr, ImportMode::ImportDefer(targets));
 
                 quote!("$module_context.import($key)" as Expr,
                     module_context: Expr = module_context,

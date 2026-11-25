@@ -130,7 +130,10 @@ use crate::{
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
+        esm::{
+            EsmExport, UrlRewriteBehavior, base::EsmAssetReferences, export,
+            export::is_deferred_reference,
+        },
         exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -1005,11 +1008,19 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 impl MergeableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
-        if !matches!(
-            &*self.get_exports().await?,
-            EcmascriptExports::EsmExports(_)
-        ) {
+        let exports = self.get_exports().await?;
+        let EcmascriptExports::EsmExports(exports) = &*exports else {
             return Ok(Vc::cell(false));
+        };
+
+        // A re-exported deferred namespace (`import defer * as ns from '...'; export { ns }`) is
+        // created by the module itself, importers can't refer to the deferred import directly.
+        for export in exports.await?.exports.values() {
+            if let EsmExport::ImportedNamespace(reference) = export
+                && is_deferred_reference(*reference).await?
+            {
+                return Ok(Vc::cell(false));
+            }
         }
 
         // A direct `eval` can access module bindings by name, which breaks when merging
@@ -1134,6 +1145,13 @@ impl EcmascriptModuleContentOptions {
         async {
             let async_module_ref = async_module.await?;
             let esm_references_ref = esm_references.await?;
+            // The async modules referenced by this module. Deferred imports of them are
+            // evaluated eagerly.
+            let async_module_info_ref = match async_module_info {
+                Some(info) => Some(info.await?),
+                None => None,
+            };
+            let async_module_info_ref = async_module_info_ref.as_deref();
             // The export registration is computed first: when it can spell the whole module's
             // exports as one compact call, it also performs those imports, and reports which
             // references it subsumed so they don't emit them a second time.
@@ -1149,7 +1167,7 @@ impl EcmascriptModuleContentOptions {
                                 .unwrap_or_else(|| eval_context.imports.export_registration_mode()),
                             export_registration_mode
                                 .map(|_| (part_references.as_ref(), esm_references_ref.as_ref())),
-                            async_module_info.is_some(),
+                            async_module_info_ref,
                         )
                         .await?;
                     (Some(code_gen), subsumed)
@@ -1193,6 +1211,7 @@ impl EcmascriptModuleContentOptions {
                         **chunking_context,
                         scope_hoisting_context,
                         &subsumed_imports,
+                        async_module_info_ref,
                     )
                 })
                 .try_join()
@@ -1209,6 +1228,7 @@ impl EcmascriptModuleContentOptions {
                         scope_hoisting_context,
                         *module,
                         *exports,
+                        async_module_info_ref,
                     )
                 })
                 .try_join()

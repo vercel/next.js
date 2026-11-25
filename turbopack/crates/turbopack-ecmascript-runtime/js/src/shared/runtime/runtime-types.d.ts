@@ -64,7 +64,26 @@ type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
-type InvokeAsyncLoader = (moduleId: ModuleId) => Promise<Exports>
+type InvokeAsyncLoader = (
+  moduleId: ModuleId,
+  /** `import.defer()`, with the statically known export names when available */
+  defer?: boolean | string[]
+) => Promise<Exports>
+/** A function evaluating a deferred import (once) and returning its namespace. */
+type DeferredModule = {
+  (): any
+  /** The cached deferred namespace object, when it isn't cached by module */
+  namespace?: Record<string | symbol, any>
+}
+type ImportDefer = (
+  idOrFactory: ModuleId | (() => any),
+  evaluateFirst?: ModuleId
+) => DeferredModule
+type DeferNamespace = (
+  deferred: DeferredModule,
+  exports?: string[],
+  key?: ModuleId
+) => Record<string | symbol, any>
 type ModuleFactoryFunction<
   M extends Module,
   C extends TurbopackBaseContext<M>,
@@ -159,6 +178,8 @@ interface TurbopackBaseContext<M> {
   t: RuntimeRequire
   f: ModuleContextFactory
   i: EsmImport
+  D: ImportDefer
+  N: DeferNamespace
   A: InvokeAsyncLoader
   s: EsmExport
   S: EsmReexport

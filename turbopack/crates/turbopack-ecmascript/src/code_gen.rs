@@ -9,7 +9,10 @@ use swc_core::ecma::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
-use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
+use turbopack_core::{
+    chunk::{AsyncModuleInfo, ChunkingContext},
+    reference::ModuleReference,
+};
 
 use crate::{
     ScopeHoistingContext,
@@ -214,6 +217,7 @@ impl CodeGen {
         scope_hoisting_context: ScopeHoistingContext<'_>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         exports: ResolvedVc<EcmascriptExports>,
+        async_module_info: Option<&AsyncModuleInfo>,
     ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(trie, ctx).await,
@@ -221,7 +225,10 @@ impl CodeGen {
             Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::DynamicExpression(v) => v.code_generation(trie, ctx).await,
-            Self::EsmBindings(v) => v.code_generation(trie, ctx, scope_hoisting_context).await,
+            Self::EsmBindings(v) => {
+                v.code_generation(trie, ctx, scope_hoisting_context, async_module_info)
+                    .await
+            }
             Self::EsmModuleItem(v) => v.code_generation(trie, ctx).await,
             Self::ExportsInfoBinding(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(trie, ctx).await,

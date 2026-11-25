@@ -1289,5 +1289,6 @@
                 "join",
             ],
         ),
+        deferred: false,
     },
 ]

@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="def46318-113b-4f82-5b10-6d3d2287859d")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="2afeb455-1687-9385-35cc-47d1e2b80d27")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -494,9 +494,151 @@ function esmImport(id) {
     return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
 }
 contextPrototype.i = esmImport;
-function asyncLoader(moduleId) {
+/**
+ * Creates a function for a deferred import (`import defer * as ns from '...'`). The module is
+ * evaluated (once) on the first call of the function, which returns the namespace object.
+ *
+ * @param idOrFactory the module id, or a function returning the namespace (for externals)
+ * @param evaluateFirst a module to evaluate before the module, when the import was resolved
+ *   through re-exports of that module
+ */ function importDefer(idOrFactory, evaluateFirst) {
+    const context = this;
+    let namespace;
+    let evaluated = false;
+    // The module instance the namespace belongs to. A module replaced by HMR is imported again.
+    let module;
+    const deferred = ()=>{
+        if (typeof idOrFactory === 'function') {
+            if (!evaluated) {
+                namespace = idOrFactory();
+                evaluated = true;
+            }
+            return namespace;
+        }
+        if (!evaluated || context.c.get(idOrFactory) !== module) {
+            // When the evaluation throws, the next call will try again (and rethrow the cached error).
+            if (evaluateFirst != null) esmImport.call(context, evaluateFirst);
+            namespace = esmImport.call(context, idOrFactory);
+            module = context.c.get(idOrFactory);
+            evaluated = true;
+        }
+        return namespace;
+    };
+    return deferred;
+}
+contextPrototype.D = importDefer;
+const DEFERRED_NAMESPACE_TAG = 'Deferred Module';
+/**
+ * The deferred namespace objects by module id, so that every deferred import of a module uses the
+ * same namespace object (like `GetModuleNamespace(module, ~defer~)` in the proposal).
+ */ const deferredNamespaces = new Map();
+/**
+ * Returns the namespace object of a deferred import, which evaluates the module on first access
+ * of one of its properties. `then` is never exposed, so awaiting it doesn't evaluate the module.
+ *
+ * @param deferred a function created by `importDefer`, or a function returning the namespace of
+ *   an already evaluated module
+ * @param exports the export names of the module, when they are statically known. Otherwise a
+ *   `Proxy` is used.
+ * @param key identifies the module (its id, or the request of an external). The namespace object
+ *   is created once per module.
+ */ function deferNamespace(deferred, exports, key) {
+    if (key === undefined) {
+        if (deferred.namespace) return deferred.namespace;
+    } else {
+        const cached = deferredNamespaces.get(key);
+        if (cached) {
+            // Read from the latest importer, e.g. one that was re-executed by HMR.
+            cached.source.deferred = deferred;
+            return cached.namespace;
+        }
+    }
+    const source = {
+        deferred
+    };
+    const read = ()=>source.deferred();
+    let namespace;
+    if (exports) {
+        namespace = Object.create(null);
+        for (const name of exports){
+            if (name === 'then') continue;
+            Object.defineProperty(namespace, name, {
+                enumerable: true,
+                get: ()=>read()[name]
+            });
+        }
+        Object.defineProperty(namespace, Symbol.toStringTag, {
+            value: DEFERRED_NAMESPACE_TAG
+        });
+        Object.freeze(namespace);
+    } else {
+        // Exports are not statically known (e.g. CommonJS), so every access to the namespace has to
+        // evaluate the module first.
+        const isHidden = (key)=>key === 'then' || key === Symbol.toStringTag;
+        namespace = new Proxy(Object.create(null), {
+            get (_target, key) {
+                if (key === Symbol.toStringTag) return DEFERRED_NAMESPACE_TAG;
+                if (key === 'then') return undefined;
+                return read()[key];
+            },
+            has (_target, key) {
+                if (isHidden(key)) return false;
+                return key in read();
+            },
+            ownKeys () {
+                return Reflect.ownKeys(read()).filter((key)=>!isHidden(key));
+            },
+            getOwnPropertyDescriptor (_target, key) {
+                if (isHidden(key)) return undefined;
+                const ns = read();
+                if (!Object.prototype.hasOwnProperty.call(ns, key)) return undefined;
+                // Properties not existing on the proxy target have to be reported as configurable.
+                return {
+                    value: ns[key],
+                    writable: true,
+                    enumerable: true,
+                    configurable: true
+                };
+            },
+            set () {
+                return false;
+            },
+            defineProperty () {
+                return false;
+            },
+            deleteProperty () {
+                return false;
+            }
+        });
+    }
+    if (key === undefined) {
+        deferred.namespace = namespace;
+    } else {
+        deferredNamespaces.set(key, {
+            namespace,
+            source
+        });
+    }
+    return namespace;
+}
+contextPrototype.N = deferNamespace;
+/**
+ * Creates the import function passed to async loaders for `import.defer()`. The loader passes
+ * `isAsync` for async modules, which are evaluated eagerly.
+ *
+ * @param exports the statically known export names of the module, if any
+ */ function createImportDeferNamespace(context, exports) {
+    return (id, isAsync)=>{
+        if (isAsync) {
+            // The promise of an async module resolves to its namespace
+            return Promise.resolve(esmImport.call(context, id)).then((namespace)=>deferNamespace(()=>namespace, exports, id));
+        }
+        return deferNamespace(importDefer.call(context, id), exports, id);
+    };
+}
+function asyncLoader(moduleId, defer) {
     const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
-    return loader(esmImport.bind(this));
+    return loader(defer ? createImportDeferNamespace(this, Array.isArray(defer) ? defer : undefined) : esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
 // Add a simple runtime require so that environments without one can still pass
@@ -2708,5 +2850,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=def46318-113b-4f82-5b10-6d3d2287859d
+//# debugId=2afeb455-1687-9385-35cc-47d1e2b80d27
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

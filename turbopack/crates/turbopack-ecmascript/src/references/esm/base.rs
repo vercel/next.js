@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
@@ -10,8 +12,8 @@ use swc_core::{
         source_map::{PURE_SP, SmallPos},
     },
     ecma::ast::{
-        ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
-        SeqExpr, Stmt, Str,
+        ArrayLit, CallExpr, Callee, ComputedPropName, Decl, Expr, ExprOrSpread, ExprStmt, Ident,
+        Lit, MemberExpr, MemberProp, Number, SeqExpr, Stmt, Str,
     },
     quote,
 };
@@ -21,7 +23,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, ModuleChunkItemIdExt, ModuleId},
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
         code_gen::CodeGenerationIssue,
@@ -59,7 +61,10 @@ use crate::{
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
-    runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
+    runtime_functions::{
+        TURBOPACK_DEFER_NAMESPACE, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
+        TURBOPACK_IMPORT, TURBOPACK_IMPORT_DEFER,
+    },
     utils::module_id_to_lit,
 };
 
@@ -97,7 +102,51 @@ pub enum ReferencedAssetIdent {
         /// './inner'`), this is the final module in that chain, not the directly referenced
         /// asset.
         import_source: ImportSource,
+        /// Set for a deferred import (`import defer * as ns from '...'`). The variable then
+        /// holds a function returning the namespace (evaluating the module on first call), and is
+        /// named `deferred.namespace_ident`.
+        deferred: Option<DeferredImport>,
     },
+}
+
+/// Details of a deferred import, see [`ReferencedAssetIdent::Module::deferred`].
+#[derive(Clone, Debug)]
+pub struct DeferredImport {
+    /// The name of the variable holding the function that evaluates the module and returns its
+    /// namespace. Unused when `eager`.
+    pub namespace_ident: String,
+    /// A module that has to be evaluated before the imported module, as the namespace import was
+    /// resolved through re-exports of this module (which might have side effects).
+    pub evaluate_first: Option<ModuleId>,
+    /// The export names of the target module, when they are statically known. Used to create
+    /// the deferred namespace object (with getters) when the namespace is used as a value. With
+    /// `None`, a `Proxy` is used instead.
+    pub namespace_exports: Option<Arc<[RcStr]>>,
+    /// The evaluation is not actually deferred (the module is async, or also imported eagerly):
+    /// the module is imported like a regular import, but the namespace is still a deferred
+    /// namespace object when used as a value.
+    pub eager: bool,
+    /// Identifies the module for the runtime, which creates one deferred namespace object per
+    /// module. Only set when the namespace is used as a value.
+    pub key: Option<DeferredNamespaceKey>,
+}
+
+/// See [`DeferredImport::key`].
+#[derive(Clone, Debug)]
+pub enum DeferredNamespaceKey {
+    Module(ModuleId),
+    External(RcStr),
+}
+
+impl DeferredNamespaceKey {
+    pub fn to_expr(&self) -> Expr {
+        match self {
+            DeferredNamespaceKey::Module(id) => module_id_to_lit(id),
+            DeferredNamespaceKey::External(request) => {
+                Expr::Lit(Lit::Str(format!("external {request}").into()))
+            }
+        }
+    }
 }
 
 /// The source to import when initializing a `ReferencedAssetIdent::Module` variable.
@@ -164,7 +213,32 @@ impl ImportSource {
             } => namespace_ident,
         }
     }
+
+    /// The name of the variable that holds the function returning the namespace of a deferred
+    /// import (`import defer * as ns from '...'`). `evaluate_first` is the id of the module that
+    /// has to be evaluated first, if any (see [`DeferredImport::evaluate_first`]).
+    fn deferred_namespace_ident(&self, evaluate_first: Option<&ModuleId>) -> String {
+        let namespace_ident = self.namespace_ident();
+        // `__TURBOPACK__imported__module__...` -> `__TURBOPACK__deferred__module__...`
+        let ident = if let Some(rest) = namespace_ident.strip_prefix(IMPORTED_MODULE_IDENT_PREFIX) {
+            format!("{DEFERRED_MODULE_IDENT_PREFIX}{rest}")
+        } else {
+            format!("{namespace_ident}deferred__")
+        };
+        match evaluate_first {
+            Some(id) => format!(
+                "{ident}{}",
+                magic_identifier::mangle(&format!("after {id}"))
+            ),
+            None => ident,
+        }
+    }
 }
+
+/// `magic_identifier::mangle("imported module ")`
+const IMPORTED_MODULE_IDENT_PREFIX: &str = "__TURBOPACK__imported__module__";
+/// `magic_identifier::mangle("deferred module ")`
+const DEFERRED_MODULE_IDENT_PREFIX: &str = "__TURBOPACK__deferred__module__";
 
 impl ReferencedAssetIdent {
     pub fn into_module_namespace_ident(self) -> Option<(String, Option<SyntaxContext>)> {
@@ -172,9 +246,58 @@ impl ReferencedAssetIdent {
             ReferencedAssetIdent::Module {
                 import_source,
                 ctxt,
+                deferred: None,
                 ..
             } => Some((import_source.into_namespace_ident(), ctxt)),
+            ReferencedAssetIdent::Module {
+                import_source,
+                ctxt,
+                deferred: Some(deferred),
+                ..
+            } => Some(if deferred.eager {
+                (import_source.into_namespace_ident(), ctxt)
+            } else {
+                (deferred.namespace_ident, ctxt)
+            }),
             ReferencedAssetIdent::LocalBinding { .. } => None,
+        }
+    }
+
+    /// Marks a `Module` ident as a deferred import. Has no effect on local bindings: a module in
+    /// the same scope hoisting group is evaluated with the group anyway.
+    fn into_deferred(self, deferred: DeferredImport) -> Self {
+        match self {
+            ReferencedAssetIdent::Module {
+                ctxt,
+                export,
+                import_source,
+                deferred: _,
+            } => ReferencedAssetIdent::Module {
+                ctxt,
+                export,
+                import_source,
+                deferred: Some(deferred),
+            },
+            ident @ ReferencedAssetIdent::LocalBinding { .. } => ident,
+        }
+    }
+
+    /// Removes the deferred marker of an ident whose evaluation isn't deferred (see
+    /// [`DeferredImport::eager`]): the module is imported like a regular import.
+    fn without_eager_deferred(self) -> Self {
+        match self {
+            ReferencedAssetIdent::Module {
+                ctxt,
+                export,
+                import_source,
+                deferred: Some(DeferredImport { eager: true, .. }),
+            } => ReferencedAssetIdent::Module {
+                ctxt,
+                export,
+                import_source,
+                deferred: None,
+            },
+            ident => ident,
         }
     }
 
@@ -189,16 +312,40 @@ impl ReferencedAssetIdent {
                 ctxt,
                 export,
                 import_source,
+                deferred,
             } => {
-                let namespace_ident = import_source.namespace_ident();
-                if let Some(export) = export {
-                    Either::Right(MemberExpr {
-                        span,
-                        obj: Box::new(Expr::Ident(Ident::new(
+                let (namespace_ident, namespace_expr) = if let Some(deferred) = deferred
+                    && !deferred.eager
+                {
+                    let namespace_ident = deferred.namespace_ident.as_str();
+                    // `__TURBOPACK__deferred__module__...()` evaluates the module (once) and
+                    // returns the namespace.
+                    let namespace_expr = Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(Box::new(Expr::Ident(Ident::new(
                             namespace_ident.into(),
                             DUMMY_SP,
                             ctxt.unwrap_or_default(),
-                        ))),
+                        )))),
+                        args: vec![],
+                        ..Default::default()
+                    });
+                    (namespace_ident, namespace_expr)
+                } else {
+                    let namespace_ident = import_source.namespace_ident();
+                    (
+                        namespace_ident,
+                        Expr::Ident(Ident::new(
+                            namespace_ident.into(),
+                            DUMMY_SP,
+                            ctxt.unwrap_or_default(),
+                        )),
+                    )
+                };
+                if let Some(export) = export {
+                    Either::Right(MemberExpr {
+                        span,
+                        obj: Box::new(namespace_expr),
                         prop: MemberProp::Computed(ComputedPropName {
                             span: DUMMY_SP,
                             expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -219,6 +366,59 @@ impl ReferencedAssetIdent {
         }
     }
     pub fn as_expr(&self, span: Span, is_callee: bool) -> Expr {
+        if let ReferencedAssetIdent::Module {
+            ctxt,
+            export: None,
+            import_source,
+            deferred: Some(deferred),
+        } = self
+        {
+            // The namespace of a deferred import is used as a value: create (or reuse) the
+            // deferred namespace object of the module, which evaluates the module on first access
+            // to one of its properties.
+            let deferred_fn = if deferred.eager {
+                // The module was already evaluated, only the namespace object is deferred.
+                quote!(
+                    "() => $namespace" as Expr,
+                    namespace = Ident::new(
+                        import_source.namespace_ident().into(),
+                        DUMMY_SP,
+                        ctxt.unwrap_or_default(),
+                    ),
+                )
+            } else {
+                Expr::Ident(Ident::new(
+                    deferred.namespace_ident.as_str().into(),
+                    DUMMY_SP,
+                    ctxt.unwrap_or_default(),
+                ))
+            };
+            let exports = match &deferred.namespace_exports {
+                Some(exports) => Expr::Array(ArrayLit {
+                    span: DUMMY_SP,
+                    elems: exports
+                        .iter()
+                        .map(|export| {
+                            Some(ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(Lit::Str(export.as_str().into()))),
+                            })
+                        })
+                        .collect(),
+                }),
+                None => quote!("void 0" as Expr),
+            };
+            let mut args: Vec<ExprOrSpread> = vec![deferred_fn.into(), exports.into()];
+            if let Some(key) = &deferred.key {
+                args.push(key.to_expr().into());
+            }
+            return Expr::Call(CallExpr {
+                span,
+                callee: Callee::Expr(Box::new(TURBOPACK_DEFER_NAMESPACE.into())),
+                args,
+                ..Default::default()
+            });
+        }
         match self.as_expr_individual(span) {
             Either::Left(ident) => ident.into(),
             Either::Right(member) => {
@@ -325,10 +525,12 @@ impl ReferencedAsset {
                                         ctxt: None,
                                         export,
                                         import_source,
+                                        deferred,
                                     }) => Some(ReferencedAssetIdent::Module {
                                         ctxt: Some(ctxt),
                                         export,
                                         import_source,
+                                        deferred,
                                     }),
                                     ident => ident,
                                 },
@@ -368,12 +570,14 @@ impl ReferencedAsset {
                         None => None,
                     },
                     import_source,
+                    deferred: None,
                 })
             }
             ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
                 ctxt: None,
                 export,
                 import_source: ImportSource::new_external(request.clone(), *ty),
+                deferred: None,
             }),
             ReferencedAsset::NonPlaceable(module) => {
                 // The module exists but has no ECMAScript bindings, so there is
@@ -481,6 +685,17 @@ pub struct EsmAssetReference {
     pub import_externals: bool,
     pub module_fragments_enabled: bool,
     pub is_pure_import: bool,
+    /// Created by an `import defer * as ns from "..."` declaration: the referenced module is
+    /// loaded with the importer, but only evaluated on first access to the namespace (see
+    /// [`EsmAssetReference::is_effectively_deferred`]).
+    pub deferred: bool,
+    /// Created by an `import defer` declaration, even when the evaluation isn't deferred (because
+    /// the module is also imported eagerly). The namespace is a deferred namespace object when
+    /// used as a value.
+    pub deferred_namespace: bool,
+    /// For the binding references of a deferred import: the evaluation reference of the same
+    /// declaration, whose target has to be evaluated first.
+    pub deferred_evaluation: Option<ResolvedVc<EsmAssetReference>>,
     /// Rarely-present, slightly-large fields (import-annotation overrides and a resolve override),
     /// boxed off the common path so the typical reference stays small. `None` whenever every field
     /// would be empty.
@@ -502,6 +717,12 @@ pub struct EsmAssetReferenceOptions {
     /// used names without exposing the target namespace's original property names.
     pub export_usage_passthrough: Option<bool>,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// See [`EsmAssetReference::deferred`].
+    pub deferred: bool,
+    /// See [`EsmAssetReference::deferred_namespace`].
+    pub deferred_namespace: bool,
+    /// See [`EsmAssetReference::deferred_evaluation`].
+    pub deferred_evaluation: Option<ResolvedVc<EsmAssetReference>>,
 }
 
 /// Optional extra state for an [`EsmAssetReference`] that is rarely present: the few values
@@ -604,6 +825,9 @@ impl EsmAssetReference {
             module_fragments_enabled,
             export_usage_passthrough,
             resolve_override,
+            deferred,
+            deferred_namespace,
+            deferred_evaluation,
         } = options;
 
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
@@ -627,6 +851,9 @@ impl EsmAssetReference {
             import_externals,
             module_fragments_enabled,
             is_pure_import,
+            deferred,
+            deferred_namespace,
+            deferred_evaluation,
             extras: EsmReferenceExtras::new(
                 annotations.as_ref(),
                 export_usage_passthrough,
@@ -679,6 +906,9 @@ impl EsmAssetReference {
             import_externals: self.import_externals,
             module_fragments_enabled: self.module_fragments_enabled,
             is_pure_import: self.is_pure_import,
+            deferred: self.deferred,
+            deferred_namespace: self.deferred_namespace,
+            deferred_evaluation: self.deferred_evaluation,
             extras: self.extras.clone(),
         }
     }
@@ -688,6 +918,159 @@ impl EsmAssetReference {
     ) -> impl Future<Output = Result<ReferencedAsset>> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
+
+    /// Whether this reference was created by an `import defer` declaration and is handled as a
+    /// deferred import. Module fragments (which split modules into parts imported by internal
+    /// references) don't support deferred imports, they are evaluated eagerly.
+    pub fn is_deferred_import(&self) -> bool {
+        self.deferred && !self.module_fragments_enabled
+    }
+
+    /// Whether the namespace of this reference is a deferred namespace object when used as a
+    /// value (see [`EsmAssetReference::deferred_namespace`]).
+    pub fn is_deferred_namespace(&self) -> bool {
+        (self.deferred || self.deferred_namespace) && !self.module_fragments_enabled
+    }
+
+    /// Whether the evaluation of the referenced module is actually deferred until the namespace
+    /// is accessed.
+    ///
+    /// Async modules (with top-level await, or with async dependencies) are evaluated eagerly
+    /// even when imported with `import defer`, like the proposal specifies for modules with
+    /// top-level await. (For a sync module with async dependencies, the proposal only evaluates
+    /// the async dependencies eagerly. Turbopack evaluates the whole module eagerly in that case.)
+    pub(crate) async fn is_effectively_deferred(
+        &self,
+        referenced_asset: &ReferencedAsset,
+        async_module_info: Option<&AsyncModuleInfo>,
+    ) -> Result<bool> {
+        if !self.is_deferred_import() {
+            return Ok(false);
+        }
+        if !is_deferrable_asset(referenced_asset, async_module_info) {
+            return Ok(false);
+        }
+        // The evaluation reference of the same declaration has to be deferrable too, otherwise it
+        // evaluates the module eagerly anyway.
+        if let Some(evaluation) = self.deferred_evaluation {
+            let evaluation_asset = evaluation.get_referenced_asset().await?;
+            if !matches!(evaluation_asset, ReferencedAsset::None)
+                && !is_deferrable_asset(&evaluation_asset, async_module_info)
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// Like [`ReferencedAsset::get_ident`], but marks the ident as deferred when the reference is
+    /// effectively deferred (see [`EsmAssetReference::is_effectively_deferred`]).
+    pub(crate) async fn get_ident(
+        &self,
+        referenced_asset: &ReferencedAsset,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        export: Option<RcStr>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
+        async_module_info: Option<&AsyncModuleInfo>,
+    ) -> Result<Option<ReferencedAssetIdent>> {
+        let is_namespace = export.is_none();
+        let is_then = export.as_deref() == Some("then");
+        let ident = referenced_asset
+            .get_ident(chunking_context, export, scope_hoisting_context)
+            .await?;
+        if !self.is_deferred_namespace() {
+            return Ok(ident);
+        }
+        if is_then {
+            // A deferred namespace never exposes `then` (so that awaiting it doesn't evaluate the
+            // module): `ns.then` is `undefined`.
+            return Ok(None);
+        }
+        let eager = !self
+            .is_effectively_deferred(referenced_asset, async_module_info)
+            .await?;
+        if eager && !is_namespace {
+            // A property access on an evaluated module is a regular access
+            return Ok(ident);
+        }
+        let Some(ident) = ident else {
+            return Ok(None);
+        };
+        let ReferencedAssetIdent::Module { import_source, .. } = &ident else {
+            // A local binding of a module in the same scope hoisting group
+            return Ok(Some(ident));
+        };
+        let (namespace_exports, key) = match import_source {
+            ImportSource::Module { asset, .. } if is_namespace => (
+                known_namespace_exports(*asset).await?,
+                Some(DeferredNamespaceKey::Module(
+                    asset.chunk_item_id(chunking_context).await?,
+                )),
+            ),
+            ImportSource::External { request, .. } if is_namespace => {
+                (None, Some(DeferredNamespaceKey::External(request.clone())))
+            }
+            _ => (None, None),
+        };
+        // When the import was resolved to another module (by following re-exports), the
+        // directly imported module has to be evaluated first, as it might have side effects.
+        // (Side effect free modules resolve to `ReferencedAsset::None` here.)
+        let evaluate_first = if !eager
+            && let Some(evaluation) = self.deferred_evaluation
+            && let ReferencedAsset::Some(evaluated) = evaluation.get_referenced_asset().await?
+            && !matches!(import_source, ImportSource::Module { asset, .. } if *asset == evaluated)
+        {
+            Some(evaluated.chunk_item_id(chunking_context).await?)
+        } else {
+            None
+        };
+        let namespace_ident = import_source.deferred_namespace_ident(evaluate_first.as_ref());
+        Ok(Some(ident.into_deferred(DeferredImport {
+            namespace_ident,
+            evaluate_first,
+            namespace_exports,
+            eager,
+            key,
+        })))
+    }
+}
+
+/// Whether a deferred import of this asset can actually be deferred, see
+/// [`EsmAssetReference::is_effectively_deferred`].
+fn is_deferrable_asset(
+    referenced_asset: &ReferencedAsset,
+    async_module_info: Option<&AsyncModuleInfo>,
+) -> bool {
+    match referenced_asset {
+        ReferencedAsset::Some(placeable) => !async_module_info.is_some_and(|info| {
+            info.referenced_async_modules
+                .contains(&ResolvedVc::upcast(*placeable))
+        }),
+        // A CommonJS external is required synchronously, so it can be deferred. ESM externals
+        // are async modules.
+        ReferencedAsset::External(_, ExternalType::CommonJs) => true,
+        ReferencedAsset::External(..)
+        | ReferencedAsset::NonPlaceable(_)
+        | ReferencedAsset::None
+        | ReferencedAsset::Empty
+        | ReferencedAsset::Unresolvable => false,
+    }
+}
+
+/// The export names of the namespace object of `asset`, when all of them are statically known.
+pub(crate) async fn known_namespace_exports(
+    asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Result<Option<Arc<[RcStr]>>> {
+    let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await? else {
+        // CommonJS and other dynamic exports
+        return Ok(None);
+    };
+    let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
+    if !exports.dynamic_exports.is_empty() {
+        // e.g. `export * from './commonjs.js'`
+        return Ok(None);
+    }
+    Ok(Some(exports.exports.keys().cloned().collect()))
 }
 
 #[turbo_tasks::value_impl]
@@ -789,6 +1172,10 @@ impl ModuleReference for EsmAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
+        // A deferred import is not executed before the parent module, so it must not be hoisted
+        // (and merged into the parent's scope hoisting group). It still inherits async-ness: an
+        // async module is evaluated eagerly even when imported with `import defer`.
+        let hoisted = !self.is_deferred_import();
         self.extras
             .as_deref()
             .and_then(|e| e.chunking_type)
@@ -796,10 +1183,10 @@ impl ModuleReference for EsmAssetReference {
                 || {
                     Some(ChunkingType::Parallel {
                         inherit_async: true,
-                        hoisted: true,
+                        hoisted,
                     })
                 },
-                |c| c.as_chunking_type(true, true),
+                |c| c.as_chunking_type(true, hoisted),
             )
     }
 
@@ -850,6 +1237,8 @@ impl EsmAssetReference {
         // References a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already imports
         // for itself. Emitting them here too would instantiate the module twice.
         subsumed_imports: &SubsumedImports,
+        // The async modules referenced by the importing module, `None` when it isn't async.
+        async_module_info: Option<&AsyncModuleInfo>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
@@ -917,18 +1306,30 @@ impl EsmAssetReference {
                         // No need to import, the module was already executed and is available in
                         // the same scope hoisting group (unless it's a
                         // namespace import)
+                    } else if matches!(this.export_name, Some(ModulePart::Evaluation))
+                        && this
+                            .is_effectively_deferred(&referenced_asset, async_module_info)
+                            .await?
+                    {
+                        // The evaluation of a deferred import happens on first access of the
+                        // namespace, the binding references create the deferred namespace.
                     } else {
                         'import: {
-                            let ident = referenced_asset
+                            let ident = this
                                 .get_ident(
+                                    &referenced_asset,
                                     chunking_context,
                                     this.export_name
                                         .as_ref()
                                         .and_then(ModulePart::get_export)
                                         .cloned(),
                                     scope_hoisting_context,
+                                    async_module_info,
                                 )
-                                .await?;
+                                .await?
+                                // An eagerly evaluated `import defer` is imported like a regular
+                                // import
+                                .map(ReferencedAssetIdent::without_eager_deferred);
                             // `referenced_asset` must not be used past this point: the ident
                             // carries everything about the import
                             // target (see `ImportSource`) — notably,
@@ -951,6 +1352,84 @@ impl EsmAssetReference {
                                     ctxt,
                                     export: _,
                                     import_source,
+                                    deferred: Some(deferred),
+                                }) => {
+                                    // `var __TURBOPACK__deferred__module__... =
+                                    //      __turbopack_import_defer__(id)`
+                                    // creates a function that evaluates the module on first call.
+                                    let name = Ident::new(
+                                        deferred.namespace_ident.as_str().into(),
+                                        DUMMY_SP,
+                                        ctxt.unwrap_or_default(),
+                                    );
+                                    let arg = match &import_source {
+                                        ImportSource::Module { asset, .. } => module_id_to_lit(
+                                            &asset.chunk_item_id(chunking_context).await?,
+                                        ),
+                                        ImportSource::External {
+                                            request,
+                                            ty: ExternalType::CommonJs,
+                                            ..
+                                        } => {
+                                            if !*chunking_context
+                                                .environment()
+                                                .supports_commonjs_externals()
+                                                .await?
+                                            {
+                                                turbobail!(
+                                                    "the chunking context ({}) does not support \
+                                                     external modules (request: {request})",
+                                                    chunking_context.name()
+                                                );
+                                            }
+                                            quote!(
+                                                "() => $turbopack_external_require($id, () => require($id), true)" as Expr,
+                                                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                                                id: Expr = Expr::Lit(request.to_string().into())
+                                            )
+                                        }
+                                        ImportSource::External { request, ty, .. } => {
+                                            bail!(
+                                                "Unsupported external type {:?} for deferred ESM \
+                                                 reference with request: {:?}",
+                                                ty,
+                                                request
+                                            )
+                                        }
+                                    };
+                                    let mut call_expr = match &deferred.evaluate_first {
+                                        Some(evaluate_first) => quote!(
+                                            "$turbopack_import_defer($arg, $evaluate_first)" as Expr,
+                                            turbopack_import_defer: Expr = TURBOPACK_IMPORT_DEFER.into(),
+                                            arg: Expr = arg,
+                                            evaluate_first: Expr = module_id_to_lit(evaluate_first),
+                                        ),
+                                        None => quote!(
+                                            "$turbopack_import_defer($arg)" as Expr,
+                                            turbopack_import_defer: Expr = TURBOPACK_IMPORT_DEFER.into(),
+                                            arg: Expr = arg,
+                                        ),
+                                    };
+                                    if this.is_pure_import {
+                                        call_expr.set_span(PURE_SP);
+                                    }
+                                    result.push(CodeGenerationHoistedStmt::new(
+                                        format!("{} {:?}", name.sym, ctxt).into(),
+                                        var_decl_with_span(
+                                            quote!(
+                                                "var $name = $call;" as Stmt,
+                                                name = name,
+                                                call: Expr = call_expr
+                                            ),
+                                            span,
+                                        ),
+                                    ));
+                                }
+                                Some(ReferencedAssetIdent::Module {
+                                    ctxt,
+                                    export: _,
+                                    import_source,
+                                    deferred: None,
                                 }) => {
                                     let namespace_key =
                                         (import_source.namespace_ident().to_owned(), ctxt);

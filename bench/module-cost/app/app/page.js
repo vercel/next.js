@@ -1,5 +1,6 @@
 import { Client } from '../../components/client'
 
+import { deferCases } from '../../lib/defer-cases.js'
 import { measure } from '../../lib/measure.js'
 
 const commonjsAction = async () => {
@@ -15,6 +16,11 @@ const esmAction = async () => {
   return await measure('app rsc esm', () => import('../../lib/esm.js'))
 }
 
+const deferAction = async (name) => {
+  'use server'
+  return await measure(`app rsc ${name}`, deferCases[name])
+}
+
 export default function Page() {
   return (
     <>
@@ -23,6 +29,7 @@ export default function Page() {
         prefix="/app"
         commonjsAction={commonjsAction}
         esmAction={esmAction}
+        deferAction={deferAction}
       />
     </>
   )

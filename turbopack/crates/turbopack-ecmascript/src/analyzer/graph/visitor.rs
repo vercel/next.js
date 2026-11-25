@@ -1615,7 +1615,7 @@ impl<'a> Analyzer<'a, '_> {
         );
 
         match callee {
-            Callee::Import(_) => {
+            Callee::Import(import) => {
                 // Prefer webpackExports/turbopackExports comment (authoritative when present)
                 let attrs = self.eval_context.imports.get_attributes(span);
                 let export_usage = if let Some(names) = &attrs.export_names {
@@ -1634,6 +1634,7 @@ impl<'a> Analyzer<'a, '_> {
                     span,
                     in_try: self.is_in_try(),
                     export_usage,
+                    deferred: import.phase == ImportPhase::Defer,
                 });
             }
             Callee::Expr(expr) => {
