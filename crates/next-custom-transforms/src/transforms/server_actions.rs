@@ -246,6 +246,7 @@ pub fn server_actions<C: Comments>(
 
         // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
         rewrite_fn_decl_to_proxy_decl: None,
+        hoist_module_cache_decl: false,
         rewrite_default_fn_expr_to_proxy_expr: None,
         rewrite_expr_to_proxy_expr: None,
 
@@ -317,6 +318,8 @@ struct ServerActions<C: Comments> {
 
     // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
     rewrite_fn_decl_to_proxy_decl: Option<VarDecl>,
+    // Set when visiting a module-level function declaration that needs a cache initializer.
+    hoist_module_cache_decl: bool,
     rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
     rewrite_expr_to_proxy_expr: Option<Box<Expr>>,
 
@@ -1369,6 +1372,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
                 } else if let Some(ident) = &self.fn_decl_ident {
                     // Replace the original function declaration with a cache decl.
+                    self.hoist_module_cache_decl = self.in_module_level;
                     self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
@@ -1932,6 +1936,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         let old_annotations = self.annotations.take();
         let mut new = Vec::with_capacity(stmts.len());
+        let mut cache_decl_initializers = Vec::new();
 
         // Main pass: For each statement, validate exports in server boundary files,
         // visit and transform it, and add it to the output along with any hoisted items.
@@ -2167,6 +2172,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
 
+            let is_module_fn_decl = matches!(
+                &stmt,
+                ModuleItem::Stmt(Stmt::Decl(Decl::Fn(_)))
+                    | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                        decl: Decl::Fn(_),
+                        ..
+                    }))
+            );
+            self.hoist_module_cache_decl = false;
             stmt.visit_mut_with(self);
 
             let new_stmt = if should_remove_statement {
@@ -2183,13 +2197,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             };
 
             if self.config.is_react_server_layer || self.file_directive.is_none() {
-                new.append(&mut self.hoisted_extra_items);
-                if let Some(stmt) = new_stmt {
-                    new.push(stmt);
-                }
+                let output = if is_module_fn_decl && self.hoist_module_cache_decl {
+                    &mut cache_decl_initializers
+                } else {
+                    &mut new
+                };
+                output.append(&mut self.hoisted_extra_items);
+                output.extend(new_stmt);
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
                 new.append(&mut self.extra_items);
             }
+        }
+
+        if !cache_decl_initializers.is_empty() {
+            // Function declarations can be read before their original position. Initialize
+            // their wrappers before any user code runs, without changing reference ID order.
+            let prologue_end = new
+                .iter()
+                .take_while(|item| {
+                    matches!(item, ModuleItem::ModuleDecl(ModuleDecl::Import(_)))
+                        || item.as_stmt().is_some_and(Stmt::can_precede_directive)
+                })
+                .count();
+            new.splice(prologue_end..prologue_end, cache_decl_initializers);
         }
 
         // Post-pass: For server boundary files, register any exports that weren't already

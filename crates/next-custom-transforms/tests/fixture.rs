@@ -581,7 +581,7 @@ fn server_actions_fixture(input: PathBuf) {
                         is_development,
                         use_cache_enabled: true,
                         hash_salt: RcStr::default().into(),
-                        cache_kinds: FxHashSet::from_iter(["x".into()]).into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into(), "private".into()]).into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
