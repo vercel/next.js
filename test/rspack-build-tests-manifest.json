@@ -22674,15 +22674,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/build-trace-extra-entries-turbo/build-trace-extra-entries-turbo.test.ts": {
-    "passed": [
-      "build trace with extra entries production mode should build and trace correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/production/build-trace-extra-entries/build-trace-extra-entries.test.ts": {
     "passed": [
       "build trace with extra entries production mode should build and trace correctly"
