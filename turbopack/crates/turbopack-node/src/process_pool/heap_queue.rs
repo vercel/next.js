@@ -65,11 +65,12 @@ impl<T: Ord> HeapQueue<T> {
         self.semaphore.add_permits(1);
     }
 
-    pub(super) fn reduce_to_zero(self: &Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) {
+    /// Removes all items and returns how many were removed.
+    pub(super) fn reduce_to_zero(self: &Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) -> usize {
         // Drain the semaphore permits
         let n = self.semaphore.forget_permits(usize::MAX);
         if n == 0 {
-            return;
+            return 0;
         }
         let mut heap = self.heap.lock();
         // We must only pop n items even if there are more since we only have n permits
@@ -83,5 +84,6 @@ impl<T: Ord> HeapQueue<T> {
                 queues.remove(pos);
             }
         }
+        n
     }
 }

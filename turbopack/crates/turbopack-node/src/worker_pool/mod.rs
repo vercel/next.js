@@ -27,7 +27,7 @@ use crate::{
     worker_pool::{
         operation::{
             PoolState, TaskChannels, WORKER_POOL_OPERATION, WorkerOperation, WorkerOptions,
-            get_pool_state,
+            get_pool_state, kill_all_workers, terminate_stale_worker,
         },
         worker_thread::create_worker,
     },
@@ -231,9 +231,14 @@ impl EvaluateOperation for WorkerThreadPool {
                 panic!("Node.js operation task id overflow")
             }
 
+            // Read before acquiring, so that a worker that is spawned or popped concurrently to
+            // `kill_all_workers` is not reused. After a kill, the idle workers only contain
+            // workers returned for the new generation.
+            let generation = *self.state.generation.lock();
             let (worker_id, permits) = self.acquire_worker().await?;
 
             let state = self.state.clone();
+            let stale_worker_options = worker_options.clone();
 
             // Pre-allocate channels for this task to avoid HashMap lookups during communication
             let channels = TaskChannels::new(task_id, worker_id);
@@ -243,6 +248,14 @@ impl EvaluateOperation for WorkerThreadPool {
                 worker_id,
                 state: state.clone(),
                 on_drop: Some(Box::new(move |worker_id| {
+                    let current_generation = state.generation.lock();
+                    if *current_generation != generation {
+                        drop(current_generation);
+                        // The pool killed all workers during this operation.
+                        terminate_stale_worker(stale_worker_options, worker_id, &state);
+                        return;
+                    }
+                    // Keep holding the generation lock while returning the worker.
                     let mut waiters = state.waiters.lock();
                     loop {
                         if let Some(tx) = waiters.pop() {
@@ -271,5 +284,10 @@ impl EvaluateOperation for WorkerThreadPool {
 
     fn pre_warm(&self) {
         // TODO: This is a no-op for worker_pool right now, only process_pool implements it
+    }
+
+    fn kill_all_workers(&self) {
+        // Workers that are currently in use are terminated when their operation finishes.
+        kill_all_workers(&self.worker_options, &self.state);
     }
 }

@@ -83,7 +83,7 @@ pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
     capture_future::{PersistentCacheUnreadablePanic, TurboTasksPanic, TurboTasksPanicKind},
     collectibles::CollectiblesSource,
-    completion::{Completion, Completions},
+    completion::{Completion, CompletionBag, Completions},
     display::{ValueToString, ValueToStringRef},
     dyn_task_inputs::{
         DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,

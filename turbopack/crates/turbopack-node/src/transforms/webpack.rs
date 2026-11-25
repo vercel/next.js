@@ -488,18 +488,16 @@ impl WebpackLoadersProcessedAsset {
             let resource_fs_path = &source_ident.path;
             let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
 
-            // TODO pass this into additional_invalidation again once we have proper pool handling
-            //
             // Invalidate the transform when a loader module (or any of its
             // transitive dependencies) changes.
-            // let loaders_changed = loaders_changed(
-            //     *transform.loaders,
-            //     project_path.clone(),
-            //     *transform.config_tracing_context,
-            //     *transform.resolve_options_context,
-            // )
-            // .to_resolved()
-            // .await?;
+            let loaders_changed = loaders_changed(
+                *transform.loaders,
+                project_path.clone(),
+                *transform.config_tracing_context,
+                *transform.resolve_options_context,
+            )
+            .to_resolved()
+            .await?;
 
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
@@ -526,7 +524,7 @@ impl WebpackLoadersProcessedAsset {
                     EvaluateArg::Vc(ResolvedVc::cell(transform.mode.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.source_maps.into())),
                 ],
-                additional_invalidation: Completion::immutable().to_resolved().await?,
+                additional_invalidation: loaders_changed,
                 loader_names,
             })
             .await?;
@@ -767,13 +765,16 @@ impl EvaluateContext for WebpackLoaderContext {
             self.node_backend,
             self.chunking_context,
             self.module_graph,
-            self.additional_invalidation,
             should_debug("webpack_loader"),
             // Env vars are read untracked, since we want a more granular dependency on certain env
             // vars only. So the runtime code tracks which env vars are read and send a dependency
             // message for them.
             EnvVarTracking::Untracked,
         )
+    }
+
+    fn additional_invalidation(&self) -> ResolvedVc<Completion> {
+        self.additional_invalidation
     }
 
     fn args(&self) -> &[EvaluateArg] {

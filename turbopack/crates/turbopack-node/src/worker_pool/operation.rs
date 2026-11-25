@@ -63,6 +63,10 @@ pub(super) struct PoolState {
     pub(super) idle_workers: Mutex<Vec<u32>>,
     pub(super) stats: Arc<Mutex<NodeJsPoolStats>>,
     pub(super) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
+    /// Incremented by `kill_all_workers`. Workers acquired or spawned for an older generation are
+    /// terminated instead of being returned to the idle workers. The lock is held while comparing
+    /// the generation and returning a worker, so that a concurrent kill can't miss it.
+    pub(super) generation: Mutex<u64>,
 }
 
 #[turbo_tasks::value(cell = "new", serialization = "skip", eq = "manual", shared)]
@@ -143,6 +147,24 @@ impl WorkerPoolOperation {
         Ok(())
     }
 
+    /// Increments the generation of `state` and terminates all its idle workers.
+    pub(super) fn kill_all_workers(&self, worker_options: &Arc<WorkerOptions>, state: &PoolState) {
+        let workers = {
+            let mut generation = state.generation.lock();
+            *generation += 1;
+            std::mem::take(&mut *state.idle_workers.lock())
+        };
+        {
+            let mut stats = state.stats.lock();
+            for _ in &workers {
+                stats.remove_worker();
+            }
+        }
+        for worker_id in workers {
+            let _ = self.terminate_worker(worker_options.clone(), worker_id);
+        }
+    }
+
     fn terminate_worker(&self, worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
         self.remove_worker_channel(worker_id);
         worker_thread::terminate_worker(worker_options, worker_id);
@@ -184,6 +206,19 @@ pub(super) static WORKER_POOL_OPERATION: LazyLock<WorkerPoolOperation> =
 
 fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
     WORKER_POOL_OPERATION.terminate_worker(worker_options, worker_id)
+}
+
+pub(super) fn kill_all_workers(worker_options: &Arc<WorkerOptions>, state: &PoolState) {
+    WORKER_POOL_OPERATION.kill_all_workers(worker_options, state)
+}
+
+pub(super) fn terminate_stale_worker(
+    worker_options: Arc<WorkerOptions>,
+    worker_id: u32,
+    state: &PoolState,
+) {
+    state.stats.lock().remove_worker();
+    let _ = terminate_worker(worker_options, worker_id);
 }
 
 pub(super) async fn get_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
