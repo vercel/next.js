@@ -28,6 +28,7 @@ import { ensureGoSdkQueued, goSdkOptions } from '../../lib/go-sdk'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
+  Issue,
   WrittenEndpoint,
   TurbopackResult,
   Project,
@@ -37,6 +38,9 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
+import { readGoProxyConfig } from '../../build/analysis/go-config'
+import type { ProxyMatcher } from '../../build/analysis/get-page-static-info'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   BLOCKED_PAGES,
   CLIENT_REFERENCE_MANIFEST,
@@ -1337,6 +1341,62 @@ export async function createHotReloaderTurbopack(
               return clearRequireCache(id, result.value, {
                 force: forceDeleteCache,
               })
+            },
+            loadNativeMiddleware: async () => {
+              // Turbopack records proxy.go's static Config in the descriptor it
+              // just wrote. Source-level static info has no Go matchers.
+              const proxyPath = join(
+                projectPath,
+                opts.isSrcDir ? 'src' : '',
+                'proxy.go'
+              )
+              let matchers: ProxyMatcher[]
+              try {
+                matchers = (
+                  await readGoProxyConfig(
+                    join(distDir, 'server', 'middleware.native.json'),
+                    proxyPath,
+                    nextConfig
+                  )
+                ).matchers
+                serverFields.goProxyConfigError = undefined
+              } catch (error) {
+                // `next build` fails on an invalid Config. In dev, report it as a
+                // compilation error of the proxy entry, which the next successful
+                // compile clears. Until then the proxy matches every path and
+                // `ensureMiddleware` fails each request with this error: matching
+                // nothing would serve routes the proxy protects, and keeping the
+                // previous matchers would run it with a configuration that no
+                // longer applies.
+                const message =
+                  error instanceof Error ? error.message : String(error)
+                const issue: Issue = {
+                  severity: 'error',
+                  stage: 'analyze',
+                  filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
+                  title: { type: 'text', value: 'Invalid proxy.go Config' },
+                  description: { type: 'text', value: message },
+                  documentationLink: '',
+                }
+                const key = getEntryKey('root', 'server', 'middleware')
+                const issues = currentEntryIssues.get(key) ?? new Map()
+                issues.set(getIssueKey(issue), issue)
+                currentEntryIssues.set(key, issues)
+                Log.error(message)
+                serverFields.goProxyConfigError = message
+                matchers = [{ regexp: '^/.*$', originalSource: '/:path*' }]
+              }
+              serverFields.middleware = {
+                // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
+                // eslint-disable-next-line @next/internal/no-as-any
+                match: null as any,
+                page: '/',
+                matchers,
+                runtime: 'go',
+                nativeEntry: 'middleware.native.json',
+              }
+              opts.fsChecker.middlewareMatcher =
+                getMiddlewareRouteMatcher(matchers)
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,

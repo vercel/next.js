@@ -20,7 +20,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-To use it, enable `experimental.goRoutes`, follow the [Go setup](/docs/app/api-reference/file-conventions/route-go#setup), and create `proxy.go` next to `app` (or inside `src`). Export a `Proxy` function with the signature above. A project can have only one Proxy file, so `proxy.go` cannot be combined with `proxy.ts` or `proxy.js`.
+To use it, enable `experimental.goRoutes`, follow the [Go setup](/docs/app/api-reference/file-conventions/route-go#setup), and create `proxy.go` next to `app` (or inside `src`). Export a `Proxy` function with the signature above from `proxy.go` itself. A project can have only one Proxy file, so `proxy.go` cannot be combined with `proxy.ts` or `proxy.js`.
 
 ## Reference
 
@@ -37,6 +37,24 @@ Use standard Go APIs for everything else, such as `http.Redirect` for redirects 
 ### WithRequestHeaders
 
 Pass `proxy.WithRequestHeaders(headers)` to `proxy.Next` or `proxy.Rewrite` to replace the downstream request headers. Omit the option or use `proxy.WithRequestHeaders(nil)` to keep them unchanged. An empty `http.Header{}` removes them all.
+
+### Config
+
+Declare `Config` in `proxy.go` to choose which requests run the proxy. Without a matcher, it runs on every request.
+
+```go
+var Config = proxy.Config{
+  Matcher: []proxy.Matcher{
+    {Source: "/account/:path*"},
+    {
+      Source: "/special",
+      Has: []proxy.Condition{{Type: "header", Key: "x-special"}},
+    },
+  },
+}
+```
+
+Use `Has` or `Missing` to test headers, cookies, query parameters, or the host. Values must be literals; calls and computed values are not supported.
 
 ## Examples
 
@@ -85,7 +103,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 
 ## Good to know
 
-- Go Proxy runs on every request.
+- Go Proxy runs on every request unless `Config.Matcher` limits it.
 - Other `.go` files in the same directory as `proxy.go` are compiled with it and must use `package main`. Do not define a `main` function; Next.js generates it. If your project root already contains Go code, put the proxy in `src/proxy.go`, and put shared code in packages that `proxy.go` imports.
 - Go Proxy is only supported in App Router applications. A build fails if the project also has Pages Router routes or an `i18n` configuration. Custom `_app`, `_document`, and `_error` files are allowed.
 - `r.URL` is the URL a JavaScript Proxy would receive. Requests that the route could interpret differently from Proxy, such as paths with an encoded `.rsc` suffix, receive a `404` response before Proxy runs. Requests with a query string over 64 KiB or 4,096 parameters receive a `414` response.

@@ -76,13 +76,14 @@ use turbopack_core::{
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
     GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_bundle_from_sources, go_declarations, go_source_set,
+    go_bundle_from_sources, go_declarations, go_failure_from_sources, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::FontManifest,
+    go_config::go_entry_config,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft::{EndpointTraceResult, trace_endpoint},
@@ -1387,13 +1388,47 @@ impl Endpoint for GoEndpoint {
             }
             .cell());
         }
-        let analysis = go_declarations(*sources, session).await?;
+        // Only the entrypoint file is parsed: handlers, `Proxy` and `var Config` must live there.
+        // The rest of the package is compiled but not analyzed.
+        let analysis = go_declarations(*sources, vec![RcStr::from(handler_name)], session).await?;
         if is_proxy {
             ensure!(
                 analysis.functions.iter().any(|name| name == "Proxy"),
                 "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
             );
         }
+        // Static `var Config` is read from the same syntax analysis and published in the
+        // descriptor, so Next.js never parses Go entrypoints separately.
+        let config = match go_entry_config(&analysis.functions, &analysis.values, is_proxy) {
+            Ok(config) => config,
+            Err(message) => {
+                // The failure depends on the entry's source, so keep the selection's inputs
+                // for request-side validation: a request right after the fix must not get
+                // this stale failure.
+                let result = go_failure_from_sources(*sources, session, message.into()).await?;
+                if matches!(result.outcome, GoBuildOutcome::Retry) {
+                    bail!("Go route inputs changed during analysis; retry the request")
+                }
+                if let GoBuildOutcome::Failed(message) = &result.outcome {
+                    GoRouteIssue {
+                        path: this.path.clone(),
+                        message: message.clone(),
+                    }
+                    .resolved_cell()
+                    .emit();
+                }
+                return Ok(EndpointOutput {
+                    project,
+                    output_assets: OutputAssets::empty().to_resolved().await?,
+                    output_paths: EndpointOutputPaths::NativeFailed {
+                        build: Some((*result).clone()),
+                    }
+                    .resolved_cell(),
+                    first_load_chunks: None,
+                }
+                .cell());
+            }
+        };
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
@@ -1518,7 +1553,7 @@ impl Endpoint for GoEndpoint {
         let entry = format!("{output_name}.native.json");
         let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
-        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
+        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch, "config": config });
         if is_proxy {
             descriptor["source"] =
                 serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
