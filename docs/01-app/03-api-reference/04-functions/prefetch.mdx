@@ -34,13 +34,13 @@ With Partial Prefetching enabled, Next.js loads server-rendered output in stages
 
 1. A default `<Link>` loads the App Shell, which holds the part of the route that does not depend on the URL.
 2. An optional [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), or [`router.prefetch(href, { kind: 'full' })`](/docs/app/api-reference/functions/use-router), can also load content that depends on the link's URL.
-3. When the user follows the link, the navigation renders the rest of the route.
+3. When the user follows the link, the navigation renders the rest of the route. An optional [`<Link prefetch="navigation">`](/docs/app/api-reference/components/link#prefetch) loads this stage before the click.
 
 During runtime rendering, awaiting `prefetch()` keeps content out of the App Shell, so it renders during a per-link prefetch or navigation. Static prerenders can still include the content.
 
-Calling `router.prefetch(href)` without `kind: 'full'` requests only the App Shell under Partial Prefetching. It does not render content below `await prefetch()`.
+Calling `router.prefetch(href)` with no `kind`, or with `'auto'` or `'shell'`, requests only the App Shell under Partial Prefetching. It does not render content below `await prefetch()`.
 
-To keep content out of per-link prefetches as well, so it renders only on the navigation, use [`navigation()`](/docs/app/api-reference/functions/navigation).
+To also keep content out of `prefetch={true}` prefetches, so it waits for the navigation stage, use [`navigation()`](/docs/app/api-reference/functions/navigation).
 
 > **Good to know**: `prefetch()` defers one subtree. To require a static App Shell across the route, use [`ensureStatic = 'shell'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#shell). See [Keeping pages static](/docs/app/guides/keeping-pages-static) for a worked example.
 
