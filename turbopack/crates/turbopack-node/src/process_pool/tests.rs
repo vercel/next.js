@@ -267,6 +267,49 @@ async fn test_pool_kill_all_workers_concurrent() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_pool_kill_all_workers_queued_operation() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = std::sync::Arc::new(create_test_pool(1).await.unwrap());
+
+        let mut running = pool.operation().await.unwrap();
+        let old_pid = send_recv(&mut running, serde_json::json!({"running": true}))
+            .await
+            .pid;
+
+        // An operation that is still waiting for the concurrency permit while the workers are
+        // killed.
+        let queued = tokio::spawn({
+            let pool = pool.clone();
+            async move {
+                let mut op = pool.operation().await.unwrap();
+                send_recv(&mut op, serde_json::json!({"queued": true}))
+                    .await
+                    .pid
+            }
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        pool.kill_all_workers();
+        drop(running);
+
+        // The queued operation gets a process that only ran code after the kill, so that process
+        // is kept for reuse.
+        let queued_pid = queued.await.unwrap();
+        assert_ne!(
+            old_pid, queued_pid,
+            "expected a fresh process after killing"
+        );
+        assert_eq!(pool.stats().workers, 1);
+
+        let mut op = pool.operation().await.unwrap();
+        let pid = send_recv(&mut op, serde_json::json!({"after": true}))
+            .await
+            .pid;
+        assert_eq!(pid, queued_pid, "expected the fresh process to be reused");
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_pool_concurrent_operations() {
     run_once_without_cache_check(&REGISTRATION, async {
         let pool = create_test_pool(2).await.unwrap();

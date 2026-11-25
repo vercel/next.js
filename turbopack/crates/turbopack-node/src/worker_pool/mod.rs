@@ -96,14 +96,18 @@ impl WorkerThreadPool {
         )
     }
 
-    async fn acquire_worker(&self) -> Result<(u32, AcquiredPermits)> {
+    /// Returns a worker, its generation and the acquired permits.
+    async fn acquire_worker(&self) -> Result<(u32, u64, AcquiredPermits)> {
         let concurrency_permit = self.concurrency_semaphore.clone().acquire_owned().await?;
 
         {
+            // Idle workers belong to the current generation, as long as the lock is held.
+            let generation = self.state.generation.lock();
             let mut idle = self.state.idle_workers.lock();
             if let Some(worker_id) = idle.pop() {
                 return Ok((
                     worker_id,
+                    *generation,
                     AcquiredPermits::Idle {
                         _concurrency_permit: concurrency_permit,
                     },
@@ -113,11 +117,13 @@ impl WorkerThreadPool {
 
         let (tx, rx) = oneshot::channel();
         {
+            let generation = self.state.generation.lock();
             let mut waiters = self.state.waiters.lock();
             let mut idle = self.state.idle_workers.lock();
             if let Some(worker_id) = idle.pop() {
                 return Ok((
                     worker_id,
+                    *generation,
                     AcquiredPermits::Idle {
                         _concurrency_permit: concurrency_permit,
                     },
@@ -134,9 +140,9 @@ impl WorkerThreadPool {
         };
 
         select! {
-            worker_id = rx => {
-                let worker_id = worker_id?;
-                Ok((worker_id, AcquiredPermits::Idle { _concurrency_permit: concurrency_permit }))
+            worker = rx => {
+                let (worker_id, generation) = worker?;
+                Ok((worker_id, generation, AcquiredPermits::Idle { _concurrency_permit: concurrency_permit }))
             }
             bootup_permit = bootup => {
                 let bootup_permit = bootup_permit.context("acquiring bootup permit")?;
@@ -144,6 +150,9 @@ impl WorkerThreadPool {
                     self.state.stats.lock().add_booting_worker();
                 }
                 let worker_id = create_worker(self.worker_options.clone()).await?;
+                // The worker hasn't run any code yet, so it belongs to the current generation
+                // even if the pool killed all workers while it was booting.
+                let generation = *self.state.generation.lock();
 
                 {
                     let mut stats = self.state.stats.lock();
@@ -151,7 +160,7 @@ impl WorkerThreadPool {
                 }
 
                 self.bootup_semaphore.add_permits(1);
-                Ok((worker_id, AcquiredPermits::Fresh { _concurrency_permit: concurrency_permit, _bootup_permit: bootup_permit }))
+                Ok((worker_id, generation, AcquiredPermits::Fresh { _concurrency_permit: concurrency_permit, _bootup_permit: bootup_permit }))
             }
         }
     }
@@ -231,11 +240,7 @@ impl EvaluateOperation for WorkerThreadPool {
                 panic!("Node.js operation task id overflow")
             }
 
-            // Read before acquiring, so that a worker that is spawned or popped concurrently to
-            // `kill_all_workers` is not reused. After a kill, the idle workers only contain
-            // workers returned for the new generation.
-            let generation = *self.state.generation.lock();
-            let (worker_id, permits) = self.acquire_worker().await?;
+            let (worker_id, generation, permits) = self.acquire_worker().await?;
 
             let state = self.state.clone();
             let stale_worker_options = worker_options.clone();
@@ -259,7 +264,7 @@ impl EvaluateOperation for WorkerThreadPool {
                     let mut waiters = state.waiters.lock();
                     loop {
                         if let Some(tx) = waiters.pop() {
-                            if tx.send(worker_id).is_ok() {
+                            if tx.send((worker_id, generation)).is_ok() {
                                 break;
                             }
                         } else {

@@ -62,10 +62,12 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
 pub(super) struct PoolState {
     pub(super) idle_workers: Mutex<Vec<u32>>,
     pub(super) stats: Arc<Mutex<NodeJsPoolStats>>,
-    pub(super) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
-    /// Incremented by `kill_all_workers`. Workers acquired or spawned for an older generation are
-    /// terminated instead of being returned to the idle workers. The lock is held while comparing
-    /// the generation and returning a worker, so that a concurrent kill can't miss it.
+    /// Operations waiting for a worker, which receive a returned worker and its generation.
+    pub(super) waiters: Mutex<Vec<oneshot::Sender<(u32, u64)>>>,
+    /// Incremented by `kill_all_workers`. Workers of an older generation are terminated instead
+    /// of being returned to the idle workers. Idle workers always belong to the current
+    /// generation. The lock is held while comparing the generation and returning or popping a
+    /// worker, so that a concurrent kill can't miss it.
     pub(super) generation: Mutex<u64>,
 }
 
