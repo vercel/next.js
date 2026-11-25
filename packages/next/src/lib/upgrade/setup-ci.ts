@@ -11,7 +11,6 @@ import { mkdtemp, readFile, realpath, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { isAbsolute, join, relative, sep } from 'path'
 
-import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
@@ -28,6 +27,12 @@ import {
 } from '../../telemetry/events/agent-upgrade'
 import { Telemetry } from '../../telemetry/storage'
 import { interopDefault } from '../interop-default'
+import {
+  chooseOption,
+  selectOption,
+  showAnswer,
+  showQuestion,
+} from './choose-option'
 
 const WORKFLOW = '.github/workflows/next-upgrade.yml'
 const TEMPLATE = '.github/actions/next-upgrade/workflow.template.yml'
@@ -116,17 +121,10 @@ function run({
   })
 }
 
+// Esc and Ctrl+C both cancel setup.
 async function choose(question: string, values: Record<string, string>) {
-  Log.bootstrap(question)
-  try {
-    const { id } = await cliSelect({ values, defaultValue: 0, indentation: 2 })
-    return typeof id === 'string' && Object.hasOwn(values, id) ? id : null
-  } catch (error) {
-    if (error !== undefined) {
-      throw error
-    }
-    return null
-  }
+  const id = await chooseOption(question, values, 0, true)
+  return typeof id === 'string' && Object.hasOwn(values, id) ? id : null
 }
 
 function repoPath(root: string, path: string): string {
@@ -811,27 +809,35 @@ async function installScheduledUpgrade({
     // The root is a package path as well, so use separate menu identifiers.
     const selected = new Set<string>(workspace ? [] : apps)
     if (workspace) {
+      // One question for the whole selection. The menu reopens on the app
+      // that was just toggled.
+      showQuestion('Select the apps to upgrade:', true)
+      let cursor = 0
       while (true) {
-        const choice = await choose(
-          'Select the apps to upgrade:',
-          Object.fromEntries([
-            ...apps.map((path, index) => [
-              String(index),
-              `${selected.has(path) ? '[x]' : '[ ]'} ${path}`,
-            ]),
-            ...(selected.size
-              ? [['continue', 'Continue with selected apps']]
-              : []),
-            ['cancel', 'Cancel'],
-          ])
-        )
-        if (choice === null || choice === 'cancel') {
+        const values: Record<string, string> = Object.fromEntries([
+          ...apps.map((path, index) => [
+            String(index),
+            `${selected.has(path) ? '[x]' : '[ ]'} ${path}`,
+          ]),
+          ...(selected.size
+            ? [['continue', 'Continue with selected apps']]
+            : []),
+          ['cancel', 'Cancel'],
+        ])
+        const choice = await selectOption(values, cursor)
+        if (
+          typeof choice !== 'string' ||
+          !Object.hasOwn(values, choice) ||
+          choice === 'cancel'
+        ) {
           return { status: 'cancelled' }
         }
         if (choice === 'continue') {
+          showAnswer(apps.filter((path) => selected.has(path)).join(', '))
           break
         }
-        const path = apps[Number(choice)]
+        cursor = Number(choice)
+        const path = apps[cursor]
         if (!selected.delete(path)) {
           selected.add(path)
         }
@@ -877,9 +883,6 @@ async function installScheduledUpgrade({
             'blocked'
           )
         }
-        Log.info(
-          `The ${JSON.stringify(catalog)} group affects: ${affected.map(([name]) => name).join(', ')}`
-        )
         for (const [name, pkg] of affected) {
           if (pkg.app && !selected.has(name)) {
             throw new SetupError(
@@ -1032,9 +1035,9 @@ async function installScheduledUpgrade({
       telemetryDisabled,
     })
 
-    Log.bootstrap(workflow)
+    // The draft shows the workflow, so setup does not print it.
     const confirmation = await choose(
-      `Open a setup draft against ${repo} (${base}) with the configuration above?`,
+      `Open a setup draft against ${repo} (${base})?`,
       {
         cancel: 'Cancel',
         publish: 'Open draft pull request',

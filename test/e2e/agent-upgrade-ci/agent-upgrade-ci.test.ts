@@ -49,8 +49,8 @@ Module._load = function (request, parent, isMain) {
       if (config.telemetryFails) throw new Error('Transport unavailable')
     } }
   }
-  if (!parent?.filename.endsWith('setup-ci.js')) return actual
-  if (request.endsWith('/cli-select')) {
+  // Setup's menus come from the helper it shares with next upgrade --agent.
+  if (parent?.filename.endsWith('choose-option.js') && request.endsWith('/cli-select')) {
     return async ({ values }) => {
       const selected = choices.shift()
       // Like pressing Escape in the menu.
@@ -60,6 +60,7 @@ Module._load = function (request, parent, isMain) {
       return { id: key }
     }
   }
+  if (!parent?.filename.endsWith('setup-ci.js')) return actual
   if (request === './harness' || request.endsWith('/model-discovery')) {
     fs.appendFileSync(config.requests, JSON.stringify({ localAgent: request }) + '\\n')
   }
@@ -298,6 +299,9 @@ describe('next upgrade --ci', () => {
     expect(result.output).toContain(
       'Register a fine-grained personal access token with contents, pull-requests, and workflows write access as the repository secret NEXT_UPGRADE_PUBLISH_TOKEN'
     )
+    // Setup asks and reports; the draft shows the group and the workflow.
+    expect(result.output).not.toContain('group affects')
+    expect(result.output).not.toContain('uses: vercel/next.js')
     expect(result.output).not.toContain('Choose an upgrade policy')
     expect(result.localAgent).toEqual([])
     expect(
