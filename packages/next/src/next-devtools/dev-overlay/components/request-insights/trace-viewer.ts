@@ -60,7 +60,6 @@ const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
 const ATTRIBUTE_LABEL_KEYS = [
   'feature_flag.key',
   'db.query.summary',
-  'query',
   'http.route',
   'db.operation.name',
   'rpc.method',
@@ -201,17 +200,15 @@ function getSpanTraceItem(
   index: number
 ): UnnestedTraceItem {
   const type = span.attributes?.['next.span_type']
-  const category = getSpanCategory(span)
 
   return {
     id: `span:${span.spanId ?? index}:${span.startTime}`,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     spanType: typeof type === 'string' ? type : undefined,
-    category,
+    category: getSpanCategory(span),
     label: getSpanLabel(span),
-    attributeLabel:
-      category === 'opentelemetry' ? getSpanAttributeLabel(span) : undefined,
+    attributeLabel: getSpanAttributeLabel(span),
     startTime: span.startTime,
     durationMs: span.durationMs,
     status: span.status ?? 'pending',
@@ -240,10 +237,7 @@ function getFetchTraceItem(
     spanType: FETCH_SPAN_TYPE,
     category: matchingSpan ? getSpanCategory(matchingSpan) : 'application',
     label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
-    attributeLabel:
-      matchingSpan && getSpanCategory(matchingSpan) === 'opentelemetry'
-        ? getSpanAttributeLabel(matchingSpan)
-        : undefined,
+    attributeLabel: matchingSpan && getSpanAttributeLabel(matchingSpan),
     fullLabel: `${method} ${url.fullUrl}`,
     startTime,
     durationMs: fetch.durationMs ?? matchingSpan?.durationMs,
@@ -408,24 +402,22 @@ function getSpanCategory(
 }
 
 function getSpanAttributeLabel(span: RequestInsightSpan): string | undefined {
-  for (const key of ATTRIBUTE_LABEL_KEYS) {
+  if (getSpanCategory(span) !== 'opentelemetry') {
+    return undefined
+  }
+
+  const normalize = (key: string) => {
     const value = span.attributes?.[key]
-    if (typeof value !== 'string' || value.length === 0) {
+    return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+  }
+  for (const key of ATTRIBUTE_LABEL_KEYS) {
+    const value = normalize(key)
+    if (!value) {
       continue
     }
-    const normalizedValue = value.replace(/\s+/g, ' ').trim()
-    if (normalizedValue.length === 0) {
-      continue
-    }
-    if (key === 'feature_flag.key') {
-      const variant = span.attributes?.['feature_flag.result.variant']
-      const normalizedVariant =
-        typeof variant === 'string' ? variant.replace(/\s+/g, ' ').trim() : ''
-      return normalizedVariant.length > 0
-        ? `${normalizedValue} = ${normalizedVariant}`
-        : normalizedValue
-    }
-    return normalizedValue
+    const variant =
+      key === 'feature_flag.key' ? normalize('feature_flag.result.variant') : ''
+    return variant ? `${value} = ${variant}` : value
   }
   return undefined
 }

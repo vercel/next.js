@@ -53,6 +53,33 @@ export type SpanStoreRecord = {
   }
 }
 
+type OpenTelemetryHrTime = [number, number]
+type OpenTelemetrySpanContext = { traceId: string; spanId: string }
+type OpenTelemetryAttributes = Partial<Record<string, SpanStoreAttributeValue>>
+
+// Structural subset of the SDK's `ReadableSpan`; kept free of
+// `@opentelemetry/*` imports so the public typings resolve without them.
+export type OpenTelemetryReadableSpan = {
+  name: string
+  spanContext(): OpenTelemetrySpanContext
+  parentSpanContext?: OpenTelemetrySpanContext
+  // sdk-trace-base 1.x
+  parentSpanId?: string
+  startTime: OpenTelemetryHrTime
+  duration: OpenTelemetryHrTime
+  status: { code: number; message?: string }
+  attributes: OpenTelemetryAttributes
+  events: ReadonlyArray<{
+    name: string
+    time: OpenTelemetryHrTime
+    attributes?: OpenTelemetryAttributes
+  }>
+  links: ReadonlyArray<{
+    context: OpenTelemetrySpanContext
+    attributes?: OpenTelemetryAttributes
+  }>
+}
+
 export type LocalSpanParent = {
   traceId: string
   spanId: string

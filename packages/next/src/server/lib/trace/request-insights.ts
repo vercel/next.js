@@ -440,7 +440,9 @@ function nameRequestSpan(span: RequestInsightSpan, route: string): void {
 }
 
 function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
-  const preserveAttributes =
+  // Spans from the user's own OpenTelemetry SDK are opted in by registering
+  // the processor, so they keep every attribute.
+  const isUserOpenTelemetrySpan =
     span.attributes?.['next.span_category'] === 'opentelemetry'
   return {
     name: sanitizeSpanName(span),
@@ -450,9 +452,13 @@ function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
     traceId: span.traceId,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
-    attributes: sanitizeSpanAttributes(span.attributes, preserveAttributes),
-    links: sanitizeSpanLinks(span.links, preserveAttributes),
-    events: sanitizeSpanEvents(span.events, preserveAttributes),
+    ...(isUserOpenTelemetrySpan
+      ? { attributes: span.attributes, links: span.links, events: span.events }
+      : {
+          attributes: sanitizeSpanAttributes(span.attributes),
+          links: sanitizeSpanLinks(span.links),
+          events: sanitizeSpanEvents(span.events),
+        }),
     error: span.error,
   }
 }
@@ -598,8 +604,7 @@ function getCurrentTimestamp(): number {
 }
 
 function sanitizeSpanAttributes(
-  attributes: SpanStoreRecord['attributes'],
-  preserveAll = false
+  attributes: SpanStoreRecord['attributes']
 ): SpanStoreRecord['attributes'] {
   if (!attributes) {
     return undefined
@@ -611,13 +616,12 @@ function sanitizeSpanAttributes(
       ? getSanitizedFetchSpanName(attributes)
       : undefined
   for (const [key, value] of Object.entries(attributes)) {
-    if (!preserveAll && !SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
+    if (!SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
       continue
     }
 
-    sanitized[key] = preserveAll
-      ? value
-      : key === 'http.url'
+    sanitized[key] =
+      key === 'http.url'
         ? sanitizeUrlAttribute(value)
         : key === 'next.span_name' && sanitizedFetchSpanName
           ? sanitizedFetchSpanName
@@ -647,22 +651,20 @@ function getSanitizedFetchSpanName(
 }
 
 function sanitizeSpanEvents(
-  events: SpanStoreRecord['events'],
-  preserveAttributes = false
+  events: SpanStoreRecord['events']
 ): SpanStoreRecord['events'] {
   return events?.map((event) => ({
     ...event,
-    attributes: sanitizeSpanAttributes(event.attributes, preserveAttributes),
+    attributes: sanitizeSpanAttributes(event.attributes),
   }))
 }
 
 function sanitizeSpanLinks(
-  links: SpanStoreRecord['links'],
-  preserveAttributes = false
+  links: SpanStoreRecord['links']
 ): SpanStoreRecord['links'] {
   return links?.map((link) => ({
     ...link,
-    attributes: sanitizeSpanAttributes(link.attributes, preserveAttributes),
+    attributes: sanitizeSpanAttributes(link.attributes),
   }))
 }
 
