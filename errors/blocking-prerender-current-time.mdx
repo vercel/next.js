@@ -284,11 +284,16 @@ Drop-in replacement for any elapsed-time calculation.
 
 ```jsx filename="app/page.js"
 export default async function Page() {
+  const data = await getTimedReport()
+  return <Report data={data} />
+}
+
+async function getTimedReport() {
   const start = performance.now()
   const data = await computeReport()
   const elapsedMs = performance.now() - start
   console.log(`computeReport took ${elapsedMs}ms`)
-  return <Report data={data} />
+  return data
 }
 ```
 

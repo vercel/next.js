@@ -63,39 +63,48 @@ The Server Component case is handled at [`Date.now()` during prerendering](/docs
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the timestamp is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. Next.js can prerender the fallback. If the Client Component renders on the server at request time, the browser can compute a different timestamp during hydration.
+Choose this fix when a Client Component reads the current time during render and a fallback can appear first. A parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary handles the interruption during prerendering. It does not preserve the timestamp for hydration. The pattern below moves the clock read to a Server Component and [passes the result as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so the browser uses the same value.
 
 ### Patterns
 
 <span id="wrap-from-a-server-component-parent" />
 
-#### Place Suspense above the Client Component
+<span id="place-suspense-above-the-client-component" />
 
-Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary above the Client Component. The boundary can be in either a Server Component or a Client Component parent.
+#### Generate on the server and pass as a prop
 
-```jsx filename="app/article.js"
+The `getTimestamp()` helper awaits [`io()`](/docs/app/api-reference/functions/io) before reading the current time. Put the Server Component that calls it under a parent `<Suspense>` boundary. The Client Component receives a timestamp it can reuse during hydration.
+
+```jsx filename="app/page.js"
+import { io } from 'next/cache'
 import { Suspense } from 'react'
-import { RelativeTime } from './relative-time'
+import { TimeDisplay } from './time-display'
 
-export default function Article({ timestamp }) {
+export default function Page() {
   return (
-    <article>
-      <Suspense fallback={<time>…</time>}>
-        <RelativeTime timestamp={timestamp} />
-      </Suspense>
-    </article>
+    <Suspense fallback={<time>Loading time…</time>}>
+      <RequestTime />
+    </Suspense>
   )
+}
+
+async function RequestTime() {
+  const timestamp = await getTimestamp()
+  return <TimeDisplay timestamp={timestamp} />
+}
+
+async function getTimestamp() {
+  await io()
+  return Date.now()
 }
 ```
 
-```jsx filename="app/relative-time.js"
+```jsx filename="app/time-display.js"
 'use client'
 
-export function RelativeTime({ timestamp }) {
-  const now = Date.now()
-  return (
-    <time suppressHydrationWarning>{computeTimeAgo({ timestamp, now })}</time>
-  )
+export function TimeDisplay({ timestamp }) {
+  const time = new Date(timestamp).toISOString()
+  return <time dateTime={time}>{time}</time>
 }
 ```
 

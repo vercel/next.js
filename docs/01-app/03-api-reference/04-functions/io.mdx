@@ -53,33 +53,15 @@ async function CurrentTime() {
 
 In this route `CurrentTime` is wrapped in a `<Suspense>` boundary, during prerender, the `await io()` suspends and the fallback ships in the static shell. If `CurrentTime` were rendered inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope instead, `io()` would be a no-op, the value is captured into the static shell and no `<Suspense>` boundary is required.
 
-In a Client Component, call `io()` with React's [`use`](https://react.dev/reference/react/use) hook before reading a synchronous source like `Date.now()`. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell:
+In a Client Component, React's [`use`](https://react.dev/reference/react/use) hook can consume `io()`. This suspends static prerendering but still allows request-time server rendering. It does not make the component browser-only or preserve a generated value for hydration.
 
-```tsx filename="app/components.tsx" highlight={6} switcher
-'use client'
-import { use } from 'react'
-import { io } from 'next/cache'
-
-export function CurrentTime() {
-  use(io())
-  return <div>{Date.now()}</div>
-}
-```
-
-```jsx filename="app/components.js" highlight={6} switcher
-'use client'
-import { use } from 'react'
-import { io } from 'next/cache'
-
-export function CurrentTime() {
-  use(io())
-  return <div>{Date.now()}</div>
-}
-```
+An unstable read during Client Component rendering already interrupts prerendering. Put a parent `<Suspense>` boundary above that component and choose how to preserve its output for hydration or render it only in the browser. See the guidance for [time](/docs/messages/blocking-prerender-current-time-client), [random values](/docs/messages/blocking-prerender-random-client), and [crypto](/docs/messages/blocking-prerender-crypto-client). Adding `use(io())` directly before `Date.now()` or `Math.random()` does not make the first browser render match the server HTML.
 
 ## When you don't need `io()`
 
 If an operation already suspends prerendering, such as an uncached `fetch` or async database query inside `<Suspense>`, you don't need an additional `io()` call before it.
+
+An async function can perform synchronous work before reaching an operation that suspends prerendering. If a database driver or SDK reads time or randomness while creating a client or starting a query, call `await io()` before that initialization or helper call. Awaiting the eventual query result does not defer synchronous work that has already run. See [When the read comes from an external library](/docs/messages/blocking-prerender-current-time#when-the-read-comes-from-an-external-library).
 
 ### Synchronous IO after request data
 

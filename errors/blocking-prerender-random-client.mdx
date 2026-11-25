@@ -61,7 +61,7 @@ Choose this fix when a Client Component reads a random value during render and a
 
 #### Generate on the server and pass as a prop
 
-Await [`io()`](/docs/app/api-reference/functions/io) inside `RequestAvatar` before generating the avatar color.
+The `getAvatarColor()` helper awaits [`io()`](/docs/app/api-reference/functions/io) before generating the avatar color. `RequestAvatar` renders the returned value.
 
 ```jsx filename="app/page.js"
 import { io } from 'next/cache'
@@ -79,9 +79,13 @@ export default function Page() {
 }
 
 async function RequestAvatar() {
-  await io()
-  const color = Math.random() < 0.5 ? 'teal' : 'coral'
+  const color = await getAvatarColor()
   return <Avatar color={color} />
+}
+
+async function getAvatarColor() {
+  await io()
+  return Math.random() < 0.5 ? 'teal' : 'coral'
 }
 ```
 

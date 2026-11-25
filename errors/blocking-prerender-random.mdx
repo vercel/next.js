@@ -92,9 +92,13 @@ export default function Page() {
 import { io } from 'next/cache'
 
 export async function RequestTrace() {
-  await io()
-  const traceId = Math.random().toString(16).slice(2)
+  const traceId = await getTraceId()
   return <small>trace: {traceId}</small>
+}
+
+async function getTraceId() {
+  await io()
+  return Math.random().toString(16).slice(2)
 }
 ```
 
@@ -106,9 +110,13 @@ Use [`await connection()`](/docs/app/api-reference/functions/connection) to wait
 import { connection } from 'next/server'
 
 export async function RequestTrace() {
-  await connection()
-  const traceId = Math.random().toString(16).slice(2)
+  const traceId = await getTraceId()
   return <small>trace: {traceId}</small>
+}
+
+async function getTraceId() {
+  await connection()
+  return Math.random().toString(16).slice(2)
 }
 ```
 
