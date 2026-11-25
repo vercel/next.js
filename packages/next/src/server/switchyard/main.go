@@ -519,7 +519,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		}
 		proxy.ServeHTTP(&clientWriter{ResponseWriter: w, sentInformational: false}, r)
 		if body != nil {
-			finishRequestBody(body, node, r, w.Header())
+			finishRequestBody(body, node, w, r)
 		}
 	})
 }
@@ -718,8 +718,8 @@ func newRequestBody(body io.ReadCloser) *requestBody {
 func (b *requestBody) Close() error { return nil }
 
 // finishRequestBody decides what happens to the part of the client's request
-// body that hasn't been read when the response is done. r is the request,
-// header the response's.
+// body that hasn't been read when the response is done. w is the server's
+// ResponseWriter for the request r.
 //
 // Node parity: Node can answer before it has read the body (an upload
 // refused with a 403, say). It ends the response at once, then reads and
@@ -740,22 +740,43 @@ func (b *requestBody) Close() error { return nil }
 // Nothing may read the body after the handler returns (Go's reverse proxy
 // notes this, golang.org/issue/46866): Go's server would cut off that read
 // and then wait for the client's next bytes with no deadline.
-func finishRequestBody(body *requestBody, node *nodeResponse, r *http.Request, header http.Header) {
+//
+// In every case, a body that wasn't read cleanly to its end (it broke off,
+// its chunked framing was bad, it hit the request timeout, or reading it was
+// stopped) closes the connection after the response: whatever is left on the
+// connection must not be read as another request.
+func finishRequestBody(body *requestBody, node *nodeResponse, w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if !body.readToEnd.Load() {
+			closeAfterResponse(w)
+		}
+	}()
 	select {
 	case <-body.ended:
 		return
 	default:
 	}
+	header := w.Header()
 	if !slices.Contains(connectionNames(header), "Close") && header.Get("Content-Length") != "" {
 		select {
 		case <-body.ended:
 			return
 		case <-node.requestDone:
 		}
-		io.Copy(io.Discard, body)
+		_, _ = io.Copy(io.Discard, body) // how it ended is in body.readToEnd
 		return
 	}
 	stopReadingBody(body, node, r)
+}
+
+// closeAfterResponse makes Go's server close the client's connection once the
+// response is done, even after the response's headers have gone out. Go's
+// server has no direct way for a handler to ask for that then; MaxBytesReader
+// is documented to tell the ResponseWriter to close the connection once its
+// limit is reached, so reading one byte past a limit of 0 does it. w must be
+// the server's own ResponseWriter, not a wrapper around it.
+func closeAfterResponse(w http.ResponseWriter) {
+	_, _ = io.Copy(io.Discard, http.MaxBytesReader(w, io.NopCloser(strings.NewReader("x")), 0))
 }
 
 // stopReadingBody shuts down reading on the client's connection, which ends

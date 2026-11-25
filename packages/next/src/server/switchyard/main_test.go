@@ -1512,6 +1512,56 @@ func earlyAnswer(t *testing.T, headers map[string]string, untilClose bool) (stri
 	return string(body), time.Since(start)
 }
 
+// After an early answer that keeps the connection, an upload whose chunked
+// framing then turns out broken must close the connection: the bytes after
+// the broken chunk must not be read as another request.
+func TestClosesTheConnectionWhenAnUploadBreaksAfterAnEarlyAnswer(t *testing.T) {
+	seen := make(chan string, 4)
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.RequestURI
+		if r.Method == http.MethodPost {
+			http.NewResponseController(w).EnableFullDuplex()
+			w.Header().Set("Content-Length", "2")
+			w.WriteHeader(http.StatusForbidden)
+			io.WriteString(w, "no")
+			w.(http.Flusher).Flush()
+			io.Copy(io.Discard, r.Body) // keeps reading, as Node does
+			return
+		}
+		io.WriteString(w, "second")
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		t.Fatalf("no answer: %v", err)
+	}
+	io.Copy(io.Discard, res.Body)
+	// "zz" isn't a chunk size; what follows looks like a request.
+	io.WriteString(conn, "zz\r\n\r\nGET /second HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	rest, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("connection not closed: %v (got %q)", err, rest)
+	}
+	if len(rest) != 0 {
+		t.Errorf("got %q after the broken upload, want the connection closed", rest)
+	}
+	if got := <-seen; got != "/upload" {
+		t.Errorf("Node got %q first, want /upload", got)
+	}
+	select {
+	case uri := <-seen:
+		t.Errorf("Node got %q from the broken upload's leftovers", uri)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
 // Node ends a response of unknown length as soon as its handler does, even
 // while the upload is still coming.
 func TestAChunkedAnswerSentMidUploadEndsAtOnce(t *testing.T) {
