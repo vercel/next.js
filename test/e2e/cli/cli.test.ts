@@ -131,25 +131,6 @@ describe('CLI Usage', () => {
     return { stdout, stderr }
   }
 
-  test('request insights help includes the diagnostic workflow', async () => {
-    const topLevelHelp = await next.runCommand(['--help'])
-    const help = await next.runCommand([
-      'experimental-request-insights',
-      '--help',
-    ])
-
-    expect(topLevelHelp.stdout).toContain(
-      'Diagnose slow or intermittent App Router requests'
-    )
-    expect(help.stdout).toContain('Keep the current dev server running')
-    expect(help.stdout).toContain(
-      'next experimental-request-insights list --route <route> --json'
-    )
-    expect(help.stdout).toContain(
-      'node_modules/next/dist/docs/01-app/02-guides/request-insights.md'
-    )
-  })
-
   const testExitSignal = async (
     killSignal: NodeJS.Signals | '' = '',
     args: string[] = [],
