@@ -90,13 +90,14 @@ describe('next/head dev route discovery', () => {
 })
 
 describe('next/head dev route discovery after Watchpack EPERM', () => {
-  if (!(global as any).isNextDev) {
+  if (!isNextDev) {
     return
   }
 
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, 'app/pages')),
+      components: new FileRef(join(__dirname, 'app/components')),
       'inject-readdir-eperm.cjs': new FileRef(
         join(__dirname, 'app/inject-readdir-eperm.cjs')
       ),
@@ -106,6 +107,7 @@ describe('next/head dev route discovery after Watchpack EPERM', () => {
 
   it('serves routes from a directory whose initial scan failed', async () => {
     for (const [pathname, body] of [
+      ['/', 'index page'],
       ['/a', 'nested page'],
       ['/a/b', 'deeply nested page'],
     ]) {
@@ -114,6 +116,22 @@ describe('next/head dev route discovery after Watchpack EPERM', () => {
       expect(response.status).toBe(200)
       expect(await response.text()).toContain(body)
     }
+
+    await next.patchFile('pages/index.js', (content) =>
+      content.replace('index page', 'updated index page')
+    )
+
+    for (const [pathname, body] of [
+      ['/', 'updated index page'],
+      ['/a', 'nested page'],
+      ['/a/b', 'deeply nested page'],
+    ]) {
+      const response = await next.fetch(pathname)
+
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain(body)
+    }
+
     expect(next.cliOutput).toContain(
       '[next-head] failing initial Watchpack pages/a scan'
     )

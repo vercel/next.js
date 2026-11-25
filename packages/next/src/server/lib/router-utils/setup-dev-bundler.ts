@@ -508,6 +508,26 @@ async function startWatcher(
     // the snapshot above, so a file it never reports cannot stall the server.
     const initialScanDeadline = initialWatchTime + 30_000
     let initialScanFallback: NodeJS.Timeout | undefined
+    let initialScanTimedOut = false
+    let isProcessingAggregation = false
+    let hasPendingAggregation = false
+
+    const clearInitialScanFallback = () => {
+      if (initialScanFallback) {
+        clearTimeout(initialScanFallback)
+        initialScanFallback = undefined
+      }
+    }
+
+    const handleAggregationError = (e: unknown) => {
+      clearInitialScanFallback()
+      if (!resolved) {
+        reject(e)
+        resolved = true
+      } else {
+        Log.warn('Failed to reload dynamic routes:', e)
+      }
+    }
 
     const processAggregation = async () => {
       const isInitialScan = !hadInitialScan
@@ -523,6 +543,7 @@ async function startWatcher(
       // Bounded by a deadline so an unwatchable file can never block startup.
       if (
         !resolved &&
+        !initialScanTimedOut &&
         performance.now() + performance.timeOrigin < initialScanDeadline &&
         initialPageFiles.some(
           (file) => fs.existsSync(file) && !knownFiles.has(file)
@@ -531,16 +552,13 @@ async function startWatcher(
         return
       }
 
-      // Watchpack treats EPERM from an initial directory scan as a removal,
-      // so include files from the pre-watch snapshot that still exist.
+      // If Watchpack still failed to report an initial page file before the
+      // deadline, include files from the pre-watch snapshot that still exist.
       const snapshotPageFiles = initialPageFiles.filter(
         (file) => fs.existsSync(file) && !knownFiles.has(file)
       )
       hadInitialScan = true
-      if (initialScanFallback) {
-        clearTimeout(initialScanFallback)
-        initialScanFallback = undefined
-      }
+      clearInitialScanFallback()
 
       const appPaths: Record<string, string[]> = {}
       const defaultAppPaths = new Set<string>()
@@ -1569,32 +1587,57 @@ async function startWatcher(
           resolved = true
         }
       } catch (e) {
-        if (!resolved) {
-          reject(e)
-          resolved = true
-        } else {
-          Log.warn('Failed to reload dynamic routes:', e)
-        }
+        handleAggregationError(e)
       }
     }
 
-    wp.on('aggregated', processAggregation)
+    const scheduleAggregation = () => {
+      if (isProcessingAggregation) {
+        hasPendingAggregation = true
+        return
+      }
+      void (async () => {
+        isProcessingAggregation = true
+        try {
+          do {
+            hasPendingAggregation = false
+            try {
+              await processAggregation()
+            } catch (e) {
+              handleAggregationError(e)
+            }
+          } while (hasPendingAggregation)
+        } finally {
+          isProcessingAggregation = false
+        }
+      })()
+    }
+
+    wp.on('aggregated', scheduleAggregation)
 
     if (!resolved) {
       initialScanFallback = setTimeout(
         () => {
+          initialScanFallback = undefined
+          initialScanTimedOut = true
           if (!resolved && !hadInitialScan) {
-            void processAggregation()
+            scheduleAggregation()
           }
         },
-        Math.max(
-          0,
-          initialScanDeadline - (performance.now() + performance.timeOrigin)
+        Math.ceil(
+          Math.max(
+            0,
+            initialScanDeadline - (performance.now() + performance.timeOrigin)
+          )
         )
       )
     }
 
-    wp.watch({ directories: [dir], startTime: 0 })
+    wp.watch({
+      directories: [dir],
+      files: initialPageFiles,
+      startTime: 0,
+    })
   })
 
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`

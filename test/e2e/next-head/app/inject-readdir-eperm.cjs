@@ -7,10 +7,15 @@ let injected = false
 
 fs.readdir = function readdir(directory, ...args) {
   const stack = new Error().stack
-  if (!injected && directory === target && stack.includes('watchpack')) {
+  const callback = args[args.length - 1]
+  if (
+    !injected &&
+    directory === target &&
+    stack.includes('watchpack') &&
+    typeof callback === 'function'
+  ) {
     injected = true
     console.log('[next-head] failing initial Watchpack pages/a scan')
-    const callback = args[args.length - 1]
     return setTimeout(
       () =>
         callback(
