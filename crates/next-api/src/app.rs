@@ -1388,8 +1388,8 @@ impl Endpoint for GoEndpoint {
             }
             .cell());
         }
-        // Only the entrypoint file is parsed: handlers, `Proxy` and `var Config` must live there.
-        // The rest of the package is compiled but not analyzed.
+        // Static configuration and `Proxy` are read only from the entrypoint. Route method
+        // handlers are discovered across the compiled source files below.
         let analysis = go_declarations(*sources, vec![RcStr::from(handler_name)], session).await?;
         if is_proxy {
             ensure!(
@@ -1428,6 +1428,16 @@ impl Endpoint for GoEndpoint {
                 }
                 .cell());
             }
+        };
+        let analysis = if is_proxy {
+            analysis
+        } else {
+            go_declarations(
+                *sources,
+                source_set.files.keys().cloned().collect(),
+                session,
+            )
+            .await?
         };
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
