@@ -143,8 +143,8 @@ describe('app dir - metadata dynamic routes', () => {
         <video:view_count>50</video:view_count>
         <video:tag>summer</video:tag>
         <video:rating>4</video:rating>
-        <video:expiration_date>2025-09-16</video:expiration_date>
-        <video:publication_date>2024-09-16</video:publication_date>
+        <video:expiration_date>2025-09-16T18:00:00.000Z</video:expiration_date>
+        <video:publication_date>2024-09-16T12:34:56.789Z</video:publication_date>
         <video:family_friendly>yes</video:family_friendly>
         <video:requires_subscription>no</video:requires_subscription>
         <video:live>no</video:live>
