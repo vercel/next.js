@@ -52,7 +52,9 @@ type DiscoveryProtocol = {
 export function getCodexModels(
   path: string,
   cwd: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onFailure?: () => void,
+  env?: NodeJS.ProcessEnv
 ) {
   return discoverModels(
     'codex',
@@ -60,6 +62,7 @@ export function getCodexModels(
     ['app-server'],
     cwd,
     signal,
+    onFailure,
     (send, complete) => {
       const initializeId = randomUUID()
       let listId: string | undefined
@@ -127,14 +130,17 @@ export function getCodexModels(
           complete(models)
         },
       }
-    }
+    },
+    env
   )
 }
 
 export function getClaudeModels(
   path: string,
   cwd: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onFailure?: () => void,
+  env?: NodeJS.ProcessEnv
 ) {
   return discoverModels(
     'claude',
@@ -150,6 +156,7 @@ export function getClaudeModels(
     ],
     cwd,
     signal,
+    onFailure,
     (send, complete) => {
       const initializeId = randomUUID()
       return {
@@ -184,19 +191,44 @@ export function getClaudeModels(
           )
         },
       }
-    }
+    },
+    env
   )
 }
 
+// `env` replaces the CLI's environment, e.g. to read the models a fresh
+// install offers instead of those from the user's own agent configuration.
 export function getHarnessModels(
   name: 'codex' | 'claude',
   path: string,
   cwd: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  env?: NodeJS.ProcessEnv
 ): Promise<UpgradeModel[] | null> {
   return name === 'codex'
-    ? getCodexModels(path, cwd, signal)
-    : getClaudeModels(path, cwd, signal)
+    ? getCodexModels(path, cwd, signal, undefined, env)
+    : getClaudeModels(path, cwd, signal, undefined, env)
+}
+
+// Scheduled upgrades pick the entry next upgrade --agent highlights by default.
+// An empty catalog means no --model. A failed discovery throws instead.
+export async function getDefaultHarnessModel(
+  name: 'codex' | 'claude',
+  path: string,
+  cwd: string
+): Promise<string | null> {
+  let failed = false
+  const onFailure = () => {
+    failed = true
+  }
+  const models =
+    name === 'codex'
+      ? await getCodexModels(path, cwd, undefined, onFailure)
+      : await getClaudeModels(path, cwd, undefined, onFailure)
+  if (failed || models === null) {
+    throw new Error(`${name} model discovery failed`)
+  }
+  return (models.find(({ isDefault }) => isDefault) ?? models[0])?.id ?? null
 }
 
 // null means discovery was cancelled, rather than an unavailable catalog.
@@ -206,18 +238,40 @@ async function discoverModels(
   args: string[],
   cwd: string,
   signal: AbortSignal | undefined,
+  onFailure: (() => void) | undefined,
   createProtocol: (
     send: (message: unknown) => void,
     complete: (models: UpgradeModel[]) => void
-  ) => DiscoveryProtocol
+  ) => DiscoveryProtocol,
+  env?: NodeJS.ProcessEnv
 ): Promise<UpgradeModel[] | null> {
   if (signal?.aborted) return null
   let child: ReturnType<typeof spawn>
   try {
-    child = spawn(path, args, { cwd, stdio: 'pipe' })
+    child = spawn(path, args, {
+      cwd,
+      env: env ?? process.env,
+      stdio: 'pipe',
+      // Without its own session the CLI shares the controlling terminal and
+      // can reset its mode while a menu is open, so Enter stops working.
+      detached: process.platform !== 'win32',
+    })
   } catch {
     debug('%s model discovery failed: could not start CLI', name)
+    onFailure?.()
     return []
+  }
+
+  // The CLI runs in its own process group; signal the whole group so no
+  // helper process it started outlives discovery and touches the terminal.
+  const killGroup = (killSignal: NodeJS.Signals) => {
+    try {
+      if (process.platform !== 'win32' && child.pid) {
+        process.kill(-child.pid, killSignal)
+      } else {
+        child.kill(killSignal)
+      }
+    } catch {}
   }
 
   return new Promise((resolve) => {
@@ -232,10 +286,18 @@ async function discoverModels(
       stopping = true
       result = value
       clearTimeout(timeout)
-      if (reason) debug('%s model discovery failed: %s', name, reason)
+      if (reason) {
+        debug('%s model discovery failed: %s', name, reason)
+        if (
+          value !== null &&
+          value.length === 0 &&
+          reason !== 'no usable models'
+        )
+          onFailure?.()
+      }
       child.stdin?.end()
-      child.kill('SIGTERM')
-      killTimer = setTimeout(() => child.kill('SIGKILL'), 250)
+      killGroup('SIGTERM')
+      killTimer = setTimeout(() => killGroup('SIGKILL'), 250)
     }
     const timeout = setTimeout(() => stop([], 'timed out'), 5000)
     const interrupt = () => stop(null)
@@ -283,11 +345,15 @@ async function discoverModels(
     child.once('close', () => {
       clearTimeout(timeout)
       clearTimeout(killTimer)
+      killGroup('SIGKILL')
       process.removeListener('SIGINT', interrupt)
       process.removeListener('SIGTERM', interrupt)
       process.removeListener('SIGHUP', interrupt)
       signal?.removeEventListener('abort', interrupt)
-      if (!stopping) debug('%s model discovery failed: CLI exited early', name)
+      if (!stopping) {
+        debug('%s model discovery failed: CLI exited early', name)
+        onFailure?.()
+      }
       resolve(result)
     })
     child.once('spawn', protocol.initialize)

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { resolve } from 'path'
+import { join, resolve } from 'path'
 import {
   access,
   cp,
@@ -169,6 +169,7 @@ describe('agentic upgrade prompts', () => {
   const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
   const originalExpectedCliVersion =
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+  const originalScheduledHandoff = process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
   const originalFetch = global.fetch
   const originalExitCode = process.exitCode
 
@@ -212,6 +213,8 @@ describe('agentic upgrade prompts', () => {
     })
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES
     global.fetch = jest.fn()
     process.exitCode = undefined
 
@@ -269,6 +272,154 @@ describe('agentic upgrade prompts', () => {
     while (restoreDescriptors.length > 0) {
       restoreDescriptors.pop()?.()
     }
+    if (originalScheduledHandoff === undefined) {
+      delete process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
+    } else {
+      process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = originalScheduledHandoff
+    }
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES
+  })
+
+  it('writes the ready scheduled handoff to a new result file', async () => {
+    const handoffPath = resolve('/tmp/next-upgrade-handoff.json')
+    const guides = resolve('/tmp/next-upgrade-guides')
+    process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = handoffPath
+    process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES = guides
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+
+    const handoff = jest
+      .mocked(writeFile)
+      .mock.calls.find(([path]) => path === handoffPath)
+    expect(handoff?.[2]).toEqual({ flag: 'wx' })
+    const result = JSON.parse(String(handoff?.[1]))
+    expect(result).toEqual({
+      status: 'ready',
+      installedVersion: '14.1.1',
+      targetVersion: '16.3.5',
+      prompt: expect.stringContaining('leave the verified changes there'),
+    })
+    // The guides go where the workflow's agent user can read them.
+    expect(result.prompt).toContain(
+      JSON.stringify(join(guides, 'upgrade', 'shared.md'))
+    )
+    expect(process.exitCode).toBeUndefined()
+    expect(mkdtemp).toHaveBeenCalledTimes(0)
+    expect(cliSelect).toHaveBeenCalledTimes(0)
+    expect(process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF).toBeUndefined()
+    expect(process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES).toBeUndefined()
+  })
+
+  it.each(['unaffected', 'blocked', 'unknown'] as const)(
+    'writes the %s scheduled assessment without failing',
+    async (status) => {
+      const handoffPath = resolve('/tmp/next-upgrade-handoff.json')
+      process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = handoffPath
+      process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES = resolve(
+        '/tmp/next-upgrade-guides'
+      )
+      jest
+        .mocked(prepareUpgrade)
+        .mockResolvedValue({ status, reason: `The upgrade is ${status}.` })
+
+      await spawnNextUpgrade(
+        '/workspace/app',
+        { revision: 'latest', verbose: false, agent: 'security' },
+        null
+      )
+
+      // The workflow reads the assessment and decides whether an agent starts.
+      expect(writeFile).toHaveBeenCalledTimes(1)
+      expect(writeFile).toHaveBeenCalledWith(
+        handoffPath,
+        JSON.stringify({ status, reason: `The upgrade is ${status}.` }),
+        { flag: 'wx' }
+      )
+      expect(process.exitCode).toBeUndefined()
+      expect(Log.error).toHaveBeenCalledTimes(0)
+      expect(mkdir).toHaveBeenCalledTimes(0)
+      expect(cp).toHaveBeenCalledTimes(0)
+      expect(cliSelect).toHaveBeenCalledTimes(0)
+    }
+  )
+
+  it.each([
+    ['without a guide directory', { guides: undefined }],
+    ['with a relative handoff path', { handoff: 'next-upgrade-handoff.json' }],
+    ['with a relative guide directory', { guides: 'next-upgrade-guides' }],
+    ['without an exact CLI version', { expectedVersion: undefined }],
+  ])(
+    'refuses a scheduled handoff %s',
+    async (
+      _,
+      overrides: {
+        handoff?: string
+        guides?: string | undefined
+        expectedVersion?: string | undefined
+      }
+    ) => {
+      const settings = {
+        handoff: resolve('/tmp/next-upgrade-handoff.json'),
+        guides: resolve('/tmp/next-upgrade-guides'),
+        expectedVersion: cliVersion,
+        ...overrides,
+      }
+      process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = settings.handoff
+      if (settings.guides === undefined) {
+        delete process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES
+      } else {
+        process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES = settings.guides
+      }
+      if (settings.expectedVersion === undefined) {
+        delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      } else {
+        process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION =
+          settings.expectedVersion
+      }
+
+      await spawnNextUpgrade(
+        '/workspace/app',
+        { revision: 'latest', verbose: false, agent: 'latest' },
+        null
+      )
+
+      expect(Log.error).toHaveBeenCalledWith(
+        'Could not prepare the upgrade:',
+        'A scheduled upgrade requires an exact CLI version and absolute handoff and guide paths.'
+      )
+      expect(process.exitCode).toBe(1)
+      expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+      expect(writeFile).toHaveBeenCalledTimes(0)
+      expect(mkdtemp).toHaveBeenCalledTimes(0)
+      expect(global.fetch).toHaveBeenCalledTimes(0)
+    }
+  )
+
+  it('refuses a scheduled handoff for the experimental-future policy', async () => {
+    process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF = resolve(
+      '/tmp/next-upgrade-handoff.json'
+    )
+    process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES = resolve(
+      '/tmp/next-upgrade-guides'
+    )
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'experimental-future' },
+      null
+    )
+
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      'Scheduled upgrades require the explicit security or latest policy.'
+    )
+    expect(process.exitCode).toBe(1)
+    expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+    expect(writeFile).toHaveBeenCalledTimes(0)
   })
 
   it('uses the pinned CLI without looking up canary again', async () => {
@@ -2083,8 +2234,14 @@ describe('upgrade model discovery protocol', () => {
     })
     expect(crossSpawn).toHaveBeenCalledWith('/agents/codex', ['app-server'], {
       cwd: '/project',
+      env: expect.anything(),
       stdio: 'pipe',
+      // In its own process group, so it cannot reset the shared terminal.
+      detached: process.platform !== 'win32',
     })
+    // Without an environment the CLI inherits this one. Compared by identity,
+    // so a failure never prints the environment.
+    expect(crossSpawn.mock.calls[0][2].env === process.env).toBe(true)
     expect(child.stdin.end).toHaveBeenCalled()
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
   })
@@ -2157,9 +2314,54 @@ describe('upgrade model discovery protocol', () => {
         '--verbose',
         '--no-session-persistence',
       ],
-      { cwd: '/project', stdio: 'pipe' }
+      {
+        cwd: '/project',
+        env: expect.anything(),
+        stdio: 'pipe',
+        detached: process.platform !== 'win32',
+      }
     )
+    expect(crossSpawn.mock.calls[0][2].env === process.env).toBe(true)
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+  })
+
+  it('starts the CLI with the given environment and stops its process group', async () => {
+    const child = Object.assign(
+      probe((message, respond) => {
+        if (message.method === 'initialize') {
+          respond({ id: message.id, result: {} })
+        } else if (message.method === 'model/list') {
+          respond({ id: message.id, result: { data: [], nextCursor: null } })
+        }
+      }),
+      { pid: 4321 }
+    )
+    const kill = jest.spyOn(process, 'kill').mockImplementation(() => {
+      process.nextTick(() => child.emit('close', null, 'SIGTERM'))
+      return true
+    })
+    try {
+      const env: NodeJS.ProcessEnv = {
+        NODE_ENV: 'production',
+        HOME: '/fresh',
+        CODEX_HOME: '/fresh/codex',
+      }
+      await discover('codex', '/agents/codex', '/project', undefined, env)
+      expect(crossSpawn).toHaveBeenCalledWith(
+        '/agents/codex',
+        ['app-server'],
+        expect.objectContaining({ env })
+      )
+      if (process.platform === 'win32') {
+        expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+      } else {
+        // Every helper the CLI started is signalled, not only the CLI.
+        expect(kill).toHaveBeenCalledWith(-4321, 'SIGTERM')
+        expect(child.kill).not.toHaveBeenCalled()
+      }
+    } finally {
+      kill.mockRestore()
+    }
   })
 
   it.each(['codex', 'claude'] as const)(

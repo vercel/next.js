@@ -1,15 +1,13 @@
 import { constants } from 'fs'
 import { access, stat } from 'fs/promises'
 import { delimiter, resolve } from 'path'
-import type { Key } from 'readline'
-
-import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
 import { getAgentName } from '../../telemetry/agent-name'
 import type { AgentUpgradeHandoffMethod } from '../../telemetry/events/agent-upgrade'
 import { bold, cyan, dim } from '../picocolors'
+import { chooseOption } from './choose-option'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
 import { runChildProcess } from './run-child-process'
 
@@ -34,50 +32,6 @@ function resolvePrompt(
   return typeof prompt === 'string' ? prompt : prompt(useWorktree)
 }
 
-async function chooseOption(
-  question: string,
-  values: Record<string, string>,
-  defaultValue: number,
-  firstPrompt = false
-): Promise<string | null | undefined> {
-  Log.bootstrap('')
-  Log.bootstrap(`  ${question}`)
-  Log.bootstrap(
-    `  ${dim(`Use ↑/↓ to choose, Enter to confirm, or Esc to ${firstPrompt ? 'cancel' : 'go back'}.`)}\n`
-  )
-
-  let interrupted = false
-  const onKeypress = (_text: string, key: Key) => {
-    if (key.ctrl && key.name === 'c') {
-      interrupted = true
-    }
-  }
-  process.stdin.on('keypress', onKeypress)
-  try {
-    const { id } = await cliSelect({
-      values,
-      defaultValue,
-      selected: cyan('❯'),
-      unselected: ' ',
-      indentation: 2,
-      valueRenderer: (value: string, selected: boolean) =>
-        selected ? cyan(bold(value)) : value,
-    })
-    if (typeof id === 'string') {
-      Log.bootstrap(`  ${cyan('❯')} ${cyan(bold(values[id]))}`)
-      return id
-    }
-    return undefined
-  } catch (error) {
-    if (error !== undefined) {
-      throw error
-    }
-    return interrupted ? null : undefined
-  } finally {
-    process.stdin.removeListener('keypress', onKeypress)
-  }
-}
-
 async function chooseWorktree(): Promise<boolean | null | undefined> {
   const choice = await chooseOption(
     'Open the upgrade in a separate Git worktree?',
@@ -96,7 +50,7 @@ async function chooseWorktree(): Promise<boolean | null | undefined> {
   throw new Error(`Unknown worktree choice: ${choice}`)
 }
 
-function getHarnessDisplayName(name: UpgradeHarness['name']): string {
+export function getHarnessDisplayName(name: UpgradeHarness['name']): string {
   return name === 'codex' ? 'Codex' : 'Claude Code'
 }
 
@@ -132,7 +86,7 @@ function getClaudePermissionSupport(path: string) {
   }
 }
 
-async function findHarnesses(): Promise<UpgradeHarness[]> {
+export async function findHarnesses(): Promise<UpgradeHarness[]> {
   const names: UpgradeHarness['name'][] = ['codex', 'claude']
   const directories = (process.env.PATH ?? '').split(delimiter).filter(Boolean)
   const extensions =
