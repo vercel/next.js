@@ -24,8 +24,6 @@ kind: error
 
 During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date). [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) can reuse the prerendered HTML on later requests, so a timestamp captured at build time can be stale when someone visits the page.
 
-The read can also come from an external library called by the component.
-
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
 ## Ways to fix this
@@ -305,6 +303,14 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 - [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) values from the server can't be compared to values from the browser. Each environment has its own time origin.
 - Don't pass a [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) value into the rendered output or into a cached function. The high-resolution timestamp is non-deterministic and shouldn't influence what's prerendered.
 - For absolute time in an observability tool, use `performance.timeOrigin + performance.now()` to get a wall-clock timestamp without tripping this error.
+
+## When the read comes from an external library
+
+A library called by your Server Component can read the current time internally, even if your application code never calls `Date.now()` or `new Date()`. Choose when to run the library based on how it uses the value. For example, an expiration check needs a fresh clock reading. A timestamp attached to cached report data can use the same cache lifetime as the report.
+
+- **Fresh result for each request:** call [`await io()`](/docs/app/api-reference/functions/io) before invoking the library helper or creating the library instance that performs the read. Put that work in an async Server Component under a parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. The `await io()` suspends prerendering before the library runs, and the boundary supplies the fallback. Adding only the boundary does not defer a synchronous Server Component read. See [Generate on every request](#generate-on-every-request).
+- **Reusable result:** [cache the application function that calls the library](#cache-the-timestamp). The library call and its timestamp become part of the same cache entry. Choose a lifetime that matches how long the result can be reused.
+- **Browser work:** move the library call into a Client Component and follow the [external-library guidance for Client Components](/docs/messages/blocking-prerender-current-time-client#when-the-read-comes-from-an-external-library). Adding `'use client'` alone still allows server rendering.
 
 ## Verifying the fix
 

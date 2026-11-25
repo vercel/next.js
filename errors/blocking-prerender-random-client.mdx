@@ -53,11 +53,13 @@ The Server Component case is handled at [`Math.random()` during prerendering](/d
 
 ## Wrap in or move into Suspense
 
-Choose this fix when a random value belongs in the server-rendered HTML and a fallback can appear first. Generate it in a Server Component under [`<Suspense>`](https://react.dev/reference/react/Suspense) and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration.
+Choose this fix when a Client Component reads a random value during render and a fallback can appear first. A parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary handles the interruption during prerendering. It does not preserve the value for hydration. The pattern below moves generation to a Server Component and [passes the result as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so the browser uses the same value.
 
 ### Patterns
 
-#### Wrap from a Server Component parent
+<span id="wrap-from-a-server-component-parent" />
+
+#### Generate on the server and pass as a prop
 
 Await [`io()`](/docs/app/api-reference/functions/io) inside `RequestAvatar` before generating the avatar color.
 
@@ -195,39 +197,16 @@ The user sees the placeholder briefly before the real value. For interactions th
 - If the random value needs to appear in the server-rendered HTML, generate it in a Server Component and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
-## Other options
+<span id="suspend-with-useio" />
 
-### Suspend with `use(io())`
+## When the read comes from an external library
 
-When the read genuinely needs to happen per visit and you can't move it to an effect or event, call [`io()`](/docs/app/api-reference/functions/io) from `next/cache` before the read with React's [`use`](https://react.dev/reference/react/use) hook. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell. `use(io())` suspends the prerender so the component is excluded from the shell and rendered on every request from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
+An external library can read a random value while rendering a Client Component or initializing a hook. Put [`<Suspense>`](https://react.dev/reference/react/Suspense) above the component that renders the library or calls that hook. A boundary returned by the same component after the library call is too late to cover the call.
 
-```jsx filename="app/components/random-banner.js"
-'use client'
-import { use } from 'react'
-import { io } from 'next/cache'
+The read already interrupts prerendering. The boundary provides a fallback for that interruption, so this fix does not require adding `use(io())`. It also does not make the library browser-only.
 
-export function RandomBanner() {
-  use(io())
-  return <span>Banner #{Math.floor(Math.random() * 100)}</span>
-}
-```
-
-Wrap the component in `<Suspense>` so the surrounding shell stays prerendered.
-
-```jsx filename="app/page.js"
-import { Suspense } from 'react'
-import { RandomBanner } from './components/random-banner'
-
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <RandomBanner />
-    </Suspense>
-  )
-}
-```
-
-Learn more: [`io`](/docs/app/api-reference/functions/io).
+- **Keep server rendering:** use the library's documented hydration support to preserve its server result for the first browser render. If the library accepts a seed or initial value, [generate it in a Server Component and pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components). State and refs alone do not transfer a generated value between the server and browser.
+- **Run only in the browser:** if the library cannot preserve its server output for hydration or needs browser APIs, use a Client Component wrapper with [`next/dynamic` and `ssr: false`](/docs/app/guides/lazy-loading#skipping-ssr). For a helper invoked by an interaction or effect, see [Move into effect or event handler](#move-into-effect-or-event-handler).
 
 ## Verifying the fix
 

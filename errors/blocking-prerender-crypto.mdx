@@ -24,8 +24,6 @@ kind: error
 
 During [prerendering](/docs/app/glossary#prerendering), a Server Component called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) or Node [`crypto`](https://nodejs.org/api/crypto.html) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues), [`crypto.randomBytes()`](https://nodejs.org/api/crypto.html#cryptorandombytessize-callback), [`crypto.generateKeyPairSync()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairsynctype-options)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, a random value captured in the prerendered HTML would be shared across requests.
 
-The read can also come from an external library called by the component.
-
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [`Date.now()`](/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
 ## Ways to fix this
@@ -248,6 +246,14 @@ The first paint shows the SSR fallback (often `null`), and the value appears onl
 
 - A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
+
+## When the read comes from an external library
+
+A library called by your Server Component can read a random value from a crypto API internally, even if your application code never calls `crypto.randomUUID()` or another synchronous crypto API. Choose when to run the library based on how it uses the value. Decide whether the result can be shared before caching it. Values intended to be unique for each request must be generated at request time.
+
+- **Fresh result for each request:** call [`await io()`](/docs/app/api-reference/functions/io) before invoking the library helper or creating the library instance that performs the read. Put that work in an async Server Component under a parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. The `await io()` suspends prerendering before the library runs, and the boundary supplies the fallback. Adding only the boundary does not defer a synchronous Server Component read. See [Generate on every request](#generate-on-every-request).
+- **Reusable result:** [cache the application function that calls the library](#cache-the-generated-value). The library call and its generated value become part of the same cache entry. Choose a lifetime that matches how long the result can be reused.
+- **Browser work:** move the library call into a Client Component and follow the [external-library guidance for Client Components](/docs/messages/blocking-prerender-crypto-client#when-the-read-comes-from-an-external-library). Adding `'use client'` alone still allows server rendering.
 
 ## Verifying the fix
 
