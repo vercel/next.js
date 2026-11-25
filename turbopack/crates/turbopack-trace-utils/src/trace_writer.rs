@@ -112,7 +112,7 @@ impl TraceWriter {
         }
 
         let handle: std::thread::JoinHandle<()> = std::thread::spawn(move || {
-            let _ = writer.write(TRACE_HEADER);
+            let _ = writer.write_all(TRACE_HEADER);
             let mut buf = Vec::with_capacity(WRITE_BUFFER_SIZE);
             let mut stolen_buffers = Vec::new();
             let mut should_exit = false;
