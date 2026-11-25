@@ -24,6 +24,7 @@ type RequestInsight = {
   route: string
   url?: string
   startTime: number
+  durationMs?: number
   completedAt?: number
   status: 'ok'
   spans: Array<{
@@ -31,6 +32,7 @@ type RequestInsight = {
     traceId?: string
     spanId?: string
     parentSpanId?: string
+    startTime?: number
     durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
