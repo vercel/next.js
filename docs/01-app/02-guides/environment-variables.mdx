@@ -116,19 +116,6 @@ const projectDir = process.cwd()
 loadEnvConfig(projectDir)
 ```
 
-> **Good to know**: `@next/env` is published as a CommonJS module. In a native ES module, such as a `.mjs` or `.mts` file or a file in a package with `"type": "module"`, Node.js can't find the named export and throws `SyntaxError: Named export 'loadEnvConfig' not found`. In those files, import the default export and read `loadEnvConfig` from it:
->
-> ```js filename="envConfig.mjs"
-> import nextEnv from '@next/env'
->
-> const { loadEnvConfig } = nextEnv
->
-> const projectDir = process.cwd()
-> loadEnvConfig(projectDir)
-> ```
->
-> Keep the named import in files that your tooling compiles to CommonJS, where the default import can be `undefined`.
-
 Then, you can import the configuration where needed. For example:
 
 ```tsx filename="orm.config.ts" switcher
@@ -150,6 +137,19 @@ export default defineConfig({
   },
 })
 ```
+
+`@next/env` is published as a CommonJS module. In a native ES module, such as a `.mjs` or `.mts` file or a file in a package with `"type": "module"`, Node.js can't find the named export and throws `SyntaxError: Named export 'loadEnvConfig' not found`. In those files, import the default export and read `loadEnvConfig` from it:
+
+```js filename="envConfig.mjs"
+import nextEnv from '@next/env'
+
+const { loadEnvConfig } = nextEnv
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+Keep the named import in files that your tooling compiles to CommonJS, where the default import can be `undefined`.
 
 ### Referencing Other Variables
 
