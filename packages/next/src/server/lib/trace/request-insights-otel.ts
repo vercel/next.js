@@ -132,7 +132,6 @@ function getSpanRecord(
     requestInsightSource: identity.requestInsightSource,
     requestInsightProxyStatus: identity.requestInsightProxyStatus,
     htmlRequestId: identity.htmlRequestId,
-    route: identity.route,
     url: identity.url,
     attributes,
     events: readEvents(span.events),
