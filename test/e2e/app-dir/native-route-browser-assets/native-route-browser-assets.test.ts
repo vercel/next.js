@@ -1,6 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { join } from 'path'
+import { join, relative, sep } from 'path'
 import { retry } from 'next-test-utils'
+import { realpathSync } from 'fs'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 
@@ -30,15 +31,19 @@ describe('native-route-browser-assets', () => {
   })
 
   beforeAll(async () => {
-    // Exercise the same automatic SDK setup as an application that imports
-    // only next/go/assets, without pre-seeding a requirement or replacement.
+    // The SDK ships in the installed next package. Map it the way next dev does:
+    // a directory replacement to its real location, with nothing downloaded.
+    const dir = realpathSync(next.testDir)
+    const sdk = relative(dir, realpathSync(join(dir, 'node_modules/next/go')))
+    await runGo(
+      go,
+      ['mod', 'edit', `-replace=next/go=./${sdk.split(sep).join('/')}`],
+      { cwd: dir, env: goEnv }
+    )
     await next.start()
   })
 
-  it('maps an assets-only import for ordinary Go tooling', async () => {
-    const goMod = await next.readFile('go.mod')
-    expect(goMod).toMatch(/^require next\/go v0\.0\.0$/m)
-    expect(goMod).toMatch(/^replace next\/go => /m)
+  it('resolves the short import through ordinary Go tooling', async () => {
     const { stdout } = await runGo(
       go,
       ['list', '-mod=readonly', '-f', '{{.ImportPath}}', 'next/go/assets'],
