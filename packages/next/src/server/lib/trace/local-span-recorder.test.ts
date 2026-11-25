@@ -85,6 +85,30 @@ describe('local recording span', () => {
     ])
   })
 
+  it('derives the span category from Next.js attributes', () => {
+    const spans: Array<[string, Record<string, string>]> = [
+      ['explicit nextjs', { 'next.span_category': 'nextjs' }],
+      ['explicit application', { 'next.span_category': 'application' }],
+      ['typed', { 'next.span_type': 'BaseServer.render' }],
+      ['fetch', { 'next.span_type': 'AppRender.fetch' }],
+      ['custom', {}],
+      // The attribute is public; only the span processor may claim this.
+      ['spoofed', { 'next.span_category': 'opentelemetry' }],
+    ]
+    for (const [name, attributes] of spans) {
+      createLocalSpan({ name, attributes }).end()
+    }
+
+    expect(spanRecords.map(({ name, category }) => [name, category])).toEqual([
+      ['explicit nextjs', 'nextjs'],
+      ['explicit application', 'application'],
+      ['typed', 'nextjs'],
+      ['fetch', 'application'],
+      ['custom', 'application'],
+      ['spoofed', 'application'],
+    ])
+  })
+
   it('keeps browser debug IDs separate from server-owned storage IDs', () => {
     const identity = resolveRequestInsightsIdentity({
       previousIdentity: undefined,

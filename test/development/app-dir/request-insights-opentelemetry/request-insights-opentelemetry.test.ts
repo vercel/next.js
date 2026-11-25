@@ -103,6 +103,10 @@ describe.each([
         ],
       })
       expect(redis?.durationMs).toBeCloseTo(5)
+      expect(replica?.attributes).toEqual({
+        'url.full': 'https://user:pass@replica.example.com/lookup?token=secret',
+        'url.query': 'token=secret',
+      })
 
       // The SDK parents the span under the active Next.js span, which Request
       // Insights records under the same span ID.

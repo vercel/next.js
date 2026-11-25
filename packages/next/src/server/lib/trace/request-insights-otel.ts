@@ -1,51 +1,71 @@
 import { getRegisteredLocalSpanRecorder } from './local-span-recorder-registry'
-import type { OpenTelemetryReadableSpan } from './span-store'
+import type { SpanStoreAttributeValue } from './span-store'
 
-export interface RequestInsightsSpanProcessor {
-  forceFlush(): Promise<void>
-  onEnd(span: OpenTelemetryReadableSpan): void
-  onStart(span: object, parentContext: unknown): void
-  shutdown(): Promise<void>
+type OpenTelemetryHrTime = [number, number]
+type OpenTelemetrySpanContext = { traceId: string; spanId: string }
+type OpenTelemetryAttributes = Partial<Record<string, SpanStoreAttributeValue>>
+
+// Structural subset of the SDK's `ReadableSpan`; kept free of
+// `@opentelemetry/*` imports so the public typings resolve without them.
+export type OpenTelemetryReadableSpan = {
+  name: string
+  spanContext(): OpenTelemetrySpanContext
+  parentSpanContext?: OpenTelemetrySpanContext
+  // sdk-trace-base 1.x
+  parentSpanId?: string
+  startTime: OpenTelemetryHrTime
+  duration: OpenTelemetryHrTime
+  status: { code: number; message?: string }
+  attributes: OpenTelemetryAttributes
+  events: ReadonlyArray<{
+    name: string
+    time: OpenTelemetryHrTime
+    attributes?: OpenTelemetryAttributes
+  }>
+  links: ReadonlyArray<{
+    context: OpenTelemetrySpanContext
+    attributes?: OpenTelemetryAttributes
+  }>
 }
 
-class RequestInsightsSpanProcessorImpl implements RequestInsightsSpanProcessor {
-  private readonly recorders = new WeakMap<
+export type RequestInsightsSpanProcessor = ReturnType<
+  typeof createRequestInsightsSpanProcessor
+>
+
+export function createRequestInsightsSpanProcessor() {
+  const recorders = new WeakMap<
     object,
     (span: OpenTelemetryReadableSpan) => void
   >()
 
-  onStart(span: object): void {
-    const record =
-      getRegisteredLocalSpanRecorder()?.captureOpenTelemetrySpanRecorder()
-    if (record) {
-      this.recorders.set(span, record)
-    }
+  return {
+    onStart(span: OpenTelemetryReadableSpan, _parentContext: unknown): void {
+      // Next.js spans are already recorded by the local span recorder.
+      if (typeof span.attributes['next.span_type'] === 'string') {
+        return
+      }
+      const record =
+        getRegisteredLocalSpanRecorder()?.captureOpenTelemetrySpanRecorder()
+      if (record) {
+        recorders.set(span, record)
+      }
+    },
+
+    onEnd(span: OpenTelemetryReadableSpan): void {
+      const record = recorders.get(span)
+      if (!record) {
+        return
+      }
+      recorders.delete(span)
+      try {
+        record(span)
+      } catch {
+        // Diagnostics must not affect application spans.
+      }
+    },
+
+    async forceFlush(): Promise<void> {},
+
+    async shutdown(): Promise<void> {},
   }
-
-  onEnd(span: OpenTelemetryReadableSpan): void {
-    const record = this.recorders.get(span)
-    this.recorders.delete(span)
-    // Next.js spans are already recorded by the local span recorder.
-    if (!record || typeof span.attributes['next.span_type'] === 'string') {
-      return
-    }
-
-    try {
-      record(span)
-    } catch {
-      // Diagnostics must not affect application spans.
-    }
-  }
-
-  forceFlush(): Promise<void> {
-    return Promise.resolve()
-  }
-
-  shutdown(): Promise<void> {
-    return Promise.resolve()
-  }
-}
-
-export function createRequestInsightsSpanProcessor(): RequestInsightsSpanProcessor {
-  return new RequestInsightsSpanProcessorImpl()
 }

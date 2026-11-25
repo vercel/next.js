@@ -9,7 +9,6 @@ import {
   isLocalSpanRecordingEnabled,
   isLocalSpanSinkActive,
   captureLocalSpanRecorder,
-  type OpenTelemetryReadableSpan,
   type SpanStoreAttributes,
   type SpanStoreEvent,
   type SpanStoreLink,
@@ -17,11 +16,14 @@ import {
   type LocalSpanParent,
 } from './span-store'
 import { setRegisteredLocalSpanRecorder } from './local-span-recorder-registry'
+import type { OpenTelemetryReadableSpan } from './request-insights-otel'
 import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
+import { AppRenderSpan } from './constants'
 import type {
   RequestInsightKind,
   RequestInsightProxyStatus,
   RequestInsightSource,
+  RequestInsightSpanCategory,
 } from '../../../shared/lib/request-insights'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
@@ -311,7 +313,7 @@ function getLocalSpanAsyncStorage() {
   }>('local-span-storage')
 }
 
-export type RequestIdentity = {
+type RequestIdentity = {
   requestId?: string
   parentRequestId?: string
   requestInsightKind?: RequestInsightKind
@@ -523,6 +525,7 @@ class LocalRecordingSpan implements Span {
 
     this.recordSpan?.({
       name: this.name,
+      category: getLocalSpanCategory(recordAttributes),
       startTime: this.startTime,
       durationMs: Math.max(0, getTimestamp(endTime) - this.startTime),
       status: this.statusCode === SpanStatusCode.ERROR ? 'error' : 'ok',
@@ -630,6 +633,22 @@ function hrTimeToMilliseconds([seconds, nanoseconds]: readonly [
   return seconds * 1000 + nanoseconds / 1_000_000
 }
 
+function getLocalSpanCategory(
+  attributes: SpanStoreAttributes | undefined
+): RequestInsightSpanCategory {
+  // Public attribute, so it can only claim Next.js categories; 'opentelemetry'
+  // is set by the span processor alone.
+  const category = attributes?.['next.span_category']
+  if (category === 'nextjs' || category === 'application') {
+    return category
+  }
+
+  const spanType = attributes?.['next.span_type']
+  return typeof spanType === 'string' && spanType !== AppRenderSpan.fetch
+    ? 'nextjs'
+    : 'application'
+}
+
 function getStringAttribute(
   attributes: SpanStoreAttributes | undefined,
   key: string
@@ -710,7 +729,7 @@ function getSpanStoreExceptionAttributes(
   return Object.keys(attributes).length > 0 ? attributes : undefined
 }
 
-export function getCurrentRequestIdentity(): RequestIdentity {
+function getCurrentRequestIdentity(): RequestIdentity {
   try {
     const { getRequestInsightsIdentity } =
       require('./request-insights-identity') as typeof import('./request-insights-identity')

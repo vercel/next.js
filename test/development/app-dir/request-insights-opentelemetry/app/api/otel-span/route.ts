@@ -3,7 +3,12 @@ import { trace } from '@opentelemetry/api'
 export function GET() {
   const tracer = trace.getTracer('request-insights-opentelemetry')
 
-  const replica = tracer.startSpan('replica lookup')
+  const replica = tracer.startSpan('replica lookup', {
+    attributes: {
+      'url.full': 'https://user:pass@replica.example.com/lookup?token=secret',
+      'url.query': 'token=secret',
+    },
+  })
   replica.end()
 
   const startTime = Date.now()

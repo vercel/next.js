@@ -30,27 +30,6 @@ export type RequestInsightSpanCategory =
   | 'application'
   | 'opentelemetry'
 
-export function getRequestInsightSpanCategory(span: {
-  category?: RequestInsightSpanCategory
-  attributes?: Record<string, RequestInsightAttributeValue>
-}): RequestInsightSpanCategory {
-  if (span.category) {
-    return span.category
-  }
-
-  // The attribute is public, so it can only claim the categories Next.js
-  // spans use. 'opentelemetry' comes from the recorder alone.
-  const category = span.attributes?.['next.span_category']
-  if (category === 'nextjs' || category === 'application') {
-    return category
-  }
-
-  const spanType = span.attributes?.['next.span_type']
-  return typeof spanType === 'string' && spanType !== 'AppRender.fetch'
-    ? 'nextjs'
-    : 'application'
-}
-
 export type RequestInsightSpan = {
   name: string
   category: RequestInsightSpanCategory

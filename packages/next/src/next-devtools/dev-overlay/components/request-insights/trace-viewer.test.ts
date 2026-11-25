@@ -1,6 +1,5 @@
 import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
-  getRequestInsightSpanCategory,
   type RequestInsight,
   type RequestInsightRelation,
   type RequestInsightSpan,
@@ -38,7 +37,7 @@ function createRequest({
     ...overrides,
     // In place, so tests can still assert the trace viewer leaves spans intact.
     spans: spans.map((span) =>
-      Object.assign(span, { category: getRequestInsightSpanCategory(span) })
+      Object.assign(span, { category: span.category ?? 'application' })
     ),
   }
 }
@@ -156,17 +155,6 @@ describe('request insights trace viewer', () => {
         },
       ],
     })
-    const spoofedOtel = createRequest({
-      requestId: 'spoofed-otel',
-      spans: [
-        {
-          name: 'custom span',
-          startTime: 100,
-          attributes: { 'next.span_category': 'opentelemetry' },
-        },
-      ],
-    })
-
     expect(getRequestInsightRowType(page, true).label).toBe('Page load')
     expect(getRequestInsightRowType(rsc).label).toBe('RSC')
     expect(getRequestInsightRowType(api).label).toBe('API')
@@ -187,7 +175,7 @@ describe('request insights trace viewer', () => {
     ).toEqual([asset])
     expect(
       getRequestInsightFilterResult(
-        [page, rsc, api, asset, otel, spoofedOtel],
+        [page, rsc, api, asset, otel],
         ['activity:opentelemetry']
       ).requests
     ).toEqual([otel])
@@ -704,13 +692,14 @@ describe('request insights trace viewer', () => {
     )
   })
 
-  it('uses exactly Next.js and Application categories', () => {
+  it('passes recorded span categories through', () => {
     const request = createRequest({
       spans: [
         {
           name: 'render',
           startTime: 100,
           durationMs: 10,
+          category: 'nextjs',
           attributes: {
             'next.span_category': 'nextjs',
             'next.span_type': 'BaseServer.render',
@@ -768,6 +757,7 @@ describe('request insights trace viewer', () => {
         },
         {
           name: 'internal fetch GET https://example.com/internal',
+          category: 'nextjs',
           spanId: 'internal-fetch-span',
           parentSpanId: 'root',
           startTime: 155,

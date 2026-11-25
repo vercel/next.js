@@ -58,7 +58,6 @@ const FETCH_SPAN_TYPE = 'AppRender.fetch'
 const LOAD_COMPONENTS_SPAN_TYPE = 'LoadComponents.loadComponents'
 const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
 const ATTRIBUTE_LABEL_KEYS = [
-  'feature_flag.key',
   'db.query.summary',
   'http.route',
   'db.operation.name',
@@ -237,7 +236,6 @@ function getFetchTraceItem(
     spanType: FETCH_SPAN_TYPE,
     category: matchingSpan?.category ?? 'application',
     label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
-    attributeLabel: matchingSpan && getSpanAttributeLabel(matchingSpan),
     fullLabel: `${method} ${url.fullUrl}`,
     startTime,
     durationMs: fetch.durationMs ?? matchingSpan?.durationMs,
@@ -385,20 +383,32 @@ function getSpanAttributeLabel(span: RequestInsightSpan): string | undefined {
     return undefined
   }
 
-  const normalize = (key: string) => {
-    const value = span.attributes?.[key]
-    return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+  const flag = getNormalizedStringAttribute(span, 'feature_flag.key')
+  if (flag) {
+    const variant = getNormalizedStringAttribute(
+      span,
+      'feature_flag.result.variant'
+    )
+    return variant ? `${flag} = ${variant}` : flag
   }
+
   for (const key of ATTRIBUTE_LABEL_KEYS) {
-    const value = normalize(key)
-    if (!value) {
-      continue
+    const value = getNormalizedStringAttribute(span, key)
+    if (value) {
+      return value
     }
-    const variant =
-      key === 'feature_flag.key' ? normalize('feature_flag.result.variant') : ''
-    return variant ? `${value} = ${variant}` : value
   }
   return undefined
+}
+
+function getNormalizedStringAttribute(
+  span: RequestInsightSpan,
+  key: string
+): string | undefined {
+  const value = span.attributes?.[key]
+  return typeof value === 'string'
+    ? value.replace(/\s+/g, ' ').trim() || undefined
+    : undefined
 }
 
 function getSpanLabel(span: RequestInsightSpan): string {
