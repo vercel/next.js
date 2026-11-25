@@ -25,25 +25,58 @@ Next.js provides several ways to style your application using CSS, including:
 
 <AppOnly>
 
-Install Tailwind CSS:
+Install Tailwind CSS and its Turbopack loader:
 
 ```bash package="pnpm"
-pnpm add -D tailwindcss @tailwindcss/postcss
+pnpm add -D tailwindcss @tailwindcss/turbopack
 ```
 
 ```bash package="npm"
-npm install -D tailwindcss @tailwindcss/postcss
+npm install -D tailwindcss @tailwindcss/turbopack
 ```
 
 ```bash package="yarn"
-yarn add -D tailwindcss @tailwindcss/postcss
+yarn add -D tailwindcss @tailwindcss/turbopack
 ```
 
 ```bash package="bun"
-bun add -D tailwindcss @tailwindcss/postcss
+bun add -D tailwindcss @tailwindcss/turbopack
 ```
 
-Add the PostCSS plugin to your `postcss.config.mjs` file:
+Add the loader to [`turbopack.rules`](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders) in your `next.config` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    rules: {
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+      },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+If you build with webpack (`--webpack`) or Rspack, install `@tailwindcss/postcss` instead of `@tailwindcss/turbopack`, skip the `turbopack.rules` entry, and add the PostCSS plugin to a `postcss.config.mjs` file:
 
 ```js filename="postcss.config.mjs"
 export default {
@@ -52,6 +85,8 @@ export default {
   },
 }
 ```
+
+> **Good to know:** `create-next-app` generates the Turbopack setup by default, and the PostCSS setup when you choose Rspack.
 
 Import Tailwind in your global CSS file:
 
@@ -115,25 +150,58 @@ export default function Page() {
 
 <PagesOnly>
 
-Install Tailwind CSS:
+Install Tailwind CSS and its Turbopack loader:
 
 ```bash package="pnpm"
-pnpm add -D tailwindcss @tailwindcss/postcss
+pnpm add -D tailwindcss @tailwindcss/turbopack
 ```
 
 ```bash package="npm"
-npm install -D tailwindcss @tailwindcss/postcss
+npm install -D tailwindcss @tailwindcss/turbopack
 ```
 
 ```bash package="yarn"
-yarn add -D tailwindcss @tailwindcss/postcss
+yarn add -D tailwindcss @tailwindcss/turbopack
 ```
 
 ```bash package="bun"
-bun add -D tailwindcss @tailwindcss/postcss
+bun add -D tailwindcss @tailwindcss/turbopack
 ```
 
-Add the PostCSS plugin to your `postcss.config.mjs` file:
+Add the loader to [`turbopack.rules`](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders) in your `next.config` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    rules: {
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+      },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+If you build with webpack (`--webpack`) or Rspack, install `@tailwindcss/postcss` instead of `@tailwindcss/turbopack`, skip the `turbopack.rules` entry, and add the PostCSS plugin to a `postcss.config.mjs` file:
 
 ```js filename="postcss.config.mjs"
 export default {
@@ -142,6 +210,8 @@ export default {
   },
 }
 ```
+
+> **Good to know:** `create-next-app` generates the Turbopack setup by default, and the PostCSS setup when you choose Rspack.
 
 Import Tailwind in your global CSS file:
 

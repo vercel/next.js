@@ -66,6 +66,12 @@
   background-color: var(--color-gray-200);
 }
 
+/* Rows that only report a value are not actions: mute the label so they read
+   as status next to the rows that open something. */
+.dev-tools-indicator-item[data-interactive='false'] .dev-tools-indicator-label {
+  color: var(--color-gray-900);
+}
+
 .dev-tools-indicator-label {
   font-size: var(--size-14);
   line-height: var(--size-20);
@@ -82,47 +88,41 @@
 .dev-tools-indicator-issue-counts {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
 .dev-tools-indicator-issue-count {
   --color-primary: var(--color-gray-800);
-  --color-secondary: var(--color-gray-100);
-  display: flex;
-  flex-direction: row;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: var(--size-40);
-  height: var(--size-24);
-  background: var(--color-background-100);
-  border: 1px solid var(--color-gray-alpha-400);
-  background-clip: padding-box;
-  box-shadow: var(--shadow-small);
-  padding: 2px;
+  gap: 6px;
   color: var(--color-gray-1000);
-  border-radius: 128px;
   font-weight: 500;
-  font-size: var(--size-13);
+  font-size: var(--size-14);
   font-variant-numeric: tabular-nums;
 
   &[data-has-issues='true'] {
     --color-primary: var(--color-red-800);
-    --color-secondary: var(--color-red-100);
   }
 
   &[data-has-issues='true'][data-variant='insight'] {
     --color-primary: var(--color-amber-800);
-    --color-secondary: var(--color-amber-100);
   }
 
+  /* A plain solid dot, the same as the badge; no halo, no pill. */
   .dev-tools-indicator-issue-count-indicator {
-    width: var(--size-8);
-    height: var(--size-8);
+    width: 7px;
+    height: 7px;
     background: var(--color-primary);
-    box-shadow: 0 0 0 2px var(--color-secondary);
     border-radius: 50%;
   }
+}
+
+/* The gear's 20px viewBox has built-in padding; draw it larger so it matches
+   the weight of the other row icons. */
+.dev-tools-indicator-item[data-preferences] svg {
+  width: var(--size-18);
+  height: var(--size-18);
 }
 
 .dev-tools-indicator-shortcut {

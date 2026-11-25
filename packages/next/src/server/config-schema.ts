@@ -301,7 +301,6 @@ export const experimentalSchema = {
       z.boolean(),
       z.strictObject({
         nextImage: z.boolean().optional(),
-        imageResponse: z.boolean().optional(),
       }),
     ])
     .optional(),

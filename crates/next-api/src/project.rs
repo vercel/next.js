@@ -47,6 +47,7 @@ use next_core::{
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
+use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
@@ -120,7 +121,7 @@ use crate::{
     additional_roots::{
         AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
     },
-    aggregate_hmr::ServerHmrChunkLists,
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrLoadedState},
     app::{AppProject, CLIENT_TRANSITION_NAME, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -469,6 +470,8 @@ pub struct ProjectContainer {
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    /// What the server runtimes have loaded, for server HMR.
+    server_hmr_loaded_state: State<ServerHmrLoadedState>,
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
@@ -493,6 +496,7 @@ impl ProjectContainer {
             options_state: State::new(None),
             file_systems_state: State::new(None),
             additional_roots_state: State::new(Vec::new()),
+            server_hmr_loaded_state: State::new(ServerHmrLoadedState::default()),
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
@@ -500,6 +504,12 @@ impl ProjectContainer {
 }
 
 impl ProjectContainer {
+    /// What the server runtimes have loaded, for server HMR. It must be cleared whenever all
+    /// server modules are re-evaluated.
+    pub fn server_hmr_loaded_state(&self) -> &State<ServerHmrLoadedState> {
+        &self.server_hmr_loaded_state
+    }
+
     /// Attach process-local cleanup after resolving the container. Shutdown hooks must not be
     /// task inputs: making the container transient also prevents its project graph from persisting.
     pub fn register_shutdown_hooks(&self, shutdown: &crate::shutdown::ShutdownHooks) {
@@ -1285,6 +1295,7 @@ impl Project {
             include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
             include_traced: *self.should_trace().await?,
             include_binding_usage: self.next_mode().await?.is_production(),
+            force_activated: false,
         })
     }
 }
@@ -2979,25 +2990,18 @@ impl Project {
         }
     }
 
-    /// Server entry chunks shared by all pull baselines.
+    /// The server entry chunk lists of `entry_paths` (relative to the server HMR root) that a
+    /// server HMR pull diffs.
     #[turbo_tasks::function]
-    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
+    pub async fn server_hmr_chunks_for_entries(
+        self: Vc<Self>,
+        entry_paths: FrozenSet<RcStr>,
+    ) -> Result<Vc<ServerHmrChunkLists>> {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
         };
         let root = self.server_hmr_root_path().owned().await?;
-        Ok(map.server_hmr_chunks_in_path(root))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks_for_entries(
-        self: Vc<Self>,
-        entry_paths: Vec<RcStr>,
-    ) -> Result<Vc<ServerHmrChunkLists>> {
-        let mut chunk_lists =
-            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
-        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
-        Ok(chunk_lists.cell())
+        Ok(map.server_hmr_chunks_in_path(root, entry_paths))
     }
 
     /// Gets a list of all client HMR chunk names that can be subscribed to.

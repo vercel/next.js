@@ -261,9 +261,9 @@
         : "object" === typeof node &&
           null !== node &&
           node.$$typeof === REACT_LAZY_TYPE &&
-          ("fulfilled" === node._payload.status
-            ? isValidElement(node._payload.value) &&
-              node._payload.value._store &&
+          ("fulfilled" === node._payload.status &&
+          isValidElement(node._payload.value)
+            ? node._payload.value._store &&
               (node._payload.value._store.validated = 1)
             : node._store && (node._store.validated = 1));
     }
@@ -1391,7 +1391,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.3.0-experimental-a8342585-20261117";
+    exports.version = "19.3.0-experimental-89d7b2b4-20261123";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

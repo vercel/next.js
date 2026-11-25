@@ -16,7 +16,10 @@ import {
   aliasDepLabel,
   customDataValue,
   consumedValue,
+  sharedValue,
 } from './file.test-file'
+import { sharedValue as directSharedValue } from '../shared.counted.js'
+import { controlValue } from '../control.counted.js'
 
 export default function Page() {
   return (
@@ -38,6 +41,9 @@ export default function Page() {
       <p id="alias-dep-label">{aliasDepLabel}</p>
       <p id="custom-data-value">{customDataValue}</p>
       <p id="consumed-value">{consumedValue}</p>
+      <p id="shared-value">{sharedValue}</p>
+      <p id="direct-shared-value">{directSharedValue}</p>
+      <p id="control-value">{controlValue}</p>
     </div>
   )
 }

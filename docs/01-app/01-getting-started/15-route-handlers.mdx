@@ -100,7 +100,7 @@ export async function GET() {
 }
 ```
 
-**Dynamic example** - accesses non-deterministic operations. During the build, prerendering stops when `Math.random()` is called, deferring to request-time rendering:
+**Dynamic example** - reads a random value. During the build, prerendering stops when `Math.random()` is called, deferring to request-time rendering:
 
 ```tsx filename="app/api/random-number/route.ts"
 export async function GET() {
@@ -123,7 +123,7 @@ export async function GET() {
 }
 ```
 
-> **Good to know**: Prerendering stops if the `GET` handler accesses network requests, database queries, async file system operations, request object properties (like `req.url`, `request.headers`, `request.cookies`, `request.body`), runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`connection()`](/docs/app/api-reference/functions/connection), or non-deterministic operations.
+> **Good to know**: Prerendering stops if the `GET` handler accesses network requests, database queries, async file system operations, request object properties (like `req.url`, `request.headers`, `request.cookies`, `request.body`), runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`connection()`](/docs/app/api-reference/functions/connection), or [random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps).
 
 **Cached example** - accesses uncached data (database query) but caches it with `use cache`, allowing it to be included in the prerendered response:
 

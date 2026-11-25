@@ -58,7 +58,7 @@ func main() {
 			continue
 		}
 		w := httptest.NewRecorder()
-		nextGoHandler()(w, r)
+		NextInternalGoHandler(nextGoTrustInternalHeaders)(w, r)
 		requestURI, path := w.Header().Get("x-url"), w.Header().Get("x-path")
 		// URL.Path must be the decoded form of the path in RequestURI.
 		escapedPath, _, _ := strings.Cut(requestURI, "?")
@@ -215,6 +215,7 @@ function buildHarness(
   writeFileSync(
     join(directory, 'handler.go'),
     template
+      .replace('__NEXT_GO_PACKAGE__', 'main')
       .replace(
         'const nextGoSkipProxyURLNormalize = false',
         `const nextGoSkipProxyURLNormalize = ${skip}`

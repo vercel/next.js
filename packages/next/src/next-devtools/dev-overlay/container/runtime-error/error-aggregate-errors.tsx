@@ -8,13 +8,9 @@ import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 interface ErrorAggregateErrorsProps {
   errors: ReadyErrorCause[]
-  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
-export function ErrorAggregateErrors({
-  errors,
-  dialogResizerRef,
-}: ErrorAggregateErrorsProps) {
+export function ErrorAggregateErrors({ errors }: ErrorAggregateErrorsProps) {
   return (
     // TODO: Wrap in SuspenseList
     <>
@@ -24,7 +20,6 @@ export function ErrorAggregateErrors({
           entry={entry}
           index={index}
           total={errors.length}
-          dialogResizerRef={dialogResizerRef}
         />
       ))}
     </>
@@ -35,14 +30,12 @@ interface ErrorAggregateEntryProps {
   entry: ReadyErrorCause
   index: number
   total: number
-  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
 function ErrorAggregateEntry({
   entry,
   index,
   total,
-  dialogResizerRef,
 }: ErrorAggregateEntryProps) {
   const frames = React.use(entry.frames())
   const trimmedMessage = entry.error.message.trim()
@@ -77,22 +70,12 @@ function ErrorAggregateEntry({
         />
       )}
 
-      {frames.length > 0 && (
-        <ErrorOverlayCallStack
-          dialogResizerRef={dialogResizerRef}
-          frames={frames}
-        />
-      )}
+      {frames.length > 0 && <ErrorOverlayCallStack frames={frames} />}
 
-      {entry.cause && (
-        <ErrorCause cause={entry.cause} dialogResizerRef={dialogResizerRef} />
-      )}
+      {entry.cause && <ErrorCause cause={entry.cause} />}
 
       {'aggregateErrors' in entry && entry.aggregateErrors !== null && (
-        <ErrorAggregateErrors
-          errors={entry.aggregateErrors}
-          dialogResizerRef={dialogResizerRef}
-        />
+        <ErrorAggregateErrors errors={entry.aggregateErrors} />
       )}
     </div>
   )
