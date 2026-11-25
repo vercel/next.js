@@ -38,6 +38,8 @@ Use standard Go APIs for everything else, such as `http.Redirect` for redirects 
 
 Pass `proxy.WithRequestHeaders(headers)` to `proxy.Next` or `proxy.Rewrite` to replace the downstream request headers. Omit the option or use `proxy.WithRequestHeaders(nil)` to keep them unchanged. An empty `http.Header{}` removes them all.
 
+Hop-by-hop headers, such as `Connection`, `Keep-Alive`, `Upgrade`, `Transfer-Encoding`, and headers named by `Connection`, are ignored. Cloning `r.Header` also forwards `X-Forwarded-Proto` downstream. Delete it from the clone if the downstream request should not receive it.
+
 ## Examples
 
 ### Rewriting a request
@@ -88,5 +90,10 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 - Go Proxy runs on every request.
 - Other `.go` files in the same directory as `proxy.go` are compiled with it and must use `package main`. Do not define a `main` function; Next.js generates it. If your project root already contains Go code, put the proxy in `src/proxy.go`, and put shared code in packages that `proxy.go` imports.
 - Go Proxy is only supported in App Router applications. A build fails if the project also has Pages Router routes or an `i18n` configuration.
-- `r.URL` is the URL a JavaScript Proxy would receive. Requests that the route could interpret differently from Proxy, such as paths with an encoded `.rsc` suffix, receive a `404` response before Proxy runs. Requests with a query string over 64 KiB or 4,096 parameters receive a `414` response.
+- `r.URL` follows JavaScript Proxy URL normalization, with these exceptions:
+  - Query values ending in `.rsc` are preserved.
+  - Query parameter names beginning with `nxtP` or `nxtI` are preserved.
+  - Segment prefetch requests use their page URL.
+- Requests that the route could interpret differently from Proxy, such as paths with an encoded `.rsc` suffix, receive a `404` response before Proxy runs. Requests with a query string over 64 KiB or more than 4,096 parameters receive a `414` response. Empty parameters count toward this limit.
+- Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
 - Go Proxy requires Turbopack.
