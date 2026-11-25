@@ -316,6 +316,12 @@ export default function Layout({ children }) {
 }
 ```
 
+### Prefetching Route Handlers
+
+`<Link>` treats its `href` as a page. If it points to a [Route Handler](/docs/app/api-reference/file-conventions/route), prefetching requests that URL and runs the handler, even if the user never clicks the link. For handlers with side-effects, such as a `GET` handler that logs the user out, this triggers the side-effect early.
+
+Use a plain `<a>` element to link to Route Handlers, file downloads, and other URLs that aren't pages, and use `POST` requests for actions like logging out. See [Linking to Route Handlers and downloads](/docs/app/api-reference/components/link#linking-to-route-handlers-and-downloads).
+
 ### Preventing too many prefetches
 
 Next.js automatically prefetches links in the viewport when using the `<Link>` component.
