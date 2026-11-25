@@ -181,9 +181,6 @@ function _type_of(obj) {
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ var createModuleWithDirectionFlag = false;
-/**
- * Maps module IDs to the factory functions that instantiate them.
- */ var moduleFactories = new Map();
 var REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -199,21 +196,10 @@ var REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 var contextPrototype = Context.prototype;
-contextPrototype.M = moduleFactories;
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 var toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
-}
-/**
- * Returns the cached module for `id`, or `undefined` if it has not been
- * instantiated yet. Rethrows the error if the module's factory threw.
- */ function getCachedModule(moduleCache, id) {
-    var module = moduleCache.get(id);
-    if (module === null || module === void 0 ? void 0 : module.error) {
-        throw module.error;
-    }
-    return module;
 }
 function getOverwrittenModule(moduleCache, id) {
     var module = moduleCache.get(id);
@@ -700,7 +686,7 @@ function esmImport(id) {
 }
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
-    var loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
+    var loader = this.r(moduleId);
     return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
@@ -833,11 +819,11 @@ contextPrototype.f = moduleContextFactory;
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // The flat format alternates one or more module IDs with their factory function.
 // Strict factories can be prepended as a nested array.
-function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
+function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     var i = offset;
     var strictFactories = chunkModules[i];
     if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, newModuleId);
+        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
         i++;
     }
     while(i < chunkModules.length){
@@ -1141,11 +1127,29 @@ function _unsupported_iterable_to_array(o, minLen) {
 }
 var browserContextPrototype = Context.prototype;
 var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
-// The load caches below dedupe in-flight and successful loads. A failed load must not stay
-// cached, or every later load of the same chunk would reuse the rejection without requesting
-// the chunk again, so entries are added with `cacheLoadPromise`.
+var moduleFactories = new Map();
+contextPrototype.M = moduleFactories;
 var availableModules = new Map();
 var availableModuleChunks = new Map();
+// Paths of every JS chunk whose module factories have been installed into this
+// runtime instance (page, worker, …), in registration order.
+//
+// Web workers get a fresh runtime realm, so module factories cannot be handed to
+// them directly (functions are not structured-cloneable). Instead `createWorker`
+// passes this list along with the worker's own chunks, and the worker re-imports
+// them — cheap, because the browser has them cached already. This is what lets
+// worker chunk groups use normal (nested) availability info instead of
+// `AvailabilityInfo::root()`, which is what breaks the self-referencing-worker
+// chunking cycle.
+var loadedJsChunkPaths = new Set();
+function registerLoadedJsChunk(chunk) {
+    loadedJsChunkPaths.add(getPathFromScript(chunk));
+}
+// Shared runtime primitive consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_get_loaded_chunk_paths__`.
+function getLoadedChunkPaths() {
+    return Array.from(loadedJsChunkPaths);
+}
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 var chunkComponents = new Map();
 // Registry mapping a component chunk's path to its size in bytes, used by the
@@ -1158,20 +1162,6 @@ function registerComponentChunkSizes(componentChunks, sizes) {
             componentChunkSizes.set(componentChunks[i], size);
         }
     }
-}
-/**
- * Caches `promise` under `key` and evicts it again if it rejects, so a later load retries
- * instead of reusing the failure.
- */ function cacheLoadPromise(cache, key, promise) {
-    cache.set(key, promise);
-    promise.catch(function() {
-        // HMR's `disposeChunk` can delete the entry while this load is pending, and a later load
-        // can then cache a new promise under the same key. Only evict our own entry, or a late
-        // rejection here would drop the newer promise and cause a duplicate fetch.
-        if (cache.get(key) === promise) {
-            cache.delete(key);
-        }
-    });
 }
 // Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
 var splitChunkPromises = new Map();
@@ -1234,7 +1224,7 @@ function loadChunkInternal(sourceType, sourceData, chunkData) {
                             if (!availableModules.has(included)) {
                                 // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
                                 // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
-                                cacheLoadPromise(availableModules, included, promise);
+                                availableModules.set(included, promise);
                             }
                         }
                     } catch (err) {
@@ -1329,7 +1319,7 @@ function loadChunkInternal(sourceType, sourceData, chunkData) {
                 var componentChunk1 = _step1.value;
                 if (!availableModuleChunks.has(componentChunk1)) {
                     var promise = loadChunkPath(sourceType, sourceData, componentChunk1);
-                    cacheLoadPromise(availableModuleChunks, componentChunk1, promise);
+                    availableModuleChunks.set(componentChunk1, promise);
                     componentChunkPromises.push(promise);
                 }
             }
@@ -1357,7 +1347,7 @@ function loadChunkInternal(sourceType, sourceData, chunkData) {
         for(var _iterator2 = componentChunks[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true){
             var componentChunk2 = _step2.value;
             if (!availableModuleChunks.has(componentChunk2)) {
-                cacheLoadPromise(availableModuleChunks, componentChunk2, promise1);
+                availableModuleChunks.set(componentChunk2, promise1);
             }
         }
     } catch (err) {
@@ -1412,7 +1402,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
             var promise = splitChunkPromises.get(chunkUrl);
             if (promise === undefined) {
                 promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
-                cacheLoadPromise(splitChunkPromises, chunkUrl, promise);
+                splitChunkPromises.set(chunkUrl, promise);
             }
             return promise;
         }
@@ -1424,7 +1414,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
             return existing === true ? loadedChunk : existing;
         }
         var promise1 = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
-        cacheLoadPromise(availableModuleChunks, chunkPath, promise1);
+        availableModuleChunks.set(chunkPath, promise1);
         return promise1;
     }
     // Component chunks are disabled, so the chunking context never emits merged arrays and every
@@ -1510,7 +1500,7 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
     var _ref;
-    var exported = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
+    var exported = this.r(moduleId);
     return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
@@ -1556,6 +1546,9 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
+// Shared runtime primitive: the JS chunks already loaded in this runtime, used
+// by the bundled worker helper so a child worker can re-import them.
+browserContextPrototype.G = getLoadedChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -1625,8 +1618,14 @@ contextPrototype.c = moduleCache;
  */ // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    var _getCachedModule;
-    return (_getCachedModule = getCachedModule(moduleCache, moduleId)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(moduleId, SourceType.Runtime, chunkPath);
+    var module = moduleCache.get(moduleId);
+    if (module) {
+        if (module.error) {
+            throw module.error;
+        }
+        return module;
+    }
+    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
@@ -1634,8 +1633,14 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
-    var _getCachedModule;
-    return (_getCachedModule = getCachedModule(moduleCache, id)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(id, SourceType.Parent, sourceModule.id);
+    var module = moduleCache.get(id);
+    if (module) {
+        if (module.error) {
+            throw module.error;
+        }
+        return module;
+    }
+    return instantiateModule(id, SourceType.Parent, sourceModule.id);
 };
 function instantiateModule(id, sourceType, sourceData) {
     var moduleFactory = moduleFactories.get(id);
@@ -1678,7 +1683,9 @@ function registerChunk(registration) {
         runtimeParams = registration[1];
     } else {
         runtimeParams = undefined;
-        installCompressedModuleFactories(registration, /* offset= */ 1);
+        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories);
+        // Only factory-bearing registrations are useful to pass on to a worker.
+        registerLoadedJsChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
