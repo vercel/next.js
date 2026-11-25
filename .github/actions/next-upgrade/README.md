@@ -1,0 +1,20 @@
+# Scheduled Next.js upgrades
+
+`next upgrade --ci` opens a setup pull request containing the weekly and manual caller workflow. Setup resolves the `vercel/next.js` release tag that matches the installed `next` version, reads the template and the reusable workflow at that commit, and pins the caller to its full SHA. Every job checks out only these workflow scripts at the same SHA. Preparation installs the published `next` package of exactly the version in `packages/next/package.json` from npm, and publication runs only the script dependencies locked in `package-lock.json`. Consumer runs never install or build the monorepo.
+
+The caller passes the repository-relative `app-path` and the `security` or `latest` `policy`. This version supports one app that uses npm, with a `package-lock.json` next to its `package.json`.
+
+Choose `agent-auth` from `codex-openai-api-key` (Codex with an OpenAI API key), `claude-anthropic-api-key` (Claude Code with an Anthropic API key), or `claude-subscription` (Claude Code with a `claude setup-token` token for a Claude subscription). The credential is registered as the GitHub Actions secret `NEXT_UPGRADE_AGENT_CREDENTIAL`. Only preparation receives it. Preparation first checks an API key by listing the provider's models, which uses no tokens. The agent runs as a separate user without sudo. With an API key, the agent never holds it: it reaches the provider API through a local proxy that adds the key. A subscription token may only be used by Claude Code, so it is passed to Claude Code as `CLAUDE_CODE_OAUTH_TOKEN`, as Anthropic's GitHub Action does, and Claude Code strips it from the commands it runs. Anthropic recommends an API key for a secret shared across repositories, because a subscription token belongs to the person who created it. The hosted agent uses the `model` and `effort` inputs, which setup fills when you pick something other than the default from the lists `next upgrade --agent` shows; empty values use the defaults of the pinned agent CLI. Preparation runs with read-only repository permissions.
+
+Preparation installs the app's dependencies with scripts off, then runs the pinned `next upgrade --agent=<policy>` in scheduled mode. The CLI assesses the app and, when an upgrade is ready, writes the same guides and prompt as a local `next upgrade --agent`. The agent upgrades and verifies the app in an isolated checkout. Preparation packages the agent's changes as a patch from a runner-owned snapshot. It rejects an empty change, changes under `.github` or `.gitmodules`, symlinks, submodules, new executable files or other mode changes, setuid or setgid files, and patches that contain the agent credential. After the agent starts, this process runs Git and sudo from `/usr/bin` with a fixed `PATH` and no Git templates, because the agent user can write to parts of the hosted runner image.
+
+The workflow stays on its pinned release. When a newer major version is available, the run reports it as blocked until the pin moves to a release of that major: update the commit in the workflow file, or delete it and run `next upgrade --ci` again.
+
+Publication requires the `publish-token` secret, passed from `NEXT_UPGRADE_PUBLISH_TOKEN`: a fine-grained personal access token with `contents` and `pull-requests` write access. GitHub App installation tokens expire after an hour, so they do not work as a stored secret. A run without the token stops before preparation. The job token only reads, so the caller grants `contents: read`. Publication commits the patch as one signed commit and opens or reuses one pull request for the app. To opt out of Next.js telemetry, set `telemetry-disabled: true` in the caller's workflow inputs. Setup sets it when the environment or the app's `.env` files already opt out.
+
+Regular verification uses the npm single-app fixture, real local Git, and a mock GitHub API. Run:
+
+```bash
+pnpm exec jest --runInBand test/unit/next-upgrade-action.test.ts
+pnpm test-dev-turbo test/e2e/agent-upgrade-ci/agent-upgrade-ci.test.ts
+```

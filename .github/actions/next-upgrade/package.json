@@ -1,0 +1,8 @@
+{
+  "name": "next-upgrade-action",
+  "private": true,
+  "description": "Pinned dependencies for the scheduled Next.js upgrade workflow scripts",
+  "dependencies": {
+    "semver": "7.3.7"
+  }
+}
