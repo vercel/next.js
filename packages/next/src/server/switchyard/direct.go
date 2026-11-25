@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/textproto"
 	"slices"
-	"strings"
 	"sync/atomic"
 
 	"github.com/vercel/next.js/packages/next/src/server/switchyard/routing"
@@ -30,34 +29,11 @@ type directState struct {
 	workers map[string]*goUpstream
 }
 
-// goUpstream is one route.go worker serving one route. A production build's
-// worker serves every route and selects one from x-matched-path.
+// goUpstream is one route.go worker.
 type goUpstream struct {
 	address     string
 	tokenHeader string
 	token       []string // as a header value, set as is on each request
-	route       []string // the route ID as the x-matched-path value
-}
-
-// matchedPathHeader names the route a worker serves, as the Next.js server
-// reads it from Vercel's routing.
-const matchedPathHeader = "X-Matched-Path"
-
-// setWorkerHeaders prepares the headers of a request forwarded to up. The
-// worker selects its handler from x-matched-path and trusts it once the token
-// matches, so every copy the client sent, in any letter case, and every
-// x-next-internal-* header is removed before the worker's own values are set.
-func (up *goUpstream) setWorkerHeaders(h http.Header) {
-	for name := range h {
-		lower := strings.ToLower(name)
-		if lower == "x-matched-path" || strings.HasPrefix(lower, "x-next-internal-") {
-			delete(h, name)
-		}
-	}
-	h[up.tokenHeader] = up.token
-	if up.route != nil {
-		h[matchedPathHeader] = up.route
-	}
 }
 
 func newSwitchyard(node http.Handler) *switchyard {
@@ -91,7 +67,6 @@ func (f *switchyard) apply(msg controlMessage) {
 			// request.
 			tokenHeader: textproto.CanonicalMIMEHeaderKey(msg.TokenHeader),
 			token:       []string{msg.Token},
-			route:       routeValue(msg.Route),
 		}
 	case "gone":
 		if msg.Token == "" {
@@ -114,15 +89,6 @@ func (f *switchyard) apply(msg controlMessage) {
 		return
 	}
 	f.state.Store(&next)
-}
-
-// routeValue is the x-matched-path value for a worker's route ID, sent as its
-// UTF-8 bytes. Development workers serve one route and have none.
-func routeValue(route string) []string {
-	if route == "" {
-		return nil
-	}
-	return []string{route}
 }
 
 // loadTable reads the route table.
