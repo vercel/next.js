@@ -117,7 +117,9 @@ func (f *switchyard) apply(msg controlMessage) {
 }
 
 // routeValue is the x-matched-path value for a worker's route ID, sent as its
-// UTF-8 bytes. Development workers serve one route and have none.
+// UTF-8 bytes. Every route.go worker has a route ID, including in development,
+// where its executable serves one route and ignores x-matched-path. A message
+// without one sets no x-matched-path, so the worker selects nothing.
 func routeValue(route string) []string {
 	if route == "" {
 		return nil

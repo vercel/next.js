@@ -85,12 +85,27 @@ func TestWorkerHeadersReplaceEveryClientRoutingValue(t *testing.T) {
 			t.Errorf("%s: headers %v, want %v", route, h, want)
 		}
 	}
-	// A development worker serves one route and gets no x-matched-path.
+	// A worker message without a route ID still removes the client's
+	// x-matched-path, and sets none, so the worker selects nothing.
 	up := &goUpstream{tokenHeader: "X-Next-Internal-Go-Token", token: []string{"secret"}, route: routeValue("")}
 	h := http.Header{"X-Matched-Path": {"/admin"}}
 	up.setWorkerHeaders(h)
 	if _, ok := h["X-Matched-Path"]; ok || len(h) != 1 {
-		t.Errorf("development worker headers %v", h)
+		t.Errorf("headers without a route ID %v", h)
+	}
+}
+
+func TestApplyKeepsADevelopmentWorkersRouteID(t *testing.T) {
+	// Development descriptors carry the route ID too, so Node announces it.
+	f := newSwitchyard(http.NotFoundHandler())
+	f.apply(controlMessage{Event: "worker", Page: "/api/[id]/route",
+		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret",
+		Route: "/api/[id]"})
+	up := f.state.Load().workers["/api/[id]/route"]
+	h := http.Header{"X-Matched-Path": {"/admin"}}
+	up.setWorkerHeaders(h)
+	if got := h["X-Matched-Path"]; len(got) != 1 || got[0] != "/api/[id]" {
+		t.Errorf("x-matched-path %v", got)
 	}
 }
 

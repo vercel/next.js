@@ -1446,11 +1446,22 @@ func GET(w http.ResponseWriter, r *http.Request) {
               { route: 'app/catch/static' },
             ],
             ['/native/[id]', '/adapter-base/native/one', { id: 'one' }],
-            // Non-ASCII characters and a literal % in the route ID.
+            // Non-ASCII characters and a literal % in the route ID, raw or
+            // percent-encoded, as the Next.js server accepts both.
             [
               '/adapter-special/café a 100%',
               '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
               { path: '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25' },
+            ],
+            [
+              '/adapter-special/caf%C3%A9%20a%20100%25',
+              '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+              { path: '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25' },
+            ],
+            [
+              '/catch/%5Bid%5D',
+              '/adapter-base/catch/one',
+              { route: 'app/catch/[id]', id: 'one' },
             ],
           ] as const) {
             const response = await invoke(path, matched)
@@ -1469,12 +1480,12 @@ func GET(w http.ResponseWriter, r *http.Request) {
             [['/catch/static', '/catch/static'], '/adapter-base/catch/static'],
             // basePath is not part of x-matched-path.
             ['/adapter-base/catch/static', '/adapter-base/catch/static'],
-            // The value is not percent-decoded.
-            ['/catch/%5Bid%5D', '/adapter-base/catch/one'],
-            [
-              '/adapter-special/caf%C3%A9%20a%20100%25',
-              '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
-            ],
+            // An escaped slash is never decoded, ? and # end the value, and
+            // the value is decoded at most once.
+            ['/catch%2Fstatic', '/adapter-base/catch/static'],
+            ['/catch/static?x=1', '/adapter-base/catch/static'],
+            ['/catch/static#x', '/adapter-base/catch/static'],
+            ['/catch/%255Bid%255D', '/adapter-base/catch/one'],
             ['/not-a-go-output', '/adapter-base/catch/static'],
             // The selected handler still requires its own pathname.
             ['/catch/static', '/adapter-base/catch/one'],
@@ -1499,17 +1510,6 @@ func GET(w http.ResponseWriter, r *http.Request) {
         },
         null
       )
-
-      // The percent-encoded routing header of earlier builds is gone. An
-      // adapter still setting it refuses to start instead of reading
-      // x-matched-path, which its platform may not set.
-      for (const routeId of [null, nativeOutput.id]) {
-        await expect(
-          withStandaloneRoute(nativeOutput, async () => {}, routeId, {
-            __NEXT_GO_ROUTE_HEADER: 'x-go-output-id',
-          })
-        ).rejects.toThrow('no longer supports __NEXT_GO_ROUTE_HEADER')
-      }
 
       // Model an adapter that requires authorization for the static output and
       // allows the dynamic output. Its routing decision must survive invocation,

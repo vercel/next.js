@@ -1500,6 +1500,7 @@ impl Issue for GoRouteIssue {
 #[turbo_tasks::value]
 struct GoRouteWarning {
     path: FileSystemPath,
+    title: RcStr,
     message: RcStr,
 }
 
@@ -1516,9 +1517,7 @@ impl Issue for GoRouteWarning {
         Ok(self.path.clone())
     }
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!(
-            "route.go cannot be selected in production"
-        )))
+        Ok(StyledString::Text(self.title.clone()))
     }
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.message.clone())))
@@ -1526,7 +1525,7 @@ impl Issue for GoRouteWarning {
 }
 
 /// The route ID that an adapter executable selects for an `x-matched-path` value, as
-/// `nextGoMatchedPathID` in `templates/go_routes_select.go` computes it. It mirrors the steps the
+/// `nextGoMatchedPathID` in `templates/go_routes_select.go` computes it. It mirrors steps the
 /// Next.js server applies to the header (`denormalizePagePath`): backslashes become slashes,
 /// `/index` becomes `/`, and a static `/index/...` loses its `/index` prefix.
 fn go_matched_path_id(value: &str) -> String {
@@ -1558,27 +1557,80 @@ fn go_route_id_header_issue(id: &str) -> Option<String> {
     })
 }
 
+/// Decodes `%XX` escapes once, as `nextGoMatchedPathID` in `templates/go_routes_select.go` does for
+/// an `x-matched-path` value that contains `%`. Returns `None` where Go selects no decoded form: an
+/// invalid escape, an escaped `/` or `\`, or a result that is not UTF-8.
+fn go_matched_path_unescape(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let hex = bytes.get(index + 1..index + 3)?;
+            if !hex.iter().all(u8::is_ascii_hexdigit) {
+                return None;
+            }
+            let byte = u8::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()?;
+            if byte == b'/' || byte == b'\\' {
+                return None;
+            }
+            decoded.push(byte);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).ok()
+}
+
 /// Why an adapter executable cannot select a Go route ID, if so. It normalizes `x-matched-path`
 /// as the Next.js server does (`go_matched_path_id`), so the ID must normalize to itself.
 /// Otherwise the ID would select another route, such as `/index/docs` selecting `/docs`, or
-/// nothing. `known` lists every Go route ID of the build, for the message.
+/// nothing. The Next.js server cuts the header at `?` and `#`, so IDs containing them cannot be
+/// sent either. The executable also accepts a percent-encoded value, so an ID whose decoded form
+/// is another route's ID would make its own raw value ambiguous, and the executable would select
+/// neither. `known` lists every Go route ID of the build; without it the message names no other
+/// route.
 fn go_matched_path_issue(id: &str, known: &[&str]) -> Option<String> {
-    let selected = go_matched_path_id(id);
-    if selected == id {
-        return None;
+    const SELECTION: &str = "Adapter builds compile every route.go into one executable that \
+                             selects a route from x-matched-path much as the Next.js server does";
+    if id.contains(['?', '#']) {
+        return Some(format!(
+            "The Go route {id} cannot be selected in adapter deployments, because its path \
+             contains ? or #, where the Next.js server ends the x-matched-path header. \
+             {SELECTION}. Rename the folder."
+        ));
     }
-    let target = if known.contains(&selected.as_str()) {
-        format!("the Go route {selected}, a different route")
-    } else {
-        format!("{selected}, which is not a Go route")
-    };
-    Some(format!(
-        "The Go route {id} cannot be selected in adapter deployments, because the x-matched-path \
-         header reads {id} as {target}. Adapter builds compile every route.go into one executable \
-         that selects a route from x-matched-path the way the Next.js server does, which reads \
-         /index as /, drops a leading /index from a static path, and reads backslashes as \
-         slashes. Rename the folder."
-    ))
+    let selected = go_matched_path_id(id);
+    if selected != id {
+        let target = if known.contains(&selected.as_str()) {
+            format!("the Go route {selected}, a different route")
+        } else if known.is_empty() {
+            selected
+        } else {
+            format!("{selected}, which is not a Go route")
+        };
+        return Some(format!(
+            "The Go route {id} cannot be selected in adapter deployments, because the \
+             x-matched-path header reads {id} as {target}. {SELECTION}, which reads /index as /, \
+             drops a leading /index from a static path, and reads backslashes as slashes. Rename \
+             the folder."
+        ));
+    }
+    if id.contains('%')
+        && let Some(decoded) = go_matched_path_unescape(id)
+    {
+        let decoded = go_matched_path_id(&decoded);
+        if decoded != id && known.contains(&decoded.as_str()) {
+            return Some(format!(
+                "The Go route {id} cannot be selected in adapter deployments, because its path is \
+                 the percent-encoded spelling of the Go route {decoded}, and x-matched-path \
+                 accepts both spellings. {SELECTION}. Rename the folder."
+            ));
+        }
+    }
+    None
 }
 
 /// Go route IDs that a production executable cannot select, each with the reason. Every build
@@ -1825,6 +1877,90 @@ struct GoRoutesBundle {
     executable_name: Option<RcStr>,
     executable: Option<ResolvedVc<Box<dyn OutputAsset>>>,
     build: Option<turbopack_go::GoBundleResult>,
+}
+
+/// Warnings for a route.go in development about checks that only production builds run, as
+/// `(title, message)`. Development compiles each route on its own and serves it without
+/// x-matched-path, so these routes still work there.
+async fn go_dev_route_warnings(
+    project: ResolvedVc<Project>,
+    session: Vc<GoBuildSession>,
+    path: &FileSystemPath,
+    route_id: &str,
+) -> Result<Vec<(RcStr, String)>> {
+    let mut warnings = vec![];
+    let Some(app_project) = *project.app_project().await? else {
+        return Ok(warnings);
+    };
+    let mut routes = vec![];
+    for entrypoint in app_project.app_entrypoints().await?.values() {
+        if let AppEntrypoint::AppGoRoute { page, path, .. } = entrypoint {
+            routes.push((AppPath::from(page.clone()).to_string(), path.clone()));
+        }
+    }
+    let ids = routes.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>();
+    if let Some(message) = go_route_id_header_issue(route_id) {
+        warnings.push((rcstr!("route.go fails production builds"), message));
+    } else if let Some(message) = go_matched_path_issue(route_id, &ids) {
+        warnings.push((
+            rcstr!("route.go cannot be selected in adapter deployments"),
+            message,
+        ));
+    }
+    // Production builds require one Go module for every route.go.
+    let source_root = project.project_root_path().owned().await?;
+    let display = |path: &FileSystemPath| -> String {
+        if *path == source_root {
+            ".".to_owned()
+        } else {
+            source_root
+                .get_path_to(path)
+                .map_or_else(|| path.path.to_string(), str::to_owned)
+        }
+    };
+    let mut own = None;
+    let mut others = BTreeMap::<String, Vec<String>>::new();
+    for (_, route) in &routes {
+        let directory = route.parent();
+        let sources = go_source_set(
+            source_root.clone(),
+            directory.clone(),
+            GoSourceSelection::Directory,
+            session,
+        )
+        .await?;
+        let module = if sources.has_go_mod {
+            format!("the Go module at {}/go.mod", display(&sources.root))
+        } else {
+            "no Go module (no go.mod)".to_owned()
+        };
+        if route == path {
+            own = Some(module);
+        } else {
+            others.entry(module).or_default().push(display(&directory));
+        }
+    }
+    if let Some(own) = own {
+        others.remove(&own);
+        if !others.is_empty() {
+            let others = others
+                .iter()
+                .map(|(module, directories)| format!("{} ({module})", directories.join(", ")))
+                .collect::<Vec<_>>()
+                .join("; ");
+            warnings.push((
+                rcstr!("route.go fails production builds"),
+                format!(
+                    "Production builds compile every route.go into one executable, so all \
+                     route.go directories must belong to one Go module. {} uses {own}, but other \
+                     routes use a different module: {others}. Move these routes into one module, \
+                     for example by using a single go.mod at the project root.",
+                    display(&path.parent())
+                ),
+            ));
+        }
+    }
+    Ok(warnings)
 }
 
 /// Compile every App Router `route.go` of a production build into one executable. Each route
@@ -2238,16 +2374,18 @@ impl Endpoint for GoEndpoint {
         } else {
             // Development serves each route from its own executable, without x-matched-path.
             // Warn about routes that a production build will reject, before deployment.
-            if !is_proxy
-                && let Some(message) = go_route_id_header_issue(&route_id)
-                    .or_else(|| go_matched_path_issue(&route_id, &[]))
-            {
-                GoRouteWarning {
-                    path: this.path.clone(),
-                    message: message.into(),
+            if !is_proxy {
+                for (title, message) in
+                    go_dev_route_warnings(project, session, &this.path, &route_id).await?
+                {
+                    GoRouteWarning {
+                        path: this.path.clone(),
+                        title,
+                        message: message.into(),
+                    }
+                    .resolved_cell()
+                    .emit();
                 }
-                .resolved_cell()
-                .emit();
             }
             let source_set = package.sources.await?;
             let module_root = source_set.root.clone();
@@ -4142,6 +4280,23 @@ mod tests {
         assert!(rejected(&normalized, false).is_empty());
         // An ID that would select nothing is rejected too.
         assert_eq!(rejected(&["/index/only"], true), ["/index/only"]);
+        // The Next.js server ends the header at ? and #.
+        assert_eq!(rejected(&["/a?b", "/a#b", "/ab"], true), ["/a?b", "/a#b"]);
+        assert!(rejected(&["/a?b", "/a#b"], false).is_empty());
+        // The executable accepts the percent-encoded spelling of an ID, so an ID that spells
+        // another ID's encoding would be ambiguous. Escaped slashes, invalid escapes and
+        // escapes of IDs that don't exist decode to nothing that matters.
+        assert_eq!(
+            rejected(&["/x/[id]", "/x/%5Bid%5D", "/caf%C3%A9", "/café"], true),
+            ["/x/%5Bid%5D", "/caf%C3%A9"]
+        );
+        assert!(
+            rejected(
+                &["/a/b", "/a%2Fb", "/a%5Cb", "/100%", "/y/%5Bid%5D", "/%zz"],
+                true
+            )
+            .is_empty()
+        );
         for adapter in [true, false] {
             assert_eq!(
                 rejected(
@@ -4150,13 +4305,14 @@ mod tests {
                 ),
                 ["/tab\tname", "/new\nline", "/trailing "]
             );
-            // Percent-encoding is not decoded, and dynamic /index paths keep their prefix.
+            // A literal percent spelling without the route it spells is fine, and dynamic
+            // /index paths keep their prefix.
             assert!(
                 rejected(
                     &[
                         "/",
                         "/x/[id]",
-                        "/x/%5Bid%5D",
+                        "/y/%5Bid%5D",
                         "/index/[id]",
                         "/[id]",
                         "/café a 100%",
@@ -4166,6 +4322,13 @@ mod tests {
                 )
                 .is_empty()
             );
+        }
+        assert_eq!(
+            go_matched_path_unescape("/caf%C3%A9%20a%20100%25").as_deref(),
+            Some("/café a 100%")
+        );
+        for invalid in ["/a%2Fb", "/a%2fb", "/a%5Cb", "/100%", "/%zz", "/%FF"] {
+            assert_eq!(go_matched_path_unescape(invalid), None, "{invalid}");
         }
         let messages = go_matched_path_issues(&["/docs", "/index/docs", "/index/only"], true);
         assert!(

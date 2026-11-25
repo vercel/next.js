@@ -12,8 +12,8 @@ import (
 func main() {
 	// The platform selects and authorizes an output before invoking the server.
 	// Requests never select a handler by re-matching their pathname against the
-	// compiled routes. Each request selects its output from x-matched-path, as
-	// the Next.js server reads it, unless the adapter binds the process to one
+	// compiled routes. Each request selects its output from x-matched-path, much
+	// as the Next.js server reads it, unless the adapter binds the process to one
 	// output at startup. See nextGoSelectHandler.
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
@@ -53,17 +53,10 @@ const nextGoRouteRequirement = "route.go adapter server requires __NEXT_GO_ROUTE
 // nextGoSelectHandler reads trusted process configuration from the adapter.
 // __NEXT_GO_ROUTE binds the process to the output with exactly that ID.
 // Otherwise each request selects its output from x-matched-path, which the
-// platform sets from its routing decision and clients cannot set, as the
-// Next.js server reads it in minimal mode (see nextGoMatchedPathHandler). A
+// platform sets from its routing decision and clients cannot set, much as the
+// Next.js server reads it in minimal mode (see nextGoSelectMatchedPath). A
 // request that selects no output gets a 404. The pathname never selects one.
 func nextGoSelectHandler(routes map[string]http.HandlerFunc) http.HandlerFunc {
-	// Earlier builds read the output ID, percent-encoded, from a header named
-	// here. An adapter still setting it may run on a platform that does not set
-	// x-matched-path, so refuse to start rather than read that header instead.
-	if _, ok := os.LookupEnv("__NEXT_GO_ROUTE_HEADER"); ok {
-		panic("route.go adapter server no longer supports __NEXT_GO_ROUTE_HEADER: " +
-			"set x-matched-path on each request to the selected output.id, or set __NEXT_GO_ROUTE")
-	}
 	if selected, ok := os.LookupEnv("__NEXT_GO_ROUTE"); ok {
 		handler, ok := routes[selected]
 		if !ok {

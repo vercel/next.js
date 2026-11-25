@@ -85,6 +85,40 @@ describeUnix('checkNativeRouteStartup', () => {
     await expect(check).rejects.not.toThrow(/did not finish initializing/)
   })
 
+  it('decides when the executable exits, even if a child keeps stderr open', async () => {
+    // A process started during initialization inherits stderr.
+    await executable(
+      'go-routes-background',
+      'echo initialized >&2; sleep 4 & exit 0'
+    )
+    await descriptor('app/a/route.native.json', 'go-routes-background')
+    const started = Date.now()
+    await expect(
+      checkNativeRouteStartup(
+        dir,
+        join(dir, '.next'),
+        ['app/a/route.native.json'],
+        { timeoutMs: 3000 }
+      )
+    ).resolves.toBeUndefined()
+    expect(Date.now() - started).toBeLessThan(2000)
+
+    await executable(
+      'go-routes-background-fail',
+      'sleep 4 & echo boom >&2; exit 3'
+    )
+    await descriptor('app/a/route.native.json', 'go-routes-background-fail')
+    await expect(
+      checkNativeRouteStartup(
+        dir,
+        join(dir, '.next'),
+        ['app/a/route.native.json'],
+        { timeoutMs: 3000 }
+      )
+    ).rejects.toThrow(/failed while initializing \(exit code 3\)[\s\S]*boom$/)
+    expect(Date.now() - started).toBeLessThan(4000)
+  })
+
   it('reports a timeout with the output so far', async () => {
     // The shell's sleep keeps stderr open after the executable is stopped.
     await executable('go-routes-slow', 'echo connecting >&2; sleep 5')

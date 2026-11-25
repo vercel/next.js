@@ -8,6 +8,8 @@ export const NATIVE_ROUTE_STARTUP_CHECK_ENV = '__NEXT_GO_STARTUP_CHECK'
 const STARTUP_CHECK_TIMEOUT_MS = 30_000
 /** The most initialization output kept for the build error. */
 const STARTUP_CHECK_MAX_STDERR_BYTES = 1024 * 1024
+/** How long stderr is still read after the executable exits. */
+const STDERR_GRACE_MS = 100
 
 const OPT_OUT =
   'If route packages need runtime-only configuration while they initialize, or ' +
@@ -61,7 +63,9 @@ function initialize(
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(executable, [], {
-      // `next start` runs the executable from the project directory.
+      // The project directory. `next start` spawns the executable without a
+      // cwd, so there it runs from next start's working directory, normally
+      // the project directory too (see the route.go docs).
       cwd,
       env: { ...process.env, [NATIVE_ROUTE_STARTUP_CHECK_ENV]: '1' },
       // Only stderr explains a failure; stdout is never read.
@@ -103,15 +107,27 @@ function initialize(
       clearTimeout(timer)
       fail(`could not be started (${error.message})`)
     })
-    // A stopped executable's children could keep stderr open, so report it
-    // as soon as the executable itself exits.
-    child.once('exit', () => {
-      if (stopped) child.stderr!.destroy()
+    // The executable decides the outcome when it exits. A child it started
+    // can inherit stderr and keep it open long after that, so read what is
+    // already in the pipe for a moment, then stop reading.
+    let exited:
+      | { code: number | null; signal: NodeJS.Signals | null }
+      | undefined
+    let grace: NodeJS.Timeout | undefined
+    child.once('exit', (code, signal) => {
+      clearTimeout(timer)
+      exited = { code, signal }
+      grace = setTimeout(() => child.stderr!.destroy(), STDERR_GRACE_MS)
     })
-    child.once('close', (code, signal) => {
+    child.once('close', (closeCode, closeSignal) => {
+      clearTimeout(grace)
       if (settled) return
       settled = true
       clearTimeout(timer)
+      const { code, signal } = exited ?? {
+        code: closeCode,
+        signal: closeSignal,
+      }
       if (stopped === 'timeout') {
         fail(`did not finish initializing within ${timeoutMs / 1000} seconds`)
       } else if (stopped === 'output') {
