@@ -579,7 +579,7 @@ type IdleProcessQueue = Arc<HeapQueue<NodeJsPoolProcess>>;
 /// The idle process queues of all live [`ChildProcessPool`]s of the whole application.
 /// This is used to scale down processes globally.
 ///
-/// A pool registers its queue when it is created, and its [`PoolRegistration`] unregisters it
+/// A pool registers its queue when it is created, and its [`ClosePoolOnDrop`] guard unregisters it
 /// when the pool is dropped.
 static ACTIVE_POOLS: LazyLock<Mutex<Vec<IdleProcessQueue>>> = LazyLock::new(Default::default);
 
@@ -589,18 +589,18 @@ static ACTIVE_POOLS: LazyLock<Mutex<Vec<IdleProcessQueue>>> = LazyLock::new(Defa
 /// invalidation, evicted, or dropped when turbo-tasks shuts down), this unregisters the queue and
 /// closes it: its idle processes are killed, and processes that in-flight operations or pre-warming
 /// return to it later are killed instead of being kept.
-struct PoolRegistration {
+struct ClosePoolOnDrop {
     idle_processes: IdleProcessQueue,
 }
 
-impl PoolRegistration {
+impl ClosePoolOnDrop {
     fn new(idle_processes: IdleProcessQueue) -> Self {
         ACTIVE_POOLS.lock().push(idle_processes.clone());
         Self { idle_processes }
     }
 }
 
-impl Drop for PoolRegistration {
+impl Drop for ClosePoolOnDrop {
     fn drop(&mut self) {
         {
             let mut pools = ACTIVE_POOLS.lock();
@@ -676,7 +676,7 @@ struct ChildProcessPool {
     idle_processes: IdleProcessQueue,
     /// Keeps `idle_processes` registered in [`ACTIVE_POOLS`] until the pool is dropped.
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
-    _registration: PoolRegistration,
+    _close_on_drop: ClosePoolOnDrop,
     /// Semaphore to limit the number of concurrent operations in general
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
@@ -739,7 +739,7 @@ impl ChildProcessPool {
             project_dir,
             concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
             bootup_semaphore: Arc::new(Semaphore::new(1)),
-            _registration: PoolRegistration::new(idle_processes.clone()),
+            _close_on_drop: ClosePoolOnDrop::new(idle_processes.clone()),
             idle_processes,
             shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
             shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
