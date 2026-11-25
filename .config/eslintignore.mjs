@@ -43,7 +43,6 @@ export default globalIgnores([
   'bench/nested-deps-app-router/**/*',
   'bench/heavy-npm-deps/**/*',
   'packages/next-bundle-analyzer/index.d.ts',
-  'examples/with-typescript-graphql/lib/gql/',
   'test/development/basic/hmr/components/parse-error.js',
   'test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx',
   'test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/page.tsx',
