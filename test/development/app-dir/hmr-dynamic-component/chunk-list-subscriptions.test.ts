@@ -61,9 +61,16 @@ describe('hmr-dynamic-component chunk list subscriptions', () => {
     //   1. The shared client runtime chunk list (covers react/polyfills/etc.)
     //   2. A page-specific chunk list that owns the RSC client reference chunks
     //      (built outside the shared module graph via chunk_group(IsolatedMerged)).
+    // With lazy dynamic imports, every dynamic import is loaded through a
+    // manifest chunk that has a chunk list of its own, including the dev HMR
+    // client that Next.js imports dynamically. That one is not a page chunk list.
     await retry(async () => {
       const chunkListPaths = new Set(
-        sentSubscribes.filter((m) => m.path.endsWith('.js')).map((m) => m.path)
+        sentSubscribes
+          .filter(
+            (m) => m.path.endsWith('.js') && !m.path.includes('hmr-client')
+          )
+          .map((m) => m.path)
       )
       expect(chunkListPaths.size).toBe(2)
     })

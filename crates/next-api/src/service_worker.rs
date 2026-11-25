@@ -125,6 +125,7 @@ async fn service_worker_chunk(
                 include_mergeable: false,
                 include_traced: *project.should_trace().await?,
                 include_binding_usage: is_production,
+                force_activated: false,
             },
         )],
         /* binding_usage */ None,

@@ -4,13 +4,13 @@ import {
   completeRequestInsight,
   configureRequestInsightsHistoryProvider,
   getRequestInsightsSnapshot,
-  importRequestInsightSpans,
   recordRequestInsightFetch,
   registerRequestInsightsExporter,
   recordRequestInsightSource,
   startRequestInsight,
   subscribeRequestInsights,
 } from './request-insights'
+import { importRequestInsightSpans } from './import-request-insight-spans'
 import {
   appendArchivedRequestInsightUpdateToJournal,
   appendRequestInsightToJournal,

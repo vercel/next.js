@@ -89,6 +89,103 @@ pub async fn replace_well_known<'a>(
     })
 }
 
+/// Returns the well-known value of a global variable, e.g. `process` or `URL`.
+///
+/// This only covers actual globals, i.e. values that are also reachable as a property of the
+/// global object (`globalThis.process`). Module-scoped free variables like `require` or
+/// `__dirname` are not included.
+///
+/// `ignore` is set when the expression is annotated with `turbopackIgnore`.
+fn well_known_global<'a>(name: &str, ignore: bool) -> Option<JsValue<'a>> {
+    Some(match name {
+        "globalThis" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis),
+        "global" => JsValue::WellKnownObject(WellKnownObjectKind::NodeGlobal),
+        "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault),
+        "Object" => JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
+        "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
+        "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
+        "URL" => JsValue::unknown_if(
+            ignore,
+            JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+            true,
+            rcstr!("ignored URL constructor"),
+        ),
+        "Worker" => JsValue::unknown_if(
+            ignore,
+            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+            true,
+            rcstr!("ignored Worker constructor"),
+        ),
+        "SharedWorker" => JsValue::unknown_if(
+            ignore,
+            JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
+            true,
+            rcstr!("ignored SharedWorker constructor"),
+        ),
+        _ => return None,
+    })
+}
+
+/// Returns the well-known value of a property of the global object, i.e. `globalThis.process` or
+/// `global.process`.
+///
+/// TODO: Do this for the other globals from `well_known_global` as well (e.g.
+/// `new globalThis.Worker()`, `new globalThis.URL()`, `globalThis.Buffer.from()`).
+fn well_known_global_object_member<'a>(value: &JsValue<'a>) -> Option<JsValue<'a>> {
+    let JsValue::Member(_, obj, prop) = value else {
+        return None;
+    };
+    if !matches!(
+        &**obj,
+        JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis | WellKnownObjectKind::NodeGlobal)
+    ) {
+        return None;
+    }
+    match prop.as_str()? {
+        "process" => Some(JsValue::WellKnownObject(
+            WellKnownObjectKind::NodeProcessModuleDefault,
+        )),
+        _ => None,
+    }
+}
+
+/// Replaces a reference to a global with its well-known value, both as a free variable
+/// (`process`) and as a property of the global object (`globalThis.process`, `global.process`).
+///
+/// A property of the global object is only replaced when it is used: as the object of a member
+/// access or member call (`globalThis.process.env`, `globalThis.process.cwd()`), or as a callee.
+/// Using the value would throw if it doesn't exist, so it's safe to assume it's the global.
+/// The property itself (`globalThis.process`) is left as is, since it's commonly used for feature
+/// detection (`if (globalThis.process)`) and the global might not exist at runtime. Folding it to
+/// a well-known (always truthy) value would remove the fallback branch.
+///
+/// Unknown properties of the global object (e.g. `globalThis.foo`) are left as is too, so that
+/// they keep their definable name and can still be replaced by compile-time defines.
+///
+/// Returns `true` when the value was modified.
+pub fn replace_well_known_global<'a>(value: &mut JsValue<'a>, ignore: bool) -> bool {
+    let used = match value {
+        JsValue::FreeVar(name) => {
+            return if let Some(replacement) = well_known_global(name, ignore) {
+                *value = replacement;
+                true
+            } else {
+                false
+            };
+        }
+        JsValue::Member(_, obj, _) => &mut **obj,
+        JsValue::MemberCall(_, list) => list.obj_mut(),
+        JsValue::Call(_, list) | JsValue::New(_, list) => list.callee_mut(),
+        _ => return false,
+    };
+    let Some(replacement) = well_known_global_object_member(used) else {
+        return false;
+    };
+    *used = replacement;
+    value.update_total_nodes();
+    true
+}
+
 pub async fn well_known_function_call<'a>(
     arena: &'a ThreadLocal<Bump>,
     kind: WellKnownFunctionKind<'a>,
@@ -659,6 +756,12 @@ fn well_known_function_member<'a>(
         (WellKnownFunctionKind::Import, Some("meta")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
+        (
+            WellKnownFunctionKind::HasOwnProperty
+            | WellKnownFunctionKind::PropertyIsEnumerable
+            | WellKnownFunctionKind::ValueOf,
+            Some("call"),
+        ) => JsValue::WellKnownFunction(WellKnownFunctionKind::FunctionCall),
         #[allow(unreachable_patterns)]
         (kind, _) => {
             return (
@@ -677,7 +780,7 @@ async fn well_known_object_member<'a>(
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<(JsValue<'a>, Modified)> {
     let new_value = match kind {
-        WellKnownObjectKind::GlobalObject => global_object(arena.get_or_default(), prop),
+        WellKnownObjectKind::ObjectConstructor => global_object(arena.get_or_default(), prop),
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
             path_module_member(arena, kind, prop, compile_time_info).await?
         }
@@ -710,6 +813,46 @@ async fn well_known_object_member<'a>(
         }
         WellKnownObjectKind::NodeProcessModule | WellKnownObjectKind::NodeProcessModuleDefault => {
             node_process_member(arena, kind, prop, compile_time_info).await?
+        }
+        WellKnownObjectKind::NodeProcessEnv => {
+            let method = prop.as_str().and_then(object_prototype_method);
+            match method {
+                Some(func) => {
+                    let arena = arena.get_or_default();
+                    JsValue::alternatives(BumpVec::from_iter_in(
+                        arena,
+                        [
+                            JsValue::WellKnownFunction(func),
+                            // An env var with the same name would shadow the method
+                            JsValue::unknown(
+                                JsValue::member(arena, JsValue::WellKnownObject(kind), prop),
+                                false,
+                                rcstr!("could also be an env var"),
+                            ),
+                        ],
+                    ))
+                }
+                None => {
+                    return Ok((
+                        JsValue::member(
+                            arena.get_or_default(),
+                            JsValue::WellKnownObject(kind),
+                            prop,
+                        ),
+                        Modified::No,
+                    ));
+                }
+            }
+        }
+        WellKnownObjectKind::ObjectPrototype => {
+            match prop.as_str().and_then(object_prototype_method) {
+                Some(func) => JsValue::WellKnownFunction(func),
+                None => JsValue::unknown(
+                    JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
+                    true,
+                    rcstr!("unsupported property on Object.prototype"),
+                ),
+            }
         }
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeExpressApp => express(arena.get_or_default(), prop),
@@ -819,10 +962,28 @@ async fn well_known_object_member<'a>(
 fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
     match prop.as_str() {
         Some("assign") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+        Some("hasOwn") => JsValue::alternatives(BumpVec::from_iter_in(
+            arena,
+            [
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectHasOwn),
+                // `Object.hasOwn` is missing in older runtimes, so feature checks like
+                // `Object.hasOwn || fallback` must not be folded
+                JsValue::unknown(
+                    JsValue::member(
+                        arena,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
+                        prop,
+                    ),
+                    true,
+                    rcstr!("might not be supported by the runtime"),
+                ),
+            ],
+        )),
+        Some("prototype") => JsValue::WellKnownObject(WellKnownObjectKind::ObjectPrototype),
         _ => JsValue::unknown(
             JsValue::member(
                 arena,
-                JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
+                JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
                 prop,
             ),
             true,
@@ -1112,6 +1273,17 @@ async fn node_process_member<'a>(
             rcstr!("unsupported property on Node.js process object"),
         ),
     })
+}
+
+/// The `Object.prototype` methods that are modeled as well-known functions. They are also
+/// inherited by `process.env` (unless there is an env var with that name).
+fn object_prototype_method<'a>(prop: &str) -> Option<WellKnownFunctionKind<'a>> {
+    match prop {
+        "hasOwnProperty" => Some(WellKnownFunctionKind::HasOwnProperty),
+        "propertyIsEnumerable" => Some(WellKnownFunctionKind::PropertyIsEnumerable),
+        "valueOf" => Some(WellKnownFunctionKind::ValueOf),
+        _ => None,
+    }
 }
 
 fn node_pre_gyp<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {

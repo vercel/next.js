@@ -14,7 +14,7 @@ import {
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { createContext, useContext, useEffect, useRef } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
   ACTION_DEV_INDICATOR_SET,
@@ -22,18 +22,35 @@ import {
   ACTION_DEVTOOLS_SCALE,
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
+  type ErrorOverlayTab,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
 import { LoadingIcon } from '../icons/loading-icon'
 import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
-import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import { RequestInsightsPanel } from '../components/request-insights/request-insights-panel'
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
 import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
+import { IndicatorVisibilityNotice } from '../components/devtools-indicator/indicator-visibility-notice'
+
+const INDICATOR_SHORTCUT_KEY = 'nextjs-devtools-indicator-shortcut'
+
+function readIndicatorShortcut(): string | null {
+  try {
+    const shortcut = localStorage.getItem(INDICATOR_SHORTCUT_KEY)
+    return shortcut &&
+      /^(?:(?:Meta|Control|Alt|Shift)\+){0,4}[A-Za-z][A-Za-z0-9]{0,31}$/.test(
+        shortcut
+      )
+      ? shortcut
+      : null
+  } catch {
+    return null
+  }
+}
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
@@ -54,22 +71,26 @@ const MenuPanel = () => {
   }
   if (hasInstant) {
     titleParts.push(
-      `${instantErrorCount} ${instantErrorCount === 1 ? 'insight' : 'insights'}`
+      `${instantErrorCount} ${instantErrorCount === 1 ? 'Insight' : 'Insights'}`
     )
   }
-  const label =
-    hasNormal && hasInstant
-      ? 'Issues · Insights'
-      : hasInstant
-        ? 'Insights'
-        : 'Issues'
+
+  function openOverlayTab(tab: ErrorOverlayTab) {
+    setPanel(null)
+    setSelectedIndex(-1)
+    if (state.isErrorOverlayOpen && state.errorOverlayTab === tab) {
+      dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
+      return
+    }
+    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN, tab })
+  }
 
   return (
     <DevtoolMenu
       items={[
         hasAny && {
-          title: `${titleParts.join(' · ')} found. Click to view details in the dev overlay.`,
-          label,
+          title: `${titleParts.join(' and ')} found. Click to view details in the dev overlay.`,
+          label: 'Diagnostics',
           value: (
             <span className="dev-tools-indicator-issue-counts">
               {hasNormal && (
@@ -80,15 +101,10 @@ const MenuPanel = () => {
               )}
             </span>
           ),
-          onClick: () => {
-            if (state.isErrorOverlayOpen) {
-              dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
-              setPanel(null)
-              return
-            }
-            setPanel(null)
-            setSelectedIndex(-1)
-            dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+          // Opens on Issues when there are any, otherwise on Insights.
+          onClick: () => openOverlayTab(hasNormal ? 'errors' : 'instant'),
+          attributes: {
+            'data-menu-diagnostics': true,
           },
         },
         state.staticIndicator === 'disabled'
@@ -201,37 +217,66 @@ const MenuPanel = () => {
   )
 }
 
-// a little hacky but it does the trick
 const useToggleDevtoolsVisibility = () => {
-  const { state, dispatch, shadowRoot } = useDevOverlayContext()
-  return () => {
-    dispatch({
-      type: ACTION_DEV_INDICATOR_SET,
-      disabled: !state.disableDevIndicator,
+  const { state, dispatch } = useDevOverlayContext()
+  const { setPanel, setSelectedIndex } = usePanelRouterContext()
+  const [hideNotice, setHideNotice] = useState<{
+    errors: typeof state.errors
+    hasVulnerabilityInsight: boolean
+  } | null>(null)
+  // A new diagnostic takes the badge's place and must remain accessible.
+  const showHideNotice =
+    hideNotice?.errors === state.errors &&
+    hideNotice?.hasVulnerabilityInsight === state.hasVulnerabilityInsight &&
+    !state.buildError
+
+  function setHidden(disabled: boolean) {
+    dispatch({ type: ACTION_DEV_INDICATOR_SET, disabled })
+    setPanel(null)
+    setSelectedIndex(-1)
+    setHideNotice(
+      disabled && !state.buildError
+        ? {
+            errors: state.errors,
+            hasVulnerabilityInsight: state.hasVulnerabilityInsight,
+          }
+        : null
+    )
+    fetch('/__nextjs_disable_dev_indicator', {
+      method: disabled ? 'POST' : 'DELETE',
+    }).catch(() => {
+      // Visibility still changes locally if the dev server is disconnected.
     })
+  }
 
-    const menuElement = shadowRoot.getElementById('panel-route') as HTMLElement
-    const indicatorElement = shadowRoot.getElementById(
-      'data-devtools-indicator'
-    ) as HTMLElement
-
-    if (menuElement && menuElement.firstElementChild) {
-      const firstChild = menuElement.firstElementChild as HTMLElement
-      const isCurrentlyHidden = firstChild.style.display === 'none'
-      firstChild.style.display = isCurrentlyHidden ? '' : 'none'
-    }
-
-    if (indicatorElement) {
-      const isCurrentlyHidden = indicatorElement.style.display === 'none'
-      indicatorElement.style.display = isCurrentlyHidden ? '' : 'none'
-    }
+  return {
+    toggleDevtools: () => setHidden(!state.disableDevIndicator),
+    showDevtools: () => setHidden(false),
+    showHideNotice,
+    dismissHideNotice: () => setHideNotice(null),
   }
 }
 
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
+  // A shared dev server must not be able to assign another browser a shortcut
+  // that dismisses its diagnostics. Only locally recorded bindings are active.
+  const [hideShortcut, setHideShortcut] = useState(readIndicatorShortcut)
+  function updateHideShortcut(shortcut: string | null) {
+    setHideShortcut(shortcut)
+    try {
+      if (shortcut === null) {
+        localStorage.removeItem(INDICATOR_SHORTCUT_KEY)
+      } else {
+        localStorage.setItem(INDICATOR_SHORTCUT_KEY, shortcut)
+      }
+    } catch {
+      // Recording still works for this page when browser storage is unavailable.
+    }
+  }
   const { triggerRef, setPanel } = usePanelRouterContext()
-  const toggleDevtools = useToggleDevtoolsVisibility()
+  const { toggleDevtools, showDevtools, showHideNotice, dismissHideNotice } =
+    useToggleDevtoolsVisibility()
   const isAppRouter = state.routerType === 'app'
 
   // True while the error overlay is open, cleared on a deferred tick so the single
@@ -263,12 +308,20 @@ export const PanelRouter = () => {
   }
 
   useShortcuts(
-    state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {},
+    hideShortcut ? { [hideShortcut]: toggleDevtools } : {},
     triggerRef
   )
 
   return (
     <>
+      {showHideNotice && state.disableDevIndicator && (
+        <IndicatorVisibilityNotice
+          shortcut={hideShortcut}
+          position={state.devToolsPosition}
+          onUndo={showDevtools}
+          onDismiss={dismissHideNotice}
+        />
+      )}
       <PanelRoute name="panel-selector">
         <MenuPanel />
       </PanelRoute>
@@ -279,13 +332,22 @@ export const PanelRouter = () => {
           sharePanelSizeGlobally={false}
           sizeConfig={{
             kind: 'fixed',
-            height: 500 / state.scale,
-            width: 480 + 32,
+            // Tall enough for every row with its description; the content
+            // scrolls if the window is shorter.
+            height: 600 / state.scale,
+            // The 420px grid, the wrapper's 20px padding on each side and
+            // the panel's border, so the controls end where the close button
+            // does.
+            width: 420 + 40 + 2,
           }}
           closeOnClickOutside
           header={<DevToolsHeader title="Preferences" />}
         >
-          <UserPreferencesWrapper />
+          <UserPreferencesWrapper
+            toggleVisibility={toggleDevtools}
+            hideShortcut={hideShortcut}
+            setHideShortcut={updateHideShortcut}
+          />
         </DynamicPanel>
       </PanelRoute>
 
@@ -452,9 +514,16 @@ const InfoFooter = ({ href }: { href: string }) => {
   )
 }
 
-const UserPreferencesWrapper = () => {
+const UserPreferencesWrapper = ({
+  toggleVisibility,
+  hideShortcut,
+  setHideShortcut,
+}: {
+  toggleVisibility: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
+}) => {
   const { dispatch, state } = useDevOverlayContext()
-  const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const updateAllPanelPositions = useUpdateAllPanelPositions()
 
   return (
@@ -476,21 +545,9 @@ const UserPreferencesWrapper = () => {
           })
           updateAllPanelPositions(devToolsPosition)
         }}
-        hideShortcut={state.hideShortcut}
-        setHideShortcut={(value) => {
-          saveDevToolsConfig({ hideShortcut: value })
-        }}
-        hide={() => {
-          dispatch({
-            type: ACTION_DEV_INDICATOR_SET,
-            disabled: true,
-          })
-          setSelectedIndex(-1)
-          setPanel(null)
-          fetch('/__nextjs_disable_dev_indicator', {
-            method: 'POST',
-          })
-        }}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
+        toggleVisibility={toggleVisibility}
       />
     </div>
   )

@@ -67,6 +67,7 @@ async fn filename(path: FileSystemPath) -> Result<String> {
 #[turbo_tasks::function]
 async fn hash_directory(directory: FileSystemPath) -> Result<Vc<RcStr>> {
     let dir_path = &directory.path;
+    // DETERMINISM: Hashes are collected into a filename-keyed BTreeMap before combining them.
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
     match &*content.await? {

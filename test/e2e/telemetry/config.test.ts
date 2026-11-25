@@ -326,6 +326,48 @@ describe('config telemetry', () => {
       })
     })
 
+    it('emits telemetry for usage of `experimental/goRoutes`', async () => {
+      await fs.rename(
+        path.join(next.testDir, 'next.config.go-routes'),
+        path.join(next.testDir, 'next.config.js')
+      )
+
+      try {
+        const { cliOutput } = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        const events = findAllTelemetryEvents(
+          cliOutput,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(events).toContainEqual({
+          featureName: 'experimental/goRoutes',
+          invocationCount: 1,
+        })
+      } finally {
+        await fs.rename(
+          path.join(next.testDir, 'next.config.js'),
+          path.join(next.testDir, 'next.config.go-routes')
+        )
+      }
+    })
+
+    it('emits disabled telemetry for `experimental/goRoutes` by default', async () => {
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+
+      const events = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(events).toContainEqual({
+        featureName: 'experimental/goRoutes',
+        invocationCount: 0,
+      })
+    })
+
     // `experimental.optimizeCss` is a webpack-only feature that relies on
     // `critters`; Turbopack does not emit this feature usage event.
     // @force-gate !turbopack
@@ -784,6 +826,50 @@ describe('config telemetry', () => {
         await fs.rename(
           path.join(next.testDir, 'next.config.js'),
           path.join(next.testDir, 'next.config.filesystem-cache')
+        )
+      }
+    })
+
+    it('emits telemetry for `experimental/goRoutes` in dev mode', async () => {
+      await fs.rename(
+        path.join(next.testDir, 'next.config.go-routes'),
+        path.join(next.testDir, 'next.config.js')
+      )
+
+      let child: ChildProcess | undefined
+      let exitPromise: Promise<any> | undefined
+      let stderr = ''
+
+      try {
+        const result = await launchDevServer(await findPort(), {
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
+        child = result.child
+        exitPromise = result.exit
+
+        await retry(async () => {
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'experimental/goRoutes',
+            invocationCount: 1,
+          })
+        })
+      } finally {
+        if (child) {
+          await killApp(child)
+        }
+        if (exitPromise) {
+          await exitPromise.catch(() => {})
+        }
+        await fs.rename(
+          path.join(next.testDir, 'next.config.js'),
+          path.join(next.testDir, 'next.config.go-routes')
         )
       }
     })

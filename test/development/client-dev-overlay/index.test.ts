@@ -73,7 +73,7 @@ describe('client-dev-overlay', () => {
     ).toBe(true)
   })
 
-  it('should keep the error indicator visible when there are errors', async () => {
+  it('should hide current diagnostics and show the indicator for a new error', async () => {
     const browser = await next.browser('/')
     await getMinimizeButton(browser).click()
     await getPopover(browser).click()
@@ -84,8 +84,27 @@ describe('client-dev-overlay', () => {
       const display = await browser.eval(
         `getComputedStyle(document.querySelector('nextjs-portal').shadowRoot.querySelector('${selectors.indicator}')).display`
       )
-      expect(display).toBe('block')
+      expect(display).toBe('none')
     })
+
+    const originalContent = await next.readFile('pages/index.js')
+    try {
+      await next.patchFile(
+        'pages/index.js',
+        originalContent.replace(
+          'example runtime error',
+          'another runtime error'
+        )
+      )
+      await retry(async () => {
+        const display = await browser.eval(
+          `getComputedStyle(document.querySelector('nextjs-portal').shadowRoot.querySelector('${selectors.indicator}')).display`
+        )
+        expect(display).toBe('block')
+      })
+    } finally {
+      await next.patchFile('pages/index.js', originalContent)
+    }
   })
 
   it('should be possible to hide the minimized overlay when there are no errors', async () => {
@@ -136,7 +155,7 @@ describe('client-dev-overlay', () => {
     const devtoolsMenu = await browser.elementByCss('#nextjs-dev-tools-menu')
     if (isTurbopack) {
       expect(await devtoolsMenu.innerText()).toMatchInlineSnapshot(`
-       "Issues
+       "Diagnostics
        1
        Route
        Static
@@ -146,7 +165,7 @@ describe('client-dev-overlay', () => {
       `)
     } else {
       expect(await devtoolsMenu.innerText()).toMatchInlineSnapshot(`
-       "Issues
+       "Diagnostics
        1
        Route
        Static
@@ -194,7 +213,7 @@ describe('client-dev-overlay with Cache Components', () => {
     // Should also include Turbopack info
     if (isTurbopack) {
       expect(menuText).toMatchInlineSnapshot(`
-       "Issues
+       "Diagnostics
        1
        Route
        Static
@@ -206,7 +225,7 @@ describe('client-dev-overlay with Cache Components', () => {
       `)
     } else {
       expect(menuText).toMatchInlineSnapshot(`
-       "Issues
+       "Diagnostics
        1
        Route
        Static

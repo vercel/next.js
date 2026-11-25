@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: read-dir-determinism-comment
+message: 'Explain every `.read_dir()` or `.raw_read_dir(...)` call with a preceding `// DETERMINISM:` comment.'
+note: Explain why entry order does not matter or where entries are sorted.
+severity: error
+language: Rust
+utils:
+  determinism-comment:
+    follows:
+      stopBy:
+        not:
+          kind: line_comment
+      all:
+        - kind: line_comment
+        - regex: '^// DETERMINISM:'
+# Receiver types cannot be resolved; ignore unrelated methods at their call sites.
+rule:
+  all:
+    - any:
+        - pattern: $VALUE.read_dir()
+        - pattern: $VALUE.raw_read_dir($$$ARGS)
+    - not:
+        any:
+          - matches: determinism-comment
+          - inside:
+              stopBy:
+                kind: block
+              all:
+                - not:
+                    kind: block
+                - matches: determinism-comment

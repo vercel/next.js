@@ -1,0 +1,136 @@
+id: read-dir-determinism-comment
+valid:
+  - |
+    async fn example() {
+        // DETERMINISM: Entries are sorted before use.
+        let entries = directory.read_dir().await?;
+    }
+  - |
+    fn example() {
+        // DETERMINISM: Callers sort the unordered result.
+        directory.read_dir()
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: Entries populate an unordered map.
+        let entries = directory.raw_read_dir().await?;
+    }
+  - |
+    fn example() {
+        // DETERMINISM: Forward the unordered result to callers.
+        self.fs().raw_read_dir(self.clone())
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: FIXME: Enumeration order reaches the output vector.
+        let entries = directory.read_dir().await?;
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: Entries are sorted by name before
+        // selecting the matching source file.
+        let entries = directory
+            .realpath().await?
+            .read_dir()
+            .await?;
+    }
+  - |
+    async fn example() {
+        let entries = directory
+            // DETERMINISM: Entries are sorted before use.
+            .read_dir()
+            .await?;
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: Only key presence is checked.
+        assert!(matches!(
+            &*directory.read_dir().await?,
+            DirectoryContent::Entries(entries) if entries.contains_key("file.txt")
+        ));
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: Entries are sorted before use.
+        if let DirectoryContent::Entries(entries) = &*directory
+            .join("subdir")?
+            .read_dir()
+            .await?
+        {
+            consume(entries);
+        }
+    }
+  - |
+    async fn example() {
+        Some({
+            // DETERMINISM: Only a single key is queried.
+            Some(directory.raw_read_dir().await?)
+        })
+    }
+  - 'directory.read();'
+  - 'std::fs::read_dir(path);'
+  - 'fn read_dir(&self) {}'
+  - 'fn raw_read_dir(&self, path: FileSystemPath) {}'
+invalid:
+  - 'directory.read_dir();'
+  - 'directory.read_dir().await;'
+  - 'directory.read_dir().await?;'
+  - 'directory.raw_read_dir();'
+  - 'directory.raw_read_dir().await?;'
+  - 'fs.raw_read_dir(path).await?;'
+  - 'directory.read_dir().owned().await?;'
+  - 'consume(directory.read_dir()).await?;'
+  - |
+    async fn example() {
+        let entries = directory
+            .read_dir()
+            .await?;
+    }
+  - |
+    async fn example() {
+        // Entries are sorted before use.
+        directory.read_dir().await?;
+    }
+  - |
+    async fn example() {
+        // Explanation: DETERMINISM: this is not the required prefix.
+        directory.read_dir().await?;
+    }
+  - |
+    async fn example() {
+        /* DETERMINISM: A block comment is not the required line comment. */
+        directory.read_dir().await?;
+    }
+  - |
+    async fn example() {
+        /// DETERMINISM: A doc comment is not the required line comment.
+        directory.read_dir().await?;
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: This explains a different statement.
+        other();
+        directory.read_dir().await?;
+    }
+  - |
+    // DETERMINISM: A comment on the function does not explain its calls.
+    async fn example() {
+        directory.read_dir().await?;
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: A comment outside the block does not explain its calls.
+        if condition {
+            directory.read_dir().await?;
+        }
+    }
+  - |
+    async fn example() {
+        // DETERMINISM: A comment outside the block does not explain its calls.
+        Some({ directory.raw_read_dir().await? })
+    }
+  - |
+    async fn example() {
+        directory.read_dir().await?;
+        // DETERMINISM: This comment comes after the call.
+    }

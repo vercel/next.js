@@ -43,6 +43,7 @@ import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
+  APP_PATHS_MANIFEST,
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -1642,8 +1643,31 @@ export async function copyTracedFiles(
   }
 
   if (appPageKeys) {
+    // Go route handlers emit a `.native.json` descriptor instead of a JS
+    // module. Its trace lists the executable, so resolve entries through the
+    // app paths manifest to copy it into the standalone output.
+    const appPathsManifest: Record<string, string> =
+      serverConfig.experimental.goRoutes && appPageKeys.length
+        ? JSON.parse(
+            await fs.readFile(
+              /* turbopackIgnore: true */ path.join(
+                distDir,
+                'server',
+                APP_PATHS_MANIFEST
+              ),
+              'utf8'
+            )
+          )
+        : {}
+
     for (const page of appPageKeys) {
       if (middlewareManifest.functions.hasOwnProperty(page)) {
+        continue
+      }
+      const nativeEntry = appPathsManifest[page]
+      if (nativeEntry?.endsWith('.native.json')) {
+        const descriptorFile = path.join(distDir, 'server', nativeEntry)
+        await handleTraceFiles(`${descriptorFile}.nft.json`)
         continue
       }
       const pageFile = path.join(distDir, 'server', 'app', `${page}.js`)

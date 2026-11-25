@@ -4,7 +4,7 @@ title: Large Page Data
 
 ## Why This Error Occurred
 
-One of your pages includes a large amount of page data (> 128 kB). This warning only affects the Pages Router, where Next.js serializes page data as `__NEXT_DATA__` JSON, which the client must parse before hydrating the page. The App Router streams data via Server Components and is not affected.
+One of your pages includes a large amount of page data (> 128 kB). This warning only affects the Pages Router, where Next.js serializes page data as `__NEXT_DATA__` JSON, which the client must parse before hydrating the page. In the App Router, props passed to Client Components are serialized into the [RSC Payload](/docs/app/glossary#rsc-payload), which this check doesn't measure. See [Passing data from Server to Client Components](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components).
 
 Large page data impacts performance in several ways:
 

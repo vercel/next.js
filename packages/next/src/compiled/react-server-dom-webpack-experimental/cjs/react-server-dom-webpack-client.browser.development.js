@@ -184,6 +184,10 @@
           if (isArrayImpl(value)) return "[...]";
           if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
             return "client";
+          if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
+            return "LedgerData";
+          if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+            return "LedgerTotal";
           value = objectName(value);
           return "Object" === value ? "{...}" : value;
         case "function":
@@ -271,6 +275,10 @@
         objKind = "<" + describeElementType(objectOrArray.type) + "/>";
       else {
         if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
+        if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE)
+          return "LedgerData";
+        if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+          return "LedgerTotal";
         if (jsxPropsParents.has(objectOrArray)) {
           objKind = jsxPropsParents.get(objectOrArray);
           objKind = "<" + (describeElementType(objKind) || "...");
@@ -5264,6 +5272,8 @@
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+      REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -5502,10 +5512,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-a8342585-20261117",
+      version: "19.3.0-experimental-89d7b2b4-20261123",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-a8342585-20261117",
+      reconcilerVersion: "19.3.0-experimental-89d7b2b4-20261123",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
