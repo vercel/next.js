@@ -10,7 +10,7 @@ const nextConfig = {
       './app/**/page.{jsx,tsx}': {
         loaders: ['./my-timestamp-loader.js'],
       },
-      './app/loader/page.tsx': {
+      './app/loader/**/page.tsx': {
         loaders: ['./my-loader.js'],
       },
       './pages/pages.tsx': {
