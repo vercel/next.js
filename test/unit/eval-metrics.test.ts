@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 const repository = path.join(__dirname, '../..')
 const runner = fs.readFileSync(path.join(repository, 'run-evals.js'), 'utf8')
 const fixture = 'agent-062-pokedex-dev-loop'
+const { evaluateEffortGate } = require('../../evals/lib/effort-gate')
 
 function run(
   args: string[],
@@ -181,6 +182,23 @@ describe('normal eval metrics workflow', () => {
 })
 
 describe('effort gate', () => {
+  it('averages the middle values for an even sample count', () => {
+    const samples = (inputTokens: number[]) =>
+      inputTokens.map((tokens) => ({ inputTokens: tokens, status: 'passed' }))
+
+    expect(
+      evaluateEffortGate(
+        samples([100, 200]),
+        samples([50, 100]),
+        samples([25, 75])
+      )
+    ).toMatchObject({
+      baselineMedian: 150,
+      agentsMdMedian: 75,
+      skillsMedian: 50,
+    })
+  })
+
   it('compares five sequential baseline, agents-md, and skill samples', () => {
     const { root, calls, exitCode } = run(['--effort-gate'])
     try {
