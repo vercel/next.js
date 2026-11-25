@@ -7,6 +7,7 @@ const semver = require('semver')
 const { Sema } = require('async-sema')
 const fs = require('fs/promises')
 const { readReleaseVersion } = require('./release-version')
+const { isAlreadyPublishedError } = require('./release-publish-error')
 
 const cwd = process.cwd()
 const dryRun = process.argv.includes('--dry-run')
@@ -75,9 +76,7 @@ const publishRetryDelaySeconds = 15
         err
       )
 
-      if (
-        output.includes('cannot publish over the previously published versions')
-      ) {
+      if (isAlreadyPublishedError(output)) {
         console.error('Ignoring already published error', label)
         return
       }
