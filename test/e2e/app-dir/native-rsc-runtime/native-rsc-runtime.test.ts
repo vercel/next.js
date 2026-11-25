@@ -1,10 +1,34 @@
 import fs from 'fs'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
-// The native RSC runtime requires Turbopack. These cases run failing builds, which
-// can't be deployed.
+// The native RSC runtime requires Turbopack. Nothing serves its pages yet, so there's
+// nothing to deploy.
 // @force-gate turbopack && !deploy
+describe('native-rsc-runtime', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: __dirname,
+  })
+
+  if (isNextDev) {
+    it('is a build error under `next dev`', async () => {
+      await next.fetch('/')
+      await retry(async () => {
+        expect(next.cliOutput).toContain("`next dev` isn't supported yet.")
+      })
+    })
+  } else {
+    it('builds the page as dynamic', async () => {
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      expect(Object.keys(manifest.routes)).not.toContain('/')
+      expect(await next.hasFile('.next/server/app/index.html')).toBe(false)
+    })
+  }
+})
+
+// These cases run failing builds, which can't be deployed.
+// @force-gate turbopack && !dev && !deploy
 describe('native-rsc-runtime build errors', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -51,28 +75,6 @@ describe('native-rsc-runtime build errors', () => {
     }
   }
 
-  it("is a build error while it isn't implemented", async () => {
-    await expectBuildErrors(
-      {
-        // Built-in pages don't inherit the export, but one of their files
-        // setting it itself is still an error.
-        'app/not-found.tsx': [
-          'export const experimental_nativeRscRuntime = true',
-          '',
-          'export default function NotFound() {',
-          '  return null',
-          '}',
-        ].join('\n'),
-      },
-      [
-        "The native RSC runtime isn't implemented yet.",
-        '"/_not-found" can\'t use the native RSC runtime',
-        "`not-found` files aren't supported yet.",
-        'app/not-found.tsx',
-      ]
-    )
-  })
-
   it('requires experimental.nativeRscRuntime', async () => {
     await expectBuildErrors(
       {
@@ -106,6 +108,89 @@ describe('native-rsc-runtime build errors', () => {
         'app/api/route.ts',
         "Metadata routes can't use the native RSC runtime.",
         'app/sitemap.ts',
+      ]
+    )
+  })
+
+  // File structure, segment exports, and client references the runtime doesn't support
+  // yet are build errors, never a fallback to App Router. One build reports all of
+  // them, each at its own file. A root layout inside a route group can't share this
+  // fixture's root layout, so it isn't covered here.
+  it("reports every feature a route uses that isn't supported yet", async () => {
+    const empty = 'export default function Empty() { return null }'
+    await expectBuildErrors(
+      {
+        'app/page.tsx': [
+          "import Link from 'next/link'",
+          '',
+          "export const ensureStatic = 'shell'",
+          'export const instant = true',
+          "export const metadata = { title: 'hello' }",
+          '',
+          'export default function Page() {',
+          '  return <Link href="/">hello world</Link>',
+          '}',
+        ].join('\n'),
+        'app/loading.tsx': empty,
+        'app/template.tsx': [
+          "import type { ReactNode } from 'react'",
+          '',
+          'export default function Template({ children }: { children: ReactNode }) {',
+          '  return children',
+          '}',
+        ].join('\n'),
+        'app/error.tsx': `'use client'\n\n${empty}`,
+        // Built-in pages don't inherit the export, but their own file setting it
+        // is still an error.
+        'app/not-found.tsx': [
+          'export const experimental_nativeRscRuntime = true',
+          '',
+          empty,
+        ].join('\n'),
+        'app/icon.svg':
+          '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+        'app/client/page.tsx': `'use client'\n\n${empty}`,
+        // Segments between the root layout and the page, and an export the build
+        // can't read statically.
+        'app/nested/layout.tsx': [
+          "import type { ReactNode } from 'react'",
+          '',
+          'export let experimental_nativeRscRuntime = true',
+          '',
+          'export default function Layout({ children }: { children: ReactNode }) {',
+          '  return children',
+          '}',
+        ].join('\n'),
+        'app/nested/page.tsx': empty,
+        // A parallel route slot, with a page only in the slot.
+        'app/default.tsx': empty,
+        'app/@slot/default.tsx': empty,
+        'app/@slot/inslot/page.tsx': empty,
+      },
+      [
+        "Client components aren't supported yet.",
+        "`metadata`, `viewport`, and their `generate…` functions aren't supported yet.",
+        "`ensureStatic` isn't supported yet.",
+        "`instant` isn't supported yet.",
+        'app/page.tsx',
+        "`loading` files aren't supported yet.",
+        'app/loading.tsx',
+        "`template` files aren't supported yet.",
+        'app/template.tsx',
+        "`error` files aren't supported yet.",
+        'app/error.tsx',
+        '"/_not-found" can\'t use the native RSC runtime',
+        "`not-found` files aren't supported yet.",
+        'app/not-found.tsx',
+        "Metadata files (`icon`) aren't supported yet.",
+        'app/icon.svg',
+        'app/client/page.tsx',
+        'Only a page directly inside the root layout is supported so far',
+        'app/nested/page.tsx',
+        'It needs to be `export const experimental_nativeRscRuntime = true`.',
+        'app/nested/layout.tsx',
+        "Parallel routes aren't supported yet.",
+        'app/@slot/inslot/page.tsx',
       ]
     )
   })

@@ -469,6 +469,10 @@ declare module 'VAR_MODULE_GLOBAL_NOT_FOUND'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
+declare module 'VAR_RENDERER_RSC'
+declare module 'VAR_RENDERER_SSR'
+declare module 'VAR_ROOT_LAYOUT'
+declare module 'VAR_PAGE'
 
 declare module 'next/dist/server/ReactDOMServerPages' {
   export * from 'react-dom/server.edge'

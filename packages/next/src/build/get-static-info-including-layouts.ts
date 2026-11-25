@@ -93,5 +93,8 @@ export async function getStaticInfoIncludingLayouts({
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
+    // Built-in pages skip layout inheritance above, so they stay on App Router,
+    // as Turbopack keeps `/_not-found` and `/_global-error` there.
+    nativeRscRuntime: config.experimental_nativeRscRuntime,
   }
 }

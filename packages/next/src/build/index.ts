@@ -2702,6 +2702,9 @@ export default async function build(
                             isNativeRoute: nativeAppPaths.has(
                               originalAppPath || page
                             ),
+                            isNativeRscRuntime: Boolean(
+                              staticInfo?.nativeRscRuntime
+                            ),
                             distDir,
                             configFileName,
                             httpAgentOptions: config.httpAgentOptions,
