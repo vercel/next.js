@@ -116,4 +116,4 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 - Requests with a query string larger than 64 KiB or more than 4,096 parameters receive a `414 URI Too Long` response before Go Proxy runs. Empty parameters count toward this limit.
 - Only one proxy file is supported. Go and JavaScript proxies cannot be combined.
 - Go Proxy requires Turbopack and runs as a compiled Go executable.
-- Self-hosting uses `next build` and `next start`. Platform deployments require an adapter that supports Go middleware.
+- Self-hosting uses `next build` and `next start`, or [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) with `node .next/standalone/server.js`. `output: 'export'` is unsupported. Platform deployments require an adapter that supports Go middleware.

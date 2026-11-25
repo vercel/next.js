@@ -2032,55 +2032,35 @@
 
 266 -> 267 free var = FreeVar(Object)
 
-0 -> 269 member call = ???*0*["call"]({}, ???*3*)
-- *0* ???*1*["hasOwnProperty"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* Object*2*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *2* Object: The global Object constructor
-- *3* arguments[0]
+0 -> 269 member call = Object.prototype.hasOwnProperty*0*["call"]({}, ???*1*)
+- *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+- *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 0 -> 270 conditional = ???*0*
-- *0* ???*1*["call"](ma, a)
-  ⚠️  unknown callee object
+- *0* Function.prototype.call*1*({}, ???*2*)
+  ⚠️  unsupported function
   ⚠️  This value might have side effects
-- *1* ???*2*["hasOwnProperty"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* Object*3*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *3* Object: The global Object constructor
+- *1* Function.prototype.call: The standard Function.prototype.call method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/call
+- *2* arguments[0]
+  ⚠️  function calls are not analyzed yet
 
 270 -> 271 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-270 -> 273 member call = ???*0*["call"]({}, ???*3*)
-- *0* ???*1*["hasOwnProperty"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* Object*2*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *2* Object: The global Object constructor
-- *3* arguments[0]
+270 -> 273 member call = Object.prototype.hasOwnProperty*0*["call"]({}, ???*1*)
+- *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+- *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 270 -> 274 conditional = ???*0*
-- *0* ???*1*["call"](la, a)
-  ⚠️  unknown callee object
+- *0* Function.prototype.call*1*({}, ???*2*)
+  ⚠️  unsupported function
   ⚠️  This value might have side effects
-- *1* ???*2*["hasOwnProperty"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* Object*3*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *3* Object: The global Object constructor
+- *1* Function.prototype.call: The standard Function.prototype.call method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/call
+- *2* arguments[0]
+  ⚠️  function calls are not analyzed yet
 
 274 -> 275 unreachable = ???*0*
 - *0* unreachable
@@ -12995,27 +12975,21 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-1879 -> 1884 member call = ???*0*["call"](???*3*, (???*4* | undefined))
-- *0* ???*1*["hasOwnProperty"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* Object*2*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *2* Object: The global Object constructor
-- *3* arguments[1]
+1879 -> 1884 member call = Object.prototype.hasOwnProperty*0*["call"](???*1*, (???*2* | undefined))
+- *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
+- *1* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *4* ???*5*[d]
+- *2* ???*3*[d]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *5* ???*6*(???*8*)
+- *3* ???*4*(???*6*)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *6* Object*7*["keys"]
+- *4* Object*5*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object constructor
-- *8* arguments[0]
+- *5* Object: The global Object constructor
+- *6* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 1879 -> 1885 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*11*)
@@ -13046,49 +13020,57 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *12* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-1879 -> 1888 conditional = (!(???*0*) | !(???*4*))
-- *0* ???*1*["call"](b, e)
-  ⚠️  unknown callee object
+1879 -> 1888 conditional = (!(???*0*) | !(???*8*))
+- *0* Function.prototype.call*1*(???*2*, (???*3* | undefined))
+  ⚠️  unsupported function
   ⚠️  This value might have side effects
-- *1* ???*2*["hasOwnProperty"]
+- *1* Function.prototype.call: The standard Function.prototype.call method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/call
+- *2* arguments[1]
+  ⚠️  function calls are not analyzed yet
+- *3* ???*4*[d]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *2* Object*3*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *3* Object: The global Object constructor
-- *4* ???*5*(???*15*, ???*17*)
+- *4* ???*5*(???*7*)
   ⚠️  unknown callee
-- *5* (???*6* ? ???*10* : (...) => ???*12*)
-  ⚠️  nested operation
-- *6* ("function" === ???*7*)
-  ⚠️  nested operation
-- *7* typeof(???*8*)
-  ⚠️  nested operation
-- *8* Object*9*["is"]
+  ⚠️  This value might have side effects
+- *5* Object*6*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *9* Object: The global Object constructor
-- *10* Object*11*["is"]
+- *6* Object: The global Object constructor
+- *7* arguments[0]
+  ⚠️  function calls are not analyzed yet
+- *8* ???*9*(???*19*, ???*21*)
+  ⚠️  unknown callee
+- *9* (???*10* ? ???*14* : (...) => ???*16*)
+  ⚠️  nested operation
+- *10* ("function" === ???*11*)
+  ⚠️  nested operation
+- *11* typeof(???*12*)
+  ⚠️  nested operation
+- *12* Object*13*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *11* Object: The global Object constructor
-- *12* (
-     || ((a === b) && ((0 !== a) || (???*13* === ???*14*)))
+- *13* Object: The global Object constructor
+- *14* Object*15*["is"]
+  ⚠️  unsupported property on global Object
+  ⚠️  This value might have side effects
+- *15* Object: The global Object constructor
+- *16* (
+     || ((a === b) && ((0 !== a) || (???*17* === ???*18*)))
      || ((a !== a) && (b !== b))
     )
   ⚠️  nested operation
-- *13* unsupported expression
+- *17* unsupported expression
   ⚠️  This value might have side effects
-- *14* unsupported expression
+- *18* unsupported expression
   ⚠️  This value might have side effects
-- *15* ???*16*[e]
+- *19* ???*20*[e]
   ⚠️  unknown object
-- *16* arguments[0]
+- *20* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *17* ???*18*[e]
+- *21* ???*22*[e]
   ⚠️  unknown object
-- *18* arguments[1]
+- *22* arguments[1]
   ⚠️  function calls are not analyzed yet
 
 1888 -> 1889 unreachable = ???*0*
@@ -22533,15 +22515,12 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 
 3187 -> 3188 free var = FreeVar(Object)
 
-0 -> 3189 member call = ???*0*["call"](???*3*)
-- *0* ???*1*["toString"]
-  ⚠️  unknown object
+0 -> 3189 member call = ???*0*["call"](???*2*)
+- *0* Object.prototype*1*["toString"]
+  ⚠️  unsupported property on Object.prototype
   ⚠️  This value might have side effects
-- *1* Object*2*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *2* Object: The global Object constructor
-- *3* arguments[1]
+- *1* Object.prototype: The prototype of plain objects
+- *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
 0 -> 3190 free var = FreeVar(Error)
@@ -22555,7 +22534,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* `https://reactjs.org/docs/error-decoder.html?invariant=${31}`
   ⚠️  nested operation
 
-3191 -> 3192 call = (...) => `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`(31, (???*0* ? ???*6* : (???*12* | ???*13*)))
+3191 -> 3192 call = (...) => `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`(31, (???*0* ? ???*5* : (???*11* | ???*12*)))
 - *0* ("[object Object]" === (???*1* | ???*2*))
   ⚠️  nested operation
 - *1* arguments[0]
@@ -22563,39 +22542,33 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* ???*3*["call"](b)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *3* ???*4*["toString"]
-  ⚠️  unknown object
+- *3* Object.prototype*4*["toString"]
+  ⚠️  unsupported property on Object.prototype
   ⚠️  This value might have side effects
-- *4* Object*5*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *5* Object: The global Object constructor
-- *6* `object with keys {${???*7*}}`
+- *4* Object.prototype: The prototype of plain objects
+- *5* `object with keys {${???*6*}}`
   ⚠️  nested operation
-- *7* ???*8*["join"](", ")
+- *6* ???*7*["join"](", ")
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *8* ???*9*(???*11*)
+- *7* ???*8*(???*10*)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *9* Object*10*["keys"]
+- *8* Object*9*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *10* Object: The global Object constructor
-- *11* arguments[1]
+- *9* Object: The global Object constructor
+- *10* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *12* arguments[0]
+- *11* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *13* ???*14*["call"](b)
+- *12* ???*13*["call"](b)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *14* ???*15*["toString"]
-  ⚠️  unknown object
+- *13* Object.prototype*14*["toString"]
+  ⚠️  unsupported property on Object.prototype
   ⚠️  This value might have side effects
-- *15* Object*16*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *16* Object: The global Object constructor
+- *14* Object.prototype: The prototype of plain objects
 
 3192 -> 3193 conditional = ("[object Object]" === (???*0* | ???*1*))
 - *0* arguments[0]
@@ -22603,13 +22576,10 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* ???*2*["call"](b)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *2* ???*3*["toString"]
-  ⚠️  unknown object
+- *2* Object.prototype*3*["toString"]
+  ⚠️  unsupported property on Object.prototype
   ⚠️  This value might have side effects
-- *3* Object*4*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *4* Object: The global Object constructor
+- *3* Object.prototype: The prototype of plain objects
 
 3195 -> 3196 free var = FreeVar(Object)
 

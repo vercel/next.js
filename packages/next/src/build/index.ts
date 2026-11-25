@@ -3181,6 +3181,10 @@ export default async function build(
           invocationCount: config.cacheComponents ? 1 : 0,
         },
         {
+          featureName: 'experimental/goRoutes',
+          invocationCount: config.experimental.goRoutes ? 1 : 0,
+        },
+        {
           featureName: 'experimental/optimizeCss',
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
         },

@@ -26,7 +26,9 @@ use crate::{
             as_exports_define_property, as_module_exports_object_literal,
             define_property_sets_es_module, is_exports_object, is_global, is_module_exports_chain,
         },
-        graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
+        graph::{
+            ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, ValueUsage, VarGraph,
+        },
         is_unresolved_id,
     },
     ast_path_trie::{AstPathId, AstPathTrieBuilder},
@@ -831,10 +833,7 @@ fn is_expression_statement(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool
     false
 }
 
-fn is_in_boolean_context(
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-    unresolved_mark: Mark,
-) -> bool {
+fn is_in_boolean_context(ast_path: &[AstParentNodeRef<'_>], unresolved_mark: Mark) -> bool {
     for parent in ast_path.iter().rev() {
         match parent {
             // Transparent expression wrappers.
@@ -879,13 +878,227 @@ fn is_in_boolean_context(
 
 /// Returns the [`MemberExpr`] where the current node is the object:
 /// `<node>.<prop>` or `<node>[<expr>]`.
-fn member_access_parent<'r>(
-    ast_path: &AstNodePath<AstParentNodeRef<'r>>,
-) -> Option<&'r MemberExpr> {
+fn member_access_parent<'r>(ast_path: &[AstParentNodeRef<'r>]) -> Option<&'r MemberExpr> {
     match ast_path.len().checked_sub(2).and_then(|i| ast_path.get(i)) {
         Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) => Some(*member),
         _ => None,
     }
+}
+
+/// Whether the target of a property in an object destructuring pattern lets the property's value
+/// escape, i.e. doesn't destructure it further into statically known keys: `x` in
+/// `const { prop: x } = obj` (treated like `const x = obj.prop`) or `{ ...rest }` in
+/// `const { prop: { ...rest } } = obj`.
+fn destructuring_target_escapes(target: &Pat) -> bool {
+    let target = match target {
+        Pat::Assign(assign) => &*assign.left,
+        target => target,
+    };
+    match target {
+        Pat::Ident(_) | Pat::Expr(_) => true,
+        Pat::Object(pat) => pat
+            .props
+            .iter()
+            .any(|p| matches!(p, ObjectPatProp::Rest(..))),
+        _ => false,
+    }
+}
+
+/// How the value of the current expression (or identifier) is used, see [`ValueUsage`].
+fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Mark) -> ValueUsage {
+    // A member in an optional chain (`a?.b`) is wrapped in `OptChainBase`/`OptChainExpr`, so look
+    // at how the whole `Expr::OptChain` is used instead. This is only done for the checks that
+    // don't need the value of the optional chain, or get it through [`Analyzer::eval_member_obj`]:
+    // the `in` and destructuring effects evaluate an optional chain to unknown, so `key in a?.b`
+    // and `const { x } = a?.b` stay escapes.
+    let opt_chain_path = match &ast_path[..] {
+        [
+            rest @ ..,
+            AstParentNodeRef::Expr(_, ExprField::OptChain),
+            AstParentNodeRef::OptChainExpr(_, OptChainExprField::Base),
+            AstParentNodeRef::OptChainBase(_, OptChainBaseField::Member),
+        ] => &ast_path[..rest.len() + 1],
+        ast_path => ast_path,
+    };
+    if is_in_boolean_context(opt_chain_path, unresolved_mark) {
+        ValueUsage::Truthiness
+    } else if is_member_obj(opt_chain_path)
+        || is_object_destructuring_source_without_rest(ast_path)
+        || is_obj_in(ast_path)
+        || is_only_inspected(opt_chain_path, unresolved_mark)
+    {
+        ValueUsage::Access
+    } else {
+        ValueUsage::Escapes
+    }
+}
+
+/// Whether the current expression's value can't flow out and no user code can run on it, so no
+/// key can be read from it: `typeof <value>`, `void <value>`, `<value> === x`, `<value> !== x`,
+/// `<value> == null` (and `!= null`, `== undefined`, `== void 0`), or the left side of
+/// `<value> && x` (which only becomes the result when falsy). Loose equality with other operands
+/// is excluded: it can call `valueOf`/`toString`/`Symbol.toPrimitive` on the value.
+fn is_only_inspected(ast_path: &[AstParentNodeRef<'_>], unresolved_mark: Mark) -> bool {
+    for parent in ast_path.iter().rev() {
+        return match parent {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
+                continue;
+            }
+            AstParentNodeRef::UnaryExpr(expr, UnaryExprField::Arg) => {
+                matches!(expr.op, UnaryOp::TypeOf | UnaryOp::Void)
+            }
+            AstParentNodeRef::BinExpr(expr, field @ (BinExprField::Left | BinExprField::Right)) => {
+                match expr.op {
+                    BinaryOp::EqEqEq | BinaryOp::NotEqEq => true,
+                    BinaryOp::EqEq | BinaryOp::NotEq => {
+                        let other = if matches!(field, BinExprField::Left) {
+                            &expr.right
+                        } else {
+                            &expr.left
+                        };
+                        is_nullish_literal(other, unresolved_mark)
+                    }
+                    BinaryOp::LogicalAnd if matches!(field, BinExprField::Left) => true,
+                    // Other logical operands can become the result, so they inherit their
+                    // consumer's usage.
+                    BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing => {
+                        continue;
+                    }
+                    _ => false,
+                }
+            }
+            // A selected ternary branch becomes the ternary's result.
+            AstParentNodeRef::CondExpr(_, CondExprField::Cons | CondExprField::Alt) => continue,
+            _ => false,
+        };
+    }
+    false
+}
+
+/// `null`, the global `undefined`, or `void <expr>`.
+fn is_nullish_literal(expr: &Expr, unresolved_mark: Mark) -> bool {
+    match expr {
+        Expr::Lit(Lit::Null(_)) => true,
+        Expr::Ident(ident) => is_global(ident, "undefined", unresolved_mark),
+        Expr::Unary(UnaryExpr {
+            op: UnaryOp::Void, ..
+        }) => true,
+        Expr::Paren(paren) => is_nullish_literal(&paren.expr, unresolved_mark),
+        _ => false,
+    }
+}
+
+/// Whether the current expression is the value being consumed by an object destructuring pattern
+/// without a rest element. Every property (including computed ones) then gets its own
+/// `Effect::DestructuredMember`, whereas a rest element would copy keys without any effect.
+///
+/// A destructuring assignment evaluates to its source, so this is only true when the result of the
+/// assignment is discarded: `({ FOO } = obj);`, but not `consume(({ FOO } = obj))`.
+fn is_object_destructuring_source_without_rest(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for (i, node_ref) in ast_path.iter().enumerate().rev() {
+        let pat = match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
+                continue;
+            }
+            AstParentNodeRef::VarDeclarator(
+                VarDeclarator {
+                    name: Pat::Object(pat),
+                    ..
+                },
+                VarDeclaratorField::Init,
+            ) => pat,
+            AstParentNodeRef::AssignExpr(
+                AssignExpr {
+                    left: AssignTarget::Pat(AssignTargetPat::Object(pat)),
+                    ..
+                },
+                AssignExprField::Right,
+            ) if is_result_discarded(&ast_path[..i]) => pat,
+            AstParentNodeRef::AssignPat(AssignPat { left, .. }, AssignPatField::Right) => {
+                match &**left {
+                    Pat::Object(pat) => pat,
+                    _ => return false,
+                }
+            }
+            _ => return false,
+        };
+        return pat
+            .props
+            .iter()
+            .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
+    }
+    false
+}
+
+/// Whether the value of the expression whose parents are `ast_path` is discarded: an expression
+/// statement, a non-last expression of a sequence, or the init/update of a `for` statement.
+fn is_result_discarded(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..)
+            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+            | AstParentNodeRef::VarDeclOrExpr(_, VarDeclOrExprField::Expr) => {}
+            AstParentNodeRef::SeqExpr(seq, SeqExprField::Exprs(index)) => {
+                // Only the last expression of a sequence becomes its result.
+                if *index + 1 < seq.exprs.len() {
+                    return true;
+                }
+            }
+            AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr)
+            | AstParentNodeRef::ForStmt(_, ForStmtField::Init | ForStmtField::Update) => {
+                return true;
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Whether the current expression is the object of a member expression: `<obj>.<prop>`,
+/// `<obj>[<expr>]`, or with parentheses `(<obj>).<prop>` (which TypeScript casts like
+/// `(<obj> as any).<prop>` also become).
+fn is_member_obj(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for (i, node_ref) in ast_path.iter().enumerate().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::MemberExpr(_, MemberExprField::Obj) => {
+                return !is_opt_call_callee(&ast_path[..i]);
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Whether the current expression is the callee of an optional call: `a.b?.()` or `a?.b()`.
+/// Optional calls aren't analyzed as calls (there is no call effect for them), so the object of
+/// such a method call is conservatively treated as escaping, as the method receives it as `this`.
+fn is_opt_call_callee(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..)
+            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+            | AstParentNodeRef::OptChainBase(_, OptChainBaseField::Member)
+            | AstParentNodeRef::OptChainExpr(_, OptChainExprField::Base) => {}
+            AstParentNodeRef::OptCall(_, OptCallField::Callee) => return true,
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Whether the current expression is the object in a `<key> in <obj>` expression.
+fn is_obj_in(ast_path: &[AstParentNodeRef<'_>]) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::BinExpr(bin, BinExprField::Right) => {
+                return bin.op == BinaryOp::In;
+            }
+            _ => return false,
+        }
+    }
+    false
 }
 
 /// Extracts export names from usage patterns on a dynamic import.
@@ -1032,6 +1245,31 @@ impl<'a> Analyzer<'a, '_> {
 
     fn add_effect(&mut self, effect: Effect<'a>) {
         self.effects.push(effect);
+    }
+
+    /// Evaluates the object of an `Effect::Member`. An optional chain object (`a?.b` in
+    /// `a?.b.c` or `a?.b?.c`) is `a.b` or `undefined`, so that e.g. `process?.env?.FOO` is a read
+    /// of `FOO`. This is not done in [`EvalContext::eval`], where the `undefined` alternative would
+    /// e.g. turn `require(a?.b)` into a request for `"undefined"`.
+    fn eval_member_obj(&self, obj: &Expr) -> JsValue<'a> {
+        if let Expr::OptChain(OptChainExpr { base, .. }) = unparen(obj)
+            && let OptChainBase::Member(member) = &**base
+        {
+            let prop = match &member.prop {
+                MemberProp::Ident(prop) => prop.sym.clone().into(),
+                MemberProp::Computed(ComputedPropName { expr, .. }) => {
+                    self.eval_context.eval(self.arena, expr)
+                }
+                MemberProp::PrivateName(_) => return self.eval_context.eval(self.arena, obj),
+            };
+            let member = JsValue::member(self.arena, self.eval_member_obj(&member.obj), prop);
+            JsValue::alternatives(BumpVec::from_iter_in(
+                self.arena,
+                [member, JsValue::Constant(ConstantValue::Undefined)],
+            ))
+        } else {
+            self.eval_context.eval(self.arena, obj)
+        }
     }
 
     fn collect_effects(&mut self, visit: impl FnOnce(&mut Self)) -> BumpBox<'a, [Effect<'a>]> {
@@ -1834,10 +2072,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let obj_value = BumpBox::new_in(
-            self.eval_context.eval(self.arena, &member_expr.obj),
-            self.arena,
-        );
+        let obj_value = BumpBox::new_in(self.eval_member_obj(&member_expr.obj), self.arena);
         let prop_value = match &member_expr.prop {
             // TODO avoid clone
             MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
@@ -1857,10 +2092,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 base_effects,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
-                in_truthiness_context: is_in_boolean_context(
-                    ast_path,
-                    self.eval_context.unresolved_mark,
-                ),
+                usage: value_usage(ast_path, self.eval_context.unresolved_mark),
             });
         } else {
             member_expr.visit_children_with_ast_path(self, ast_path);
@@ -2499,6 +2731,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
                     span: member.span(),
+                    // A namespace member access like `ns.env` is handled by `Effect::Member`
+                    usage: ValueUsage::Access,
                 });
             } else {
                 // ast_path stays on the ident, so `.exportName` remains in the emitted code.
@@ -2516,6 +2750,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     member,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
+                    usage: value_usage(ast_path, self.eval_context.unresolved_mark),
                 })
             }
             return;
@@ -3167,6 +3402,7 @@ impl<'a> Analyzer<'a, '_> {
                         obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
                         prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
                         span: key.span(),
+                        target_escapes: destructuring_target_escapes(value),
                     });
 
                     let pat_value = Some(JsValue::member(
@@ -3201,6 +3437,9 @@ impl<'a> Analyzer<'a, '_> {
                         obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
                         prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
                         span: key.span(),
+                        // `const { key } = <obj>`, conservatively treated like `const key =
+                        // obj.key`
+                        target_escapes: true,
                     });
 
                     self.add_value(
