@@ -184,6 +184,12 @@ function summarizeListRequest(
   }
 }
 
+const KIND_LABEL_PREFIXES: Record<RequestInsightKind, string> = {
+  request: '',
+  'instant-insights': 'Instant Insights · ',
+  background: 'Background · ',
+}
+
 function printRequestSummary(
   request: RequestInsight,
   displayId: string,
@@ -192,7 +198,7 @@ function printRequestSummary(
   const route = getDisplayRoute(request)
   const kind = getRequestInsightKind(request)
   console.log(
-    `${kind === 'instant-insights' ? `Instant Insights · ${route}` : route} ${formatDuration(request.durationMs)} ${request.status}`
+    `${KIND_LABEL_PREFIXES[kind]}${route} ${formatDuration(request.durationMs)} ${request.status}`
   )
   console.log(
     `  kind ${kind} id ${displayId} page ${shortId(request.htmlRequestId)}`

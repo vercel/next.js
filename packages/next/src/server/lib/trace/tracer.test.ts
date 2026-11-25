@@ -2,6 +2,8 @@
  * @jest-environment node
  */
 
+import { createTraceSpan } from '../../../trace/trace'
+
 import type {
   Context,
   ContextManager,
@@ -23,11 +25,15 @@ import {
   isLocalSpanRecordingEnabled,
   runWithLocalSpanSink,
   setSpanRecorderForTest,
+  setLocalSpanExporter,
   type SpanStoreRecord,
 } from './span-store'
 import {
-  registerLocalSpanRecorder,
+  type LocalSpanOptions,
+  getActiveLocalSpan,
+  recordSpan,
   traceLocalSpan,
+  registerLocalSpanRecorder,
 } from './local-span-recorder'
 import {
   AppRouteRouteModuleSpan,
@@ -40,6 +46,13 @@ import {
   RouteModuleSpan,
 } from './constants'
 import {
+  clearRequestInsightsForTest,
+  getRequestInsightsSnapshot,
+  registerRequestInsightsExporter,
+  startRequestInsight,
+} from './request-insights'
+import { runWithRequestInsightsIdentity } from './request-insights-identity'
+import {
   BubbledError,
   recordSpanError,
   SpanKind,
@@ -50,6 +63,7 @@ import {
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalDevServer = process.env.__NEXT_DEV_SERVER
+const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalOtelVerbose = process.env.NEXT_OTEL_VERBOSE
 const spanRecords: SpanStoreRecord[] = []
 
@@ -1187,6 +1201,131 @@ describe('local span recording', () => {
         }
       }
     })
+  })
+})
+
+describe('background request insights', () => {
+  function startBackground(
+    name: string,
+    options: Omit<LocalSpanOptions, 'name'> = {}
+  ) {
+    return createTraceSpan({
+      name,
+      recordToInsights: true,
+      parent: getActiveLocalSpan(),
+      ...options,
+    })
+  }
+
+  function traceBackground(
+    name: string,
+    fn: (span: ReturnType<typeof createTraceSpan>) => void = () => {},
+    options: Omit<LocalSpanOptions, 'name'> = {}
+  ) {
+    return recordSpan(
+      {
+        span: createTraceSpan({
+          name,
+          recordToInsights: true,
+          scope: true,
+          parent: getActiveLocalSpan(),
+          ...options,
+        }),
+        scope: true,
+        synchronous: true,
+      },
+      fn
+    )
+  }
+
+  beforeEach(() => {
+    context.disable()
+    process.env.__NEXT_DEV_SERVER = '1'
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerLocalSpanRecorder()
+    registerRequestInsightsExporter()
+    clearRequestInsightsForTest()
+  })
+
+  afterEach(() => {
+    context.disable()
+    if (originalRequestInsights === undefined)
+      delete process.env.__NEXT_REQUEST_INSIGHTS
+    else process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
+    if (originalDevServer === undefined) delete process.env.__NEXT_DEV_SERVER
+    else process.env.__NEXT_DEV_SERVER = originalDevServer
+    clearRequestInsightsForTest()
+    setLocalSpanExporter(undefined)
+  })
+
+  it('keeps concurrent compilation and late completion on the originating request', async () => {
+    const identities = ['first', 'second'].map((requestId) => ({
+      requestId,
+      htmlRequestId: requestId,
+      url: `/${requestId}`,
+    }))
+    for (const identity of identities) startRequestInsight(identity)
+    const spans = await Promise.all(
+      identities.map((identity) =>
+        runWithRequestInsightsIdentity(identity, async () => {
+          await Promise.resolve()
+          return startBackground(identity.url, {
+            attributes: { 'next.span_type': 'compile-path' },
+          })
+        })
+      )
+    )
+    runWithRequestInsightsIdentity(identities[1], () => spans[0].end())
+    runWithRequestInsightsIdentity(identities[0], () => spans[1].end())
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests).toHaveLength(2)
+    for (const identity of identities) {
+      const request = requests.find(
+        (entry) => entry.requestId === identity.requestId
+      )!
+      expect(request.kind).toBe('request')
+      expect(request.spans).toHaveLength(1)
+      expect(request.spans[0].name).toBe(identity.url)
+    }
+  })
+
+  it('gives unrelated background compilations separate activities', () => {
+    traceBackground('first compilation', undefined, {
+      attributes: { 'next.span_type': 'compile-path' },
+    })
+    traceBackground('second compilation', undefined, {
+      attributes: { 'next.span_type': 'compile-path' },
+    })
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests).toHaveLength(2)
+    expect(new Set(requests.map((request) => request.requestId)).size).toBe(2)
+    expect(requests.every((request) => request.completedAt !== undefined)).toBe(
+      true
+    )
+  })
+
+  it('keeps background HMR separate from its completed startup parent', () => {
+    const startup = createTraceSpan({
+      name: 'start-dev-server',
+      recordToInsights: true,
+      parent: getActiveLocalSpan(),
+    })
+    startup.end()
+    traceBackground('background-task', undefined, { parent: startup })
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests.map((request) => request.route)).toEqual([
+      'start-dev-server',
+      'background-task',
+    ])
+    expect(requests.every((request) => request.completedAt !== undefined)).toBe(
+      true
+    )
+  })
+
+  it('keeps request insights disabled unless opted in', () => {
+    delete process.env.__NEXT_REQUEST_INSIGHTS
+    traceBackground('compile-path', () => undefined)
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
   })
 })
 

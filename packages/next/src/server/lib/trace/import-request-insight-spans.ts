@@ -4,7 +4,7 @@ import {
   type LocalSpanParent,
 } from './span-store'
 import type { RequestInsightsIdentity } from './request-insights-identity'
-import { reparentLocalSpans } from './local-span-recorder'
+import { reparentLocalSpans } from './local-span-ids'
 import { shouldRecordRequestInsightSpan } from './request-insights'
 
 // This lives outside `request-insights.ts` on purpose. `patch-fetch.ts` imports

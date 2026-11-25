@@ -96,6 +96,8 @@ class InMemoryRequestInsightsStore {
 
     const recordedSpan = sanitizeRecordedSpan(span)
     const fetch = getFetchInsight(span) ?? undefined
+    // A fetch span's URL is the outgoing request, not this one.
+    const requestUrl = fetch ? undefined : span.url
     const insight = this.getOrCreateRequest(
       {
         requestId: span.requestId,
@@ -105,7 +107,7 @@ class InMemoryRequestInsightsStore {
         proxyStatus: span.requestInsightProxyStatus,
         htmlRequestId: span.htmlRequestId,
         route: span.route,
-        url: span.url,
+        url: requestUrl,
       },
       span.startTime ?? span.timestamp
     )
@@ -125,9 +127,11 @@ class InMemoryRequestInsightsStore {
       span
     )
     insight.route = insight.route ?? span.route
-    insight.url = insight.url ?? sanitizeUrl(span.url)
+    insight.url = insight.url ?? sanitizeUrl(requestUrl)
     const spanType = span.attributes?.['next.span_type']
-    const isRequestSpan = spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+    const isRequestSpan =
+      spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE ||
+      span.requestInsightRoot === true
     if (isRequestSpan && insight.route) {
       nameRequestSpan(recordedSpan, insight.route)
     }
@@ -146,7 +150,8 @@ class InMemoryRequestInsightsStore {
 
     if (
       span.durationMs !== undefined &&
-      spanType === AppRenderSpan.instantInsights
+      (spanType === AppRenderSpan.instantInsights ||
+        span.requestInsightRoot === true)
     ) {
       this.complete(insight, spanStartTime + span.durationMs)
     }
@@ -249,9 +254,12 @@ class InMemoryRequestInsightsStore {
   ): void {
     const requestId = insight.requestId
     if (isRequestSpan && durationMs !== undefined) {
+      // Keep the start of spans recorded first, such as a cold `compile-path`
+      // before `BaseServer.handleRequest`; request spans alone set the end.
+      const firstStart = Math.min(insight.startTime, startTime)
       const previousTiming = this.requestTimings.get(requestId) ?? {
-        startTime,
-        durationMs,
+        startTime: firstStart,
+        durationMs: startTime + durationMs - firstStart,
       }
       const requestStart = Math.min(previousTiming.startTime, startTime)
       const requestTiming = {
@@ -270,6 +278,12 @@ class InMemoryRequestInsightsStore {
 
     const requestTiming = this.requestTimings.get(requestId)
     if (requestTiming) {
+      // A span that starts earlier but ends later, like the router's
+      // `route to render` parent, still moves the start.
+      if (startTime < requestTiming.startTime) {
+        requestTiming.durationMs += requestTiming.startTime - startTime
+        requestTiming.startTime = startTime
+      }
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
       return
