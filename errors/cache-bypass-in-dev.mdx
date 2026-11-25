@@ -8,6 +8,10 @@ While running Next.js in development mode with `next dev`, an initial page load 
 
 This can also happen when [`draftMode`](/docs/app/api-reference/functions/draft-mode) is enabled. Draft Mode is designed to bypass caches so you can preview live or unpublished content before it is published to the cached or prerendered version of your site.
 
+A browser test that intercepts requests causes it too. See [Automated browser tests](#automated-browser-tests).
+
+For a request handled this way, Next.js also skips Cache Components validation. A route that reads uncached or request-time data outside `<Suspense>` renders without the error it would normally report, and `next build` can still fail on it.
+
 Bypassing caches while in development mode affects the debugging experience of Cache Components and Instant Insights. Read on to understand more about how Next.js handles caches in development mode and what changes when they are intentionally bypassed.
 
 ## Understanding Cache Handling in Development Mode
@@ -28,8 +32,20 @@ If you must turn on "Disable Cache" to force a refresh, we recommend that you di
 
 If this warning appears while Draft Mode is enabled, it is expected. Draft Mode intentionally bypasses `"use cache"` and other server caches so your preview can render the latest content dynamically. Disable Draft Mode when you want to debug what can be prerendered, prefetched, or cached for normal visitors.
 
+## Automated browser tests
+
+Intercepting requests turns off the browser's HTTP cache. In Playwright, registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) is enough, even when the handler's URL pattern never matches a request. Chromium then sends `cache-control: no-cache` with every request, including the request for the page itself.
+
+Next.js cannot tell this request from a hard refresh, so it bypasses server caches and skips validation for it. A test that intercepts requests can therefore pass in `next dev` on a route that fails `next build`.
+
+To keep validation in a test:
+
+- Use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) to check what is visible before dynamic content arrives. It does not intercept requests.
+- If a test needs request interception, also load the route in a test or browser context that registers no route handler, or run `next build`.
+
 ## Useful Links
 
+- [Testing instant navigations with Playwright](/docs/app/guides/testing/playwright#testing-instant-navigations)
 - [`draftMode` function](/docs/app/api-reference/functions/draft-mode)
 - [`revalidateTag` function](/docs/app/api-reference/functions/revalidateTag)
 - [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
