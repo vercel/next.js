@@ -55,7 +55,9 @@ export async function readGoProxyConfig(
   try {
     return {
       // An omitted matcher matches every path.
-      matchers: getMiddlewareMatchers(matcher ?? '/:path*', nextConfig),
+      matchers: getMiddlewareMatchers(matcher ?? '/:path*', nextConfig, {
+        throwOnInvalidSource: true,
+      }),
     }
   } catch (error) {
     throw invalid(sourcePath, error)

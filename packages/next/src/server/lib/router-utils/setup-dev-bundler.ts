@@ -1336,6 +1336,14 @@ async function startWatcher(
         ])
       )
 
+      // The scan can await while Turbopack updates proxy.go's matchers. Preserve
+      // the latest failure or recovery state instead of committing its snapshot.
+      if (
+        middlewareEntry?.runtime === 'go' &&
+        serverFields.middleware?.runtime === 'go'
+      ) {
+        middlewareEntry.matchers = serverFields.middleware.matchers
+      }
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareEntry
       // A removed or replaced proxy.go takes its Config error with it.

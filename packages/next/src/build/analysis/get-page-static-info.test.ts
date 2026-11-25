@@ -1,7 +1,26 @@
+import { mkdtemp, rm, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { getMiddlewareMatchers } from './get-page-static-info'
+import { readGoProxyConfig } from './go-config'
+import { SourceSchema } from '../segment-config/middleware/middleware-config'
 
 describe('get-page-static-infos', () => {
   describe('getMiddlewareMatchers', () => {
+    it('still exits for invalid expanded sources in existing callers', () => {
+      const exit = jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit')
+      })
+      try {
+        expect(() => getMiddlewareMatchers('/' + 'a'.repeat(4089), {})).toThrow(
+          'process.exit'
+        )
+        expect(exit).toHaveBeenCalledWith(1)
+      } finally {
+        exit.mockRestore()
+      }
+    })
+
     it('sets originalSource with one matcher', () => {
       const matchers = '/middleware/path'
       const expected = [
@@ -85,6 +104,46 @@ describe('get-page-static-infos', () => {
       expect(
         regex.test('/index.segments/$c$children/__PAGE__.segment.rsc')
       ).toBe(true)
+    })
+  })
+
+  describe('readGoProxyConfig', () => {
+    it('rejects invalid expanded sources without exiting and can recover', async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'go-proxy-config-'))
+      const descriptor = join(directory, 'middleware.native.json')
+      const source = '/' + 'a'.repeat(4089)
+      const exit = jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('Unexpected process.exit')
+      })
+      try {
+        // The literal passes schema validation; only its expanded form is too long.
+        expect(source).toHaveLength(4090)
+        expect(SourceSchema.safeParse(source).success).toBe(true)
+        await writeFile(
+          descriptor,
+          JSON.stringify({ config: { matcher: [{ source }] } })
+        )
+        await expect(
+          readGoProxyConfig(descriptor, 'proxy.go', {})
+        ).rejects.toThrow(
+          /Invalid static Go config in proxy\.go: .*exceeds max built length of 4096/
+        )
+        expect(exit).not.toHaveBeenCalled()
+
+        await writeFile(
+          descriptor,
+          JSON.stringify({ config: { matcher: [{ source: '/recovered' }] } })
+        )
+        await expect(
+          readGoProxyConfig(descriptor, 'proxy.go', {})
+        ).resolves.toEqual({
+          matchers: [expect.objectContaining({ originalSource: '/recovered' })],
+        })
+        expect(exit).not.toHaveBeenCalled()
+      } finally {
+        exit.mockRestore()
+        await rm(directory, { recursive: true, force: true })
+      }
     })
   })
 })

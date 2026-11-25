@@ -31,7 +31,7 @@ import {
   parseAppSegmentConfig,
   type AppSegmentConfig,
 } from '../segment-config/app/app-segment-config'
-import { reportZodError } from '../../shared/lib/zod'
+import { formatZodError, reportZodError } from '../../shared/lib/zod'
 import {
   PagesSegmentConfigSchemaKeys,
   parsePagesSegmentConfig,
@@ -474,7 +474,8 @@ function tryToReadFile(filePath: string, shouldThrow: boolean) {
  */
 export function getMiddlewareMatchers(
   matcherOrMatchers: MiddlewareConfigMatcherInput,
-  nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
+  nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>,
+  options: { throwOnInvalidSource?: boolean } = {}
 ): ProxyMatcher[] {
   const matchers = Array.isArray(matcherOrMatchers)
     ? matcherOrMatchers
@@ -513,9 +514,12 @@ export function getMiddlewareMatchers(
       source = `${nextConfig.basePath}${source}`
     }
 
-    // Validate that the source is still.
+    // Validate the expanded source, including transport prefixes and suffixes.
     const result = SourceSchema.safeParse(source)
     if (!result.success) {
+      if (options.throwOnInvalidSource) {
+        throw formatZodError('Failed to parse middleware source', result.error)
+      }
       reportZodError('Failed to parse middleware source', result.error)
 
       // We need to exit here because middleware being built occurs before we

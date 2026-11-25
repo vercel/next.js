@@ -1342,7 +1342,7 @@ export async function createHotReloaderTurbopack(
                 force: forceDeleteCache,
               })
             },
-            loadNativeMiddleware: async () => {
+            loadNativeMiddleware: async (entryPath) => {
               // Turbopack records proxy.go's static Config in the descriptor it
               // just wrote. Source-level static info has no Go matchers.
               const proxyPath = join(
@@ -1352,6 +1352,11 @@ export async function createHotReloaderTurbopack(
               )
               let matchers: ProxyMatcher[]
               try {
+                // A failed compile may leave a previous descriptor on disk. Do
+                // not reload it or keep its matchers while the proxy is invalid.
+                if (!entryPath) {
+                  throw new Error(`Failed to compile ${proxyPath}`)
+                }
                 matchers = (
                   await readGoProxyConfig(
                     join(distDir, 'server', 'middleware.native.json'),
@@ -1374,7 +1379,12 @@ export async function createHotReloaderTurbopack(
                   severity: 'error',
                   stage: 'analyze',
                   filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
-                  title: { type: 'text', value: 'Invalid proxy.go Config' },
+                  title: {
+                    type: 'text',
+                    value: entryPath
+                      ? 'Invalid proxy.go Config'
+                      : 'Failed to compile proxy.go',
+                  },
                   description: { type: 'text', value: message },
                   documentationLink: '',
                 }

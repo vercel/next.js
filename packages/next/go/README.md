@@ -50,12 +50,15 @@ Editors, linters and other Go tools resolve the SDK through this ordinary
 replacement, always at the installed Next.js version, without downloads or
 `go.sum` entries.
 
-- **Requirement:** Go ignores a replacement for a module that is not required. The
-  requirement is added only when a Go source in the project, its tests, or a
-  package it imports uses a `next/go/*` package, and is never removed, so it agrees with
-  `go mod tidy`. During `next dev`, it is added when a route or Proxy file, or a
-  package one of them imports, starts importing `next/go`: Next.js updates
-  `go.mod` when the handler recompiles, then Turbopack compiles it again.
+- **Requirement:** added when a handler's selected source files, a Go package,
+  its tests, or a dependency imports a `next/go/*` package. Handler directories
+  use the compiler's named-file selection, including build-tagged and
+  platform-suffixed siblings. Actual routes under `testdata` or `vendor` are
+  included without treating unused Go fixture modules as application code.
+  Next.js never removes a requirement. If `go mod tidy` removes one used only
+  by a route that Go's wildcard patterns skip, Next.js adds it back when needed.
+  During `next dev`, a changed handler result triggers setup; a `go.mod` update
+  then makes Turbopack compile it again.
 - **Replacement:** kept pointing at the installed SDK while the module requires
   it. With pnpm it names the package's real directory under `node_modules/.pnpm`,
   so it changes when `next` or one of its peer dependencies is upgraded, and the
@@ -64,6 +67,7 @@ replacement, always at the installed Next.js version, without downloads or
 - **Monorepos:** the `go.mod` can be in the application, in a directory nested in
   it, or at the workspace root, and `next` can be installed anywhere inside
   Turbopack's root (`turbopack.root`), such as the workspace's `node_modules`.
+  Directory replacements can target ancestor modules within that root.
 - **Libraries:** a Go package that imports `next/go/proxy` requires `next/go v0.0.0` in
   its own `go.mod`. The application's replacement applies to it too, so nothing
   needs to be published. Its own replacement, for developing it on its own, is
@@ -75,8 +79,10 @@ replacement, always at the installed Next.js version, without downloads or
   not change the `go` line, and Go does not raise it in `-mod=readonly` builds, so
   raise an older `go` line to at least 1.21.
 
-Other requirements and `go.sum` are left to Go. Versioned replacements and Go
-workspaces are not supported.
+Other requirements and `go.sum` are left to Go. SDK discovery is offline: private
+module and VCS settings from the shell or a user Go environment file do not enable
+fetches. Explicit Go toolchain and cache locations are preserved. Versioned
+replacements and Go workspaces are not supported.
 
 ## Static configuration
 

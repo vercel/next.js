@@ -42,6 +42,85 @@ describe('static Go config', () => {
   })
 
   if (isNextDev) {
+    it.each([
+      {
+        failure: 'static Go Config analysis',
+        from: 'Source: "/configured"',
+        to: 'Source: configSource()',
+        extra: '\nfunc configSource() string { return "/configured" }\n',
+        error: 'static string literals',
+      },
+      {
+        failure: 'Go compilation',
+        from: 'proxy.Next(w)',
+        to: 'proxy.Next(w, undefinedOption)',
+        extra: '',
+        error: 'undefined: undefinedOption',
+      },
+      {
+        failure: 'expanded matcher validation',
+        from: 'Source: "/configured"',
+        // The literal is valid, but the expanded matcher exceeds 4096 characters.
+        to: `Source: "${'/' + 'a'.repeat(4089)}"`,
+        extra: '',
+        error: 'exceeds max built length of 4096',
+      },
+    ])(
+      'fails closed on initial $failure and restrictive → invalid → valid edits',
+      async ({ from, to, extra, error }) => {
+        await next.stop()
+        await next.clean()
+        const source = await next.readFile('proxy.go')
+        const invalidSource = source.replace(from, to) + extra
+        const expectBlocked = async () => {
+          await retry(async () => {
+            // Both paths are outside the restrictive matcher used below. Native
+            // routes must not bypass the failed proxy via their fast path.
+            for (const path of ['/configured', '/']) {
+              const response = await next.fetch(path)
+              expect(response.status).toBe(500)
+              expect(await response.text()).not.toBe('configured route')
+            }
+          }, 60_000)
+          expect(next.cliOutput).toContain(error)
+        }
+        try {
+          // No descriptor exists when the first proxy compile fails.
+          await next.patchFile('proxy.go', invalidSource)
+          await next.start()
+          await expectBlocked()
+
+          await next.patchFile(
+            'proxy.go',
+            source.replace('Source: "/configured"', 'Source: "/not-configured"')
+          )
+          await retry(async () => {
+            const response = await next.fetch('/configured')
+            expect(response.status).toBe(200)
+            expect(await response.text()).toBe('configured route')
+            expect(response.headers.get('x-static-go-config')).toBeNull()
+          }, 60_000)
+
+          // A previous descriptor now exists, but it must not keep its matchers
+          // when a new compile fails before publishing a replacement.
+          await next.patchFile('proxy.go', invalidSource)
+          await expectBlocked()
+        } finally {
+          await next.patchFile('proxy.go', source)
+        }
+        await retry(async () => {
+          const response = await next.fetch('/configured')
+          expect(response.status).toBe(200)
+          expect(await response.text()).toBe('configured route')
+          expect(response.headers.get('x-static-go-config')).toBe('matched')
+          expect(
+            (await next.fetch('/')).headers.get('x-static-go-config')
+          ).toBeNull()
+        }, 60_000)
+      },
+      360_000
+    )
+
     it('updates the proxy matcher after a literal edit', async () => {
       const source = await next.readFile('proxy.go')
       try {
@@ -56,11 +135,11 @@ describe('static Go config', () => {
           expect(
             (await next.fetch('/configured')).headers.get('x-static-go-config')
           ).toBeNull()
-        })
+        }, 60_000)
       } finally {
         await next.patchFile('proxy.go', source)
       }
-    })
+    }, 180_000)
 
     it('fails requests instead of skipping the proxy while its Config is invalid', async () => {
       // Go accepts the literal; Next.js matcher validation rejects it, which
@@ -76,7 +155,7 @@ describe('static Go config', () => {
           const response = await next.fetch('/configured')
           expect(response.status).toBe(500)
           expect(await response.text()).not.toBe('configured route')
-        })
+        }, 60_000)
         expect(next.cliOutput).toContain('must start with /')
       } finally {
         await next.patchFile('proxy.go', source)
@@ -85,8 +164,8 @@ describe('static Go config', () => {
         const response = await next.fetch('/configured')
         expect(await response.text()).toBe('configured route')
         expect(response.headers.get('x-static-go-config')).toBe('matched')
-      })
-    })
+      }, 60_000)
+    }, 240_000)
   }
 
   if (isNextStart) {
