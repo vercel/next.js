@@ -821,10 +821,10 @@ describe('native-route-go', () => {
       expect(await lifecyclePid()).toBe((await data()).pid)
     })
 
-    it('selects the routed Go handler and ignores client x-matched-path values', async () => {
-      // Next.js names the routed handler's ID in x-matched-path and replaces
-      // every value the client sent, in any letter case, so a client cannot
-      // choose another handler compiled into the shared executable.
+    // Next.js names the routed handler's ID in x-matched-path and replaces
+    // every value the client sent, in any letter case, so a client cannot
+    // choose another handler compiled into the shared executable.
+    async function expectForgedRoutingIgnored() {
       const url = new URL(next.url)
       const forged = [
         'X-Matched-Path',
@@ -874,6 +874,50 @@ describe('native-route-go', () => {
           expect(body).toMatchObject(expected)
         }
       }
+    }
+
+    it('selects the routed Go handler and ignores client x-matched-path values', async () => {
+      await expectForgedRoutingIgnored()
+    })
+
+    it('ignores client x-matched-path values when the router keeps internal headers', async () => {
+      // With NEXT_PRIVATE_TEST_HEADERS, router-server keeps internal headers
+      // such as x-matched-path, so only the route.go proxy (proxyNativeRequest)
+      // stands between the client and the executable's route selection.
+      await next.stop()
+      try {
+        await next.start({
+          skipBuild: true,
+          env: { NEXT_PRIVATE_TEST_HEADERS: '1' },
+        })
+        await expectForgedRoutingIgnored()
+      } finally {
+        await next.stop()
+        await next.start({ skipBuild: true })
+      }
+    })
+
+    // TODO: enable once Next.js routes a request whose path must be decoded to
+    // match an app route. The Go side serves this route: Next.js sends its
+    // exact ID, /adapter-special/café a 100%, as raw UTF-8 bytes, and the
+    // executable selects it and matches the decoded request path (also
+    // covered by the adapter test below). The 404 comes from Node routing
+    // before the request reaches Go: setupFsCheck's getItem
+    // (server/lib/router-utils/filesystem.ts) looks up the route definition
+    // with the still-encoded path, then matches the file through its decoded
+    // fallback, so router-server forwards no match. handleCatchallRenderRequest
+    // (next-server.ts) then matches the encoded pathname against decoded route
+    // definitions, finds none, and renders a 404. CI showed that 404 at
+    // 4b2ef71a.
+    it.skip('serves a Go route whose path needs decoding under next start', async () => {
+      const response = await next.fetch(
+        '/adapter-special/caf%C3%A9%20a%20100%25',
+        { headers: { 'x-matched-path': '/native/[id]' } }
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        path: '/adapter-special/caf%C3%A9%20a%20100%25',
+      })
     })
 
     it('retries a transient worker startup failure in production', async () => {
@@ -1955,21 +1999,20 @@ func init() {
       for (const file of files) await next.deleteFile(file)
     }
   })
-  it('rejects Go routes that x-matched-path cannot select', async () => {
-    // Every production executable reads x-matched-path as the Next.js server
-    // does, which drops a leading /index from a static path, so
-    // /index/collide/docs would select /collide/docs, a different handler than
-    // the one Next.js or the platform routed to.
+  it('rejects Go routes that x-matched-path cannot select in adapter builds', async () => {
+    // Adapter executables read x-matched-path as the Next.js server does,
+    // which drops a leading /index from a static path, so /index/collide/docs
+    // would select /collide/docs, a different handler than the one the
+    // platform routed to. next start looks up the exact ID instead.
+    const config = await next.readFile('next.config.ts')
     const source = `package route
 
 import "net/http"
 
 func GET(w http.ResponseWriter, r *http.Request) {}
 `
-    try {
-      await next.patchFile('app/collide/docs/route.go', source)
-      await next.patchFile('app/index/collide/docs/route.go', source)
-      const result = await next.runCommand(['build', '--turbopack'], {
+    const build = () =>
+      next.runCommand(['build', '--turbopack'], {
         env: {
           IS_WEBPACK_TEST: '',
           IS_TURBOPACK_TEST: '1',
@@ -1977,13 +2020,79 @@ func GET(w http.ResponseWriter, r *http.Request) {}
           NEXT_TEST_USE_RSPACK: '',
         },
       })
+    try {
+      await next.patchFile('app/collide/docs/route.go', source)
+      await next.patchFile('app/index/collide/docs/route.go', source)
+      expect((await build()).exitCode).toBe(0)
+      await next.patchFile(
+        'next.config.ts',
+        config.replace(
+          'experimental:',
+          `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
+        )
+      )
+      const result = await build()
       expect(result.exitCode).not.toBe(0)
       expect(result.stdout + result.stderr).toContain(
-        'The Go route /index/collide/docs cannot be selected, because the x-matched-path header reads /index/collide/docs as the Go route /collide/docs, a different route'
+        'The Go route /index/collide/docs cannot be selected in adapter deployments, because the x-matched-path header reads /index/collide/docs as the Go route /collide/docs, a different route'
       )
     } finally {
+      await next.patchFile('next.config.ts', config)
       await next.deleteFile('app/collide')
       await next.deleteFile('app/index')
+    }
+  })
+  it('skips the Go startup check when experimental.goRoutesStartupCheck is false', async () => {
+    // Initialization that needs runtime-only configuration fails the check,
+    // which runs with the build environment.
+    const config = await next.readFile('next.config.ts')
+    const route = 'app/methods/needs-runtime-config.go'
+    try {
+      await next.patchFile(
+        route,
+        `package route
+
+import "os"
+
+func init() {
+\tif os.Getenv("NATIVE_ROUTE_RUNTIME_ONLY") == "" {
+\t\tpanic("NATIVE_ROUTE_RUNTIME_ONLY is not set")
+\t}
+}
+`
+      )
+      const build = () =>
+        next.runCommand(['build', '--turbopack'], {
+          env: {
+            IS_WEBPACK_TEST: '',
+            IS_TURBOPACK_TEST: '1',
+            NEXT_RSPACK: '',
+            NEXT_TEST_USE_RSPACK: '',
+          },
+        })
+      const checked = await build()
+      expect(checked.exitCode).not.toBe(0)
+      expect(checked.stdout + checked.stderr).toContain(
+        'NATIVE_ROUTE_RUNTIME_ONLY is not set'
+      )
+      expect(checked.stdout + checked.stderr).toContain(
+        'experimental.goRoutesStartupCheck: false'
+      )
+      await next.patchFile(
+        'next.config.ts',
+        config.replace(
+          'experimental: {',
+          'experimental: {\n    goRoutesStartupCheck: false,'
+        )
+      )
+      const skipped = await build()
+      expect(skipped.stdout + skipped.stderr).not.toContain(
+        'NATIVE_ROUTE_RUNTIME_ONLY is not set'
+      )
+      expect(skipped.exitCode).toBe(0)
+    } finally {
+      await next.patchFile('next.config.ts', config)
+      await next.deleteFile(route)
     }
   })
   it('diagnoses conflicting Go and TS handlers', async () => {

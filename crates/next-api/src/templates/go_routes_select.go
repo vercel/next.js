@@ -1,7 +1,7 @@
 package main
 
-// Selection shared by every production executable. Next.js generates this file
-// beside the entrypoint; it is not part of the route API.
+// Selection for adapter executables. Next.js generates this file beside the
+// adapter entrypoint; it is not part of the route API.
 
 import (
 	"net/http"
@@ -9,11 +9,10 @@ import (
 	"unicode/utf8"
 )
 
-// nextGoMatchedPathHandler selects the route named by x-matched-path. Whatever
-// forwards requests to the executable must set the header from its routing
-// decision and drop every value the client sent: the platform's proxy for
-// adapter builds, as Vercel's does and as the Next.js server assumes in minimal
-// mode, and Next.js itself, or Switchyard, under next start.
+// nextGoMatchedPathHandler selects the output named by x-matched-path. The
+// platform's proxy must set the header from its routing decision and drop every
+// value the client sent, as Vercel's does and as the Next.js server assumes in
+// minimal mode.
 func nextGoMatchedPathHandler(routes map[string]http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.Header.Values("X-Matched-Path")
@@ -41,7 +40,7 @@ func nextGoMatchedPathHandler(routes map[string]http.HandlerFunc) http.HandlerFu
 // handleRequestImpl). Steps that cannot address an App Router route handler
 // are left out. The build rejects Go outputs whose IDs these steps would map to
 // another value, so every output ID maps to itself and a value names at most
-// one output (go_matched_path_issues in next-api's app.rs).
+// one output (go_matched_path_issue in next-api's app.rs).
 //
 //   - fixMojibake: the header carries the pathname's UTF-8 bytes, not
 //     percent-encoding, and Go reads header bytes as is. Node replaces invalid

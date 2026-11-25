@@ -527,6 +527,16 @@ export interface ExperimentalConfig {
   /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
   /**
+   * Run the production Go route executable once during `next build`, so that
+   * package initialization that fails when every route.go shares one process
+   * fails the build. Initialization runs with the build environment. Set to
+   * `false` when route packages need runtime-only configuration while they
+   * initialize, or initialization has side effects.
+   *
+   * @default true
+   */
+  goRoutesStartupCheck?: boolean
+  /**
    * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
    * `next dev` manages upgrade instructions in AGENTS.md using this policy.
    */

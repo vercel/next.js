@@ -1496,7 +1496,36 @@ impl Issue for GoRouteIssue {
     }
 }
 
-/// The route ID that a production executable selects for an `x-matched-path` value, as
+/// A route.go that works in development but that a production build will reject.
+#[turbo_tasks::value]
+struct GoRouteWarning {
+    path: FileSystemPath,
+    message: RcStr,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for GoRouteWarning {
+    fn stage(&self) -> IssueStage {
+        IssueStage::CodeGen
+    }
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "route.go cannot be selected in production"
+        )))
+    }
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.message.clone())))
+    }
+}
+
+/// The route ID that an adapter executable selects for an `x-matched-path` value, as
 /// `nextGoMatchedPathID` in `templates/go_routes_select.go` computes it. It mirrors the steps the
 /// Next.js server applies to the header (`denormalizePagePath`): backslashes become slashes,
 /// `/index` becomes `/`, and a static `/index/...` loses its `/index` prefix.
@@ -1515,51 +1544,55 @@ fn go_matched_path_id(value: &str) -> String {
     }
 }
 
-/// Go route IDs that no `x-matched-path` value can select, each with the reason. Next.js, or the
-/// platform, sends a route's own ID in `x-matched-path`, so every ID must be a valid header value
-/// that the executable reads back as itself:
-///
-/// - HTTP drops control characters and trims a trailing space or tab from header values.
-/// - Normalization must leave the ID unchanged. Otherwise the ID would select another route, such
-///   as `/index/docs` selecting `/docs`, or nothing.
-///
-/// Every remaining ID maps to itself, so distinct IDs never select the same route.
-fn go_matched_path_issues<'a>(ids: &[&'a str]) -> Vec<(&'a str, String)> {
-    let known: std::collections::BTreeSet<&str> = ids.iter().copied().collect();
-    let mut issues = vec![];
-    for &id in ids {
-        if id.chars().any(|c| c.is_ascii_control()) || id.ends_with(' ') {
-            issues.push((
-                id,
-                format!(
-                    "The Go route {id:?} cannot be selected, because its path contains a control \
-                     character or ends with a space, which an HTTP header cannot carry. \
-                     Production builds compile every route.go into one executable that selects a \
-                     route from its path in the x-matched-path header. Rename the folder."
-                ),
-            ));
-            continue;
-        }
-        let selected = go_matched_path_id(id);
-        if selected != id {
-            let target = if known.contains(selected.as_str()) {
-                format!("the Go route {selected}, a different route")
-            } else {
-                format!("{selected}, which is not a Go route")
-            };
-            issues.push((
-                id,
-                format!(
-                    "The Go route {id} cannot be selected, because the x-matched-path header \
-                     reads {id} as {target}. Production builds compile every route.go into one \
-                     executable that selects a route from x-matched-path the way the Next.js \
-                     server does, which reads /index as /, drops a leading /index from a static \
-                     path, and reads backslashes as slashes. Rename the folder."
-                ),
-            ));
-        }
+/// Why no `x-matched-path` value can carry a Go route ID, if so. Every production executable
+/// receives the selected route's ID in that header, but HTTP drops control characters and trims a
+/// trailing space or tab from header values, so `/docs ` would arrive as `/docs`.
+fn go_route_id_header_issue(id: &str) -> Option<String> {
+    (id.chars().any(|c| c.is_ascii_control()) || id.ends_with(' ')).then(|| {
+        format!(
+            "The Go route {id:?} cannot be selected, because its path contains a control \
+             character or ends with a space, which an HTTP header cannot carry. Production builds \
+             compile every route.go into one executable that selects a route from its path in the \
+             x-matched-path header. Rename the folder."
+        )
+    })
+}
+
+/// Why an adapter executable cannot select a Go route ID, if so. It normalizes `x-matched-path`
+/// as the Next.js server does (`go_matched_path_id`), so the ID must normalize to itself.
+/// Otherwise the ID would select another route, such as `/index/docs` selecting `/docs`, or
+/// nothing. `known` lists every Go route ID of the build, for the message.
+fn go_matched_path_issue(id: &str, known: &[&str]) -> Option<String> {
+    let selected = go_matched_path_id(id);
+    if selected == id {
+        return None;
     }
-    issues
+    let target = if known.contains(&selected.as_str()) {
+        format!("the Go route {selected}, a different route")
+    } else {
+        format!("{selected}, which is not a Go route")
+    };
+    Some(format!(
+        "The Go route {id} cannot be selected in adapter deployments, because the x-matched-path \
+         header reads {id} as {target}. Adapter builds compile every route.go into one executable \
+         that selects a route from x-matched-path the way the Next.js server does, which reads \
+         /index as /, drops a leading /index from a static path, and reads backslashes as \
+         slashes. Rename the folder."
+    ))
+}
+
+/// Go route IDs that a production executable cannot select, each with the reason. Every build
+/// checks that the ID fits in a header. Adapter builds also check that `x-matched-path`
+/// normalization leaves it unchanged; `next start` looks up the exact ID. Every remaining ID is
+/// selected by exactly one value, so distinct IDs never select the same route.
+fn go_matched_path_issues<'a>(ids: &[&'a str], adapter: bool) -> Vec<(&'a str, String)> {
+    ids.iter()
+        .filter_map(|&id| {
+            go_route_id_header_issue(id)
+                .or_else(|| adapter.then(|| go_matched_path_issue(id, ids)).flatten())
+                .map(|message| (id, message))
+        })
+        .collect()
 }
 
 /// Virtual directory of the adapter entrypoint that serves every route, relative to the Go
@@ -1798,9 +1831,11 @@ struct GoRoutesBundle {
 /// executable. Issues are attributed to the route files.
 ///
 /// The executable never selects a route by path. With an adapter, each request selects its output
-/// from the platform's `x-matched-path` header, unless the adapter pins one output or names its own
-/// routing header (`go_routes_adapter_main.go`). With `next start`, Next.js routes the request and
-/// names the selected route in an authenticated header (`go_routes_main.go`).
+/// from the platform's `x-matched-path` header, normalized as the Next.js server reads it, unless
+/// the adapter pins one output with `__NEXT_GO_ROUTE` (`go_routes_adapter_main.go`,
+/// `go_routes_select.go`). With `next start`, Next.js, or Switchyard, routes the request, replaces
+/// any client-sent `x-matched-path` with the selected route's exact ID, and authenticates it with
+/// the worker's token (`go_routes_main.go`).
 #[turbo_tasks::function]
 async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBundle>> {
     let failed = |build: Option<turbopack_go::GoBundleResult>| {
@@ -1851,8 +1886,10 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
         .iter()
         .map(|(_, package)| package.route_id.as_str())
         .collect::<Vec<_>>();
-    // Every production executable selects a route from x-matched-path.
-    let issues = go_matched_path_issues(&ids);
+    // Every production executable selects a route from x-matched-path. Only adapter
+    // executables normalize it.
+    let adapter = is_adapter_build(project).await?;
+    let issues = go_matched_path_issues(&ids, adapter);
     if !issues.is_empty() {
         for (id, message) in issues {
             for (path, package) in &packages {
@@ -1949,7 +1986,9 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
     let root = go_packages_root(&sets.iter().map(|sources| &**sources).collect::<Vec<_>>())?;
     let mut aliased = vec![];
     let mut aliases = BTreeMap::new();
-    for (_, package) in &packages {
+    let mut alias_owners: BTreeMap<String, &FileSystemPath> = BTreeMap::new();
+    let mut duplicate_alias = false;
+    for (path, package) in &packages {
         let directory = if package.directory == root {
             ""
         } else {
@@ -1958,6 +1997,27 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
         };
         // The same package path as a single-route build, so `internal` imports behave the same.
         let alias = go_package_alias(directory, false).package;
+        // Two routes overlaid at one package path would replace each other's sources and
+        // generated files, and one route would silently serve the other's handler.
+        if let Some(other) = alias_owners.insert(alias.clone(), path) {
+            duplicate_alias = true;
+            for owner in [other, path] {
+                GoRouteIssue {
+                    path: owner.clone(),
+                    message: format!(
+                        "Production builds compile every route.go into one executable, but {} and \
+                         {} map to the same Go package path ({alias}). Rename one of the route \
+                         directories.",
+                        display(&other.parent()),
+                        display(&path.parent())
+                    )
+                    .into(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+            continue;
+        }
         generated.insert(
             RcStr::from(format!("{alias}/zz_next_route_handler.go")),
             RcStr::from(package.handler.as_str()),
@@ -1974,14 +2034,21 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
                 .into_iter()
                 .map(|(path, source)| (RcStr::from(path), RcStr::from(source))),
         );
-        aliases.insert(RcStr::from(alias.as_str()), package.sources);
+        if aliases
+            .insert(RcStr::from(alias.as_str()), package.sources)
+            .is_some()
+        {
+            bail!("Go route package path {alias} was assigned twice");
+        }
         aliased.push((import, package));
+    }
+    if duplicate_alias {
+        return Ok(failed(None));
     }
     aliased.sort_by(|(_, a), (_, b)| a.route_id.cmp(&b.route_id));
     // Next.js authenticates requests to a `next start` worker and replaces client-supplied
     // x-matched-path and x-next-internal-* headers. Adapter servers receive requests from the
     // platform instead.
-    let adapter = is_adapter_build(project).await?;
     let trust_internal_headers = !adapter;
     let mut imports = vec![];
     let mut table = vec![];
@@ -1995,12 +2062,14 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
             serde_json::to_string(&package.route_id)?
         ));
     }
-    generated.insert(
-        RcStr::from(format!(
-            "{GO_ROUTES_ENTRYPOINT_DIRECTORY}/zz_next_select.go"
-        )),
-        RcStr::from(include_str!("templates/go_routes_select.go")),
-    );
+    if adapter {
+        generated.insert(
+            RcStr::from(format!(
+                "{GO_ROUTES_ENTRYPOINT_DIRECTORY}/zz_next_select.go"
+            )),
+            RcStr::from(include_str!("templates/go_routes_select.go")),
+        );
+    }
     generated.insert(
         RcStr::from(format!("{GO_ROUTES_ENTRYPOINT_DIRECTORY}/main.go")),
         RcStr::from(
@@ -2166,6 +2235,19 @@ impl Endpoint for GoEndpoint {
                 _ => return native_failed(bundle.build.clone()).await,
             }
         } else {
+            // Development serves each route from its own executable, without x-matched-path.
+            // Warn about routes that a production build will reject, before deployment.
+            if !is_proxy
+                && let Some(message) = go_route_id_header_issue(&route_id)
+                    .or_else(|| go_matched_path_issue(&route_id, &[]))
+            {
+                GoRouteWarning {
+                    path: this.path.clone(),
+                    message: message.into(),
+                }
+                .resolved_cell()
+                .emit();
+            }
             let source_set = package.sources.await?;
             let module_root = source_set.root.clone();
             let directory = package.directory.clone();
@@ -4046,37 +4128,55 @@ mod tests {
 
     #[test]
     fn go_matched_path_rejects_ids_that_cannot_select_themselves() {
-        let rejected = |ids: &[&str]| {
-            go_matched_path_issues(ids)
+        let rejected = |ids: &[&str], adapter: bool| {
+            go_matched_path_issues(ids, adapter)
                 .into_iter()
                 .map(|(id, _)| id.to_owned())
                 .collect::<Vec<_>>()
         };
+        let normalized = [
+            "/docs",
+            "/index/docs",
+            "/a/b",
+            "/a\\b",
+            "/[id]",
+            "/",
+            "/index",
+        ];
         assert_eq!(
-            rejected(&["/docs", "/index/docs", "/a/b", "/a\\b", "/[id]"]),
-            ["/index/docs", "/a\\b"]
+            rejected(&normalized, true),
+            ["/index/docs", "/a\\b", "/index"]
         );
-        assert_eq!(rejected(&["/", "/index"]), ["/index"]);
+        // `next start` looks up the exact ID, so only header-unsafe IDs fail there.
+        assert!(rejected(&normalized, false).is_empty());
         // An ID that would select nothing is rejected too.
-        assert_eq!(rejected(&["/index/only"]), ["/index/only"]);
-        assert_eq!(
-            rejected(&["/tab\tname", "/new\nline", "/trailing ", "/inner space"]),
-            ["/tab\tname", "/new\nline", "/trailing "]
-        );
-        // Percent-encoding is not decoded, and dynamic /index paths keep their prefix.
-        assert!(
-            rejected(&[
-                "/",
-                "/x/[id]",
-                "/x/%5Bid%5D",
-                "/index/[id]",
-                "/[id]",
-                "/café a 100%",
-                "/日本語",
-            ])
-            .is_empty()
-        );
-        let messages = go_matched_path_issues(&["/docs", "/index/docs", "/index/only"]);
+        assert_eq!(rejected(&["/index/only"], true), ["/index/only"]);
+        for adapter in [true, false] {
+            assert_eq!(
+                rejected(
+                    &["/tab\tname", "/new\nline", "/trailing ", "/inner space"],
+                    adapter
+                ),
+                ["/tab\tname", "/new\nline", "/trailing "]
+            );
+            // Percent-encoding is not decoded, and dynamic /index paths keep their prefix.
+            assert!(
+                rejected(
+                    &[
+                        "/",
+                        "/x/[id]",
+                        "/x/%5Bid%5D",
+                        "/index/[id]",
+                        "/[id]",
+                        "/café a 100%",
+                        "/日本語",
+                    ],
+                    adapter
+                )
+                .is_empty()
+            );
+        }
+        let messages = go_matched_path_issues(&["/docs", "/index/docs", "/index/only"], true);
         assert!(
             messages[0]
                 .1

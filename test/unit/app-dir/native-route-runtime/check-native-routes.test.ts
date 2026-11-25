@@ -53,7 +53,51 @@ describeUnix('checkNativeRouteStartup', () => {
         'app/a/route.native.json',
       ])
     ).rejects.toThrow(
-      /The Go Route Handler executable failed while initializing[\s\S]*panic: pattern "\/metrics" conflicts/
+      /The Go Route Handler executable failed while initializing \(exit code 2\)[\s\S]*goRoutesStartupCheck: false[\s\S]*panic: pattern "\/metrics" conflicts/
+    )
+  })
+
+  it('never reads stdout, however much the executable writes', async () => {
+    await executable('go-routes-noisy', 'head -c 4000000 /dev/zero')
+    await descriptor('app/a/route.native.json', 'go-routes-noisy')
+    await expect(
+      checkNativeRouteStartup(dir, join(dir, '.next'), [
+        'app/a/route.native.json',
+      ])
+    ).resolves.toBeUndefined()
+  })
+
+  it('reports too much initialization output apart from a timeout', async () => {
+    await executable(
+      'go-routes-chatty',
+      "printf '0123456789abcdef' >&2; exec sleep 5"
+    )
+    await descriptor('app/a/route.native.json', 'go-routes-chatty')
+    const check = checkNativeRouteStartup(
+      dir,
+      join(dir, '.next'),
+      ['app/a/route.native.json'],
+      { maxStderrBytes: 10, timeoutMs: 4000 }
+    )
+    await expect(check).rejects.toThrow(
+      /wrote more than 10 bytes to stderr while initializing[\s\S]*0123456789$/
+    )
+    await expect(check).rejects.not.toThrow(/did not finish initializing/)
+  })
+
+  it('reports a timeout with the output so far', async () => {
+    // The shell's sleep keeps stderr open after the executable is stopped.
+    await executable('go-routes-slow', 'echo connecting >&2; sleep 5')
+    await descriptor('app/a/route.native.json', 'go-routes-slow')
+    await expect(
+      checkNativeRouteStartup(
+        dir,
+        join(dir, '.next'),
+        ['app/a/route.native.json'],
+        { timeoutMs: 200 }
+      )
+    ).rejects.toThrow(
+      /did not finish initializing within 0\.2 seconds[\s\S]*connecting$/
     )
   })
 })

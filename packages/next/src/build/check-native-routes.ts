@@ -1,4 +1,4 @@
-import { execFile } from 'child_process'
+import { spawn } from 'child_process'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -6,6 +6,13 @@ import path from 'path'
 export const NATIVE_ROUTE_STARTUP_CHECK_ENV = '__NEXT_GO_STARTUP_CHECK'
 
 const STARTUP_CHECK_TIMEOUT_MS = 30_000
+/** The most initialization output kept for the build error. */
+const STARTUP_CHECK_MAX_STDERR_BYTES = 1024 * 1024
+
+const OPT_OUT =
+  'If route packages need runtime-only configuration while they initialize, or ' +
+  'initialization has side effects, skip this check with ' +
+  '`experimental.goRoutesStartupCheck: false` in next.config.'
 
 /**
  * Production builds compile every route.go into one executable, so package
@@ -14,12 +21,21 @@ const STARTUP_CHECK_TIMEOUT_MS = 30_000
  * startup: two routes registering the same pattern on http.DefaultServeMux,
  * defining the same flag, or registering the same metric in a global
  * registry. Initialize each executable once, so such a failure fails the
- * build instead of the first request in production.
+ * build instead of every Go route in production.
+ *
+ * The executable exits after initialization, before it serves anything. It
+ * runs with the build's environment, so `experimental.goRoutesStartupCheck:
+ * false` turns the check off for routes whose initialization needs runtime
+ * configuration or has side effects.
  */
 export async function checkNativeRouteStartup(
   dir: string,
   distDir: string,
-  entries: Iterable<string>
+  entries: Iterable<string>,
+  {
+    timeoutMs = STARTUP_CHECK_TIMEOUT_MS,
+    maxStderrBytes = STARTUP_CHECK_MAX_STDERR_BYTES,
+  }: { timeoutMs?: number; maxStderrBytes?: number } = {}
 ): Promise<void> {
   const serverDir = path.join(distDir, 'server')
   const executables = new Set<string>()
@@ -33,33 +49,85 @@ export async function checkNativeRouteStartup(
     executables.add(path.join(serverDir, descriptor.executable))
   }
   for (const executable of executables) {
-    await new Promise<void>((resolve, reject) => {
-      execFile(
-        executable,
-        [],
-        {
-          // `next start` runs the executable from the project directory.
-          cwd: dir,
-          env: { ...process.env, [NATIVE_ROUTE_STARTUP_CHECK_ENV]: '1' },
-          timeout: STARTUP_CHECK_TIMEOUT_MS,
-          maxBuffer: 1024 * 1024,
-          windowsHide: true,
-        },
-        (error, _stdout, stderr) => {
-          if (!error) return resolve()
-          const reason = error.killed
-            ? `did not finish initializing within ${STARTUP_CHECK_TIMEOUT_MS / 1000} seconds`
-            : 'failed while initializing'
-          reject(
-            new Error(
-              `The Go Route Handler executable ${reason}. In production, every route.go ` +
-                `runs in one process, so package initialization (init functions and ` +
-                `package-level variables) of every route runs together, using the build ` +
-                `environment during this check.\n\n${String(stderr).trim()}`
-            )
-          )
-        }
-      )
-    })
+    await initialize(executable, dir, timeoutMs, maxStderrBytes)
   }
+}
+
+function initialize(
+  executable: string,
+  cwd: string,
+  timeoutMs: number,
+  maxStderrBytes: number
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(executable, [], {
+      // `next start` runs the executable from the project directory.
+      cwd,
+      env: { ...process.env, [NATIVE_ROUTE_STARTUP_CHECK_ENV]: '1' },
+      // Only stderr explains a failure; stdout is never read.
+      stdio: ['ignore', 'ignore', 'pipe'],
+      windowsHide: true,
+    })
+    const stderr: Buffer[] = []
+    let stderrBytes = 0
+    let stopped: 'timeout' | 'output' | undefined
+    const stop = (reason: 'timeout' | 'output') => {
+      if (stopped) return
+      stopped = reason
+      child.kill('SIGKILL')
+    }
+    const timer = setTimeout(() => stop('timeout'), timeoutMs)
+    child.stderr!.on('data', (chunk: Buffer) => {
+      if (stopped) return
+      const room = maxStderrBytes - stderrBytes
+      if (room > 0) stderr.push(chunk.subarray(0, room))
+      stderrBytes += chunk.length
+      if (stderrBytes > maxStderrBytes) stop('output')
+    })
+    const fail = (reason: string) => {
+      const output = Buffer.concat(stderr).toString('utf8').trim()
+      reject(
+        new Error(
+          `The Go Route Handler executable ${reason}. In production, every route.go ` +
+            `runs in one process, so package initialization (init functions and ` +
+            `package-level variables) of every route runs together, using the build ` +
+            `environment during this check. ${OPT_OUT}` +
+            (output ? `\n\n${output}` : '')
+        )
+      )
+    }
+    let settled = false
+    child.once('error', (error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      fail(`could not be started (${error.message})`)
+    })
+    // A stopped executable's children could keep stderr open, so report it
+    // as soon as the executable itself exits.
+    child.once('exit', () => {
+      if (stopped) child.stderr!.destroy()
+    })
+    child.once('close', (code, signal) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (stopped === 'timeout') {
+        fail(`did not finish initializing within ${timeoutMs / 1000} seconds`)
+      } else if (stopped === 'output') {
+        fail(
+          `wrote more than ${maxStderrBytes} bytes to stderr while initializing, ` +
+            `so the check stopped it. The first ${maxStderrBytes} bytes follow`
+        )
+      } else if (code !== 0) {
+        fail(
+          `failed while initializing (${
+            signal ? `signal ${signal}` : `exit code ${code}`
+          })`
+        )
+      } else {
+        resolve()
+      }
+    })
+  })
 }

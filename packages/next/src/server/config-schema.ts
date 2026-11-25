@@ -433,6 +433,7 @@ export const experimentalSchema = {
     ])
     .optional(),
   goRoutes: z.boolean().optional(),
+  goRoutesStartupCheck: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),

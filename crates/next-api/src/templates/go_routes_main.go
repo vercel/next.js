@@ -14,9 +14,8 @@ import (
 
 func main() {
 	// One worker serves every route.go of a production build. Next.js routes each
-	// request, including rewrites and proxy.ts, and names the selected route in
-	// x-matched-path, as Vercel's routing does for adapter builds. Requests never
-	// select a handler by pathname.
+	// request, including rewrites and proxy.ts, and names the selected route's
+	// exact ID in x-matched-path. Requests never select a handler by pathname.
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
 	}
@@ -36,14 +35,25 @@ func main() {
 	// Next.js, or Switchyard, authenticates every request with this worker's
 	// token and replaces client-supplied x-matched-path and x-next-internal-*
 	// headers before forwarding, so x-matched-path is trusted once the token
-	// matches.
-	selectRoute := nextGoMatchedPathHandler(routes)
+	// matches. It carries the route ID as is, so unlike an adapter executable,
+	// which reads x-matched-path as the Next.js server does, this one looks up
+	// the exact ID.
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("x-next-internal-go-token")), []byte(token)) != 1 {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
-		selectRoute(w, r)
+		selected := r.Header.Values("X-Matched-Path")
+		if len(selected) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		handler, ok := routes[selected[0]]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		handler(w, r)
 	})}
 	shutdownDone := make(chan struct{})
 	go func() {
