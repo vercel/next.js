@@ -302,11 +302,7 @@ The returned promise resolves with the callback's result or rejects with its err
 
 ### Request interception in development
 
-Registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) turns off the browser's HTTP cache. Chromium then sends `cache-control: no-cache` with every request, including the request for the page, even when the handler's URL pattern never matches.
-
-`next dev` treats that header like a hard refresh. It [bypasses server caches](/docs/messages/cache-bypass-in-dev) for the request and skips Cache Components and [instant navigation](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation. A route that reads uncached or request-time data outside `<Suspense>` then renders without an error in the test. Some of those errors fail `next build` later. Instant navigation errors are reported in development only by default, so the test hides them completely.
-
-`instant()` does not intercept requests, so prefer it for checking what is visible before dynamic content arrives. If a test needs request interception, also load the route in a test or browser context that registers no route handler, or run `next build`.
+Registering a handler with `page.route()` or `browserContext.route()` makes `next dev` skip its validation for the requests that follow, so a route can render in a test without the errors it would normally report. `instant()` does not intercept requests. See [Automated browser tests](/docs/messages/cache-bypass-in-dev#automated-browser-tests) for why this happens and how to keep validation.
 
 ### Limitations
 

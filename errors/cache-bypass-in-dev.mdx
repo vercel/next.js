@@ -10,7 +10,7 @@ This can also happen when [`draftMode`](/docs/app/api-reference/functions/draft-
 
 A browser test that intercepts requests causes it too. See [Automated browser tests](#automated-browser-tests).
 
-For a request handled this way, Next.js also skips validation: both the Cache Components errors for uncached or request-time data read outside `<Suspense>`, and [instant navigation validation](/docs/app/api-reference/file-conventions/route-segment-config/instant). The route renders without the errors it would normally report. `next build` reports some of them later. Instant navigation validation runs in development only by default, so those errors are not reported anywhere.
+For a request handled this way, Next.js also skips its development validation, so none of the errors that validation reports appear for that request. That covers every [blocking-route error](/docs/messages/blocking-route): uncached data, request-time data, the current time, random values or crypto read outside `<Suspense>`, in a page or in its metadata or viewport. It also covers the errors from [instant navigation](/docs/app/guides/instant-navigation) validation, which are reported in development only.
 
 Bypassing caches while in development mode affects the debugging experience of Cache Components and Instant Insights. Read on to understand more about how Next.js handles caches in development mode and what changes when they are intentionally bypassed.
 
@@ -36,12 +36,12 @@ If this warning appears while Draft Mode is enabled, it is expected. Draft Mode 
 
 Intercepting requests turns off the browser's HTTP cache. In Playwright, registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) is enough, even when the handler's URL pattern never matches a request. Chromium then sends `cache-control: no-cache` with every request, including the request for the page itself.
 
-Next.js cannot tell this request from a hard refresh, so it bypasses server caches and skips validation for it. A test that intercepts requests can therefore pass in `next dev` on a route that fails `next build`, or on a route with an instant navigation error that only development reports.
+Next.js cannot tell this request from a hard refresh, so it bypasses server caches and skips validation for it. The route renders in the test with no error, in the terminal or in the browser.
 
 To keep validation in a test:
 
-- Use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) to check what is visible before dynamic content arrives. It does not intercept requests.
-- If a test needs request interception, also load the route in a test or browser context that registers no route handler, or run `next build`.
+- To check what is visible before dynamic content arrives, use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations). It does not intercept requests, so validation still runs and its errors appear in the `next dev` terminal and in the browser console.
+- If a test needs request interception, for example to simulate a failed request, also load the route in a browser context that registers no route handler.
 
 ## Useful Links
 
