@@ -1,38 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__0bpp13xncvcc6._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
-"use strict";
-
-__turbopack_context__.s([
-    "foo",
-    ()=>foo
-]);
-var __TURBOPACK__import$2e$meta__ = {
-    get url () {
-        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js");
-    },
-    env: {
-        DEV: true,
-        PROD: false,
-        MODE: "development",
-        BASE_URL: "/",
-        SSR: false
-    }
-};
-__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
-__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
-console.log(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)")(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"], Worker);
-// turbopack shouldn't attempt to bundle these, and they should be preserved in the output
-import(/* webpackIgnore: true */ './ignore.mjs');
-import(/* turbopackIgnore: true */ './ignore.mjs');
-// this should work for cjs requires too
-require(/* webpackIgnore: true */ './ignore.cjs');
-require(/* turbopackIgnore: true */ './ignore.cjs');
-new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
-new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
-function foo(plugin) {
-    return require(/* turbopackIgnore: true */ plugin);
-}
-}),"[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__213l46c-d8c8w._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -125,11 +91,28 @@ function generateCreateWorker(entrypoint, moduleChunks) {
 }
 }),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)",((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)",((__turbopack_context__) => {
+__turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
-__turbopack_context__.q("/static/vercel.0kkt412gy5vj6.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)",((__turbopack_context__, module, exports) => {
-
-module.exports = 'turbopack';
+var __TURBOPACK__import$2e$meta__ = {
+    get url () {
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
+    }
+};
+// Ignore comments on imports and requires are covered by the
+// `imports/ignore-comments` execution test. Web workers are only created for
+// browser targets, so this case is covered by a snapshot test.
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)")(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"], Worker);
+// Shouldn't cause a worker to be created, but `ignore-worker.cjs` is still
+// pulled in by `new URL()`
+new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
+new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
 })]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__0bpp13xncvcc6._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__213l46c-d8c8w._.js.map
