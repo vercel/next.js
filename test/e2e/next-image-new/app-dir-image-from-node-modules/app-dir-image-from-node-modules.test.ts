@@ -32,7 +32,7 @@ describe('app-dir Image Component from node_modules', () => {
       const dependency = JSON.parse($('#server-dependency').text())
       expect(dependency).toEqual({
         type: 'object',
-        src: expect.stringMatching(/marker.*\.png$/),
+        src: expect.stringMatching(/\/marker\.[^/]*\.png(\?dpl=.*)?$/),
         width: 400,
         height: 400,
       })
@@ -49,7 +49,7 @@ describe('app-dir Image Component from node_modules', () => {
       const local = JSON.parse($('#server-local').text())
       expect(local).toEqual({
         type: 'object',
-        src: expect.stringMatching(/local.*\.png$/),
+        src: expect.stringMatching(/\/local\.[^/]*\.png(\?dpl=.*)?$/),
         width: 160,
         height: 394,
       })
@@ -69,7 +69,7 @@ describe('app-dir Image Component from node_modules', () => {
         )
         expect(dependency).toEqual({
           type: 'object',
-          src: expect.stringMatching(/marker.*\.png$/),
+          src: expect.stringMatching(/\/marker\.[^/]*\.png(\?dpl=.*)?$/),
           width: 400,
           height: 400,
         })
