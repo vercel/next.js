@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
-import { type ElementHandle } from 'playwright'
+import { ElementHandle } from 'playwright'
 
 describe('scripts', () => {
   const { next } = nextTestSetup({

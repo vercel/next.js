@@ -225,12 +225,12 @@ pub async fn selected_module_polyfills_source(
     let mut code = String::new();
     for polyfill in required {
         code.push_str(&format!(
-            "require({});\n",
+            "import {};\n",
             serde_json::to_string(&format!("./module/{polyfill}"))?
         ));
     }
 
-    // Placed next to the module it replaces so the relative requests above resolve to the
+    // Placed next to the module it replaces so the relative imports above resolve to the
     // individual polyfills shipped in `next/dist/build/polyfills/module/`.
     Ok(Vc::upcast(VirtualSource::new(
         next_package.join("dist/build/polyfills/polyfill-module.selected.js")?,

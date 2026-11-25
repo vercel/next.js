@@ -19,6 +19,14 @@ describe('app dir - basic', () => {
       ? 'pnpm compile-mode'
       : undefined,
     packageJson: {
+      // Include a browser without ES module support so that the nomodule polyfills are emitted.
+      browserslist: [
+        'chrome 111',
+        'edge 111',
+        'firefox 111',
+        'safari 16.4',
+        'chrome 60',
+      ],
       scripts: {
         'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
           ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
@@ -449,15 +457,11 @@ describe('app dir - basic', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await next.render('/dashboard/index')
-      if (process.env.IS_TURBOPACK_TEST) {
-        // Turbopack only includes the nomodule polyfills when the browserslist targets browsers
-        // without ES module support, which the default one doesn't (see test/production/escheck-output).
-        expect(html).not.toContain('noModule=""')
-      } else {
-        expect(html).toMatch(
-          /<script src="\/_next\/static\/(immutable\/)?chunks\/polyfills(-\w+)?\.js(\?[^"]+)?" noModule="">/
-        )
-      }
+      expect(html).toMatch(
+        process.env.IS_TURBOPACK_TEST
+          ? /<script src="\/_next\/static\/(immutable\/)?chunks\/([\w-]*polyfill-nomodule|[0-9a-z_-]+)\.js(\?[^"]+)?" noModule="">/
+          : /<script src="\/_next\/static\/(immutable\/)?chunks\/polyfills(-\w+)?\.js(\?[^"]+)?" noModule="">/
+      )
     })
   }
 

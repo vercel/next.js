@@ -1446,7 +1446,6 @@ impl PageEndpoint {
             .clone()
             .unwrap_or_else(|| rcstr!("TURBOPACK"));
 
-        // Only browsers without ES module support need a polyfill file.
         let polyfill_output_asset = nomodule_polyfill_output_asset(
             project.project_path().owned().await?,
             project.client_chunking_context(),

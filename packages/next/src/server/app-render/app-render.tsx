@@ -368,7 +368,6 @@ import type {
   ValidationPrefetchKind,
 } from './instant-validation/instant-validation'
 import type { NonPartial } from '../../shared/lib/typescript-utils'
-import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -3600,7 +3599,7 @@ async function renderToStream(
           polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => ({
-        src: `${assetPrefix}/_next/${encodeURIPath(polyfill)}${getAssetQueryString(
+        src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
           ctx,
           false
         )}`,
@@ -9126,7 +9125,7 @@ async function prerenderToStream(
           polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => ({
-        src: `${assetPrefix}/_next/${encodeURIPath(polyfill)}${getAssetQueryString(
+        src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
           ctx,
           false
         )}`,
