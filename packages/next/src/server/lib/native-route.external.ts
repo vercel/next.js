@@ -60,6 +60,39 @@ interface Worker {
   active: number
   retired: boolean
   killTimer: ReturnType<typeof setTimeout> | undefined
+  /** Pages already reported to the worker observer. */
+  announced: Set<string>
+}
+
+/**
+ * What NativeRouteManager reports about its workers: a worker is ready to
+ * serve a page, or a worker takes no new requests (it exited, or is being
+ * retired). Switchyard (switchyard.ts) uses this to send
+ * route.go requests to workers itself.
+ */
+export type NativeRouteWorkerEvent =
+  | Readonly<{
+      event: 'worker'
+      page: string
+      address: string
+      tokenHeader: string
+      token: string
+    }>
+  | Readonly<{ event: 'gone'; address: string }>
+
+let workerObserver: ((event: NativeRouteWorkerEvent) => void) | undefined
+
+/** Registers the one observer of every NativeRouteManager's workers. */
+export function observeNativeRouteWorkers(
+  observer: (event: NativeRouteWorkerEvent) => void
+) {
+  workerObserver = observer
+}
+
+function reportGone(worker: Worker) {
+  if (worker.announced.size === 0) return
+  worker.announced.clear()
+  workerObserver?.({ event: 'gone', address: `127.0.0.1:${worker.port}` })
 }
 
 /** Owns worker activation and lifetime, never compilation or filesystem watching. */
@@ -157,6 +190,7 @@ export class NativeRouteManager {
       active: 0,
       retired: false,
       killTimer: undefined,
+      announced: new Set(),
     }
     try {
       worker.port = await new Promise<number>((resolve, reject) => {
@@ -223,6 +257,7 @@ export class NativeRouteManager {
     )
     child.once('exit', () => {
       worker.retired = true
+      reportGone(worker)
       worker.agent.destroy()
       clearTimeout(worker.killTimer)
       this.allWorkers.delete(worker)
@@ -243,6 +278,7 @@ export class NativeRouteManager {
 
   private retire(worker: Worker) {
     worker.retired = true
+    reportGone(worker)
     worker.killTimer ??= setTimeout(() => worker.child.kill('SIGKILL'), 21_000)
     worker.killTimer.unref()
     if (worker.active === 0) {
@@ -294,6 +330,16 @@ export class NativeRouteManager {
       this.workers.delete(previous)
       old?.then((value) => this.retire(value)).catch(() => {})
     }
+    if (workerObserver && !worker.announced.has(page)) {
+      worker.announced.add(page)
+      workerObserver({
+        event: 'worker',
+        page,
+        address: `127.0.0.1:${worker.port}`,
+        tokenHeader: 'x-next-internal-go-token',
+        token: worker.token,
+      })
+    }
     return { worker, assets }
   }
 
@@ -317,12 +363,21 @@ export class NativeRouteManager {
     }
   }
 
-  /** Return a response to Next's middleware adapter without finishing the client response. */
-  async invokeMiddleware(entry: string, req: Request): Promise<Response> {
+  /**
+   * Return a response to Next's middleware adapter without finishing the client
+   * response. `originalUrl` is the URL before the adapter's proxy.ts
+   * normalization: proxy.go applies its own, stricter normalization.
+   */
+  async invokeMiddleware(
+    entry: string,
+    req: Request,
+    originalUrl: string = req.url
+  ): Promise<Response> {
     req.signal.throwIfAborted()
     const { worker } = await this.getWorker('/_middleware', entry)
     req.signal.throwIfAborted()
     const url = new URL(req.url)
+    const target = new URL(originalUrl)
     const headers: Record<string, string> = Object.create(null)
     for (const [name, value] of req.headers) {
       if (
@@ -361,7 +416,8 @@ export class NativeRouteManager {
           port: worker.port,
           agent: worker.agent,
           method: req.method,
-          path: url.pathname + url.search,
+          // Forward the URL exactly, including an empty query.
+          path: target.href.slice(target.origin.length).split('#', 1)[0],
           headers,
         })
         upstream = connection

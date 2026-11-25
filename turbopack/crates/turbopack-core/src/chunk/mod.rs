@@ -4,7 +4,7 @@ pub mod chunk_group;
 pub mod chunk_id_strategy;
 pub(crate) mod chunk_item_batch;
 pub mod chunking;
-pub(crate) mod chunking_context;
+pub mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 
@@ -27,9 +27,10 @@ pub use crate::chunk::{
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
-        AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, HmrChunkListSource, MangleType,
-        MinifyType, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        AssetSuffix, AsyncLoaderAvailabilityMap, ChunkGroupResult, ChunkGroupType, ChunkingConfig,
+        ChunkingConfigs, ChunkingContext, ChunkingContextExt, EmitOption, EmitOptions,
+        EntryChunkGroupResult, HmrChunkListSource, OptionChunkGroupResult, SourceMapSourceType,
+        UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -188,12 +189,12 @@ pub trait MergeableModule: Module {
     ) -> Vc<Box<dyn ChunkableModule>>;
 }
 #[turbo_tasks::value(transparent)]
-pub struct MergeableModules(Vec<ResolvedVc<Box<dyn MergeableModule>>>);
+pub struct MergeableModules(Box<[ResolvedVc<Box<dyn MergeableModule>>]>);
 
 #[turbo_tasks::value_impl]
 impl MergeableModules {
     #[turbo_tasks::function]
-    pub fn interned(modules: Vec<ResolvedVc<Box<dyn MergeableModule>>>) -> Vc<Self> {
+    pub fn interned(modules: Box<[ResolvedVc<Box<dyn MergeableModule>>]>) -> Vc<Self> {
         Vc::cell(modules)
     }
 }
@@ -213,23 +214,19 @@ pub enum MergeableModuleExposure {
     External,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct MergeableModulesExposed(
-    Vec<(
-        ResolvedVc<Box<dyn MergeableModule>>,
-        MergeableModuleExposure,
-    )>,
+/// A mergeable module and whether it needs to be exposed.
+pub type MergeableModuleWithExposure = (
+    ResolvedVc<Box<dyn MergeableModule>>,
+    MergeableModuleExposure,
 );
+
+#[turbo_tasks::value(transparent)]
+pub struct MergeableModulesExposed(Box<[MergeableModuleWithExposure]>);
 
 #[turbo_tasks::value_impl]
 impl MergeableModulesExposed {
     #[turbo_tasks::function]
-    pub fn interned(
-        modules: Vec<(
-            ResolvedVc<Box<dyn MergeableModule>>,
-            MergeableModuleExposure,
-        )>,
-    ) -> Vc<Self> {
+    pub fn interned(modules: Box<[MergeableModuleWithExposure]>) -> Vc<Self> {
         Vc::cell(modules)
     }
 }
@@ -576,9 +573,9 @@ pub trait ChunkType: ValueToString {
     fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
-        batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-        component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+        chunk_items: Box<[ChunkItemOrBatchWithAsyncModuleInfo]>,
+        batch_groups: Box<[ResolvedVc<ChunkItemBatchGroup>]>,
+        component_chunks: Box<[ResolvedVc<Box<dyn Chunk>>]>,
     ) -> Vc<Box<dyn Chunk>>;
 
     #[turbo_tasks::function]

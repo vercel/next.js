@@ -78,13 +78,24 @@ fn init() {
 
     use napi::bindgen_prelude::create_custom_tokio_runtime;
     use tokio::runtime::Builder;
-    use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
+    use turbo_tasks::{
+        PersistentCacheUnreadablePanic, panic_hooks::handle_panic, parallel::available_parallelism,
+    };
     use turbo_tasks_malloc::TurboMalloc;
     use turbopack_trace_utils::tokio_workers;
 
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {
         handle_panic(info);
+        // Report this before the panic unwinds: turbo-tasks may abort the process right after.
+        // (The default hook would also only print `Box<dyn Any>` for this payload.)
+        if let Some(panic) = info
+            .payload()
+            .downcast_ref::<PersistentCacheUnreadablePanic>()
+        {
+            next_api::turbopack_ctx::report_persistent_cache_unreadable(&panic.message);
+            return;
+        }
         prev_hook(info);
     }));
 

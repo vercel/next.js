@@ -65,6 +65,7 @@ export type RequestInsightsJournalQuery = {
   htmlRequestId?: string
   kind?: RequestInsight['kind']
   limit?: number
+  indexedOnly?: boolean
 }
 
 export type RequestInsightsHistoryProvider = {

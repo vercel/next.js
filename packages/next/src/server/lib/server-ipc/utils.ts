@@ -51,6 +51,7 @@ const INTERNAL_HEADERS = [
   'x-nextjs-data',
   'x-next-internal-go-token',
   'x-next-internal-go-assets',
+  'x-nextjs-switchyard-connection',
   'x-next-resume-state-length',
   'next-resume',
 ]

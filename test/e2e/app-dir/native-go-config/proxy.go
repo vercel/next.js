@@ -2,18 +2,18 @@ package main
 
 import (
 	"net/http"
-	"next/go"
+	"next/go/proxy"
 )
 
-var Config = next.ProxyConfig{
-	Matcher: []next.Matcher{
+var Config = proxy.Config{
+	Matcher: []proxy.Matcher{
 		{Source: "/configured"},
-		{Source: "/conditional", Has: []next.RouteHas{{Type: "header", Key: "x-config-match", Value: "yes"}}},
-		{Source: "/missing", Missing: []next.RouteHas{{Type: "cookie", Key: "skip"}}},
+		{Source: "/conditional", Has: []proxy.Condition{{Type: "header", Key: "x-config-match", Value: "yes"}}},
+		{Source: "/missing", Missing: []proxy.Condition{{Type: "cookie", Key: "skip"}}},
 	},
 }
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-static-go-config", "matched")
-	next.Next(w)
+	proxy.Next(w)
 }

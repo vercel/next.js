@@ -708,8 +708,8 @@ async fn well_known_object_member<'a>(
         WellKnownObjectKind::OsModule | WellKnownObjectKind::OsModuleDefault => {
             os_module_member(arena.get_or_default(), kind, prop)
         }
-        WellKnownObjectKind::NodeProcessModule => {
-            node_process_member(arena, prop, compile_time_info).await?
+        WellKnownObjectKind::NodeProcessModule | WellKnownObjectKind::NodeProcessModuleDefault => {
+            node_process_member(arena, kind, prop, compile_time_info).await?
         }
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeExpressApp => express(arena.get_or_default(), prop),
@@ -1081,33 +1081,33 @@ fn os_module_member<'a>(
 
 async fn node_process_member<'a>(
     arena: &'a ThreadLocal<Bump>,
+    kind: WellKnownObjectKind,
     prop: JsValue<'a>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<JsValue<'a>> {
-    Ok(match prop.as_str() {
-        Some("arch") => compile_time_info
+    Ok(match (&kind, prop.as_str()) {
+        (WellKnownObjectKind::NodeProcessModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault)
+        }
+        (.., Some("arch")) => compile_time_info
             .environment()
             .compile_target()
             .await?
             .arch
             .as_str()
             .into(),
-        Some("platform") => compile_time_info
+        (.., Some("platform")) => compile_time_info
             .environment()
             .compile_target()
             .await?
             .platform
             .as_str()
             .into(),
-        Some("cwd") => JsValue::WellKnownFunction(WellKnownFunctionKind::ProcessCwd),
-        Some("argv") => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
-        Some("env") => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessEnv),
+        (.., Some("cwd")) => JsValue::WellKnownFunction(WellKnownFunctionKind::ProcessCwd),
+        (.., Some("argv")) => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
+        (.., Some("env")) => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessEnv),
         _ => JsValue::unknown(
-            JsValue::member(
-                arena.get_or_default(),
-                JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
-                prop,
-            ),
+            JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
             true,
             rcstr!("unsupported property on Node.js process object"),
         ),

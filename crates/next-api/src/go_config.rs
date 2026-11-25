@@ -7,9 +7,9 @@ use serde_json::{Map, Value};
 use turbo_rcstr::RcStr;
 
 /// The SDK ships in the installed `next` package; go.mod maps this path there.
-const SDK_PATH: &str = "next/go";
+const SDK_PATH: &str = "next/go/proxy";
 /// The SDK's package clause, which applies to an import without an explicit name.
-const SDK_PACKAGE: &str = "next";
+const SDK_PACKAGE: &str = "proxy";
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -65,9 +65,18 @@ struct Import {
 struct Declaration {
     pos: String,
     constant: bool,
+    /// The declared type as written, or `None` for an untyped declaration.
+    #[serde(default, rename = "type")]
+    type_name: Option<String>,
     imports: Vec<Import>,
     value: Node,
 }
+
+/// Go's integer types. An integer literal assigned to any of them keeps its value, unlike a
+/// named type such as `time.Duration`, where `30` means 30 nanoseconds rather than seconds.
+const INTEGER_TYPES: &[&str] = &[
+    "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64",
+];
 
 type Fields<'a> = &'a [(&'a str, fn(&Reader, &Node) -> Result<Value, String>)];
 
@@ -152,7 +161,7 @@ impl Reader {
         }
     }
 
-    /// A `[]next.<name>` literal whose items are `next.<name>` (or type-elided) literals.
+    /// A `[]proxy.<name>` literal whose items are `proxy.<name>` (or type-elided) literals.
     fn list(&self, node: &Node, name: &str, fields: Fields) -> Result<Value, String> {
         let error = |pos: &str, message: &str| Err(format!("{pos}: Config requires {message}"));
         let Node::Composite {
@@ -161,11 +170,11 @@ impl Reader {
             pos,
         } = node
         else {
-            return error(node.pos(), &format!("a []next.{name} literal"));
+            return error(node.pos(), &format!("a []proxy.{name} literal"));
         };
         match type_name.strip_prefix("[]") {
             Some(item) if self.sdk_type(item, name) => {}
-            _ => return error(pos, &format!("a []next.{name} literal")),
+            _ => return error(pos, &format!("a []proxy.{name} literal")),
         }
         elements
             .iter()
@@ -183,7 +192,7 @@ impl Reader {
                 {
                     self.fields(elements, fields)
                 }
-                (_, value) => error(value.pos(), &format!("next.{name} struct literals")),
+                (_, value) => error(value.pos(), &format!("proxy.{name} struct literals")),
             })
             .collect()
     }
@@ -191,7 +200,7 @@ impl Reader {
     fn conditions(&self, node: &Node) -> Result<Value, String> {
         self.list(
             node,
-            "RouteHas",
+            "Condition",
             &[
                 ("Type", Reader::text),
                 ("Key", Reader::text),
@@ -222,7 +231,7 @@ fn parse(declaration: &str) -> Result<Declaration, String> {
 ///
 /// Like `route.ts` segment config, `route.go` declares separate values; only
 /// `const MaxDuration = 30` is supported (`preferredRegion` is deprecated). Like `proxy.ts`'s
-/// `config` object, `proxy.go` declares `var Config = next.ProxyConfig{Matcher: ...}`.
+/// `config` object, `proxy.go` declares `var Config = proxy.Config{Matcher: ...}`.
 /// Absent values are omitted from the result.
 pub fn go_entry_config(
     functions: &[RcStr],
@@ -245,6 +254,7 @@ pub fn go_entry_config(
             constant,
             imports,
             value,
+            ..
         } = parse(declaration)?;
         let reader = Reader { imports };
         return match &value {
@@ -252,21 +262,32 @@ pub fn go_entry_config(
                 type_name: Some(written),
                 elements,
                 ..
-            } if !constant && reader.sdk_type(written, "ProxyConfig") => {
+            } if !constant && reader.sdk_type(written, "Config") => {
                 reader.fields(elements, &[("Matcher", Reader::matchers)])
             }
             _ => Err(format!(
-                "{pos}: Config must use a static next.ProxyConfig literal"
+                "{pos}: Config must use a static proxy.Config literal"
             )),
         };
     }
     let reader = Reader { imports: vec![] };
     let mut config = Map::new();
     if let Some(declaration) = values.get("MaxDuration") {
-        config.insert(
-            "maxDuration".into(),
-            reader.duration(&parse(declaration)?.value)?,
-        );
+        let Declaration {
+            pos,
+            type_name,
+            value,
+            ..
+        } = parse(declaration)?;
+        if let Some(type_name) =
+            type_name.filter(|type_name| !INTEGER_TYPES.contains(&type_name.as_str()))
+        {
+            return Err(format!(
+                "{pos}: MaxDuration is a number of seconds; declare it untyped (const MaxDuration \
+                 = 30) or with an integer type, not {type_name}"
+            ));
+        }
+        config.insert("maxDuration".into(), reader.duration(&value)?);
     }
     Ok(Value::Object(config))
 }
@@ -277,7 +298,7 @@ mod tests {
 
     use super::*;
 
-    const IMPORT: &str = r#"[{"name":"framework","path":"next/go"}]"#;
+    const IMPORT: &str = r#"[{"name":"framework","path":"next/go/proxy"}]"#;
 
     fn string(value: &str) -> String {
         format!(r#"{{"kind":"string","pos":"p.go:1:1","value":"{value}"}}"#)
@@ -322,6 +343,18 @@ mod tests {
 
     fn route(entries: &[(&str, bool, String)]) -> Result<Value, String> {
         go_entry_config(&[], &declarations(entries, "[]"), false)
+    }
+
+    /// A route `MaxDuration` declared with an explicit type.
+    fn typed_route(type_name: &str, value: String) -> Result<Value, String> {
+        let declaration = format!(
+            r#"{{"pos":"p.go:1:5","constant":true,"type":"{type_name}","imports":[],"value":{value}}}"#
+        );
+        go_entry_config(
+            &[],
+            &BTreeMap::from([(RcStr::from("MaxDuration"), RcStr::from(declaration))]),
+            false,
+        )
     }
 
     fn proxy(value: String, imports: &str) -> Result<Value, String> {
@@ -376,9 +409,29 @@ mod tests {
     }
 
     #[test]
+    fn checks_the_declared_max_duration_type() {
+        // An integer type keeps the literal's value in seconds.
+        for type_name in ["int", "int64", "uint32"] {
+            assert_eq!(
+                typed_route(type_name, int(30)),
+                Ok(json!({ "maxDuration": 30 }))
+            );
+        }
+        // In Go, `const MaxDuration time.Duration = 30` is 30 nanoseconds, not seconds.
+        for type_name in ["time.Duration", "float64", "(unsupported)"] {
+            let error = typed_route(type_name, int(30)).unwrap_err();
+            assert!(
+                error.contains("number of seconds") && error.contains(type_name),
+                "{error} should reject {type_name}"
+            );
+            assert!(error.starts_with("p.go:"), "{error} should be located");
+        }
+    }
+
+    #[test]
     fn reads_proxy_matchers() {
         let has = composite(
-            Some("[]framework.RouteHas"),
+            Some("[]framework.Condition"),
             &[(
                 None,
                 composite(
@@ -406,10 +459,7 @@ mod tests {
         );
         assert_eq!(
             proxy(
-                composite(
-                    Some("framework.ProxyConfig"),
-                    &[(Some("Matcher"), matchers)]
-                ),
+                composite(Some("framework.Config"), &[(Some("Matcher"), matchers)]),
                 IMPORT
             ),
             Ok(json!({
@@ -420,9 +470,9 @@ mod tests {
                 }],
             }))
         );
-        let unnamed = r#"[{"name":"","path":"next/go"}]"#;
+        let unnamed = r#"[{"name":"","path":"next/go/proxy"}]"#;
         assert_eq!(
-            proxy(composite(Some("next.ProxyConfig"), &[]), unnamed),
+            proxy(composite(Some("proxy.Config"), &[]), unnamed),
             Ok(json!({}))
         );
         assert_eq!(go_entry_config(&[], &BTreeMap::new(), true), Ok(json!({})));
@@ -431,7 +481,7 @@ mod tests {
     #[test]
     fn rejects_invalid_proxy_config() {
         let config = |fields: &[(Option<&str>, String)]| {
-            proxy(composite(Some("framework.ProxyConfig"), fields), IMPORT).unwrap_err()
+            proxy(composite(Some("framework.Config"), fields), IMPORT).unwrap_err()
         };
         // Like proxy.ts, a proxy only configures matchers.
         for field in ["MaxDuration", "PreferredRegion"] {
@@ -457,33 +507,31 @@ mod tests {
         assert!(
             config(&[(Some("Matcher"), matcher(unsupported()))]).contains("static string literals")
         );
-        // A factory call, a constant, and a lookalike type from another package.
+        // A factory call, a constant, and lookalike types from other packages.
         assert!(
             proxy(unsupported(), IMPORT)
                 .unwrap_err()
-                .contains("static next.ProxyConfig")
+                .contains("static proxy.Config")
         );
-        let other = r#"[{"name":"framework","path":"example.com/other"}]"#;
-        assert!(
-            proxy(composite(Some("framework.ProxyConfig"), &[]), other)
-                .unwrap_err()
-                .contains("static next.ProxyConfig")
-        );
+        for path in ["example.com/other", "next/go", "next/go/assets"] {
+            let other = format!(r#"[{{"name":"framework","path":"{path}"}}]"#);
+            assert!(
+                proxy(composite(Some("framework.Config"), &[]), &other)
+                    .unwrap_err()
+                    .contains("static proxy.Config")
+            );
+        }
         assert!(
             go_entry_config(
                 &[],
                 &declarations(
-                    &[(
-                        "Config",
-                        true,
-                        composite(Some("framework.ProxyConfig"), &[])
-                    )],
+                    &[("Config", true, composite(Some("framework.Config"), &[]))],
                     IMPORT
                 ),
                 true
             )
             .unwrap_err()
-            .contains("static next.ProxyConfig")
+            .contains("static proxy.Config")
         );
         assert!(
             go_entry_config(&[RcStr::from("Config")], &BTreeMap::new(), true)

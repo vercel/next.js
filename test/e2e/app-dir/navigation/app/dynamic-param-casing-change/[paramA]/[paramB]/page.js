@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>[paramB] page</div>
+  return <div id="param-b-page">[paramB] page</div>
 }

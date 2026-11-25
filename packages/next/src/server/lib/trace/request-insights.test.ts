@@ -28,7 +28,8 @@ import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
 } from './request-insights-identity'
-import { mkdtemp, readFile, rm } from 'fs/promises'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'fs/promises'
+import { gunzipSync, gzipSync } from 'zlib'
 import { tmpdir } from 'os'
 import path from 'path'
 import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../../shared/lib/request-insights'
@@ -583,9 +584,10 @@ describe('request insights', () => {
     })
 
     clearRequestInsightsForTest()
-    expect(
-      await readRequestInsightsJournal(distDir, { requestId: 'journaled' })
-    ).toEqual([
+    const persisted = await readRequestInsightsJournal(distDir, {
+      requestId: 'journaled',
+    })
+    expect(persisted).toEqual([
       expect.objectContaining({
         requestId: 'journaled',
         htmlRequestId: 'document',
@@ -738,7 +740,7 @@ describe('request insights', () => {
 
         const fs = require('fs/promises') as typeof import('fs/promises')
         const currentStat = await fs.stat(
-          path.join(distDir, 'request-insights.ndjson')
+          path.join(distDir, 'request-insights.ndjson.gz')
         )
         const stat = jest.spyOn(fs, 'stat')
         stat.mockResolvedValueOnce({ ...currentStat, size: 50 * 1024 * 1024 })
@@ -774,6 +776,180 @@ describe('request insights', () => {
     }
   )
 
+  it('shares one journal replay across a burst of archived fetch updates', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const fs = require('fs') as typeof import('fs')
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      configureJournalProvider(distDir)
+      startRequestInsight({ requestId: 'archived-burst' })
+      recordSpan({ name: 'original', requestId: 'archived-burst' })
+      const fetch = { url: 'https://example.com/data', index: 0 }
+      recordRequestInsightFetch({ requestId: 'archived-burst' }, fetch)
+      completeRequestInsight({ requestId: 'archived-burst' })
+      await getRequestInsightsHistory(distDir)
+      clearRequestInsightsForTest()
+
+      const createReadStream = jest.spyOn(fs, 'createReadStream')
+      const write = jest.spyOn(fs, 'writeSync')
+      try {
+        // A span before the first lazy replay is already on disk when it loads.
+        recordSpan({ name: 'before fetches', requestId: 'archived-burst' })
+        for (let index = 0; index < 16; index++) {
+          const lateFetch = { ...fetch, index }
+          recordRequestInsightFetch({ requestId: 'archived-burst' }, lateFetch)
+          recordRequestInsightFetch({ requestId: 'archived-burst' }, lateFetch)
+        }
+        recordSpan({ name: 'after fetches', requestId: 'archived-burst' })
+        recordSpan({
+          name: 'GET /',
+          requestId: 'archived-burst',
+          attributes: {
+            'next.span_type': 'BaseServer.handleRequest',
+            'http.status_code': 200,
+          },
+        })
+        const history = await getRequestInsightsHistory(distDir)
+        expect(history.requests[0]).toMatchObject({
+          fetchCount: 16,
+          spanCount: 4,
+          statusCode: 200,
+        })
+        expect(createReadStream).toHaveBeenCalledTimes(1)
+        // Accepted late updates still have independent compressed writes.
+        expect(write).toHaveBeenCalledTimes(18)
+      } finally {
+        createReadStream.mockRestore()
+        write.mockRestore()
+      }
+      const [stored] = await readRequestInsightsJournal(distDir, {
+        requestId: 'archived-burst',
+      })
+      expect(stored.fetches).toEqual(
+        Array.from({ length: 16 }, (_, index) => ({ ...fetch, index }))
+      )
+      expect(stored.spans.map(({ name }) => name)).toEqual([
+        'original',
+        'before fetches',
+        'after fetches',
+        'GET /',
+      ])
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['bytes', 'identity'] as const)(
+    'bounds archived replay sharing across %s boundaries',
+    async (boundary) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'bounded-burst' })
+      recordSpan({ name: 'original', requestId: 'bounded-burst' })
+      const request = getRequestInsightsSnapshot().requests[0]
+      const other = {
+        ...request,
+        requestId: 'other',
+        kind: 'instant-insights' as const,
+      }
+      const fetch = (index: number) => ({
+        url: 'https://example.com/data',
+        index,
+        cacheReason: boundary === 'bytes' ? 'x'.repeat(17 * 1024) : '',
+      })
+      const append = (index: number, identity = request) => {
+        expect(
+          appendArchivedRequestInsightUpdateToJournal(identity, {
+            fetch: fetch(index),
+          })
+        ).toBe(true)
+      }
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      const fs = require('fs') as typeof import('fs')
+      try {
+        await initializeRequestInsightsJournal(distDir)
+        appendRequestInsightToJournal(request)
+        if (boundary === 'identity') appendRequestInsightToJournal(other)
+        await getRequestInsightsHistory(distDir)
+        const createReadStream = jest.spyOn(fs, 'createReadStream')
+        try {
+          append(0)
+          append(1)
+          if (boundary === 'identity') append(0, other)
+          append(2)
+          append(3)
+          await getRequestInsightsHistory(distDir)
+          expect(createReadStream).toHaveBeenCalledTimes(
+            boundary === 'identity' ? 3 : 2
+          )
+        } finally {
+          createReadStream.mockRestore()
+        }
+        const [stored] = await readRequestInsightsJournal(distDir, {
+          requestId: request.requestId,
+          kind: 'request',
+        })
+        expect(stored.fetches).toEqual([fetch(0), fetch(1), fetch(2), fetch(3)])
+      } finally {
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('discards shared archived state after a torn update write', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'torn-burst' })
+    recordSpan({ name: 'original', requestId: 'torn-burst' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const fs = require('fs') as typeof import('fs')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      appendRequestInsightToJournal(request)
+      await getRequestInsightsHistory(distDir)
+      const originalWrite = fs.writeSync
+      const write = jest
+        .spyOn(fs, 'writeSync')
+        .mockImplementationOnce(originalWrite)
+        .mockImplementationOnce((fd, data) => {
+          if (!Buffer.isBuffer(data)) throw new Error('expected a gzip buffer')
+          originalWrite(fd, data, 0, 16)
+          throw new Error('simulated torn archived update')
+        })
+      const append = (index: number) => {
+        expect(
+          appendArchivedRequestInsightUpdateToJournal(request, {
+            fetch: { url: 'https://example.com/data', index },
+          })
+        ).toBe(true)
+      }
+      try {
+        append(0)
+        append(1)
+        append(2)
+        appendRequestInsightToJournal({ ...request, requestId: 'healthy' })
+        append(3)
+        const history = await getRequestInsightsHistory(distDir)
+        expect(history.requests.map(({ requestId }) => requestId)).toEqual([
+          'healthy',
+        ])
+        expect(warn).toHaveBeenCalledTimes(1)
+      } finally {
+        write.mockRestore()
+      }
+      expect(await readRequestInsightsJournal(distDir)).toEqual([
+        { ...request, requestId: 'healthy' },
+      ])
+    } finally {
+      warn.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
   it('writes late spans without serializing previously stored spans again', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'delta' })
@@ -788,108 +964,271 @@ describe('request insights', () => {
     completeRequestInsight({ requestId: 'delta' })
     await getRequestInsightsHistory(distDir)
     serialize.mockClear()
-    for (let i = 0; i < 10; i++) {
+    const updateCount = 3
+    for (let i = 0; i < updateCount; i++) {
       recordSpan({ name: 'late work', requestId: 'delta' })
     }
     expect(
       (await readRequestInsightsJournal(distDir, { requestId: 'delta' }))[0]
         .spans
-    ).toHaveLength(11)
+    ).toHaveLength(updateCount + 1)
     expect(
       (await getRequestInsightsHistory(distDir)).requests[0].spanCount
-    ).toBe(11)
+    ).toBe(updateCount + 1)
     expect(serialize).not.toHaveBeenCalled()
     await resetRequestInsightsJournalForTest()
     await rm(distDir, { recursive: true, force: true })
   })
 
-  it('batches completed requests without moving them across a late update', async () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    const distDir = await mkdtemp(
-      path.join(tmpdir(), 'request-insights-batch-')
-    )
-    await initializeRequestInsightsJournal(distDir)
-    configureJournalProvider(distDir)
-    const fs = require('fs/promises') as typeof import('fs/promises')
-    const append = jest.spyOn(fs, 'appendFile')
-    try {
-      for (let i = 0; i < 8; i++) {
-        const identity = { requestId: `batch-${i}` }
-        startRequestInsight(identity)
-        recordSpan({ name: 'render', requestId: identity.requestId })
-        completeRequestInsight(identity)
-      }
-      recordSpan({ name: 'late work', requestId: 'batch-0' })
-      startRequestInsight({ requestId: 'last' })
-      recordSpan({ name: 'render', requestId: 'last' })
-      completeRequestInsight({ requestId: 'last' })
-      await closeRequestInsightsJournal()
-
-      expect(append).toHaveBeenCalledTimes(3)
-      const records = (
-        await readFile(path.join(distDir, 'request-insights.ndjson'), 'utf8')
+  it.each([false, true])(
+    'truncates only before a whole compressed batch, exceeds: %s',
+    async (exceeds) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'seed' })
+      recordSpan({ name: 'render', requestId: 'seed' })
+      const request = getRequestInsightsSnapshot().requests[0]
+      const records = ['one', 'two', 'tri'].map((requestId) => ({
+        ...request,
+        requestId,
+      }))
+      const batch = gzipSync(
+        records
+          .map((entry) => JSON.stringify({ version: 1, request: entry }) + '\n')
+          .join('')
       )
-        .trim()
-        .split('\n')
-        .map((line) => JSON.parse(line))
-      expect(records.map((record) => record.request.requestId)).toEqual([
-        ...Array.from({ length: 8 }, (_, i) => `batch-${i}`),
-        'batch-0',
-        'last',
-      ])
-      expect(
-        (await readRequestInsightsJournal(distDir, { requestId: 'batch-0' }))[0]
-          .spans
-      ).toHaveLength(2)
+      const distDir = await mkdtemp(
+        path.join(tmpdir(), 'request-insights-batch-')
+      )
+      const fs = require('fs/promises') as typeof import('fs/promises')
+      await initializeRequestInsightsJournal(distDir)
+      const currentStat = await fs.stat(
+        path.join(distDir, 'request-insights.ndjson.gz')
+      )
+      const stat = jest.spyOn(fs, 'stat').mockResolvedValueOnce({
+        ...currentStat,
+        size: 50 * 1024 * 1024 - batch.length + (exceeds ? 1 : 0),
+      })
+      try {
+        await configureRequestInsightsJournal(distDir)
+        stat.mockRestore()
+        for (const record of records) appendRequestInsightToJournal(record)
+
+        const history = await getRequestInsightsHistory(distDir)
+        expect(history.truncated).toBe(exceeds)
+        expect(history.requests.map((entry) => entry.requestId)).toEqual([
+          'tri',
+          'two',
+          'one',
+        ])
+        expect(
+          (await readRequestInsightsJournal(distDir)).map(
+            (entry) => entry.requestId
+          )
+        ).toEqual(['one', 'two', 'tri'])
+        // A completed batch is one compressed write, never split at the limit.
+        expect(
+          await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
+        ).toEqual(batch)
+      } finally {
+        stat.mockRestore()
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('does not replay the journal for an indexed detail miss', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'indexed' })
+    recordSpan({ name: 'render', requestId: 'indexed' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const fs = require('fs') as typeof import('fs')
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      appendRequestInsightToJournal(request)
+      await getRequestInsightsHistory(distDir)
+      const createReadStream = jest.spyOn(fs, 'createReadStream')
+      try {
+        await expect(
+          readRequestInsightsJournal(distDir, {
+            requestId: 'missing',
+            indexedOnly: true,
+          })
+        ).resolves.toEqual([])
+        expect(createReadStream).not.toHaveBeenCalled()
+      } finally {
+        createReadStream.mockRestore()
+      }
     } finally {
-      append.mockRestore()
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
   })
 
-  it('rotates between records inside a completed-request batch', async () => {
+  it.each(['queued', 'live', 'archived', 'reset failure', 'initialize'])(
+    'recovers from a torn gzip write before the next batch: %s',
+    async (resume) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'seed' })
+      recordSpan({ name: 'original', requestId: 'seed' })
+      const request = getRequestInsightsSnapshot().requests[0]
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      const fs = require('fs') as typeof import('fs')
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+      try {
+        await initializeRequestInsightsJournal(distDir)
+        appendRequestInsightToJournal(request)
+        appendRequestInsightToJournal({ ...request, requestId: 'older' })
+        const before = await getRequestInsightsHistory(distDir, { limit: 1 })
+        expect(before.nextCursor).toBeDefined()
+
+        const originalWrite = fs.writeSync
+        const write = jest
+          .spyOn(fs, 'writeSync')
+          .mockImplementationOnce((fd, data) => {
+            if (!Buffer.isBuffer(data))
+              throw new Error('expected a gzip buffer')
+            originalWrite(fd, data, 0, 16)
+            throw new Error('simulated disk full after a partial write')
+          })
+        try {
+          appendRequestInsightToJournal({ ...request, requestId: 'failed' })
+          const failedFlush = getRequestInsightsHistory(distDir)
+          if (resume === 'queued') {
+            appendRequestInsightToJournal({ ...request, requestId: 'healthy' })
+          }
+          const afterFailure = await failedFlush
+          expect(
+            afterFailure.requests.map(({ requestId }) => requestId)
+          ).not.toContain('failed')
+        } finally {
+          write.mockRestore()
+        }
+        expect(warn).toHaveBeenCalledTimes(1)
+        const late = { ...request.spans[0], name: 'late' }
+        const updated = { ...request, spans: [...request.spans, late] }
+        if (resume === 'reset failure') {
+          const open = jest.spyOn(fs, 'openSync').mockImplementationOnce(() => {
+            throw new Error('simulated reset failure')
+          })
+          try {
+            appendRequestInsightToJournal({ ...request, requestId: 'skipped' })
+            await getRequestInsightsHistory(distDir)
+          } finally {
+            open.mockRestore()
+          }
+          expect(warn).toHaveBeenCalledTimes(2)
+          expect(
+            appendArchivedRequestInsightUpdateToJournal(
+              { requestId: 'skipped' },
+              { span: late }
+            )
+          ).toBe(false)
+        }
+        if (resume === 'initialize')
+          await initializeRequestInsightsJournal(distDir)
+        if (resume === 'live') {
+          appendRequestInsightUpdateToJournal(updated, { span: late })
+        } else {
+          if (resume === 'archived') {
+            expect(
+              appendArchivedRequestInsightUpdateToJournal(request, {
+                span: late,
+              })
+            ).toBe(true)
+          }
+          if (resume !== 'queued')
+            appendRequestInsightToJournal({ ...request, requestId: 'healthy' })
+        }
+        const history = await getRequestInsightsHistory(distDir)
+        expect(history.truncated).toBe(resume !== 'initialize')
+        const expected =
+          resume === 'live' ? updated : { ...request, requestId: 'healthy' }
+        expect(history.requests.map(({ requestId }) => requestId)).toEqual([
+          expected.requestId,
+        ])
+        await expect(
+          readRequestInsightsJournal(distDir, {
+            requestId: expected.requestId,
+            indexedOnly: true,
+          })
+        ).resolves.toEqual([expected])
+        // Independently decode the entire file, not just an indexed match.
+        expect(
+          gunzipSync(
+            await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
+          ).toString()
+        ).toContain(expected.requestId)
+        await expect(
+          getRequestInsightsHistory(distDir, { cursor: before.nextCursor })
+        ).rejects.toBeInstanceOf(StaleRequestInsightsHistoryCursorError)
+      } finally {
+        warn.mockRestore()
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  // @force-gate !windows
+  it('does not follow a symlink while recovering a failed open', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'seed' })
-    recordSpan({ name: 'render', requestId: 'seed' })
+    recordSpan({ name: 'original', requestId: 'seed' })
     const request = getRequestInsightsSnapshot().requests[0]
-    const records = ['one', 'two', 'tri'].map((requestId) => ({
-      ...request,
-      requestId,
-    }))
-    const firstLineBytes = Buffer.byteLength(
-      JSON.stringify({ version: 1, request: records[0] }) + '\n'
-    )
-    const distDir = await mkdtemp(
-      path.join(tmpdir(), 'request-insights-batch-')
-    )
-    const fs = require('fs/promises') as typeof import('fs/promises')
-    await initializeRequestInsightsJournal(distDir)
-    const currentStat = await fs.stat(
-      path.join(distDir, 'request-insights.ndjson')
-    )
-    const stat = jest.spyOn(fs, 'stat').mockResolvedValueOnce({
-      ...currentStat,
-      size: 50 * 1024 * 1024 - firstLineBytes,
-    })
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const journal = path.join(distDir, 'request-insights.ndjson.gz')
+    const target = path.join(distDir, 'target')
+    const contents = 'must not be truncated'
+    const fs = require('fs') as typeof import('fs')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     try {
-      await configureRequestInsightsJournal(distDir)
-      stat.mockRestore()
-      for (const record of records) appendRequestInsightToJournal(record)
+      await initializeRequestInsightsJournal(distDir)
+      await rm(journal)
+      await writeFile(target, contents)
 
-      const history = await getRequestInsightsHistory(distDir)
-      expect(history.truncated).toBe(true)
-      expect(history.requests.map((entry) => entry.requestId)).toEqual([
-        'tri',
-        'two',
-      ])
-      expect(
-        (await readRequestInsightsJournal(distDir)).map(
-          (entry) => entry.requestId
-        )
-      ).toEqual(['two', 'tri'])
+      const open = jest.spyOn(fs, 'openSync').mockImplementationOnce(() => {
+        throw new Error('simulated open failure')
+      })
+      try {
+        appendRequestInsightToJournal(request)
+        await getRequestInsightsHistory(distDir)
+      } finally {
+        open.mockRestore()
+      }
+
+      await symlink(target, journal)
+      appendRequestInsightToJournal({ ...request, requestId: 'next' })
+      await getRequestInsightsHistory(distDir)
+
+      expect(await readFile(target, 'utf8')).toBe(contents)
     } finally {
-      stat.mockRestore()
+      warn.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it('handles missing, empty and damaged gzip journals without rejecting reads', async () => {
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const file = path.join(distDir, 'request-insights.ndjson.gz')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await expect(readRequestInsightsJournal(distDir)).resolves.toEqual([])
+      await writeFile(file, '')
+      await expect(readRequestInsightsJournal(distDir)).resolves.toEqual([])
+      expect(warn).not.toHaveBeenCalled()
+      for (const data of [
+        Buffer.from('not gzip'),
+        gzipSync('not a record\n').subarray(0, -4),
+      ]) {
+        await writeFile(file, data)
+        await expect(readRequestInsightsJournal(distDir)).resolves.toEqual([])
+      }
+      expect(warn).toHaveBeenCalledTimes(2)
+    } finally {
+      warn.mockRestore()
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
@@ -910,7 +1249,7 @@ describe('request insights', () => {
 
       const fs = require('fs/promises') as typeof import('fs/promises')
       const currentStat = await fs.stat(
-        path.join(distDir, 'request-insights.ndjson')
+        path.join(distDir, 'request-insights.ndjson.gz')
       )
       const stat = jest.spyOn(fs, 'stat')
       stat.mockResolvedValueOnce({ ...currentStat, size: 50 * 1024 * 1024 })
@@ -974,12 +1313,14 @@ describe('request insights', () => {
     await rm(distDir, { recursive: true, force: true })
   })
 
-  it('resets session history on initialization and stores the journal directly in distDir', async () => {
+  it('resets session history and recreates the journal after startup cleanup', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'history' })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
+    // The bundler cleans its output after journal initialization.
+    await rm(path.join(distDir, 'request-insights.ndjson.gz'))
 
     recordSpan({
       name: 'GET /history',
@@ -995,7 +1336,9 @@ describe('request insights', () => {
       })
     )
     expect(
-      await readFile(path.join(distDir, 'request-insights.ndjson'), 'utf8')
+      gunzipSync(
+        await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
+      ).toString('utf8')
     ).toContain('"requestId":"history"')
 
     await initializeRequestInsightsJournal(distDir)
@@ -1073,6 +1416,58 @@ describe('request insights', () => {
 
     await resetRequestInsightsJournalForTest()
     await rm(distDir, { recursive: true, force: true })
+  })
+
+  it('bounds history across append and update insertions', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'seed' })
+    recordSpan({ name: 'render', requestId: 'seed' })
+    const seed = getRequestInsightsSnapshot().requests[0]
+    const request = (index: number) => ({
+      ...seed,
+      requestId: `bounded-${index}`,
+      kind: index % 2 ? ('instant-insights' as const) : ('request' as const),
+    })
+    const append = (index: number) => {
+      const entry = request(index)
+      if (index % 2)
+        appendRequestInsightUpdateToJournal(entry, { span: entry.spans[0] })
+      else appendRequestInsightToJournal(entry)
+    }
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      for (let index = 0; index < 1000; index++) append(index)
+      expect(
+        await getRequestInsightsHistory(distDir, { showInternal: true })
+      ).toMatchObject({ totalRequestCount: 1000, truncated: false })
+
+      // Late updates must not pin the oldest summary in the index.
+      appendRequestInsightUpdateToJournal(request(0), { span: seed.spans[0] })
+      append(1000)
+      const history = await getRequestInsightsHistory(distDir, {
+        showInternal: true,
+      })
+      expect(history.totalRequestCount).toBe(1000)
+      expect(history.truncated).toBe(true)
+      expect(history.requests[0].requestId).toBe('bounded-1000')
+      expect(
+        appendArchivedRequestInsightUpdateToJournal(request(0), {
+          span: seed.spans[0],
+        })
+      ).toBe(false)
+
+      // A live update can reintroduce an evicted entry without growing the index.
+      appendRequestInsightUpdateToJournal(request(0), { span: seed.spans[0] })
+      const reintroduced = await getRequestInsightsHistory(distDir, {
+        showInternal: true,
+      })
+      expect(reintroduced.totalRequestCount).toBe(1000)
+      expect(reintroduced.requests[0].requestId).toBe('bounded-0')
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
   })
 
   it('classifies framework request sources without letting the root span erase a specific source', () => {

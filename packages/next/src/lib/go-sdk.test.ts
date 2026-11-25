@@ -13,7 +13,7 @@ import {
 import * as os from 'os'
 import { dirname, join } from 'path'
 import * as Log from '../build/output/log'
-import { ensureGoSdk } from './go-sdk'
+import { ensureGoSdk, ensureGoSdkQueued } from './go-sdk'
 
 jest.mock('../build/output/log', () => ({
   info: jest.fn(),
@@ -32,10 +32,10 @@ const PROXY = `package main
 
 import (
 \t"net/http"
-\t"next/go"
+\t"next/go/proxy"
 )
 
-func Proxy(w http.ResponseWriter, r *http.Request) { next.Next(w) }
+func Proxy(w http.ResponseWriter, r *http.Request) { proxy.Next(w) }
 
 func main() { http.HandleFunc("/", Proxy) }
 `
@@ -57,8 +57,12 @@ async function write(path: string, content: string) {
   await writeFile(path, content)
 }
 
-async function writeModule(directory: string, name: string) {
-  await write(join(directory, 'go.mod'), `module ${name}\n\ngo 1.24.0\n`)
+async function writeModule(
+  directory: string,
+  name: string,
+  goVersion = '1.24.0'
+) {
+  await write(join(directory, 'go.mod'), `module ${name}\n\ngo ${goVersion}\n`)
 }
 
 /**
@@ -130,12 +134,28 @@ afterEach(async () => {
     expect(Log.info).not.toHaveBeenCalled()
   })
 
+  it('maps the same module for an assets-only import', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app', '1.21')
+    await write(
+      join(dir, 'app/api/route.go'),
+      `package main\n\nimport "next/go/assets"\n\nvar client = assets.Browser("app/client.ts")\n\nfunc main() {}\n`
+    )
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+    expect(await goMod(dir)).not.toMatch(/require next\/go\/(assets|proxy)/)
+    expect(() => build(join(dir, 'app/api'), ['route.go'])).not.toThrow()
+  })
+
   it('detects imports through local packages', async () => {
     const dir = await temporaryDirectory()
     await writeModule(dir, 'example.com/app')
     await write(
       join(dir, 'internal/mw/mw.go'),
-      `package mw\n\nimport (\n\t"net/http"\n\t"next/go"\n)\n\nfunc Continue(w http.ResponseWriter) { next.Next(w) }\n`
+      `package mw\n\nimport (\n\t"net/http"\n\t"next/go/proxy"\n)\n\nfunc Continue(w http.ResponseWriter) { proxy.Next(w) }\n`
     )
     await write(
       join(dir, 'proxy.go'),
@@ -157,7 +177,7 @@ afterEach(async () => {
     const route = join(dir, 'app/(group)/items/[id]')
     await write(
       join(route, 'route.go'),
-      `package main\n\nimport (\n\t"net/http"\n\t"next/go"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { next.Next(w) }\n\nfunc main() {}\n`
+      `package main\n\nimport (\n\t"net/http"\n\t"next/go/proxy"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { proxy.Next(w) }\n\nfunc main() {}\n`
     )
     const sdkDir = await installNext(dir, '16.0.0')
 
@@ -167,9 +187,92 @@ afterEach(async () => {
     expect(() => build(route, ['route.go'])).not.toThrow()
   })
 
-  it('does not add the requirement when next/go is not imported', async () => {
+  it('lets modules that declare an older go version require the SDK', async () => {
+    // -mod=readonly refuses to raise the go line, so the SDK must not declare
+    // a newer one than the application.
+    for (const goVersion of ['1.21', '1.22', '1.23.0']) {
+      const dir = await temporaryDirectory()
+      await writeModule(dir, 'example.com/app', goVersion)
+      await write(join(dir, 'proxy.go'), PROXY)
+      const sdkDir = await installNext(dir, '16.0.0')
+
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+      const content = await goMod(dir)
+      expect(content).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(content).toContain(`go ${goVersion}\n`)
+      expect(() => build(dir)).not.toThrow()
+    }
+  })
+
+  it.each(['vendor'])(
+    'detects imports in a route folder named %s',
+    async (folder) => {
+      // Go gives vendor a meaning only at a module root.
+      const dir = await temporaryDirectory()
+      await writeModule(dir, 'example.com/app')
+      const route = join(dir, 'app', folder)
+      await write(
+        join(route, 'route.go'),
+        `package main\n\nimport (\n\t"net/http"\n\t"next/go/proxy"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { proxy.Next(w) }\n\nfunc main() {}\n`
+      )
+      const sdkDir = await installNext(dir, '16.0.0')
+
+      await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+      expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(() => build(route, ['route.go'])).not.toThrow()
+    }
+  )
+
+  it('skips testdata like go mod tidy', async () => {
+    // A requirement only testdata needs would be removed by go mod tidy.
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'app/api/route.go'), PLAIN)
+    await write(join(dir, 'app/testdata/fixture/main.go'), PROXY)
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).not.toMatch(/next\/go/)
+  })
+
+  it("skips a module's vendor directory", async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'app/api/route.go'), PLAIN)
+    await write(join(dir, 'vendor/example.com/lib/lib.go'), PROXY)
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).not.toMatch(/next\/go/)
+  })
+
+  it('shares a queued run between calls made before it starts', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'proxy.go'), PROXY)
+    const sdkDir = await installNext(dir, '16.0.0')
+    const options = { dir, rootDir: dir, sdkDir }
+
+    const first = ensureGoSdkQueued(options)
+    const second = ensureGoSdkQueued(options)
+    expect(second).toBe(first)
+    await first
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+
+    // Once a run has started, a new call queues another one.
+    const third = ensureGoSdkQueued(options)
+    expect(third).not.toBe(first)
+    await third
+  })
+
+  it('leaves go.mod alone when next/go is not imported', async () => {
     // `go mod tidy` removes an unused requirement; adding it back on every
-    // start would fight it.
+    // start would fight it. Without the requirement Go ignores a replacement,
+    // so nothing is written at all.
     const dir = await temporaryDirectory()
     await writeModule(dir, 'example.com/app')
     await write(join(dir, 'app/api/route.go'), PLAIN)
@@ -177,9 +280,8 @@ afterEach(async () => {
 
     await ensureGoSdk({ dir, rootDir: dir, sdkDir })
 
-    const content = await goMod(dir)
-    expect(content).not.toMatch(/^require next\/go/m)
-    expect(content).toMatch(/^replace next\/go => /m)
+    expect(await goMod(dir)).toBe('module example.com/app\n\ngo 1.24.0\n')
+    expect(Log.info).not.toHaveBeenCalled()
 
     // Importing it later adds the requirement.
     await write(join(dir, 'proxy.go'), PROXY)
@@ -333,7 +435,37 @@ afterEach(async () => {
     )
   })
 
-  it('does nothing without a Go module', async () => {
+  it('leaves nested modules that do not use the SDK alone', async () => {
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    await write(join(dir, 'proxy.go'), PROXY)
+    const service = join(dir, 'services/worker')
+    await writeModule(service, 'example.com/worker')
+    await write(join(service, 'main.go'), PLAIN)
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+    expect(await goMod(service)).toBe(
+      'module example.com/worker\n\ngo 1.24.0\n'
+    )
+  })
+
+  it('does nothing for Go sources without a module that do not import next/go', async () => {
+    const dir = await temporaryDirectory()
+    await write(join(dir, 'app/api/route.go'), PLAIN)
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(Log.info).not.toHaveBeenCalled()
+    expect(Log.warn).not.toHaveBeenCalled()
+  })
+
+  it('warns once when next/go is imported outside a Go module', async () => {
+    // Go cannot resolve next/go without a go.mod replacement and would only
+    // report "package next/go is not in std".
     const dir = await temporaryDirectory()
     await write(join(dir, 'proxy.go'), PROXY)
     const sdkDir = await installNext(dir, '16.0.0')
@@ -341,6 +473,15 @@ afterEach(async () => {
     await ensureGoSdk({ dir, rootDir: dir, sdkDir })
 
     expect(Log.info).not.toHaveBeenCalled()
-    expect(Log.warn).not.toHaveBeenCalled()
+    expect(Log.warn).toHaveBeenCalledTimes(1)
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'proxy.go imports next/go, but is not in a Go module'
+      )
+    )
+
+    // The dev server runs this on every Go change; warn only once.
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+    expect(Log.warn).toHaveBeenCalledTimes(1)
   })
 })

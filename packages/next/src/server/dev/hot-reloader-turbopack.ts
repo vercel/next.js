@@ -1,5 +1,5 @@
 import type { Socket } from 'net'
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
 import { join, extname, relative, isAbsolute, sep } from 'path'
@@ -24,9 +24,11 @@ import {
   HMR_MESSAGE_SENT_TO_SERVER,
 } from './hot-reloader-types'
 import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
+import { ensureGoSdkQueued, goSdkOptions } from '../../lib/go-sdk'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
+  Issue,
   WrittenEndpoint,
   TurbopackResult,
   Project,
@@ -37,6 +39,7 @@ import type {
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { readGoProxyConfig } from '../../build/analysis/go-config'
+import type { ProxyMatcher } from '../../build/analysis/get-page-static-info'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   BLOCKED_PAGES,
@@ -108,6 +111,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
   formatIssue,
+  getIssueKey,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
   ModuleBuildError,
@@ -710,6 +714,34 @@ export async function createHotReloaderTurbopack(
     }
   }, 500)
 
+  const goSdk = goSdkOptions(projectPath, distDir, nextConfig)
+  // The last written state of each Go endpoint: its descriptor, or none when
+  // compilation failed, and its issues.
+  const goEndpointStates = new Map<EntryKey, string>()
+  // Turbopack recompiles a Go endpoint when any of its tracked inputs change,
+  // including imported packages outside the route directories that the dev
+  // server's file watcher sees. A source there can start importing next/go,
+  // which then fails to compile until go.mod requires it. Keep the go.mod
+  // mapping current whenever an endpoint's result changes. Endpoints are also
+  // written for requests that recompile nothing, so unchanged results are
+  // skipped. Syncing writes nothing when nothing needs changing, so it cannot
+  // loop; when it adds the requirement, Turbopack sees go.mod change.
+  function syncGoSdkIfChanged(
+    key: EntryKey,
+    result: TurbopackResult<WrittenEndpoint>
+  ) {
+    if (!nextConfig.experimental.goRoutes || result.value.type !== 'native') {
+      return
+    }
+    const state = [
+      result.value.entryPath ?? '',
+      ...result.issues.map(getIssueKey),
+    ].join('\0')
+    if (goEndpointStates.get(key) === state) return
+    goEndpointStates.set(key, state)
+    void ensureGoSdkQueued(goSdk)
+  }
+
   // Server HMR supports App Router entries on the Node.js runtime.
   function participatesInServerHmr(
     key: EntryKey,
@@ -1305,6 +1337,7 @@ export async function createHotReloaderTurbopack(
           hooks: {
             handleWrittenEndpoint: (id, result, forceDeleteCache) => {
               currentWrittenEntrypoints.set(id, result.value)
+              syncGoSdkIfChanged(id, result)
               return clearRequireCache(id, result.value, {
                 force: forceDeleteCache,
               })
@@ -1312,26 +1345,58 @@ export async function createHotReloaderTurbopack(
             loadNativeMiddleware: async () => {
               // Turbopack records proxy.go's static Config in the descriptor it
               // just wrote. Source-level static info has no Go matchers.
+              const proxyPath = join(
+                projectPath,
+                opts.isSrcDir ? 'src' : '',
+                'proxy.go'
+              )
+              let matchers: ProxyMatcher[]
               try {
-                const { matchers } = await readGoProxyConfig(
-                  join(distDir, 'server', 'middleware.native.json'),
-                  join(projectPath, opts.isSrcDir ? 'src' : '', 'proxy.go'),
-                  nextConfig
-                )
-                serverFields.middleware = {
-                  // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
-                  // eslint-disable-next-line @next/internal/no-as-any
-                  match: null as any,
-                  page: '/',
-                  matchers,
-                  runtime: 'go',
-                  nativeEntry: 'middleware.native.json',
-                }
-                opts.fsChecker.middlewareMatcher =
-                  getMiddlewareRouteMatcher(matchers)
+                matchers = (
+                  await readGoProxyConfig(
+                    join(distDir, 'server', 'middleware.native.json'),
+                    proxyPath,
+                    nextConfig
+                  )
+                ).matchers
+                serverFields.goProxyConfigError = undefined
               } catch (error) {
-                Log.error(error instanceof Error ? error.message : error)
+                // `next build` fails on an invalid Config. In dev, report it as a
+                // compilation error of the proxy entry, which the next successful
+                // compile clears. Until then the proxy matches every path and
+                // `ensureMiddleware` fails each request with this error: matching
+                // nothing would serve routes the proxy protects, and keeping the
+                // previous matchers would run it with a configuration that no
+                // longer applies.
+                const message =
+                  error instanceof Error ? error.message : String(error)
+                const issue: Issue = {
+                  severity: 'error',
+                  stage: 'analyze',
+                  filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
+                  title: { type: 'text', value: 'Invalid proxy.go Config' },
+                  description: { type: 'text', value: message },
+                  documentationLink: '',
+                }
+                const key = getEntryKey('root', 'server', 'middleware')
+                const issues = currentEntryIssues.get(key) ?? new Map()
+                issues.set(getIssueKey(issue), issue)
+                currentEntryIssues.set(key, issues)
+                Log.error(message)
+                serverFields.goProxyConfigError = message
+                matchers = [{ regexp: '^/.*$', originalSource: '/:path*' }]
               }
+              serverFields.middleware = {
+                // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
+                // eslint-disable-next-line @next/internal/no-as-any
+                match: null as any,
+                page: '/',
+                matchers,
+                runtime: 'go',
+                nativeEntry: 'middleware.native.json',
+              }
+              opts.fsChecker.middlewareMatcher =
+                getMiddlewareRouteMatcher(matchers)
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
@@ -1376,16 +1441,8 @@ export async function createHotReloaderTurbopack(
 
   await mkdir(join(distDir, 'server'), { recursive: true })
   await mkdir(join(distDir, 'static', buildId), { recursive: true })
-  await writeFile(
-    join(distDir, 'package.json'),
-    JSON.stringify(
-      {
-        type: 'commonjs',
-      },
-      null,
-      2
-    )
-  )
+  // The `package.json` of the distDir (ensuring commonjs handling) is written
+  // by Turbopack when creating the project.
 
   const middlewares = [
     getOverlayMiddleware({
@@ -2230,6 +2287,7 @@ export async function createHotReloaderTurbopack(
                   subscribeToChanges: subscribeToClientChanges,
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
+                    syncGoSdkIfChanged(id, result)
                     assetMapper.setPathsForKey(id, result.value.clientPaths)
                     serverAssetMapper.setPathsForKey(
                       id,
@@ -2315,6 +2373,7 @@ export async function createHotReloaderTurbopack(
                 handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result.value)
+                  syncGoSdkIfChanged(id, result)
                   assetMapper.setPathsForKey(id, result.value.clientPaths)
                   serverAssetMapper.setPathsForKey(
                     id,

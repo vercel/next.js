@@ -401,6 +401,7 @@ describe('native-route-go', () => {
         const path = 'app/lifecycle/route.go'
         const source = await next.readFile(path)
         const pid = await lifecyclePid()
+        const outputStart = next.cliOutput.length
         try {
           if (change === 'replace') {
             await next.patchFile(
@@ -421,6 +422,11 @@ describe('native-route-go', () => {
               expect(await next.render('/lifecycle')).toBe('javascript')
             }, 30_000)
           }
+          // A Go endpoint whose route.go is gone must stop publishing output;
+          // otherwise it races the replacement for the shared manifests.
+          expect(next.cliOutput.slice(outputStart)).not.toContain(
+            'conflicting effects for the same key'
+          )
         } finally {
           if (change === 'rename') {
             await next.renameFolder('app/lifecycle-renamed', 'app/lifecycle')
@@ -436,6 +442,7 @@ describe('native-route-go', () => {
       const path = 'app/lifecycle/route.go'
       const source = await next.readFile(path)
       const controller = new AbortController()
+      const outputStart = next.cliOutput.length
       try {
         await lifecyclePid()
         const response = await next.fetch('/lifecycle?stream=1', {
@@ -462,19 +469,79 @@ describe('native-route-go', () => {
         await retry(async () => {
           expect(() => process.kill(pid, 0)).toThrow()
         }, 30_000)
+        expect(next.cliOutput.slice(outputStart)).not.toContain(
+          'conflicting effects for the same key'
+        )
       } finally {
         controller.abort()
         await next.patchFile(path, source)
       }
     })
+    // Creating symlinks may require elevated privileges on Windows.
+    if (process.platform !== 'win32') {
+      it('serves a Go route that becomes a symlink and recovers', async () => {
+        const path = 'app/lifecycle/route.go'
+        const target = 'internal/lifecycle-link/route.go'
+        const source = await next.readFile(path)
+        const pid = await lifecyclePid()
+        const outputStart = next.cliOutput.length
+        try {
+          await next.patchFile(
+            target,
+            source.replace(
+              'map[string]int{"pid": os.Getpid()}',
+              'map[string]any{"linked": true, "pid": os.Getpid()}'
+            )
+          )
+          await next.deleteFile(path)
+          await fs.symlink(
+            relative(
+              dirname(join(next.testDir, path)),
+              join(next.testDir, target)
+            ),
+            join(next.testDir, path)
+          )
+          // Route discovery resolves the link and builds the target's handler, while
+          // the endpoint for the original path stops publishing output.
+          await retry(async () => {
+            const response = await next.fetch('/lifecycle')
+            expect(response.status).toBe(200)
+            const body = await response.json()
+            nativePids.add(body.pid)
+            expect(body).toEqual({ linked: true, pid: expect.any(Number) })
+            expect(body.pid).not.toBe(pid)
+          }, 30_000)
+          expect(next.cliOutput.slice(outputStart)).not.toContain(
+            'conflicting effects for the same key'
+          )
+        } finally {
+          await next.deleteFile(path)
+          await next.deleteFile('internal/lifecycle-link')
+          await next.patchFile(path, source)
+        }
+        await retry(async () => {
+          const response = await next.fetch('/lifecycle')
+          expect(response.status).toBe(200)
+          const body = await response.json()
+          nativePids.add(body.pid)
+          expect(body).toEqual({ pid: expect.any(Number) })
+        }, 30_000)
+      })
+    }
     it('reports conflicting Go and TS handlers from Rust and recovers', async () => {
       const path = 'app/(group)/native/[id]/route.ts'
+      const goPath = 'app/(group)/native/[id]/route.go'
+      const goSource = await next.readFile(goPath)
       const outputStart = next.cliOutput.length
       try {
         await next.patchFile(
           path,
           'export function GET() { return new Response("conflict") }'
         )
+        // Recreate route.go so filesystems that list entries in creation order
+        // list it after route.ts. The result must not depend on that order.
+        await next.deleteFile(goPath)
+        await next.patchFile(goPath, goSource)
         await retry(async () => {
           expect((await next.fetch('/native/example')).status).toBe(500)
           expect(next.cliOutput.slice(outputStart)).toContain(

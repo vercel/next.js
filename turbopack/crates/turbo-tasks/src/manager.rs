@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
@@ -40,7 +40,7 @@ use crate::{
     },
     capture_future::CaptureFuture,
     dyn_task_inputs::DynTaskInputsStorage,
-    event::{Event, EventListener},
+    event::{Event, EventDescriptor, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
     keyed::KeyedEq,
     local_task_tracker::LocalTaskTracker,
@@ -793,6 +793,22 @@ impl InlineExecutionDepthGuard {
 impl Drop for InlineExecutionDepthGuard {
     fn drop(&mut self) {
         INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() - 1);
+    }
+}
+
+/// Waits until `counter` reads 0. `event` must be notified every time `counter` drops to 0.
+///
+/// A wake-up alone doesn't prove that the counter is still 0: `finish_foreground_job` and
+/// `finish_background_job` decrement the counter before they notify, so the notification for an
+/// earlier drop to 0 can arrive after new jobs began. So the counter is re-checked after every
+/// wake-up, with a listener registered before the check so no notification is missed.
+async fn wait_until_zero(counter: &AtomicUsize, event: &Event, note: impl EventDescriptor + Copy) {
+    loop {
+        let listener = event.listen_with_note(note);
+        if counter.load(Ordering::Acquire) == 0 {
+            return;
+        }
+        listener.await;
     }
 }
 
@@ -1704,14 +1720,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn wait_background_done(&self) {
-        let listener = self.event_background_done.listen();
-        if self
-            .currently_scheduled_background_jobs
-            .load(Ordering::Acquire)
-            != 0
-        {
-            listener.await;
-        }
+        wait_until_zero(
+            &self.currently_scheduled_background_jobs,
+            &self.event_background_done,
+            || || "wait for background jobs".to_string(),
+        )
+        .await;
     }
 
     pub async fn stop_and_wait(&self) {
@@ -1727,28 +1741,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
             self.stopped.store(true, Ordering::Release);
-            {
-                let listener = self
-                    .event_foreground_done
-                    .listen_with_note(|| || "wait for stop".to_string());
-                if self
-                    .currently_scheduled_foreground_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
-                }
-            }
-            {
-                let listener = self.event_background_done.listen();
-                if self
-                    .currently_scheduled_background_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
-                }
-            }
+            // Both waits re-check their counter after every wake-up (see `wait_until_zero`), so a
+            // stale notification can't let `stop` tear down storage under a running task.
+            wait_until_zero(
+                &self.currently_scheduled_foreground_jobs,
+                &self.event_foreground_done,
+                || || "wait for stop".to_string(),
+            )
+            .await;
+            self.wait_background_done().await;
             self.backend.stop(self);
             // Deliver compilation events sent during shutdown (e.g. the persistence trace span)
             // to subscribers before returning, then close the queue so subscriptions end after
@@ -1820,18 +1821,41 @@ struct TurboTasksExecutor;
 ///
 /// Turbtasks catches panics from user code and propagates throught the task tree, but if it happens
 /// as part of state management we have to abort
+///
+/// A [`PersistentCacheUnreadablePanic`] doesn't necessarily indicate a bug, and its message
+/// explains what happened, so it's not reported as a bug.
+///
+/// [`PersistentCacheUnreadablePanic`]: crate::PersistentCacheUnreadablePanic
 async fn abort_on_panic<F: Future>(f: F) -> F::Output {
     match AssertUnwindSafe(f).catch_unwind().await {
         Ok(r) => r,
-        Err(_) => {
-            eprintln!(
-                "\nturbo-tasks: an internal panic occurred outside the per-task panic \
-                 boundary. This is a bug in turbo-tasks/Turbopack — please report it at \
-                 https://github.com/vercel/next.js/discussions and include the panic message \
-                 and stack trace above.\n\nAborting."
-            );
+        Err(payload) => {
+            eprintln!("\n{}\n\nAborting.", abort_on_panic_message(&*payload));
             abort();
         }
+    }
+}
+
+/// The message printed by [`abort_on_panic`] for a panic with `payload`.
+///
+/// The message of a [`PersistentCacheUnreadablePanic`] is included: Rust's default panic hook
+/// prints a custom payload like this one as `Box<dyn Any>`, so unless the embedder's panic hook
+/// printed it, it wouldn't be shown anywhere else.
+///
+/// [`PersistentCacheUnreadablePanic`]: crate::PersistentCacheUnreadablePanic
+fn abort_on_panic_message(payload: &(dyn std::any::Any + Send)) -> Cow<'static, str> {
+    if let Some(panic) = payload.downcast_ref::<crate::PersistentCacheUnreadablePanic>() {
+        format!(
+            "turbo-tasks: the persistent cache could not be read:\n\n{}",
+            panic.message
+        )
+        .into()
+    } else {
+        "turbo-tasks: an internal panic occurred outside the per-task panic boundary. This is a \
+         bug in turbo-tasks/Turbopack — please report it at \
+         https://github.com/vercel/next.js/discussions and include the panic message and stack \
+         trace above."
+            .into()
     }
 }
 
@@ -3226,6 +3250,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_abort_on_panic_message() {
+        let unreadable: Box<dyn std::any::Any + Send> =
+            Box::new(crate::PersistentCacheUnreadablePanic {
+                message: "cache file 00000001.sst is missing".to_string(),
+            });
+        let message = abort_on_panic_message(&*unreadable);
+        assert!(message.contains("could not be read"), "{message}");
+        assert!(
+            message.contains("cache file 00000001.sst is missing"),
+            "{message}"
+        );
+        assert!(!message.contains("report"), "{message}");
+        assert!(!message.contains("bug"), "{message}");
+
+        let other: Box<dyn std::any::Any + Send> = Box::new("some bug".to_string());
+        let message = abort_on_panic_message(&*other);
+        assert!(message.contains("please report it"), "{message}");
+    }
+
+    #[test]
     fn test_inline_execution_depth_guard_restores_depth() {
         assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
         {
@@ -3284,5 +3328,36 @@ mod tests {
         // ...but it was spawned, so it still runs to completion.
         rx.await.unwrap();
         assert!(done.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_wait_until_zero_returns_immediately_at_zero() {
+        let counter = AtomicUsize::new(0);
+        let event = Event::new(|| || "test event".to_string());
+        let wait = std::pin::pin!(wait_until_zero(&counter, &event, || || "test".to_string()));
+        assert!(futures::poll!(wait).is_ready());
+    }
+
+    /// `finish_foreground_job` notifies only after it decremented the counter, so the notification
+    /// of an earlier drop to 0 can arrive after new jobs began. Such a stale notification must not
+    /// end the wait, otherwise `stop_and_wait` stops the backend under a running task.
+    #[tokio::test]
+    async fn test_wait_until_zero_ignores_stale_notification() {
+        let counter = AtomicUsize::new(1);
+        let event = Event::new(|| || "test event".to_string());
+        let mut wait = std::pin::pin!(wait_until_zero(&counter, &event, || || "test".to_string()));
+        assert!(futures::poll!(wait.as_mut()).is_pending());
+
+        // A notification while a job is still running.
+        event.notify(usize::MAX);
+        assert!(
+            futures::poll!(wait.as_mut()).is_pending(),
+            "a notification must not end the wait while the counter is non-zero"
+        );
+
+        // The last job finishes.
+        counter.store(0, Ordering::Release);
+        event.notify(usize::MAX);
+        assert!(futures::poll!(wait.as_mut()).is_ready());
     }
 }
