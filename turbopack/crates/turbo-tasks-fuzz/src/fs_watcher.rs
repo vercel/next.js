@@ -311,6 +311,7 @@ fn disk_file_system_operation(
         Vec::new(),
         watcher_config,
         DiskFileSystemMap::empty(),
+        None,
     )
 }
 

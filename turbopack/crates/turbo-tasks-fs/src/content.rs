@@ -84,6 +84,19 @@ impl From<File> for FileContent {
     }
 }
 
+/// A persisted version of [`FileContent`] that stores the full file content in the task cache.
+///
+/// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
+/// When reading the file content back from the cache, the hash is compared to detect changes, but
+/// the actual data is not available. `PersistedFileContent` provides the full data so that
+/// `DiskFileSystem::write` can retrieve it without re-reading from disk.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+pub enum PersistedFileContent {
+    Content(File),
+    NotFound,
+}
+
 /// The target of a symbolic link, as read from a filesystem.
 ///
 /// Every variant carries the `resolved` path the link points at, computed once by
@@ -549,6 +562,18 @@ impl FileContent {
     #[turbo_tasks::function]
     pub fn lines(&self) -> Vc<FileLinesContent> {
         self.lines_ref().cell()
+    }
+
+    /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
+    ///
+    /// Use this in contexts where the full file content must be serialized to the persistent
+    /// task cache (e.g., in `DiskFileSystem::write`).
+    #[turbo_tasks::function]
+    pub fn persist(&self) -> Vc<PersistedFileContent> {
+        match self {
+            FileContent::Content(file) => PersistedFileContent::Content(file.clone()).cell(),
+            FileContent::NotFound => PersistedFileContent::NotFound.cell(),
+        }
     }
 
     #[turbo_tasks::function]

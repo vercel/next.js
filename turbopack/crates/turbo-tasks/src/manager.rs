@@ -35,8 +35,8 @@ use crate::{
     OperationVc, OutputContent, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc,
     SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
-        Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
-        TurboTasksExecutionError, TypedCellContent, VerificationMode,
+        Backend, CellContent, CellHash, SettledTaskResult, TaskCollectiblesMap, TaskExecutionSpec,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
     dyn_task_inputs::DynTaskInputsStorage,
@@ -143,6 +143,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         task: TaskId,
         options: ReadOutputOptions,
     ) -> Result<ReadOutcome<RawVc>>;
+
+    /// See [`Backend::try_read_settled_task_result`].
+    fn try_read_settled_task_result(&self, task: TaskId) -> Result<SettledTaskResult>;
 
     fn try_read_task_cell(
         &self,
@@ -773,6 +776,28 @@ const MAX_INLINE_EXECUTION_DEPTH: usize = 16;
 thread_local! {
     /// How many task executions are currently nested inline on this thread.
     static INLINE_EXECUTION_DEPTH: Cell<usize> = const { Cell::new(0) };
+    /// Set while code that must not read tasks runs, e.g. callbacks that publication validates
+    /// while holding write claims.
+    static TASK_READS_FORBIDDEN: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Runs `f`, asserting in debug builds that it reads no task outputs or cells.
+pub(crate) fn forbid_task_reads<R>(f: impl FnOnce() -> R) -> R {
+    struct Reset(bool);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            TASK_READS_FORBIDDEN.set(self.0);
+        }
+    }
+    let _reset = Reset(TASK_READS_FORBIDDEN.replace(true));
+    f()
+}
+
+fn debug_assert_task_reads_allowed() {
+    debug_assert!(
+        !TASK_READS_FORBIDDEN.get(),
+        "tasks must not be read here; effect publication is validating while it holds write claims"
+    );
 }
 
 /// Whether the current thread may execute another task inline, see [`MAX_INLINE_EXECUTION_DEPTH`].
@@ -2257,12 +2282,17 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         if options.consistency == ReadConsistency::Eventual {
             debug_assert_not_in_top_level_task("read_task_output");
         }
+        debug_assert_task_reads_allowed();
         self.backend.try_read_task_output(
             task,
             current_task_if_available("reading Vcs"),
             options,
             self,
         )
+    }
+
+    fn try_read_settled_task_result(&self, task: TaskId) -> Result<SettledTaskResult> {
+        self.backend.try_read_settled_task_result(task, self)
     }
 
     #[track_caller]
@@ -2272,6 +2302,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<ReadOutcome<TypedCellContent>> {
+        debug_assert_task_reads_allowed();
         let reader = current_task_if_available("reading Vcs");
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
@@ -2504,7 +2535,8 @@ pub(crate) fn current_task(from: &str) -> TaskId {
 }
 
 /// Panics if we're not in a top-level task (e.g. [`run_once`]). Some function calls should only
-/// happen in a top-level task (e.g. [`Effects::apply`][crate::Effects::apply]).
+/// happen in a top-level task (e.g.
+/// [`read_strongly_consistent_and_apply_effects`][crate::read_strongly_consistent_and_apply_effects]).
 #[track_caller]
 pub(crate) fn debug_assert_in_top_level_task(message: &str) {
     if !cfg!(debug_assertions) {
@@ -2766,6 +2798,17 @@ pub fn mark_top_level_task() {
         CURRENT_TASK_STATE.with(|cell| {
             cell.write().unwrap().in_top_level_task = true;
         })
+    }
+}
+
+/// Sets whether the current task context is marked as a top-level task, returning the previous
+/// value. Only tracked in debug builds.
+pub(crate) fn replace_top_level_task(top_level: bool) -> bool {
+    if cfg!(debug_assertions) {
+        CURRENT_TASK_STATE
+            .with(|cell| std::mem::replace(&mut cell.write().unwrap().in_top_level_task, top_level))
+    } else {
+        false
     }
 }
 

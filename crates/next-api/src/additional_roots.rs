@@ -351,6 +351,7 @@ pub(crate) async fn create_additional_root_file_systems(
             Vec::new(),
             watcher_config,
             map,
+            None,
         );
         roots_by_name.insert(
             name,

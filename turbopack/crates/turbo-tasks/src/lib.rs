@@ -14,6 +14,7 @@
 
 pub mod backend;
 mod capture_future;
+mod changes;
 mod collectibles;
 mod completion;
 pub mod debug;
@@ -76,6 +77,10 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[doc(hidden)]
+pub use crate::changes::ChangeInProgress;
+#[cfg(feature = "publication_test_hooks")]
+pub use crate::effect::publication_test_hooks;
 #[cfg(feature = "inline_execution_stats")]
 pub use crate::manager::InlineExecutionStats;
 #[cfg(feature = "task_dirty_cause")]
@@ -89,9 +94,9 @@ pub use crate::{
         DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
     },
     effect::{
-        ApplyError, ApplyStep, Effect, EffectError, EffectExt, EffectStateStorage, Effects,
-        EffectsError, LastApplied, read_strongly_consistent_and_apply_effects,
-        resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
+        ApplyError, CapturedEffect, Effect, EffectError, EffectExt, EffectStateStorage, Effects,
+        EffectsError, read_strongly_consistent_and_apply_effects,
+        read_strongly_consistent_and_apply_effects_in_task, take_effects,
     },
     error::PrettyPrintError,
     fixint::{FixintU64, FixintU128},

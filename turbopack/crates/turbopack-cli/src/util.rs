@@ -75,6 +75,7 @@ pub async fn project_fs(
         vec![denied_root_path],
         DiskWatcherConfig::default(),
         DiskFileSystemMap::empty(),
+        None,
     );
     if watch {
         disk_fs.await?.start_watching().await?;

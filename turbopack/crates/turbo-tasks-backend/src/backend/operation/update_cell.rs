@@ -341,6 +341,13 @@ fn invalidate_cell_dependents(
         }
     }
     ctx.schedule_tasks(&to_schedule);
+
+    // Propagate the dependents' dirtiness to their aggregating ancestors before the new content
+    // becomes readable. Otherwise a reader of the new content (e.g. through a `ResolvedVc` held
+    // from elsewhere) could settle while a root that still depends on the old content looks
+    // clean, so that root's output would be taken as current although it isn't.
+    queue.execute(ctx);
+
     let mut task = ctx.task(cell_ref.task, TaskDataCategory::Data);
 
     if let Some(content) = content {
@@ -359,7 +366,10 @@ fn invalidate_cell_dependents(
         in_progress.event.notify(usize::MAX);
     }
 
-    queue.execute(ctx);
+    #[cfg(feature = "publication_test_hooks")]
+    turbo_tasks::publication_test_hooks::fire_sync(
+        turbo_tasks::publication_test_hooks::SyncPoint::CellChangeExposed,
+    );
 }
 
 #[cfg(test)]

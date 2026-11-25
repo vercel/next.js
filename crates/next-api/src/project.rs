@@ -588,14 +588,23 @@ async fn prepare_project_container_state(
         denied_paths,
         watcher_config,
         map,
+        None,
     );
 
+    // Write tasks stage output files next to the persistent cache, which `next build` keeps when
+    // it cleans the dist dir, until publication moves them into place.
+    let staging_dir = join_path(
+        &project_path,
+        &format!("{dist_dir_root}/cache/turbopack-staging"),
+    )
+    .map(RcStr::from);
     let output_fs_op = disk_file_system_operation(
         rcstr!("output"),
         root_path_op,
         Vec::new(),
         DiskWatcherConfig::default(),
         DiskFileSystemMap::empty(),
+        staging_dir,
     );
 
     // The filesystem only stores (and does not resolve) the filesystem map.
@@ -692,6 +701,7 @@ pub(crate) fn disk_file_system_operation(
     denied_paths: Vec<RcStr>,
     mut watcher_config: DiskWatcherConfig,
     map: OperationVc<DiskFileSystemMap>,
+    staging_dir: Option<RcStr>,
 ) -> Vc<DiskFileSystem> {
     watcher_config.extended_batch_delay_matcher =
         Some(ResolvedVc::upcast(NodeModulesPathMatcher.resolved_cell()));
@@ -701,6 +711,7 @@ pub(crate) fn disk_file_system_operation(
         denied_paths,
         watcher_config,
         map,
+        staging_dir,
     )
 }
 
