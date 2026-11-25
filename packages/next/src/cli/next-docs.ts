@@ -213,7 +213,7 @@ export function searchDocs(query: string[]) {
     output.push({ id, description })
     if (output.length === 3) break
   }
-  console.log(JSON.stringify(output, null, 2))
+  console.log(JSON.stringify(output))
 }
 
 export function retrieveDocs(id: string, line?: string) {
