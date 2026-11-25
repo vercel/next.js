@@ -42,8 +42,10 @@ import {
   InstrumentationSpan,
   LoadComponentsSpan,
   NextNodeServerSpan,
+  NextServerSpan,
   NodeSpan,
   RouteModuleSpan,
+  RouterSpan,
 } from './constants'
 import {
   clearRequestInsightsForTest,
@@ -79,6 +81,28 @@ function sdkSpan(spanId = '0123456789abcdef') {
     spanId,
     traceFlags: 1,
   })
+}
+
+/** Returns the provider's `startSpan` mock, to assert which spans are exported. */
+function installRecordingOtelProvider() {
+  context.setGlobalContextManager(new TestContextManager())
+  const delegateSpan = Object.assign(sdkSpan(), { isRecording: () => true })
+  const startSpan = jest.fn((_name: string) => delegateSpan)
+  trace.setGlobalTracerProvider({
+    getTracer() {
+      return {
+        startSpan,
+        startActiveSpan(...args: unknown[]) {
+          const callback = args.at(-1) as (span: typeof delegateSpan) => unknown
+          return context.with(
+            trace.setSpan(context.active(), delegateSpan),
+            () => callback(delegateSpan)
+          )
+        },
+      }
+    },
+  })
+  return startSpan
 }
 
 const getter: TextMapGetter<Record<string, string | undefined>> = {
@@ -473,6 +497,43 @@ describe('local span recording', () => {
       RouteModuleSpan.loadManifests,
       InstrumentationSpan.loadModule,
     ])
+  })
+
+  it('keeps the OTel request span as the root across local-only spans', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const startSpan = installRecordingOtelProvider()
+
+    // A dev request's spans. Request Insights records all of them, but only
+    // `handleRequest` is exported.
+    const rootAttributes = getTracer().trace(
+      NextServerSpan.getRequestHandler,
+      () =>
+        getTracer().trace(
+          RouterSpan.invokeRender,
+          { spanName: 'route to render' },
+          () =>
+            getTracer().trace(BaseServerSpan.handleRequest, () => {
+              getTracer().trace(BaseServerSpan.render, () =>
+                getTracer().setRootSpanAttribute('next.route', '/page')
+              )
+              return getTracer().getRootSpanAttributes()
+            })
+        )
+    )
+
+    expect(startSpan.mock.calls.map(([name]) => name)).toEqual([
+      BaseServerSpan.handleRequest,
+    ])
+    expect(rootAttributes?.get('next.span_type')).toBe(
+      BaseServerSpan.handleRequest
+    )
+    expect(rootAttributes?.get('next.route')).toBe('/page')
+    const [routerSpan] = getSpanRecords({ name: 'route to render' })
+    const [requestSpan] = getSpanRecords({
+      name: BaseServerSpan.handleRequest,
+    })
+    expect(requestSpan?.parentSpanId).toBe(routerSpan?.spanId)
+    expect(getSpanRecords({ name: BaseServerSpan.render })).toHaveLength(1)
   })
 
   it('does not record or export hidden spans', () => {
