@@ -65,9 +65,9 @@ The following options are available:
 | `-h, --help`       | Show the diagnostic workflow and all available options.                            |
 | `[directory]`      | A directory containing the Next.js application. Defaults to the current directory. |
 | `--url <url>`      | Override automatic discovery with the running development server's URL.            |
-| `--json`           | Output raw Request Insights JSON.                                                  |
-| `--limit <count>`  | Limit the number of recent requests returned. Defaults to 20, or 10 with `list`.   |
-| `list`             | List recent requests. Supports `--route <route>` for route filtering.              |
+| `--json`           | Output JSON: request summaries with `list`, the complete request with `get`.       |
+| `--limit <count>`  | With `list`, limit the number of recent requests returned. Defaults to 10.         |
+| `list`, `ls`       | List recent requests. Supports `--route <route>` for route filtering.              |
 | `get <request-id>` | Inspect one request by its full ID or an unambiguous prefix.                       |
 | `--kind <kind>`    | With `get`, select `request` or `instant-insights` when both share an ID.          |
 
