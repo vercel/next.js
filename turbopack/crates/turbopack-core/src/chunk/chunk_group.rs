@@ -633,7 +633,7 @@ async fn map_module_batch(
 
     if modified.into_inner() {
         Ok(ModuleBatch::new(
-            ResolvedVc::deref_vec(modules),
+            modules.into_boxed_slice(),
             batch_ref.chunk_groups.clone(),
         ))
     } else {

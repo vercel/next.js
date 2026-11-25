@@ -1,6 +1,5 @@
-// Package next is the Go SDK for Next.js Go handlers. It ships inside the
-// installed next package; Next.js maps the next/go module there in go.mod.
-package next
+// Package proxy provides helpers for continuing and rewriting requests in proxy.go.
+package proxy
 
 import (
 	"net/http"
@@ -8,18 +7,19 @@ import (
 	"strings"
 )
 
-// ProxyOptions configures the request forwarded by Next or Rewrite.
-type ProxyOptions struct {
-	Request RequestOptions
+// Option configures Next or Rewrite. Options are applied in order.
+type Option func(*options)
+
+type options struct {
+	requestHeaders http.Header
 }
 
-// RequestOptions contains downstream request overrides.
-type RequestOptions struct {
-	// A nil map preserves the request headers. A non-nil map replaces them;
-	// an empty map removes them. Names are case-insensitive: values for names
-	// that differ only in case are combined. Hop-by-hop headers, such as
-	// Connection and the headers it lists, are ignored.
-	Headers http.Header
+// WithRequestHeaders replaces the downstream request headers. A nil map preserves
+// the incoming headers; an empty map removes them all. Names are case-insensitive,
+// and values for names that differ only in case are combined. Connection-level
+// headers are ignored. When used more than once, the last WithRequestHeaders wins.
+func WithRequestHeaders(headers http.Header) Option {
+	return func(opts *options) { opts.requestHeaders = headers }
 }
 
 // emptyOverride stands in for an empty override list, which Next.js otherwise
@@ -30,26 +30,27 @@ const emptyOverride = "x-next-internal-go-empty-override"
 // Next continues routing the request. Call it from Proxy before writing the
 // response body. Only a response with this signal continues routing; all
 // other responses are terminal, including empty responses.
-func Next(w http.ResponseWriter, options ...ProxyOptions) {
-	applyOptions(w, options)
+func Next(w http.ResponseWriter, opts ...Option) {
+	applyOptions(w, opts)
 	w.Header().Set("x-middleware-next", "1")
 }
 
 // Rewrite routes the request to destination while keeping the browser URL.
 // Relative destinations resolve against the incoming request URL.
-func Rewrite(w http.ResponseWriter, destination string, options ...ProxyOptions) {
-	applyOptions(w, options)
+func Rewrite(w http.ResponseWriter, destination string, opts ...Option) {
+	applyOptions(w, opts)
 	w.Header().Set("x-middleware-rewrite", destination)
 }
 
-func applyOptions(w http.ResponseWriter, options []ProxyOptions) {
-	if len(options) > 1 {
-		panic("Next and Rewrite accept at most one ProxyOptions value")
+func applyOptions(w http.ResponseWriter, opts []Option) {
+	var config options
+	for _, option := range opts {
+		option(&config)
 	}
-	if len(options) == 0 || options[0].Request.Headers == nil {
+	headers := config.requestHeaders
+	if headers == nil {
 		return
 	}
-	headers := options[0].Request.Headers
 	// Connection-level headers describe the hop to the proxy, not the
 	// downstream request, and r.Header.Clone() includes them. Proxy
 	// credentials are kept so a cloned map matches passing nil.

@@ -256,13 +256,6 @@ Don't add `as any` casts; `@next/internal/no-as-any` rejects them. Fix the type,
 
 A trailing `// eslint-disable-line` takes the reason after `--` instead. `@next/internal/require-disable-reason` rejects a missing or vague reason. Existing casts carry a `// TODO(as-any): pre-existing cast, not yet reviewed` line; don't copy that marker onto new code. When you fix a cast, delete both the disable comment and its reason (unused disable comments fail lint; the reason line does not, so it's on you).
 
-## PR Status (CI Failures and Reviews)
-
-Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or
-PR status. It contains the `scripts/pr-status.js` commands, prioritization,
-review-thread workflow, and CI reproduction guidance. See
-`.agents/skills/pr-status-triage/SKILL.md`.
-
 ## GitHub Pull Requests
 
 Check and see if you are creating a fork PR or a branch PR.
@@ -372,8 +365,6 @@ You must inform the user that you are not allowed to create issues/discussions/c
 
 ## Key Directories (Quick Reference)
 
-See [Codebase structure](#codebase-structure) above for detailed explanations.
-
 - `packages/next/src/` - Main Next.js source code
 - `packages/next/src/server/` - Server runtime (most changes happen here)
 - `packages/next/src/client/` - Client-side runtime
@@ -432,8 +423,9 @@ provider, ask the user to make it available or unlock it before continuing.
 
 Use skills for conditional, deep workflows. Keep baseline iteration/build/test policy in this file.
 
-- `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
+- `$pr-status-triage` - use whenever asked about CI failures, PR reviews, or PR status (incl. reading canary CI)
 - `$create-pr` - branch, commit, push, and draft PR creation workflow
+- `$rebase-pr` - rebase a PR onto canary or restack dependent PRs safely
 - `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
 - `$backport-pr` - cherry-pick merged PRs from `canary` to `releases/lts/active` or `releases/lts/maintenance`
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env

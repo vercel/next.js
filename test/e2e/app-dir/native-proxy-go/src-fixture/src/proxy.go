@@ -2,7 +2,7 @@ package main
 
 import (
 	"net/http"
-	"next/go"
+	"next/go/proxy"
 )
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
@@ -12,11 +12,11 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		headers.Set("Host", r.Host)
 		headers.Set("x-from-go", "proxy")
 		if r.URL.Path == "/native-proxy/rewrite" {
-			next.Rewrite(w, "/native-proxy/native", next.ProxyOptions{Request: next.RequestOptions{Headers: headers}})
+			proxy.Rewrite(w, "/native-proxy/native", proxy.WithRequestHeaders(headers))
 		} else {
-			next.Next(w, next.ProxyOptions{Request: next.RequestOptions{Headers: headers}})
+			proxy.Next(w, proxy.WithRequestHeaders(headers))
 		}
 		return
 	}
-	next.Next(w)
+	proxy.Next(w)
 }
