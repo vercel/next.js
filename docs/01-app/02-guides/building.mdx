@@ -95,16 +95,6 @@ The option disables server minification, enables server source maps, and prevent
 
 > **Warning**: Do not deploy builds produced with `--debug-prerender`. These builds include debugging options and are not optimized for production.
 
-#### Show stack frames from dependencies
-
-If the stack trace shows only `at ignore-listed frames` or points to your component without showing the call inside a dependency, rerun the debug build with the internal `__NEXT_SHOW_IGNORE_LISTED` environment variable:
-
-```bash filename="Terminal"
-__NEXT_SHOW_IGNORE_LISTED=true npm exec -- next build --debug-prerender
-```
-
-The terminal output includes normally hidden stack frames. For example, `readCurrentTime (node_modules/blocking-widget/index.js:4:10)` identifies the dependency function that called `new Date()`. Farther down the stack, `Page (app/page.jsx:7:7)` shows where your app rendered the widget.
-
 ### Build specific routes
 
 Use [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) to compile and prerender selected routes while debugging a large application. The option accepts comma-separated paths and glob patterns. Prefix a pattern with `!` to exclude it. You can also combine it with `--debug-prerender`.

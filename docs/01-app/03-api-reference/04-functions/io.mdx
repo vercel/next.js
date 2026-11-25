@@ -87,8 +87,6 @@ During build-time prerendering, awaiting [`cookies()`](/docs/app/api-reference/f
 
 Call `await io()` before the synchronous read, or before calling a helper that performs it. To keep the helper eligible for runtime prefetching instead, [read the required request values outside a `use cache` scope and pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions). Include the synchronous read in the cached scope.
 
-If the stack trace doesn't identify the helper that made the call, [show stack frames from dependencies](/docs/app/guides/building#show-stack-frames-from-dependencies).
-
 ## How `io()` differs from `connection()`
 
 Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` also works inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope, where it resolves immediately, so a function that calls it can run in cached and uncached code alike. Calling `connection()` inside a cache scope throws an error. Outside a cache scope, the two behave the same: the code after either one is excluded from every prerender, whether the prerender runs at build time or for a [prefetch](/docs/app/guides/prefetching). Prefer `io()` over `connection()`, and reach for `connection()` only when you need to wait for a real user request.
