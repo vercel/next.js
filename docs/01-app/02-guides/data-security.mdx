@@ -9,6 +9,7 @@ related:
     - app/guides/authentication
     - app/guides/content-security-policy
     - app/guides/forms
+    - app/guides/server-actions
 ---
 
 [React Server Components](https://react.dev/reference/rsc/server-components) improve performance and simplify data fetching, but also shift where and how data is accessed, changing some of the traditional security assumptions for handling data in frontend apps.
@@ -54,7 +55,7 @@ This approach works well when:
 
 ### Data Access Layer
 
-For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is a internal library that controls how and when data is fetched, and what gets passed to your render context.
+For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is an internal library that controls how and when data is fetched, and what gets passed to your render context.
 
 A Data Access Layer should:
 
@@ -548,7 +549,7 @@ Behind the scenes, Server Actions use the `POST` method, and only this HTTP meth
 
 As an additional protection, Server Actions in Next.js also compare the [Origin header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) to the [Host header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) (or `X-Forwarded-Host`). If these don't match, the request will be aborted. In other words, Server Actions can only be invoked on the same host as the page that hosts it.
 
-For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the configuration option [`serverActions.allowedOrigins`](/docs/app/api-reference/config/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
+For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the [`experimental.serverActions.allowedOrigins`](/docs/app/api-reference/config/next-config-js/serverActions) option to specify additional trusted hosts. The option accepts an array of strings.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */

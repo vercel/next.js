@@ -15,8 +15,18 @@ use turbopack_ecmascript::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 use crate::{next_config::NextConfig, util::load_next_js_template};
 
 #[turbo_tasks::function]
-pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
+pub async fn middleware_files(
+    page_extensions: Vc<Vec<RcStr>>,
+    go_routes: Vc<bool>,
+) -> Result<Vc<Vec<RcStr>>> {
     let extensions = page_extensions.await?;
+    // `proxy.go` is only a convention file when Go routes are enabled, so an
+    // unrelated Go file at the project root does not change JavaScript apps.
+    let go_files = if *go_routes.await? {
+        vec![rcstr!("proxy.go"), rcstr!("src/proxy.go")]
+    } else {
+        Vec::new()
+    };
     let files = ["middleware.", "src/middleware.", "proxy.", "src/proxy."]
         .into_iter()
         .flat_map(|f| {
@@ -25,6 +35,7 @@ pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<
                 .map(move |ext| String::from(f) + ext.as_str())
                 .map(RcStr::from)
         })
+        .chain(go_files)
         .collect();
     Ok(Vc::cell(files))
 }
@@ -62,7 +73,7 @@ pub async fn get_middleware_module(
                 has_default || has_named
             }
             // CommonJS modules are valid (they can have module.exports or exports.default)
-            EcmascriptExports::CommonJs | EcmascriptExports::Value => true,
+            EcmascriptExports::CommonJs(_) | EcmascriptExports::Value => true,
             // DynamicNamespace might be valid for certain module types
             EcmascriptExports::DynamicNamespace => true,
             // None/Unknown likely indicate parsing errors - skip validation
@@ -129,7 +140,7 @@ pub async fn get_middleware_module(
     let module = asset_context
         .process(
             source,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets.into())),
         )
         .module();
 
@@ -191,9 +202,7 @@ impl Issue for MiddlewareMissingExportIssue {
              To fix it:\n\
              - Ensure this file has either a default or \"{}\" function export.\n\n\
              Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
-            type_description,
-            migration_bullet,
-            self.function_name
+            type_description, migration_bullet, self.function_name
         );
 
         Ok(Some(StyledString::Text(description_text.into())))

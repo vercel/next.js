@@ -4,6 +4,7 @@
         export: Some(
             "default",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -35,12 +36,14 @@
             ),
         ],
         span: 158..159,
+        usage: Escapes,
     },
     ImportedBinding {
         esm_reference_index: 3,
         export: Some(
             "a",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -72,10 +75,12 @@
             ),
         ],
         span: 170..171,
+        usage: Escapes,
     },
     ImportedBinding {
         esm_reference_index: 6,
         export: None,
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -107,5 +112,6 @@
             ),
         ],
         span: 182..183,
+        usage: Escapes,
     },
 ]

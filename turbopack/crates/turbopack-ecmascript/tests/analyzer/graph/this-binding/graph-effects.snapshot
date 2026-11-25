@@ -12,6 +12,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -46,6 +47,7 @@
             ),
         ],
         span: 39..48,
+        usage: Escapes,
     },
     FreeVar {
         var: "this",

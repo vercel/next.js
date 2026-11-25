@@ -16,9 +16,8 @@ use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TransientValue,
-    TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString, ValueToStringRef, Vc,
-    emit, trace::TraceRawVcs,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Upcast, ValueDefault, ValueToString, ValueToStringRef, Vc, emit,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -32,7 +31,7 @@ use crate::{
     generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
     source::Source,
-    source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapType, TokenWithSource},
     source_pos::SourcePos,
 };
 
@@ -240,7 +239,7 @@ where
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A pattern that can match by exact string, glob, or regex.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum IgnoreIssuePattern {
     /// The value must exactly equal the pattern string.
     ExactString(RcStr),
@@ -263,7 +262,7 @@ impl IgnoreIssuePattern {
 
 /// A rule describing an issue to ignore. `path` is mandatory;
 /// `title` and `description` are optional additional filters.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct IgnoreIssue {
     /// File-path pattern (mandatory).
     pub path: IgnoreIssuePattern,
@@ -430,7 +429,7 @@ impl CapturedIssues {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
     range: Option<SourceRange>,
@@ -438,7 +437,7 @@ pub struct IssueSource {
 
 /// The end position is the first character after the range
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
     ByteOffset(u32, u32),
@@ -451,6 +450,14 @@ impl IssueSource {
         IssueSource {
             source,
             range: None,
+        }
+    }
+
+    /// Drops the precise range while preserving the source file.
+    pub fn without_range(self) -> Self {
+        IssueSource {
+            range: None,
+            ..self
         }
     }
 
@@ -600,6 +607,27 @@ impl IssueSource {
         Ok(self.source.ident().await?.path.clone())
     }
 
+    /// The source that the range is in.
+    pub fn source(&self) -> ResolvedVc<Box<dyn Source>> {
+        self.source
+    }
+
+    /// The position the range starts at, in the coordinates of [`Self::source`] itself
+    /// (the source map of the source, if any, is not applied).
+    pub async fn start_pos(&self) -> Result<Option<SourcePos>> {
+        Ok(match self.range {
+            Some(SourceRange::LineColumn(start, _)) => Some(start),
+            Some(SourceRange::ByteOffset(start, _)) => {
+                if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                    Some(find_line_and_column(lines.as_ref(), start))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        })
+    }
+
     /// If this source implements `GenerateSourceMap`, returns an
     /// `AdditionalIssueSource` that wraps the source in a `GeneratedCodeSource`
     /// (stripping source-map support) so the generated code is shown alongside
@@ -656,7 +684,7 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let srcmap = generator.generate_source_map();
+    let srcmap = generator.generate_source_map(SourceMapType::Full);
     let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };
@@ -721,16 +749,7 @@ impl AdditionalIssueSources {
 
 // A structured reference to a file with module level details for displaying in an import trace
 #[derive(
-    Serialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Clone,
-    Debug,
-    TraceRawVcs,
-    NonLocalValue,
-    DeterministicHash,
+    Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, NonLocalValue, DeterministicHash,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct PlainTraceItem {
@@ -768,7 +787,7 @@ pub type PlainTrace = Vec<PlainTraceItem>;
 async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
     let mut plain_traces = traces
         .into_iter()
-        .map(|trace| async move {
+        .map(async |trace| {
             let mut plain_trace = trace
                 .into_iter()
                 .filter(|asset| {
@@ -903,6 +922,14 @@ pub struct PlainIssue {
     pub additional_sources: Vec<PlainAdditionalIssueSource>,
     pub import_traces: Vec<PlainTrace>,
 }
+
+/// A collection of [`PlainIssue`]s collected from a single source.
+///
+/// Returned by `collect_issues` so that the (plain) issues can be read strongly
+/// consistently from a top-level task and handed to a non-turbo-task [`IssueReporter`].
+#[turbo_tasks::value(serialization = "skip")]
+#[derive(Debug)]
+pub struct PlainIssues(pub Vec<ReadRef<PlainIssue>>);
 
 #[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
@@ -1062,24 +1089,30 @@ impl PlainSource {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_trait]
 pub trait IssueReporter {
-    /// Reports issues to the user (e.g. to stdio). Returns whether fatal
+    /// Reports already-collected issues to the user (e.g. to stdio). Returns whether fatal
     /// (program-ending) issues were present.
+    ///
+    /// This is intentionally *not* a `#[turbo_tasks::function]`: it performs no turbo-tasks
+    /// reads of its own (the issues are collected ahead of time by `collect_issues`), so it
+    /// is safe to call from a top-level task.
     ///
     /// # Arguments:
     ///
-    /// * `source` - The root [Vc] from which issues are traced. Can be used by implementers to
-    ///   determine which issues are new.  This must be derived from the OperationVc so issues can
-    ///   be collected.
-    /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
-    ///  The minimum issue severity level considered to fatally end the program.
-    #[turbo_tasks::function]
-    fn report_issues(
-        self: Vc<Self>,
-        source: TransientValue<RawVc>,
+    /// * `issues` - The plain issues already collected from the source.
+    /// * `source` - The root [`RawVc`] from which the issues were traced. Can be used by
+    ///   implementers as a dedup key to determine which issues are new. This must be derived from
+    ///   the `OperationVc` the issues were collected from.
+    /// * `min_failing_severity` - The minimum issue severity level considered to fatally end the
+    ///   program.
+    async fn report_issues(
+        &self,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
         min_failing_severity: IssueSeverity,
-    ) -> Vc<bool>;
+    ) -> Result<bool>;
 }
 
 pub trait CollectibleIssuesExt
@@ -1117,6 +1150,21 @@ where
     }
 }
 
+/// Collects all issues emitted by `source` as resolved [`PlainIssue`]s.
+///
+/// This is an `operation` function so its (plain) result can be read *strongly consistently* (via
+/// [`OperationVc::read_strongly_consistent`]) from a top-level task without tripping the
+/// eventually-consistent-read assertion. The per-issue `PlainIssue::from_issue` reads happen
+/// *inside* this task, where eventually-consistent reads are legal.
+#[turbo_tasks::function(operation, root)]
+async fn collect_issues(source: OperationVc<()>) -> Result<Vc<PlainIssues>> {
+    let plain = source
+        .peek_issues()
+        .get_plain_issues(&IssueFilter::everything())
+        .await?;
+    Ok(PlainIssues(plain).cell())
+}
+
 /// A helper function to print out issues to the console.
 ///
 /// Must be called in a turbo-task as this constructs a `cell`
@@ -1129,13 +1177,31 @@ pub async fn handle_issues<T: Send>(
 ) -> Result<()> {
     let source_vc = source_op.connect();
     let _ = source_op.resolve().strongly_consistent().await?;
+    let source_raw = Vc::into_raw(source_vc);
 
-    let has_fatal = issue_reporter.report_issues(
-        TransientValue::new(Vc::into_raw(source_vc)),
-        min_failing_severity,
-    );
+    // Collect the issues in a dedicated `operation` task and read its *plain* result strongly
+    // consistently. This is safe at the top level (unlike an eventually-consistent read), while
+    // the per-issue reads happen inside `collect_issues`. The source is type-erased to
+    // `OperationVc<()>` so a single non-generic task can collect issues for any source.
+    let erased_source = OperationVc::<()>::try_from(source_raw)?;
+    let issues = collect_issues(erased_source)
+        .read_strongly_consistent()
+        .await?;
 
-    if *has_fatal.await? {
+    // `report_issues` is a plain async method; reach it via a `TraitRef`. Resolve the reporter
+    // strongly consistently first so that `into_trait_ref` is a plain cell read (rather than an
+    // eventually-consistent task-output read) at the top level.
+    let reporter = issue_reporter
+        .to_resolved()
+        .strongly_consistent()
+        .await?
+        .into_trait_ref()
+        .await?;
+    let has_fatal = reporter
+        .report_issues(issues, source_raw, min_failing_severity)
+        .await?;
+
+    if has_fatal {
         let mut message = "Fatal issue(s) occurred".to_owned();
         if let Some(path) = path.as_ref() {
             message += &format!(" in {path}");

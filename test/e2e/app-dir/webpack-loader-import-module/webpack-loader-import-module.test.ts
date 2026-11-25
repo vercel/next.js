@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('webpack-loader-import-module', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should support this.importModule() in a webpack loader', async () => {
     const $ = await next.render$('/')
@@ -31,6 +26,10 @@ describe('webpack-loader-import-module', () => {
     expect($('#custom-data-value').text()).toBe('hello from custom loader')
     // loader rules: dependency of importModule target needs custom loader
     expect($('#consumed-value').text()).toBe('hello from custom loader')
+    // the page imports the same module that the loader imports
+    expect($('#shared-value').text()).toBe('shared')
+    expect($('#direct-shared-value').text()).toBe('shared')
+    expect($('#control-value').text()).toBe('control')
 
     if (isTurbopack) {
       // new URL('./image.png', import.meta.url) in url-wasm-data.ts
@@ -47,6 +46,15 @@ describe('webpack-loader-import-module', () => {
       expect($('#mjs-wasm-add-result').text()).toBe('30')
       // Dynamic import('./module.js') in url-wasm-data.mjs
       expect($('#mjs-dynamic-value').text()).toBe('loaded dynamically')
+    }
+
+    if (isTurbopack && !isNextDeploy) {
+      // importModule shares modules with the app: the module that the loader also imports is
+      // processed as often as one only the app imports, not once more for the loader.
+      const runs = (await next.readFile('loader-runs.log')).trim().split('\n')
+      const count = (name: string) => runs.filter((run) => run === name).length
+      expect(count('control.counted.js')).toBeGreaterThan(0)
+      expect(count('shared.counted.js')).toBe(count('control.counted.js'))
     }
   })
 })

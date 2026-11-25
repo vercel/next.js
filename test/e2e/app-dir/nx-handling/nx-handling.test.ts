@@ -1,17 +1,24 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import {
+  nextTestSetup,
+  isNextDev,
+  patchFileWithDeployEnvAssignments,
+} from 'e2e-utils'
+import path from 'path'
 
 describe('nx-handling', () => {
   const { next } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
-    installCommand: 'npm i',
-    buildCommand: 'npm run build',
-    startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+    overrideFiles: {
+      'apps/next-nx-test/next.config.js': patchFileWithDeployEnvAssignments(
+        path.join(__dirname, 'apps/next-nx-test/next.config.js')
+      ),
+    },
+    buildCommand: 'pnpm run build',
+    startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     packageJson: {
       name: '@nx-next/source',
       version: '0.0.0',
       private: true,
-      packageManager: 'npm@10.9.2',
       scripts: {
         build: 'rm -rf dist; nx run next-nx-test:build',
         dev: 'nx run next-nx-test:dev',
@@ -20,16 +27,16 @@ describe('nx-handling', () => {
       dependencies: {
         react: '19.0.0',
         'react-dom': '19.0.0',
-        '@nx/js': '21.1.3',
-        '@nx/next': '21.1.3',
-        '@nx/workspace': '21.1.3',
+        '@nx/js': '23.2.1',
+        '@nx/next': '23.2.1',
+        '@nx/workspace': '23.2.1',
         '@swc-node/register': '~1.9.1',
         '@swc/cli': '~0.6.0',
         '@swc/core': '~1.5.7',
         '@swc/helpers': '~0.5.11',
         '@types/react': '19.0.0',
         '@types/react-dom': '19.0.0',
-        nx: '21.1.3',
+        nx: '23.2.1',
         tslib: '^2.3.0',
         typescript: '~5.7.2',
       },

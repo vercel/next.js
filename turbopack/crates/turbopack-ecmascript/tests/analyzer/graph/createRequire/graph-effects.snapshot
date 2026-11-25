@@ -55,6 +55,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -96,6 +97,12 @@
             ModuleValue {
                 module: "node:module",
                 annotations: None,
+                analyze_for_constants: false,
+                reference: Some(
+                    ModuleReferenceIndex(
+                        2,
+                    ),
+                ),
             },
         ),
         prop: Constant(
@@ -105,6 +112,59 @@
                 ),
             ),
         ),
+        base_effects: [
+            ImportedBinding {
+                esm_reference_index: 1,
+                export: Some(
+                    "createRequire",
+                ),
+                member: None,
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            2,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                ],
+                span: 99..122,
+                usage: Access,
+            },
+        ],
         ast_path: [
             Program(
                 Module,
@@ -145,165 +205,19 @@
             ),
         ],
         span: 99..122,
-    },
-    ImportedBinding {
-        esm_reference_index: 1,
-        export: Some(
-            "createRequire",
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-        ],
-        span: 99..122,
-    },
-    Member {
-        obj: WellKnownObject(
-            ImportMeta,
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "url",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 123..138,
-    },
-    ImportMeta {
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                MetaProp,
-            ),
-        ],
-        span: 123..134,
+        usage: Escapes,
     },
     MemberCall {
         obj: Module(
             ModuleValue {
                 module: "node:module",
                 annotations: None,
+                analyze_for_constants: false,
+                reference: Some(
+                    ModuleReferenceIndex(
+                        2,
+                    ),
+                ),
             },
         ),
         prop: Constant(
@@ -328,6 +242,115 @@
                         ),
                     ),
                 ),
+                [
+                    Member {
+                        obj: WellKnownObject(
+                            ImportMeta,
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "url",
+                                ),
+                            ),
+                        ),
+                        base_effects: [
+                            ImportMeta {
+                                ast_path: [
+                                    Program(
+                                        Module,
+                                    ),
+                                    Module(
+                                        Body(
+                                            2,
+                                        ),
+                                    ),
+                                    ModuleItem(
+                                        Stmt,
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Var,
+                                    ),
+                                    VarDecl(
+                                        Decls(
+                                            0,
+                                        ),
+                                    ),
+                                    VarDeclarator(
+                                        Init,
+                                    ),
+                                    Expr(
+                                        Call,
+                                    ),
+                                    CallExpr(
+                                        Args(
+                                            0,
+                                        ),
+                                    ),
+                                    ExprOrSpread(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        MetaProp,
+                                    ),
+                                ],
+                                span: 123..134,
+                            },
+                        ],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 123..138,
+                        usage: Escapes,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -380,6 +403,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -422,6 +446,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -462,110 +487,7 @@
             ),
         ],
         span: 176..203,
-    },
-    Member {
-        obj: WellKnownObject(
-            ImportMeta,
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "url",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    4,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 204..219,
-    },
-    ImportMeta {
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    4,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                MetaProp,
-            ),
-        ],
-        span: 204..215,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -596,6 +518,115 @@
                         ),
                     ),
                 ),
+                [
+                    Member {
+                        obj: WellKnownObject(
+                            ImportMeta,
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "url",
+                                ),
+                            ),
+                        ),
+                        base_effects: [
+                            ImportMeta {
+                                ast_path: [
+                                    Program(
+                                        Module,
+                                    ),
+                                    Module(
+                                        Body(
+                                            4,
+                                        ),
+                                    ),
+                                    ModuleItem(
+                                        Stmt,
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Var,
+                                    ),
+                                    VarDecl(
+                                        Decls(
+                                            0,
+                                        ),
+                                    ),
+                                    VarDeclarator(
+                                        Init,
+                                    ),
+                                    Expr(
+                                        Call,
+                                    ),
+                                    CallExpr(
+                                        Args(
+                                            0,
+                                        ),
+                                    ),
+                                    ExprOrSpread(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        MetaProp,
+                                    ),
+                                ],
+                                span: 204..215,
+                            },
+                        ],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    4,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 204..219,
+                        usage: Escapes,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -648,6 +679,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -690,6 +722,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -730,51 +763,7 @@
             ),
         ],
         span: 257..284,
-    },
-    FreeVar {
-        var: "__filename",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    6,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 285..295,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -795,6 +784,53 @@
                 FreeVar(
                     "__filename",
                 ),
+                [
+                    FreeVar {
+                        var: "__filename",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    6,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 285..295,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -847,6 +883,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -889,6 +926,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -929,111 +967,7 @@
             ),
         ],
         span: 335..362,
-    },
-    Member {
-        obj: FreeVar(
-            "globalThis",
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "foo",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    8,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 363..377,
-    },
-    FreeVar {
-        var: "globalThis",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    8,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 363..373,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -1064,6 +998,116 @@
                         ),
                     ),
                 ),
+                [
+                    Member {
+                        obj: FreeVar(
+                            "globalThis",
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "foo",
+                                ),
+                            ),
+                        ),
+                        base_effects: [
+                            FreeVar {
+                                var: "globalThis",
+                                ast_path: [
+                                    Program(
+                                        Module,
+                                    ),
+                                    Module(
+                                        Body(
+                                            8,
+                                        ),
+                                    ),
+                                    ModuleItem(
+                                        Stmt,
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Var,
+                                    ),
+                                    VarDecl(
+                                        Decls(
+                                            0,
+                                        ),
+                                    ),
+                                    VarDeclarator(
+                                        Init,
+                                    ),
+                                    Expr(
+                                        Call,
+                                    ),
+                                    CallExpr(
+                                        Args(
+                                            0,
+                                        ),
+                                    ),
+                                    ExprOrSpread(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        Ident,
+                                    ),
+                                ],
+                                span: 363..373,
+                            },
+                        ],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    8,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 363..377,
+                        usage: Escapes,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -1116,6 +1160,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [

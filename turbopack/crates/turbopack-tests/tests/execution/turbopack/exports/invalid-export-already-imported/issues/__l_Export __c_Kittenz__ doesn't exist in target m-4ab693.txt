@@ -1,0 +1,25 @@
+error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/aliased.js:3:1  Export Kittenz doesn't exist in target module
+  
+       1 | // `Kitten` is imported under an alias, it's still already imported and must not
+       2 | // be suggested for `Kittenz`.
+         + v--------------------------------------------------v
+       3 + import { Kitten as kitten, Kittenz } from './module'
+         + ^--------------------------------------------------^
+       4 | 
+       5 | export default [kitten, Kittenz]
+       6 | 
+  
+  The export Kittenz was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/module.js [test] (ecmascript).
+  
+  Did you mean to import Mitten?
+  
+  All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+  
+  
+  | These are the exports of the module:
+  | Kit, Kitten, Mitten
+  | 
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/aliased.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/index.js

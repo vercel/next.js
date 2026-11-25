@@ -1,4 +1,4 @@
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import type { ResponseCacheEntry, ResponseGenerator } from './types'
 
 /**
@@ -46,7 +46,7 @@ export default class WebResponseCache {
       promise,
       resolve: resolver,
       reject: rejecter,
-    } = new DetachedPromise<ResponseCacheEntry | null>()
+    } = createPromiseWithResolvers<ResponseCacheEntry | null>()
     if (pendingResponseKey) {
       this.pendingResponses.set(pendingResponseKey, promise)
     }
@@ -85,6 +85,10 @@ export default class WebResponseCache {
     ;(async () => {
       try {
         const cacheEntry = await responseGenerator({ hasResolved })
+        if (cacheEntry !== null && 'error' in cacheEntry) {
+          throw cacheEntry.error
+        }
+
         const resolveValue =
           cacheEntry === null
             ? null

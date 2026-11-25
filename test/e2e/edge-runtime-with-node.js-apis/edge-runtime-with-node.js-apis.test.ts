@@ -27,18 +27,18 @@ const unsupportedClasses = [
   'WritableStreamDefaultController',
 ]
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// @force-gate !deploy
 describe('Edge runtime with Node.js APIs', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     // Turbopack builds fail (non-zero exit) when edge code uses Node.js APIs,
     // but the CLI output still contains the warnings we're asserting on. Skip
     // the automatic start so we can run the build manually and ignore the
     // non-zero exit code.
     skipStart: true,
-    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeAll(async () => {
     if (isNextDev) {

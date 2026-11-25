@@ -4,7 +4,8 @@ export async function GET() {
   const cookieStore = await cookies()
   console.log(cookieStore)
 
-  return Response.json({
-    finished: Boolean((globalThis as any).instrumentationFinished),
-  })
+  return new Response(
+    'API Node instrumentationFinished=' +
+      (globalThis as any).instrumentationFinished
+  )
 }

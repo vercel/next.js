@@ -1,14 +1,17 @@
 /**
- * This module imports the client instrumentation hook from the project root.
+ * This module imports the configured client instrumentation modules.
  *
  * The `private-next-instrumentation-client` module is automatically aliased to
- * the `instrumentation-client.ts` file in the project root by webpack or turbopack.
+ * either the user's instrumentation module or a generated module array.
  */
 if (process.env.NODE_ENV === 'development') {
   const measureName = 'Client Instrumentation Hook'
   const startTime = performance.now()
   // eslint-disable-next-line @next/internal/typechecked-require -- Not a module.
-  module.exports = require('private-next-instrumentation-client')
+  const instrumentationClient = require('private-next-instrumentation-client')
+  module.exports = Array.isArray(instrumentationClient)
+    ? instrumentationClient
+    : [instrumentationClient]
   const endTime = performance.now()
   const duration = endTime - startTime
 
@@ -23,5 +26,8 @@ if (process.env.NODE_ENV === 'development') {
   }
 } else {
   // eslint-disable-next-line @next/internal/typechecked-require -- Not a module.
-  module.exports = require('private-next-instrumentation-client')
+  const instrumentationClient = require('private-next-instrumentation-client')
+  module.exports = Array.isArray(instrumentationClient)
+    ? instrumentationClient
+    : [instrumentationClient]
 }

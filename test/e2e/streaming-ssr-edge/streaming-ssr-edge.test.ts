@@ -9,14 +9,14 @@ function getNodeBySelector(html, selector) {
 async function resolveStreamResponse(response, onData) {
   let result = ''
   onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
 
-    response.body.on('end', resolve)
-  })
+  const decoder = new TextDecoder()
+  for await (const chunk of response.body) {
+    const text = decoder.decode(chunk, { stream: true })
+    result += text
+    onData(text, result)
+  }
+  result += decoder.decode()
   return result
 }
 

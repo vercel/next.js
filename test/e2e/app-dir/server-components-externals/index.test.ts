@@ -1,14 +1,13 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
+// Deploy mode exclusion: This suite manually changes the local `node_modules` tree.
+// This test is skipped when deployed because it relies on manually patched `node_modules`
+// @force-gate !deploy
 describe('app-dir - server components externals', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
-    // This test is skipped when deployed because it relies on manually patched `node_modules`
-    skipDeployment: true,
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) return
 
   it('should have externals for those in config.serverExternalPackages', async () => {
     const $ = await next.render$('/')
@@ -26,8 +25,13 @@ describe('app-dir - server components externals', () => {
   it('uses externals for predefined list in server-external-packages.json', async () => {
     const $ = await next.render$('/predefined')
 
+    // `keyv` is on the built-in list in
+    // packages/next/src/lib/server-external-packages.jsonc. Resolving to the
+    // package's own directory is what proves it stayed external: a bundled copy
+    // would report the chunk's directory instead. The package here is a stub, so
+    // the assertion is about the list rather than about anything `keyv` does.
     const text = $('#directory').text()
-    expect(text).toBe(path.join(next.testDir, 'node_modules', 'sqlite3'))
+    expect(text).toBe(path.join(next.testDir, 'node_modules', 'keyv'))
   })
 
   // Inspect webpack server bundles

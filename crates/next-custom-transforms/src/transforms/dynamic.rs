@@ -9,12 +9,12 @@ use swc_core::{
     common::{DUMMY_SP, FileName, Span, errors::HANDLER},
     ecma::{
         ast::{
-            ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
-            ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
-            ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
+            ArrayLit, ArrowExpr, ArrowFunctionBody, BinExpr, Bool, CallExpr, Callee, Expr,
+            ExprOrSpread, ExprStmt, FunctionBody, Id, Ident, IdentName, ImportDecl,
+            ImportNamedSpecifier, ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem,
+            ObjectLit, Pass, Prop, PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
         },
-        utils::{ExprFactory, private_ident, quote_ident},
+        utils::{ExprFactory, private_ident, prop_name_eq, quote_ident},
         visit::{VisitMut, VisitMutWith, visit_mut_pass},
     },
     quote,
@@ -275,10 +275,7 @@ impl VisitMut for NextDynamicPatcher {
                             _ => None,
                         },
                         _ => None,
-                    } && let Some(IdentName { sym, span: _ }) = match key {
-                        PropName::Ident(ident) => Some(ident),
-                        _ => None,
-                    } && sym == "ssr"
+                    } && prop_name_eq(key, "ssr")
                         && let Some(Lit::Bool(Bool {
                             value: false,
                             span: _,
@@ -331,7 +328,7 @@ impl VisitMut for NextDynamicPatcher {
                         let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
                             span: DUMMY_SP,
                             params: vec![],
-                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                            body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                 span: DUMMY_SP,
                                 stmts: vec![Stmt::Expr(ExprStmt {
                                     span: DUMMY_SP,
@@ -339,7 +336,6 @@ impl VisitMut for NextDynamicPatcher {
                                         &require_resolve_weak_expr,
                                     )),
                                 })],
-                                ..Default::default()
                             })),
                             is_async: true,
                             is_generator: false,
@@ -363,10 +359,9 @@ impl VisitMut for NextDynamicPatcher {
                         let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
                             span: DUMMY_SP,
                             params: vec![],
-                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                            body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                 span: DUMMY_SP,
                                 stmts: vec![],
-                                ..Default::default()
                             })),
                             is_async: true,
                             is_generator: false,
@@ -450,7 +445,7 @@ fn webpack_options(module_id: Expr) -> Vec<PropOrSpread> {
         key: PropName::Ident(IdentName::new(atom!("webpack"), DUMMY_SP)),
         value: Box::new(Expr::Arrow(ArrowExpr {
             params: vec![],
-            body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
+            body: Box::new(ArrowFunctionBody::Expr(Box::new(Expr::Array(ArrayLit {
                 elems: vec![Some(ExprOrSpread {
                     expr: Box::new(module_id),
                     spread: None,

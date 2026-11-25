@@ -8,12 +8,11 @@ describe('Error overlay - RSC build errors', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'app-hmr-changes')),
     dependencies: {
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       'react-wrap-balancer': '^0.2.4',
       'react-tweet': '^3.2.0',
       '@mdx-js/react': '^2.3.0',
       tailwindcss: '^3.2.6',
-      typescript: 'latest',
       '@types/react': '^18.0.28',
       '@types/react-dom': '^18.0.10',
       'image-size': '^1.0.2',
@@ -44,7 +43,7 @@ describe('Error overlay - RSC build errors', () => {
 
         await session.patch(pagePath, break1)
 
-        const break2 = break1.replace('{/* break point 2 */}', '<Figure />')
+        const break2 = break1.replace('break 2', '<Figure />')
 
         await session.patch(pagePath, break2)
 

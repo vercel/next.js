@@ -3,14 +3,9 @@ import { retry } from 'next-test-utils'
 import path from 'path'
 
 describe('app dir - next/dynamic', () => {
-  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should handle ssr: false in pages when appDir is enabled', async () => {
     const $ = await next.render$('/legacy/no-ssr')
@@ -49,6 +44,26 @@ describe('app dir - next/dynamic', () => {
     const $ = await next.render$('/chunk-loading/server')
     expect($('h1').text()).toBe('hello')
   })
+
+  it.each(['/dynamic/async-import', '/legacy/async-import'])(
+    'should only reference emitted chunks when the next/dynamic component has an async import on %s',
+    async (pathname) => {
+      const $ = await next.render$(pathname)
+      expect($('#async-import-target').text()).toBe(
+        'next-dynamic async import target'
+      )
+
+      const chunks = new Set(
+        $('link[rel="preload"][as="script"], script[src]')
+          .toArray()
+          .map((el) => el.attribs.href ?? el.attribs.src)
+      )
+      for (const chunk of chunks) {
+        const { status } = await next.fetch(chunk)
+        expect({ chunk, status }).toEqual({ chunk, status: 200 })
+      }
+    }
+  )
 
   it('should render loading by default if loading is specified and loader is slow', async () => {
     const $ = await next.render$('/default-loading')

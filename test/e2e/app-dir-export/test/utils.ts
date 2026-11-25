@@ -5,6 +5,7 @@ import { promisify } from 'util'
 import fs from 'fs-extra'
 import globOrig from 'glob'
 import {
+  gate,
   waitForRedbox,
   getRedboxHeader,
   getRedboxSource,
@@ -217,18 +218,21 @@ export function runTests({
   dynamicPage?: string
   dynamicParams?: string
   dynamicApiRoute?: string
-  generateStaticParamsOpt?: 'set noop' | 'set client'
+  generateStaticParamsOpt?:
+    | 'set noop'
+    | 'set client'
+    | 'set empty'
+    | 'set invalid entry'
+    | 'set mixed params'
+    | 'set non-array'
+    | 'set wrong param'
   expectedErrMsg?: string | RegExp
 }) {
-  let { next, skipped, isNextDev } = nextTestSetup({
+  let { next, isNextDev } = nextTestSetup({
     files: join(__dirname, '..'),
-    skipDeployment: true,
     skipStart: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) {
-    return
-  }
 
   beforeAll(async () => {
     if (trailingSlash !== undefined) {
@@ -275,6 +279,41 @@ export function runTests({
       await next.patchFile(
         'app/another/[slug]/page.js',
         (content) => '"use client"\n' + content
+      )
+    } else if (generateStaticParamsOpt === 'set non-array') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return { slug: 'first' }`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set invalid entry') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [null]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set empty') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          'return []'
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set wrong param') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ id: 'first' }]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set mixed params') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ slug: 'first' }, { id: 'second' }]`
+        )
       )
     }
   })
@@ -402,9 +441,17 @@ export function runTests({
 
       if (!isNextDev) {
         let outputDir = join(next.testDir, 'out')
-        const expected = trailingSlash
-          ? expectedWhenTrailingSlashTrue
-          : expectedWhenTrailingSlashFalse
+        const cacheComponents = await gate((c) => c.cacheComponents)
+        const expected = (
+          trailingSlash
+            ? expectedWhenTrailingSlashTrue
+            : expectedWhenTrailingSlashFalse
+        ).filter(
+          (file) =>
+            cacheComponents ||
+            typeof file !== 'string' ||
+            !file.endsWith('__next._full.txt')
+        )
         const actualFiles = await getFiles(outputDir)
         expect(actualFiles).toEqual(expect.arrayContaining(expected))
         expect(actualFiles).toHaveLength(expected.length)

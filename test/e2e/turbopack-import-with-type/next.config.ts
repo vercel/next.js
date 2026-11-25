@@ -3,7 +3,6 @@ import type { NextConfig } from 'next'
 const config: NextConfig = {
   experimental: {
     turbopackImportTypeBytes: true,
-    turbopackImportTypeText: true,
   },
   turbopack: {
     rules: {

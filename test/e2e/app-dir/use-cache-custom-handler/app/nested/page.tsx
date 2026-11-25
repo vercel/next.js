@@ -1,11 +1,8 @@
 import { cacheLife, cacheTag } from 'next/cache'
 import { connection } from 'next/server'
-import { setTimeout } from 'timers/promises'
 
 async function Inner() {
   'use cache'
-
-  await setTimeout(1000)
 
   // This should lower the default cache lives of the outer cache scopes.
   cacheLife({ revalidate: 180, expire: 300 })
@@ -19,7 +16,7 @@ async function Outer1() {
 
   cacheTag('outer1')
 
-  return <Inner />
+  return Inner()
 }
 
 async function Outer2() {
@@ -27,16 +24,19 @@ async function Outer2() {
 
   cacheTag('outer2')
 
-  return <Inner />
+  return Inner()
 }
 
 export default async function Page() {
   await connection()
 
+  const first = await Outer1()
+  const second = await Outer2()
+
   return (
     <>
-      <Outer1 />
-      <Outer2 />
+      {first}
+      {second}
     </>
   )
 }

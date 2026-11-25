@@ -109,19 +109,10 @@ echo "======================="
 echo "Duration: ${DURATION}s per phase | Warmup: ${WARMUP_REQS} reqs"
 echo "Server: minimal-server (minimalMode: true)"
 
-cat > next.config.js <<'CONF'
-module.exports = {}
-CONF
-
 echo ""
 echo "Building..."
 node "$NEXT_BIN" build &>/dev/null
 run_benchmark "Node Streams (default)"
-
-# Restore config
-cat > next.config.js <<'CONF'
-module.exports = {}
-CONF
 
 echo ""
 echo "Done."

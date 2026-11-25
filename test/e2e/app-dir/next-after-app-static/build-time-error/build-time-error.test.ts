@@ -1,21 +1,17 @@
 /* eslint-env jest */
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 
-// This test relies on next.build() so it can't work in dev mode.
+// Static prerendering errors are only reported during production builds.
 const _describe = isNextDev ? describe.skip : describe
 
 _describe('after() in static pages - thrown errors', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // can't access build errors in deploy tests
   })
 
-  if (skipped) return
-
   it('fails the build if an error is thrown inside after', async () => {
-    const buildResult = await next.build()
-    expect(buildResult?.exitCode).toBe(1)
+    await expect(next.start()).rejects.toThrow()
 
     {
       const path = '/page-throws-in-after/callback'
@@ -56,5 +52,5 @@ _describe('after() in static pages - thrown errors', () => {
         `My cool error thrown inside after on route "${path}"`
       )
     }
-  })
+  }, 240_000)
 })

@@ -74,7 +74,7 @@ This allows `.mdx` files to act as pages, routes, or imports in your application
 
 ### Handling `.md` files
 
-By default, `next/mdx` only compiles files with the `.mdx` extension. To handle `.md` files with webpack, update the `extension` option:
+By default, `@next/mdx` only compiles files with the `.mdx` extension. To handle `.md` files with webpack, update the `extension` option:
 
 ```js filename="next.config.mjs"
 const withMDX = createMDX({
@@ -286,40 +286,54 @@ For example, you can have a dynamic route segment which loads MDX components fro
   height="849"
 />
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. By marking `dynamicParams` as `false`, accessing a route not defined in `generateStaticParams` will 404.
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. Check that the requested slug maps to a real file before importing it, and call [`notFound()`](/docs/app/api-reference/functions/not-found) if the file does not exist:
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
+import { notFound } from 'next/navigation'
+
+const contentSlugs = ['welcome', 'about']
+
 export default async function Page({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
+
+  if (!contentSlugs.includes(slug)) {
+    notFound()
+  }
+
   const { default: Post } = await import(`@/content/${slug}.mdx`)
 
   return <Post />
 }
 
 export function generateStaticParams() {
-  return [{ slug: 'welcome' }, { slug: 'about' }]
+  return contentSlugs.map((slug) => ({ slug }))
 }
-
-export const dynamicParams = false
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
+import { notFound } from 'next/navigation'
+
+const contentSlugs = ['welcome', 'about']
+
 export default async function Page({ params }) {
   const { slug } = await params
+
+  if (!contentSlugs.includes(slug)) {
+    notFound()
+  }
+
   const { default: Post } = await import(`@/content/${slug}.mdx`)
 
   return <Post />
 }
 
 export function generateStaticParams() {
-  return [{ slug: 'welcome' }, { slug: 'about' }]
+  return contentSlugs.map((slug) => ({ slug }))
 }
-
-export const dynamicParams = false
 ```
 
 > **Good to know**: Ensure you specify the `.mdx` file extension in your import. While it is not required to use [module path aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) (e.g., `@/content`), it does simplify your import path.
@@ -388,7 +402,7 @@ export function useMDXComponents(): MDXComponents {
 }
 ```
 
-```js filename="mdx-components.js" switcher
+```jsx filename="mdx-components.js" switcher
 import Image from 'next/image'
 
 // This file allows you to provide custom React components
@@ -615,7 +629,7 @@ export default function MDXPage({ children }) {
 }
 ```
 
-</PagesOnly >
+</PagesOnly>
 
 ## Frontmatter
 

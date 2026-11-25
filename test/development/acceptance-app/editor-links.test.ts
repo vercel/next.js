@@ -15,13 +15,13 @@ async function clickSourceFile(browser: Playwright) {
 
 async function clickImportTraceFiles(browser: Playwright) {
   await browser.waitForElementByCss(
-    '[data-with-open-in-editor-link-import-trace]'
+    '[data-with-open-in-editor-link-import-trace] button'
   )
-  const collapsedFrameworkGroups = await browser.elementsByCss(
-    '[data-with-open-in-editor-link-import-trace]'
+  const editorButtons = await browser.elementsByCss(
+    '[data-with-open-in-editor-link-import-trace] button'
   )
-  for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
-    await collapsedFrameworkButton.click()
+  for (const editorButton of editorButtons) {
+    await editorButton.click()
   }
 }
 
@@ -171,7 +171,10 @@ describe('Error overlay - editor links', () => {
 
         await session.waitForRedbox()
         await clickImportTraceFiles(browser)
-        await check(() => editorRequestsCount, /3/)
+        await check(
+          () => editorRequestsCount,
+          process.env.NEXT_RSPACK ? /4/ : /3/
+        )
       })
     }
   )

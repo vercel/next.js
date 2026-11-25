@@ -164,7 +164,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         if (process.env.IS_TURBOPACK_TEST) {
           expect(source).toMatchInlineSnapshot(`
                   "./pages/hmr/about2.js (7:1)
-                  Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+                  Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                     5 |     div
                     6 |   )
                   > 7 | }
@@ -433,12 +433,18 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-              "./components/parse-error.xyz
-              Unknown module type
-              This module doesn't have an associated type. Use a known file extension, or register a loader for it.
+           "./pages/hmr/about8.js (1:1)
+           Error: Unknown module type
+           > 1 | import "../../components/parse-error.xyz"
+               | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             2 | export default function Page() {
+             3 |   return (
+             4 |     <div className="hmr-about-page">
 
-              Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"
-            `)
+           components/parse-error.xyz doesn't have an associated module type. Use a known file extension, or register a loader for it.
+
+           Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
+          `)
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(await getRedboxSource(browser)))
             .toMatchInlineSnapshot(`
@@ -514,7 +520,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           expect(next.normalizeTestDirContent(redboxSource))
             .toMatchInlineSnapshot(`
                     "./components/parse-error.js (3:1)
-                    Expression expected
+                    Error: Expression expected
                       1 | This
                       2 | is
                     > 3 | }}}

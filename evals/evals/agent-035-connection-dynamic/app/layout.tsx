@@ -1,18 +1,14 @@
-import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
+import { RequestMetadata } from '@/components/request-metadata'
 
-export const metadata: Metadata = {
-  title: 'Random Number',
-  description: 'Display a random number on each request',
-}
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <nav>Operations</nav>
+        <RequestMetadata />
+        {children}
+      </body>
     </html>
   )
 }

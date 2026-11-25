@@ -30,13 +30,21 @@ impl Rendering {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub enum ChunkLoading {
     Edge,
     /// CommonJS in Node.js
     NodeJs,
     /// `<script>` and `<link>` tags in the browser
     Dom,
+    /// Everything inlined into one entry chunk
+    SingleChunk,
+}
+
+impl ChunkLoading {
+    pub fn can_split_async(&self) -> bool {
+        matches!(self, ChunkLoading::NodeJs | ChunkLoading::Dom)
+    }
 }
 
 #[turbo_tasks::value]
@@ -355,7 +363,7 @@ impl EdgeWorkerEnvironment {
 // TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
 #[derive(Debug)]
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
+pub struct RuntimeVersions(#[turbo_tasks(unsafe_ignore)] pub Versions);
 
 #[turbo_tasks::value_impl]
 impl RuntimeVersions {

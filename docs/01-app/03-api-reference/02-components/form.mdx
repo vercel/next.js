@@ -45,7 +45,7 @@ export default function Search() {
 
 <PagesOnly>
 
-```tsx filename="/ui/search.js" switcher
+```tsx filename="/ui/search.tsx" switcher
 import Form from 'next/form'
 
 export default function Page() {
@@ -273,7 +273,7 @@ Then, update the search form page to use the `SearchButton` component:
 
 ```tsx filename="/app/page.tsx" switcher
 import Form from 'next/form'
-import { SearchButton } from '@/ui/search-button'
+import SearchButton from '@/ui/search-button'
 
 export default function Page() {
   return (
@@ -285,9 +285,9 @@ export default function Page() {
 }
 ```
 
-```jsx filename="/app/ui/search-button.js" switcher
+```jsx filename="/app/page.js" switcher
 import Form from 'next/form'
-import { SearchButton } from '@/ui/search-button'
+import SearchButton from '@/ui/search-button'
 
 export default function Page() {
   return (
@@ -401,6 +401,6 @@ export default async function PostPage({ params }) {
 }
 ```
 
-See the [Server Actions](/docs/app/getting-started/mutating-data) docs for more examples.
+See [Mutating data](/docs/app/getting-started/mutating-data) for more examples.
 
 </AppOnly>

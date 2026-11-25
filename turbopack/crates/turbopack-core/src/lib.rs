@@ -16,12 +16,14 @@ pub mod condition;
 pub mod context;
 pub mod data_uri_source;
 pub mod debug_id;
+pub mod emit_collect;
 pub mod environment;
 pub mod file_source;
 pub mod generated_code_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
+pub mod json;
 pub mod loader;
 pub mod module;
 pub mod module_graph;
@@ -41,6 +43,7 @@ pub mod source_map;
 pub mod source_pos;
 pub mod source_transform;
 pub mod target;
+pub mod update_instruction;
 mod utils;
 pub mod version;
 pub mod virtual_output;
@@ -57,11 +60,11 @@ pub mod _chunking {}
 pub mod _layers {}
 
 pub const PROJECT_FILESYSTEM_NAME_STR: &str = "project";
-pub const PROJECT_FILESYSTEM_NAME: RcStr = rcstr!(PROJECT_FILESYSTEM_NAME_STR);
+pub static PROJECT_FILESYSTEM_NAME: RcStr = rcstr!(PROJECT_FILESYSTEM_NAME_STR);
 pub const SOURCE_URL_PROTOCOL_STR: &str = "turbopack:";
-pub const SOURCE_URL_PROTOCOL: RcStr = rcstr!(SOURCE_URL_PROTOCOL_STR);
+pub static SOURCE_URL_PROTOCOL: RcStr = rcstr!(SOURCE_URL_PROTOCOL_STR);
 
 #[doc(hidden)]
 pub mod __private {
-    pub use turbo_tasks::FxIndexMap;
+    pub use turbo_tasks::OrderedAutoMap;
 }

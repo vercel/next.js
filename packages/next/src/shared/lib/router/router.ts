@@ -23,6 +23,7 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { hasDynamicFilterCandidate } from './utils/dynamic-filter-pattern'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { parsePath } from './utils/parse-path'
@@ -149,6 +150,55 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
     url: preparedUrl,
     as: asWasAbsolute ? preparedAs : addBasePath(preparedAs),
   }
+}
+
+/**
+ * Key under which `prefetch()` stores the `{ __appRouter: true }` marker in
+ * `router.components` and under which `change()` looks it up again.
+ *
+ * The client router filter (`_bfl`) is evaluated against the `as` path, so the
+ * marker has to be keyed by the `as` path as well. Keying it by the `href`
+ * pathname is only equivalent while `href` and `as` are the same URL. When
+ * they differ (for example the "route as modal" pattern where `href` stays on
+ * the current page and `as` shows a pretty URL) a filter match on `as` would
+ * otherwise mark the pages route behind `href` as an App Router path and
+ * break every later navigation to that route.
+ *
+ * `as` is expected without the `basePath`, which is what both call sites
+ * hold: `prefetch()` receives it that way from `next/link` and `change()`
+ * strips it before computing `cleanedAs`. Stripping it again here would turn
+ * a route that merely starts with the `basePath` (for example the app route
+ * `/docs` with `basePath: '/docs'`) into `/` and poison the index page.
+ *
+ * The key also carries the effective locale, mirroring how `_bfl` evaluates
+ * `addLocale(as, locale)` against the filter. A match for a French-only
+ * redirect at `/fr/legacy` must not mark the English `/legacy` page.
+ *
+ * Returns `null` when `as` is not a local URL (for example `mailto:` or a
+ * different origin). Such an `as` can never be an App Router path, and
+ * `change()` reports it as an invalid `href`/`as` pair further down.
+ */
+function getAppRouterMarkerKey(
+  router: Router,
+  as: string,
+  locale: string | false | undefined
+): string | null {
+  if (!isLocalURL(as)) {
+    return null
+  }
+
+  let { pathname } = parseRelativeUrl(as)
+  let effectiveLocale = locale || router.locale
+
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    const localePathResult = normalizeLocalePath(pathname, router.locales)
+    pathname = localePathResult.pathname
+    effectiveLocale = localePathResult.detectedLocale || effectiveLocale
+  }
+
+  return removeTrailingSlash(
+    addLocale(removeTrailingSlash(pathname), effectiveLocale)
+  )
 }
 
 function resolveDynamicRoute(pathname: string, pages: string[]) {
@@ -868,6 +918,8 @@ export default class Router implements BaseRouter {
         }).then((matches) => {
           // if middleware matches we leave resolving to the change function
           // as the server needs to resolve for correct priority
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(options as any)._shouldResolveHref = as !== pathname
 
           this.changeState(
@@ -1088,7 +1140,7 @@ export default class Router implements BaseRouter {
           ;({
             __routerFilterStatic: staticFilterData,
             __routerFilterDynamic: dynamicFilterData,
-          } = (await getClientBuildManifest()) as any as {
+          } = (await getClientBuildManifest()) as {
             __routerFilterStatic?: Filter
             __routerFilterDynamic?: Filter
           })
@@ -1108,15 +1160,19 @@ export default class Router implements BaseRouter {
           return new Promise(() => {})
         }
 
-        const routerFilterSValue: Filter | false = process.env
-          .__NEXT_CLIENT_ROUTER_S_FILTER as any
+        const routerFilterSValue: Filter | false =
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
+          process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
 
         if (!staticFilterData && routerFilterSValue) {
           staticFilterData = routerFilterSValue ? routerFilterSValue : undefined
         }
 
-        const routerFilterDValue: Filter | false = process.env
-          .__NEXT_CLIENT_ROUTER_D_FILTER as any
+        const routerFilterDValue: Filter | false =
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
+          process.env.__NEXT_CLIENT_ROUTER_D_FILTER as any
 
         if (!dynamicFilterData && routerFilterDValue) {
           dynamicFilterData = routerFilterDValue
@@ -1217,6 +1273,8 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const isQueryUpdating = (options as any)._h === 1
 
     if (!isQueryUpdating && !options.shallow) {
@@ -1225,6 +1283,8 @@ export default class Router implements BaseRouter {
 
     let shouldResolveHref =
       isQueryUpdating ||
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (options as any)._shouldResolveHref ||
       parsePath(url).pathname === parsePath(as).pathname
 
@@ -1377,7 +1437,6 @@ export default class Router implements BaseRouter {
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
-
     if (!isQueryUpdating && this.onlyAHashChange(cleanedAs) && !localeChange) {
       nextState.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
@@ -1445,9 +1504,25 @@ export default class Router implements BaseRouter {
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
 
-    // if we detected the path as app route during prefetching
-    // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
+    // if we detected the `as` path as app route during prefetching
+    // trigger hard navigation. The marker is keyed by the `as` path, but a
+    // marker can also sit under the href route when both paths share a
+    // pages route (`pages/modal.js` next to `app/modal/[id]/page.js`).
+    // Check both so `getRouteInfo()` never reads a marker as component data.
+    const appRouterMarkerKey = getAppRouterMarkerKey(
+      this,
+      cleanedAs,
+      nextState.locale
+    )
+    if (
+      (appRouterMarkerKey !== null &&
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
+        (this.components[appRouterMarkerKey] as any)?.__appRouter) ||
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      (this.components[route] as any)?.__appRouter
+    ) {
       handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
     }
@@ -1474,6 +1549,8 @@ export default class Router implements BaseRouter {
     }
 
     if (shouldResolveHref && pathname !== '/_error') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
@@ -1518,6 +1595,36 @@ export default class Router implements BaseRouter {
       }
     }
 
+    // The pages client router resolves a navigation against pages routes only.
+    // When it resolves to a dynamic pages route, an app route that begins with
+    // a dynamic segment may be more specific and own this path on the server
+    // (e.g. `/en/about` resolves to the pages route `/[locale]/[category]`, but
+    // the app route `/[locale]/about` should win). Such app routes have no
+    // static prefix for the early `_bfl` check, so reconstruct the candidate
+    // patterns from the resolved route and hard navigate when one is in the
+    // dynamic filter.
+    if (
+      !isQueryUpdating &&
+      !options.shallow &&
+      process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED &&
+      this._bfl_d &&
+      isDynamicRoute(pathname)
+    ) {
+      const concretePathname = removeTrailingSlash(
+        parseRelativeUrl(cleanedAs).pathname
+      )
+      const isShadowedByAppRoute = hasDynamicFilterCandidate(
+        pathname,
+        concretePathname,
+        (candidate) => !!this._bfl_d?.contains(candidate)
+      )
+
+      if (isShadowedByAppRoute) {
+        handleHardNavigation({ url: as, router: this })
+        return new Promise(() => {})
+      }
+    }
+
     if (!isLocalURL(as)) {
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
@@ -1532,6 +1639,17 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     route = removeTrailingSlash(pathname)
+
+    // A config rewrite can resolve `href` to another pages route after the
+    // marker guard above ran. That route can hold a marker from an earlier
+    // prefetch, so check it again before `getRouteInfo()` reads the cache.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
+    if ((this.components[route] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
+
     let routeMatch: Params | false = false
 
     if (isDynamicRoute(route)) {
@@ -1983,6 +2101,8 @@ export default class Router implements BaseRouter {
             err,
             pathname,
             query,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
           } as any)
         } catch (gipErr) {
           console.error('Error in error page `getInitialProps`: ', gipErr)
@@ -2042,6 +2162,18 @@ export default class Router implements BaseRouter {
 
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
+
+      // `prefetch()` stores a `{ __appRouter: true }` marker in
+      // `this.components` when the client router filter matches a path. That
+      // marker is not route info: it has no `Component` and no `props`, so
+      // rendering it crashes `_app`. Treat it as a cache miss and fetch the
+      // route info again; `change()` is responsible for the hard navigation.
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      if (existingInfo && (existingInfo as any).__appRouter) {
+        existingInfo = undefined
+      }
+
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
@@ -2142,6 +2274,11 @@ export default class Router implements BaseRouter {
 
           // Check again the cache with the new destination.
           existingInfo = this.components[route]
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
+          if (existingInfo && (existingInfo as any).__appRouter) {
+            existingInfo = undefined
+          }
           if (
             routeProps.shallow &&
             existingInfo &&
@@ -2233,6 +2370,8 @@ export default class Router implements BaseRouter {
               locale,
               locales: this.locales,
               defaultLocale: this.defaultLocale,
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
             } as any
           ),
         }
@@ -2385,7 +2524,6 @@ export default class Router implements BaseRouter {
       return
     }
     let parsed = parseRelativeUrl(url)
-    const urlPathname = parsed.pathname
 
     let { pathname, query } = parsed
     const originalPathname = pathname
@@ -2523,7 +2661,28 @@ export default class Router implements BaseRouter {
     const route = removeTrailingSlash(pathname)
 
     if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
-      this.components[urlPathname] = { __appRouter: true } as any
+      const appRouterMarkerKey = getAppRouterMarkerKey(
+        this,
+        asPath,
+        options.locale
+      )
+      // A loaded pages route in the cache is ground truth: the page behind
+      // this key exists and was rendered. This is the case when the current
+      // page was reached through a rewrite and the canonical URL is
+      // prefetched, or when a prefetch is still in flight while a navigation
+      // stores the same route. Replacing that entry with the marker would
+      // break hash-only changes and shallow navigations, which render the
+      // cached entry of the current route directly. Non-shallow navigations
+      // consult the client router filter themselves, so they do not depend
+      // on the marker to hard navigate.
+      if (
+        appRouterMarkerKey !== null &&
+        this.components[appRouterMarkerKey] === undefined
+      ) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
+        this.components[appRouterMarkerKey] = { __appRouter: true } as any
+      }
     }
 
     await Promise.all([

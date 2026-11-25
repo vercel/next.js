@@ -1,4 +1,4 @@
-import type { Linter } from 'eslint'
+import type { ESLint, Linter } from 'eslint'
 
 // plugins
 import next from '@next/eslint-plugin-next'
@@ -12,6 +12,7 @@ import * as jsxA11yPlugin from 'eslint-plugin-jsx-a11y'
 // utils
 import globals from 'globals'
 import eslintParser from './parser'
+import { fixupPluginRules } from './rule-context'
 
 const config: Linter.Config[] = [
   {
@@ -19,9 +20,10 @@ const config: Linter.Config[] = [
     // Default files, users can overwrite this.
     files: ['**/*.{js,jsx,mjs,ts,tsx,mts,cts}'],
     plugins: {
-      react,
-      'react-hooks': reactHooks,
-      import: importPlugin,
+      react: fixupPluginRules(react),
+      // The plugin's nested `configs.flat` doesn't match `ESLint.Plugin`.
+      'react-hooks': reactHooks as ESLint.Plugin,
+      import: fixupPluginRules(importPlugin),
       'jsx-a11y': jsxA11yPlugin,
       '@next/next': next,
     },
@@ -52,11 +54,14 @@ const config: Linter.Config[] = [
       'import/parsers': {
         '@typescript-eslint/parser': ['.ts', '.mts', '.cts', '.tsx', '.d.ts'],
       },
+      // eslint-plugin-import loads resolvers by name from the linted file,
+      // which fails when the package manager doesn't hoist them (e.g. npm
+      // nests them here when a plugin's ESLint peer range isn't satisfied).
       'import/resolver': {
-        node: {
+        [require.resolve('eslint-import-resolver-node')]: {
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
-        typescript: {
+        [require.resolve('eslint-import-resolver-typescript')]: {
           alwaysTryTypes: true,
         },
       },

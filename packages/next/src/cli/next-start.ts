@@ -10,6 +10,7 @@ if (!process.env.NEXT_PRIVATE_START_TIME) {
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
+import { isSwitchyardEnabled, startSwitchyard } from '../server/lib/switchyard'
 import {
   getParsedDebugAddress,
   formatDebugAddress,
@@ -17,6 +18,7 @@ import {
   type DebugAddress,
 } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -41,6 +43,7 @@ export type NextStartOptions = {
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
+  warnMissingReactDependencies(dir)
   const hostname = options.hostname
   const inspect = options.inspect
   const port = options.port
@@ -81,7 +84,8 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     process.on('SIGINT', () => saveCpuProfile())
   }
 
-  await startServer({
+  const start = isSwitchyardEnabled() ? startSwitchyard : startServer
+  await start({
     dir,
     isDev: false,
     hostname,

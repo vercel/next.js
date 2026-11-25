@@ -7,6 +7,7 @@ pub(crate) use self::imports::ImportMap;
 
 pub mod builtin;
 pub mod bump_vec;
+pub(crate) mod cjs_ast;
 pub mod graph;
 pub mod imports;
 pub mod linker;
@@ -29,6 +30,33 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
     i.1.outer() == unresolved_mark
 }
 
+/// Whether a visitor — or one of the builtin / well-known rewrite helpers —
+/// changed the `JsValue` it was given. Returned alongside the (possibly
+/// rewritten) value. [`Modified::Yes`] makes the linker re-enter the value for
+/// further processing; [`Modified::No`] means it is final.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Modified {
+    Yes,
+    No,
+}
+
+impl Modified {
+    /// `true` if the value was modified.
+    pub fn is_modified(self) -> bool {
+        matches!(self, Modified::Yes)
+    }
+}
+
+impl From<bool> for Modified {
+    fn from(modified: bool) -> Self {
+        if modified {
+            Modified::Yes
+        } else {
+            Modified::No
+        }
+    }
+}
+
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
@@ -37,8 +65,10 @@ pub mod test_utils {
     use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
-        ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
-        WellKnownObjectKind, builtin::early_replace_builtin, well_known::replace_well_known,
+        ConstantValue, JsValue, JsValueUrlKind, Modified, ModuleValue, WellKnownFunctionKind,
+        WellKnownObjectKind,
+        builtin::early_replace_builtin,
+        well_known::{replace_well_known, replace_well_known_global},
     };
     use crate::{
         analyzer::{
@@ -51,7 +81,7 @@ pub mod test_utils {
     pub async fn early_visitor<'a>(
         _arena: &'a ThreadLocal<Bump>,
         mut v: JsValue<'a>,
-    ) -> Result<(JsValue<'a>, bool)> {
+    ) -> Result<(JsValue<'a>, Modified)> {
         let m = early_replace_builtin(&mut v);
         Ok((v, m))
     }
@@ -60,11 +90,14 @@ pub mod test_utils {
     /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor<'a>(
         arena: &'a ThreadLocal<Bump>,
-        v: JsValue<'a>,
+        mut v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
-    ) -> Result<(JsValue<'a>, bool)> {
+    ) -> Result<(JsValue<'a>, Modified)> {
         let ImportAttributes { ignore, .. } = *attributes;
+        if replace_well_known_global(&mut v, ignore) {
+            return Ok((v, Modified::Yes));
+        }
         let mut new_value = match v {
             JsValue::Call(_, ref call)
                 if matches!(
@@ -78,6 +111,8 @@ pub mod test_utils {
                         JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
                             annotations: None,
+                            analyze_for_constants: false,
+                            reference: None,
                         }),
                     ),
                     _ => v.into_unknown(true, rcstr!("import() non constant")),
@@ -193,35 +228,31 @@ pub mod test_utils {
                     true,
                     rcstr!("ignored import"),
                 ),
-                "Worker" => JsValue::unknown_if(
-                    ignore,
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
-                    true,
-                    rcstr!("ignored Worker constructor"),
-                ),
+                // Globals like `process` or `URL` are handled by `replace_well_known_global`
+                // above.
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-                "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
-                "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
-                "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, rcstr!("unknown global")),
             },
             JsValue::Module(ref mv) => {
                 if let Some(wko) = module_value_to_well_known_object(mv) {
                     wko
                 } else {
-                    return Ok((v, false));
+                    return Ok((v, Modified::No));
                 }
             }
             _ => {
                 let (mut v, m1) = replace_well_known(arena, v, compile_time_info, true).await?;
                 let m2 = replace_builtin(arena.get_or_default(), &mut v);
-                let m = m1 || m2 || v.make_nested_operations_unknown();
+                let m = if m1.is_modified() || m2.is_modified() {
+                    Modified::Yes
+                } else {
+                    Modified::from(v.make_nested_operations_unknown())
+                };
                 return Ok((v, m));
             }
         };
         new_value.normalize_shallow(arena.get_or_default());
-        Ok((new_value, true))
+        Ok((new_value, Modified::Yes))
     }
 }
 
@@ -229,11 +260,13 @@ pub mod test_utils {
 mod tests {
     use std::{mem::take, path::PathBuf, sync::Arc, time::Instant};
 
+    use bumpalo::boxed::Box as BumpBox;
     use parking_lot::Mutex;
     use rustc_hash::FxHashMap;
     use swc_core::{
         common::{
-            FilePathMapping, GLOBALS, Globals, Mark, SourceMap, comments::SingleThreadedComments,
+            FileName, FilePathMapping, GLOBALS, Globals, Mark, SourceMap,
+            comments::SingleThreadedComments,
         },
         ecma::{
             ast::{EsVersion, Id},
@@ -253,12 +286,12 @@ mod tests {
     };
 
     use super::{
-        JsValue,
+        BumpVec, JsValue,
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
     use crate::{
-        AnalyzeMode,
+        AnalyzeMode, SpecifiedModuleType,
         analyzer::{Bump, ThreadLocal, graph::AssignmentScopes, imports::ImportAttributes},
     };
 
@@ -329,8 +362,10 @@ mod tests {
                 arena.get_or_default(),
                 &m,
                 &eval_context,
-                AnalyzeMode::CodeGenerationAndTracing,
+                AnalyzeMode::code_generation_and_tracing(),
+                SpecifiedModuleType::EcmaScript,
                 true,
+                false,
             );
             anyhow::Ok((eval_context, var_graph))
         })?;
@@ -468,7 +503,7 @@ mod tests {
                 let start = Instant::now();
                 async fn handle_args<'a>(
                     arena: &'a ThreadLocal<Bump>,
-                    args: Vec<EffectArg<'a>>,
+                    args: BumpVec<'a, EffectArg<'a>>,
                     queue: &mut Vec<(usize, Effect<'a>)>,
                     var_graph: &VarGraph<'a>,
                     var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
@@ -477,7 +512,10 @@ mod tests {
                     let mut new_args = Vec::with_capacity(args.len());
                     for arg in args {
                         match arg {
-                            EffectArg::Value(v) => {
+                            EffectArg::Value(v, effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(
                                     resolve(
                                         arena,
@@ -502,9 +540,17 @@ mod tests {
                                     .await
                                     .0,
                                 );
-                                queue.extend(effects.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(BumpBox::into_inner(effects).effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
-                            EffectArg::Spread => {
+                            EffectArg::Spread(effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(JsValue::unknown_empty(true, rcstr!("spread")));
                             }
                         }
@@ -526,31 +572,66 @@ mod tests {
                         )
                         .await;
                         resolved.push((format!("{parent} -> {i} conditional"), condition));
-                        match *kind {
+                        match BumpBox::into_inner(kind) {
                             ConditionalKind::If { then } => {
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::Else { r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElse { then, r#else }
                             | ConditionalKind::Ternary { then, r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElseMultiple { then, r#else } => {
-                                for then in then {
-                                    queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                for then in BumpVec::from(then) {
+                                    queue.extend(
+                                        BumpVec::from(then.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
-                                for r#else in r#else {
-                                    queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                for r#else in BumpVec::from(r#else) {
+                                    queue.extend(
+                                        BumpVec::from(r#else.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
                             }
                             ConditionalKind::And { expr }
                             | ConditionalKind::Or { expr }
                             | ConditionalKind::NullishCoalescing { expr }
                             | ConditionalKind::Labeled { body: expr } => {
-                                queue.extend(expr.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(expr.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                         };
                         steps
@@ -586,7 +667,10 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
                         0
                     }
-                    Effect::TypeOf { mut arg, .. } => {
+                    Effect::TypeOf {
+                        mut arg, effects, ..
+                    } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
                         let (arg, steps) = resolve(
                             &arena,
                             &var_graph,
@@ -656,9 +740,17 @@ mod tests {
                         ));
                         0
                     }
+                    Effect::Member {
+                        base_effects: effects,
+                        ..
+                    }
+                    | Effect::In { effects, .. } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
+                        0
+                    }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::Member { .. } => 0,
+                    | Effect::DestructuredMember { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {
@@ -696,6 +788,75 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    /// Builds the var graph for `src` (parsed as a sloppy script unless it uses module syntax)
+    /// and returns whether a direct `eval` was detected.
+    fn detect_direct_eval(src: &str) -> bool {
+        let cm: Arc<SourceMap> = Arc::new(SourceMap::new(FilePathMapping::empty()));
+        let globals = Globals::new();
+        GLOBALS.set(&globals, || {
+            let fm = cm.new_source_file(FileName::Anon.into(), src.to_string());
+            let mut m = parse_file_as_program(
+                &fm,
+                Default::default(),
+                EsVersion::latest(),
+                None,
+                &mut vec![],
+            )
+            .unwrap();
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+            let eval_context = EvalContext::new(
+                Some(&m),
+                unresolved_mark,
+                top_level_mark,
+                Default::default(),
+                None,
+            );
+            let arena = Bump::new();
+            create_graph(
+                &arena,
+                &m,
+                &eval_context,
+                AnalyzeMode::code_generation(),
+                SpecifiedModuleType::Automatic,
+                false,
+                false,
+            )
+            .has_direct_eval
+        })
+    }
+
+    #[test]
+    fn direct_eval_detection() {
+        for src in [
+            "eval('x')",
+            "(eval)('x')",
+            "((eval))('x')",
+            "function f() { return eval('x') }",
+            "(() => { eval('x') })()",
+            "class C { m() { eval('x') } }",
+            "if (cond) { eval('x') }",
+            "export const v = eval('x')",
+        ] {
+            assert!(detect_direct_eval(src), "expected direct eval: {src}");
+        }
+
+        for src in [
+            "(0, eval)('x')",
+            "globalThis.eval('x')",
+            "window.eval('x')",
+            "eval?.('x')",
+            "const e = eval; e('x')",
+            "new eval('x')",
+            "function f(eval) { return eval('x') }",
+            "var eval = (x) => x; eval('x')",
+            "export const v = 1",
+        ] {
+            assert!(!detect_direct_eval(src), "expected no direct eval: {src}");
+        }
     }
 
     async fn resolve<'a>(

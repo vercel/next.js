@@ -6,6 +6,9 @@ export default function Root({ children }: { children: React.ReactNode }) {
     <html>
       <body>
         <div>
+          <Link href="/">home</Link>
+        </div>
+        <div>
           <Link href="/nested">to nested</Link>
         </div>
         <div>

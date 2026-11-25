@@ -6,14 +6,9 @@ import cheerio from 'cheerio'
 import { fetchViaHTTP, findPort } from 'next-test-utils'
 
 describe('cache-components', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not have route specific errors', async () => {
     expect(next.cliOutput).not.toMatch('Error: Route "/')
@@ -99,6 +94,18 @@ describe('cache-components', () => {
     } else {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
+    }
+  })
+
+  it('should prerender pages that await an immediate scheduled after a nextTick', async () => {
+    const $ = await next.render$(
+      '/cases/microtask_next_tick_immediate/example',
+      {}
+    )
+    if (isNextDev) {
+      expect($('#inner').text()).toBe('at runtime')
+    } else {
+      expect($('#inner').text()).toBe('at buildtime')
     }
   })
 

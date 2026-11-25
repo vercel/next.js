@@ -1,16 +1,16 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
+import execa from 'execa'
 import path from 'path'
 
 const appDir = path.join(__dirname, 'app')
 
-// react-relay is not compatible with React 19 and therefore Next.js 15
-describe.skip('next/jest', () => {
-  nextTestSetup({
+describe('next/jest', () => {
+  const { next, isNextDeploy } = nextTestSetup({
     files: {
       components: new FileRef(path.join(appDir, 'components')),
       pages: new FileRef(path.join(appDir, 'pages')),
       'tests/entry.test.tsx': `
-      import { render, waitFor } from '@testing-library/react'
+      import { act, render, waitFor } from '@testing-library/react'
       import { RelayEnvironmentProvider } from 'react-relay'
       import { createMockEnvironment, MockPayloadGenerator } from 'relay-test-utils'
       
@@ -26,8 +26,10 @@ describe.skip('next/jest', () => {
             </RelayEnvironmentProvider>
           )
       
-          environment.mock.resolveMostRecentOperation((operation) => {
-            return MockPayloadGenerator.generate(operation)
+          act(() => {
+            environment.mock.resolveMostRecentOperation((operation) => {
+              return MockPayloadGenerator.generate(operation)
+            })
           })
       
           await waitFor(() => getByText('Data requested:'))
@@ -39,22 +41,24 @@ describe.skip('next/jest', () => {
       `,
       types: new FileRef(path.join(appDir, 'types')),
       'jest.config.js': new FileRef(path.join(appDir, 'jest.config.js')),
-      'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
-      'tsconfig.json': new FileRef(path.join(appDir, 'tsconfig.json')),
       'main.graphql': new FileRef(path.join(appDir, 'main.graphql')),
+      'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
+      'relay.config.json': new FileRef(path.join(appDir, 'relay.config.json')),
+      'tsconfig.json': new FileRef(path.join(appDir, 'tsconfig.json')),
     },
     dependencies: {
-      jest: '27.4.7',
-      'react-relay': '13.2.0',
+      jest: '29.7.0',
       '@testing-library/react': '15.0.2',
       '@types/jest': '27.4.1',
+      '@types/relay-runtime': '20.1.1',
       'babel-jest': '27.5.1',
-      'babel-plugin-relay': '13.2.0',
-      jsdom: '19.0.0',
-      'relay-compiler': '13.0.1',
-      'relay-runtime': '13.0.2',
-      'relay-test-utils': '13.0.2',
-      typescript: '5.2.2',
+      'babel-plugin-relay': '21.0.1',
+      'jest-environment-jsdom': '29.7.0',
+      'react-relay': '21.0.1',
+      'relay-compiler': '21.0.1',
+      'relay-runtime': '21.0.1',
+      'relay-test-utils': '21.0.1',
+      typescript: '5.9.3',
     },
     packageJson: {
       scripts: {
@@ -62,8 +66,14 @@ describe.skip('next/jest', () => {
         build: 'jest --forceExit tests/entry.test.tsx && next build',
       },
     },
-    installCommand: 'pnpm i',
-    buildCommand: `pnpm build`,
+  })
+
+  ;(isNextDeploy ? it.skip : it)('has up-to-date graphql types', async () => {
+    await execa('pnpm', ['exec', 'relay-compiler', '--validate'], {
+      cwd: next.testDir,
+      stdout: 'inherit',
+      stderr: 'inherit',
+    })
   })
 
   it('should work', async () => {

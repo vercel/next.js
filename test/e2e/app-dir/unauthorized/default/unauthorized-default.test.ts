@@ -6,14 +6,9 @@ import {
 } from 'next-test-utils'
 
 describe('app dir - unauthorized with default unauthorized boundary', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: error unauthorized usage in root layout
   it.skip('should error on client unauthorized from root layout in browser', async () => {

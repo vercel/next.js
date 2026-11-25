@@ -9,7 +9,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
     virtual_output::VirtualOutputAsset,
 };
 
@@ -20,20 +20,21 @@ pub mod evaluate;
 pub mod execution_context;
 mod format;
 mod pool_stats;
-#[cfg(feature = "process_pool")]
-pub mod process_pool;
-pub mod source_map;
+// The child-process pool needs `tokio::process` and a TCP listener, neither of which exists on
+// wasi, so `process_pool` is inert on wasm and `worker_pool` is the only available backend there.
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+mod process_pool;
+mod source_map;
 pub mod transforms;
 #[cfg(feature = "worker_pool")]
-pub mod worker_pool;
+mod worker_pool;
 
-pub use backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend};
-#[cfg(feature = "process_pool")]
-pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+pub fn child_process_backend() -> Vc<Box<dyn backend::NodeBackend>> {
     Vc::upcast(process_pool::ChildProcessesBackend.cell())
 }
 #[cfg(feature = "worker_pool")]
-pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
+pub fn worker_threads_backend() -> Vc<Box<dyn backend::NodeBackend>> {
     Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
 }
 
@@ -81,7 +82,9 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
+struct AssetsForSourceMapping(
+    FxHashMap<String, (ResolvedVc<Box<dyn GenerateSourceMap>>, SourceMapType)>,
+);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -89,7 +92,11 @@ pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateS
 async fn internal_assets_for_source_mapping(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
     intermediate_output_path: FileSystemPath,
+    source_map_type: Option<SourceMapType>,
 ) -> Result<Vc<AssetsForSourceMapping>> {
+    let Some(source_map_type) = source_map_type else {
+        return Ok(Vc::cell(FxHashMap::default()));
+    };
     let internal_assets =
         internal_assets(intermediate_asset, intermediate_output_path.clone()).await?;
     let intermediate_output_path = intermediate_output_path.clone();
@@ -99,7 +106,8 @@ async fn internal_assets_for_source_mapping(
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
             && let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?)
         {
-            internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
+            internal_assets_for_source_mapping
+                .insert(path.to_string(), (generate_source_map, source_map_type));
         }
     }
     Ok(Vc::cell(internal_assets_for_source_mapping))

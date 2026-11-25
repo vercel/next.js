@@ -3,6 +3,19 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
+export function RetainedCounter() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <button
+      id="retained-counter"
+      onClick={() => setCount((value) => value + 1)}
+    >
+      Retained count: {count}
+    </button>
+  )
+}
+
 export function LinkAccordion({ href }: { href: string }) {
   const [isOpen, setIsOpen] = useState(false)
 

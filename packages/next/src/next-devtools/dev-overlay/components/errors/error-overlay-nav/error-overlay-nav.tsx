@@ -1,11 +1,10 @@
-import type { DebugInfo } from '../../../../shared/types'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 
 import {
   ErrorOverlayPagination,
   type ErrorOverlayTabBarRenderer,
 } from '../error-overlay-pagination/error-overlay-pagination'
-import { ErrorOverlayToolbar } from '../error-overlay-toolbar/error-overlay-toolbar'
+import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 
 type ErrorOverlayNavProps = {
@@ -17,9 +16,6 @@ type ErrorOverlayNavProps = {
   onPrevious?: () => void
   onNext?: () => void
   versionInfo?: VersionInfo
-  error: ReadyRuntimeError['error']
-  debugInfo?: DebugInfo
-  generateErrorInfo: () => Promise<string>
   renderTabBar?: ErrorOverlayTabBarRenderer
 }
 
@@ -32,9 +28,6 @@ export function ErrorOverlayNav({
   onPrevious,
   onNext,
   versionInfo,
-  error,
-  debugInfo,
-  generateErrorInfo,
   renderTabBar,
 }: ErrorOverlayNavProps) {
   const bundlerName = (process.env.__NEXT_BUNDLER || 'Turbopack') as
@@ -56,15 +49,14 @@ export function ErrorOverlayNav({
           renderTabBar={renderTabBar}
         />
       </NavItem>
-      <NavItem side="right">
-        <ErrorOverlayToolbar
-          error={error}
-          debugInfo={debugInfo}
-          generateErrorInfo={generateErrorInfo}
-          versionInfo={versionInfo}
-          bundlerName={bundlerName}
-        />
-      </NavItem>
+      {versionInfo && (
+        <NavItem side="right">
+          <VersionStalenessInfo
+            versionInfo={versionInfo}
+            bundlerName={bundlerName}
+          />
+        </NavItem>
+      )}
     </div>
   )
 }
@@ -105,13 +97,27 @@ export const styles = `
 
   @media (max-width: 767px) {
     [data-nextjs-error-overlay-nav] {
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+      /* When the tabs and the version pill don't fit on one row, give the
+         wrapped pill its own row with the same spacing as the rest of the
+         header instead of stacking it tight against the tabs and the card. */
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      column-gap: 8px;
+      row-gap: 8px;
+      box-sizing: border-box;
+      padding: 10px 12px 12px;
 
-      &::-webkit-scrollbar {
-        display: none;
+      .error-overlay-nav-item {
+        max-width: 100%;
+        padding: 0;
+
+        &[data-side='left'] {
+          flex-grow: 1;
+        }
+      }
+
+      .error-overlay-tab {
+        white-space: nowrap;
       }
     }
   }

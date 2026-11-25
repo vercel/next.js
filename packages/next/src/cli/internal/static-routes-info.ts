@@ -1,6 +1,6 @@
 /**
  * `next internal static-routes-info` — analyzes a built Next.js app and
- * reports per-route bundle sizes statically (without running the app).
+ * reports per-route bundle sizes statically (without starting the server).
  *
  * The analysis is split into three steps so it's easy to swap in different
  * chunking strategies later:
@@ -19,6 +19,7 @@ import fs from 'fs'
 import path from 'path'
 import loadConfig from '../../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import { mapNftFileEntries, type NftJson } from '../../build/nft'
 
 export interface StaticRoutesInfoOptions {
   json?: boolean
@@ -347,32 +348,30 @@ function collectServerEntryFiles(
   sets: FileSets
 ): void {
   const entryRel = path.join('server', serverEntry) // e.g. server/app/page.js
-  const entryDirRel = path.dirname(entryRel) // e.g. server/app
-  const entryDirAbs = path.join(distDir, entryDirRel)
-
   // The entry .js is always part of the bundle, even if no nft.json exists.
   sets.serverBundled.add(entryRel)
 
-  const nft = readJsonFile<{ files: string[] }>(
-    path.join(distDir, entryRel + '.nft.json')
-  )
-  if (!nft?.files) return
+  const nftPath = path.join(distDir, entryRel + '.nft.json')
+  const nft = readJsonFile<NftJson>(nftPath)
+  if (!nft) return
+  const entries = mapNftFileEntries(nft, nftPath, path.parse(nftPath).root)
 
-  for (const relPath of nft.files) {
-    // Resolve relative to the entry's dir. If the normalized result stays
-    // inside distDir it's a server chunk; if it leaves distDir it's an
-    // unbundled trace dep (e.g. ../../../node_modules/...).
-    const inDistDirPath = path.normalize(path.join(entryDirRel, relPath))
-    const outsideDistDir = inDistDirPath.startsWith('..')
+  for (const entry of entries) {
+    // NFT paths are relative to the entry's directory. If the mapped source
+    // stays inside distDir it's a server chunk; if it leaves distDir it's an
+    // unbundled trace dependency (e.g. ../../../node_modules/...).
+    const inDistDirPath = path.relative(distDir, entry.source)
+    const outsideDistDir =
+      path.isAbsolute(inDistDirPath) ||
+      inDistDirPath === '..' ||
+      inDistDirPath.startsWith(`..${path.sep}`)
     const isMap = inDistDirPath.endsWith('.map')
     if (isMap) {
       // Source maps go into the maps category whether they're in or outside
       // distDir, so they don't double-count under serverUnbundled.
-      sets.serverMaps.add(
-        outsideDistDir ? path.resolve(entryDirAbs, relPath) : inDistDirPath
-      )
+      sets.serverMaps.add(outsideDistDir ? entry.source : inDistDirPath)
     } else if (outsideDistDir) {
-      sets.serverUnbundled.add(path.resolve(entryDirAbs, relPath))
+      sets.serverUnbundled.add(entry.source)
     } else if (
       inDistDirPath.endsWith('.js') &&
       !inDistDirPath.endsWith('_client-reference-manifest.js')
@@ -383,144 +382,34 @@ function collectServerEntryFiles(
 }
 
 /**
- * Read a `_client-reference-manifest.js` file and extract the JSON blob.
+ * Read a `_client-reference-manifest.js` file and return the manifest it
+ * registers. The file is a script that assigns the manifest to
+ * `globalThis.__RSC_MANIFEST[<entry>]` (Turbopack writes it as a JS
+ * expression that shares repeated chunk lists, not as JSON), so require it
+ * and read the global back.
  *
- * The file is a JS module that assigns a JSON object to a global. The exact
- * shape varies by bundler:
- *
- *   Turbopack (with optional suffix that re-writes `clientModules[k] = val`
- *   when a deployment ID is set):
- *     globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {};
- *     globalThis.__RSC_MANIFEST["/page"] = {...};
- *     for (const key in globalThis.__RSC_MANIFEST["/page"].clientModules) {
- *       globalThis.__RSC_MANIFEST["/page"].clientModules[key] = val;
- *       ...
- *     }
- *
- *   Webpack (no spaces around `=`, single line):
- *     globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/page"]={...};
- *
- * Rather than evaluating user-bundled code, locate the FIRST
- * `globalThis.__RSC_MANIFEST[` occurrence (which is always the entry-key
- * assignment — the `MANIFEST = MANIFEST || {}` boilerplate has no `[`
- * after the global). Then properly walk the JS string literal that holds
- * the entry name (handling escapes), so route names containing `]` —
- * e.g. dynamic segments like `[teamSlug]` or route groups inside dynamic
- * params — don't terminate the bracket early. After the closing `]` we
- * expect `=` then `{`, and balance-walk the object body.
- *
- * Returns `null` only when the file doesn't exist (a normal case for
- * server entries that have no client-reference manifest, e.g. middleware
- * or non-app routes). Any structural surprise — manifest header missing,
- * unterminated string/object, or invalid JSON — throws so we never
- * silently undercount client JS/CSS.
+ * Returns `null` when the file doesn't exist (a normal case for server
+ * entries that have no client-reference manifest, e.g. middleware or non-app
+ * routes).
  */
 function parseClientReferenceManifest(filePath: string): {
   entryJSFiles?: Record<string, string[]>
   entryCSSFiles?: Record<string, Array<string | { path: string }>>
   clientModules?: Record<string, { chunks?: unknown[] }>
 } | null {
-  let content: string
-  try {
-    content = fs.readFileSync(filePath, 'utf8')
-  } catch {
+  if (!fs.existsSync(filePath)) {
     return null
   }
-
-  const ANCHOR = 'globalThis.__RSC_MANIFEST['
-  const anchorIdx = content.indexOf(ANCHOR)
-  if (anchorIdx === -1) {
-    throw new Error(
-      `Could not find 'globalThis.__RSC_MANIFEST[' in ${filePath}; client reference manifest format may have changed.`
-    )
+  const g = globalThis as { __RSC_MANIFEST?: Record<string, any> }
+  try {
+    require(filePath)
+    return Object.values(g.__RSC_MANIFEST!)[0]
+  } finally {
+    // Release this route's manifest before loading the next one, instead of keeping every
+    // route's manifest (and its module) alive for the rest of the run.
+    g.__RSC_MANIFEST = undefined
+    delete require.cache[require.resolve(filePath)]
   }
-
-  // Walk a JS string literal starting at `i` (which must point at the
-  // opening quote). Returns the index just past the closing quote.
-  const skipString = (i: number): number => {
-    const quote = content[i]
-    if (quote !== '"' && quote !== "'") {
-      throw new Error(
-        `Expected string literal as entry name in ${filePath} at offset ${i}, got ${JSON.stringify(content[i])}.`
-      )
-    }
-    i++
-    let escape = false
-    while (i < content.length) {
-      const ch = content[i]
-      if (escape) {
-        escape = false
-      } else if (ch === '\\') {
-        escape = true
-      } else if (ch === quote) {
-        return i + 1
-      }
-      i++
-    }
-    throw new Error(`Unterminated entry-name string literal in ${filePath}.`)
-  }
-
-  // Skip whitespace forward from `i` and assert the next char is `expected`.
-  const expectChar = (i: number, expected: string): number => {
-    while (i < content.length && /\s/.test(content[i])) i++
-    if (content[i] !== expected) {
-      throw new Error(
-        `Expected '${expected}' after entry name in ${filePath} at offset ${i}, got ${JSON.stringify(content[i] ?? '<eof>')}.`
-      )
-    }
-    return i + 1
-  }
-
-  // After `globalThis.__RSC_MANIFEST[` walk: <string> ] = {
-  let i = skipString(anchorIdx + ANCHOR.length)
-  i = expectChar(i, ']')
-  i = expectChar(i, '=')
-  while (i < content.length && /\s/.test(content[i])) i++
-  if (content[i] !== '{') {
-    throw new Error(
-      `Expected '{' after 'globalThis.__RSC_MANIFEST[...] =' in ${filePath} at offset ${i}, got ${JSON.stringify(content[i] ?? '<eof>')}.`
-    )
-  }
-
-  // Balance-walk `{...}`, ignoring `{` / `}` inside string literals so a
-  // CSS path like "{foo}" inside JSON doesn't throw the count off.
-  const start = i
-  let depth = 0
-  let inString = false
-  let quote = ''
-  let escape = false
-  for (; i < content.length; i++) {
-    const ch = content[i]
-    if (inString) {
-      if (escape) {
-        escape = false
-      } else if (ch === '\\') {
-        escape = true
-      } else if (ch === quote) {
-        inString = false
-      }
-      continue
-    }
-    if (ch === '"' || ch === "'") {
-      inString = true
-      quote = ch
-    } else if (ch === '{') {
-      depth++
-    } else if (ch === '}') {
-      depth--
-      if (depth === 0) {
-        const body = content.slice(start, i + 1)
-        try {
-          return JSON.parse(body)
-        } catch (err) {
-          throw new Error(
-            `Failed to parse JSON body of ${filePath}: ${(err as Error).message}`
-          )
-        }
-      }
-    }
-  }
-  throw new Error(`Unterminated JSON object in ${filePath}.`)
 }
 
 /**
@@ -599,10 +488,15 @@ function collectAppClientFiles(
   // app-page. Both bundlers list them in the global `build-manifest.json`
   // under `rootMainFiles`. Turbopack also writes a per-route
   // `build-manifest.json` containing the same files; webpack does not.
-  const globalBm = readJsonFile<{ rootMainFiles?: string[] }>(
-    path.join(distDir, 'build-manifest.json')
-  )
+  const globalBm = readJsonFile<{
+    rootMainFiles?: string[]
+    externalBrowserRuntimeFile?: string
+  }>(path.join(distDir, 'build-manifest.json'))
   for (const chunk of globalBm?.rootMainFiles ?? []) addClientChunk(chunk, sets)
+  // Present only when `experimental.externalBrowserRuntime` is enabled.
+  if (globalBm?.externalBrowserRuntimeFile) {
+    addClientChunk(globalBm.externalBrowserRuntimeFile, sets)
+  }
 }
 
 /**

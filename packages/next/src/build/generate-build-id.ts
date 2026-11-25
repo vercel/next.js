@@ -1,8 +1,8 @@
 export async function generateBuildId(
-  generate: () => string | null | Promise<string | null>,
+  generate: (() => string | null | Promise<string | null>) | undefined,
   fallback: () => string
 ): Promise<string> {
-  let buildId = await generate()
+  let buildId = generate ? await generate() : null
   // If there's no buildId defined we'll fall back
   if (buildId === null) {
     // We also create a new buildId if it contains the word `ad` to avoid false

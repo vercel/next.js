@@ -13,6 +13,7 @@ import { join } from 'node:path'
 const GENERIC_RSC_ERROR =
   'Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
 
+// increment to trigger deploy tests: v1
 describe('app-dir action handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
@@ -523,22 +524,26 @@ describe('app-dir action handling', () => {
     })
   })
 
-  it('should support importing the same action module instance in both server and action layers', async () => {
-    const browser = await next.browser('/shared')
+  // Skip in deployment mode: there might be multiple function instances with their own
+  // app/shared/action.js and thus multiple instances of the counter.
+  if (!isNextDeploy) {
+    it('should support importing the same action module instance in both server and action layers', async () => {
+      const browser = await next.browser('/shared')
 
-    const v = await browser.elementByCss('#value').text()
-    expect(v).toBe('Value = 0')
+      const v = await browser.elementByCss('#value').text()
+      expect(v).toBe('Value = 0')
 
-    await browser.elementByCss('#server-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      await browser.elementByCss('#server-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      })
+
+      await browser.elementByCss('#client-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
+      })
     })
-
-    await browser.elementByCss('#client-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
-    })
-  })
+  }
 
   it('should not block navigation events while a server action is in flight', async () => {
     let browser = await next.browser('/client')
@@ -1046,9 +1051,12 @@ describe('app-dir action handling', () => {
 
           await retry(async () => {
             await browser.elementByCss('#inc').click()
+            await browser.waitForIdleNetwork()
             const val = Number(await browser.elementById('count').text())
-            expect(val).toBeGreaterThan(1000)
-          })
+            // An unrelated Fast Refresh can reload the page while the test is
+            // running, resetting the counter before the updated action runs.
+            expect(val).toBeGreaterThanOrEqual(1000)
+          }, 10_000)
         } finally {
           await next.patchFile(filePath, origContent)
         }
@@ -1185,7 +1193,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
@@ -1298,7 +1311,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 

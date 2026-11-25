@@ -1,9 +1,10 @@
 ;[
-  'node_modules/graceful-fs/clone.js',
-  'node_modules/graceful-fs/graceful-fs.js',
-  'node_modules/graceful-fs/legacy-streams.js',
-  'node_modules/graceful-fs/package.json',
-  'node_modules/graceful-fs/polyfills.js',
+  // TODO we currently don't npm install in the unit test fixture
+  // 'node_modules/graceful-fs/clone.js',
+  // 'node_modules/graceful-fs/graceful-fs.js',
+  // 'node_modules/graceful-fs/legacy-streams.js',
+  // 'node_modules/graceful-fs/package.json',
+  // 'node_modules/graceful-fs/polyfills.js',
   'package.json',
   'test/unit/asset-graceful-fs/asset.txt',
   'test/unit/asset-graceful-fs/input.js',

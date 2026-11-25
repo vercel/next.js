@@ -38,12 +38,26 @@ describe('debug-build-paths', () => {
         expect(buildResult.exitCode).toBe(0)
         expect(buildResult.cliOutput).toBeDefined()
 
-        // Should only build the specified page
+        // Should only build the specified page and support entries.
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          └ ○ /foo"
         `)
+
+        const pagesManifest = JSON.parse(
+          await next.readFile('.next/server/pages-manifest.json')
+        )
+        expect(pagesManifest).toContainKeys([
+          '/foo',
+          '/404',
+          '/500',
+          '/_app',
+          '/_document',
+          '/_error',
+        ])
       })
 
       it('should build multiple pages routes', async () => {
@@ -56,10 +70,28 @@ describe('debug-build-paths', () => {
         // Should build both specified pages
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          ├ ○ /bar
          └ ○ /foo"
         `)
+      })
+
+      it('should not include custom page support entries for an API-only build', async () => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'pages/api/hello.ts'],
+        })
+        expect(buildResult.exitCode).toBe(0)
+
+        const pagesManifest = JSON.parse(
+          await next.readFile('.next/server/pages-manifest.json')
+        )
+        expect(pagesManifest).toContainKeys(['/api/hello'])
+        expect(pagesManifest).not.toContainKeys(['/500'])
+        expect(
+          await next.readFile('.next/server/pages/404.html')
+        ).not.toContain('Custom 404')
       })
 
       it('should build dynamic route with literal [slug] path', async () => {
@@ -93,7 +125,10 @@ describe('debug-build-paths', () => {
          ┌ ○ /
          └ ○ /_not-found
          Route (pages)
-         ┌ ○ /bar
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
+         ├ ○ /bar
          ├ ○ /foo
          └ ○ /with-index"
         `)
@@ -272,7 +307,9 @@ describe('debug-build-paths', () => {
         expect(buildResult.exitCode).toBe(0)
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          └ ○ /foo"
         `)
       })
@@ -286,6 +323,61 @@ describe('debug-build-paths', () => {
         expect(buildResult.exitCode).toBe(1)
         expect(buildResult.cliOutput).toContain('Type error')
         expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
+      })
+    })
+
+    describe('metadata routes', () => {
+      it.each([
+        {
+          name: 'an image handler in a dynamic segment',
+          pattern: 'app/blog/[slug]/opengraph-image.tsx',
+          routes: ['/blog/[slug]/opengraph-image/route'],
+        },
+        {
+          name: 'global metadata handlers',
+          pattern: 'app/robots.ts,app/manifest.ts',
+          routes: ['/manifest.webmanifest/route', '/robots.txt/route'],
+        },
+        {
+          name: 'a handler with generateSitemaps',
+          pattern: 'app/sitemap.ts',
+          routes: ['/sitemap/[__metadata_id__]/route'],
+        },
+        {
+          name: 'a handler with generateImageMetadata in a route group',
+          pattern: 'app/(group)/nested/twitter-image.tsx',
+          routes: [
+            expect.stringMatching(
+              /^\/\(group\)\/nested\/twitter-image-[a-z0-9]+\/\[__metadata_id__\]\/route$/
+            ),
+          ],
+        },
+        {
+          name: 'static metadata files',
+          pattern: 'app/static/icon1.svg,app/static/sitemap.xml',
+          routes: ['/static/icon1.svg/route', '/static/sitemap.xml/route'],
+        },
+        {
+          name: 'image handlers selected by a glob and negation',
+          pattern: 'app/**/opengraph-image.tsx,!app/blog/**',
+          routes: ['/opengraph-image/route'],
+        },
+      ])('should build only $name', async ({ pattern, routes }) => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', pattern],
+        })
+        expect(buildResult.exitCode).toBe(0)
+
+        const appPathsManifest = JSON.parse(
+          await next.readFile('.next/server/app-paths-manifest.json')
+        )
+        const builtRoutes = Object.keys(appPathsManifest)
+          .filter(
+            (route) =>
+              route !== '/_not-found/page' && route !== '/_global-error/page'
+          )
+          .sort()
+        expect(builtRoutes).toEqual(routes)
       })
     })
   })

@@ -52,6 +52,8 @@ export function createBinaryHmrMessageData(
     }
     default: {
       throw new InvariantError(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         `Invalid binary HMR message of type ${(message as any).type}`
       )
     }

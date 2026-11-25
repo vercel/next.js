@@ -2,8 +2,6 @@
 // DOING SO PREVENTS THEM FROM WORKING FOR TURBOPACK USERS.
 // FOLLOW THE PATTERN OF TYPED-ROUTES AND CACHE-LIFE GENERATION
 
-import type { Rewrite, Redirect } from '../../../../lib/load-custom-routes'
-
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
@@ -21,12 +19,6 @@ import { getProxiedPluginState } from '../../../build-context'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
-type Rewrites = {
-  fallback: Rewrite[]
-  afterFiles: Rewrite[]
-  beforeFiles: Rewrite[]
-}
-
 interface Options {
   dir: string
   distDir: string
@@ -34,8 +26,6 @@ interface Options {
   dev: boolean
   isEdgeServer: boolean
   pageExtensions: PageExtensions
-  originalRewrites: Rewrites | undefined
-  originalRedirects: Redirect[] | undefined
 }
 
 function createTypeGuardFile(
@@ -54,7 +44,7 @@ ${
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
-import type { InstantConfigForTypeCheckInternal, Prefetch } from 'next/dist/build/segment-config/app/app-segment-config.js'
+import type { InstantConfigForTypeCheckInternal, Prefetch, EnsureStatic } from 'next/dist/build/segment-config/app/app-segment-config.js'
 
 type TEntry = typeof import('${relativePath}.js')
 
@@ -71,8 +61,10 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
+  ${options.type === 'route' ? '' : 'unstable_paramMatching?: {}\n  unstable_generateParamMatching?: Function'}
   instant?: InstantConfigForTypeCheckInternal
   prefetch?: Prefetch
+  ensureStatic?: EnsureStatic
   unstable_dynamicStaleTime?: number
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'

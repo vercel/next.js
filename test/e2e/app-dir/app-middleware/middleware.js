@@ -50,7 +50,10 @@ export async function middleware(request) {
     return NextResponse.rewrite(request.nextUrl)
   }
 
-  if (request.nextUrl.pathname === '/rsc-cookies') {
+  if (
+    request.nextUrl.pathname === '/rsc-cookies' ||
+    request.nextUrl.pathname === '/rsc-cookies-edge'
+  ) {
     const res = NextResponse.next()
     res.cookies.set('rsc-cookie-value-1', `${Math.random()}`)
     res.cookies.set('rsc-cookie-value-2', `${Math.random()}`)

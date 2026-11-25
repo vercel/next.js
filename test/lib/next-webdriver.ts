@@ -1,5 +1,4 @@
 import { debugPrint, getFullUrl } from 'next-test-utils'
-import os from 'os'
 import {
   Permissions,
   Playwright,
@@ -13,25 +12,9 @@ if (!process.env.TEST_FILE_PATH) {
   process.env.TEST_FILE_PATH = module.parent!.filename
 }
 
-let deviceIP: string
-const isBrowserStack = !!process.env.BROWSERSTACK
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
-
-if (isBrowserStack) {
-  const nets = os.networkInterfaces()
-  for (const key of Object.keys(nets)) {
-    let done = false
-
-    for (const item of nets[key]!) {
-      if (item.family === 'IPv4' && !item.internal) {
-        deviceIP = item.address
-        done = true
-        break
-      }
-    }
-    if (done) break
-  }
-}
 
 let browserTeardown: (() => Promise<void>)[] = []
 let browserQuit: (() => Promise<void>) | undefined
@@ -84,13 +67,19 @@ export interface WebdriverOptions {
    * disable javascript
    */
   disableJavaScript?: boolean
-  headless?: boolean
   /**
    * ignore https errors
    */
   ignoreHTTPSErrors?: boolean
   cpuThrottleRate?: number
   pushErrorAsConsoleLog?: boolean
+
+  /**
+   * Suppress the harness from echoing the browser's console output to the
+   * test's terminal (the `Browser Log:` lines). Browser logs are still
+   * collected and available via `browser.log()`.
+   */
+  disableBrowserLog?: boolean
 
   /**
    * Override the user agent
@@ -131,9 +120,9 @@ export default async function webdriver(
     disableJavaScript,
     permissions,
     ignoreHTTPSErrors,
-    headless,
     cpuThrottleRate,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     userAgent,
     waitUntil,
     baseUrl,
@@ -152,18 +141,14 @@ export default async function webdriver(
     locale!,
     !disableJavaScript,
     Boolean(ignoreHTTPSErrors),
-    // allow headless to be overwritten for a particular test
-    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
     userAgent,
     permissions
   )
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(global as any).browserName = browserName
 
-  const fullUrl = getFullUrl(
-    appPortOrUrl,
-    url,
-    isBrowserStack ? deviceIP : 'localhost'
-  )
+  const fullUrl = getFullUrl(appPortOrUrl, url, 'localhost')
 
   debugPrint(`Loading browser with ${fullUrl}`)
 
@@ -173,6 +158,7 @@ export default async function webdriver(
     beforePageLoad,
     extraHTTPHeaders,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     waitUntil,
   })
   debugPrint(`Loaded browser with ${fullUrl}`)
@@ -189,7 +175,9 @@ export default async function webdriver(
           // if it's not a Next.js app return
           if (
             !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
-            // @ts-ignore next exists on window if it's a Next.js page.
+            // next exists on window if it's a Next.js page.
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             typeof ((window as any).next && (window as any).next.version) ===
               'undefined'
           ) {
@@ -199,11 +187,15 @@ export default async function webdriver(
 
           // TODO: should we also ensure router.isReady is true
           // by default before resolving?
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           if ((window as any).__NEXT_HYDRATED) {
             console.log('Next.js page already hydrated')
             callback()
           } else {
             let timeout = setTimeout(callback, 10 * 1000)
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             ;(window as any).__NEXT_HYDRATED_CB = function () {
               clearTimeout(timeout)
               console.log('Next.js hydrate callback fired')

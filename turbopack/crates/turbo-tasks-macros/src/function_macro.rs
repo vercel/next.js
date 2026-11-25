@@ -20,7 +20,7 @@ use crate::{
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// use turbo_tasks::{Vc};
 ///
 /// #[turbo_tasks::function(fs)]

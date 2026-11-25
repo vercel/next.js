@@ -39,6 +39,8 @@ async function recordIndicatorStates(
     const root = Array.from(document.querySelectorAll('nextjs-portal'))
       .map((portal) => portal.shadowRoot)
       .find((shadowRoot) => shadowRoot?.querySelector('[data-next-badge]'))
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const states = ((window as any).__indicatorStates = [])
     if (!root) return
     const record = () =>
@@ -55,6 +57,8 @@ async function recordIndicatorStates(
       })
     record()
     const observer = new MutationObserver(record)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(window as any).__indicatorObserver = observer
     observer.observe(root, { attributes: true, childList: true, subtree: true })
   })
@@ -62,12 +66,20 @@ async function recordIndicatorStates(
   await action()
 
   const raw: IndicatorState[] = JSON.parse(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => JSON.stringify((window as any).__indicatorStates))
   )
 
   await browser.eval(() => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(window as any).__indicatorObserver?.disconnect()
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (window as any).__indicatorObserver
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (window as any).__indicatorStates
   })
 
@@ -140,7 +152,7 @@ describe('cache-indicator', () => {
       })
       expect(
         await browser
-          .elementByCss('[data-cold-cache-badge] [data-issues-open]')
+          .elementByCss('[data-cold-cache-badge] [data-cache-label]')
           .text()
       ).toBe('Cold cache')
 
@@ -169,8 +181,8 @@ describe('cache-indicator', () => {
       )
 
       // First navigation fills a cold cache. While the transition is pending
-      // the rendering pill turns orange ("rendering-cold-cache"); once it
-      // settles, the status flows into the persistent Cold cache badge.
+      // the status is "rendering-cold-cache" (shown as plain "Rendering"); once
+      // it settles, the status flows into the persistent Cold cache badge.
       // Asserting the whole sequence ensures nothing unexpected (e.g. a teal
       // "rendering" flash) appears in between.
       const coldStates = await recordIndicatorStates(browser, async () => {
@@ -189,7 +201,7 @@ describe('cache-indicator', () => {
       ])
       expect(
         await browser
-          .elementByCss('[data-cold-cache-badge] [data-issues-open]')
+          .elementByCss('[data-cold-cache-badge] [data-cache-label]')
           .text()
       ).toBe('Cold cache')
 
@@ -215,7 +227,7 @@ describe('cache-indicator', () => {
       expect(warmStates).toEqual([{ status: 'none', cacheBadge: null }])
     })
 
-    it('shows the combined "Rendering (cache disabled)" status while navigating with caches disabled', async () => {
+    it('shows the cache-disabled rendering status while navigating with caches disabled', async () => {
       const browser = await next.browser('/', {
         extraHTTPHeaders: { 'cache-control': 'no-cache' },
       })
@@ -227,9 +239,10 @@ describe('cache-indicator', () => {
         )
       })
 
-      // Navigating bypasses caches too: the rendering pill turns orange and
-      // reads "Rendering (cache disabled)" while the transition is pending,
-      // then settles back into the persistent Cache disabled badge.
+      // Navigating bypasses caches too: the status is
+      // "rendering-cache-disabled" (shown as plain "Rendering") while the
+      // transition is pending, then settles back into the persistent Cache
+      // disabled badge.
       const states = await recordIndicatorStates(browser, async () => {
         await browser.elementByCss('a[href="/slow-render/2"]').click()
         await browser.elementById('slow-render')
@@ -271,24 +284,37 @@ describe('cache-indicator', () => {
       )
     })
 
-    it('shows the Cold cache badge on an initial cold load and not on a warm reload for a private cache', async () => {
+    it('does not show the Cold cache badge for a private cache on an initial load', async () => {
       const browser = await next.browser('/private')
 
-      // Cold load: the private cache misses and fills while streaming, so the
-      // cold verdict is replayed after load.
+      // A private cache is deferred to the session-data (runtime) stage, after
+      // the static shell. On an initial load the relevant shell is the static
+      // shell, so a private miss is a runtime-resumed hole rather than part of
+      // the shell, and must not show the badge, even on this first, generating
+      // load, when the read is pending at the post-shell boundary. (A private
+      // cache does show the badge on a runtime-prefetch navigation, where
+      // session data is part of the runtime shell; see the
+      // cache-indicator-partial-prefetching suite.) An absence can't be retried
+      // on, so wait out the replay-on-connect window and then assert it never
+      // showed.
       await browser.elementById('private')
-      await retry(async () => {
-        expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
-          true
-        )
-      })
+      await waitFor(500)
+      expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+        false
+      )
+    })
 
-      // Warm reload: the private entry is now persisted in dev and served as a
-      // stale-while-revalidate hit, so it does not register as a cache miss and
-      // no badge appears. An absence can't be retried on, so wait out the
+    it('does not show the Cold cache badge for a cache read that follows await params on an initial load', async () => {
+      const browser = await next.browser('/dynamic/some-id')
+
+      // The cache read sits after `await params`, so it resolves in the runtime
+      // stage, after the static shell. On an initial load the relevant shell is
+      // the static shell, so this is a runtime-resumed hole rather than part of
+      // the shell, and must not show the badge, even while the value generates
+      // on this first load, when the read is pending at the post-shell
+      // boundary. An absence can't be retried on, so wait out the
       // replay-on-connect window and then assert it never showed.
-      await browser.refresh()
-      await browser.elementById('private')
+      await browser.elementById('dynamic')
       await waitFor(500)
       expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
         false
@@ -316,10 +342,10 @@ describe('cache-indicator', () => {
       })
 
       // Verify the badge shows "Cache disabled" text
-      const badgeButton = await browser.elementByCss(
-        '[data-cache-bypass-badge] [data-issues-open]'
+      const badgeLabel = await browser.elementByCss(
+        '[data-cache-bypass-badge] [data-cache-label]'
       )
-      const badgeText = await badgeButton.text()
+      const badgeText = await badgeLabel.text()
       expect(badgeText).toBe('Cache disabled')
     })
 
@@ -342,10 +368,10 @@ describe('cache-indicator', () => {
       })
 
       // Verify the badge shows "Cache disabled" text
-      const badgeButton = await browser.elementByCss(
-        '[data-cache-bypass-badge] [data-issues-open]'
+      const badgeLabel = await browser.elementByCss(
+        '[data-cache-bypass-badge] [data-cache-label]'
       )
-      const badgeText = await badgeButton.text()
+      const badgeText = await badgeLabel.text()
       expect(badgeText).toBe('Cache disabled')
     })
 
@@ -381,14 +407,14 @@ describe('cache-indicator', () => {
       })
 
       // Verify the badge still shows "Cache disabled" text
-      const badgeButton = await browser.elementByCss(
-        '[data-cache-bypass-badge] [data-issues-open]'
+      const badgeLabel = await browser.elementByCss(
+        '[data-cache-bypass-badge] [data-cache-label]'
       )
-      const badgeText = await badgeButton.text()
+      const badgeText = await badgeLabel.text()
       expect(badgeText).toBe('Cache disabled')
     })
 
-    it('opens devtools menu when clicking cache-bypassing badge', async () => {
+    it('keeps the devtools menu reachable from the N while the cache-bypassing badge is shown', async () => {
       const browser = await next.browser('/', {
         extraHTTPHeaders: { 'cache-control': 'no-cache' },
       })
@@ -401,11 +427,8 @@ describe('cache-indicator', () => {
         expect(hasCacheBypassBadge).toBe(true)
       })
 
-      // Click the cache bypass badge
-      const badgeButton = await browser.elementByCss(
-        '[data-cache-bypass-badge] [data-issues-open]'
-      )
-      await badgeButton.click()
+      // The cache label is plain text; the N next to it opens the menu.
+      await browser.elementByCss('#next-logo').click()
 
       // Verify devtools menu opens
       await retry(async () => {
@@ -426,11 +449,8 @@ describe('cache-indicator', () => {
         expect(hasCacheBypassBadge).toBe(true)
       })
 
-      // Open the devtools menu via the cache-bypass badge (the regular
-      // indicator is hidden when caches are bypassed).
-      await browser
-        .elementByCss('[data-cache-bypass-badge] [data-issues-open]')
-        .click()
+      // Open the devtools menu via the N next to the cache-bypass label.
+      await browser.elementByCss('#next-logo').click()
 
       await retry(async () => {
         const hasMenu = await browser.hasElementByCss('#nextjs-dev-tools-menu')

@@ -16,9 +16,6 @@ bench_against_node_nft = []
 [lints]
 workspace = true
 
-[dependencies]
-turbopack = { workspace = true }
-
 [dev-dependencies]
 anyhow = { workspace = true }
 rustc-hash = { workspace = true }
@@ -31,6 +28,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-backend = { workspace = true }
+turbopack = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-ecmascript = { workspace = true }

@@ -1,15 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
+// These tests send SIGINT/SIGTERM to a local Next.js process and observe whether
+// after() finishes before it exits. Vercel manages the deployed process lifecycle,
+// so the test runner cannot trigger and observe this shutdown sequence.
+// @force-gate !deploy
 describe('after during server shutdown - next start', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // the tests use cli logs
     skipStart: true,
   })
-  if (skipped) {
-    return
-  }
 
   beforeEach(async () => {
     await next.start()
@@ -20,33 +20,20 @@ describe('after during server shutdown - next start', () => {
     await next.stop()
   }, 10_000)
 
-  if (isNextDev) {
-    // `next dev` shuts down the child process that runs the server without waiting for cleanups,
-    // so `after` callbacks won't have the chance to complete
-    it.each(['SIGINT', 'SIGTERM'] as const)(
-      'does not wait for after callbacks when the server receives %s',
-      async (signal) => {
-        await next.render('/')
-        await retry(async () => {
-          expect(next.cliOutput).toInclude('[after] starting sleep')
-        })
-        await next.stop(signal)
+  it.each(['SIGINT', 'SIGTERM'] as const)(
+    'handles after callbacks when the server receives %s',
+    async (signal) => {
+      await next.render('/')
+      await retry(async () => {
+        expect(next.cliOutput).toInclude('[after] starting sleep')
+      })
+      await next.stop(signal)
+      if (await gate('dev')) {
+        // `next dev` shuts down its server child without waiting for cleanups.
         expect(next.cliOutput).not.toInclude('[after] finished sleep')
-      }
-    )
-  }
-
-  if (!isNextDev) {
-    it.each(['SIGINT', 'SIGTERM'] as const)(
-      'waits for after callbacks when the server receives %s',
-      async (signal) => {
-        await next.render('/')
-        await retry(async () => {
-          expect(next.cliOutput).toInclude('[after] starting sleep')
-        })
-        await next.stop(signal)
+      } else {
         expect(next.cliOutput).toInclude('[after] finished sleep')
       }
-    )
-  }
+    }
+  )
 })

@@ -1,17 +1,15 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 
 describe('redirects and rewrites', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      typescript: 'latest',
       '@types/react': 'latest',
-      '@types/node': 'latest',
     },
   })
 
   // TODO: investigate test failures on deploy
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip for deploy', () => {})
     return
   }

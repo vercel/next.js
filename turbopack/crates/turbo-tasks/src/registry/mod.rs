@@ -115,11 +115,21 @@ pub trait RegistryDef<T: 'static> {
 /// while maintaining their specific requirements.
 trait Registerable: 'static + Eq + std::hash::Hash {
     /// The ID type used for this registry item
-    type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
+    type Id: Copy + std::ops::Deref<Target: Copy + Into<usize>> + std::fmt::Display;
     const TYPE_NAME: &'static str;
+
+    /// The largest id that may be assigned to this registry item.
+    const MAX_ID: u16 = u16::MAX;
 
     /// Get the global registry type used for sorting and uniqueness validation
     fn ty(&self) -> &RegistryType;
+
+    /// Converts an id assigned by [`init_registry`] into [`Self::Id`].
+    ///
+    /// # Safety
+    ///
+    /// `id` must be at most [`Self::MAX_ID`].
+    unsafe fn id_from_raw(id: NonZeroU16) -> Self::Id;
 }
 
 impl Registerable for NativeFunction {
@@ -129,21 +139,36 @@ impl Registerable for NativeFunction {
     fn ty(&self) -> &RegistryType {
         &self.ty
     }
+
+    unsafe fn id_from_raw(id: NonZeroU16) -> FunctionId {
+        FunctionId::from(id)
+    }
 }
 
 impl Registerable for ValueType {
     type Id = ValueTypeId;
     const TYPE_NAME: &'static str = "Value";
+    const MAX_ID: u16 = ValueTypeId::MAX.to_primitive();
     fn ty(&self) -> &RegistryType {
         &self.ty
+    }
+
+    unsafe fn id_from_raw(id: NonZeroU16) -> ValueTypeId {
+        ValueTypeId::from(id)
     }
 }
 
 impl Registerable for TraitType {
     type Id = TraitTypeId;
     const TYPE_NAME: &'static str = "Trait";
+    const MAX_ID: u16 = TraitTypeId::MAX.to_primitive() as u16;
     fn ty(&self) -> &RegistryType {
         &self.ty
+    }
+
+    unsafe fn id_from_raw(id: NonZeroU16) -> TraitTypeId {
+        // SAFETY: the caller guarantees `id <= MAX_ID`, which is `u8::MAX`.
+        unsafe { TraitTypeId::new_unchecked(id.get() as u8) }
     }
 }
 
@@ -164,6 +189,12 @@ fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T
             );
         }
         prev_name = Some(global_name);
+        assert!(
+            u16::from(id) <= T::MAX_ID,
+            "too many {ty} items registered: id {id} exceeds the cap of {max}",
+            ty = T::TYPE_NAME,
+            max = T::MAX_ID,
+        );
         // SAFETY: Single-threaded during Lazy init; no concurrent readers yet.
         unsafe { std::ptr::write(SyncUnsafeCell::raw_get(&item.ty().id), u16::from(id)) };
         id = id.checked_add(1).expect("overflowing item ids");
@@ -175,7 +206,7 @@ fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T
 /// Get an item by its ID from a registry slice
 #[inline]
 fn get_item<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, id: T::Id) -> &'static T {
-    registry[*id as usize - 1]
+    registry[(*id).into() - 1]
 }
 
 /// Read an item's assigned id directly, without touching `LazyLock`.
@@ -195,7 +226,8 @@ unsafe fn get_id_unchecked<T: Registerable>(item: &'static T) -> T::Id {
             item = item.ty().global_name
         );
     };
-    T::Id::from(id)
+    // SAFETY: `init_registry` only writes ids up to `T::MAX_ID`.
+    unsafe { T::id_from_raw(id) }
 }
 
 /// Get the ID for a registered item. Forces registry init if needed, which
@@ -213,7 +245,7 @@ fn validate_id<T: Registerable>(
     id: T::Id,
 ) -> Option<Error> {
     let len = registry.len();
-    if *id as usize <= len {
+    if (*id).into() <= len {
         None
     } else {
         Some(anyhow::anyhow!(
@@ -294,4 +326,26 @@ pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
 
 pub fn validate_trait_type_id(id: TraitTypeId) -> Option<Error> {
     validate_id(&TRAITS, id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The registries are gathered at link time by `link-section`. On wasm it stores them in custom
+    /// sections and requires the embedder to hand them back through an `env.read_custom_section`
+    /// import (see `scripts/wasi-test-host/`).
+    ///
+    /// If that import is missing or returns nothing the slices come up **empty**, and everything
+    /// still links and runs — task lookups just quietly find nothing. Assert the bootstrap actually
+    /// delivered data, so that failure mode is loud instead of silent.
+    #[test]
+    fn registries_are_populated() {
+        assert!(
+            !FUNCTIONS.is_empty(),
+            "no native functions registered: the link-section bootstrap produced nothing"
+        );
+        assert!(!VALUES.is_empty(), "no value types registered");
+        assert!(!TRAITS.is_empty(), "no trait types registered");
+    }
 }

@@ -1,11 +1,14 @@
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
 const pagePath = 'pages/index.jsx'
 const apiPath = 'pages/api/edge.js'
 
-;(process.env.IS_TURBOPACK_TEST ? describe.skip.each : describe.each)([
+// Deploy mode exclusion: This suite mutates fixture files and asserts local build and CLI output.
+// @force-gate !deploy
+describe.each([
   { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
   { appDir: join(__dirname, './app'), title: 'pages and API routes' },
 ])('Configurable runtime for $title', ({ appDir }) => {
@@ -50,11 +53,17 @@ const apiPath = 'pages/api/edge.js'
         const res = await next.fetch(`/api/edge`)
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
-        expect(stripAnsi(next.cliOutput)).toInclude(
-          `/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
-        )
+        if (await gate((c) => c.turbopack)) {
+          expect(stripAnsi(next.cliOutput)).toInclude(
+            'The Edge Runtime is deprecated. You can use the "nodejs" runtime instead.'
+          )
+        } else {
+          expect(stripAnsi(next.cliOutput)).toInclude(
+            `/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
+          )
+        }
       })
-      it('warns about page using edge runtime', async () => {
+      it('warns about page using experimental-edge runtime', async () => {
         await next.patchFile(
           pagePath,
           `
@@ -66,12 +75,18 @@ const apiPath = 'pages/api/edge.js'
         const res = await next.fetch(`/`)
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
-        expect(stripAnsi(next.cliOutput)).toInclude(
-          `You are using an experimental edge runtime, the API might change.`
-        )
+        if (await gate((c) => c.turbopack)) {
+          expect(stripAnsi(next.cliOutput)).toInclude(
+            'The Edge Runtime is deprecated. You can use the "nodejs" runtime instead.'
+          )
+        } else {
+          expect(stripAnsi(next.cliOutput)).toInclude(
+            `You are using an experimental edge runtime, the API might change.`
+          )
+        }
       })
 
-      it('errors about page using edge runtime', async () => {
+      it('reports diagnostics about page using edge runtime', async () => {
         await next.patchFile(
           pagePath,
           `
@@ -82,13 +97,19 @@ const apiPath = 'pages/api/edge.js'
         await next.start()
         const res = await next.fetch(`/`)
         expect(res.status).toEqual(200)
-        expect(stripAnsi(next.cliOutput)).toInclude(
-          `Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
-        )
+        if (await gate((c) => c.turbopack)) {
+          expect(stripAnsi(next.cliOutput)).toInclude(
+            'The Edge Runtime is deprecated. You can use the "nodejs" runtime instead.'
+          )
+        } else {
+          expect(stripAnsi(next.cliOutput)).toInclude(
+            `Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
+          )
+        }
         expect(next.cliOutput).not.toInclude('warn')
       })
     })
-  } else if (isNextStart) {
+  } else {
     describe('In start mode', () => {
       const { next } = nextTestSetup({
         files: appDir,
@@ -138,7 +159,5 @@ const apiPath = 'pages/api/edge.js'
         )
       })
     })
-  } else {
-    it.skip('no deploy tests', () => {})
   }
 })

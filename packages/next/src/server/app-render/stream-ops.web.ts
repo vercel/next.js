@@ -10,8 +10,10 @@
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
 import { resume, renderToReadableStream } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
+import type { renderToReadableStream as flightRenderToReadableStream } from 'react-server-dom-webpack/server'
 
 import {
+  type ContinueStaticFallbackPrerenderOptions,
   renderToInitialFizzStream,
   streamToString as webStreamToString,
   createRuntimePrefetchTransformStream,
@@ -32,13 +34,10 @@ import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 // Shared types
 // ---------------------------------------------------------------------------
 
-type FlightRenderToReadableStream = (
-  model: any,
-  webpackMap: any,
-  options?: any
-) => ReadableStream<Uint8Array>
+type FlightRenderToReadableStream = typeof flightRenderToReadableStream
 
 export type AnyStream = AnyStreamType
+export type { ContinueStaticFallbackPrerenderOptions }
 
 export type ContinueStreamSharedOptions = {
   deploymentId: string | undefined
@@ -48,7 +47,7 @@ export type ContinueStreamSharedOptions = {
 
 export type ContinueFizzStreamOptions = ContinueStreamSharedOptions & {
   inlinedDataStream: AnyStream | undefined
-  isStaticGeneration: boolean
+  waitForAllReady: boolean
   allReady?: Promise<void>
   validateRootLayout?: boolean
   suffix?: string
@@ -73,7 +72,17 @@ export type ServerPrerenderComponentMod = {
 
 export type FlightPayload = Parameters<FlightRenderToReadableStream>[0]
 export type FlightClientModules = Parameters<FlightRenderToReadableStream>[1]
-export type FlightRenderOptions = Parameters<FlightRenderToReadableStream>[2]
+
+/**
+ * The options our Flight render wrappers accept, taken from React's Flight
+ * `renderToReadableStream`. `signal` aborts the render: the Web wrapper passes
+ * it straight to `renderToReadableStream`, while the Node wrapper aborts the
+ * pipeable returned by `renderToPipeableStream` (which has no `signal` option)
+ * when it fires.
+ */
+export type FlightRenderOptions = NonNullable<
+  Parameters<FlightRenderToReadableStream>[2]
+>
 
 export type FizzStreamResult = {
   stream: AnyStream
@@ -92,6 +101,8 @@ export function continueFizzStream(
   opts: ContinueFizzStreamOptions
 ): Promise<AnyStream> {
   return webContinueFizzStream(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     renderStream as ReadableStream<Uint8Array> as any,
     {
       ...opts,
@@ -131,7 +142,7 @@ export async function continueDynamicPrerender(
 
 export async function continueStaticFallbackPrerender(
   prerenderStream: AnyStream,
-  opts: ContinueStaticPrerenderOptions
+  opts: ContinueStaticFallbackPrerenderOptions<AnyStream>
 ): Promise<AnyStream> {
   return webContinueStaticFallbackPrerender(
     prerenderStream as ReadableStream<Uint8Array>,
@@ -187,19 +198,22 @@ export async function processPrelude(
 export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime = false
 ): AnyStream {
   return createInlinedDataReadableStream(
     source as ReadableStream<Uint8Array>,
     nonce,
-    formState
+    formState,
+    externalBrowserRuntime
   )
 }
 
 export function createNodeInlinedDataStream(
   _source: AnyStream,
   _nonce: string | undefined,
-  _formState: unknown | null
+  _formState: unknown | null,
+  _externalBrowserRuntime = false
 ): AnyStream {
   throw new Error('not implemented')
 }

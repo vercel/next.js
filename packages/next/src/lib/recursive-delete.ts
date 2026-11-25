@@ -59,6 +59,27 @@ function unlinkPath(
   }
 }
 
+const FUTURE_MTIME_TOLERANCE_MS = 60 * 60 * 1000
+
+/** Returns whether `p`'s own mtime falls outside the retained time range. */
+function isStale(
+  p: string,
+  staleBefore: number,
+  futureMtimeThreshold: number
+): boolean {
+  try {
+    // lstat, not stat: a symlink is deleted based on its own age, not its
+    // target's.
+    const mtimeMs = fs.lstatSync(p).mtimeMs
+    return mtimeMs <= staleBefore || mtimeMs > futureMtimeThreshold
+  } catch (e) {
+    if (isError(e) && e.code === 'ENOENT') {
+      return false
+    }
+    throw e
+  }
+}
+
 /**
  * Recursively delete directory contents.
  *
@@ -73,35 +94,84 @@ export async function recursiveDeleteSyncWithAsyncRetries(
   /** Directory to delete the contents of */
   dir: string,
   /** Exclude based on relative file path */
-  exclude?: RegExp,
-  /** Relative path to the directory being deleted, used for exclude */
-  previousPath: string = ''
+  exclude?: ReadonlySet<string>,
+  /**
+   * Only delete files whose mtime is at least this old. Directories are
+   * removed once empty.
+   */
+  maxAgeMs?: number
 ): Promise<void> {
+  const now = Date.now()
+  await deleteContents(dir, {
+    exclude,
+    staleBefore: maxAgeMs === undefined ? undefined : now - maxAgeMs,
+    futureMtimeThreshold: now + FUTURE_MTIME_TOLERANCE_MS,
+  })
+}
+
+/** @returns whether anything was kept. */
+async function deleteContents(
+  dir: string,
+  {
+    exclude,
+    staleBefore,
+    futureMtimeThreshold,
+    previousPath,
+  }: {
+    exclude: ReadonlySet<string> | undefined
+    staleBefore: number | undefined
+    futureMtimeThreshold: number
+    /** Relative path to the directory being deleted, used for exclude */
+    previousPath?: string
+  }
+): Promise<boolean> {
   let result
   try {
     result = fs.readdirSync(dir, { withFileTypes: true })
   } catch (e) {
     if (isError(e) && e.code === 'ENOENT') {
-      return
+      return false
     }
     throw e
   }
 
+  let keptAnything = false
+
   await Promise.all(
     result.map(async (part: Dirent) => {
       const absolutePath = join(dir, part.name)
-      const pp = join(previousPath, part.name)
-      const isNotExcluded = !exclude || !exclude.test(pp)
+      const pp = join(previousPath ?? '', part.name)
 
-      if (isNotExcluded) {
-        // Note: readdir does not follow symbolic links, that's good: we want to
-        // delete the links and not the destination.
-        let isDirectory = part.isDirectory()
-        if (isDirectory) {
-          await recursiveDeleteSyncWithAsyncRetries(absolutePath, exclude, pp)
-        }
-        return unlinkPath(absolutePath, isDirectory)
+      if (exclude?.has(pp)) {
+        keptAnything = true
+        return
       }
+
+      // Note: readdir does not follow symbolic links, that's good: we want to
+      // delete the links and not the destination.
+      const isDirectory = part.isDirectory()
+      if (isDirectory) {
+        if (
+          await deleteContents(absolutePath, {
+            exclude,
+            staleBefore,
+            futureMtimeThreshold,
+            previousPath: pp,
+          })
+        ) {
+          keptAnything = true
+          return
+        }
+      } else if (
+        staleBefore !== undefined &&
+        !isStale(absolutePath, staleBefore, futureMtimeThreshold)
+      ) {
+        keptAnything = true
+        return
+      }
+
+      return unlinkPath(absolutePath, isDirectory)
     })
   )
+  return keptAnything
 }

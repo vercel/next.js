@@ -42,7 +42,7 @@ const Page = () => {
       <Image
         id="unoptimized-image"
         unoptimized
-        src="https://arbitraryurl.com/foo.jpg"
+        src="https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg"
         loading="eager"
         width={300}
         height={400}
@@ -59,7 +59,7 @@ const Page = () => {
         id="priority-image"
         priority
         unoptimized
-        src="https://arbitraryurl.com/withpriority3.png"
+        src="https://next-data-api-endpoint.vercel.app/next-image-legacy/withpriority3.png"
         width={300}
         height={400}
       />

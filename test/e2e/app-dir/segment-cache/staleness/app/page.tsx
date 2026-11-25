@@ -21,13 +21,18 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-stale-2-minutes">
+          <LinkAccordion href="/runtime-stale-2-minutes" prefetch>
             Page whose runtime prefetch has a stale time of 2 minutes
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-stale-4-minutes">
+          <LinkAccordion href="/runtime-stale-4-minutes" prefetch>
             Page whose runtime prefetch has a stale time of 4 minutes
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/hanging-input-stale-4-minutes">
+            Page with stale time of 4 minutes (in a cache with a hanging input)
           </LinkAccordion>
         </li>
         <li>

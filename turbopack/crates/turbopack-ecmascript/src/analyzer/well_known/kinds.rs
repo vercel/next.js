@@ -5,7 +5,14 @@ use crate::analyzer::{ConstantString, JsValue, RequireContextValue};
 /// A list of well-known objects that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
-    GlobalObject,
+    /// The `Object` global variable.
+    ObjectConstructor,
+    /// `Object.prototype`.
+    ObjectPrototype,
+    /// The `globalThis` global object.
+    GlobalThis,
+    /// The Node.js `global` object (an alias of `globalThis`).
+    NodeGlobal,
     PathModule,
     PathModuleDefault,
     FsModule,
@@ -13,6 +20,8 @@ pub enum WellKnownObjectKind {
     FsModulePromises,
     FsExtraModule,
     FsExtraModuleDefault,
+    GracefulFsModule,
+    GracefulFsModuleDefault,
     ModuleModule,
     ModuleModuleDefault,
     UrlModule,
@@ -24,6 +33,7 @@ pub enum WellKnownObjectKind {
     OsModule,
     OsModuleDefault,
     NodeProcessModule,
+    NodeProcessModuleDefault,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -32,23 +42,30 @@ pub enum WellKnownObjectKind {
     NodeBuffer,
     RequireCache,
     ImportMeta,
+    ImportMetaEnv,
     /// An iterator object, used to model generator return values.
     Generator,
     /// The `module.hot` object providing HMR API.
     ModuleHot,
+    /// The browser `navigator` global.
+    Navigator,
+    /// The `navigator.serviceWorker` container (`ServiceWorkerContainer`).
+    NavigatorServiceWorker,
 }
 
 impl WellKnownObjectKind {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
-            Self::GlobalObject => Some(&["Object"]),
+            Self::ObjectConstructor => Some(&["Object"]),
+            Self::GlobalThis => Some(&["globalThis"]),
+            Self::NodeGlobal => Some(&["global"]),
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
             Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
             Self::WorkerThreadsModule => Some(&["worker_threads"]),
-            Self::NodeProcessModule => Some(&["process"]),
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault => Some(&["process"]),
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -59,14 +76,23 @@ impl WellKnownObjectKind {
     }
 
     /// Returns a short display name and a longer explanation for this object,
-    /// used when rendering [`JsValue`][crate::analyzer::JsValue] explanations.
+    /// used when rendering [`JsValue`] explanations.
     pub fn explain(&self) -> (&'static str, &'static str) {
         match self {
             Self::Generator => (
                 "Generator",
                 "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
             ),
-            Self::GlobalObject => ("Object", "The global Object variable"),
+            Self::ObjectConstructor => ("Object", "The global Object constructor"),
+            Self::ObjectPrototype => ("Object.prototype", "The prototype of plain objects"),
+            Self::GlobalThis => (
+                "globalThis",
+                "The global object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis",
+            ),
+            Self::NodeGlobal => (
+                "global",
+                "The Node.js global object: https://nodejs.org/api/globals.html#global",
+            ),
             Self::PathModule | Self::PathModuleDefault => (
                 "path",
                 "The Node.js path module: https://nodejs.org/api/path.html",
@@ -78,6 +104,10 @@ impl WellKnownObjectKind {
             Self::FsExtraModule | Self::FsExtraModuleDefault => (
                 "fs-extra",
                 "The Node.js fs-extra module: https://github.com/jprichardson/node-fs-extra",
+            ),
+            Self::GracefulFsModule | Self::GracefulFsModuleDefault => (
+                "graceful-fs",
+                "The Node.js graceful-fs module: https://github.com/isaacs/node-graceful-fs",
             ),
             Self::FsModulePromises => (
                 "fs/promises",
@@ -103,7 +133,7 @@ impl WellKnownObjectKind {
                 "os",
                 "The Node.js os module: https://nodejs.org/api/os.html",
             ),
-            Self::NodeProcessModule => (
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault => (
                 "process",
                 "The Node.js process module: https://nodejs.org/api/process.html",
             ),
@@ -136,7 +166,16 @@ impl WellKnownObjectKind {
                 "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache",
             ),
             Self::ImportMeta => ("import.meta", "The import.meta object"),
+            Self::ImportMetaEnv => ("import.meta.env", "The import.meta.env object"),
             Self::ModuleHot => ("module.hot", "The module.hot HMR API"),
+            Self::Navigator => (
+                "navigator",
+                "The browser navigator global: https://developer.mozilla.org/en-US/docs/Web/API/Navigator",
+            ),
+            Self::NavigatorServiceWorker => (
+                "navigator.serviceWorker",
+                "The ServiceWorkerContainer: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer",
+            ),
         }
     }
 }
@@ -174,6 +213,21 @@ pub enum WellKnownFunctionKind<'a> {
     OsPlatform,
     OsEndianness,
     ProcessCwd,
+    /// `Object.prototype.hasOwnProperty`. What it checks depends on the receiver (`this`), so it
+    /// is only analyzed when called with a known receiver: `obj.hasOwnProperty(key)` or
+    /// `hasOwnProperty.call(obj, key)`.
+    HasOwnProperty,
+    /// `Object.prototype.propertyIsEnumerable`, analyzed like [`Self::HasOwnProperty`].
+    PropertyIsEnumerable,
+    /// `Object.prototype.valueOf`, which returns its receiver.
+    ValueOf,
+    /// `Object.hasOwn(obj, key)`.
+    ObjectHasOwn,
+    /// `Function.prototype.call`. `func.call(thisArg, ...args)` calls its own receiver `func`, with
+    /// the first argument as `this`. So it is only analyzed in a member call (including
+    /// `(0, func).call(thisArg, ...args)`), not when detached: `const call = func.call; call(...)`
+    /// throws.
+    FunctionCall,
     NodePreGypFind,
     NodeGypBuild,
     NodeBindings,
@@ -187,6 +241,8 @@ pub enum WellKnownFunctionKind<'a> {
     SharedWorkerConstructor,
     // The worker_threads Worker class
     NodeWorkerConstructor,
+    /// `navigator.serviceWorker.register(scriptURL, options?)`
+    ServiceWorkerRegister,
     URLConstructor,
     /// `module.hot.accept(deps, callback, errorHandler)` — accept HMR updates for dependencies.
     ModuleHotAccept,
@@ -194,6 +250,10 @@ pub enum WellKnownFunctionKind<'a> {
     ModuleHotDecline,
     /// `import.meta.glob(patterns, options?)` — Vite-compatible glob import.
     ImportMetaGlob,
+    /// `__turbopack_emit__` — Emit data to the bundler.
+    TurbopackEmit,
+    /// `__turbopack_collect__` — Collect emitted data from the bundler.
+    TurbopackCollect,
 }
 
 impl WellKnownFunctionKind<'_> {
@@ -209,7 +269,7 @@ impl WellKnownFunctionKind<'_> {
     }
 
     /// Returns a short display name and a longer explanation for this function,
-    /// used when rendering [`JsValue`][crate::analyzer::JsValue] explanations.
+    /// used when rendering [`JsValue`] explanations.
     pub fn explain(&self) -> (String, &'static str) {
         match self {
             Self::ArrayFilter => (
@@ -306,6 +366,26 @@ impl WellKnownFunctionKind<'_> {
                 "os.endianness".to_string(),
                 "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
             ),
+            Self::HasOwnProperty => (
+                "Object.prototype.hasOwnProperty".to_string(),
+                "The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty",
+            ),
+            Self::PropertyIsEnumerable => (
+                "Object.prototype.propertyIsEnumerable".to_string(),
+                "The standard Object.prototype.propertyIsEnumerable method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/propertyIsEnumerable",
+            ),
+            Self::ValueOf => (
+                "Object.prototype.valueOf".to_string(),
+                "The standard Object.prototype.valueOf method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/valueOf",
+            ),
+            Self::ObjectHasOwn => (
+                "Object.hasOwn".to_string(),
+                "The standard Object.hasOwn method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn",
+            ),
+            Self::FunctionCall => (
+                "Function.prototype.call".to_string(),
+                "The standard Function.prototype.call method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/call",
+            ),
             Self::ProcessCwd => (
                 "process.cwd".to_string(),
                 "The Node.js process.cwd method: https://nodejs.org/api/process.html#processcwd",
@@ -358,6 +438,10 @@ impl WellKnownFunctionKind<'_> {
                 "SharedWorker".to_string(),
                 "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker",
             ),
+            Self::ServiceWorkerRegister => (
+                "navigator.serviceWorker.register".to_string(),
+                "The ServiceWorkerContainer.register method: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register",
+            ),
             Self::URLConstructor => (
                 "URL".to_string(),
                 "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL",
@@ -374,6 +458,14 @@ impl WellKnownFunctionKind<'_> {
                 "import.meta.glob".to_string(),
                 "The import.meta.glob() function from Vite: https://vite.dev/guide/features.html#glob-import",
             ),
+            Self::TurbopackEmit => (
+                "__turbopack_emit__".to_string(),
+                "The __turbopack_emit__ function for emitting data to the bundler"
+            ),
+            Self::TurbopackCollect => (
+                "__turbopack_collect__".to_string(),
+                "The __turbopack_collect__ function for collecting emitted data from the bundler"
+            )
         }
     }
 }

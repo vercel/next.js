@@ -28,7 +28,7 @@ import { isNextConfigFile } from './lib/utils'
 // Properties that need to be moved to experimental.turbopack*
 const RENAMED_EXPERIMENTAL_PROPERTIES = {
   minify: 'turbopackMinify',
-  treeShaking: 'turbopackTreeShaking',
+  treeShaking: 'turbopackModuleFragments',
   sourceMaps: 'turbopackSourceMaps',
 }
 

@@ -11,10 +11,32 @@ export function printAndExit(message: string, code = 1) {
   return process.exit(code)
 }
 
-export type NodeOptions = Record<string, string | boolean | undefined>
+export type NodeOptions = Record<
+  string,
+  string | string[] | boolean | undefined
+>
+
+/**
+ * Node.js CLI flags that can be repeated. Node runs every occurrence of these
+ * flags, so they need to be preserved individually rather than collapsed into
+ * a single value keyed by option name.
+ * https://nodejs.org/api/cli.html#--requiremodule
+ * https://nodejs.org/api/cli.html#--importmodule
+ */
+const REPEATABLE_OPTIONS: Record<string, { type: 'string'; multiple: true }> = {
+  require: { type: 'string', multiple: true },
+  import: { type: 'string', multiple: true },
+}
 
 const parseNodeArgs = (args: string[]): NodeOptions => {
-  const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
+  const parsed = parseArgs({
+    args,
+    strict: false,
+    tokens: true,
+    options: REPEATABLE_OPTIONS,
+  })
+  const values: NodeOptions = parsed.values
+  const tokens = parsed.tokens
 
   // For the `NODE_OPTIONS`, we support arguments with values without the `=`
   // sign. We need to parse them manually.
@@ -46,12 +68,27 @@ const parseNodeArgs = (args: string[]): NodeOptions => {
       continue
     }
 
+    const name = orphan.name
+
+    // If the option is repeatable, accumulate each occurrence instead of
+    // collapsing them into a single value.
+    if (name in REPEATABLE_OPTIONS) {
+      if (Array.isArray(values[name])) {
+        values[name].push(token.value)
+      } else if (typeof values[name] === 'string') {
+        values[name] = [values[name], token.value]
+      } else {
+        values[name] = token.value
+      }
+      continue
+    }
+
     // If the token is a positional one, and it has a value, so add it to the
     // values object. If it already exists, append it with a space.
-    if (orphan.name in values && typeof values[orphan.name] === 'string') {
-      values[orphan.name] += ` ${token.value}`
+    if (name in values && typeof values[name] === 'string') {
+      values[name] += ` ${token.value}`
     } else {
-      values[orphan.name] = token.value
+      values[name] = token.value
     }
   }
 
@@ -150,7 +187,7 @@ export const formatDebugAddress = ({ host, port }: DebugAddress): string => {
  * @returns An object with the host and port of the debug address.
  */
 export const getParsedDebugAddress = (
-  address: string | boolean | undefined
+  address: string | string[] | boolean | undefined
 ): DebugAddress => {
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
@@ -183,10 +220,21 @@ const EXEC_ARGV_ONLY_OPTIONS = new Set([
 
 function formatArg(
   key: string,
-  value: string | boolean | undefined
+  value: string | string[] | boolean | undefined
 ): string | null {
   if (value === true) {
     return `--${key}`
+  }
+
+  if (Array.isArray(value)) {
+    const formatted: string[] = []
+    for (const item of value) {
+      const formattedItem = formatArg(key, item)
+      if (formattedItem !== null) {
+        formatted.push(formattedItem)
+      }
+    }
+    return formatted.length > 0 ? formatted.join(' ') : null
   }
 
   if (value) {
@@ -210,9 +258,10 @@ function formatArg(
  * @param args The arguments to be stringified.
  * @returns An object with `nodeOptions` string and `execArgv` array.
  */
-export function formatNodeOptions(
-  args: Record<string, string | boolean | undefined>
-): { nodeOptions: string; execArgv: string[] } {
+export function formatNodeOptions(args: NodeOptions): {
+  nodeOptions: string
+  execArgv: string[]
+} {
   const nodeOptionsParts: string[] = []
   const execArgv: string[] = []
 
@@ -230,24 +279,180 @@ export function formatNodeOptions(
   return { nodeOptions: nodeOptionsParts.join(' '), execArgv }
 }
 
-export function getParsedNodeOptions(): Record<
-  string,
-  string | boolean | undefined
-> {
+export function getParsedNodeOptions(): NodeOptions {
   const args = [...process.execArgv, ...getNodeOptionsArgs()]
   if (args.length === 0) return {}
 
   return parseNodeArgs(args)
 }
 
+export interface EffectiveDebugOptions {
+  /**
+   * `--inspect-brk` or `--inspect` if this process's inspector is enabled by
+   * one, or `--inspect-wait` when `includeWait` is set and neither is given.
+   * `undefined` when it isn't enabled (e.g. `--inspect --no-inspect`).
+   */
+  type: NodeInspectType | 'inspect-wait'
+  /**
+   * Where the inspector listens, as reported by Node.js. If it's enabled but
+   * not running (e.g. its port was taken), Node.js's resolved port on
+   * loopback. The port is 0 when a random port was requested.
+   */
+  address: DebugAddress | undefined
+  /** The effective `--inspect-publish-uid` value, if one was given */
+  publishUid: string | undefined
+}
+
 /**
- * Get the node options from the `NODE_OPTIONS` environment variable and parse
- * them into an object without the inspect options.
+ * The debugger settings this process runs with. Whether the inspector runs
+ * and where it listens come from Node.js itself (`inspector.url()`, or
+ * `process.debugPort` when it failed to start), since its option grammar
+ * (host-only and port-only values, aliases, negations that differ between
+ * Node.js versions) is easy to get subtly wrong. The flags are only used for
+ * what Node.js doesn't report: which flag enabled it, the publish-uid
+ * setting, and whether a random port (0) was requested. Flags are read like
+ * Node.js does: `NODE_OPTIONS` first, then the command line, last occurrence
+ * winning.
+ *
+ * @param inspectorUrl The running inspector's URL (for tests).
+ * @param debugPort Node.js's resolved inspector port (for tests).
+ */
+export function getEffectiveDebugOptions({
+  includeWait = false,
+  inspectorUrl = (require('inspector') as typeof import('inspector')).url(),
+  debugPort = process.debugPort,
+}: {
+  includeWait?: boolean
+  inspectorUrl?: string | undefined
+  debugPort?: number
+} = {}): EffectiveDebugOptions {
+  const result: EffectiveDebugOptions = {
+    type: undefined,
+    address: undefined,
+    publishUid: undefined,
+  }
+  let inspect = false
+  let inspectBrk = false
+  let inspectWait = false
+  // Whether any startup flag enabled the inspector at all. An inspector that
+  // was only opened at runtime (e.g. `inspector.open()`, or SIGUSR1) isn't
+  // passed on, like before Next.js read Node.js's inspector state.
+  let activated = false
+  // Whether any `--no-inspect*` negation was given. How they combine differs
+  // between Node.js versions (e.g. `--inspect-brk --no-inspect` disables the
+  // inspector in 20.9 but not in later versions).
+  let negated = false
+  // The last address value given, to detect a requested random port.
+  let lastAddress: string | undefined
+  for (const [args, separateValues] of [
+    // NODE_OPTIONS also accepts `--inspect 9229` (see `getParsedDebugAddress`).
+    [getNodeOptionsArgs(), true],
+    [process.execArgv, false],
+  ] as const) {
+    for (let i = 0; i < args.length; i++) {
+      const match = /^--([^=]+)(?:=(.*))?$/.exec(args[i])
+      if (!match) continue
+      let name = match[1].replace(/_/g, '-')
+      if (name === 'debug-port') name = 'inspect-port'
+      let value: string | undefined = match[2]
+      const isActivation =
+        name === 'inspect' || name === 'inspect-brk' || name === 'inspect-wait'
+      const takesSeparateValue =
+        name === 'inspect-port' ||
+        name === 'inspect-publish-uid' ||
+        (separateValues && isActivation)
+      if (
+        value === undefined &&
+        takesSeparateValue &&
+        i + 1 < args.length &&
+        !args[i + 1].startsWith('-')
+      ) {
+        value = args[++i]
+      }
+      if (isActivation) activated = true
+      if (name === 'inspect') {
+        inspect = true
+        if (value !== undefined) lastAddress = value
+      } else if (name === 'inspect-brk') {
+        inspectBrk = true
+        if (value !== undefined) lastAddress = value
+      } else if (name === 'inspect-wait') {
+        inspectWait = true
+        if (value !== undefined) lastAddress = value
+      } else if (name === 'no-inspect') {
+        inspect = false
+        negated = true
+      } else if (name === 'no-inspect-brk') {
+        inspectBrk = false
+        negated = true
+      } else if (name === 'no-inspect-wait') {
+        inspectWait = false
+        negated = true
+      } else if (name === 'inspect-port') {
+        if (value !== undefined) lastAddress = value
+      } else if (name === 'inspect-publish-uid') {
+        result.publishUid = value
+      }
+    }
+  }
+
+  const flagType = inspectBrk
+    ? 'inspect-brk'
+    : inspect
+      ? 'inspect'
+      : inspectWait
+        ? 'inspect-wait'
+        : undefined
+  if (!activated) {
+    return result
+  }
+  if (!inspectorUrl) {
+    // Not running. Only treat that as a failed start (e.g. its port was
+    // taken) when the flags clearly enable it; otherwise it's disabled.
+    if (flagType === undefined || negated) {
+      return result
+    }
+  }
+  result.type =
+    flagType === 'inspect-wait'
+      ? includeWait
+        ? 'inspect-wait'
+        : undefined
+      : // Running without an enabling flag left, e.g. `--inspect-brk
+        // --no-inspect-brk`, which still starts it without breaking.
+        (flagType ?? 'inspect')
+  const randomPort = lastAddress !== undefined && /(^|:)0$/.test(lastAddress)
+  if (!inspectorUrl) {
+    // Enabled, but it didn't start (e.g. its port was taken). Node.js doesn't
+    // report the host it tried; loopback never widens it.
+    result.address = {
+      host: '127.0.0.1',
+      port: randomPort ? 0 : debugPort,
+    }
+    return result
+  }
+  const url = new URL(inspectorUrl)
+  result.address = {
+    // Keeps the brackets of an IPv6 address.
+    host: url.hostname,
+    port: randomPort
+      ? 0
+      : // An empty port is the ws: default.
+        parseInt(url.port || '80', 10),
+  }
+  return result
+}
+
+/**
+ * Get the node options from the `NODE_OPTIONS` environment variable (or the
+ * given string) and parse them into an object without the inspect options.
  *
  * @returns An object with the parsed node options.
  */
-export function getParsedNodeOptionsWithoutInspect() {
-  const args = getNodeOptionsArgs()
+export function getParsedNodeOptionsWithoutInspect(
+  nodeOptions: string | undefined = process.env.NODE_OPTIONS
+) {
+  const args = nodeOptions ? tokenizeArgs(nodeOptions) : []
   if (args.length === 0) return {}
 
   const parsed = parseNodeArgs(args)
@@ -256,6 +461,8 @@ export function getParsedNodeOptionsWithoutInspect() {
   delete parsed.inspect
   delete parsed['inspect-brk']
   delete parsed['inspect_brk']
+  delete parsed['inspect-wait']
+  delete parsed['inspect_wait']
 
   return parsed
 }
@@ -289,6 +496,31 @@ export function parseValidPositiveInteger(value: string): number {
 
 export const RESTART_EXIT_CODE = 77
 
+type HeapStatistics = {
+  used_heap_size: number
+  heap_size_limit: number
+}
+
+/**
+ * @internal
+ */
+export function getMemoryRestartStats<T extends HeapStatistics>(
+  isDev: boolean,
+  devMemoryThresholdRestart: boolean,
+  getHeapStatistics: () => T
+): T | undefined {
+  if (!isDev || !devMemoryThresholdRestart) {
+    return undefined
+  }
+
+  const heapStatistics = getHeapStatistics()
+  if (heapStatistics.used_heap_size > 0.8 * heapStatistics.heap_size_limit) {
+    return heapStatistics
+  }
+
+  return undefined
+}
+
 export type NodeInspectType = 'inspect' | 'inspect-brk' | undefined
 
 /**
@@ -319,4 +551,13 @@ export function getMaxOldSpaceSize() {
   if (!size || typeof size !== 'string') return
 
   return parseInt(size, 10)
+}
+
+// For a child whose output is piped to its parent. Without this,
+// process.exit() can drop the last lines written to the pipe. Node already
+// does this for terminals.
+export function blockOnOutputWrites() {
+  for (const stream of [process.stdout, process.stderr]) {
+    stream._handle?.setBlocking?.(true)
+  }
 }

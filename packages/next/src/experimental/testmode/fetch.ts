@@ -82,14 +82,33 @@ function buildResponse(proxyResponse: ProxyFetchResponse): Response {
   })
 }
 
-export async function handleFetch(
+function passthroughFetch(
   originalFetch: Fetch,
   request: Request
 ): Promise<Response> {
+  // Mark the request so the ClientRequest interception in `httpget.ts` sends it
+  // to the real server instead of intercepting it again. @mswjs/interceptors
+  // intercepts at the TCP level, so an unmarked passthrough would re-enter the
+  // interception listener from within itself, recursing indefinitely.
+  request.headers.set('next-test-internal', '1')
+  return originalFetch(request)
+}
+
+/**
+ * Returns the response supplied by the test proxy, or `null` when there is no
+ * test context or the proxy asks to continue the request. A `null` result means
+ * the caller must send the request using its original transport, preserving
+ * that transport's response handling (such as raw compressed HTTP bodies).
+ * Throws if the proxy aborts the request or leaves it unhandled.
+ */
+export async function handleProxyFetch(
+  originalFetch: Fetch,
+  request: Request
+): Promise<Response | null> {
   const testInfo = getTestReqInfo(request, reader)
   if (!testInfo) {
-    // Passthrough non-test requests.
-    return originalFetch(request)
+    // Let the caller pass through using its original transport.
+    return null
   }
 
   const { testData, proxyPort } = testInfo
@@ -98,6 +117,14 @@ export async function handleFetch(
   const resp = await originalFetch(`http://localhost:${proxyPort}`, {
     method: 'POST',
     body: JSON.stringify(proxyRequest),
+    // The header lets the ClientRequest interception in `httpget.ts` identify
+    // this request as part of the test proxy protocol. @mswjs/interceptors
+    // intercepts at the TCP level, so this request would otherwise be
+    // intercepted again when it's sent from within an interception listener,
+    // recursing indefinitely.
+    headers: {
+      'next-test-internal': '1',
+    },
     next: {
       // @ts-ignore
       internal: true,
@@ -111,7 +138,7 @@ export async function handleFetch(
   const { api } = proxyResponse
   switch (api) {
     case 'continue':
-      return originalFetch(request)
+      return null
     case 'abort':
     case 'unhandled':
       throw new Error(
@@ -125,7 +152,7 @@ export async function handleFetch(
 }
 
 export function interceptFetch(originalFetch: Fetch) {
-  global.fetch = function testFetch(
+  global.fetch = async function testFetch(
     input: FetchInputArg,
     init?: FetchInitArg
   ): Promise<Response> {
@@ -134,7 +161,9 @@ export function interceptFetch(originalFetch: Fetch) {
     if (init?.next?.internal) {
       return originalFetch(input, init)
     }
-    return handleFetch(originalFetch, new Request(input, init))
+    const request = new Request(input, init)
+    const response = await handleProxyFetch(originalFetch, request)
+    return response ?? passthroughFetch(originalFetch, request)
   }
   return () => {
     global.fetch = originalFetch

@@ -17,7 +17,7 @@ describe('metadata-files-static-output-root-route', () => {
     //   - [static] Use a static metadata export instead of `generateMetadata()`
     //   - [cache] Cache the metadata with `"use cache"` in `generateMetadata()`
     //   - [dynamic] Render a marker component that calls `await connection()` inside `<Suspense>` on the page
-    //   - [block] Set `export const instant = false` to silence this warning and allow a blocking route
+    //   - [block] Set `export const instant = false` to allow a blocking route
     //
     // Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic
     // Error occurred prerendering page "/dynamic/[id]". Read more: https://nextjs.org/docs/messages/prerender-error

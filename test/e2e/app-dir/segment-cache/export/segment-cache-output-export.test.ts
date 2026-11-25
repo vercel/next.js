@@ -2,16 +2,13 @@ import type * as Playwright from 'playwright'
 import type { Server } from 'http'
 import { createRouterAct } from 'router-act'
 import { findPort } from 'next-test-utils'
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { createExportServer } from './server.mjs'
 
+// Builds and serves the local static export with a custom server-side rewrite.
+// @force-gate start
 describe('segment cache (output: "export")', () => {
-  if (!isNextStart) {
-    test('build test should not run during dev test run', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,

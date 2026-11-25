@@ -8,7 +8,7 @@
 /// easy implementation on structs or enums.
 ///
 /// This should eventually be replace by the `auto_traits`, once stabilized:
-/// https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html
+/// <https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html>
 macro_rules! impl_auto_marker_trait {
     ($trait:ident) => {
         $crate::marker_trait::impl_marker_trait!(
@@ -36,11 +36,13 @@ macro_rules! impl_auto_marker_trait {
             ::std::time::Duration,
             ::anyhow::Error,
             ::turbo_rcstr::RcStr,
+            ::turbo_bitset::Bitset,
         );
         $crate::marker_trait::impl_marker_trait!($trait: ::std::path::Path, ::std::path::PathBuf);
         $crate::marker_trait::impl_marker_trait!(
             $trait:
-            ::serde_json::Value, ::serde_json::Map<String, ::serde_json::Value>
+            ::serde_json::Value, ::serde_json::Map<String, ::serde_json::Value>,
+            $crate::OrderedJsonValue, $crate::OrderedJsonMap
         );
 
         $crate::marker_trait::impl_marker_trait_fn_ptr!($trait: E D C B A Z Y X W V U T);
@@ -55,12 +57,16 @@ macro_rules! impl_auto_marker_trait {
         unsafe impl<T: $trait, S, const I: usize> $trait for ::auto_hash_map::AutoSet<T, S, I> {}
         unsafe impl<T: $trait> $trait for ::std::collections::BTreeSet<T> {}
         unsafe impl<T: $trait, S> $trait for ::indexmap::IndexSet<T, S> {}
+        unsafe impl<T: $trait, S, const I: usize> $trait
+            for ::auto_hash_map::OrderedAutoSet<T, S, I> {}
         unsafe impl<T: $trait> $trait for ::turbo_frozenmap::FrozenSet<T> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::std::collections::HashMap<K, V, S> {}
         unsafe impl<K: $trait, V: $trait, S, const I: usize> $trait
             for ::auto_hash_map::AutoMap<K, V, S, I> {}
         unsafe impl<K: $trait, V: $trait> $trait for ::std::collections::BTreeMap<K, V> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::indexmap::IndexMap<K, V, S> {}
+        unsafe impl<K: $trait, V: $trait, S, const I: usize> $trait
+            for ::auto_hash_map::OrderedAutoMap<K, V, S, I> {}
         unsafe impl<K: $trait, V: $trait> $trait for ::turbo_frozenmap::FrozenMap<K, V> {}
         unsafe impl<T> $trait for ::std::pin::Pin<T>
             where T: ::std::ops::Deref, <T as ::std::ops::Deref>::Target: $trait {}

@@ -1,7 +1,7 @@
 use std::{env, fmt::Debug, future::Future, sync::Arc};
 
 use anyhow::Result;
-use turbo_tasks::{TurboTasks, TurboTasksApi, trace::TraceRawVcs};
+use turbo_tasks::{TurboTasks, TurboTasksApi};
 use turbo_tasks_backend::TurboTasksBackend;
 
 /// A freshly created test instance: the `TurboTasks` handle (type-erased to
@@ -70,7 +70,7 @@ pub async fn run_once_without_cache_check<T>(
     fut: impl Future<Output = T> + Send + 'static,
 ) -> T
 where
-    T: TraceRawVcs + Send + 'static,
+    T: Send + 'static,
 {
     let name = closure_to_name(&fut);
     let instance = registration.create_turbo_tasks(&name, true);
@@ -84,13 +84,33 @@ pub async fn run_without_cache_check<T>(
     fut: impl Future<Output = T> + Send + 'static,
 ) -> T
 where
-    T: TraceRawVcs + Send + 'static,
+    T: Send + 'static,
 {
     let name = closure_to_name(&fut);
     let instance = registration.create_turbo_tasks(&name, true);
     turbo_tasks::run(instance.tt, async move { Ok(fut.await) })
         .await
         .unwrap()
+}
+
+/// Asserts that `tt` is the last reference to the TurboTasks instance, i.e. that nothing leaked a
+/// reference to it.
+///
+/// `stop_and_wait` returns once all jobs have signaled completion, but the spawned futures that
+/// ran them may still be in the process of dropping their own references. Poll for a while before
+/// failing.
+async fn wait_for_sole_reference(tt: &Arc<dyn TurboTasksApi>) {
+    const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+    let start = std::time::Instant::now();
+    while Arc::strong_count(tt) != 1 {
+        assert!(
+            start.elapsed() < TIMEOUT,
+            "TurboTasks instance is still referenced {} more time(s) {TIMEOUT:?} after \
+             stop_and_wait",
+            Arc::strong_count(tt) - 1
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    }
 }
 
 fn closure_to_name<T>(value: &T) -> String {
@@ -104,7 +124,7 @@ pub async fn run_once<T, F>(
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
-    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+    T: Debug + PartialEq + Eq + Send + 'static,
 {
     run_with_tt(registration, move |tt| turbo_tasks::run_once(tt, fut())).await
 }
@@ -115,7 +135,7 @@ pub async fn run<T, F>(
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
-    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+    T: Debug + PartialEq + Eq + Send + 'static,
 {
     run_with_tt(registration, move |tt| turbo_tasks::run(tt, fut())).await
 }
@@ -126,7 +146,7 @@ pub async fn run_with_tt<T, F>(
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
-    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+    T: Debug + PartialEq + Eq + Send + 'static,
 {
     let infinite_initial_runs = env::var("INFINITE_INITIAL_RUNS").is_ok();
     let infinite_memory_runs = !infinite_initial_runs && env::var("INFINITE_MEMORY_RUNS").is_ok();
@@ -159,6 +179,13 @@ where
         let start = std::time::Instant::now();
         instance.tt.stop_and_wait().await;
         println!("Stopping TurboTasks took {:?}", start.elapsed());
+        // The eviction closure holds its own reference to the TurboTasks instance.
+        drop(instance.snapshot_and_evict);
+        wait_for_sole_reference(&instance.tt).await;
+        let start = std::time::Instant::now();
+        drop(instance.tt);
+        println!("Dropping TurboTasks took {:?}", start.elapsed());
+
         if !single_run {
             for _ in 10..20 {
                 let instance = registration.create_turbo_tasks(&name, false);
@@ -170,6 +197,11 @@ where
                 let start = std::time::Instant::now();
                 instance.tt.stop_and_wait().await;
                 println!("Stopping TurboTasks took {:?}", start.elapsed());
+                drop(instance.snapshot_and_evict);
+                wait_for_sole_reference(&instance.tt).await;
+                let start = std::time::Instant::now();
+                drop(instance.tt);
+                println!("Dropping TurboTasks took {:?}", start.elapsed());
                 assert_eq!(first, third);
             }
         }

@@ -2,11 +2,13 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { cacheTag } from 'next/cache'
 import { RevalidateButton } from './revalidate-button'
+import { getCacheTag, tasky } from '../../utils'
 
 async function getCachedRandom() {
   'use cache'
-  cacheTag('revalidate-action-test')
-  return Math.random()
+  cacheTag(getCacheTag('revalidate-action-test'))
+  await tasky()
+  return `cache-random-${Math.random()}`
 }
 
 async function DynamicContent() {

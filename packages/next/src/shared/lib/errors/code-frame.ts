@@ -13,9 +13,12 @@ export function codeFrameColumns(
   location: NapiCodeFrameLocation,
   options: NapiCodeFrameOptions = {}
 ): string | undefined {
-  // Default to the terminal width
+  // Default to the terminal width. The CLI passes it on when it pipes this
+  // process's output for the upgrade menu.
   if (options.maxWidth === undefined) {
-    options.maxWidth = process.stdout.columns
+    options.maxWidth =
+      process.stdout.columns ??
+      (Number(process.env.NEXT_PRIVATE_TERMINAL_COLUMNS) || undefined)
   }
   return getBindingsSync().codeFrameColumns(file, location, options)
 }

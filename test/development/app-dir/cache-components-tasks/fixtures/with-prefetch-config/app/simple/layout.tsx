@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { Static, Runtime, Dynamic } from '../shared'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default function Root({ children }: { children: React.ReactNode }) {
   return (

@@ -40,7 +40,6 @@ while [ $# -gt 0 ]; do
       ;;
     --experimental)
       export __NEXT_CACHE_COMPONENTS=true
-      export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
       ;;
     --headless)
       export HEADLESS=true

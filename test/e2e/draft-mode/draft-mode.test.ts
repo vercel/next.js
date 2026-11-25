@@ -12,14 +12,16 @@ function getData(html: string) {
   }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Test Draft Mode', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
-  if (isNextDev) {
+  // @force-gate dev
+  describe('development', () => {
     it('should start development application', async () => {
       const html = await next.render('/')
       expect(html).toBeTruthy()
@@ -88,9 +90,10 @@ describe('Test Draft Mode', () => {
       const setCookie = res.headers.get('set-cookie')
       expect(setCookie).toBeTruthy()
     })
-  }
+  })
 
-  if (isNextStart) {
+  // @force-gate start
+  describe('production', () => {
     let cookieString: string
     let initialRand: string
     const getOpts = () => ({ headers: { Cookie: cookieString } })
@@ -211,5 +214,5 @@ describe('Test Draft Mode', () => {
         draftMode: true,
       })
     })
-  }
+  })
 })

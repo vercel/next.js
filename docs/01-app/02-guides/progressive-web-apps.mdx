@@ -124,9 +124,7 @@ import { subscribeUser, unsubscribeUser, sendNotification } from './actions'
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding)
-    .replace(/\\-/g, '+')
-    .replace(/_/g, '/')
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
 
   const rawData = window.atob(base64)
   const outputArray = new Uint8Array(rawData.length)
@@ -156,10 +154,13 @@ function PushNotificationManager() {
   }, [])
 
   async function registerServiceWorker() {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      updateViaCache: 'none',
-    })
+    const registration = await navigator.serviceWorker.register(
+      new URL('../lib/service-worker.js', import.meta.url),
+      {
+        scope: '/',
+        updateViaCache: 'none',
+      }
+    )
     const sub = await registration.pushManager.getSubscription()
     setSubscription(sub)
   }
@@ -222,53 +223,57 @@ function PushNotificationManager() {
 
 ```jsx switcher
 function PushNotificationManager() {
-  const [isSupported, setIsSupported] = useState(false);
-  const [subscription, setSubscription] = useState(null);
-  const [message, setMessage] = useState('');
+  const [isSupported, setIsSupported] = useState(false)
+  const [subscription, setSubscription] = useState(null)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
-      setIsSupported(true);
-      registerServiceWorker();
+      setIsSupported(true)
+      registerServiceWorker()
     }
-  }, []);
+  }, [])
 
   async function registerServiceWorker() {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      updateViaCache: 'none',
-    });
-    const sub = await registration.pushManager.getSubscription();
-    setSubscription(sub);
+    const registration = await navigator.serviceWorker.register(
+      new URL('../lib/service-worker.js', import.meta.url),
+      {
+        scope: '/',
+        updateViaCache: 'none',
+      }
+    )
+    const sub = await registration.pushManager.getSubscription()
+    setSubscription(sub)
   }
 
   async function subscribeToPush() {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.ready
     const sub = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       ),
-    });
-    setSubscription(sub);
-    await subscribeUser(sub);
+    })
+    setSubscription(sub)
+    const serializedSub = JSON.parse(JSON.stringify(sub))
+    await subscribeUser(serializedSub)
   }
 
   async function unsubscribeFromPush() {
-    await subscription?.unsubscribe();
-    setSubscription(null);
-    await unsubscribeUser();
+    await subscription?.unsubscribe()
+    setSubscription(null)
+    await unsubscribeUser()
   }
 
   async function sendTestNotification() {
     if (subscription) {
-      await sendNotification(message);
-      setMessage('');
+      await sendNotification(message)
+      setMessage('')
     }
   }
 
   if (!isSupported) {
-    return <p>Push notifications are not supported in this browser.</p>;
+    return <p>Push notifications are not supported in this browser.</p>
   }
 
   return (
@@ -293,7 +298,7 @@ function PushNotificationManager() {
         </>
       )}
     </div>
-  );
+  )
 }
 ```
 
@@ -351,19 +356,17 @@ export default function Page() {
 
 ```jsx switcher
 function InstallPrompt() {
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false)
+  const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
-    setIsIOS(
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
-    );
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream)
 
-    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches);
-  }, []);
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches)
+  }, [])
 
   if (isStandalone) {
-    return null; // Don't show install button if already installed
+    return null // Don't show install button if already installed
   }
 
   return (
@@ -386,7 +389,7 @@ function InstallPrompt() {
         </p>
       )}
     </div>
-  );
+  )
 }
 
 export default function Page() {
@@ -395,7 +398,7 @@ export default function Page() {
       <PushNotificationManager />
       <InstallPrompt />
     </div>
-  );
+  )
 }
 ```
 
@@ -455,35 +458,35 @@ export async function sendNotification(message: string) {
 ```
 
 ```jsx filename="app/actions.js" switcher
-'use server';
+'use server'
 
-import webpush from 'web-push';
+import webpush from 'web-push'
 
 webpush.setVapidDetails(
   '<mailto:your-email@example.com>',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+)
 
-let subscription= null;
+let subscription = null
 
 export async function subscribeUser(sub) {
-  subscription = sub;
+  subscription = sub
   // In a production environment, you would want to store the subscription in a database
   // For example: await db.subscriptions.create({ data: sub })
-  return { success: true };
+  return { success: true }
 }
 
 export async function unsubscribeUser() {
-  subscription = null;
+  subscription = null
   // In a production environment, you would want to remove the subscription from the database
   // For example: await db.subscriptions.delete({ where: { ... } })
-  return { success: true };
+  return { success: true }
 }
 
 export async function sendNotification(message) {
   if (!subscription) {
-    throw new Error('No subscription available');
+    throw new Error('No subscription available')
   }
 
   try {
@@ -494,11 +497,11 @@ export async function sendNotification(message) {
         body: message,
         icon: '/icon.png',
       })
-    );
-    return { success: true };
+    )
+    return { success: true }
   } catch (error) {
-    console.error('Error sending push notification:', error);
-    return { success: false, error: 'Failed to send notification' };
+    console.error('Error sending push notification:', error)
+    return { success: false, error: 'Failed to send notification' }
   }
 }
 ```
@@ -544,9 +547,9 @@ VAPID_PRIVATE_KEY=your_private_key_here
 
 ### 5. Creating a Service Worker
 
-Create a `public/sw.js` file for your service worker:
+Create a `lib/service-worker.js` file for your service worker:
 
-```js filename="public/sw.js"
+```js filename="lib/service-worker.js"
 self.addEventListener('push', function (event) {
   if (event.data) {
     const data = event.data.json()
@@ -665,6 +668,6 @@ Learn more about defining [Content Security Policies](/docs/app/guides/content-s
 
 1. **Exploring PWA Capabilities**: PWAs can leverage various web APIs to provide advanced functionality. Consider exploring features like background sync, periodic background sync, or the File System Access API to enhance your application. For inspiration and up-to-date information on PWA capabilities, you can refer to resources like [What PWA Can Do Today](https://whatpwacando.today/).
 2. **Static Exports:** If your application requires not running a server, and instead using a static export of files, you can update the Next.js configuration to enable this change. Learn more in the [Next.js Static Export documentation](/docs/app/guides/static-exports). However, you will need to move from Server Actions to calling an external API, as well as moving your defined headers to your proxy.
-3. **Offline Support**: To provide offline functionality, one option is [Serwist](https://github.com/serwist/serwist) with Next.js. You can find an example of how to integrate Serwist with Next.js in their [documentation](https://github.com/serwist/serwist/tree/main/examples/next-basic). **Note:** this plugin currently requires webpack configuration.
+3. **Offline Support**: Next.js provides an experimental [`useOffline`](/docs/app/api-reference/functions/use-offline) hook and matching [`experimental.useOffline`](/docs/app/api-reference/config/next-config-js/useOffline) config for connectivity-aware UI and automatic retries of failed navigation and Server Action requests. For full service-worker-based offline caching, one option is [Serwist](https://github.com/serwist/serwist), which provides Next.js integration examples for both [Turbopack](https://github.com/serwist/serwist/tree/main/examples/next-turbo-basic) and [webpack](https://github.com/serwist/serwist/tree/main/examples/next-basic).
 4. **Security Considerations**: Ensure that your service worker is properly secured. This includes using HTTPS, validating the source of push messages, and implementing proper error handling.
 5. **User Experience**: Consider implementing progressive enhancement techniques to ensure your app works well even when certain PWA features are not supported by the user's browser.

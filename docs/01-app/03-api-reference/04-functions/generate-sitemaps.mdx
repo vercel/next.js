@@ -1,7 +1,7 @@
 ---
 title: generateSitemaps
 nav_title: generateSitemaps
-description: Learn how to use the generateSiteMaps function to create multiple sitemaps for your application.
+description: Learn how to use the generateSitemaps function to create multiple sitemaps for your application.
 related:
   title: Next Steps
   description: Learn how to create sitemaps for your Next.js application.

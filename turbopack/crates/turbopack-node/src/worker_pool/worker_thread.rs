@@ -5,8 +5,9 @@ use std::{
 
 use bytes::Bytes;
 use napi::{
-    Env,
-    threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    Status,
+    bindgen_prelude::Unknown,
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
 use parking_lot::Mutex;
@@ -18,47 +19,41 @@ use crate::worker_pool::{
     operation::{TaskMessage, WORKER_POOL_OPERATION},
 };
 
-static WORKER_CREATOR: OnceLock<ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>> =
-    OnceLock::new();
+type FatalThreadsafeFunction<T> = ThreadsafeFunction<
+    T,
+    Unknown<'static>,
+    T,
+    Status,
+    /* CalleeHandled */ false,
+    /* Weak */ true,
+>;
 
-static WORKER_TERMINATOR: OnceLock<
-    ThreadsafeFunction<NapiWorkerTermination, ErrorStrategy::Fatal>,
-> = OnceLock::new();
+static WORKER_CREATOR: OnceLock<FatalThreadsafeFunction<NapiWorkerCreation>> = OnceLock::new();
+
+static WORKER_TERMINATOR: OnceLock<FatalThreadsafeFunction<NapiWorkerTermination>> =
+    OnceLock::new();
 
 static PENDING_CREATIONS: OnceLock<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceLock::new();
 
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 #[napi]
-pub fn register_worker_scheduler(
-    env: Env,
-    creator: ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>,
-    terminator: ThreadsafeFunction<NapiWorkerTermination, ErrorStrategy::Fatal>,
+fn register_worker_scheduler(
+    #[napi(ts_arg_type = "(arg: NapiWorkerCreation) => any")] creator: FatalThreadsafeFunction<
+        NapiWorkerCreation,
+    >,
+    #[napi(ts_arg_type = "(arg: NapiWorkerTermination) => any")]
+    terminator: FatalThreadsafeFunction<NapiWorkerTermination>,
 ) -> napi::Result<()> {
-    // Unref ThreadsafeFunction so it doesn't keep the Node.js event loop alive.
-    // Call unref on the functions before storing them globally.
-    let creator_unrefed = {
-        let mut c = creator;
-        // Safe to call unref; if the napi crate provides this method it will drop the ref
-        // preventing the ThreadsafeFunction from keeping the loop alive.
-        let _ = c.unref(&env);
-        c
-    };
-    let terminator_unrefed = {
-        let mut t = terminator;
-        let _ = t.unref(&env);
-        t
-    };
-
     WORKER_CREATOR
-        .set(creator_unrefed)
+        .set(creator)
         .map_err(|_| napi::Error::from_reason("Worker creator already registered"))?;
     WORKER_TERMINATOR
-        .set(terminator_unrefed)
+        .set(terminator)
         .map_err(|_| napi::Error::from_reason("Worker terminator already registered"))
 }
 
-pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
+pub(super) async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
     let (tx, rx) = oneshot::channel();
 
     let napi_options = (&options).into();
@@ -92,7 +87,7 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 #[napi]
-pub fn worker_created(worker_id: u32) {
+fn worker_created(worker_id: u32) {
     if let Some(pending) = PENDING_CREATIONS.get()
         && let Some(tx) = pending.lock().pop_front()
     {
@@ -100,7 +95,7 @@ pub fn worker_created(worker_id: u32) {
     }
 }
 
-pub fn terminate_worker(options: Arc<WorkerOptions>, worker_id: u32) {
+pub(super) fn terminate_worker(options: Arc<WorkerOptions>, worker_id: u32) {
     if let Some(terminator) = WORKER_TERMINATOR.get() {
         terminator.call(
             NapiWorkerTermination {
@@ -113,12 +108,12 @@ pub fn terminate_worker(options: Arc<WorkerOptions>, worker_id: u32) {
 }
 
 #[napi(object)]
-pub struct NapiWorkerCreation {
+struct NapiWorkerCreation {
     pub options: NapiWorkerOptions,
 }
 
 #[napi(object)]
-pub struct NapiWorkerOptions {
+struct NapiWorkerOptions {
     pub filename: RcStr,
     pub cwd: RcStr,
 }
@@ -137,7 +132,7 @@ where
 }
 
 #[napi(object)]
-pub struct NapiWorkerTermination {
+struct NapiWorkerTermination {
     pub options: NapiWorkerOptions,
     pub worker_id: u32,
 }
@@ -145,7 +140,7 @@ pub struct NapiWorkerTermination {
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 #[napi(object)]
-pub struct NapiTaskMessage {
+struct NapiTaskMessage {
     pub task_id: u32,
     pub data: napi::bindgen_prelude::Buffer,
 }
@@ -155,7 +150,14 @@ impl From<NapiTaskMessage> for TaskMessage {
         let NapiTaskMessage { task_id, data } = message;
         TaskMessage {
             task_id,
-            data: Bytes::from_owner(data),
+            // Copy out of the JS Buffer rather than retaining a napi reference
+            // (`Bytes::from_owner`). Because `send_task_message` is a *sync*
+            // `#[napi]` fn, this runs on the env thread, so the `Buffer` is
+            // dropped here via a direct `napi_reference_unref`. It never crosses
+            // to a tokio/turbo-tasks thread, so the global CustomGC
+            // ThreadsafeFunction (napi-rs#3357) is never
+            // invoked for our task payloads.
+            data: Bytes::copy_from_slice(&data),
         }
     }
 }
@@ -163,7 +165,7 @@ impl From<NapiTaskMessage> for TaskMessage {
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 #[napi]
-pub async fn recv_task_message_in_worker(worker_id: u32) -> napi::Result<NapiTaskMessage> {
+async fn recv_task_message_in_worker(worker_id: u32) -> napi::Result<NapiTaskMessage> {
     let (task_id, message) = WORKER_POOL_OPERATION
         .recv_task_message_in_worker(worker_id)
         .await?;
@@ -176,8 +178,6 @@ pub async fn recv_task_message_in_worker(worker_id: u32) -> napi::Result<NapiTas
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 #[napi]
-pub async fn send_task_message(message: NapiTaskMessage) -> napi::Result<()> {
-    Ok(WORKER_POOL_OPERATION
-        .send_task_message(message.into())
-        .await?)
+fn send_task_message(message: NapiTaskMessage) -> napi::Result<()> {
+    Ok(WORKER_POOL_OPERATION.send_task_message(message.into())?)
 }

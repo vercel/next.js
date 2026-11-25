@@ -8,11 +8,16 @@ const { setTimeout } = require('timers/promises')
  * in-memory handler which expires entries at revalidate time.
  */
 
-/** @type {Map<string, import('next/dist/server/lib/cache-handlers/types').CacheEntry>} */
+/**
+ * @type {Map<string, import('next/dist/server/lib/cache-handlers/types').CacheEntry>}
+ */
 const store = new Map()
 
-/** @type {Map<string, Promise<void>>} */
+/**
+ * @type {Map<string, Promise<void>>}
+ */
 const pendingSets = new Map()
+const writeAttempts = new Map()
 
 /**
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
@@ -21,12 +26,16 @@ const cacheHandler = {
   async get(cacheKey, softTags) {
     const pendingPromise = pendingSets.get(cacheKey)
     if (pendingPromise) {
+      console.log('PersistentCacheHandler::get-pending', cacheKey)
       await pendingPromise
     }
 
-    // Simulate some latency when fetching from a remote cache.
-    await setTimeout(200)
-    const entry = store.get(cacheKey)
+    // A slow backend read can return a value captured before revalidation
+    // finishes.
+    const isSlowRead = cacheKey.includes('"slow-read-')
+    const snapshot = isSlowRead ? store.get(cacheKey) : undefined
+    await setTimeout(isSlowRead ? 2000 : 200)
+    const entry = isSlowRead ? snapshot : store.get(cacheKey)
     if (!entry) {
       console.log('PersistentCacheHandler::get', cacheKey, softTags, '-> miss')
       return undefined
@@ -47,7 +56,9 @@ const cacheHandler = {
   },
 
   async set(cacheKey, pendingEntry) {
-    /** @type {() => void} */
+    /**
+     * @type {() => void}
+     */
     let resolvePending = () => {}
     const pendingPromise = new Promise((resolve) => {
       resolvePending = /** @type {() => void} */ (resolve)
@@ -56,6 +67,17 @@ const cacheHandler = {
 
     try {
       const entry = await pendingEntry
+      const failureTag = entry.tags.find((tag) =>
+        tag.startsWith('caller-context:failed-refresh-')
+      )
+      if (failureTag !== undefined) {
+        const attempt = (writeAttempts.get(cacheKey) ?? 0) + 1
+        writeAttempts.set(cacheKey, attempt)
+        if (attempt === 2) {
+          console.log('PersistentCacheHandler::write-failed', failureTag)
+          throw new Error('expected background cache write failure')
+        }
+      }
       const [value, clonedValue] = entry.value.tee()
       entry.value = value
 
@@ -63,10 +85,22 @@ const cacheHandler = {
       const reader = clonedValue.getReader()
       while (!(await reader.read()).done) {}
 
+      if (entry.tags.some((tag) => tag.startsWith('write-completion-'))) {
+        console.log('PersistentCacheHandler::set-start', cacheKey)
+        // Simulate a slow cache backend after the entry has been collected.
+        await setTimeout(2000)
+      }
+
       store.set(cacheKey, entry)
       console.log('PersistentCacheHandler::set', cacheKey)
+      if (failureTag !== undefined) {
+        console.log('PersistentCacheHandler::write-completed', failureTag)
+      }
     } catch (err) {
       console.log('PersistentCacheHandler::set', cacheKey, 'failed', err)
+      if (cacheKey.includes('failed-refresh-')) {
+        throw err
+      }
     } finally {
       resolvePending()
       pendingSets.delete(cacheKey)

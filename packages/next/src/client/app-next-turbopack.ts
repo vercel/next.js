@@ -3,15 +3,17 @@ import { appBootstrap } from './app-bootstrap'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
 window.next.turbopack = true
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(self as any).__webpack_hash__ = ''
 
 // eslint-disable-next-line @next/internal/typechecked-require
-const instrumentationHooks = require('../lib/require-instrumentation-client')
+const instrumentationModules = require('../lib/require-instrumentation-client')
 
-appBootstrap((assetPrefix) => {
+appBootstrap(() => {
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   try {
-    hydrate(instrumentationHooks, assetPrefix)
+    hydrate(instrumentationModules)
   } finally {
     if (process.env.__NEXT_DEV_SERVER) {
       const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
@@ -22,7 +24,8 @@ appBootstrap((assetPrefix) => {
       renderAppDevOverlay(
         getOwnerStack,
         isRecoverableError,
-        enableCacheIndicator
+        enableCacheIndicator,
+        Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
       )
     }
   }

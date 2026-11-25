@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart, isRspack } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
@@ -146,6 +146,8 @@ describe.each([
 
         if (isTurbopack) {
           expect(cliOutput).toContain(`Ecmascript file had an error`)
+        } else if (isRspack) {
+          expect(cliOutput).toContain(`Failed to compile`)
         } else {
           expect(cliOutput).toContain(`Failed to compile`)
           expect(cliOutput).toContain(`Used by usingEval, usingEvalSync`)

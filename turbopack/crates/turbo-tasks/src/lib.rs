@@ -10,6 +10,7 @@
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(const_type_name)]
+#![feature(mpmc_channel)]
 
 pub mod backend;
 mod capture_future;
@@ -23,6 +24,7 @@ mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
+mod fixint;
 pub mod graph;
 mod id;
 mod id_factory;
@@ -35,9 +37,11 @@ pub mod macro_helpers;
 mod manager;
 pub mod mapped_read_ref;
 mod marker_trait;
+pub mod memory;
 pub mod message_queue;
 mod native_function;
 mod once_map;
+mod ordered_json;
 mod output;
 pub mod panic_hooks;
 pub mod parallel;
@@ -46,7 +50,8 @@ mod priority_runner;
 mod read_options;
 mod read_ref;
 pub mod registry;
-pub mod scope;
+pub mod scope_bounded;
+pub mod scope_unbounded;
 mod serialization_invalidation;
 pub mod small_duration;
 mod spawn;
@@ -56,8 +61,6 @@ pub mod task;
 mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
-mod tiny_vec;
-pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
 pub mod util;
@@ -73,10 +76,12 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[cfg(feature = "inline_execution_stats")]
+pub use crate::manager::InlineExecutionStats;
 #[cfg(feature = "task_dirty_cause")]
 pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
-    capture_future::TurboTasksPanic,
+    capture_future::{PersistentCacheUnreadablePanic, TurboTasksPanic, TurboTasksPanicKind},
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
@@ -89,6 +94,7 @@ pub use crate::{
         resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
     },
     error::PrettyPrintError,
+    fixint::{FixintU64, FixintU128},
     id::{
         ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
     },
@@ -98,16 +104,17 @@ pub use crate::{
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
-        CurrentCellRef, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
-        TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi, Unused,
-        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        CellKey, CellKeyKind, CurrentCellRef, GcRoot, InputResolution, ReadCellTracking,
+        ReadConsistency, ReadTracking, ScheduleKey, TaskPersistence, TaskPriority, TurboTasks,
+        TurboTasksApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
+        get_serialization_invalidator, mark_finished, mark_stateful, mark_top_level_task,
+        prevent_gc, run, run_once, run_once_with_reason, trait_call, try_turbo_tasks, turbo_tasks,
+        turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    read_options::{ReadCellOptions, ReadOutputOptions},
+    read_options::{ReadCellOptions, ReadOutcome, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
@@ -117,22 +124,26 @@ pub use crate::{
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
-    tiny_vec::TinyVec,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
     value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
-        CellId, Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, RawVc,
-        ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture, ResolveRawVcFuture,
-        ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict, ValueDefault, Vc,
-        VcCast, VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellNewMode,
-        VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
-        VcValueTypeCast,
+        CellId, Dynamic, KeyedReadRef, LazyReadRef, NonLocalValue, OperationValue, OperationVc,
+        OptionVcExt, OrdResolvedVc, RawVc, RawVcUnpacked, ReadKeyedReaderVcFuture,
+        ReadLazyReaderVcFuture, ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture,
+        ResolveRawVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict,
+        ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
+        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
+        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+/// Insertion ordered maps and sets with order sensitive equality, see [`auto_hash_map`].
+pub use auto_hash_map::{OrderedAutoMap, OrderedAutoSet};
+
+pub use crate::ordered_json::{OrderedJsonMap, OrderedJsonValue};
 pub type FxDashMap<K, V> = dashmap::DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 // Copied from indexmap! and indexset!
@@ -282,7 +293,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// - `unsafe impl NonLocalValue for X {}` (unless `contains_unresolved_vcs` is set).
 /// - `impl TaskInput for X` with a field-walking `is_transient`. By default `is_resolved` and
-///   `resolve_input` use the trait defaults (`true` and a [`CloneReady`] future — 8 bytes, no
+///   `resolve_input` use the trait defaults (`true` and a `CloneReady` future — 8 bytes, no
 ///   async-fn envelope); when `contains_unresolved_vcs` is set, both are emitted as
 ///   field-walking implementations as well.
 ///
@@ -290,7 +301,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct MyTaskInput { ... }
 /// ```
 ///
@@ -298,7 +309,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input(contains_unresolved_vcs)]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct VcCarrier { vc: Vc<...> }
 /// ```
 pub use turbo_tasks_macros::task_input;

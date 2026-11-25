@@ -4,7 +4,7 @@ use anyhow::Result;
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
@@ -69,7 +69,7 @@ async fn collect_style_modules_per_chunk_group(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<StyleCollection> {
-    let chunk_group_info = module_graph.chunk_group_info().await?;
+    let all_chunk_groups = module_graph.chunk_group_info().chunk_groups().await?;
     let batches_graph = module_graph
         .module_batches(chunking_context.batching_config())
         .await?;
@@ -80,8 +80,8 @@ async fn collect_style_modules_per_chunk_group(
     // Compute the style modules in each chunk group
     let mut chunk_group_state: Vec<ChunkGroupState> = Vec::new();
     let mut idx = 0;
-    for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-        let ordered_entries = batches_graph.get_ordered_entries(&chunk_group_info, i);
+    for (i, chunk_group) in all_chunk_groups.iter().enumerate() {
+        let ordered_entries = batches_graph.get_ordered_entries(chunk_group, i)?;
         let mut entries = Vec::with_capacity(chunk_group.entries_count());
         for entry in ordered_entries {
             entries.push(batches_graph.get_entry_index(entry).await?);
@@ -90,6 +90,8 @@ async fn collect_style_modules_per_chunk_group(
         let mut items_in_postorder = FxIndexSet::default();
         batches_graph.traverse_edges_from_entries_dfs(
             entries.iter().copied(),
+            // TODO this would be wrong with emitted CSS modules
+            None,
             &mut (),
             |parent_info, module, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
@@ -129,7 +131,7 @@ async fn collect_style_modules_per_chunk_group(
                     {
                         let style_type = *style_module.style_type().await?;
                         let mut info =
-                            ModuleInfo::new(style_type, module.ident().to_string().owned().await?);
+                            ModuleInfo::new(style_type, module.ident_string().owned().await?);
                         info.chunk_group_indices.insert(idx, styles.len());
                         info.index_sum += styles.len();
                         styles.insert(module);
@@ -265,7 +267,7 @@ pub async fn compute_style_groups(
         .map(|m| (m, false))
         .collect::<FxIndexMap<_, _>>();
 
-    let mut shared_chunk_items = FxIndexMap::default();
+    let mut shared_chunk_items = FxHashMap::default();
     for i in 0..ordered_modules_with_state.len() {
         let (&module, processed) = ordered_modules_with_state.get_index_mut(i).unwrap();
         if *processed {

@@ -21,7 +21,7 @@ describe('Basic CSS Module Support', () => {
     if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".index-module__KWKY6G__redText{color:red}"`)
+      ).toMatchInlineSnapshot(`".KWKY6G_redText{color:red}"`)
     } else {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -46,7 +46,7 @@ describe('Basic CSS Module Support', () => {
 
     if (isTurbopack) {
       expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-        `"index-module__KWKY6G__redText"`
+        `"KWKY6G_redText"`
       )
     } else {
       expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
@@ -73,7 +73,7 @@ describe('3rd Party CSS Module Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".index-module__KWKY6G__foo{position:relative}:is(.index-module__KWKY6G__foo .bar,.index-module__KWKY6G__foo .baz){height:100%;overflow:hidden}.index-module__KWKY6G__foo .lol{width:80%}.index-module__KWKY6G__foo>.lel{width:80%}"`
+        `".KWKY6G_foo{position:relative}:is(.KWKY6G_foo .bar,.KWKY6G_foo .baz){height:100%;overflow:hidden}.KWKY6G_foo .lol{width:80%}.KWKY6G_foo>.lel{width:80%}"`
       )
     } else {
       expect(
@@ -101,7 +101,7 @@ describe('3rd Party CSS Module Support', () => {
 
     if (isTurbopack) {
       expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-        `"index-module__KWKY6G__foo"`
+        `"KWKY6G_foo"`
       )
     } else {
       expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
@@ -137,7 +137,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssPreload = $('#nm-div')
     if (isTurbopack) {
       expect(cssPreload.text()).toMatchInlineSnapshot(
-        `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__PIKFPa__redText","default":{"redText":"index-module__PIKFPa__redText"}}"`
+        `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"PIKFPa_redText","default":{"redText":"PIKFPa_redText"}}"`
       )
     } else {
       expect(cssPreload.text()).toMatchInlineSnapshot(
@@ -158,7 +158,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".index-module__PIKFPa__redText{color:red}"`)
+      ).toMatchInlineSnapshot(`".PIKFPa_redText{color:red}"`)
     } else {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -220,7 +220,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".index-module__KWKY6G__className{color:#ff0;background:red}.index-module__KWKY6G__subClass{background:#00f;}"`
+        `".KWKY6G_className{color:#ff0;background:red}.KWKY6G_subClass{background:#00f;}"`
       )
     } else {
       expect(
@@ -282,7 +282,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".index-module__9fTRMq__home{background:red}"`)
+      ).toMatchInlineSnapshot(`"._9fTRMq_home{background:red}"`)
     } else {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -320,8 +320,8 @@ describe('Catch-all Route CSS Module Usage', () => {
     if (isTurbopack) {
       expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
         .toMatchInlineSnapshot(`
-       ".index-module__vy7_gG__home{background:red}
-       .\\35 5css-module__c9Qeqa__home{color:green}"
+       ".vy7_gG_home{background:red}
+       .c9Qeqa_home{color:green}"
       `)
     } else {
       expect(

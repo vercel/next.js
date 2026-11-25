@@ -369,6 +369,14 @@ export async function LightningCssLoader(
     : 0
   const includeMask = (1 | userIncludeMask) & ~userExcludeMask // 1 = Features.Nesting
 
+  // `@custom-media` is draft syntax and behind a parser flag
+  // (`drafts.customMedia`).
+  //
+  // See: https://lightningcss.dev/transpilation.html#custom-media-queries
+  const customMediaMask = featureNamesToMask(['custom-media-queries'])
+  const drafts =
+    (includeMask & customMediaMask) !== 0 ? { customMedia: true } : undefined
+
   try {
     const {
       code,
@@ -392,6 +400,7 @@ export async function LightningCssLoader(
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
       include: includeMask,
       exclude: userExcludeMask,
+      drafts,
     })
     let cssCodeAsString = code.toString()
 

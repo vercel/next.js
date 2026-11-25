@@ -11,13 +11,8 @@ describe('import-meta', () => {
       const testData = $('#test-data').text()
       const data = JSON.parse(testData)
 
-      if (isTurbopack) {
-        expect(data.url).toStartWith('file:///')
-        expect(data.url).toEndWith('/pages/index.tsx')
-      } else {
-        expect(data.url).toStartWith('file:///')
-        expect(data.url).toEndWith('/pages/index.tsx')
-      }
+      expect(data.url).toStartWith('file:///')
+      expect(data.url).toEndWith('/pages/index.tsx')
     })
 
     it('should work in browser', async () => {

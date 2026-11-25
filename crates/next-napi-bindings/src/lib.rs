@@ -34,31 +34,26 @@ DEALINGS IN THE SOFTWARE.
 
 use std::sync::Arc;
 
-use napi::bindgen_prelude::*;
-use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::Atom,
-    base::{Compiler, TransformOutput},
+    base::Compiler,
     common::{FilePathMapping, SourceMap},
 };
 
 pub mod code_frame;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod lockfile;
 pub mod mdx;
 pub mod minify;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
 pub mod react_compiler;
 pub mod rspack;
 pub mod transform;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbo_trace_server;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 pub mod util;
+
+pub use transform::TransformOutputResult;
 
 #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
@@ -69,7 +64,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[napi::module_init]
+#[napi_derive::module_init]
 fn init() {
     use std::{
         cell::RefCell,
@@ -81,17 +76,48 @@ fn init() {
         static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
     }
 
+    use napi::bindgen_prelude::create_custom_tokio_runtime;
     use tokio::runtime::Builder;
-    use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
+    use turbo_tasks::{
+        PersistentCacheUnreadablePanic, panic_hooks::handle_panic, parallel::available_parallelism,
+    };
     use turbo_tasks_malloc::TurboMalloc;
+    use turbopack_trace_utils::tokio_workers;
+
+    // The Rust std shipped with our nightly no longer runs the constructor that enables LSE
+    // atomics, so every atomic falls back to LL/SC and Turbopack is up to 3x slower on many-core
+    // arm64 machines. Do the same CPU check here. The check keeps CPUs without LSE on LL/SC.
+    #[cfg(all(
+        target_arch = "aarch64",
+        target_os = "linux",
+        target_feature = "outline-atomics",
+        not(target_feature = "lse"),
+    ))]
+    if std::arch::is_aarch64_feature_detected!("lse") {
+        unsafe extern "C" {
+            // Defined in compiler-builtins. Sets the flag its outline atomics check.
+            fn __rust_enable_lse();
+        }
+        unsafe { __rust_enable_lse() };
+    }
 
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {
         handle_panic(info);
+        // Report this before the panic unwinds: turbo-tasks may abort the process right after.
+        // (The default hook would also only print `Box<dyn Any>` for this payload.)
+        if let Some(panic) = info
+            .payload()
+            .downcast_ref::<PersistentCacheUnreadablePanic>()
+        {
+            next_api::turbopack_ctx::report_persistent_cache_unreadable(&panic.message);
+            return;
+        }
         prev_hook(info);
     }));
 
     let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
+    tokio_workers::set_worker_threads(worker_threads);
 
     let rt = Builder::new_multi_thread()
         .enable_all()
@@ -99,6 +125,7 @@ fn init() {
             TurboMalloc::thread_stop();
         })
         .on_thread_park(|| {
+            tokio_workers::park();
             LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
                 if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
                     swc_core::ecma::atoms::hstr::global_atom_store_gc();
@@ -107,6 +134,7 @@ fn init() {
             });
             TurboMalloc::thread_park();
         })
+        .on_thread_unpark(tokio_workers::unpark)
         .worker_threads(worker_threads)
         // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
         .max_blocking_threads(usize::MAX - worker_threads)
@@ -115,6 +143,18 @@ fn init() {
         .build()
         .unwrap();
     create_custom_tokio_runtime(rt);
+
+    // napi v2 permanently entered its tokio runtime context on the addon's main thread. Both
+    // these bindings and turbo-tasks (e.g. `PriorityRunner`) schedule tokio work from
+    // synchronous N-API calls and rely on that ambient context. napi v3 no longer provides it,
+    // so restore it: capture the runtime handle (this also forces napi to adopt the custom
+    // runtime registered above) and enter it for the lifetime of this thread.
+    //
+    // TODO: Leaking the guard keeps the runtime alive for the whole process, so tokio never shuts
+    // down. Fix the callers that rely on an ambient runtime handle so that this can be dropped.
+    let handle =
+        napi::bindgen_prelude::within_runtime_if_available(tokio::runtime::Handle::current);
+    std::mem::forget(Box::leak(Box::new(handle)).enter());
 }
 
 #[inline]
@@ -122,36 +162,4 @@ fn get_compiler() -> Compiler {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
     Compiler::new(cm)
-}
-
-pub fn complete_output(
-    env: &Env,
-    output: TransformOutput,
-    eliminated_packages: FxHashSet<Atom>,
-    use_cache_telemetry_tracker: FxHashMap<String, usize>,
-) -> napi::Result<Object> {
-    let mut js_output = env.create_object()?;
-    js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
-    if let Some(map) = output.map {
-        js_output.set_named_property("map", env.create_string_from_std(map)?)?;
-    }
-    if !eliminated_packages.is_empty() {
-        js_output.set_named_property(
-            "eliminatedPackages",
-            env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
-        )?;
-    }
-    if !use_cache_telemetry_tracker.is_empty() {
-        js_output.set_named_property(
-            "useCacheTelemetryTracker",
-            env.create_string_from_std(serde_json::to_string(
-                &use_cache_telemetry_tracker
-                    .iter()
-                    .map(|(k, v)| (k.clone(), *v))
-                    .collect::<Vec<_>>(),
-            )?)?,
-        )?;
-    }
-
-    Ok(js_output)
 }

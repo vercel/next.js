@@ -19,6 +19,8 @@ import {
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME,
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -81,13 +83,14 @@ import {
   createNextApiEsmAliases,
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
-import { hasCustomExportOutput } from '../export/utils'
+import { getBuildDistDir } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
 import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
 import {
+  INSTRUMENTATION_INJECT_STUB_PATH,
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
@@ -294,24 +297,37 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
-const NEGATIVE_UNSAFE_CACHE_REGEX = new RegExp(
-  `^(?!.*${UNSAFE_CACHE_REGEX.source}).*$`
-)
-
-export function getCacheDirectories(
-  configs: webpack.Configuration[]
-): Set<string> {
-  return new Set(
-    configs
-      .map((cfg) => {
-        if (typeof cfg.cache === 'object' && cfg.cache.type === 'filesystem') {
-          return cfg.cache.cacheDirectory
-        }
-        return null
-      })
-      .filter((dir) => dir != null)
-  )
-}
+export const getCacheDirectories = process.env.NEXT_RSPACK
+  ? (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            const cache = cfg.cache as any
+            if (typeof cache === 'object' && cache.type === 'persistent') {
+              return cache.storage.directory
+            }
+            return null
+          })
+          .filter((dir): dir is string => dir != null)
+      )
+    }
+  : (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            if (
+              typeof cfg.cache === 'object' &&
+              cfg.cache.type === 'filesystem'
+            ) {
+              return cfg.cache.cacheDirectory
+            }
+            return null
+          })
+          .filter((dir) => dir != null)
+      )
+    }
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -323,11 +339,10 @@ export default async function getBaseWebpackConfig(
     dev = false,
     entrypoints,
     deferredEntrypoints,
+    deferredEntrySourceDirectories,
     isDevFallback = false,
     pagesDir,
     rewrites,
-    originalRewrites,
-    originalRedirects,
     runWebpackSpan,
     appDir,
     middlewareMatchers,
@@ -350,11 +365,10 @@ export default async function getBaseWebpackConfig(
     dev?: boolean
     entrypoints: webpack.EntryObject
     deferredEntrypoints?: webpack.EntryObject
+    deferredEntrySourceDirectories?: string[]
     isDevFallback?: boolean
     pagesDir: string | undefined
     rewrites: CustomRoutes['rewrites']
-    originalRewrites: CustomRoutes['rewrites'] | undefined
-    originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     appDir: string | undefined
     middlewareMatchers?: ProxyMatcher[]
@@ -380,6 +394,10 @@ export default async function getBaseWebpackConfig(
   const isNodeServer = compilerType === COMPILER_NAMES.server
 
   const isRspack = Boolean(process.env.NEXT_RSPACK)
+  const CompleteRuntimePlugin = isRspack
+    ? // @ts-ignore @next/rspack-core extends Rspack's core export with Next-only native plugins.
+      bundler.ForceCompleteRuntimePlugin
+    : ForceCompleteRuntimePlugin
 
   const FlightClientEntryPlugin =
     isRspack && process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN
@@ -404,10 +422,8 @@ export default async function getBaseWebpackConfig(
 
   const babelConfigFile = getBabelConfigFile(dir)
 
-  if (!dev && hasCustomExportOutput(config)) {
-    config.distDir = '.next'
-  }
-  const distDir = path.join(dir, config.distDir)
+  const buildDistDir = dev ? config.distDir : getBuildDistDir(config)
+  const distDir = path.join(dir, buildDistDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
@@ -531,12 +547,7 @@ export default async function getBaseWebpackConfig(
           hasReactRefresh: dev && isClient,
           transpilePackages: finalTranspilePackages,
           supportedBrowsers,
-          swcCacheDir: path.join(
-            dir,
-            config?.distDir ?? '.next',
-            'cache',
-            'swc'
-          ),
+          swcCacheDir: path.join(distDir, 'cache', 'swc'),
           serverReferenceHashSalt: encryptionKey,
 
           // rspack specific options
@@ -571,7 +582,7 @@ export default async function getBaseWebpackConfig(
         jsConfig,
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
-        swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        swcCacheDir: path.join(distDir, 'cache', 'swc'),
         serverReferenceHashSalt: encryptionKey,
         ...extraOptions,
       } satisfies SWCLoaderOptions,
@@ -798,7 +809,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
-    ...((isRspack && jsConfigPath
+    ...(isRspack && jsConfigPath
       ? {
           // Skip paths that are routed to a .d.ts file
           restrictions: [/^(?!.*\.d\.ts$).*$/],
@@ -806,7 +817,13 @@ export default async function getBaseWebpackConfig(
             configFile: jsConfigPath,
           },
         }
-      : {}) as any),
+      : {}),
+  }
+
+  // Resolve server-relative imports (e.g. `/styles/foo`) from the app
+  // directory. Webpack defaults this to `context`; Rspack needs it explicit.
+  if (isRspack) {
+    resolveConfig!.roots = [dir]
   }
 
   // Packages which will be split into the 'framework' chunk.
@@ -966,6 +983,8 @@ export default async function getBaseWebpackConfig(
           // If esmExternals is not same as default value, it represents customized usage
           ['esmExternals', config.experimental.esmExternals !== true],
           SWCBinaryTarget,
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         ].filter<[Feature, boolean]>(Boolean as any)
       )
     )
@@ -1322,8 +1341,10 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : '-[contenthash]'
           }.js`,
-      library: isClient || isEdgeServer ? '_N_E' : undefined,
-      libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
+      library:
+        isClient || isEdgeServer
+          ? { name: '_N_E', type: 'assign' }
+          : { type: 'commonjs2' },
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
       hotUpdateMainFilename:
         'static/webpack/[fullhash].[runtime].hot-update.json',
@@ -1348,9 +1369,7 @@ export default async function getBaseWebpackConfig(
       hashDigestLength: 16,
       // Webpack requires hashSalt to be a non-empty string; omit it entirely
       // when no salt is configured.
-      ...(config.experimental?.outputHashSalt
-        ? { hashSalt: config.experimental.outputHashSalt }
-        : {}),
+      ...(config.outputHashSalt ? { hashSalt: config.outputHashSalt } : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1361,6 +1380,7 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-instrumentation-client-loader',
+        'next-instrumentation-inject-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
@@ -1591,6 +1611,8 @@ export default async function getBaseWebpackConfig(
                 resolve: {
                   fullySpecified: false,
                 },
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
               } as any,
             ]
           : []),
@@ -1798,7 +1820,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
-                  outputHashSalt: config.experimental?.outputHashSalt,
+                  outputHashSalt: config.outputHashSalt,
                 },
               },
             ]
@@ -1930,16 +1952,27 @@ export default async function getBaseWebpackConfig(
           sideEffects: false,
         },
         // The placeholder file aliased from `private-next-instrumentation-client`.
-        // The loader replaces its contents with a synthetic module that
-        // requires each `instrumentationClientInject` entry, then re-exports
-        // the user's `instrumentation-client.{pageExt}` (composing
-        // `onRouterTransitionStart` hooks across all of them).
+        // The loader replaces its contents with a synthetic module containing
+        // each `instrumentationClientInject` entry, followed by the user's
+        // `instrumentation-client.{pageExt}` module.
         {
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
           use: {
             loader: 'next-instrumentation-client-loader',
             options: {
-              injects: JSON.stringify(config.instrumentationClientInject),
+              modules: config.instrumentationClientInject,
+            },
+          },
+        },
+        // The server instrumentation entry when `instrumentationInject` is set.
+        // The loader emits one module that runs every entry's hooks, then the
+        // project's own instrumentation file.
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-inject-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-inject-loader',
+            options: {
+              modules: config.instrumentationInject ?? [],
             },
           },
         },
@@ -1962,12 +1995,7 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-barrel-loader',
                 options: {
                   names,
-                  swcCacheDir: path.join(
-                    dir,
-                    config?.distDir ?? '.next',
-                    'cache',
-                    'swc'
-                  ),
+                  swcCacheDir: path.join(distDir, 'cache', 'swc'),
                 },
                 // This is part of the request value to serve as the module key.
                 // The barrel loader are no-op re-exported modules keyed by
@@ -1987,11 +2015,21 @@ export default async function getBaseWebpackConfig(
       ],
     },
     plugins: [
+      !isClient &&
+        config.instrumentationInject?.length &&
+        new bundler.NormalModuleReplacementPlugin(
+          new RegExp(
+            `^${escapeStringRegexp(INSTRUMENTATION_INJECT_STUB_PATH)}$`
+          ),
+          ({ createData }) => {
+            if (createData?.resource === INSTRUMENTATION_INJECT_STUB_PATH) {
+              createData.context = dir
+            }
+          }
+        ),
       // In prod Webpack will already have a runtime for all reachable chunks.
       // During dev, it will update the runtime as chunks come in which may be too late for Flight.
-      //
-      // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
-      dev && !isRspack && new ForceCompleteRuntimePlugin(),
+      dev && new CompleteRuntimePlugin(),
       // Handle deferred entries - must be added early to intercept entry processing
       !isRspack &&
         config.experimental.deferredEntries?.length &&
@@ -2000,6 +2038,7 @@ export default async function getBaseWebpackConfig(
           dev,
           config,
           deferredEntrypoints,
+          deferredEntrySourceDirectories,
         }),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
@@ -2031,7 +2070,7 @@ export default async function getBaseWebpackConfig(
       dev &&
         isClient &&
         (isRspack
-          ? // eslint-disable-next-line
+          ? // eslint-disable-next-line @next/internal/typechecked-require
             new (require('next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshRspackPlugin').default)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
@@ -2166,6 +2205,29 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      isClient &&
+        hasAppDir &&
+        config.experimental.externalBrowserRuntime === true &&
+        new CopyFilePlugin({
+          // React only publishes this standalone runtime on the experimental
+          // channel, which `experimental.externalBrowserRuntime` opts into via
+          // `needsExperimentalReact`. Keep it small and independent of the
+          // framework bundle so it can reveal streamed Suspense boundaries
+          // before the framework loads or hydration begins.
+          filePath: require.resolve(
+            '../compiled/react-dom-experimental/unstable_server-external-runtime'
+          ),
+          cacheKey: process.env.__NEXT_VERSION as string,
+          name: `static/chunks/${CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME}${
+            dev ? '' : '-[hash]'
+          }.js`,
+          minimize: false,
+          info: {
+            [CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL]: 1,
+            // This file is already minified
+            minimized: true,
+          },
+        }),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2183,13 +2245,11 @@ export default async function getBaseWebpackConfig(
         !isClient &&
         new NextTypesPlugin({
           dir,
-          distDir: config.distDir,
+          distDir: buildDistDir,
           appDir,
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          originalRewrites,
-          originalRedirects,
         }),
       !dev &&
         isClient &&
@@ -2236,6 +2296,8 @@ export default async function getBaseWebpackConfig(
           dir,
           defaultOverrides,
         }),
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     ].filter(Boolean as any as ExcludesFalse),
   }
 
@@ -2363,6 +2425,8 @@ export default async function getBaseWebpackConfig(
     optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
+    instrumentationInject: config.instrumentationInject,
+    instrumentationClientInject: config.instrumentationClientInject,
     trailingSlash: config.trailingSlash,
     devIndicatorsPosition:
       config.devIndicators === false
@@ -2452,16 +2516,18 @@ export default async function getBaseWebpackConfig(
       buildDependencies.push(jsConfigPath)
     }
 
-    // @ts-ignore
-    webpack5Config.experiments.cache = {
+    const rspackCacheKey = `${compilerType}${isDevFallback ? '-fallback' : ''}`
+    webpack5Config.cache = {
       type: 'persistent',
       buildDependencies,
       storage: {
         type: 'filesystem',
-        directory: cache.cacheDirectory,
+        directory: path.join(distDir, 'cache', 'rspack', rspackCacheKey),
       },
-      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
-    }
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}|${rspackCacheKey}`,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+    } as any
   }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
@@ -2540,6 +2606,8 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
@@ -2548,29 +2616,20 @@ export default async function getBaseWebpackConfig(
     deploymentId: config.deploymentId,
   })
 
-  // @ts-ignore Cache exists
-  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
-    isDevFallback ? '-fallback' : ''
-  }`
+  if (!isRspack) {
+    // @ts-ignore Cache exists
+    webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+      isDevFallback ? '-fallback' : ''
+    }`
+  }
 
-  if (dev) {
+  if (dev && !isRspack) {
     if (webpackConfig.module) {
-      if (isRspack) {
-        ;(webpackConfig.module.unsafeCache as any) = NEGATIVE_UNSAFE_CACHE_REGEX
-      } else {
-        webpackConfig.module.unsafeCache = (module: any) =>
-          !UNSAFE_CACHE_REGEX.test(module.resource)
-      }
+      webpackConfig.module.unsafeCache = (module: any) =>
+        !UNSAFE_CACHE_REGEX.test(module.resource)
     } else {
-      if (isRspack) {
-        ;(webpackConfig.module as any) = {
-          unsafeCache: NEGATIVE_UNSAFE_CACHE_REGEX,
-        }
-      } else {
-        webpackConfig.module = {
-          unsafeCache: (module: any) =>
-            !UNSAFE_CACHE_REGEX.test(module.resource),
-        }
+      webpackConfig.module = {
+        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
       }
     }
   }
@@ -2630,12 +2689,32 @@ export default async function getBaseWebpackConfig(
       webpack5Config.experiments.lazyCompilation.entries = false
     }
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
   }
+
+  if (isRspack && 'CI' in process.env) {
+    // Rspack enables stats colors by default in CI, which can leak ANSI reset
+    // codes into error messages. Keep explicit user stats.colors unchanged.
+    const { stats } = webpackConfig
+
+    if (stats === undefined) {
+      webpackConfig.stats = { colors: false }
+    } else if (
+      stats &&
+      typeof stats === 'object' &&
+      !Array.isArray(stats) &&
+      stats.colors === undefined
+    ) {
+      stats.colors = false
+    }
+  }
+
   const rules = webpackConfig.module?.rules || []
 
   const customSvgRule = rules.find(
@@ -2721,7 +2800,7 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.module.rules = [
-      ...(topRules as any),
+      ...topRules,
       {
         oneOf: [...innerRules, fileLoader],
       },
@@ -2729,7 +2808,11 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat with webpack-dev-middleware options object
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if (typeof (config as any).webpackDevMiddleware === 'function') {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const options = (config as any).webpackDevMiddleware({
       watchOptions: webpackConfig.watchOptions,
     })
@@ -2800,6 +2883,8 @@ export default async function getBaseWebpackConfig(
         if (!r || typeof r !== 'object') return
         if (Array.isArray(r.oneOf)) {
           r.oneOf = r.oneOf.filter(
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             (o) => (o as any)[Symbol.for('__next_css_remove')] !== true
           )
         }
@@ -2808,6 +2893,8 @@ export default async function getBaseWebpackConfig(
     if (webpackConfig.plugins?.length) {
       // Disable CSS Extraction Plugin
       webpackConfig.plugins = webpackConfig.plugins.filter(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (p) => (p as any).__next_css_remove !== true
       )
     }
@@ -2815,6 +2902,8 @@ export default async function getBaseWebpackConfig(
       // Disable CSS Minifier
       webpackConfig.optimization.minimizer =
         webpackConfig.optimization.minimizer.filter(
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           (e) => (e as any).__next_css_remove !== true
         )
     }

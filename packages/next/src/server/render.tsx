@@ -103,10 +103,9 @@ import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
-import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
-import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
+import { getScriptNonceFromHeaders } from './app-render/get-script-nonce-from-header'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -308,7 +307,7 @@ export type PagesSharedContext = {
   deploymentId: string | undefined
 
   /**
-   * NextConfig.deploymentId if experimental.supportsImmutableAssets is not true, otherwise undefined.
+   * NextConfig.deploymentId if supportsImmutableAssets is not true, otherwise undefined.
    */
   clientAssetToken: string | undefined
 
@@ -423,8 +422,9 @@ export function errorToJSON(err: Error) {
     source,
     message: stripAnsi(err.message),
     stack: err.stack,
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     digest: (err as any).digest,
-    __NEXT_ERROR_CODE: extractNextErrorCode(err),
   }
 }
 
@@ -467,7 +467,7 @@ export async function renderToHTMLImpl(
   renderContext: PagesRenderContext
 ): Promise<RenderResult> {
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
-  setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+  setLazyProp({ req: req }, 'cookies', getCookieParser(req.headers))
 
   // cssCacheBuster is a workaround for a Safari bug
   // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS
@@ -532,16 +532,26 @@ export async function renderToHTMLImpl(
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.isBuildTimePrerendering
   const defaultAppGetInitialProps =
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     App.getInitialProps === (App as any).origGetInitialProps
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const hasPageScripts = (Component as any)?.unstable_scriptLoader
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
   const defaultErrorGetInitialProps =
     pathname === '/_error' &&
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     (Component as any).getInitialProps ===
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (Component as any).origGetInitialProps
 
   if (
@@ -670,6 +680,8 @@ export async function renderToHTMLImpl(
     'getServerSideProps',
     'getStaticPaths',
   ]) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((Component as any)?.[methodName]) {
       throw new Error(
         `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
@@ -740,12 +752,7 @@ export async function renderToHTMLImpl(
       .map((script: any) => script.props)
   }
 
-  const csp =
-    req.headers['content-security-policy'] ||
-    req.headers['content-security-policy-report-only']
-
-  const nonce =
-    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+  const nonce = getScriptNonceFromHeaders(req.headers)
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
@@ -931,7 +938,11 @@ export async function renderToHTMLImpl(
 
     if (process.env.NODE_ENV !== 'production') {
       if (
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         typeof (data as any).notFound !== 'undefined' &&
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         typeof (data as any).redirect !== 'undefined'
       ) {
         throw new Error(
@@ -966,11 +977,15 @@ export async function renderToHTMLImpl(
         )
       }
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(data as any).props = {
         __N_REDIRECT: data.redirect.destination,
         __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
       }
       if (typeof data.redirect.basePath !== 'undefined') {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
       metadata.isRedirect = true
@@ -979,6 +994,8 @@ export async function renderToHTMLImpl(
     if (
       (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
       !metadata.isNotFound &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -1142,6 +1159,8 @@ export async function renderToHTMLImpl(
       throw new Error(GSSP_NO_RETURNED_VALUE)
     }
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((data as any).props instanceof Promise) {
       deferredContent = true
     }
@@ -1150,11 +1169,15 @@ export async function renderToHTMLImpl(
       (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
     )
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((data as any).unstable_notFound) {
       throw new Error(
         `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
       )
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((data as any).unstable_redirect) {
       throw new Error(
         `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
@@ -1181,22 +1204,30 @@ export async function renderToHTMLImpl(
 
     if ('redirect' in data && typeof data.redirect === 'object') {
       checkRedirectValues(data.redirect as Redirect, req, 'getServerSideProps')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(data as any).props = {
         __N_REDIRECT: data.redirect.destination,
         __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
       }
       if (typeof data.redirect.basePath !== 'undefined') {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
       metadata.isRedirect = true
     }
 
     if (deferredContent) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(data as any).props = await (data as any).props
     }
 
     if (
       (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -1205,6 +1236,8 @@ export async function renderToHTMLImpl(
       )
     }
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
     metadata.pageData = props
   }
@@ -1275,9 +1308,10 @@ export async function renderToHTMLImpl(
     // 1. Using `Document.getInitialProps` in the Edge runtime.
     // 2. Using the class component `Document` with concurrent features.
 
-    const BuiltinFunctionalDocument: DocumentType | undefined = (
-      Document as any
-    )[NEXT_BUILTIN_DOCUMENT]
+    const BuiltinFunctionalDocument: DocumentType | undefined =
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      (Document as any)[NEXT_BUILTIN_DOCUMENT]
 
     if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
@@ -1397,6 +1431,8 @@ export async function renderToHTMLImpl(
       if (documentInitialPropsRes === null) {
         content = null
       } else {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         const { docProps } = documentInitialPropsRes as any
         content = docProps.html
       }
@@ -1408,9 +1444,11 @@ export async function renderToHTMLImpl(
     }
 
     // @ts-ignore: documentInitialPropsRes is set
-    const { docProps } = (documentInitialPropsRes as any) || {}
+    const { docProps } = documentInitialPropsRes || {}
     const documentElement = (htmlProps: any) => {
       if (process.env.NEXT_RUNTIME === 'edge') {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         return (Document as any)()
       } else {
         return <Document {...htmlProps} {...docProps} />
@@ -1489,6 +1527,9 @@ export async function renderToHTMLImpl(
     locales,
   } = renderOpts
   const htmlProps: HtmlProps = {
+    initialHmrVersion: process.env.__NEXT_DEV_SERVER
+      ? getRequestMeta(req, 'initialHmrVersion')
+      : undefined,
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page: pathname, // The rendered page
@@ -1572,6 +1613,8 @@ export async function renderToHTMLImpl(
     const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
 
     for (const comp of expectedDocComponents) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if (!(docComponentsRendered as any)[comp]) {
         nonRenderedComponents.push(comp)
       }

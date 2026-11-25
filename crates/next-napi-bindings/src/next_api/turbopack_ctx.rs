@@ -5,12 +5,19 @@ use std::{
     fs::OpenOptions,
     io::{self, BufRead, Write},
     path::PathBuf,
-    sync::{Arc, LazyLock, Mutex},
-    time::Instant,
+    sync::{
+        Arc, LazyLock, Mutex, PoisonError,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::{Duration, Instant},
 };
 
 use anyhow::Result;
-use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
+use napi::{
+    Env, Status, Unknown,
+    bindgen_prelude::{FunctionRef, Promise},
+    threadsafe_function::ThreadsafeFunction,
+};
 use napi_derive::napi;
 use owo_colors::OwoColorize;
 use serde::Serialize;
@@ -21,9 +28,12 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, TurboTasksBackend,
-    db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, StartupCacheState,
+    TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
+    turbo_backing_storage,
 };
+
+use crate::next_api::cache_unreadable_banner::cache_unreadable_banner;
 
 pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 
@@ -35,7 +45,7 @@ pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 /// It should not be passed to a [`turbo_tasks::function`]. For serializable information about the
 /// project, use the [`next_api::project::Project`] type instead.
 ///
-/// This type is a wrapper around an [`Arc`] and is therefore cheaply clonable. It is [`Send`] and
+/// This type is a wrapper around an [`Arc`] and is therefore cheaply cloneable. It is [`Send`] and
 /// [`Sync`].
 #[derive(Clone)]
 pub struct NextTurbopackContext {
@@ -89,13 +99,21 @@ impl NextTurbopackContext {
                 None
             };
 
-        log_internal_error_and_inform(err);
+        if let Some(cache_unreadable_message) = persistent_cache_unreadable_message(err) {
+            // Usually already reported by the panic hook. Not when the error was e.g. restored
+            // from the cache instead of panicking in this process.
+            if !REPORTED_CACHE_UNREADABLE.load(Ordering::Relaxed) {
+                report_persistent_cache_unreadable(&cache_unreadable_message);
+            }
+        } else {
+            log_internal_error_and_inform(err);
+        }
 
         async move {
             this.inner
                 .napi_callbacks
                 .throw_turbopack_internal_error
-                .call_async::<()>(Ok(TurbopackInternalErrorOpts {
+                .call_async(Ok(TurbopackInternalErrorOpts {
                     message,
                     anonymized_location: panic_location,
                 }))
@@ -123,7 +141,7 @@ impl NextTurbopackContext {
     /// Calls the `onBeforeDeferredEntries` callback in Node.js if one was provided.
     pub async fn on_before_deferred_entries(&self) -> napi::Result<()> {
         if let Some(callback) = &self.inner.napi_callbacks.on_before_deferred_entries {
-            let promise = callback.call_async::<Promise<()>>(Ok(())).await?;
+            let promise = callback.call_async(Ok(())).await?;
             promise.await?;
         }
         Ok(())
@@ -134,7 +152,7 @@ impl NextTurbopackContext {
 ///
 /// This can be converted into a [`NapiNextTurbopackCallbacks`] with
 /// [`NapiNextTurbopackCallbacks::from_js`].
-#[napi(object)]
+#[napi(object, object_to_js = false)]
 pub struct NapiNextTurbopackCallbacksJsObject {
     /// Called when we've encountered a bug in Turbopack and not in the user's code. Constructs and
     /// throws a `TurbopackInternalError` type. Logs to anonymized telemetry.
@@ -143,11 +161,11 @@ pub struct NapiNextTurbopackCallbacksJsObject {
     /// there's a runtime conversion error. This should never happen, but if it does, the function
     /// can throw it instead.
     #[napi(ts_type = "(conversionError: Error | null, opts: TurbopackInternalErrorOpts) => never")]
-    pub throw_turbopack_internal_error: JsFunction,
+    pub throw_turbopack_internal_error: FunctionRef<Unknown<'static>, ()>,
 
     /// Called before deferred entries are processed in a production build.
     #[napi(ts_type = "() => Promise<void>")]
-    pub on_before_deferred_entries: Option<JsFunction>,
+    pub on_before_deferred_entries: Option<FunctionRef<(), Promise<()>>>,
 }
 
 /// A collection of helper JavaScript functions passed into
@@ -163,8 +181,27 @@ pub struct NapiNextTurbopackCallbacks {
     // to all of our async entrypoints, and would be complicated by `FunctionRef` being `!Send` (I
     // think it could be `Send`, as long as `napi::Env` is checked at call-time, which it should be
     // anyways).
-    throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts>,
-    on_before_deferred_entries: Option<ThreadsafeFunction<()>>,
+    //
+    // `Weak = true` so these ThreadsafeFunctions don't keep the Node.js event loop alive after
+    // shutdown.
+    throw_turbopack_internal_error: ThreadsafeFunction<
+        TurbopackInternalErrorOpts,
+        (),
+        TurbopackInternalErrorOpts,
+        Status,
+        /* CalleeHandled */ true,
+        /* Weak */ true,
+    >,
+    on_before_deferred_entries: Option<
+        ThreadsafeFunction<
+            (),
+            Promise<()>,
+            (),
+            Status,
+            /* CalleeHandled */ true,
+            /* Weak */ true,
+        >,
+    >,
 }
 
 /// Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`.
@@ -176,23 +213,28 @@ pub struct TurbopackInternalErrorOpts {
 
 impl NapiNextTurbopackCallbacks {
     pub fn from_js(env: &Env, obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
-        let mut throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts> =
-            obj.throw_turbopack_internal_error
-                .create_threadsafe_function(0, |ctx| {
-                    // Avoid unpacking the struct into positional arguments, we really want to make
-                    // sure we don't incorrectly order arguments and accidentally log a potentially
-                    // PII-containing message in anonymized telemetry.
-                    Ok(vec![ctx.value])
-                })?;
-        // Unref so this ThreadsafeFunction doesn't keep the Node.js event loop alive
-        // after shutdown.
-        let _ = throw_turbopack_internal_error.unref(env);
+        let throw_turbopack_internal_error = obj
+            .throw_turbopack_internal_error
+            .borrow_back(env)?
+            .build_threadsafe_function::<TurbopackInternalErrorOpts>()
+            .callee_handled::<true>()
+            .weak::<true>()
+            .build_callback(|ctx| {
+                // Avoid unpacking the struct into positional arguments, we really want to make
+                // sure we don't incorrectly order arguments and accidentally log a potentially
+                // PII-containing message in anonymized telemetry.
+                Ok(ctx.value)
+            })?;
 
         let on_before_deferred_entries = obj
             .on_before_deferred_entries
             .map(|callback| {
-                let mut f = callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))?;
-                let _ = f.unref(env);
+                let f = callback
+                    .borrow_back(env)?
+                    .build_threadsafe_function::<()>()
+                    .callee_handled::<true>()
+                    .weak::<true>()
+                    .build_callback(|_| Ok(()))?;
                 Ok::<_, napi::Error>(f)
             })
             .transpose()?;
@@ -210,6 +252,11 @@ pub fn cache_describe(next_version: &str) -> String {
     format!("v{next_version}-{}", env!("VERGEN_GIT_SHA"))
 }
 
+#[napi]
+pub fn turbopack_cache_version(next_version: String) -> String {
+    cache_describe(&next_version)
+}
+
 /// Returns version info derived from the supplied Next.js version and compile-time git metadata.
 ///
 /// The `dirty` flag is only set when not running in CI (`CI` env var unset at build time) and the
@@ -224,23 +271,53 @@ pub fn git_version_info(describe: &str) -> GitVersionInfo<'_> {
 
 /// Turbopack's memory eviction strategy for the persistent cache, mirroring the
 /// `experimental.turbopackMemoryEviction` config option.
+///
+/// This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+/// depend on napi). Keep the variants in sync; the `From` impl below is
+/// exhaustive, so adding a variant to one enum forces updating the other.
 #[napi(string_enum = "lowercase")]
 #[derive(Debug, PartialEq, Eq)]
 pub enum MemoryEvictionMode {
     /// Never evict.
     Off,
+    /// Evict after a snapshot only once enough memory has been allocated since
+    /// the last eviction to justify the cost of restoring evicted tasks.
+    Auto,
     /// After every snapshot, evict all evictable tasks from memory, reloading
     /// them from disk on demand.
     Full,
 }
 
-impl MemoryEvictionMode {
-    /// Whether this mode evicts evictable tasks after each snapshot.
-    fn evicts_after_snapshot(self) -> bool {
-        match self {
-            Self::Off => false,
-            Self::Full => true,
+impl From<MemoryEvictionMode> for EvictionMode {
+    fn from(mode: MemoryEvictionMode) -> Self {
+        match mode {
+            MemoryEvictionMode::Off => EvictionMode::Off,
+            MemoryEvictionMode::Auto => EvictionMode::Auto,
+            MemoryEvictionMode::Full => EvictionMode::Full,
         }
+    }
+}
+
+/// Tuning for Turbopack's reference-counting GC, mirroring the
+/// `experimental.turbopackGc` config option.
+#[napi(object)]
+#[derive(Debug, Clone, Copy)]
+pub struct NapiTurbopackGcOptions {
+    /// How long a GC pass runs before it will honour an interrupt, in milliseconds.
+    pub min_progress_ms: Option<f64>,
+    /// How long a GC root may go un-anchored before it ages out, in milliseconds.
+    pub root_ttl_ms: Option<f64>,
+}
+
+/// Converts a millisecond count that crossed the napi boundary into a `Duration`.
+fn duration_from_millis_f64(ms: Option<f64>) -> Option<Duration> {
+    if let Some(ms) = ms
+        && ms.is_finite()
+        && ms >= 0.0
+    {
+        Duration::try_from_secs_f64(ms / 1000.0).ok()
+    } else {
+        None
     }
 }
 
@@ -249,25 +326,37 @@ pub fn create_turbo_tasks(
     next_version: &str,
     persistent_caching: bool,
     dependency_tracking: bool,
-    is_ci: bool,
-    is_short_session: bool,
-    skip_compaction: bool,
+    storage_options: BackingStorageOptions,
     turbopack_memory_eviction: MemoryEvictionMode,
+    gc: Option<NapiTurbopackGcOptions>,
 ) -> Result<NextTurboTasks> {
-    let evict_after_snapshot = turbopack_memory_eviction.evicts_after_snapshot();
+    let BackingStorageOptions {
+        is_ci,
+        is_short_session,
+        ..
+    } = storage_options;
     Ok(if persistent_caching {
         let describe = cache_describe(next_version);
         let version_info = git_version_info(&describe);
         let (backing_storage, cache_state) = turbo_backing_storage(
-            &output_path.join("cache/turbopack"),
+            &output_path.join("cache").join("turbopack"),
             &version_info,
-            is_ci,
-            is_short_session,
-            skip_compaction,
+            storage_options,
         )?;
+        let (gc, gc_min_progress, gc_root_ttl) = match gc {
+            Some(NapiTurbopackGcOptions {
+                min_progress_ms,
+                root_ttl_ms,
+            }) => (
+                Some(true),
+                duration_from_millis_f64(min_progress_ms),
+                duration_from_millis_f64(root_ttl_ms),
+            ),
+            None => (None, None, None),
+        };
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+                storage_mode: Some(if env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
                     turbo_tasks_backend::StorageMode::ReadOnly
                 } else if is_ci || is_short_session {
                     turbo_tasks_backend::StorageMode::ReadWriteOnShutdown
@@ -276,7 +365,10 @@ pub fn create_turbo_tasks(
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
-                evict_after_snapshot,
+                eviction_mode: EvictionMode::from(turbopack_memory_eviction),
+                gc,
+                gc_min_progress,
+                gc_root_ttl,
                 ..Default::default()
             },
             backing_storage,
@@ -290,6 +382,8 @@ pub fn create_turbo_tasks(
             BackendOptions {
                 storage_mode: None,
                 dependency_tracking,
+                // GC is deliberately left at its default (off) here: without backing storage
+                // there is nothing to reclaim from disk, so `gc` would have no effect.
                 ..Default::default()
             },
             noop_backing_storage(),
@@ -317,6 +411,10 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
                 " because we previously detected an internal error in Turbopack"
             }
             Some(invalidation_reasons::USER_REQUEST) => " as the result of a user request",
+            Some(invalidation_reasons::UNREADABLE) => {
+                " because it could not be read. Its files may have been modified or deleted by \
+                 another process"
+            }
             _ => "", // ignore unknown reasons
         };
         format!(
@@ -357,64 +455,19 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         return;
     }
 
-    // hold open this mutex guard to prevent concurrent writes to the file!
-    let mut last_error_time = LOG_THROTTLE.lock().unwrap();
-    if let Some(last_error_time) = last_error_time.as_ref()
-        && last_error_time.elapsed().as_secs() < 1
-    {
-        // Throttle panic logging to once per second
-        return;
-    }
-    *last_error_time = Some(Instant::now());
-
-    let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
-    if let Ok(size) = size
-        && size > 512 * 1024
-    {
-        // Truncate the earliest error from log file if it's larger than 512KB
-        let new_lines = {
-            let log_read = OpenOptions::new()
-                .read(true)
-                .open(PANIC_LOG.as_path())
-                .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
-
-            io::BufReader::new(&log_read)
-                .lines()
-                .skip(1)
-                .skip_while(|line| match line {
-                    Ok(line) => !line.starts_with(LOG_DIVIDER),
-                    Err(_) => false,
-                })
-                .collect::<Vec<_>>()
-        };
-
-        let mut log_write = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .write(true)
-            .open(PANIC_LOG.as_path())
-            .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
-
-        for line in new_lines {
-            match line {
-                Ok(line) => {
-                    writeln!(log_write, "{line}").unwrap();
-                }
-                Err(_) => {
-                    break;
-                }
-            }
+    let internal_error_str = PrettyPrintError(internal_error).to_string();
+    let panic_log_written = match write_panic_log(&internal_error_str, false) {
+        Ok(true) => true,
+        // Throttled
+        Ok(false) => return,
+        Err(error) => {
+            eprintln!(
+                "Failed to write the panic log {}: {error}",
+                PANIC_LOG.to_string_lossy()
+            );
+            false
         }
-    }
-
-    let mut log_file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(PANIC_LOG.as_path())
-        .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
-
-    let internal_error_str: String = PrettyPrintError(internal_error).to_string();
-    writeln!(log_file, "{}\n{}", LOG_DIVIDER, internal_error_str).unwrap();
+    };
 
     let title = format!(
         "Turbopack Error: {}",
@@ -439,11 +492,121 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         format!("clicking here: {}", bug_report_url)
     };
 
+    // If the panic log couldn't be written, that was reported above.
+    let panic_log_message = if panic_log_written {
+        format!(
+            " A panic log has been written to {}.",
+            PANIC_LOG.to_string_lossy()
+        )
+    } else {
+        String::new()
+    };
     eprintln!(
-        "\n-----\n{}: An unexpected Turbopack error occurred. A panic log has been written to \
-         {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
+        "\n-----\n{}: An unexpected Turbopack error occurred.{panic_log_message}\n\nTo help make \
+         Turbopack better, report this error by {}\n-----\n",
         "FATAL".red().bold(),
-        PANIC_LOG.to_string_lossy(),
         bug_report_message
     );
+}
+
+/// Whether `error` was caused by a panic because Turbopack's filesystem cache couldn't be read
+/// while it was in use (see [`turbo_tasks::PersistentCacheUnreadablePanic`]), and if so, the
+/// message of that panic.
+fn persistent_cache_unreadable_message(error: &anyhow::Error) -> Option<String> {
+    error.chain().find_map(|cause| {
+        cause
+            .downcast_ref::<TurboTasksExecutionError>()?
+            .persistent_cache_unreadable_panic()
+            .map(|panic| panic.message.to_string())
+    })
+}
+
+/// Set once [`report_persistent_cache_unreadable`] has reported a panic of this kind.
+static REPORTED_CACHE_UNREADABLE: AtomicBool = AtomicBool::new(false);
+
+/// Reports a panic because Turbopack's filesystem cache couldn't be read while it was in use (see
+/// [`turbo_tasks::PersistentCacheUnreadablePanic`]) with its `message`: prints it to stderr, and
+/// writes it to the panic log, subject to throttling.
+///
+/// The cache being unreadable doesn't necessarily indicate a bug, and the message explains what
+/// happened, so unlike [`log_internal_error_and_inform`] this doesn't ask for a bug report.
+///
+/// This is called by the panic hook (see `lib.rs`), before the panic unwinds, as turbo-tasks may
+/// abort the process right after. So this must not panic itself.
+pub fn report_persistent_cache_unreadable(message: &str) {
+    let first_report = !REPORTED_CACHE_UNREADABLE.swap(true, Ordering::Relaxed);
+    // The same panic often happens on several threads at once, so this is throttled like other
+    // errors. But the first one is always written, even if another error was logged just before:
+    // the process may abort right after this.
+    let panic_log = match write_panic_log(message, first_report) {
+        Ok(true) => Some(PANIC_LOG.as_path()),
+        Ok(false) => return,
+        Err(_) => None,
+    };
+    // Not `eprintln!`, which panics if writing fails.
+    let _ = writeln!(
+        io::stderr().lock(),
+        "{}",
+        cache_unreadable_banner(message, &"Error".red().bold().to_string(), panic_log)
+    );
+}
+
+/// Writes `text` to the panic log file, subject to throttling unless `force` is set. Returns
+/// `Ok(false)` if writing was skipped because of the throttling.
+fn write_panic_log(text: &str, force: bool) -> io::Result<bool> {
+    // hold open this mutex guard to prevent concurrent writes to the file! This is also called
+    // from the panic hook, so recover from a poisoned lock instead of panicking.
+    let mut last_error_time = LOG_THROTTLE.lock().unwrap_or_else(PoisonError::into_inner);
+    if !force
+        && let Some(last_error_time) = last_error_time.as_ref()
+        && last_error_time.elapsed().as_secs() < 1
+    {
+        // Throttle panic logging to once per second
+        return Ok(false);
+    }
+    *last_error_time = Some(Instant::now());
+
+    let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
+    if let Ok(size) = size
+        && size > 512 * 1024
+    {
+        // Truncate the earliest error from log file if it's larger than 512KB
+        let new_lines = {
+            let log_read = OpenOptions::new().read(true).open(PANIC_LOG.as_path())?;
+
+            io::BufReader::new(&log_read)
+                .lines()
+                .skip(1)
+                .skip_while(|line| match line {
+                    Ok(line) => !line.starts_with(LOG_DIVIDER),
+                    Err(_) => false,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let mut log_write = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(PANIC_LOG.as_path())?;
+
+        for line in new_lines {
+            match line {
+                Ok(line) => {
+                    writeln!(log_write, "{line}")?;
+                }
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+    }
+
+    let mut log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(PANIC_LOG.as_path())?;
+
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, text)?;
+    Ok(true)
 }

@@ -3,10 +3,6 @@ import type {
   PrerenderManifest,
 } from '../../../../build'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
-import {
-  getRouteMatcher,
-  type RouteMatchFn,
-} from '../../../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
 
 /**
@@ -17,7 +13,7 @@ type Matcher = {
    * The matcher for the dynamic route. This is lazily created when the matcher
    * is first used.
    */
-  matcher?: RouteMatchFn
+  matcher?: RegExp
 
   /**
    * The source of the dynamic route.
@@ -69,11 +65,13 @@ export class PrerenderManifestMatcher {
     for (const matcher of this.matchers) {
       // Lazily create the matcher, this is only done once per matcher.
       if (!matcher.matcher) {
-        matcher.matcher = getRouteMatcher(getRouteRegex(matcher.source))
+        // The pathname has already been decoded for manifest lookup. We only
+        // need to check its structure here; extracting captures would decode
+        // route parameters again and reject literal percent signs.
+        matcher.matcher = getRouteRegex(matcher.source).re
       }
 
-      const match = matcher.matcher(pathname)
-      if (match) {
+      if (matcher.matcher.test(pathname)) {
         return {
           source: matcher.source,
           route: matcher.route,

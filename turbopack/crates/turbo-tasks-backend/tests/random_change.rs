@@ -11,7 +11,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_random_change() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let state_op = make_state_operation();
         let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;

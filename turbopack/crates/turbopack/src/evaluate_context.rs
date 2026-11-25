@@ -4,6 +4,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
+    chunk::ChunkingContext,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -11,8 +12,9 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
+    source_map::SourceMapGenerationOptions,
 };
-use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
+use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
@@ -103,13 +105,21 @@ pub async fn node_evaluate_asset_context(
             .cell()
             .await?,
         ModuleOptionsContext {
-            tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+            follow_reexports: true,
+            module_fragments_enabled: false,
             ecmascript: EcmascriptOptionsContext {
                 esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 ignore_dynamic_requests,
+                source_map_generation_options: SourceMapGenerationOptions::from_emitted(
+                    *execution_context
+                        .await?
+                        .chunking_context
+                        .emitted_source_map_type()
+                        .await?,
+                ),
                 ..Default::default()
             },
             ..Default::default()
@@ -138,6 +148,9 @@ pub async fn config_tracing_module_context(
             )
             .cell()
             .await?,
-        true,
+        /* resolve_typescript */ true,
+        /* prune */ None,
+        // Don't trace fs.readFile in configs and webpack loaders. This can cause infinite loops
+        false,
     )))
 }

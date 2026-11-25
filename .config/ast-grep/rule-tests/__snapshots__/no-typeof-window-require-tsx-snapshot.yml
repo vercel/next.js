@@ -1,0 +1,56 @@
+id: no-typeof-window-require-tsx
+snapshots:
+  'const x = typeof window === ''undefined'' && FLAG ? require(''./server'').x : {}':
+    labels:
+    - source: require('./server')
+      style: primary
+      start: 50
+      end: 69
+    - source: typeof window
+      style: secondary
+      start: 10
+      end: 23
+    - source: typeof window
+      style: secondary
+      start: 10
+      end: 23
+    - source: 'typeof window === ''undefined'' && FLAG ? require(''./server'').x : {}'
+      style: secondary
+      start: 10
+      end: 76
+  'const x = typeof window === ''undefined'' ? require(''./server'').x : undefined':
+    labels:
+    - source: require('./server')
+      style: primary
+      start: 42
+      end: 61
+    - source: typeof window
+      style: secondary
+      start: 10
+      end: 23
+    - source: typeof window
+      style: secondary
+      start: 10
+      end: 23
+    - source: 'typeof window === ''undefined'' ? require(''./server'').x : undefined'
+      style: secondary
+      start: 10
+      end: 75
+  if (typeof window === 'undefined') { const s = require('./server') }:
+    labels:
+    - source: require('./server')
+      style: primary
+      start: 47
+      end: 66
+    - source: typeof window
+      style: secondary
+      start: 4
+      end: 17
+    - source: typeof window
+      style: secondary
+      start: 4
+      end: 17
+    - source: if (typeof window === 'undefined') { const s = require('./server') }
+      style: secondary
+      start: 0
+      end: 68

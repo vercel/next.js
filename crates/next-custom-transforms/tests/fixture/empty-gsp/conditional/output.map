@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["export async function generateStaticParams() {\n  const params = await getParams()\n  return params.map((p) => ({ slug: p }))\n}\n"],"names":[],"mappings":"AAAA,OAAO,eAAe;IACpB,MAAM,SAAS,MAAM;IACrB,OAAO,OAAO,GAAG,CAAC,CAAC,IAAM,CAAC;YAAE,MAAM;QAAE,CAAC;AACvC;6CAHO;WAAA"}

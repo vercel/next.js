@@ -2,13 +2,9 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('get_routes MCP tool', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'dynamic-routes-app'),
   })
-
-  if (skipped) {
-    return
-  }
 
   async function callGetRoutes(
     id: string,

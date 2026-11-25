@@ -19,7 +19,7 @@ You can also set the deployment ID using the `NEXT_DEPLOYMENT_ID` environment va
 NEXT_DEPLOYMENT_ID=my-deployment-id next build
 ```
 
-> **Good to know:** If both are set, the `deploymentId` value in `next.config.js` takes precedence over the `NEXT_DEPLOYMENT_ID` environment variable.
+> **Good to know:** A non-empty `NEXT_DEPLOYMENT_ID` environment variable takes precedence over the `deploymentId` value in `next.config.js`.
 
 ## How it works
 
@@ -68,12 +68,15 @@ module.exports = {
 }
 ```
 
+A per-deployment value only avoids skew if requests are also routed by deployment. Next.js does not route on `?dpl=`, so that routing comes from your host or CDN. Without it, clients that reach an instance from another deployment during a rollout will reload rather than navigate.
+
 ## Version History
 
-| Version    | Changes                                               |
-| ---------- | ----------------------------------------------------- |
-| `v14.1.4`  | `deploymentId` stabilized as top-level config option. |
-| `v13.4.10` | `experimental.deploymentId` introduced.               |
+| Version    | Changes                                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v16.2.0`  | Pages Router detects version skew from the response header rather than the build ID, and the build ID is constant when `deploymentId` is set. |
+| `v14.1.4`  | `deploymentId` stabilized as top-level config option.                                                                                         |
+| `v13.4.10` | `experimental.deploymentId` introduced.                                                                                                       |
 
 ## Related
 

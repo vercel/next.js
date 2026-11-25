@@ -1,12 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+// @force-gate !deploy
 describe('Custom routes i18n with index redirect', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should respond to default locale redirects correctly for index redirect', async () => {
     for (const [path, dest] of [
@@ -24,7 +24,7 @@ describe('Custom routes i18n with index redirect', () => {
         const text = await res.text()
         expect(text).toEqual(dest)
         if (dest.startsWith('/')) {
-          const parsed = new URL(res.headers.get('location'))
+          const parsed = new URL(res.headers.get('location'), res.url)
           expect(parsed.pathname).toBe(dest)
           expect(parsed.search).toBe('')
         } else {

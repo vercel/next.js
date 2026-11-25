@@ -25,6 +25,12 @@ describe('server-side dev errors', () => {
         // with the test capturing `cliOutputIdx`.
         if (trimmed.startsWith('- ')) return false
         if (/^[✓⚠△] /.test(trimmed)) return false
+        // Individual entries under the `- Experiments` header are indented and
+        // use status glyphs (✓ enabled, ⨯ disabled, · value), e.g.
+        // `  ⨯ exampleFlag (disabled by ...)`. Only these banner entries
+        // are indented; real dev errors start at column 0 (`⨯ ReferenceError:
+        // ...`), so key off the leading indentation to avoid dropping them.
+        if (/^\s+[✓⚠△⨯·] /.test(item)) return false
         // Drop compiling indicator lines (e.g. "○ Compiling /gsp ...").
         if (trimmed.startsWith('○ ')) return false
         return true
@@ -65,7 +71,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -117,7 +122,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -169,7 +173,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -232,7 +235,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -300,7 +302,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",

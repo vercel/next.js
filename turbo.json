@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "globalEnv": ["CI", "NEXT_CI_RUNNER"],
+  "globalEnv": ["CI", "NEXT_CI_RUNNER", "CARGO_BUILD_WARNINGS"],
   "globalPassThroughEnv": ["RUSTC_WRAPPER", "SCCACHE_*"],
   "tasks": {
     "build": {

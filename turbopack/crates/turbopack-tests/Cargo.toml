@@ -19,10 +19,10 @@ turbopack-node = { workspace = true, default-features = false, features = ["proc
 [dev-dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
-dunce = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+smallvec = { workspace = true }
 testing = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }

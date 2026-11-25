@@ -1,4 +1,4 @@
-warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js:67:4  TP1202 WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js:67:5  TP1202 WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead
   
       63 | console.log(__dirname)
       64 | 
@@ -9,4 +9,5 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/d
          +     ^----------^
       68 |   console.log('warning replacement works')
       69 | }
-      70 |
+      70 | 
+      71 | if (!('NODE_ENV' in process.env)) {

@@ -1,3 +1,5 @@
+import { getRouteCacheKey } from '../server/lib/route-cache-key'
+import type { RouteCacheMetadata } from './routes/types'
 import type {
   ExportPagesInput,
   ExportPageInput,
@@ -7,7 +9,10 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
-import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type {
+  AppPageModule,
+  RouteMatch,
+} from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
@@ -36,7 +41,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -55,7 +59,10 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import { getExportPathPageKey } from './utils'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -66,6 +73,26 @@ class TimeoutError extends Error {
 
 class ExportPageError extends Error {
   code = 'NEXT_EXPORT_PAGE_ERROR'
+}
+
+/**
+ * Set to true when prerenderEarlyExit fires. Suppresses logging from other
+ * pages that are concurrently in-flight so the user only sees the first error.
+ */
+let isEarlyExiting = false
+
+/**
+ * Saved reference to the real console.error. When isEarlyExiting is set we
+ * replace console.error with a no-op so that render-time logging from
+ * concurrent pages (e.g. logDisallowedDynamicError) is silenced.
+ */
+let realConsoleError: typeof console.error = console.error
+
+function setEarlyExiting(): void {
+  isEarlyExiting = true
+  // Silence all further console.error output so concurrent pages don't
+  // produce noise after the first failure has been reported.
+  console.error = () => {}
 }
 
 async function exportPageImpl(
@@ -90,6 +117,7 @@ async function exportPageImpl(
     deploymentId,
     clientAssetToken,
     renderResumeDataCache,
+    useScopedBuildArtifacts,
   } = input
 
   if (enableExperimentalReact) {
@@ -102,6 +130,8 @@ async function exportPageImpl(
 
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
+
+    _notFoundParams: notFoundParams,
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -120,6 +150,10 @@ async function exportPageImpl(
     // When true, attempt to run build-time instant validation for this export path.
     _runInstantValidation: runInstantValidation = false,
 
+    // When true, a fallback shell for this path could later be upgraded to a
+    // concrete version (it has a `generateStaticParams` candidate param).
+    _isFallbackUpgradeable: isFallbackUpgradeable = false,
+
     // Pull the original query out.
     query: originalQuery = {},
   } = exportPath
@@ -137,7 +171,7 @@ async function exportPageImpl(
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (commonRenderOpts.locale) {
+  if (commonRenderOpts.locale && !isAppDir) {
     const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
@@ -164,7 +198,7 @@ async function exportPageImpl(
     params = getParams(normalizedPage, updatedPath)
   }
 
-  const { req, res } = createRequestResponseMocks({ url: updatedPath })
+  let initialStatusCode = 200
 
   // If this is a status code page, then set the response code.
   for (const statusCode of [404, 500]) {
@@ -175,27 +209,36 @@ async function exportPageImpl(
         `/${statusCode}/index.html`,
       ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
     ) {
-      res.statusCode = statusCode
+      initialStatusCode = statusCode
     }
   }
 
   // Ensure that the URL has a trailing slash if it's configured.
-  if (trailingSlash && !req.url?.endsWith('/')) {
-    req.url += '/'
-  }
+  const requestUrl =
+    trailingSlash && !updatedPath.endsWith('/')
+      ? updatedPath + '/'
+      : updatedPath
 
-  // Set the resolved pathname without trailing slash as request metadata.
-  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
+  // Resolve the pathname without a trailing slash for app page rendering.
+  const resolvedPathname = removeTrailingSlash(updatedPath)
 
-  if (
-    locale &&
-    buildExport &&
-    commonRenderOpts.domainLocales &&
-    commonRenderOpts.domainLocales.some(
-      (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
-    )
-  ) {
-    addRequestMeta(req, 'isLocaleDomain', true)
+  // Pages and Route Handlers retain their HTTP adapters. App Page prerenders
+  // consume parsed inputs and output metadata without constructing transport.
+  const createTransportMocks = () => {
+    const { req, res } = createRequestResponseMocks({ url: requestUrl })
+    res.statusCode = initialStatusCode
+    if (
+      locale &&
+      buildExport &&
+      commonRenderOpts.domainLocales &&
+      commonRenderOpts.domainLocales.some(
+        (dl) =>
+          dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+      )
+    ) {
+      addRequestMeta(req, 'isLocaleDomain', true)
+    }
+    return { req, res }
   }
 
   const getHtmlFilename = (p: string) =>
@@ -226,11 +269,6 @@ async function exportPageImpl(
     htmlFilename = 'index.html'
   }
 
-  const baseDir = join(outDir, dirname(htmlFilename))
-  let htmlFilepath = join(outDir, htmlFilename)
-
-  await fs.mkdir(baseDir, { recursive: true })
-
   const components = await loadComponents({
     distDir,
     page,
@@ -240,8 +278,34 @@ async function exportPageImpl(
     needsManifestsForLegacyReasons: true,
   })
 
+  const routeCache: RouteCacheMetadata | undefined =
+    buildExport &&
+    commonRenderOpts.nextConfigOutput !== 'export' &&
+    (isAppDir || components.getStaticProps)
+      ? {
+          key: getRouteCacheKey(path, components.routeModule.cacheOwner),
+          owner: components.routeModule.cacheOwner,
+          isFallback: isAppDir
+            ? fallbackRouteParams != null && fallbackRouteParams.size > 0
+            : (exportPath._pagesFallback ?? false),
+        }
+      : undefined
+  const htmlFilepath =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server', `${routeCache.key}.html`)
+      : join(outDir, htmlFilename)
+  const routePagesDataDir =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server')
+      : pagesDataDir
+  if (useScopedBuildArtifacts && routeCache) {
+    htmlFilename = `${routeCache.key}.html`
+  }
+  await fs.mkdir(dirname(htmlFilepath), { recursive: true })
+
   // Handle App Routes.
   if (isAppDir && isAppRouteRoute(page)) {
+    const { req, res } = createTransportMocks()
     return exportAppRoute(
       req,
       res,
@@ -256,7 +320,8 @@ async function exportPageImpl(
       commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
       buildId,
-      deploymentId
+      deploymentId,
+      routeCache
     )
   }
 
@@ -275,6 +340,8 @@ async function exportPageImpl(
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
     runInstantValidation,
+    isFallbackUpgradeable,
+    notFoundParams,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -284,6 +351,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
+    const routeMatch: RouteMatch = {
+      resolvedPathname,
+      // Build prerenders currently have no Vary header to mark interception.
+      couldBeIntercepted: false,
+    }
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
@@ -291,8 +363,8 @@ async function exportPageImpl(
     }
 
     return exportAppPage(
-      req,
-      res,
+      initialStatusCode,
+      requestUrl,
       page,
       path,
       pathname,
@@ -303,7 +375,9 @@ async function exportPageImpl(
       debugOutput,
       isDynamicError,
       fileWriter,
-      sharedContext
+      sharedContext,
+      routeMatch,
+      routeCache
     )
   } else {
     const sharedContext: PagesSharedContext = {
@@ -319,6 +393,7 @@ async function exportPageImpl(
       developmentNotFoundSourcePage: undefined,
     }
 
+    const { req, res } = createTransportMocks()
     return exportPagesPage(
       req,
       res,
@@ -328,7 +403,7 @@ async function exportPageImpl(
       params,
       htmlFilepath,
       htmlFilename,
-      pagesDataDir,
+      routePagesDataDir,
       buildExport,
       isDynamic,
       sharedContext,
@@ -336,7 +411,8 @@ async function exportPageImpl(
       hasOrigQueryValues,
       renderOpts as WorkerRenderOpts<PagesModule>,
       components,
-      fileWriter
+      fileWriter,
+      routeCache
     )
   }
 }
@@ -348,6 +424,13 @@ export async function exportPages(
   // (which uses the native codeFrameColumns function) works during prerendering.
   await installBindings()
   installCodeFrameSupport()
+
+  // Reset per-call so the flag doesn't leak across sequential batches.
+  // Restore console.error first (realConsoleError is still the original captured
+  // at module load; reassigning it here would overwrite it with the no-op set by
+  // setEarlyExiting() if a previous batch triggered an early exit).
+  console.error = realConsoleError
+  isEarlyExiting = false
 
   const {
     exportPaths,
@@ -400,7 +483,7 @@ export async function exportPages(
     maxAttempts: number
   ) => {
     const { page, path } = exportPath
-    const pageKey = page !== path ? `${page}: ${path}` : path
+    const pageKey = getExportPathPageKey(exportPath)
     let attempt = 0
     let result
 
@@ -411,11 +494,15 @@ export async function exportPages(
     const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
       ? createRenderResumeDataCache(
           renderResumeDataCachesByPage[pageKey],
-          renderOpts.experimental.maxPostponedStateSizeBytes
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
         )
       : undefined
 
     while (attempt < maxAttempts) {
+      // Cleared once the race settles (resolved or rejected), so a finished
+      // export doesn't leave a ref'd timer behind that keeps the worker alive.
+      let timeoutTimer: ReturnType<typeof setTimeout> | undefined
       try {
         result = await Promise.race<ExportPageResult | undefined>([
           exportPage({
@@ -439,17 +526,21 @@ export async function exportPages(
             deploymentId: input.deploymentId,
             clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
+            useScopedBuildArtifacts:
+              Boolean(nextConfig.adapterPath) &&
+              nextConfig.output !== 'export' &&
+              options.buildExport,
           }),
           hasDebuggerAttached
             ? // With a debugger attached, exporting can take infinitely if we paused script execution.
               new Promise(() => {})
             : // If exporting the page takes longer than the timeout, reject the promise.
               new Promise((_, reject) => {
-                setTimeout(() => {
+                timeoutTimer = setTimeout(() => {
                   reject(new TimeoutError())
                 }, nextConfig.staticPageGenerationTimeout * 1000)
               }),
-        ])
+        ]).finally(() => clearTimeout(timeoutTimer))
 
         // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
         // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
@@ -482,10 +573,26 @@ export async function exportPages(
           }
           // If prerenderEarlyExit is enabled, we'll exit the build immediately.
           if (nextConfig.experimental.prerenderEarlyExit) {
-            console.error(
+            // If another page already triggered an early exit, this page's
+            // promise was abandoned by the outer Promise.all. Throwing here
+            // would produce an unhandled rejection, so return silently instead.
+            if (isEarlyExiting) {
+              return { result: undefined, path, page, pageKey }
+            }
+            // Suppress output from any concurrently-running pages so the user
+            // only sees the error from the first failing page.
+            setEarlyExiting()
+            const exportError: Error & {
+              code?: string
+              isPrerenderEarlyExit?: boolean
+            } = new Error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
-            process.exit(1)
+            exportError.code = 'NEXT_EXPORT_ERROR'
+            // Lets the build tell an early exit apart from the end-of-build
+            // export failure summary (which uses the same code).
+            exportError.isPrerenderEarlyExit = true
+            throw exportError
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
           }
@@ -579,31 +686,39 @@ async function exportPage(
       return { error: result.error, duration: Date.now() - start }
     }
   } catch (err) {
-    console.error(
-      `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
-    )
+    if (!isEarlyExiting) {
+      console.error(
+        `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
+      )
 
-    // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
-    // a framework signal
-    if (!isBailoutToCSRError(err)) {
-      // A static generation bailout error is a framework signal to fail static generation but
-      // and will encode a reason in the error message. If there is a message, we'll print it.
-      // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
-      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
-      if (isStaticGenBailoutError(err)) {
-        if (err.message) {
-          console.error(`Error: ${err.message}`)
+      // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
+      // a framework signal
+      if (!isBailoutToCSRError(err)) {
+        // A static generation bailout error is a framework signal to fail static generation but
+        // and will encode a reason in the error message. If there is a message, we'll print it.
+        // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+        // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
+        if (isStaticGenBailoutError(err)) {
+          if (err.message) {
+            console.error(`Error: ${err.message}`)
+          }
+        } else {
+          console.error(err)
         }
-      } else {
-        console.error(err)
       }
     }
 
     return { error: true, duration: Date.now() - start }
   }
 
-  // Notify the parent process that we processed a page (used by the progress activity indicator)
-  process.send?.([3, { type: 'activity' }])
+  // Notify the parent process that we processed a page (used by the progress activity indicator).
+  // Wrap in try/catch: if the IPC channel closed because the pool already propagated a
+  // NEXT_EXPORT_ERROR, the send throws ERR_IPC_CHANNEL_CLOSED — treat it as a no-op.
+  try {
+    process.send?.([3, { type: 'activity' }])
+  } catch {
+    // Channel already closed; nothing to do.
+  }
 
   // Otherwise we can return the result.
   return {
@@ -614,18 +729,17 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return
   }
 
-  console.error(err)
+  // Suppress errors from concurrent pages when an early exit is in progress.
+  if (isEarlyExiting) {
+    return
+  }
+
+  realConsoleError(err)
 })
 
 process.on('rejectionHandled', () => {
@@ -638,12 +752,15 @@ const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
 
 process.on('uncaughtException', (err) => {
   if (isDynamicUsageError(err)) {
-    console.error(
+    realConsoleError(
       'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
     )
-    console.error(err)
+    realConsoleError(err)
     process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+  } else if (isEarlyExiting) {
+    // Suppress uncaught exceptions (e.g. ERR_IPC_CHANNEL_CLOSED) from
+    // concurrent pages when an early exit is already in progress.
   } else {
-    console.error(err)
+    realConsoleError(err)
   }
 })

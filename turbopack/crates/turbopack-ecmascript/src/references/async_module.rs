@@ -7,8 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
+    NonLocalValue, OrderedAutoSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
@@ -25,7 +24,7 @@ use crate::{
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
-#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, NonLocalValue, Encode, Decode)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
@@ -81,9 +80,7 @@ impl OptionAsyncModule {
 /// The identifiers (and their corresponding syntax context) of all async modules referenced by the
 /// current module.
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(
-    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<(String, AstSyntaxContext)>,
-);
+struct AsyncModuleIdents(OrderedAutoSet<(String, AstSyntaxContext)>);
 
 async fn get_inherit_async_referenced_asset(
     r: ResolvedVc<Box<dyn ModuleReference>>,
@@ -120,7 +117,7 @@ impl AsyncModule {
         let reference_idents = references
             .await?
             .iter()
-            .map(|r| async {
+            .map(async |r| {
                 let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
@@ -151,13 +148,16 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
+                    ReferencedAsset::NonPlaceable(_)
+                    | ReferencedAsset::None
+                    | ReferencedAsset::Empty
+                    | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
             .await?;
 
-        Ok(Vc::cell(FxIndexSet::from_iter(reference_idents)))
+        Ok(Vc::cell(OrderedAutoSet::from_iter(reference_idents)))
     }
 
     #[turbo_tasks::function]
@@ -171,7 +171,7 @@ impl AsyncModule {
                 && references
                     .await?
                     .iter()
-                    .map(|r| async {
+                    .map(async |r| {
                         let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
                         else {
                             return Ok(false);

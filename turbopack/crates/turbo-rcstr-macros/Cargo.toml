@@ -9,11 +9,10 @@ proc-macro = true
 bench = false
 
 [features]
-# Mirror the threshold-affecting features of `turbo-rcstr`. The consuming
-# crate routes them via `turbo-rcstr/atom_size_*` -> `turbo-rcstr-macros/atom_size_*`
+# Mirror the threshold-affecting feature of `turbo-rcstr`. The consuming crate
+# routes it via `turbo-rcstr/atom_size_128` -> `turbo-rcstr-macros/atom_size_128`
 # so the proc macro can compute the correct `MAX_INLINE_LEN` at expansion time
 # instead of leaving an ambiguous range that needs a runtime const branch.
-atom_size_64 = []
 atom_size_128 = []
 
 [lints]

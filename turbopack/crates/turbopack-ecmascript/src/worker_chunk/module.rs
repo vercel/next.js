@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystem;
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
@@ -13,7 +13,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupKey},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -27,6 +27,7 @@ use crate::{
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     embed_js::embed_fs,
+    references::esm::generated_export_key,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
@@ -74,7 +75,7 @@ impl WorkerLoaderModule {
                     .into_vc();
                 chunking_context.evaluated_chunk_group_assets(
                     ident,
-                    ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
+                    ChunkGroupKey::Isolated(ResolvedVc::upcast(this.inner)),
                     module_graph,
                     OutputAssets::empty(),
                     AvailabilityInfo::root(),
@@ -89,20 +90,15 @@ impl WorkerLoaderModule {
                     bail!("Worker module must be evaluatable");
                 };
 
-                let worker_path = chunking_context
-                    .chunk_path(
-                        None,
-                        this.inner.ident(),
-                        Some(rcstr!("[worker thread]")),
-                        rcstr!(".js"),
-                    )
+                let worker_path = self
+                    .node_worker_entry_path(chunking_context)
                     .owned()
                     .await?;
 
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
                         worker_path,
-                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
+                        ChunkGroupKey::Isolated(ResolvedVc::upcast(evaluatable)),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),
@@ -117,6 +113,21 @@ impl WorkerLoaderModule {
                 .cell()
             }
         })
+    }
+
+    /// Must remain the single source of truth for the path passed to `root_entry_chunk_group`
+    /// and referenced by the Node.js worker loader.
+    #[turbo_tasks::function]
+    fn node_worker_entry_path(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<FileSystemPath> {
+        chunking_context.chunk_path(
+            None,
+            self.inner.ident(),
+            Some(rcstr!("[worker thread]")),
+            rcstr!(".js"),
+        )
     }
 
     #[turbo_tasks::function]
@@ -261,6 +272,10 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             // otherwise we will induce a turbo tasks cycle. But we only need an
             // approximate solution. We'll use the same estimate for both web
             // and Node.js workers.
+            //
+            // That includes the export key: resolving the real one needs the chunking context, so
+            // the estimate uses the source name even when the helper's exports are mangled. It can
+            // only be off by a few characters.
             let fake_id = ModuleId::String(rcstr!("a_fake_module"));
             return Ok(EcmascriptChunkItemContent {
                 inner_code: formatdoc! {
@@ -277,10 +292,19 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             .cell());
         }
 
-        let create_worker_id = self
-            .create_worker_module()
-            .chunk_item_id(chunking_context)
-            .await?;
+        let create_worker_module = self.create_worker_module();
+        let create_worker_id = create_worker_module.chunk_item_id(chunking_context).await?;
+        // The helper's `default` export is read here as a string, so it has to go through the same
+        // mapping the helper itself emits — a hard-coded `["default"]` misses once its exports are
+        // mangled.
+        let create_worker_export = match ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+            create_worker_module.to_resolved().await?,
+        ) {
+            Some(placeable) => {
+                generated_export_key(placeable, chunking_context, &rcstr!("default")).await?
+            }
+            None => rcstr!("default"),
+        };
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
@@ -306,31 +330,23 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"]({entrypoint}, {chunks}));
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})[{export:#}]({entrypoint}, {chunks}));
                     "#,
                     entrypoint = StringifyJs(&entrypoint_path),
                     chunks = StringifyJs(&chunks_data),
                     workers_module = StringifyModuleId(&create_worker_id),
+                    export = StringifyJs(&create_worker_export),
                 }
             }
             WorkerType::NodeWorkerThread => {
+                // The entry path is an input to chunk generation, so obtaining it does not
+                // require generating the worker's chunks.
+                let entry_path = self.node_worker_entry_path(chunking_context).await?;
+
                 // For Node.js workers, export a function to create the worker.
                 // The function takes (WorkerConstructor, workerOptions) and calls createWorker
                 // with the worker path baked in.
-                let chunk_group = self.chunk_group(chunking_context, module_graph).await?;
-                let assets = chunk_group.assets.await?;
-
-                // The last asset is the evaluate chunk (entry point) for the worker.
-                // The evaluated_chunk_group adds regular chunks first, then pushes the
-                // evaluate chunk last. The evaluate chunk contains the bootstrap code that
-                // loads the runtime and other chunks. For Node.js workers, we need a single
-                // file path (not a blob URL like browser workers), so we use the evaluate
-                // chunk which serves as the entry point.
-                let Some(entry_asset) = assets.last() else {
-                    bail!("cannot find worker entry point asset");
-                };
-                let entry_path = entry_asset.path().await?;
-
+                //
                 // Get the filename of the worker entry chunk
                 // We use just the filename because both the loader module and the worker
                 // entry chunk are in the same directory (typically server/chunks/), so we
@@ -338,10 +354,11 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // directory
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"](__dirname + "/" + {worker_path:#}));
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})[{export:#}](__dirname + "/" + {worker_path:#}));
                     "#,
                     worker_path = StringifyJs(entry_path.file_name()),
                     workers_module = StringifyModuleId(&create_worker_id),
+                    export = StringifyJs(&create_worker_export),
                 }
             }
         };

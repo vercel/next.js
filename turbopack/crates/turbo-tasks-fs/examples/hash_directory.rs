@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root = RcStr::from(current_dir().unwrap().to_str().unwrap());
             let disk_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(root));
-            disk_fs.await?.start_watching(None).await?;
+            disk_fs.await?.start_watching().await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
@@ -67,6 +67,7 @@ async fn filename(path: FileSystemPath) -> Result<String> {
 #[turbo_tasks::function]
 async fn hash_directory(directory: FileSystemPath) -> Result<Vc<RcStr>> {
     let dir_path = &directory.path;
+    // DETERMINISM: Hashes are collected into a filename-keyed BTreeMap before combining them.
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
     match &*content.await? {

@@ -12,8 +12,13 @@ function Tab1() {
 }
 
 function Tab2() {
+  // Link order is significant: viewport prefetches are prioritized by document
+  // order (links nearest the top are prefetched first). Generate the links in
+  // descending order so that, combined with that prioritization, the prefetch
+  // scheduling order this test's LRU-eviction assertions depend on is
+  // preserved.
   const links = []
-  for (let i = 1; i < 60; i++) {
+  for (let i = 59; i >= 1; i--) {
     links.push(<Link href={'/memory-pressure/' + i}>Link {i}</Link>)
   }
   return links

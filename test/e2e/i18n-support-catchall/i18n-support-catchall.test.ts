@@ -52,6 +52,13 @@ describe('i18n Support Root Catch-all', () => {
     })
   })
 
+  // @force-gate !dev
+  it('omits the optional catch-all in a non-prerendered locale data request', async () => {
+    const res = await next.fetch(`/_next/data/${next.buildId}/nl-NL.json`)
+    expect(res.status).toBe(200)
+    expect((await res.json()).pageProps.params).toEqual({})
+  })
+
   it('should navigate to other locale index and back', async () => {
     const browser = await next.browser('/')
 

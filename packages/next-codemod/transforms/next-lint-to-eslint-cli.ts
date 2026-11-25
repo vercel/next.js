@@ -141,9 +141,17 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     // Detect compat.extends() calls and identify which configs are being used
     if (
       node.callee.type === 'MemberExpression' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.name === 'compat' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.name === 'extends'
     ) {
       // Check arguments for all configs
@@ -166,9 +174,17 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     // Detect compat.config({ extends: [...] }) calls and identify which configs are being used
     if (
       node.callee.type === 'MemberExpression' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.name === 'compat' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.name === 'config'
     ) {
       // Look for extends property in the object argument
@@ -1066,6 +1082,18 @@ export default function transformer(
     return
   }
 
+  const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
+  const packageJson = JSON.parse(packageJsonContent)
+  const usesNextLint = Object.values(packageJson.scripts || {}).some(
+    (script) => typeof script === 'string' && script.includes('next lint')
+  )
+  if (!usesNextLint) {
+    console.log(
+      'Skipping migration: no next lint script found in package.json.'
+    )
+    return
+  }
+
   const isTypeScript = detectTypeScript(projectRoot)
 
   console.log('Migrating from next lint to the ESLint CLI...')
@@ -1144,7 +1172,6 @@ export default function transformer(
     }
   }
 
-  const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
   const result = updatePackageJsonScripts(packageJsonContent)
 
   if (result.updated) {

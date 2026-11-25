@@ -4,7 +4,7 @@ This project adds commenting functionality to [Next.js blog application](https:/
 
 The comment box requires Auth0 authentication for users to add new comments. A user can delete their own comment. Also admin user can delete any comment.
 
-Comments are stored in Serverless Redis ([Upstash](http://upstash.com/)).
+Comments are stored in Serverless Redis ([Upstash](https://upstash.com/)).
 
 ### Demo
 

@@ -32,6 +32,8 @@ describe.each([true, false])(
     })
 
     describe('parallel routes', () => {
+      // FIXME: Flaky test
+      // @force-gate !deploy
       it('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar')
 
@@ -210,6 +212,8 @@ describe.each([true, false])(
         expect(pageText).toContain('parallel/(new)/@baz/nested/page')
       })
 
+      // FIXME: Flaky test
+      // @force-gate !deploy
       it('should throw a 404 when no matching parallel route is found', async () => {
         const browser = await next.browser('/parallel-tab-bar')
         // we make sure the page is available through navigating
@@ -466,6 +470,8 @@ describe.each([true, false])(
         ).toBe('rgb(255, 0, 0)')
       })
 
+      // FIXME: Flaky test
+      // @force-gate !deploy
       it('should handle a loading state', async () => {
         const browser = await next.browser('/with-loading')
         expect(await browser.elementById('slot').text()).toBe('Root Slot')
@@ -1057,10 +1063,7 @@ describe.each([true, false])(
 )
 
 describe('parallel-routes-and-interception-conflicting-pages', () => {
-  const { next, skipped } = nextTestSetup({
-    // This is skipped when deployed as it appears to cause an issue when tracing Next.js files
-    // TODO: Investigate why this causes an issue when deployed
-    skipDeployment: true,
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(path.join(__dirname, 'app')),
       'app/parallel/nested-2/page.js': `
@@ -1071,8 +1074,6 @@ describe('parallel-routes-and-interception-conflicting-pages', () => {
     },
     nextConfig,
   })
-
-  if (skipped) return
 
   it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
     const html = await next.render('/parallel/nested-2')

@@ -31,6 +31,8 @@ describe('app-dir - owner-stack', () => {
     const browser = await next.browser('/browser/uncaught', {
       beforePageLoad: (page) => {
         page.on('pageerror', (error: unknown) => {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           errorStack = (error as any).stack
         })
       },
@@ -125,6 +127,8 @@ describe('app-dir - owner-stack', () => {
     const browser = await next.browser('/ssr', {
       beforePageLoad: (page) => {
         page.on('pageerror', (error: unknown) => {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           errorStack = (error as any).stack
         })
       },
@@ -160,7 +164,6 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E394",
        "description": "string in rejected promise",
        "environmentLabel": null,
        "label": "Runtime Error",

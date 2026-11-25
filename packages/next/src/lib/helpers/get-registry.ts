@@ -1,34 +1,57 @@
-import { execSync } from 'child_process'
+import { execFile } from 'child_process'
+import { constants as osConstants, setPriority } from 'os'
+import { promisify } from 'util'
 import { getPkgManager } from './get-pkg-manager'
 import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
+
+const execFileAsync = promisify(execFile)
 
 /**
  * Returns the package registry using the user's package manager.
  * The URL will have a trailing slash.
  * @default https://registry.npmjs.org/
  */
-export function getRegistry(baseDir: string = process.cwd()) {
+export async function getRegistry(baseDir: string = process.cwd()) {
+  // Package managers export their resolved registry to the scripts they run
+  // (e.g. `pnpm dev`, or `npm run dev` with a non-default registry). Prefer it
+  // over spawning the package manager, which costs hundreds of milliseconds of
+  // CPU. In `next dev` the spawn starts when the first browser connects, so it
+  // competes with the first route compiles.
+  const envRegistry = process.env.npm_config_registry
+  if (envRegistry?.startsWith('http')) {
+    return envRegistry.endsWith('/') ? envRegistry : `${envRegistry}/`
+  }
+
   const pkgManager = getPkgManager(baseDir)
   // Since `npm config` command fails in npm workspace to prevent workspace config conflicts,
   // add `--no-workspaces` flag to run under the context of the root project only.
   // Safe for non-workspace projects as it's equivalent to default `--workspaces=false`.
   // x-ref: https://github.com/vercel/next.js/issues/47121#issuecomment-1499044345
   // x-ref: https://github.com/npm/statusboard/issues/371#issue-920669998
-  const resolvedFlags = pkgManager === 'npm' ? '--no-workspaces' : ''
+  const args = ['config', 'get', 'registry']
+  if (pkgManager === 'npm') {
+    args.push('--no-workspaces')
+  }
   let registry = `https://registry.npmjs.org/`
 
   try {
-    const output = execSync(
-      `${pkgManager} config get registry ${resolvedFlags}`,
-      {
-        env: {
-          ...process.env,
-          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
-        },
+    const pending = execFileAsync(pkgManager, args, {
+      env: {
+        ...process.env,
+        NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
+      },
+    })
+    // The registry lookup is never latency-critical, so run it at the lowest
+    // OS priority. It then only uses CPU that compiles and requests leave idle.
+    try {
+      if (pending.child.pid !== undefined) {
+        setPriority(pending.child.pid, osConstants.priority.PRIORITY_LOW)
       }
-    )
-      .toString()
-      .trim()
+    } catch {
+      // Lowering priority is best-effort.
+    }
+    const { stdout } = await pending
+    const output = stdout.toString().trim()
 
     if (output.startsWith('http')) {
       registry = output.endsWith('/') ? output : `${output}/`

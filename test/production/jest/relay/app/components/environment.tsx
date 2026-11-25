@@ -1,6 +1,12 @@
-import { Environment, Network, RecordSource, Store } from 'relay-runtime'
+import {
+  Environment,
+  type GraphQLResponse,
+  Network,
+  RecordSource,
+  Store,
+} from 'relay-runtime'
 
-async function fetchGraphQL(text, variables) {
+async function fetchGraphQL(text, variables): Promise<GraphQLResponse> {
   return new Promise((next) => {
     const res = () => {
       return next({ data: { viewer: { user: { id: '123', name: 'Foo' } } } })

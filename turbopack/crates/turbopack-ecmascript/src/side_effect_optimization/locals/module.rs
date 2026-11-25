@@ -11,16 +11,18 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
+    source::OptionSource,
 };
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    MergedEcmascriptModule,
+    EcmascriptParsable, EnvVarInfo, MergedEcmascriptModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
+    parse::ParseResult,
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
@@ -59,8 +61,8 @@ impl Module for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(None)
+    fn source(&self) -> Vc<OptionSource> {
+        ResolvedVc::upcast::<Box<dyn Module>>(self.module).source()
     }
 
     #[turbo_tasks::function]
@@ -87,6 +89,14 @@ impl Module for EcmascriptModuleLocalsModule {
 }
 
 #[turbo_tasks::value_impl]
+impl EcmascriptParsable for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    fn failsafe_parse(&self) -> Vc<ParseResult> {
+        self.module.failsafe_parse()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
@@ -94,12 +104,13 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
-    fn module_content_without_analysis(
-        &self,
-        generate_source_map: bool,
-    ) -> Vc<EcmascriptModuleContent> {
-        self.module
-            .module_content_without_analysis(generate_source_map)
+    fn env_var_info(&self) -> Vc<EnvVarInfo> {
+        self.module.env_var_info()
+    }
+
+    #[turbo_tasks::function]
+    fn module_content_without_analysis(&self) -> Vc<EcmascriptModuleContent> {
+        self.module.module_content_without_analysis()
     }
 
     #[turbo_tasks::function]
@@ -116,9 +127,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
         let analyze_result = analyze.await?;
 
         let module_type_result = original_module.determine_module_type().await?;
-        let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(*self))
-            .await?;
+        let source_map_generation_options = original_module
+            .await?
+            .options
+            .await?
+            .source_map_generation_options;
 
         Ok(EcmascriptModuleContentOptions {
             parsed: Some(parsed),
@@ -130,9 +143,10 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             part_references: vec![],
             code_generation: analyze_result.code_generation,
             async_module: analyze_result.async_module,
-            generate_source_map,
+            source_map_generation_options,
             original_source_map: analyze_result.source_map,
             exports,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -169,6 +183,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         let exports = EsmExports {
             exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: vec![],
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
@@ -214,6 +229,13 @@ impl ChunkableModule for EcmascriptModuleLocalsModule {
 
 #[turbo_tasks::value_impl]
 impl MergeableModule for EcmascriptModuleLocalsModule {
+    /// The locals module contains the code of the original module, so it is mergeable exactly
+    /// when the original module is (e.g. not when it contains a direct `eval`).
+    #[turbo_tasks::function]
+    fn is_mergeable(&self) -> Vc<bool> {
+        self.module.is_mergeable()
+    }
+
     #[turbo_tasks::function]
     async fn merge(
         &self,

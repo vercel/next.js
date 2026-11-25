@@ -5,16 +5,16 @@ import cheerio from 'cheerio'
 import { findPort } from 'next-test-utils'
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
+// Deploy mode exclusion: This suite controls a local server or proxy process.
+// Calls `next.build()` and uses an in-test proxy in front of the Next
+// server; both rely on the local-process model and are not applicable to
+// deploy mode.
+// @force-gate !deploy
 describe('CSS Module client-side navigation', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // Calls `next.build()` and uses an in-test proxy in front of the Next
-    // server; both rely on the local-process model and are not applicable to
-    // deploy mode.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let proxyServer: http.Server
   let proxyPort: number
@@ -86,7 +86,10 @@ describe('CSS Module client-side navigation', () => {
         expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
         expect(await browser.eval('window.beforeNav')).toBe('hello')
 
-        await browser.elementByCss('#link-blue').click()
+        // The router arms its timeout from `requestIdleCallback`. After
+        // Playwright's mouse click, Chromium can starve that callback until the
+        // stalled CSS resolves. A DOM click uses the same Link handler.
+        await browser.eval(`document.querySelector('#link-blue').click()`)
 
         await browser.waitForElementByCss('#verify-blue')
 

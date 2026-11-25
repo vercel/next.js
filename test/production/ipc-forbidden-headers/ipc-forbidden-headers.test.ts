@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { fetchViaRawHttp } from 'next-test-utils'
 
 describe('ipc-forbidden-headers', () => {
   const { next } = nextTestSetup({
@@ -6,7 +7,9 @@ describe('ipc-forbidden-headers', () => {
   })
 
   it('should not error if expect header is included', async () => {
-    let res = await next.fetch('/api/pages-api', {
+    // Global fetch refuses to send an `Expect: 100-continue` request, so
+    // these use a raw HTTP request.
+    let res = await fetchViaRawHttp(next.appPort, '/api/pages-api', {
       method: 'POST',
       headers: { expect: '100-continue' },
     })
@@ -14,7 +17,7 @@ describe('ipc-forbidden-headers', () => {
 
     expect(text).toEqual('Hello, Next.js!')
 
-    res = await next.fetch('/api/app-api', {
+    res = await fetchViaRawHttp(next.appPort, '/api/app-api', {
       method: 'POST',
       headers: {
         expect: '100-continue',
@@ -27,14 +30,16 @@ describe('ipc-forbidden-headers', () => {
   })
 
   it("should not error on content-length: 0 if request shouldn't contain a payload", async () => {
-    let res = await next.fetch('/api/pages-api', {
+    // Global fetch rejects Content-Length on a bodyless request
+    // (UND_ERR_REQ_CONTENT_LENGTH_MISMATCH), so these use a raw HTTP request.
+    let res = await fetchViaRawHttp(next.appPort, '/api/pages-api', {
       method: 'DELETE',
       headers: { 'content-length': '0' },
     })
 
     expect(res.status).toBe(200)
 
-    res = await next.fetch('/api/app-api', {
+    res = await fetchViaRawHttp(next.appPort, '/api/app-api', {
       method: 'DELETE',
       headers: { 'content-length': '0' },
     })

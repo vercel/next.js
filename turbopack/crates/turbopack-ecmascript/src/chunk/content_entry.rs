@@ -1,6 +1,6 @@
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{FixintU128, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
     code_builder::Code,
@@ -21,7 +21,7 @@ use crate::chunk::{
 #[derive(Debug)]
 pub struct EcmascriptChunkContentEntry {
     pub code: ResolvedVc<Code>,
-    pub hash: ResolvedVc<u64>,
+    pub hash: ResolvedVc<FixintU128>,
 }
 
 impl EcmascriptChunkContentEntry {
@@ -29,7 +29,8 @@ impl EcmascriptChunkContentEntry {
         chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Self> {
-        let code = chunk_item.code(async_module_info).to_resolved().await?;
+        let factory = chunk_item.code(async_module_info).await?;
+        let code = factory.code.to_code().to_resolved().await?;
         Ok(EcmascriptChunkContentEntry {
             code,
             hash: code.source_code_hash().to_resolved().await?,
@@ -38,9 +39,7 @@ impl EcmascriptChunkContentEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkContentEntries(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<ModuleId, EcmascriptChunkContentEntry>,
-);
+pub struct EcmascriptChunkContentEntries(OrderedAutoMap<ModuleId, EcmascriptChunkContentEntry>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContentEntries {
@@ -50,7 +49,7 @@ impl EcmascriptChunkContentEntries {
     ) -> Result<Vc<EcmascriptChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
-        let entries: FxIndexMap<_, _> = chunk_content
+        let entries: OrderedAutoMap<_, _> = chunk_content
             .chunk_items
             .iter()
             .map(async |item| {
@@ -71,7 +70,7 @@ impl EcmascriptChunkContentEntries {
                             batch
                                 .chunk_items
                                 .iter()
-                                .map(|item| async move {
+                                .map(async |item| {
                                     Ok((
                                         item.chunk_item.id().await?,
                                         EcmascriptChunkContentEntry::new(

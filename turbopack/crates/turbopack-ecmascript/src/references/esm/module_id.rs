@@ -1,9 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     reference::ModuleReference,
@@ -11,12 +9,10 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        esm::{EsmAssetReference, base::ReferencedAsset},
-    },
+    references::esm::{EsmAssetReference, base::ReferencedAsset},
     utils::module_id_to_lit,
 };
 
@@ -50,9 +46,14 @@ impl ModuleReference for EsmModuleIdAssetReference {
 }
 
 impl IntoCodeGenReference for EsmModuleIdAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -65,17 +66,16 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct EsmModuleIdAssetReferenceCodeGen {
-    path: AstPath,
+    path: AstPathId,
     reference: ResolvedVc<EsmModuleIdAssetReference>,
 }
 
 impl EsmModuleIdAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -86,6 +86,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
             let id = asset.chunk_item_id(chunking_context).await?;
             let id = module_id_to_lit(&id);
             visitors.push(create_visitor!(
+                trie,
                 self.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {
@@ -97,6 +98,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
             visitors.push(create_visitor!(
+                trie,
                 self.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {

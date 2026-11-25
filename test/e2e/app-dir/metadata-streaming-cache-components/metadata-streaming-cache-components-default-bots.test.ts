@@ -1,0 +1,408 @@
+import { isNextDev, nextTestSetup } from 'e2e-utils'
+import cheerio from 'cheerio'
+import { assertNoConsoleErrors, gate, retry } from 'next-test-utils'
+
+function countSubstring(str: string, substr: string): number {
+  return str.split(substr).length - 1
+}
+
+function expectOptionalCatchallParams(html: string) {
+  expect(html).not.toContain('%%drp:')
+
+  const $ = cheerio.load(html)
+  expect($('#params').text()).toBe(
+    JSON.stringify({
+      locale: 'en',
+      filterSlugs: null,
+      mappedSlugs: [],
+    })
+  )
+}
+
+;(isNextDev ? describe.skip : describe)(
+  'metadata streaming with Cache Components and the default bot list',
+  () => {
+    const { next, isNextDeploy } = nextTestSetup({
+      files: __dirname,
+      overrideFiles: {
+        'next.config.js': `
+          module.exports = (phase, { defaultConfig }) => {
+            if (defaultConfig.adapterPath) {
+              const adapterModule = require(defaultConfig.adapterPath)
+              const adapter = adapterModule.default ?? adapterModule
+              const getCapabilities = adapter.getCapabilities
+              const logCapabilities = (capabilities) => {
+                console.log(
+                  'HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: ' +
+                    (capabilities?.supportsHtmlLimitedBotPrerenders === true)
+                )
+              }
+              if (typeof getCapabilities === 'function') {
+                adapter.getCapabilities = (context) => {
+                  const capabilities = getCapabilities.call(adapter, context)
+                  logCapabilities(capabilities)
+                  return capabilities
+                }
+              } else {
+                logCapabilities()
+              }
+            }
+            return { cacheComponents: true }
+          }
+        `,
+      },
+    })
+
+    function supportsHtmlLimitedBotPrerenders() {
+      const declarations = [
+        ...next.cliOutput.matchAll(
+          /HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: (true|false)/g
+        ),
+      ]
+      const capability = declarations.at(-1)?.[1]
+      if (process.env.NEXT_ENABLE_ADAPTER === '1') {
+        expect(capability).toBeDefined()
+      }
+      return capability === 'true'
+    }
+
+    describe('bot cache policy', () => {
+      it.each([
+        ['/fully-static', 'fully static'],
+        ['/dynamic-page/partial', 'dynamic-page - partial'],
+      ])('serves complete metadata to bots for %s', async (pathname, title) => {
+        const warmResponse = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warmResponse.status).toBe(200)
+        await warmResponse.text()
+
+        const response = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Discordbot' },
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
+        expect($('head title').text()).toBe(title)
+        expect($('body title').length).toBe(0)
+
+        if (await gate((conditions) => conditions.vercel)) {
+          expect(response.headers.get('x-vercel-cache')).toBe(
+            supportsHtmlLimitedBotPrerenders() ? 'HIT' : 'BYPASS'
+          )
+        }
+      })
+
+      it('bypasses a recovery shell whose metadata is absent from the head', async () => {
+        const pathname = '/metadata-recovery/not-found'
+        const warm = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warm.status).toBe(404)
+        expect(warm.headers.get('x-next-prelude-metadata')).toBe('0')
+        const shell = cheerio.load(await warm.text())
+        expect(shell('head title').text()).not.toBe('recovery metadata title')
+
+        for (const userAgent of ['Discordbot', 'discordbot']) {
+          const response = await next.fetch(pathname, {
+            headers: { 'user-agent': userAgent },
+          })
+          expect(response.status).toBe(404)
+          const $ = cheerio.load(await response.text())
+          expect($('head title').text()).toBe('recovery metadata title')
+          expect($('head meta[name="description"]').attr('content')).toBe(
+            'metadata from the recovery boundary'
+          )
+          expect($('body title')).toHaveLength(0)
+          if (await gate((conditions) => conditions.vercel)) {
+            expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
+          }
+        }
+      })
+
+      it('bypasses deferred metadata for bots and preserves the cached shell', async () => {
+        const pathname = '/dynamic-metadata/partial'
+        const warmResponse = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warmResponse.status).toBe(200)
+        await warmResponse.text()
+
+        for (const userAgent of ['Discordbot', 'discordbot']) {
+          const response = await next.fetch(pathname, {
+            headers: { 'user-agent': userAgent },
+          })
+          expect(response.status).toBe(200)
+          expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+          const $ = cheerio.load(await response.text())
+          expect($('head title').text()).toBe('dynamic-metadata - partial')
+          expect($('body title').length).toBe(0)
+          if (await gate((conditions) => conditions.vercel)) {
+            expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
+          }
+        }
+
+        const response = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+        const $ = cheerio.load(await response.text())
+        expect($('head title').length).toBe(0)
+        expect($('body title').text()).toBe('dynamic-metadata - partial')
+        if (await gate((conditions) => conditions.vercel)) {
+          expect(response.headers.get('x-vercel-cache')).toBe('HIT')
+        }
+      })
+    })
+
+    it('should serve the PPR shell to regular user agents', async () => {
+      const res = await next.fetch('/partial')
+
+      expect(res.status).toBe(200)
+      if (!isNextDeploy) {
+        expect(res.headers.get('x-nextjs-postponed')).toBe('1')
+      }
+
+      const $ = cheerio.load(await res.text())
+      expect($('body title').text()).toBe('dynamic title')
+      expect($('#dynamic-content').text()).toBe('dynamic content')
+    })
+
+    it('should block metadata for googleweblight within a full user agent', async () => {
+      const res = await next.fetch('/partial', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 4.2.1; en-us; Nexus 5 Build/JOP40D) AppleWebKit/535.19 (KHTML, like Gecko; googleweblight) Chrome/38.0.1025.166 Mobile Safari/535.19',
+        },
+      })
+
+      expect(res.status).toBe(200)
+
+      const $ = cheerio.load(await res.text())
+      expect($('head title').text()).toBe('dynamic title')
+      expect($('body title').length).toBe(0)
+    })
+
+    it('should block metadata while continuing to stream the body for a default HTML-limited bot', async () => {
+      const abortController = new AbortController()
+      let body:
+        | (AsyncIterable<Uint8Array> & {
+            cancel: () => void
+          })
+        | undefined
+
+      try {
+        const res = await next.fetch('/partial?stream=1', {
+          headers: {
+            'user-agent': 'Discordbot',
+          },
+          signal: abortController.signal,
+        })
+
+        expect(res.status).toBe(200)
+        if (!isNextDeploy) {
+          expect(res.headers.get('x-nextjs-postponed')).toBeNull()
+        }
+        expect(res.body).not.toBeNull()
+
+        body = res.body! as unknown as AsyncIterable<Uint8Array> & {
+          cancel: () => void
+        }
+        let initialHtml = ''
+
+        for await (const chunk of body) {
+          initialHtml += Buffer.from(chunk).toString()
+          if (initialHtml.includes('dynamic-fallback')) {
+            break
+          }
+        }
+
+        expect(initialHtml).toContain('<title>dynamic title</title>')
+        expect(initialHtml).toContain('dynamic-fallback')
+        expect(initialHtml).not.toContain('dynamic-content')
+      } finally {
+        abortController.abort()
+        body?.cancel()
+      }
+    })
+
+    it('should use the PPR shell with streamed metadata for a DOM-capable bot', async () => {
+      const res = await next.fetch('/partial?stream=delay', {
+        headers: {
+          'user-agent': 'Googlebot',
+        },
+      })
+
+      expect(res.status).toBe(200)
+      if (!isNextDeploy) {
+        expect(res.headers.get('x-nextjs-postponed')).toBe('1')
+      }
+
+      const $ = cheerio.load(await res.text())
+      expect($('head title').length).toBe(0)
+      expect($('body title').text()).toBe('dynamic title')
+      expect($('#dynamic-content').text()).toBe('dynamic content')
+    })
+
+    it('should not expose fallback placeholders for an omitted optional catch-all during a bot bypass', async () => {
+      const response = await next.fetch('/en', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expectOptionalCatchallParams(await response.text())
+    })
+
+    it('should not expose fallback placeholders during a draft mode bypass', async () => {
+      const draftResponse = await next.fetch('/api/draft/enable')
+      const cookie = draftResponse.headers.get('set-cookie')?.split(';', 1)[0]
+      expect(cookie).toBeTruthy()
+
+      const response = await next.fetch('/en', {
+        headers: {
+          cookie: cookie!,
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expectOptionalCatchallParams(await response.text())
+    })
+
+    it('should not expose fallback placeholders during a Next-Action request bypass', async () => {
+      const browser = await next.browser('/en', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await browser.elementById('submit-action').click()
+
+      await retry(async () => {
+        expect(await browser.elementById('action-result').text()).toBe(
+          'submitted'
+        )
+        expect(await browser.elementById('params').text()).toBe(
+          JSON.stringify({
+            locale: 'en',
+            filterSlugs: null,
+            mappedSlugs: [],
+          })
+        )
+      })
+
+      await assertNoConsoleErrors(browser)
+    })
+
+    describe('Cache Components metadata streaming', () => {
+      it('should generate metadata in head when page is fully static', async () => {
+        const response = await next.fetch('/fully-static')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
+        expect($('head title').text()).toBe('fully static')
+        expect(countSubstring($.html(), '<title>')).toBe(1)
+
+        const browser = await next.browser('/fully-static', {
+          pushErrorAsConsoleLog: true,
+        })
+        expect(
+          await browser
+            .waitForElementByCss('head title', { state: 'attached' })
+            .text()
+        ).toBe('fully static')
+        await assertNoConsoleErrors(browser)
+      })
+
+      it('should insert static metadata in head when page content is dynamic', async () => {
+        const $ = await next.render$('/dynamic-page')
+        expect($('head title').text()).toBe('dynamic page')
+        expect(countSubstring($.html(), '<title>')).toBe(1)
+
+        const browser = await next.browser('/dynamic-page', {
+          pushErrorAsConsoleLog: true,
+        })
+        expect(
+          await browser
+            .waitForElementByCss('head title', { state: 'attached' })
+            .text()
+        ).toBe('dynamic page')
+        await assertNoConsoleErrors(browser)
+      })
+
+      it('should insert dynamic metadata in body when page is fully dynamic', async () => {
+        const $ = await next.render$('/fully-dynamic')
+        expect($('body title').text()).toBe('fully dynamic')
+        expect(countSubstring($.html(), '<title>')).toBe(1)
+
+        const browser = await next.browser('/fully-dynamic', {
+          pushErrorAsConsoleLog: true,
+        })
+        expect(
+          await browser
+            .waitForElementByCss('body title', { state: 'attached' })
+            .text()
+        ).toBe('fully dynamic')
+        await assertNoConsoleErrors(browser)
+      })
+
+      it('should insert dynamic metadata in body under a layout Suspense boundary', async () => {
+        const response = await next.fetch('/dynamic-metadata/partial')
+        expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+        const $ = cheerio.load(await response.text())
+        expect($('body title').text()).toBe('dynamic-metadata - partial')
+        expect(countSubstring($.html(), '<title>')).toBe(1)
+
+        const browser = await next.browser('/dynamic-metadata/partial', {
+          pushErrorAsConsoleLog: true,
+        })
+        expect(
+          await browser
+            .waitForElementByCss('body title', { state: 'attached' })
+            .text()
+        ).toBe('dynamic-metadata - partial')
+        await assertNoConsoleErrors(browser)
+      })
+
+      it('should insert static metadata in head when dynamic page content is under a layout Suspense boundary', async () => {
+        const response = await next.fetch('/dynamic-page/partial')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
+        expect($('head title').text()).toBe('dynamic-page - partial')
+        expect(countSubstring($.html(), '<title>')).toBe(1)
+
+        const browser = await next.browser('/dynamic-page/partial', {
+          pushErrorAsConsoleLog: true,
+        })
+        expect(
+          await browser
+            .waitForElementByCss('head title', { state: 'attached' })
+            .text()
+        ).toBe('dynamic-page - partial')
+        await assertNoConsoleErrors(browser)
+      })
+
+      it('omits the metadata marker for an empty shell with deferred metadata', async () => {
+        const response = await next.fetch('/dynamic-metadata/empty')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
+        expect($('title').text()).toBe('dynamic-metadata - empty')
+        expect($('#empty-shell-content').text()).toBe('empty shell content')
+      })
+
+      it('should not yield hydration errors after revalidation', async () => {
+        const browser = await next.browser('/partially-static', {
+          pushErrorAsConsoleLog: true,
+        })
+
+        const initialDate = await browser.elementById('date').text()
+
+        await retry(async () => {
+          await browser.refresh()
+          expect(await browser.elementById('date').text()).not.toBe(initialDate)
+        })
+
+        await assertNoConsoleErrors(browser)
+      })
+    })
+  }
+)

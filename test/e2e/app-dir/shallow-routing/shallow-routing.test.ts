@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 
 describe('shallow-routing', () => {
   const { next } = nextTestSetup({
@@ -485,6 +485,39 @@ describe('shallow-routing', () => {
           `${next.url}/pushstate-string-url?query=foo-added`
         )
       })
+    })
+  })
+
+  describe('a component that suspends on data for the new URL', () => {
+    // The router applies the URL as a Transition, so React keeps showing the
+    // current content until the new content is ready. If it showed the
+    // Suspense fallback instead, the input would be hidden and lose focus.
+    async function expectInputToKeepFocus(browser, value: string) {
+      expect(await browser.elementByCss('#input').getValue()).toBe(value)
+      expect(await browser.eval('document.activeElement.id')).toBe('input')
+    }
+
+    async function waitForLoaded(browser, value: string) {
+      await retry(async () => {
+        expect(await browser.elementByCss('#loaded').text()).toBe(value)
+      })
+    }
+
+    it('should keep showing the current content on replaceState', async () => {
+      const browser = await next.browser('/suspends-on-search-params')
+      // Each keystroke writes the URL with replaceState.
+      await browser.elementByCss('#input').type('abc')
+      await waitForLoaded(browser, 'abc')
+      await expectInputToKeepFocus(browser, 'abc')
+    })
+
+    it('should keep showing the current content on pushState', async () => {
+      const browser = await next.browser('/suspends-on-search-params')
+      await browser.elementByCss('#input').click()
+      // Enter writes the URL with pushState.
+      await browser.keydown('Enter').keyup('Enter')
+      await waitForLoaded(browser, 'pushed')
+      await expectInputToKeepFocus(browser, '')
     })
   })
 })

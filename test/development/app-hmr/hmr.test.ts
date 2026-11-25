@@ -1,16 +1,160 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, Playwright } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
 
 const envFile = '.env.development.local'
 
 describe(`app-dir-hmr`, () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     patchFileDelay: 1000,
   })
 
   describe('filesystem changes', () => {
+    // @force-gate turbopack
+    it('reloads the page if the server advanced while the client was disconnected', async () => {
+      const componentPath = 'app/hmr-reconnect/page.js'
+      const originalComponent = await next.readFile(componentPath)
+      let forwardHmrTraffic = true
+      let droppedHmrMessages = 0
+      let reconnectHmr = () => {}
+      const subscriptionHashes: Array<string | undefined> = []
+
+      const getHmrValue = (browser: Playwright<unknown>) =>
+        browser.eval(`document.querySelector('#hmr-value')?.textContent`)
+
+      try {
+        const browser = await next.browser('/hmr-reconnect', {
+          async beforePageLoad(page) {
+            await page.routeWebSocket(/\/_next\/hmr/, (clientSocket) => {
+              const serverSocket = clientSocket.connectToServer()
+              function connectServerSocket() {
+                serverSocket.onMessage((message) => {
+                  if (forwardHmrTraffic) {
+                    clientSocket.send(message)
+                  } else {
+                    droppedHmrMessages++
+                  }
+                })
+              }
+              connectServerSocket()
+              clientSocket.onMessage((message) => {
+                if (typeof message === 'string') {
+                  const parsed = JSON.parse(message)
+                  if (parsed.type === 'turbopack-subscribe') {
+                    subscriptionHashes.push(parsed.hmrVersion)
+                  }
+                }
+                serverSocket.send(message)
+              })
+              reconnectHmr = () => serverSocket.close()
+            })
+          },
+        })
+        await retry(async () => {
+          expect(await getHmrValue(browser)).toBe('Initial')
+        })
+
+        await next.patchFile(
+          componentPath,
+          originalComponent.replace('Initial', 'First edit')
+        )
+        await retry(async () => {
+          expect(await getHmrValue(browser)).toBe('First edit')
+        })
+        await browser.eval(`window.__hmrTestDocument = true`)
+
+        forwardHmrTraffic = false
+        await next.patchFile(
+          componentPath,
+          originalComponent.replace('Initial', 'Second edit')
+        )
+        await retry(async () => {
+          expect(droppedHmrMessages).toBeGreaterThan(0)
+        })
+        expect(await getHmrValue(browser)).not.toBe('Second edit')
+        expect(await browser.eval(`window.__hmrTestDocument`)).toBe(true)
+
+        forwardHmrTraffic = true
+        reconnectHmr()
+        await retry(async () => {
+          expect(subscriptionHashes.some((hash) => hash !== undefined)).toBe(
+            true
+          )
+        })
+        await retry(async () => {
+          expect(await getHmrValue(browser)).toBe('Second edit')
+        }, 10_000)
+        expect(await browser.eval(`window.__hmrTestDocument`)).toBeUndefined()
+      } finally {
+        await next.patchFile(componentPath, originalComponent)
+      }
+    })
+
+    // Only Turbopack's dev server sends `built` for the compilations a
+    // navigation triggers.
+    // @force-gate turbopack
+    it('does not repeat the Fast Refresh log on navigation after an edit', async () => {
+      const componentPath = 'app/fast-refresh-log/message.js'
+      const browser = await next.browser('/fast-refresh-log')
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+
+      const countLogs = async (message: string) =>
+        (await browser.log()).filter((log) => log.message.includes(message))
+          .length
+      const countBuiltMessages = async () =>
+        (await browser.websocketFrames()).filter(
+          ({ payload }) =>
+            typeof payload === 'string' && payload.includes('"type":"built"')
+        ).length
+      const navigateAwayAndBack = async () => {
+        await browser
+          .elementByCss('#to-other')
+          .click()
+          .waitForElementByCss('#other')
+        await browser
+          .elementByCss('#to-home')
+          .click()
+          .waitForElementByCss('#message')
+      }
+
+      // Compile both routes before the edit.
+      await navigateAwayAndBack()
+
+      await next.patchFile(
+        componentPath,
+        (content) => content.replace('Initial', 'Edited'),
+        async () => {
+          await retry(async () => {
+            expect(await browser.elementByCss('#message').text()).toBe('Edited')
+          })
+
+          const builtMessagesBeforeNavigation = await countBuiltMessages()
+          for (let i = 0; i < 3; i++) {
+            await navigateAwayAndBack()
+          }
+          // Navigating triggers compilations that finish too quickly for the
+          // dev server to send `building`, so the client only gets `built`.
+          await retry(async () => {
+            expect(await countBuiltMessages()).toBeGreaterThan(
+              builtMessagesBeforeNavigation
+            )
+          })
+          // Round-trip to the page so console messages logged while handling
+          // those `built` messages have been delivered.
+          await browser.eval('1')
+
+          // Every `done` log belongs to a `rebuilding` log. A `done` log on
+          // its own replays an update that was already reported.
+          expect(await countLogs('[Fast Refresh] done in')).toBe(
+            await countLogs('[Fast Refresh] rebuilding')
+          )
+        }
+      )
+
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBe(true)
+    })
+
     it('should not continously poll when hitting a not found page', async () => {
       let requestCount = 0
 
@@ -111,14 +255,18 @@ describe(`app-dir-hmr`, () => {
 
       const logs = await browser.log()
       // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
-      expect(logs).toEqual(
-        expect.arrayContaining([
-          {
-            message: expect.stringContaining('[Fast Refresh] done in'),
-            source: 'log',
-          },
-        ])
-      )
+      // Turbopack sends no client update for this navigation, and only logs a no-op rebuild when
+      // compiling the page takes longer than its suppression delay.
+      if (!isTurbopack) {
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            {
+              message: expect.stringContaining('[Fast Refresh] done in'),
+              source: 'log',
+            },
+          ])
+        )
+      }
       expect(logs).not.toEqual(
         expect.arrayContaining([
           expect.objectContaining({

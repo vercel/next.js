@@ -53,9 +53,8 @@ export function normalizeAppPath(route: string) {
 
 /**
  * Comparator for sorting app paths so that parallel slot paths (containing
- * `/@`) come before the children/root page path. This ensures the last item
- * is always the children page, which is what `renderPageComponent` reads via
- * `appPaths[appPaths.length - 1]`.
+ * `/@`) come before the children/root page path. This keeps the direct
+ * children/root page last so it can be selected as the canonical entry.
  *
  * Without this, route group prefixes like `(group)` (char code 0x28) sort
  * before `@` (0x40), causing the children page to sort first instead of last
@@ -67,6 +66,65 @@ export function compareAppPaths(a: string, b: string): number {
   if (aHasSlot && !bHasSlot) return -1
   if (!aHasSlot && bHasSlot) return 1
   return a.localeCompare(b)
+}
+
+function normalizeAppPageEntryPathname(appPath: string): string {
+  // Webpack app entries preserve escaped underscore segments as `%5F`, while
+  // normalized request pathnames expose the decoded `_` segment.
+  return normalizeAppPath(appPath).replace(/%5F/g, '_')
+}
+
+/**
+ * Builds a lookup that selects the app path owning the compiled entry for a
+ * normalized route. Catch-all normalization can add app paths from other
+ * routes, so only direct paths are candidates. Among those, compareAppPaths
+ * deterministically prefers the children/root page, or a stable slot when the
+ * route only has slots.
+ *
+ * Reuse the returned lookup when resolving many pathnames against the same app
+ * paths: each app path is normalized once up front instead of once per lookup,
+ * which turns resolving every route from O(routes * appPaths) into
+ * O(routes + appPaths).
+ */
+export function createAppPageEntryLookup(
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
+): (pathname: string) => string {
+  const entries = new Map<string, string>()
+
+  for (const appPath of appPaths) {
+    const pathname = normalizePathname(appPath)
+    const entry = entries.get(pathname)
+
+    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
+      entries.set(pathname, appPath)
+    }
+  }
+
+  return (pathname) => {
+    const entry = entries.get(pathname)
+
+    if (entry === undefined) {
+      throw new Error(
+        `Invariant: no direct app page entry found for ${pathname}`
+      )
+    }
+
+    return entry
+  }
+}
+
+/**
+ * Selects the app path that owns the compiled entry for a single normalized
+ * route. See `createAppPageEntryLookup`, which should be used instead when
+ * resolving many pathnames against the same app paths.
+ */
+export function selectAppPageEntry(
+  pathname: string,
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
+): string {
+  return createAppPageEntryLookup(appPaths, normalizePathname)(pathname)
 }
 
 /**

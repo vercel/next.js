@@ -192,17 +192,8 @@ impl AppPageLoaderTreeBuilder {
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
                 let inner_module_id = format!("METADATA_{i}");
 
-                // This should use the same importing mechanism as create_module_tuple_code, so that
-                // the relative order of items is retained (which isn't the case
-                // when mixing ESM imports and requires).
-                self.base.imports.push((
-                    depth,
-                    format!(
-                        "const {identifier} = () => require(/*turbopackChunkingType: \
-                         shared*/\"{inner_module_id}\");"
-                    )
-                    .into(),
-                ));
+                self.base
+                    .create_module_getter_declaration(depth, &identifier, &inner_module_id);
 
                 let source = dynamic_image_metadata_source(
                     *ResolvedVc::upcast(self.base.module_asset_context),
@@ -240,17 +231,8 @@ impl AppPageLoaderTreeBuilder {
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
 
-        // This should use the same importing mechanism as create_module_tuple_code, so that the
-        // relative order of items is retained (which isn't the case when mixing ESM imports and
-        // requires).
-        self.base.imports.push((
-            depth,
-            format!(
-                "const {identifier} = () => require(/*turbopackChunkingType: \
-                 shared*/\"{inner_module_id}\");"
-            )
-            .into(),
-        ));
+        self.base
+            .create_module_getter_declaration(depth, &identifier, &inner_module_id);
         let module = StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
@@ -265,17 +247,8 @@ impl AppPageLoaderTreeBuilder {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
             let inner_module_id = format!("METADATA_ALT_{i}");
 
-            // This should use the same importing mechanism as create_module_tuple_code, so that the
-            // relative order of items is retained (which isn't the case when mixing ESM imports and
-            // requires).
-            self.base.imports.push((
-                depth,
-                format!(
-                    "const {identifier} = () => require(/*turbopackChunkingType: \
-                     shared*/\"{inner_module_id}\");"
-                )
-                .into(),
-            ));
+            self.base
+                .create_module_getter_declaration(depth, &identifier, &inner_module_id);
 
             let module = self
                 .base
@@ -433,8 +406,16 @@ impl AppPageLoaderTreeBuilder {
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
-        // add parallel_routes
-        for (key, parallel_route) in parallel_routes.iter() {
+        // Keep the serialized order stable for compatibility with existing
+        // clients, but don't make the loader tree representation itself depend
+        // on insertion order. Consumers that need the primary route should
+        // select `children` by key.
+        let ordered_parallel_routes = parallel_routes.get_key_value("children").into_iter().chain(
+            parallel_routes
+                .iter()
+                .filter(|(key, _)| key.as_str() != "children"),
+        );
+        for (key, parallel_route) in ordered_parallel_routes {
             write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
             let next_depth = if key.as_str() == "children" {
                 depth + 1
@@ -483,7 +464,13 @@ impl AppPageLoaderTreeBuilder {
         let mut imports = self.base.imports;
         imports.sort_by_key(|(position, _)| *position);
         Ok(AppPageLoaderTreeModule {
-            imports: imports.into_iter().map(|(_, import)| import).collect(),
+            imports: std::iter::once(
+                "import { instrumentModuleGetter } from \
+                 \"next/dist/server/app-render/module-loading/instrument-module-getter\";"
+                    .into(),
+            )
+            .chain(imports.into_iter().map(|(_, import)| import))
+            .collect(),
             loader_tree_code: self.loader_tree_code.into(),
             inner_assets: self.base.inner_assets,
         })

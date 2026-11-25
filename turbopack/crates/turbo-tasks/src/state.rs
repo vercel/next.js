@@ -11,7 +11,7 @@ use tracing::trace_span;
 
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
-    get_serialization_invalidator, manager::with_turbo_tasks, trace::TraceRawVcs,
+    get_serialization_invalidator, manager::with_turbo_tasks,
 };
 
 #[derive(Encode, Decode)]
@@ -33,7 +33,7 @@ impl<T> StateInner<T> {
     }
 
     /// Sets the value and returns the drained invalidators. The caller MUST
-    /// run them via [`run_invalidators`] *after* dropping the [`Mutex`] guard
+    /// run them via [`notify_mutated`] *after* dropping the [`Mutex`] guard
     /// — calling [`Invalidator::invalidate`] may grab locks in the backend which can lead to cycles
     #[must_use]
     fn set_unconditionally(&mut self, value: T) -> AutoSet<Invalidator> {
@@ -84,9 +84,7 @@ fn notify_mutated(
     }
     let _span = trace_span!("state value changed").entered();
     with_turbo_tasks(|tt| {
-        for invalidator in invalidators {
-            invalidator.invalidate(&**tt);
-        }
+        Invalidator::invalidate_all(invalidators, &**tt);
         if let Some(serialization_invalidator) = serialization_invalidator {
             tt.invalidate_serialization(serialization_invalidator.task());
         }
@@ -227,12 +225,6 @@ impl<T: Debug> Debug for State<T> {
         f.debug_struct("State")
             .field("value", &self.inner.lock().value)
             .finish()
-    }
-}
-
-impl<T: TraceRawVcs> TraceRawVcs for State<T> {
-    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        self.inner.lock().value.trace_raw_vcs(trace_context);
     }
 }
 

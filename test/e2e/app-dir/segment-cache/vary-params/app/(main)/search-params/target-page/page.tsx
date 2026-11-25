@@ -17,7 +17,7 @@ import { Suspense } from 'react'
 export const instant = {
   unstable_samples: [{ searchParams: { foo: '1' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 type SearchParams = { foo?: string }
 

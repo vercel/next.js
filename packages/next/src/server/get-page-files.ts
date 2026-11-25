@@ -4,6 +4,10 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 export type BuildManifest = {
   devFiles: readonly string[]
   polyfillFiles: readonly string[]
+  // The standalone browser runtime that applies React's instruction set when
+  // `experimental.externalBrowserRuntime` is enabled. Absent otherwise. There is
+  // at most one, so this is a single path rather than a list.
+  externalBrowserRuntimeFile?: string
   lowPriorityFiles: readonly string[]
   rootMainFiles: readonly string[]
   // this is a separate field for flying shuttle to allow
@@ -14,6 +18,36 @@ export type BuildManifest = {
     '/_app': readonly string[]
     [page: string]: readonly string[]
   }
+  // Per-page Turbopack chunk-group bootstrap params, stored as raw JSON.
+  pagesChunkGroupBootstrapParams?: { [page: string]: object }
+  // The chunk-loading global the runtime drains (default "TURBOPACK").
+  chunkLoadingGlobal?: string
+}
+
+/**
+ * Builds inline `globalThis[<global>].push(<params>)` bootstrap content for the given
+ * pages, seeding the runtime queue before the shared runtime chunk drains it. Only call
+ * this for Turbopack production builds (the only builds that populate
+ * `pagesChunkGroupBootstrapParams` / `chunkLoadingGlobal`). Returns undefined when none
+ * of the given pages have inlined params.
+ */
+export function getTurbopackChunkGroupBootstrap(
+  paramsByPage: { [page: string]: object },
+  chunkLoadingGlobal: string,
+  pages: readonly string[]
+): string | undefined {
+  const g = JSON.stringify(chunkLoadingGlobal)
+  const statements = pages
+    .map((page) => paramsByPage[page])
+    .filter(Boolean)
+    .map(
+      (params) =>
+        `(globalThis[${g}] || (globalThis[${g}] = [])).push(${JSON.stringify(
+          params
+        )});`
+    )
+
+  return statements.length > 0 ? statements.join('\n') : undefined
 }
 
 export function getPageFiles(

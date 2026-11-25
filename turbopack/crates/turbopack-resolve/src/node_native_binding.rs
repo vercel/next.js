@@ -138,13 +138,19 @@ async fn resolve_node_pre_gyp_files(
                 .into();
 
             // Find all dynamic libraries in the given directory.
+            // DETERMINISM: Sort libraries before inserting into the ordered sources map.
             if let DirectoryContent::Entries(entries) = &*config_file_dir
                 .join(&native_binding_path)?
                 .read_dir()
                 .await?
             {
                 let extension = compile_target.dylib_ext();
-                for (key, entry) in entries.iter().filter(|(k, _)| k.ends_with(extension)) {
+                let mut entries = entries
+                    .iter()
+                    .filter(|(key, _)| key.ends_with(extension))
+                    .collect::<Vec<_>>();
+                entries.sort_unstable_by_key(|(a, _)| *a);
+                for (key, entry) in entries {
                     if let DirectoryEntry::File(dylib) | DirectoryEntry::Symlink(dylib) = entry {
                         sources.insert(
                             format!("{native_binding_path}/{key}").into(),
@@ -167,6 +173,7 @@ async fn resolve_node_pre_gyp_files(
                 );
             }
         }
+        // DETERMINISM: Sort dependencies before collecting sources and symlink affecting paths.
         if let DirectoryContent::Entries(entries) = &*config_file_dir
             // TODO
             // read the dependencies path from `bindings.gyp`
@@ -174,7 +181,9 @@ async fn resolve_node_pre_gyp_files(
             .read_dir()
             .await?
         {
-            for (key, entry) in entries.iter() {
+            let mut entries = entries.iter().collect::<Vec<_>>();
+            entries.sort_unstable_by_key(|(a, _)| *a);
+            for (key, entry) in entries {
                 match entry {
                     DirectoryEntry::File(dylib) => {
                         sources.insert(
@@ -191,9 +200,7 @@ async fn resolve_node_pre_gyp_files(
                             format!("deps/lib/{key}").into(),
                             Vc::upcast(FileSource::new(match &realpath_with_links.path_result {
                                 Ok(path) => path.clone(),
-                                Err(e) => {
-                                    bail!(e.as_error_message(dylib, &realpath_with_links).await?)
-                                }
+                                Err(error) => bail!(error.clone()),
                             })),
                         );
                     }
@@ -204,7 +211,7 @@ async fn resolve_node_pre_gyp_files(
         return Ok(*ModuleResolveResult::modules_with_affecting_sources(
             sources
                 .into_iter()
-                .map(|(key, source)| async move {
+                .map(async |(key, source)| {
                     Ok((
                         RequestKey::new(key),
                         ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
@@ -214,9 +221,7 @@ async fn resolve_node_pre_gyp_files(
                 .await?,
             affecting_paths
                 .into_iter()
-                .map(|p| async move {
-                    anyhow::Ok(ResolvedVc::upcast(FileSource::new(p).to_resolved().await?))
-                })
+                .map(async |p| Ok(ResolvedVc::upcast(FileSource::new(p).to_resolved().await?)))
                 .try_join()
                 .await?,
         ));
@@ -323,7 +328,7 @@ async fn resolve_node_gyp_build_files(
                 return Ok(*ModuleResolveResult::modules_with_affecting_sources(
                     resolved
                         .into_iter()
-                        .map(|(key, source)| async move {
+                        .map(async |(key, source)| {
                             Ok((
                                 RequestKey::new(key),
                                 ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
@@ -434,7 +439,7 @@ async fn resolve_node_bindings_files(
         root_context_dir = parent;
     }
 
-    let try_path = |sub_path: RcStr| async move {
+    let try_path = async |sub_path: RcStr| {
         let path = root_context_dir.join(&sub_path)?;
         Ok(
             if matches!(*path.get_type().await?, FileSystemEntryType::File) {
@@ -454,7 +459,7 @@ async fn resolve_node_bindings_files(
 
     let modules = BINDINGS_TRY
         .iter()
-        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, file_name).into()))
+        .map(|try_dir| try_path(format!("{}/{}", try_dir, file_name).into()))
         .try_flat_join()
         .await?;
     Ok(*ModuleResolveResult::modules(modules))

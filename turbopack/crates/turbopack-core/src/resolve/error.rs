@@ -9,10 +9,10 @@ use crate::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
         resolve::ResolvingIssue,
     },
-    reference_type::ReferenceType,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::{
-        ModuleResolveResult, ResolveErrorMode, ResolveResult, options::ResolveOptions,
-        parse::Request,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode, ResolveResult,
+        options::ResolveOptions, parse::Request, pattern::Pattern,
     },
 };
 
@@ -39,6 +39,40 @@ pub async fn handle_resolve_error(
                 )
                 .await?;
             }
+
+            // A file that no module type applies to has no module in the module graph, so
+            // no import trace leads to it. Keep the location of the import with it, so that
+            // it is reported there if it turns out to be needed as a module.
+            let result = if let Some(source) = source
+                && result_ref.primary.iter().any(|(_, item)| {
+                    matches!(item, ModuleResolveResultItem::Unknown { import: None, .. })
+                }) {
+                ModuleResolveResult {
+                    primary: result_ref
+                        .primary
+                        .iter()
+                        .map(|(key, item)| {
+                            (
+                                key.clone(),
+                                match item {
+                                    ModuleResolveResultItem::Unknown {
+                                        source: file,
+                                        import: None,
+                                    } => ModuleResolveResultItem::Unknown {
+                                        source: *file,
+                                        import: Some(source),
+                                    },
+                                    item => item.clone(),
+                                },
+                            )
+                        })
+                        .collect(),
+                    affecting_sources: result_ref.affecting_sources.clone(),
+                }
+                .cell()
+            } else {
+                result
+            };
 
             handle_item_issues(result_ref.errors(), &origin_path, source).await?;
 
@@ -152,6 +186,7 @@ async fn emit_resolve_error_issue(
         resolve_options: resolve_options.to_resolved().await?,
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
+        hint: resolve_hint(&reference_type, request).await?,
     }
     .resolved_cell()
     .emit();
@@ -182,10 +217,52 @@ async fn emit_unresolvable_issue(
         resolve_options: resolve_options.to_resolved().await?,
         error_message: None,
         source,
+        hint: resolve_hint(&reference_type, request).await?,
     }
     .resolved_cell()
     .emit();
     Ok(())
+}
+
+/// Suggests a fix for a request that failed because part of it is only known at runtime. Only
+/// covers requests that accept a `turbopackIgnore` comment.
+async fn resolve_hint(
+    reference_type: &ReferenceType,
+    request: Vc<Request>,
+) -> Result<Option<RcStr>> {
+    let example = match reference_type {
+        ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl) => {
+            "new URL(/* turbopackIgnore: true */ url, import.meta.url)"
+        }
+        ReferenceType::EcmaScriptModules(
+            EcmaScriptModulesReferenceSubType::DynamicImport
+            | EcmaScriptModulesReferenceSubType::LazyDynamicImport,
+        ) => "import(/* turbopackIgnore: true */ path)",
+        ReferenceType::CommonJs(_) => "require(/* turbopackIgnore: true */ path)",
+        _ => return Ok(None),
+    };
+    let pattern = request.request_pattern().await?;
+    if !pattern.has_dynamic_parts() {
+        return Ok(None);
+    }
+    // The request failed as a whole, so none of its static alternatives resolved. They are
+    // usually values the analyzer couldn't rule out, e.g. `'undefined'` for an unset option.
+    let unresolved = match pattern.filter_static() {
+        Some(Pattern::Alternatives(list)) => list
+            .iter()
+            .map(|p| p.describe_as_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        Some(p) => p.describe_as_string(),
+        None => return Ok(None),
+    };
+    Ok(Some(
+        format!(
+            "Turbopack couldn't resolve {unresolved}, which this request may evaluate to. If the \
+             request is only known at runtime, opt out of bundling with `{example}`."
+        )
+        .into(),
+    ))
 }
 
 pub async fn resolve_error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeverity> {

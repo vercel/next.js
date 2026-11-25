@@ -6,6 +6,8 @@ import { createTestLog } from 'test-log'
 import { findPort } from 'next-test-utils'
 
 describe('segment cache (revalidation)', () => {
+  // Deploy mode exclusion: This suite starts and mutates a process-local test
+  // data server.
   if (isNextDev || isNextDeploy) {
     test('disabled in development / deployment', () => {})
     return

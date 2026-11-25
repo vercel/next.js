@@ -15,7 +15,9 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{ResolvedVc, TurboTasks};
+use turbo_tasks::{
+    ResolvedVc, TurboTasks, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -23,7 +25,7 @@ use turbopack_core::{
     target::CompileTarget,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode,
+    AnalyzeMode, SpecifiedModuleType,
     analyzer::{
         Bump, ThreadLocal,
         graph::{EvalContext, VarGraph, create_graph},
@@ -80,8 +82,10 @@ pub fn benchmark(c: &mut Criterion) {
                     arena.get_or_default(),
                     &program,
                     &eval_context,
-                    AnalyzeMode::CodeGenerationAndTracing,
+                    AnalyzeMode::code_generation_and_tracing(),
+                    SpecifiedModuleType::Automatic,
                     true,
+                    false,
                 ));
 
                 let input = BenchInput {
@@ -116,8 +120,10 @@ fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
             arena.get_or_default(),
             &input.program,
             &input.eval_context,
-            AnalyzeMode::CodeGenerationAndTracing,
+            AnalyzeMode::code_generation_and_tracing(),
+            SpecifiedModuleType::Automatic,
             true,
+            false,
         ));
     });
 }
@@ -142,6 +148,10 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
         let var_graph = var_graph.clone();
         async move {
             tt.run_once(async move {
+                // `link` performs eventually-consistent Vc reads. That trips the top-level-task
+                // assertion under debug-assertions, but for a benchmark (not real code) reading
+                // the not-yet-settled value is fine — we only care about throughput.
+                unmark_top_level_task_may_leak_eventually_consistent_state();
                 let compile_time_info = CompileTimeInfo::builder(
                     Environment::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {

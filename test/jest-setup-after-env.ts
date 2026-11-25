@@ -1,5 +1,12 @@
 import * as matchers from 'jest-extended'
+import { installGate } from './lib/gate/runtime'
+
 expect.extend(matchers)
+
+// Installs the `_test_gate` global that `// @gate` pragmas compile to, and
+// wraps `it`/`test` so a gate on a `describe` reaches the tests inside it.
+// See test/lib/gate/runtime.ts.
+installGate()
 
 // Patch jscodeshift testUtils to normalize line endings (fixes Windows CRLF issues)
 // The issue: jscodeshift's printer (recast) outputs CRLF on Windows, but test fixtures use LF

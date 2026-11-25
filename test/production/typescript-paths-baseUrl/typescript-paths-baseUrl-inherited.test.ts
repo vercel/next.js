@@ -2,9 +2,11 @@ import path from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 // Reproduces https://github.com/vercel/next.js/issues/93336
+// Only next-build is interesting here.
+// @force-gate !deploy
 describe('typescript paths with deprecated, inherited baseUrl', () => {
   const fixtureDir = path.join(__dirname, 'fixtures/inherited')
-  const { skipped, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       '../pnpm-workspace.yaml': new FileRef(
         path.join(fixtureDir, 'pnpm-workspace.yaml')
@@ -25,13 +27,7 @@ describe('typescript paths with deprecated, inherited baseUrl', () => {
       // This test would fail in 7.0
       typescript: '^6.0.0',
     },
-    // Only next-build is interesting here.
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render the page that uses the aliased module', async () => {
     const html = await next.render('/')

@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{ReadRef, ResolvedVc, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TraitRef, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -118,13 +118,28 @@ async fn test_into_future() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_sidecast() -> Result<()> {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let concrete_value = ImplementsAAndB.resolved_cell();
         let as_a = ResolvedVc::upcast::<Box<dyn TraitA>>(concrete_value);
         let as_b = ResolvedVc::try_sidecast::<Box<dyn TraitB>>(as_a);
         assert!(as_b.is_some());
         let as_c = ResolvedVc::try_sidecast::<Box<dyn TraitC>>(as_a);
         assert!(as_c.is_none());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_trait_ref_downcast() -> Result<()> {
+    run_once(&REGISTRATION, async || {
+        let as_base: Vc<Box<dyn BaseTrait>> = Vc::upcast(ImplementsSubImplemented.cell());
+        let ref_base = as_base.into_trait_ref().await?;
+        // The concrete value implements SubImplemented, so downcasting the already-read
+        // trait ref to it succeeds without another cell read.
+        assert!(TraitRef::try_downcast::<Box<dyn SubImplemented>>(ref_base.clone()).is_some());
+        // It does not implement SubNotImplemented, so the downcast returns None.
+        assert!(TraitRef::try_downcast::<Box<dyn SubNotImplemented>>(ref_base).is_none());
         Ok(())
     })
     .await
@@ -147,3 +162,22 @@ impl TraitA for ImplementsAAndB {}
 
 #[turbo_tasks::value_impl]
 impl TraitB for ImplementsAAndB {}
+
+#[turbo_tasks::value_trait]
+trait BaseTrait {}
+
+// Two sub-traits of `BaseTrait`; the test's value implements only the first.
+#[turbo_tasks::value_trait]
+trait SubImplemented: BaseTrait {}
+
+#[turbo_tasks::value_trait]
+trait SubNotImplemented: BaseTrait {}
+
+#[turbo_tasks::value]
+struct ImplementsSubImplemented;
+
+#[turbo_tasks::value_impl]
+impl BaseTrait for ImplementsSubImplemented {}
+
+#[turbo_tasks::value_impl]
+impl SubImplemented for ImplementsSubImplemented {}

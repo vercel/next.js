@@ -33,10 +33,11 @@ export interface InstallTemplateArgs {
   skipInstall: boolean;
   bundler: Bundler;
   reactCompiler: boolean;
+  cacheComponents: boolean;
+  agentFeedback: boolean;
 }
 
 export enum Bundler {
   Turbopack = "turbopack",
-  Webpack = "webpack",
   Rspack = "rspack",
 }

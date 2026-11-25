@@ -1,6 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite controls a local server or proxy process.
+// the socket.io setup relies on patching next's `http.Server` instance,
+// which we can't do when deployed
+// @force-gate !deploy
 describe('socket-io', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -10,9 +14,6 @@ describe('socket-io', () => {
       'utf-8-validate': '6.0.3',
       bufferutil: '4.0.8',
     },
-    // the socket.io setup relies on patching next's `http.Server` instance,
-    // which we can't do when deployed
-    skipDeployment: true,
   })
 
   it('should support socket.io without falling back to polling', async () => {

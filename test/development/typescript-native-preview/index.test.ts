@@ -3,6 +3,11 @@ import { retry } from 'next-test-utils'
 
 describe('typescript-native-preview', () => {
   const { next } = nextTestSetup({
+    nextConfig: {
+      experimental: {
+        useTypeScriptCli: false,
+      },
+    },
     files: {
       'app/layout.tsx': `
         import { ReactNode } from 'react'

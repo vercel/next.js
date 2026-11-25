@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     condition::ContextCondition,
@@ -12,7 +12,7 @@ use turbopack_core::{
     },
 };
 
-#[derive(Default, Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum TsConfigHandling {
     /// Ignore tsconfig and jsconfig files.
     Disabled,
@@ -81,6 +81,14 @@ pub struct ResolveOptionsContext {
     pub loose_errors: bool,
     /// Collect affecting sources for each resolve result.  Useful for tracing.
     pub collect_affecting_sources: bool,
+    /// The directory that a request starting with `/` resolves from, e.g. `/dir/file.js`. When
+    /// unset, such a request isn't supported and reports an issue saying so.
+    ///
+    /// Sets [`ResolveOptions::server_relative_root`].
+    ///
+    /// [`ResolveOptions::server_relative_root`]:
+    ///     turbopack_core::resolve::options::ResolveOptions::server_relative_root
+    pub server_relative_root: Option<FileSystemPath>,
 
     pub placeholder_for_future_extensions: (),
 }

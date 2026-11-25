@@ -107,6 +107,31 @@ describe('use-router-bfcache-id', () => {
     ).toBe('hello')
   })
 
+  it.each([
+    ['regular dynamic', '/ko/@alice'],
+    ['catch-all dynamic', '/catchall/@alice/nested%2Fvalue'],
+  ])(
+    'preserves form state across query-only replace with an encoded %s parameter',
+    async (_paramType, initialPath) => {
+      const { browser, act } = await setup(initialPath)
+      await browser.elementByCss('[data-testid="leaf-input"]').type('hello')
+      const initialBFCacheId = await browser
+        .elementByCss('[data-testid="bfcache-id"]')
+        .text()
+
+      await act(async () => {
+        await browser.elementByCss('[data-testid="query-only-replace"]').click()
+      })
+
+      expect(
+        await browser.elementByCss('[data-testid="bfcache-id"]').text()
+      ).toBe(initialBFCacheId)
+      expect(
+        await browser.elementByCss('[data-testid="leaf-input"]').getValue()
+      ).toBe('hello')
+    }
+  )
+
   it('preserves form state across router.refresh()', async () => {
     const { browser, act } = await setup('/x/1')
     await browser.elementByCss('[data-testid="leaf-input"]').type('hello')

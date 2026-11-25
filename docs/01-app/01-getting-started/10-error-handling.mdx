@@ -217,7 +217,7 @@ export default function ErrorPage({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   useEffect(() => {
@@ -286,10 +286,12 @@ For component-level error recovery, the [`catchError`](/docs/app/api-reference/f
 import { catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(props: { title: string }, { error, retry }: ErrorInfo) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
     </div>
   )
@@ -304,10 +306,12 @@ export default catchError(ErrorFallback)
 import { catchError } from 'next/error'
 
 function ErrorFallback(props, { error, retry }) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
     </div>
   )
@@ -403,7 +407,7 @@ export default function GlobalError({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   return (

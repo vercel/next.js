@@ -3,6 +3,7 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { expectScrolledTo } from './scroll-position.util'
 
 describe('Client navigation with URL hash', () => {
   const { next } = nextTestSetup({
@@ -47,9 +48,7 @@ describe('Client navigation with URL hash', () => {
         // Scrolls to item 400 on the page
         await browser.elementByCss('#scroll-to-item-400').click()
 
-        await retry(async () => {
-          expect(await browser.eval('window.pageYOffset')).toBe(7258)
-        })
+        await expectScrolledTo(browser, "document.getElementById('item-400')")
 
         // Scrolls back to top when scrolling to `#` with no value.
         await browser.elementByCss('#via-empty-hash').click()
@@ -61,9 +60,7 @@ describe('Client navigation with URL hash', () => {
         // Scrolls to item 400 on the page
         await browser.elementByCss('#scroll-to-item-400').click()
 
-        await retry(async () => {
-          expect(await browser.eval('window.pageYOffset')).toBe(7258)
-        })
+        await expectScrolledTo(browser, "document.getElementById('item-400')")
 
         // Scrolls back to top when clicking link with href `#top`.
         await browser.elementByCss('#via-top-hash').click()
@@ -75,9 +72,7 @@ describe('Client navigation with URL hash', () => {
         // Scrolls to cjk anchor on the page
         await browser.elementByCss('#scroll-to-cjk-anchor').click()
 
-        await retry(async () => {
-          expect(await browser.eval('window.pageYOffset')).toBe(17436)
-        })
+        await expectScrolledTo(browser, "document.getElementById('中文')")
       })
 
       it('should not scroll to hash when scroll={false} is set', async () => {
@@ -100,9 +95,10 @@ describe('Client navigation with URL hash', () => {
         // Scrolls to item 400 with name="name-item-400" on the page
         await browser.elementByCss('#scroll-to-name-item-400').click()
 
-        await retry(async () => {
-          expect(await browser.eval('window.pageYOffset')).toBe(16258)
-        })
+        await expectScrolledTo(
+          browser,
+          "document.getElementsByName('name-item-400')[0]"
+        )
 
         // Scrolls back to top when scrolling to `#` with no value.
         await browser.elementByCss('#via-empty-hash').click()
@@ -121,9 +117,7 @@ describe('Client navigation with URL hash', () => {
           .click()
           .waitForElementByCss('#hash-changes-page')
 
-        await retry(async () => {
-          expect(await browser.eval('window.pageYOffset')).toBe(7258)
-        })
+        await expectScrolledTo(browser, "document.getElementById('item-400')")
       })
 
       it('should scroll to the specified CJK position to a new page', async () => {
@@ -135,9 +129,7 @@ describe('Client navigation with URL hash', () => {
           .click()
           .waitForElementByCss('#hash-changes-page')
 
-        await retry(async () => {
-          expect(await browser.eval('window.pageYOffset')).toBe(17436)
-        })
+        await expectScrolledTo(browser, "document.getElementById('中文')")
       })
 
       it('Should update asPath', async () => {

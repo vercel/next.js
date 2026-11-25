@@ -1,4 +1,5 @@
 import React from 'react'
+import HydrationMark from './ui/hydration-mark'
 
 export default function Layout({ children }) {
   return (
@@ -6,7 +7,10 @@ export default function Layout({ children }) {
       <head>
         <title>My App</title>
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <HydrationMark />
+      </body>
     </html>
   )
 }

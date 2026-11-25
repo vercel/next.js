@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('cache-components', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let cliIndex = 0
   beforeEach(() => {
@@ -236,6 +231,68 @@ describe('cache-components', () => {
       expect(json.value).toEqual('at buildtime')
       expect(json.message).toBe('string response')
     }
+  })
+
+  it('should prerender GET route handlers that await setImmediate', async () => {
+    const response = await next.fetch('/routes/immediate')
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      value: isNextDev ? 'at runtime' : 'at buildtime',
+      message: 'immediate',
+    })
+  })
+
+  it('should prerender GET route handlers that await recursive immediates', async () => {
+    const response = await next.fetch('/routes/immediate-recursive')
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      value: isNextDev ? 'at runtime' : 'at buildtime',
+      message: 'recursive immediate',
+    })
+  })
+
+  it('should prerender response bodies that await immediates between chunks', async () => {
+    const response = await next.fetch('/routes/immediate-stream')
+    const value = isNextDev ? 'at runtime' : 'at buildtime'
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('text/plain')
+    expect(response.headers.get('x-test-body')).toBe('immediate')
+    expect(await response.text()).toBe(`${value}:0\n${value}:1\n${value}:2\n`)
+  })
+
+  it('should fill caches reached through immediates after another cache resolves', async () => {
+    const response = await next.fetch('/routes/immediate-cached')
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      value: isNextDev ? 'at runtime' : 'at buildtime',
+      first: 'first',
+      second: 'second',
+    })
+  })
+
+  it('should not prerender request data accessed after an immediate', async () => {
+    const response = await next.fetch('/routes/immediate-cookies', {
+      headers: { cookie: 'test-immediate=hello' },
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      value: 'at runtime',
+      cookie: 'hello',
+    })
+  })
+
+  it('should prerender an in-memory Blob response body', async () => {
+    const response = await next.fetch('/routes/static-blob')
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe(
+      isNextDev ? 'at runtime' : 'at buildtime'
+    )
   })
 
   it('should not prerender GET route handlers that complete in a new Task', async () => {

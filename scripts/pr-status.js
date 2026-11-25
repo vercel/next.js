@@ -5,7 +5,14 @@ const path = require('path')
 const OUTPUT_ROOT = path.join(__dirname, 'pr-status')
 const RESULTS_DIR = path.join(OUTPUT_ROOT, 'results')
 const INTERMEDIATE_DIR = path.join(OUTPUT_ROOT, 'intermediate')
-const ANSI_RE = new RegExp(String.raw`\u001B\[[0-9;]*[A-Za-z]`, 'g')
+// Terminal escape sequences: CSI (`ESC [ ... final byte`, which covers colors
+// and cursor movement), OSC (`ESC ] ... BEL` or `ESC ] ... ESC \`, such as
+// hyperlinks), and other escapes such as `ESC ( B`. An ESC that starts none of
+// these is matched alone, so stripping leaves no ESC byte behind.
+const ANSI_RE = new RegExp(
+  String.raw`\u001B(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007\u001B\n]*(?:\u0007|\u001B\\)|[ -/]*[0-~])?`,
+  'g'
+)
 const JOBS_PAGE_SIZE = 30
 
 // ============================================================================
@@ -216,10 +223,16 @@ function getBranchInfo(prNumberArg) {
   // If PR number provided as argument, fetch branch from that PR
   if (prNumberArg) {
     try {
-      const output = exec(`gh pr view ${prNumberArg} --json number,headRefName`)
+      const output = exec(
+        `gh pr view ${prNumberArg} --json number,headRefName,headRefOid`
+      )
       const data = JSON.parse(output)
       if (data.number && data.headRefName) {
-        return { prNumber: String(data.number), branchName: data.headRefName }
+        return {
+          prNumber: String(data.number),
+          branchName: data.headRefName,
+          headSha: data.headRefOid || null,
+        }
       }
     } catch {
       console.error(`Failed to fetch PR #${prNumberArg}`)
@@ -229,24 +242,40 @@ function getBranchInfo(prNumberArg) {
 
   // Auto-detect from current branch/PR context
   try {
-    const output = exec(`gh pr view --json number,headRefName`)
+    const output = exec(`gh pr view --json number,headRefName,headRefOid`)
     const data = JSON.parse(output)
     if (data.number && data.headRefName) {
-      return { prNumber: String(data.number), branchName: data.headRefName }
+      return {
+        prNumber: String(data.number),
+        branchName: data.headRefName,
+        headSha: data.headRefOid || null,
+      }
     }
   } catch {
     // Fallback to git if not in PR context
   }
   const branchName = exec('git rev-parse --abbrev-ref HEAD')
-  return { prNumber: null, branchName }
+  return { prNumber: null, branchName, headSha: null }
 }
 
-function getWorkflowRuns(branch) {
-  const encodedBranch = encodeURIComponent(branch)
+/**
+ * Returns the API path that lists a PR's or branch's workflow runs. A PR's runs
+ * are looked up by its head commit, not its branch name: fork PRs often share a
+ * branch name (two forks pushing `fix/foo`), and runs for fork PRs list no
+ * pull_requests, so a branch query can return another PR's run.
+ */
+function workflowRunsPath({ branchName, headSha }) {
+  const runFilter = headSha
+    ? `head_sha=${headSha}`
+    : `branch=${encodeURIComponent(branchName)}`
+  return `repos/vercel/next.js/actions/runs?${runFilter}&per_page=10`
+}
+
+function getWorkflowRuns(branchInfo) {
   const jqQuery =
     '.workflow_runs[] | select(.name == "build-and-test") | {id, run_attempt, status, conclusion}'
   const output = exec(
-    `gh api "repos/vercel/next.js/actions/runs?branch=${encodedBranch}&per_page=10" --jq '${jqQuery}'`
+    `gh api "${workflowRunsPath(branchInfo)}" --jq '${jqQuery}'`
   )
 
   if (!output.trim()) return []
@@ -264,6 +293,40 @@ function getRunMetadata(runId) {
 }
 
 const FAILED_CONCLUSIONS = new Set(['failure', 'timed_out', 'startup_failure'])
+
+// Why a completed run that didn't pass can still have no failed jobs. Without a
+// note, the report for such a run looks the same as the one for a passing run.
+const RUN_CONCLUSION_NOTES = {
+  action_required:
+    'The run is waiting for a maintainer to approve its workflows (common for fork PRs), so no jobs have run.',
+  cancelled: 'The run was cancelled before any job failed.',
+  startup_failure:
+    'The workflow failed to start, often because of an invalid workflow file, so no jobs ran.',
+  skipped: 'The run was skipped, so no jobs ran.',
+  stale: 'GitHub marked the run stale before it finished.',
+  failure:
+    'The run failed without a failed job, for example because it waited more than 30 days for approval and expired.',
+}
+
+/**
+ * Returns a note for a completed run that didn't pass, or null for a passing or
+ * unfinished run. Callers show it when the report lists no failed jobs, so the
+ * report isn't mistaken for a clean result.
+ */
+/**
+ * Every status other than `completed` (queued, in_progress, waiting, pending,
+ * requested) means the run hasn't finished.
+ */
+function isRunUnfinished({ status }) {
+  return status !== 'completed'
+}
+
+function describeUnpassedRun({ status, conclusion }) {
+  if (status !== 'completed' || conclusion === 'success') return null
+  return Object.hasOwn(RUN_CONCLUSION_NOTES, conclusion)
+    ? RUN_CONCLUSION_NOTES[conclusion]
+    : `The run concluded "${conclusion}" without any failed jobs.`
+}
 
 function getFailedJobs(runId) {
   // Fetch all jobs first, then filter for failures in JS.
@@ -352,14 +415,61 @@ function getJobMetadata(jobId) {
   )
 }
 
-async function getJobLogs(jobId) {
+let ghApiRawOutputFlags
+
+/**
+ * Since gh 2.97, `gh api` refuses to print a raw response that contains an ESC
+ * byte unless `--allow-escape-sequences` is passed, and every Actions job log
+ * has them (step commands are colored). Older gh rejects the flag as unknown,
+ * so pass it only when `gh api --help` lists it.
+ */
+function getGhApiRawOutputFlags() {
+  if (ghApiRawOutputFlags === undefined) {
+    let help = ''
+    try {
+      help = execFileSync('gh', ['api', '--help'], { encoding: 'utf8' })
+    } catch {
+      // Leave the flag out; the request itself reports what went wrong.
+    }
+    ghApiRawOutputFlags = rawOutputFlagsFromHelp(help)
+  }
+  return ghApiRawOutputFlags
+}
+
+function rawOutputFlagsFromHelp(ghApiHelp) {
+  return ghApiHelp.includes('--allow-escape-sequences')
+    ? ['--allow-escape-sequences']
+    : []
+}
+
+function describeCommandError(error) {
+  const firstStderrLine = stripAnsi(error.stderr)
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean)
+  return firstStderrLine || error.message
+}
+
+/**
+ * Returns `{ logs, error }`: the job's log with terminal escape sequences
+ * stripped, or an empty log and gh's error message when it can't be fetched.
+ * The flag turns off gh's own escape-sequence guard, so everything parsed or
+ * written to the output files goes through `stripAnsi` here. Tests pass
+ * `runGh` and `flags` in place of the real gh.
+ */
+async function getJobLogs(
+  jobId,
+  { runGh = execAsync, flags = getGhApiRawOutputFlags() } = {}
+) {
   try {
-    return await execAsync('gh', [
+    const logs = await runGh('gh', [
       'api',
+      ...flags,
       `repos/vercel/next.js/actions/jobs/${jobId}/logs`,
     ])
-  } catch {
-    return 'Logs not available'
+    return { logs: stripAnsi(logs), error: null }
+  } catch (error) {
+    return { logs: '', error: describeCommandError(error) }
   }
 }
 
@@ -740,7 +850,7 @@ function generateIndexMd(
   jobTestCounts,
   reviewData,
   jobEnvMap,
-  flakyTests
+  flakyCheck
 ) {
   const { failed, inProgress, queued, succeeded, cancelled, skipped } =
     categorizedJobs
@@ -755,9 +865,12 @@ function generateIndexMd(
     failed.length + succeeded.length + cancelled.length + skipped.length
 
   const isRunComplete = runMetadata.status === 'completed'
-  const reportTitle = isRunComplete
-    ? '# CI Failures Report'
-    : '# CI Status Report'
+  const unpassedNote =
+    failed.length === 0 ? describeUnpassedRun(runMetadata) : null
+  const reportTitle =
+    isRunComplete && !unpassedNote
+      ? '# CI Failures Report'
+      : '# CI Status Report'
 
   const lines = [reportTitle, '', `Branch: ${branchInfo.branchName}`]
 
@@ -776,6 +889,13 @@ function generateIndexMd(
     `URL: ${runMetadata.html_url}`,
     ''
   )
+
+  if (unpassedNote) {
+    lines.push(
+      `> **CI did not pass.** ${unpassedNote} This report has no failed jobs to triage; check the run URL above.`,
+      ''
+    )
+  }
 
   // Progress summary for in-progress runs
   if (!isRunComplete) {
@@ -812,9 +932,11 @@ function generateIndexMd(
     for (const job of failed) {
       const duration = formatDuration(job.started_at, job.completed_at)
       const testCount = jobTestCounts[job.id]
-      const testsStr = testCount
-        ? `${testCount.failed}/${testCount.total}`
-        : 'N/A'
+      const testsStr = job.logError
+        ? 'Logs unavailable'
+        : testCount
+          ? `${testCount.failed}/${testCount.total}`
+          : 'N/A'
       const nameStr = escapeMarkdownTableCell(job.name)
       const conclusionTag =
         job.conclusion && job.conclusion !== 'failure'
@@ -825,6 +947,20 @@ function generateIndexMd(
       )
     }
     lines.push('')
+
+    const jobsWithoutLogs = failed.filter((job) => job.logError)
+    if (jobsWithoutLogs.length > 0) {
+      lines.push(
+        `### Log Fetch Failures (${jobsWithoutLogs.length})`,
+        '',
+        "These jobs' logs could not be downloaded, so this report has no test results or log sections for them. Read the logs on GitHub, or re-run this script.",
+        ''
+      )
+      for (const job of jobsWithoutLogs) {
+        lines.push(`- ${job.id} (${job.name}): ${job.logError}`)
+      }
+      lines.push('')
+    }
 
     // Show env vars for failed jobs if they differ from defaults
     if (jobEnvMap && Object.keys(jobEnvMap).length > 0) {
@@ -849,16 +985,22 @@ function generateIndexMd(
     }
 
     // Known flaky tests section
-    if (flakyTests && flakyTests.size > 0) {
+    const flakyTests = flakyCheck?.tests ?? new Set()
+    if (flakyTests.size > 0 || flakyCheck?.warning) {
       lines.push('### Known Flaky Tests (failing on 2+ branches)', '')
-      lines.push(
-        'These tests also failed in recent CI runs across multiple different branches and are likely pre-existing flakes, not caused by this PR:',
-        ''
-      )
-      for (const testPath of [...flakyTests].sort()) {
-        lines.push(`- \`${testPath}\``)
+      if (flakyCheck.warning) {
+        lines.push(`> **Warning:** ${flakyCheck.warning}`, '')
       }
-      lines.push('')
+      if (flakyTests.size > 0) {
+        lines.push(
+          'These tests also failed in recent CI runs across multiple different branches and are likely pre-existing flakes, not caused by this PR:',
+          ''
+        )
+        for (const testPath of [...flakyTests].sort()) {
+          lines.push(`- \`${testPath}\``)
+        }
+        lines.push('')
+      }
     }
   }
 
@@ -895,106 +1037,169 @@ function generateIndexMd(
     lines.push('')
   }
 
-  // Add PR reviews section if we have review data
-  if (reviewData) {
-    const { reviews, reviewThreads, prComments } = reviewData
+  appendReviewData(lines, reviewData)
 
-    // Filter reviews to only include meaningful ones
-    const meaningfulReviews = reviews.filter(
-      (r) =>
-        r.state === 'APPROVED' ||
-        r.state === 'CHANGES_REQUESTED' ||
-        r.body?.trim()
-    )
+  return lines.join('\n')
+}
 
-    if (meaningfulReviews.length > 0 || prComments.length > 0) {
-      lines.push('', `## PR Reviews (${meaningfulReviews.length})`, '')
+function appendReviewData(lines, reviewData) {
+  if (!reviewData) return
 
-      if (meaningfulReviews.length > 0) {
-        lines.push(
-          '| Reviewer | State | Date/Time | Comment |',
-          '|----------|-------|-----------|---------|'
-        )
+  const { reviews, reviewThreads, prComments } = reviewData
 
-        // Sort reviews by date, oldest first
-        const sortedReviews = [...meaningfulReviews].sort(
-          (a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)
-        )
+  // Filter reviews to only include meaningful ones
+  const meaningfulReviews = reviews.filter(
+    (r) =>
+      r.state === 'APPROVED' ||
+      r.state === 'CHANGES_REQUESTED' ||
+      r.body?.trim()
+  )
 
-        for (const review of sortedReviews) {
-          const time = review.submitted_at
-            ? new Date(review.submitted_at)
-                .toISOString()
-                .replace('T', ' ')
-                .substring(0, 19)
-            : 'N/A'
-          const hasComment = review.body?.trim()
-          const commentLink = hasComment ? `[View](review-${review.id}.md)` : ''
-          lines.push(
-            `| ${escapeMarkdownTableCell(review.user)} | ${review.state} | ${time} | ${commentLink} |`
-          )
-        }
-      }
-    }
+  if (meaningfulReviews.length > 0 || prComments.length > 0) {
+    lines.push('', `## PR Reviews (${meaningfulReviews.length})`, '')
 
-    if (reviewThreads.length > 0) {
+    if (meaningfulReviews.length > 0) {
       lines.push(
-        '',
-        `## Inline Review Comments (${reviewThreads.length} threads)`,
-        '',
-        '| File | Line | Participants | Replies | Status | Details |',
-        '|------|------|--------------|---------|--------|---------|'
+        '| Reviewer | State | Date/Time | Comment |',
+        '|----------|-------|-----------|---------|'
       )
 
-      for (let i = 0; i < reviewThreads.length; i++) {
-        const thread = reviewThreads[i]
-        const line = thread.line || thread.startLine || 'N/A'
-        const participants = new Set()
-        for (const comment of thread.comments.nodes) {
-          if (comment.author?.login) participants.add(comment.author.login)
-        }
-        const participantsStr =
-          participants.size > 0 ? [...participants].join(', ') : 'Unknown'
-        const replyCount = Math.max(0, thread.comments.nodes.length - 1)
-        const status = thread.isResolved ? 'Resolved' : 'Open'
-        lines.push(
-          `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${participantsStr} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
-        )
-      }
-    }
-
-    // General comments section
-    if (prComments.length > 0) {
-      lines.push(
-        '',
-        `## General Comments (${prComments.length})`,
-        '',
-        '| Author | Date/Time | Details |',
-        '|--------|-----------|---------|'
+      // Sort reviews by date, oldest first
+      const sortedReviews = [...meaningfulReviews].sort(
+        (a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)
       )
 
-      const sortedComments = [...prComments].sort(
-        (a, b) => new Date(a.created_at) - new Date(b.created_at)
-      )
-
-      for (const comment of sortedComments) {
-        const time = comment.created_at
-          ? new Date(comment.created_at)
+      for (const review of sortedReviews) {
+        const time = review.submitted_at
+          ? new Date(review.submitted_at)
               .toISOString()
               .replace('T', ' ')
               .substring(0, 19)
           : 'N/A'
+        const hasComment = review.body?.trim()
+        const commentLink = hasComment ? `[View](review-${review.id}.md)` : ''
         lines.push(
-          `| ${escapeMarkdownTableCell(comment.user)} | ${time} | [View](comment-${comment.id}.md) |`
+          `| ${escapeMarkdownTableCell(review.user)} | ${review.state} | ${time} | ${commentLink} |`
         )
       }
     }
   }
 
+  if (reviewThreads.length > 0) {
+    lines.push(
+      '',
+      `## Inline Review Comments (${reviewThreads.length} threads)`,
+      '',
+      '| File | Line | Participants | Replies | Status | Details |',
+      '|------|------|--------------|---------|--------|---------|'
+    )
+
+    for (let i = 0; i < reviewThreads.length; i++) {
+      const thread = reviewThreads[i]
+      const line = thread.line || thread.startLine || 'N/A'
+      const participants = new Set()
+      for (const comment of thread.comments.nodes) {
+        if (comment.author?.login) participants.add(comment.author.login)
+      }
+      const participantsStr =
+        participants.size > 0 ? [...participants].join(', ') : 'Unknown'
+      const replyCount = Math.max(0, thread.comments.nodes.length - 1)
+      const status = thread.isResolved ? 'Resolved' : 'Open'
+      lines.push(
+        `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${participantsStr} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
+      )
+    }
+  }
+
+  // General comments section
+  if (prComments.length > 0) {
+    lines.push(
+      '',
+      `## General Comments (${prComments.length})`,
+      '',
+      '| Author | Date/Time | Details |',
+      '|--------|-----------|---------|'
+    )
+
+    const sortedComments = [...prComments].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    )
+
+    for (const comment of sortedComments) {
+      const time = comment.created_at
+        ? new Date(comment.created_at)
+            .toISOString()
+            .replace('T', ' ')
+            .substring(0, 19)
+        : 'N/A'
+      lines.push(
+        `| ${escapeMarkdownTableCell(comment.user)} | ${time} | [View](comment-${comment.id}.md) |`
+      )
+    }
+  }
+}
+
+function generateCommentsIndexMd(branchInfo, reviewData) {
+  const lines = ['# PR Review Comments Report', '']
+
+  if (branchInfo.branchName) {
+    lines.push(`Branch: ${branchInfo.branchName}`)
+  }
+  lines.push(`PR: #${branchInfo.prNumber}`, '')
+
+  appendReviewData(lines, reviewData)
   return lines.join('\n')
 }
 
-function generateJobMd(jobMetadata, testResults, testFiles, sections) {
+async function prepareOutputDirectory() {
+  console.log('Cleaning output directory...')
+  await fs.rm(OUTPUT_ROOT, { recursive: true, force: true })
+  await fs.mkdir(RESULTS_DIR, { recursive: true })
+  await fs.mkdir(INTERMEDIATE_DIR, { recursive: true })
+}
+
+function fetchReviewData(prNumber) {
+  console.log('Fetching PR reviews and comments...')
+  const reviews = getPRReviews(prNumber)
+  const reviewThreads = getPRReviewThreads(prNumber)
+  const prComments = getPRComments(prNumber)
+  console.log(
+    `Found ${reviews.length} reviews, ${reviewThreads.length} review threads, ${prComments.length} general comments`
+  )
+  return { reviews, reviewThreads, prComments }
+}
+
+async function writeReviewFiles(reviewData) {
+  for (let i = 0; i < reviewData.reviewThreads.length; i++) {
+    const thread = reviewData.reviewThreads[i]
+    await fs.writeFile(
+      resultPath(`thread-${i + 1}.md`),
+      generateThreadMd(thread, i)
+    )
+  }
+  for (const review of reviewData.reviews) {
+    if (review.body?.trim()) {
+      await fs.writeFile(
+        resultPath(`review-${review.id}.md`),
+        generateReviewMd(review)
+      )
+    }
+  }
+  for (const comment of reviewData.prComments) {
+    await fs.writeFile(
+      resultPath(`comment-${comment.id}.md`),
+      generateCommentMd(comment)
+    )
+  }
+}
+
+function generateJobMd(
+  jobMetadata,
+  testResults,
+  testFiles,
+  sections,
+  logError
+) {
   const duration = formatDuration(
     jobMetadata.started_at,
     jobMetadata.completed_at
@@ -1011,6 +1216,17 @@ function generateJobMd(jobMetadata, testResults, testFiles, sections) {
     `URL: ${jobMetadata.html_url}`,
     '',
   ]
+
+  if (logError) {
+    lines.push(
+      '## Logs Unavailable',
+      '',
+      `Could not fetch this job's logs: ${logError}`,
+      '',
+      'Read them at the URL above, or re-run this script.',
+      ''
+    )
+  }
 
   // Add sections list with line counts and links to section files
   if (sections.length > 0) {
@@ -1265,7 +1481,9 @@ function generateThreadMd(thread, index) {
  * Fetches recent failed CI runs across all branches and identifies tests that
  * fail on multiple different branches (indicating flakiness, not branch-specific bugs).
  * Excludes the current PR's branch to avoid self-matching.
- * Returns a Set of test file paths that are likely flaky.
+ * Returns `{ tests, warning }`: a Set of test file paths that are likely flaky,
+ * and a message when runs or logs couldn't be fetched, so the Set may be
+ * incomplete (null otherwise).
  */
 async function getFlakyTests(currentBranch, runsToCheck = 5) {
   console.log(
@@ -1279,14 +1497,17 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
     output = exec(
       `gh api "repos/vercel/next.js/actions/workflows/57419851/runs?status=completed&per_page=30" --jq '${jqQuery}'`
     )
-  } catch {
+  } catch (error) {
     console.log('  Could not fetch CI runs, skipping flaky check')
-    return new Set()
+    return {
+      tests: new Set(),
+      warning: `Could not list recent failed CI runs, so the flaky check was skipped. Error: ${describeCommandError(error)}`,
+    }
   }
 
   if (!output.trim()) {
     console.log('  No failed runs found')
-    return new Set()
+    return { tests: new Set(), warning: null }
   }
 
   // Filter out the current branch and take up to runsToCheck
@@ -1299,7 +1520,7 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 
   if (allRuns.length === 0) {
     console.log('  No failed runs from other branches found')
-    return new Set()
+    return { tests: new Set(), warning: null }
   }
 
   const branchCount = new Set(allRuns.map((r) => r.head_branch)).size
@@ -1333,27 +1554,24 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 
   // Map: testPath → Set of branches where it failed
   const testFailBranches = new Map()
+  const logErrors = []
 
   // Process in batches of 5 to avoid overwhelming the API
   const BATCH_SIZE = 5
   for (let i = 0; i < jobBranchPairs.length; i += BATCH_SIZE) {
     const batch = jobBranchPairs.slice(i, i + BATCH_SIZE)
     const results = await Promise.all(
-      batch.map(async ({ job, branch }) => {
-        try {
-          const logs = await execAsync('gh', [
-            'api',
-            `repos/vercel/next.js/actions/jobs/${job.id}/logs`,
-          ])
-          return { logs, branch }
-        } catch {
-          return { logs: null, branch }
-        }
-      })
+      batch.map(async ({ job, branch }) => ({
+        ...(await getJobLogs(job.id)),
+        branch,
+      }))
     )
 
-    for (const { logs, branch } of results) {
-      if (!logs) continue
+    for (const { logs, error, branch } of results) {
+      if (error) {
+        logErrors.push(error)
+        continue
+      }
       const testResults = extractTestOutputJson(logs)
       for (const result of testResults) {
         if (result.testResults) {
@@ -1387,7 +1605,13 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
   console.log(
     `  Found ${flakyTestFiles.size} flaky tests (failing on 2+ different branches)`
   )
-  return flakyTestFiles
+  if (logErrors.length === 0) {
+    return { tests: flakyTestFiles, warning: null }
+  }
+
+  const warning = `Could not fetch logs for ${logErrors.length} of ${jobBranchPairs.length} failed jobs on other branches, so this list may be incomplete. First error: ${logErrors[0]}`
+  console.log(`  ${warning}`)
+  return { tests: flakyTestFiles, warning }
 }
 
 // ============================================================================
@@ -1400,10 +1624,7 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
  */
 async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Step 1: Delete and recreate output directory
-  console.log('Cleaning output directory...')
-  await fs.rm(OUTPUT_ROOT, { recursive: true, force: true })
-  await fs.mkdir(RESULTS_DIR, { recursive: true })
-  await fs.mkdir(INTERMEDIATE_DIR, { recursive: true })
+  await prepareOutputDirectory()
 
   // Step 2: Get branch info
   console.log('Getting branch info...')
@@ -1413,11 +1634,14 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   )
 
   // Step 3: Get workflow runs
-  console.log('Fetching workflow runs...')
-  const runs = getWorkflowRuns(branchInfo.branchName)
+  const runTarget = branchInfo.headSha
+    ? `head commit ${branchInfo.headSha}`
+    : `branch ${branchInfo.branchName}`
+  console.log(`Fetching workflow runs for ${runTarget}...`)
+  const runs = getWorkflowRuns(branchInfo)
 
   if (runs.length === 0) {
-    console.log('No workflow runs found for this branch.')
+    console.log(`No build-and-test runs found for ${runTarget}.`)
     return { runId: null, isRunInProgress: false }
   }
 
@@ -1432,8 +1656,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   const runMetadata = getRunMetadata(latestRun.id)
 
   // Step 5: Determine fetch strategy based on run status
-  const isRunInProgress =
-    runMetadata.status === 'in_progress' || runMetadata.status === 'queued'
+  const isRunInProgress = isRunUnfinished(runMetadata)
 
   let categorizedJobs
 
@@ -1464,51 +1687,24 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Fetch PR reviews if we have a PR number
   let reviewData = null
   if (branchInfo.prNumber) {
-    console.log('Fetching PR reviews and comments...')
-    const reviews = getPRReviews(branchInfo.prNumber)
-    const reviewThreads = getPRReviewThreads(branchInfo.prNumber)
-    const prComments = getPRComments(branchInfo.prNumber)
-    reviewData = { reviews, reviewThreads, prComments }
-    console.log(
-      `Found ${reviews.length} reviews, ${reviewThreads.length} review threads, ${prComments.length} general comments`
-    )
+    reviewData = fetchReviewData(branchInfo.prNumber)
   }
 
   // Check if we should write an early report (no failed jobs yet)
   const hasNoFailedJobs = categorizedJobs.failed.length === 0
-  const hasInProgressOrQueued =
-    categorizedJobs.inProgress.length > 0 || categorizedJobs.queued.length > 0
 
-  if (hasNoFailedJobs && !hasInProgressOrQueued) {
+  if (hasNoFailedJobs && !isRunInProgress) {
     // Completed run with no failures
-    console.log('No failed jobs found.')
+    const unpassedNote = describeUnpassedRun(runMetadata)
+    console.log(
+      unpassedNote
+        ? `No failed jobs, but the run did not pass (${runMetadata.conclusion}): ${unpassedNote}`
+        : 'No failed jobs found.'
+    )
 
     // Write review files if we have PR data
     if (reviewData) {
-      // Write individual thread files
-      for (let i = 0; i < reviewData.reviewThreads.length; i++) {
-        const thread = reviewData.reviewThreads[i]
-        await fs.writeFile(
-          resultPath(`thread-${i + 1}.md`),
-          generateThreadMd(thread, i)
-        )
-      }
-      // Write individual review files for reviews with comments
-      for (const review of reviewData.reviews) {
-        if (review.body && review.body.trim()) {
-          await fs.writeFile(
-            resultPath(`review-${review.id}.md`),
-            generateReviewMd(review)
-          )
-        }
-      }
-      // Write individual comment files
-      for (const comment of reviewData.prComments) {
-        await fs.writeFile(
-          resultPath(`comment-${comment.id}.md`),
-          generateCommentMd(comment)
-        )
-      }
+      await writeReviewFiles(reviewData)
     }
 
     const emptyCategorizedJobs = {
@@ -1533,7 +1729,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     return { runId: latestRun.id, isRunInProgress: false }
   }
 
-  if (hasNoFailedJobs && hasInProgressOrQueued) {
+  if (hasNoFailedJobs && isRunInProgress) {
     // In-progress run with no failures yet - still write the progress report
     console.log('No failed jobs yet, but CI is still running.')
   }
@@ -1549,10 +1745,13 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
 
     // Get full job metadata (getAllJobs already has basic metadata, but getFailedJobs doesn't)
     const jobMetadata = job.started_at ? job : getJobMetadata(id)
-    processedFailedJobs.push(jobMetadata)
 
     // Get job logs
-    const logs = await getJobLogs(id)
+    const { logs, error: logError } = await getJobLogs(id)
+    if (logError) {
+      console.error(`  Could not fetch logs for job ${id}: ${logError}`)
+    }
+    processedFailedJobs.push({ ...jobMetadata, logError })
 
     // Extract test output JSON
     const testResults = extractTestOutputJson(logs)
@@ -1569,7 +1768,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     }
 
     // Extract sections from the log
-    const sections = extractSections(logs)
+    const sections = logError ? [] : extractSections(logs)
 
     // Write individual section files
     for (let i = 0; i < sections.length; i++) {
@@ -1598,47 +1797,30 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     }
 
     // Generate job markdown
-    const jobMd = generateJobMd(jobMetadata, testResults, testFiles, sections)
+    const jobMd = generateJobMd(
+      jobMetadata,
+      testResults,
+      testFiles,
+      sections,
+      logError
+    )
     await fs.writeFile(resultPath(`job-${id}.md`), jobMd)
   }
 
   // Step 7: Write PR review files if we have PR data
   if (reviewData) {
     console.log('Generating review files...')
-    // Write individual thread files
-    for (let i = 0; i < reviewData.reviewThreads.length; i++) {
-      const thread = reviewData.reviewThreads[i]
-      await fs.writeFile(
-        resultPath(`thread-${i + 1}.md`),
-        generateThreadMd(thread, i)
-      )
-    }
-    // Write individual review files for reviews with comments
-    for (const review of reviewData.reviews) {
-      if (review.body?.trim()) {
-        await fs.writeFile(
-          resultPath(`review-${review.id}.md`),
-          generateReviewMd(review)
-        )
-      }
-    }
-    // Write individual comment files
-    for (const comment of reviewData.prComments) {
-      await fs.writeFile(
-        resultPath(`comment-${comment.id}.md`),
-        generateCommentMd(comment)
-      )
-    }
+    await writeReviewFiles(reviewData)
   }
 
   // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
-  let flakyTests = new Set()
+  let flakyCheck = null
   if (!skipFlakyCheck) {
-    flakyTests = await getFlakyTests(branchInfo.branchName, 5)
-    if (flakyTests.size > 0) {
+    flakyCheck = await getFlakyTests(branchInfo.branchName, 5)
+    if (flakyCheck.tests.size > 0) {
       await fs.writeFile(
         resultPath('flaky-tests.json'),
-        JSON.stringify([...flakyTests].sort(), null, 2)
+        JSON.stringify([...flakyCheck.tests].sort(), null, 2)
       )
     }
   }
@@ -1658,12 +1840,34 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     jobTestCounts,
     reviewData,
     jobEnvMap,
-    flakyTests
+    flakyCheck
   )
   await fs.writeFile(resultPath('index.md'), indexMd)
 
   console.log(`\nDone! Output written to ${RESULTS_DIR}/index.md`)
   return { runId: latestRun.id, isRunInProgress }
+}
+
+async function runCommentsAnalysis(prNumberArg) {
+  await prepareOutputDirectory()
+
+  console.log('Getting pull request info...')
+  const branchInfo = getBranchInfo(prNumberArg)
+  if (!branchInfo.prNumber) {
+    throw new Error(
+      'No pull request found. Pass a PR number or run this command from a PR branch.'
+    )
+  }
+  console.log(`Branch: ${branchInfo.branchName}, PR: ${branchInfo.prNumber}`)
+
+  const reviewData = fetchReviewData(branchInfo.prNumber)
+  await writeReviewFiles(reviewData)
+  await fs.writeFile(
+    resultPath('index.md'),
+    generateCommentsIndexMd(branchInfo, reviewData)
+  )
+
+  console.log(`\nDone! Output written to ${RESULTS_DIR}/index.md`)
 }
 
 async function main() {
@@ -1713,7 +1917,13 @@ async function main() {
   const args = process.argv.slice(2)
   const waitFlag = args.includes('--wait')
   const skipFlakyCheck = args.includes('--skip-flaky-check')
+  const commentsOnly = args.includes('--comments-only')
   const prNumberArg = args.find((a) => !a.startsWith('--'))
+
+  if (commentsOnly) {
+    await runCommentsAnalysis(prNumberArg)
+    return
+  }
 
   // Run the initial analysis
   const { runId, isRunInProgress } = await runAnalysis(
@@ -1741,7 +1951,21 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+// Run only when invoked as a script, so tests can load the helpers below.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+}
+
+module.exports = {
+  describeUnpassedRun,
+  generateIndexMd,
+  generateJobMd,
+  getJobLogs,
+  isRunUnfinished,
+  rawOutputFlagsFromHelp,
+  stripAnsi,
+  workflowRunsPath,
+}

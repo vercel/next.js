@@ -107,6 +107,16 @@ static JS_KEYWORDS: phf::Set<&'static str> = phf_set! {
     "yield",
 };
 
+pub(crate) const ANSI_CODE_RESET: &str = "\x1b[0m";
+pub(crate) const ANSI_CODE_CYAN: &str = "\x1b[36m";
+pub(crate) const ANSI_CODE_YELLOW: &str = "\x1b[33m";
+pub(crate) const ANSI_CODE_GREEN: &str = "\x1b[32m";
+pub(crate) const ANSI_CODE_MAGENTA: &str = "\x1b[35m";
+pub(crate) const ANSI_CODE_GRAY: &str = "\x1b[90m";
+pub(crate) const ANSI_CODE_RED_BOLD: &str = "\x1b[31m\x1b[1m";
+pub(crate) const ANSI_CODE_YELLOW_BOLD: &str = "\x1b[33m\x1b[1m";
+pub(crate) const ANSI_CODE_CYAN_BOLD: &str = "\x1b[36m\x1b[1m";
+
 /// ANSI color codes for token types
 #[derive(Debug, Clone, Copy)]
 pub struct ColorScheme {
@@ -124,18 +134,18 @@ pub struct ColorScheme {
 
 impl ColorScheme {
     /// Get a color scheme with ANSI colors (matching babel-code-frame)
-    pub const fn colored() -> Self {
+    pub const fn colored(marker_color: &'static str) -> Self {
         Self {
-            reset: "\x1b[0m",
-            keyword: "\x1b[36m",        // cyan
-            identifier: "\x1b[33m",     // yellow
-            string: "\x1b[32m",         // green
-            number: "\x1b[35m",         // magenta
-            regex: "\x1b[35m",          // magenta
-            comment: "\x1b[90m",        // gray
-            gutter: "\x1b[90m",         // gray
-            marker: "\x1b[31m\x1b[1m",  // red + bold
-            message: "\x1b[31m\x1b[1m", // red + bold (same as marker for now)
+            reset: ANSI_CODE_RESET,
+            keyword: ANSI_CODE_CYAN,
+            identifier: ANSI_CODE_YELLOW,
+            string: ANSI_CODE_GREEN,
+            number: ANSI_CODE_MAGENTA,
+            regex: ANSI_CODE_MAGENTA,
+            comment: ANSI_CODE_GRAY,
+            gutter: ANSI_CODE_GRAY,
+            marker: marker_color,
+            message: marker_color,
         }
     }
 
@@ -553,9 +563,13 @@ pub fn extract_highlights(
                 .copied()
                 .unwrap_or(source.len());
             let (rs, re) = if let Some((trunc_offset, avail_width)) = visible_window {
+                // Snap to char boundaries — trunc_offset/avail_width are
+                // display-column counts, not byte counts.
+                let raw_start = (ls + trunc_offset).min(line_end);
+                let raw_end = (ls + trunc_offset + avail_width).min(line_end);
                 (
-                    (ls + trunc_offset).min(line_end),
-                    (ls + trunc_offset + avail_width).min(line_end),
+                    source.floor_char_boundary(raw_start),
+                    source.ceil_char_boundary(raw_end),
                 )
             } else {
                 (ls, line_end)
@@ -1059,7 +1073,7 @@ pub mod tests {
     fn test_apply_line_highlights_basic() {
         let source = "const Foo = 123";
         let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
-        let color_scheme = ColorScheme::colored();
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
 
         let result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
 
@@ -1112,7 +1126,7 @@ pub mod tests {
     fn test_apply_line_highlights_with_truncation() {
         let source = "const Foo = 123";
         let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
-        let color_scheme = ColorScheme::colored();
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
 
         // Truncate to show "Foo = 123" (offset 6, length 9, no prefix)
         let visible = &source[6..];
@@ -1133,7 +1147,7 @@ pub mod tests {
         let source = r#"const x = "hello world";"#;
         let truncation_offset = 15;
         let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
-        let color_scheme = ColorScheme::colored();
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
 
         let visible = &source[truncation_offset..];
         let result =
@@ -1582,5 +1596,21 @@ pub mod tests {
             "Known limitation: `*/` loses comment highlighting when the skip-scan heuristic \
              starts after the `/*` opener"
         );
+    }
+
+    #[test]
+    fn test_extract_highlights_multibyte_visible_window_panic() {
+        // Regression test for #92641: visible_window with a width that
+        // lands inside a multi-byte character must not panic.
+        let source = "const x = `あ`;";
+        // byte layout: const x = `(10) あ(11,12,13) `(14) ;(15)
+        // avail_width=12 → re = 0+0+12 = byte 12, inside 'あ' (bytes 11..14)
+        let lines = Lines::new(source);
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
+
+        let highlights = extract_highlights(&lines, 0..1, JS, Some((0, 12)));
+        assert_eq!(highlights.len(), 1);
+
+        let _result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
     }
 }

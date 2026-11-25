@@ -1,44 +1,36 @@
+// Miri cannot run trybuild because its subprocesses require the unsupported `posix_spawnattr_init`.
+#![cfg(not(miri))]
+
 // Unset RUSTC_WRAPPER before trybuild tests run. When sccache wraps rustc, it
 // emits "warning: ignoring -C extra-filename flag due to -o flag" which pollutes
 // trybuild's stderr snapshot comparisons. Unsetting it here means only the
 // sub-compilations trybuild spawns are affected — the main test binary was already
 // compiled with sccache.
+//
+// Trybuild copies all workspace dependencies into its generated workspace, but not the
+// workspace lint settings. Allow its unused-dependency warnings even when CI denies
+// warnings for normal builds, and keep them out of stderr snapshot comparisons.
 #[ctor::ctor(unsafe)]
-fn unset_rustc_wrapper() {
-    unsafe { std::env::remove_var("RUSTC_WRAPPER") };
+fn configure_trybuild() {
+    unsafe {
+        std::env::remove_var("RUSTC_WRAPPER");
+        std::env::set_var("CARGO_BUILD_WARNINGS", "allow");
+    }
 }
 
+// Trybuild uses one generated Cargo project per package. Keep every case in one test so nextest
+// cannot run separate processes that overwrite that project's manifest while another case uses it.
 #[test]
-fn derive_operation_value() {
+fn trybuild() {
     let t = trybuild::TestCases::new();
     t.pass("tests/derive_operation_value/pass_*.rs");
     t.compile_fail("tests/derive_operation_value/fail_*.rs");
-}
-
-#[test]
-fn derive_non_local_value() {
-    let t = trybuild::TestCases::new();
     t.pass("tests/derive_non_local_value/pass_*.rs");
     t.compile_fail("tests/derive_non_local_value/fail_*.rs");
-}
-
-#[test]
-fn function() {
-    let t = trybuild::TestCases::new();
     t.pass("tests/function/pass_*.rs");
     t.compile_fail("tests/function/fail_*.rs");
-}
-
-#[test]
-fn value() {
-    let t = trybuild::TestCases::new();
     t.pass("tests/value/pass_*.rs");
     t.compile_fail("tests/value/fail_*.rs");
-}
-
-#[test]
-fn value_trait() {
-    let t = trybuild::TestCases::new();
     t.pass("tests/value_trait/pass_*.rs");
     t.compile_fail("tests/value_trait/fail_*.rs");
 }

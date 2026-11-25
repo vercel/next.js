@@ -87,6 +87,18 @@ impl SstFilter {
     /// Updates the filter state for the next meta file. Returns true if the meta file can be
     /// removed.
     pub fn apply_and_get_remove(&mut self, meta: &MetaFile) -> bool {
+        self.apply_and_get_remove_after_removing(meta, &FxHashSet::default())
+    }
+
+    /// Like [`apply_and_get_remove`](Self::apply_and_get_remove), but treats entries in
+    /// `entries_to_remove` as already removed. Commit uses this while its in-memory mutations are
+    /// deferred until after `CURRENT` is durable, so a newly-subsumed meta file can be retired in
+    /// the same commit.
+    pub fn apply_and_get_remove_after_removing(
+        &mut self,
+        meta: &MetaFile,
+        entries_to_remove: &FxHashSet<u32>,
+    ) -> bool {
         let mut used = false;
         for seq in meta.obsolete_sst_files() {
             if let Entry::Occupied(e) = self.0.entry(*seq) {
@@ -100,7 +112,11 @@ impl SstFilter {
             }
         }
 
-        !used && !meta.has_active_entries()
+        !used
+            && !meta
+                .entries()
+                .iter()
+                .any(|entry| !entries_to_remove.contains(&entry.sequence_number()))
     }
 }
 

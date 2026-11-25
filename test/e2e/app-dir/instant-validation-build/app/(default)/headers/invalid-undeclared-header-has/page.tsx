@@ -6,7 +6,7 @@ export const instant = {
   level: 'experimental-error',
   unstable_samples: [{ headers: [] }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

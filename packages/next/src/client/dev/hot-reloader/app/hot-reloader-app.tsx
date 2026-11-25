@@ -15,9 +15,9 @@ import {
 } from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
-import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import { useWebSocketPing } from './web-socket'
+import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   HMR_MESSAGE_SENT_TO_SERVER,
@@ -31,12 +31,12 @@ import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-me
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
 import {
   publicAppRouterInstance,
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { markErrorAsAlreadyLoggedOnServer } from '../../../../next-devtools/shared/forward-logs-shared'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
 // TODO: Explicitly import from client.browser (doesn't work with Webpack).
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -145,11 +145,34 @@ export function performFullReload(
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
-  if (!isUpdateAvailable() || !canApplyUpdates()) {
+function tryApplyUpdatesWebpack(
+  sendMessage: (message: string) => void,
+  // Whether an update in this chain dispatched `onBeforeRefresh` and still
+  // owes the matching `onRefresh`.
+  isRefreshPending = false
+) {
+  const updateAvailable = isUpdateAvailable()
+  const canApply = canApplyUpdates()
+  if (!updateAvailable || !canApply) {
+    if (isRefreshPending) {
+      dispatcher.onRefresh()
+    }
     resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
     reportHmrLatency(sendMessage, [], webpackStartMsSinceEpoch!, Date.now())
+
+    // A successful build can restore the running client hash, e.g. after a
+    // build error is fixed. Resolve the test callback when nothing is pending;
+    // otherwise, the active apply resolves it after it finishes.
+    if (
+      process.env.__NEXT_TEST_MODE &&
+      !updateAvailable &&
+      canApply &&
+      self.__NEXT_HMR_CB
+    ) {
+      self.__NEXT_HMR_CB()
+      self.__NEXT_HMR_CB = null
+    }
     return
   }
 
@@ -171,11 +194,13 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdatesWebpack(sendMessage)
+      tryApplyUpdatesWebpack(sendMessage, isRefreshPending)
       return
     }
 
-    dispatcher.onRefresh()
+    if (isRefreshPending) {
+      dispatcher.onRefresh()
+    }
     resolvePendingHotUpdateWebpack()
     reportHmrLatency(
       sendMessage,
@@ -205,7 +230,17 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
       // We should always handle an update, even if updatedModules is empty (but
       // non-null) for any reason. That's what webpack would normally do:
       // https://github.com/webpack/webpack/blob/3aa6b6bc3a64/lib/hmr/HotModuleReplacement.runtime.js#L296-L298
-      dispatcher.onBeforeRefresh()
+      //
+      // A Fast Refresh clears the errors in the dev overlay that were reported
+      // before it started, since a code change may have fixed them. Only start
+      // one when modules actually change. An empty update happens e.g. when
+      // navigating to a route that webpack compiles on demand. Starting a
+      // refresh for it would discard errors that the server sent for that
+      // navigation while the update was being checked.
+      if (updatedModules.length > 0) {
+        isRefreshPending = true
+        dispatcher.onBeforeRefresh()
+      }
       // https://webpack.js.org/api/hot-module-replacement/#apply
       return module.hot.apply()
     })
@@ -265,6 +300,13 @@ export function processMessage(
         )
       }
       dispatcher.onBuildOk()
+
+      // A successful build can be a no-op after recovering from an error, so
+      // there may be no server component change to resolve the test callback.
+      if (process.env.__NEXT_TEST_MODE && self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB()
+        self.__NEXT_HMR_CB = null
+      }
     } else {
       tryApplyUpdatesWebpack(sendMessage)
     }
@@ -302,6 +344,14 @@ export function processMessage(
       }
       break
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT: {
+      dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      break
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO: {
+      dispatcher.onVersionInfo(message.versionInfo)
+      break
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
     case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
@@ -315,12 +365,17 @@ export function processMessage(
       // Is undefined when it's a 'built' event
       if ('versionInfo' in message)
         dispatcher.onVersionInfo(message.versionInfo)
+      if ('hasVulnerabilityInsight' in message) {
+        dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      }
       if ('debug' in message && message.debug)
         dispatcher.onDebugInfo(message.debug)
       if ('devIndicator' in message)
         dispatcher.onDevIndicator(message.devIndicator)
       if ('devToolsConfig' in message)
         dispatcher.onDevToolsConfig(message.devToolsConfig)
+      if ('requestInsights' in message && message.requestInsights)
+        dispatcher.onRequestInsightsSnapshot(message.requestInsights)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -384,6 +439,7 @@ export function processMessage(
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
         data: {
           sessionId: message.data.sessionId,
+          hmrVersion: message.data.hmrVersion,
         },
       })
       break
@@ -394,6 +450,7 @@ export function processMessage(
       processTurbopackMessage({
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
         data: message.data,
+        hmrVersion: message.hmrVersion,
       })
       if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
@@ -404,18 +461,17 @@ export function processMessage(
     }
     // TODO-APP: make server component change more granular
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      processTurbopackMessage({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+        hmrVersion: message.hmrVersion,
+      })
       turbopackHmr?.onServerComponentChanges()
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
-          hash: message.hash,
         })
       )
-
-      // Store the latest hash in a session cookie so that it's sent back to the
-      // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||
@@ -437,6 +493,27 @@ export function processMessage(
           self.__NEXT_HMR_CB = null
         }
       }
+
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
+      // Re-fetch the current router tree so the render picks up the new set of
+      // statically-known params (and thus the fresh `stagedFallbackParams`).
+      // Unlike `SERVER_COMPONENT_CHANGES` this does not store an HMR refresh
+      // hash, so it doesn't invalidate `"use cache"` entries.
+      if (
+        RuntimeErrorHandler.hadRuntimeError ||
+        document.documentElement.id === '__next_error__'
+      ) {
+        if (reloading) return
+        reloading = true
+        return window.location.reload()
+      }
+
+      startTransition(() => {
+        publicAppRouterInstance.hmrRefresh()
+        dispatcher.onRefresh()
+      })
 
       return
     }
@@ -475,6 +552,10 @@ export function processMessage(
       dispatcher.onDevToolsConfig(message.data)
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE: {
+      dispatcher.onRequestInsightsUpdate(message.insight)
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       const { requestId, chunk } = message
       const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
@@ -490,6 +571,10 @@ export function processMessage(
         writer.ready.then(() => writer.close()).catch(console.error)
       }
 
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS: {
+      // Runtime error state is consumed by external HMR observers.
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
@@ -521,7 +606,6 @@ export function processMessage(
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
       createFromReadableStream<{
         errors: Error[]
-        errorCodes: Map<Error, string>
       }>(
         new ReadableStream({
           start(controller) {
@@ -531,16 +615,12 @@ export function processMessage(
         }),
         { findSourceMapURL }
       ).then(
-        ({ errors, errorCodes }) => {
+        ({ errors }) => {
           for (const error of errors) {
-            const code = errorCodes.get(error)
-            if (code !== undefined) {
-              Object.defineProperty(error, '__NEXT_ERROR_CODE', {
-                value: code,
-                enumerable: false,
-                configurable: true,
-              })
-            }
+            // These errors originated on the server and were already logged
+            // there. Mark them so the browser-to-terminal log forwarding
+            // doesn't replay them back to the CLI as duplicates.
+            markErrorAsAlreadyLoggedOnServer(error)
             console.error(error)
           }
         },
@@ -574,12 +654,28 @@ export default function HotReload({
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
-  useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
   useWebSocketPing(webSocket)
 
   // We don't want access of the pathname for the dev tools to trigger a dynamic
   // access (as the dev overlay will never be present in production).
   const pathname = useUntrackedPathname()
+
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    // Republish after navigation commits so HMR observers receive the current
+    // pathname even when the captured errors haven't changed.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      const { reportCurrentRuntimeErrorState } =
+        require('../runtime-error-state') as typeof import('../runtime-error-state')
+      reportCurrentRuntimeErrorState()
+    }, [pathname])
+  } else {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useErrorHandler(
+      dispatcher.onUnhandledError,
+      dispatcher.onUnhandledRejection
+    )
+  }
 
   if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which

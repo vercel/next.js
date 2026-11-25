@@ -5,11 +5,13 @@ Skills are on-demand context files that Claude loads when relevant. They extend 
 ## When to Create a Skill
 
 Create a skill when content is:
+
 - **Too detailed for AGENTS.md** (code templates, multi-step workflows, diagnostic procedures)
 - **Only relevant for specific tasks** (not every session needs it)
 - **Self-contained enough to load independently**
 
 Do NOT create a skill for:
+
 - One-liner rules or guardrails (keep those in AGENTS.md)
 - Content every agent session needs (that's what AGENTS.md is for)
 - Simple facts without actionable steps
@@ -39,18 +41,18 @@ description: >
 
 ### Supported Frontmatter Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | Yes | Skill name, used for `$name` references and `/name` slash commands |
-| `description` | Yes | What the skill does and when to use it. **This is how Claude decides to auto-load the skill.** Include file names, concepts, and keywords. |
-| `argument-hint` | No | Hint for expected arguments in autocomplete |
-| `user-invocable` | No | Set to `false` to hide from `/` slash command menu |
-| `disable-model-invocation` | No | Set to `true` to prevent Claude from auto-triggering this skill |
-| `allowed-tools` | No | Tools Claude can use without permission when this skill is active |
-| `model` | No | Model override for this skill |
-| `context` | No | Set to `fork` for isolated subagent execution |
-| `agent` | No | Subagent type to use with `context: fork` |
-| `hooks` | No | Hooks scoped to this skill's lifecycle |
+| Field                      | Required | Description                                                                                                                                |
+| -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`                     | Yes      | Skill name, used for `$name` references and `/name` slash commands                                                                         |
+| `description`              | Yes      | What the skill does and when to use it. **This is how Claude decides to auto-load the skill.** Include file names, concepts, and keywords. |
+| `argument-hint`            | No       | Hint for expected arguments in autocomplete                                                                                                |
+| `user-invocable`           | No       | Set to `false` to hide from `/` slash command menu                                                                                         |
+| `disable-model-invocation` | No       | Set to `true` to prevent Claude from auto-triggering this skill                                                                            |
+| `allowed-tools`            | No       | Tools Claude can use without permission when this skill is active                                                                          |
+| `model`                    | No       | Model override for this skill                                                                                                              |
+| `context`                  | No       | Set to `fork` for isolated subagent execution                                                                                              |
+| `agent`                    | No       | Subagent type to use with `context: fork`                                                                                                  |
+| `hooks`                    | No       | Hooks scoped to this skill's lifecycle                                                                                                     |
 
 Only use fields from this table. Unknown fields are ignored by Claude Code.
 

@@ -3,7 +3,8 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
-const process = require('process')
+// Taskr evaluates this file without a `process` global.
+const nodeProcess = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -44,6 +45,18 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  // The agent-feedback protocol is intentionally kept out of dist/docs so
+  // agents globbing the bundled docs don't read its instructions out of
+  // context. `next internal agent-feedback-instructions` prints it on demand.
+  await task
+    .source(join(__dirname, 'src/agent-feedback/protocol.md'))
+    .target('dist/agent-feedback')
+
+  // Keep upgrade workflow instructions outside the public docs bundle.
+  await task
+    .source(join(__dirname, 'src/lib/upgrade/*.md'))
+    .target('dist/lib/upgrade')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -83,7 +96,6 @@ const externals = {
   fibers: 'fibers',
 
   chokidar: 'chokidar',
-  'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
@@ -120,6 +132,17 @@ export async function ncc_vercel_routing_utils(task, opts) {
     .target('src/compiled/@vercel/routing-utils')
 }
 
+externals['@vercel/detect-agent'] = 'next/dist/compiled/@vercel/detect-agent'
+export async function ncc_vercel_detect_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/detect-agent')))
+    .ncc({
+      packageName: '@vercel/detect-agent',
+      externals,
+    })
+    .target('src/compiled/@vercel/detect-agent')
+}
+
 externals['busboy'] = 'next/dist/compiled/busboy'
 export async function ncc_busboy(task, opts) {
   await task
@@ -134,17 +157,34 @@ export async function ncc_busboy(task, opts) {
 
 externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+// Otherwise NCC emits `eval('require')('next/dist/compiled/@mswjs/interceptors/ClientRequest')`
+externals['next/dist/shared/lib/promise-with-resolvers'] =
+  'next/dist/shared/lib/promise-with-resolvers'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
-    .source(
-      relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
-    )
+    // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/mswjs-interceptors/index.js')
     .ncc({
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',
+      esm: false,
     })
     .target('src/compiled/@mswjs/interceptors/ClientRequest')
+  // The interceptor reads its HTTP parser WASM at runtime relative to the
+  // bundle. ncc cannot trace that file access, so copy the file explicitly.
+  const llhttpWasmTarget = join(
+    __dirname,
+    'src/compiled/@mswjs/interceptors/ClientRequest/llhttp'
+  )
+  await fs.mkdir(llhttpWasmTarget, { recursive: true })
+  await fs.copyFile(
+    join(
+      dirname(require.resolve('@mswjs/interceptors/ClientRequest')),
+      '../../llhttp/llhttp.wasm'
+    ),
+    join(llhttpWasmTarget, 'llhttp.wasm')
+  )
 }
 
 export async function capsize_metrics() {
@@ -501,60 +541,6 @@ export async function ncc_watchpack(task, opts) {
     .source(relative(__dirname, require.resolve('watchpack')))
     .ncc({ packageName: 'watchpack', externals })
     .target('src/compiled/watchpack')
-}
-
-externals['jest-worker'] = 'next/dist/compiled/jest-worker'
-export async function ncc_jest_worker(task, opts) {
-  await rmrf(join(__dirname, 'src/compiled/jest-worker'))
-  await fs.mkdir(join(__dirname, 'src/compiled/jest-worker/workers'), {
-    recursive: true,
-  })
-
-  const workers = ['processChild.js', 'threadChild.js']
-
-  await task
-    .source(relative(__dirname, require.resolve('jest-worker')))
-    .ncc({ packageName: 'jest-worker', externals })
-    .target('src/compiled/jest-worker')
-
-  for (const worker of workers) {
-    const content = await fs.readFile(
-      join(
-        dirname(require.resolve('jest-worker/package.json')),
-        'build/workers',
-        worker
-      ),
-      'utf8'
-    )
-    await fs.writeFile(
-      join(
-        dirname(require.resolve('jest-worker/package.json')),
-        'build/workers',
-        worker + '.tmp.js'
-      ),
-      content.replace(/require\(file\)/g, '__non_webpack_require__(file)')
-    )
-    await task
-      .source(
-        relative(
-          __dirname,
-          join(
-            dirname(require.resolve('jest-worker/package.json')),
-            'build/workers',
-            worker + '.tmp.js'
-          )
-        )
-      )
-      .ncc({ externals })
-      .target('src/compiled/jest-worker/out')
-
-    await fs.rename(
-      join(__dirname, 'src/compiled/jest-worker/out', worker + '.tmp.js'),
-      join(__dirname, 'src/compiled/jest-worker', worker)
-    )
-  }
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/workers'))
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/out'))
 }
 
 export async function ncc_react_refresh_utils(task, opts) {
@@ -1191,12 +1177,13 @@ export async function ncc_gzip_size(task, opts) {
     .ncc({ packageName: 'gzip-size', externals })
     .target('src/compiled/gzip-size')
 }
-externals['http-proxy'] = 'next/dist/compiled/http-proxy'
-export async function ncc_http_proxy(task, opts) {
+externals['httpxy'] = 'next/dist/compiled/httpxy'
+export async function ncc_httpxy(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('http-proxy')))
-    .ncc({ packageName: 'http-proxy', externals })
-    .target('src/compiled/http-proxy')
+    // httpxy is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/httpxy/index.js')
+    .ncc({ packageName: 'httpxy', externals, esm: false })
+    .target('src/compiled/httpxy')
 }
 externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
 export async function ncc_ignore_loader(task, opts) {
@@ -1208,8 +1195,8 @@ export async function ncc_ignore_loader(task, opts) {
 externals['is-animated'] = 'next/dist/compiled/is-animated'
 export async function ncc_is_animated(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('is-animated')))
-    .ncc({ packageName: 'is-animated', externals })
+    .source('src/bundles/is-animated/index.js')
+    .ncc({ packageName: 'is-animated', externals, esm: false })
     .target('src/compiled/is-animated')
 }
 externals['ipaddr.js'] = 'next/dist/compiled/ipaddr.js'
@@ -1240,18 +1227,15 @@ export async function ncc_json5(task, opts) {
     .ncc({ packageName: 'json5', externals })
     .target('src/compiled/json5')
 }
-externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
-export async function ncc_jsonwebtoken(task, opts) {
+externals['fast-jwt'] = 'next/dist/compiled/fast-jwt'
+export async function ncc_fast_jwt(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('jsonwebtoken')))
+    .source(relative(__dirname, require.resolve('fast-jwt')))
     .ncc({
-      packageName: 'jsonwebtoken',
-      externals: {
-        ...externals,
-        semver: 'next/dist/lib/semver-noop',
-      },
+      packageName: 'fast-jwt',
+      externals,
     })
-    .target('src/compiled/jsonwebtoken')
+    .target('src/compiled/fast-jwt')
 }
 externals['loader-runner'] = 'next/dist/compiled/loader-runner'
 export async function ncc_loader_runner(task, opts) {
@@ -1631,7 +1615,12 @@ export async function copy_vendor_react(task_) {
       'cjs/react-dom-server.bun.production.min.js',
       'cjs/react-dom-test-utils.development.js',
       'cjs/react-dom-test-utils.production.min.js',
-      'unstable_server-external-runtime.js',
+      // `unstable_server-external-runtime.js` is deliberately kept. It is the
+      // standalone browser runtime that applies Fizz's instruction set when
+      // `unstable_externalRuntimeSrc` is set, and it is served as a static
+      // asset rather than bundled. React only publishes it on the experimental
+      // channel, so it is absent from the `react-dom` copy and present in the
+      // `react-dom-experimental` one.
     ]
     for (const item of itemsToRemove) {
       yield rmrf(join(reactDomCompiledDir, item))
@@ -1873,6 +1862,29 @@ export async function ncc_string_hash(task, opts) {
     .source(relative(__dirname, require.resolve('string-hash')))
     .ncc({ packageName: 'string-hash', externals })
     .target('src/compiled/string-hash')
+}
+// Bundle only SHA-256, using browser entrypoints so this is safe in Edge.
+export async function ncc_hash_sha256(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('hash.js/lib/hash/sha/256')))
+    .ncc({
+      packageName: 'hash.js',
+      bundleName: 'hash.js/sha256',
+      externals,
+      mainFields: ['browser', 'main'],
+    })
+    .target('src/compiled/hash.js/sha256')
+
+  // hash.js publishes its license in the README rather than a LICENSE file.
+  const readme = await fs.readFile(require.resolve('hash.js/README.md'), 'utf8')
+  const license = readme.split('#### LICENSE\n')[1]
+  if (!license) {
+    throw new Error('Missing hash.js license')
+  }
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/hash.js/sha256/LICENSE'),
+    `${license.trim()}\n`
+  )
 }
 externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
 externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
@@ -2275,14 +2287,14 @@ export async function ncc(task, opts) {
         'ncc_fresh',
         'ncc_glob',
         'ncc_gzip_size',
-        'ncc_http_proxy',
+        'ncc_httpxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
         'ncc_ipaddr_js',
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',
-        'ncc_jsonwebtoken',
+        'ncc_fast_jwt',
         'ncc_loader_runner',
         'ncc_loader_utils2',
         'ncc_loader_utils3',
@@ -2311,6 +2323,7 @@ export async function ncc(task, opts) {
         'ncc_source_map08',
         'ncc_serve_handler',
         'ncc_string_hash',
+        'ncc_hash_sha256',
         'ncc_strip_ansi',
         'ncc_superstruct',
         'ncc_zod',
@@ -2350,7 +2363,6 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_vendor_react',
       'ncc_sass_loader',
-      'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime_ponyfill',
@@ -2360,6 +2372,7 @@ export async function ncc(task, opts) {
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
       'ncc_vercel_routing_utils',
+      'ncc_vercel_detect_agent',
     ],
     opts
   )
@@ -2400,10 +2413,83 @@ export async function next_compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'switchyard',
       'experimental_testing',
       'experimental_testmode',
     ],
     opts
+  )
+}
+
+// Switchyard, the Go server `next start` runs in front of Node with __NEXT_EXPERIMENTAL_SWITCHYARD=1
+// (src/server/switchyard, launched by src/server/lib/switchyard.ts). While it is
+// experimental, the binaries are built into dist/server/switchyard only with
+// NEXT_BUILD_SWITCHYARD=1 (named in src/server/lib/switchyard-env.ts), so
+// `next` doesn't grow and its build doesn't need Go. The launcher finds them
+// there, or wherever __NEXT_EXPERIMENTAL_SWITCHYARD_BINARY points
+// (src/server/lib/switchyard-binary.ts). Only this machine's binary is built: the
+// opt-in is for trying Switchyard locally, and nothing ships these files yet.
+// Shipping them would mean a release build that makes every target in
+// src/server/switchyard/targets.json (for example one npm package per platform,
+// as @next/swc-* does). The file names come from targets.json; the minimum
+// Go version from its go.mod.
+export async function switchyard(task, opts) {
+  // switchyard-binary.ts reads this at runtime, with or without the binaries.
+  await task
+    .source('src/server/switchyard/targets.json')
+    .target('dist/server/switchyard')
+  if (nodeProcess.env.NEXT_BUILD_SWITCHYARD !== '1') {
+    return
+  }
+
+  const switchyardDir = join(__dirname, 'src/server/switchyard')
+  const targets = require('./src/server/switchyard/targets.json')
+  const goMod = await fs.readFile(join(switchyardDir, 'go.mod'), 'utf8')
+  const [minMajor, minMinor] = /^go (\d+)\.(\d+)/m
+    .exec(goMod)
+    .slice(1)
+    .map(Number)
+  const go = nodeProcess.env.TURBOPACK_GO || 'go'
+  const goVersion = await execa(go, ['env', 'GOVERSION'], { reject: false })
+  const [major, minor] = (/^go(\d+)\.(\d+)/.exec(goVersion.stdout ?? '') || [])
+    .slice(1)
+    .map(Number)
+  const hasGo =
+    goVersion.exitCode === 0 &&
+    (major > minMajor || (major === minMajor && minor >= minMinor))
+  if (!hasGo) {
+    throw new Error(
+      `NEXT_BUILD_SWITCHYARD=1 needs Go ${minMajor}.${minMinor}+ (packages/next/src/server/switchyard/go.mod), which wasn't found (tried "${go}"; set TURBOPACK_GO to pick another).`
+    )
+  }
+
+  const os = nodeProcess.platform
+  const arch = targets.goArch[nodeProcess.arch]
+  if (!targets.targets.some((t) => t.os === os && t.arch === arch)) {
+    throw new Error(
+      `NEXT_BUILD_SWITCHYARD=1: switchyard has no build for ${nodeProcess.platform}/${nodeProcess.arch} (packages/next/src/server/switchyard/targets.json).`
+    )
+  }
+  await execa(
+    go,
+    [
+      'build',
+      '-trimpath',
+      '-buildvcs=false',
+      '-ldflags=-s -w',
+      '-o',
+      join(
+        __dirname,
+        'dist/server/switchyard',
+        targets.binaryName.replace('{os}', os).replace('{arch}', arch)
+      ),
+      '.',
+    ],
+    {
+      cwd: switchyardDir,
+      env: { CGO_ENABLED: '0', GOOS: os, GOARCH: arch, GOTOOLCHAIN: 'local' },
+      stdio: 'inherit',
+    }
   )
 }
 
@@ -2696,20 +2782,7 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
-    opts
-  )
-  // Write git commit hash to dist for stale build detection during tests
-  try {
-    const { stdout: commitHash } = await execa('git', ['rev-parse', 'HEAD'])
-    await fs.writeFile(
-      join(__dirname, 'dist', '.build-commit'),
-      commitHash.trim()
-    )
-  } catch (err) {
-    console.warn(`Warning: Could not write build commit hash: ${err.message}`)
-  }
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
@@ -2730,25 +2803,6 @@ export async function generate_types(task, opts) {
   }
 }
 
-export async function check_error_codes(task, opts) {
-  try {
-    await execa.command('pnpm -w run check-error-codes', {
-      stdio: 'inherit',
-    })
-  } catch (err) {
-    if (process.env.CI) {
-      await execa.command(
-        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` or `pnpm update-error-codes` and then commit the change in errors.json.',
-        {
-          stdio: 'inherit',
-        }
-      )
-      process.exit(1)
-    }
-    await task.start('compile', opts)
-  }
-}
-
 export default async function (task) {
   const opts = { dev: true }
   await task.clear('dist')
@@ -2756,6 +2810,9 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  // task.watch watches a directory (it doesn't expand globs), so a pattern
+  // like switchyard/*.go would never fire.
+  await task.watch('src/server/switchyard', 'switchyard', opts)
   await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',
@@ -3023,10 +3080,10 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
-// The `app-worker` bundle currently has only one entry, the use-cache probe
-// worker, which is dev-only. We therefore build just the four dev variants
-// (turbo × experimental). If a future worker entry needs to run in prod,
-// add the matching prod tasks then.
+// The `app-worker` bundle holds the dev-only worker entries (the use-cache
+// probe worker and the dev validation worker). We therefore build just the four
+// dev variants (turbo × experimental). If a future worker entry needs to run in
+// prod, add the matching prod tasks then.
 export async function next_bundle_app_worker_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,

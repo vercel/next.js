@@ -18,8 +18,7 @@ use bincode::{Decode, Encode};
 use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, Upcast, Vc, trace::TraceRawVcs,
-    util::SharedError,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, Upcast, Vc, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -39,7 +38,7 @@ pub struct ProxyResult {
     /// Headers arranged as contiguous (name, value) pairs.
     pub headers: Vec<(RcStr, RcStr)>,
     /// The body to return.
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     pub body: Body,
 }
 
@@ -159,7 +158,7 @@ impl HeaderList {
 /// Note that you might not receive information that has not been requested via
 /// [`GetContentSourceContent::vary`]. So make sure to request all information that's needed.
 #[turbo_tasks::task_input]
-#[derive(PartialEq, Eq, TraceRawVcs, Clone, Debug, Hash, Default, Encode, Decode)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Default, Encode, Decode)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
     pub method: Option<RcStr>,
@@ -190,7 +189,7 @@ pub type BodyChunk = Result<Bytes, SharedError>;
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct Body {
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     chunks: Stream<BodyChunk>,
 }
 
@@ -223,7 +222,7 @@ impl<T: Into<Bytes>> From<T> for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, Encode, Decode)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -448,7 +447,7 @@ impl ContentSource for NoContentSource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RewriteType {
     Location {
         /// The new path and query used to lookup content. This _does not_ need to be the original

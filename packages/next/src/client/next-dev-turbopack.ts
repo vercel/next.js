@@ -17,7 +17,11 @@ window.next = {
   },
   emitter,
 }
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(self as any).__next_set_public_path__ = () => {}
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(self as any).__webpack_hash__ = ''
 
 // for the page loader
@@ -29,6 +33,8 @@ initialize({
 })
   .then(({ assetPrefix }) => {
     // for the page loader
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(self as any).__turbopack_load_page_chunks__ = (
       page: string,
       chunksData: any
@@ -43,11 +49,14 @@ initialize({
     }
 
     connect({
+      initialHmrVersion: self.__nextHmrInitialVersion,
       addMessageListener(cb: (message: TurbopackMessageSentToBrowser) => void) {
         devClient.addTurbopackMessageListener(cb)
       },
       sendMessage: devClient.sendTurbopackMessage,
       onUpdateError: devClient.handleUpdateError,
+      chunkUpdateListenersGlobal:
+        process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
 
     return pageBootstrap(assetPrefix)

@@ -18,16 +18,18 @@ use bincode::{
     error::{DecodeError, EncodeError},
 };
 use either::Either;
+use smallvec::{Array, SmallVec};
+use turbo_bitset::Bitset;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks_hash::HashAlgorithm;
 
-// This import is necessary for derive macros to work, as their expansion refers to the crate
-// name directly.
-use crate::{self as turbo_tasks, ReadRef};
+// The task_input macro expansion refers to the crate name directly in these unit tests.
+#[cfg(test)]
+use crate as turbo_tasks;
 use crate::{
-    DynTaskInputs, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
-    trace::TraceRawVcs,
+    DynTaskInputs, OrdResolvedVc, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue,
+    ValueTypeId, Vc,
 };
 
 /// An 8-byte hand-rolled [`Future`] that immediately resolves to `Ok(self.clone())` of the
@@ -90,7 +92,9 @@ impl<'a, T> Unpin for CloneReady<'a, T> {}
 /// Structs or enums can be made into task inputs by deriving `TaskInput`:
 ///
 /// ```rust
+/// # use turbo_tasks::macro_helpers::bincode::{Decode, Encode};
 /// #[turbo_tasks::task_input]
+/// #[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 /// struct MyStruct {
 ///     // Fields go here...
 /// }
@@ -106,26 +110,30 @@ impl<'a, T> Unpin for CloneReady<'a, T> {}
 /// space. If an [`Arc`] points to a large type, consider wrapping that type in [`Vc`], so that only
 /// one copy of the value will be serialized.
 pub trait TaskInput:
-    Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs + Encode + Decode<()>
+    Send + Sync + Clone + Debug + PartialEq + Eq + Hash + Encode + Decode<()>
 {
     /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
-    /// the process. If the input is unresolved ([`TaskInput::is_resolved`]) a "local" resolution
-    /// task is created that runs this method.
+    /// the process. If the input is unresolved ([`TaskInput::is_resolved`] returns `false`), a
+    /// "local" resolution task is created that runs this method.
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         CloneReady { inner: Some(self) }
     }
 
-    /// This should return `true` if there are any unresolved [`Vc`]s in the type.
+    /// This should return `true` if the type is fully resolved, i.e. it contains no unresolved
+    /// [`Vc`]s, and `false` if any nested [`Vc`] still needs to be resolved.
     ///
     /// Note that [`Vc`]s can sometimes be internally resolved, so you should call
-    /// [`Vc::is_resolved`] (or rely on the derive macro for this trait) instead of returning `true`
-    /// for any [`Vc`]. [`ResolvedVc::is_resolved`] always returns `true`.
+    /// [`Vc::is_resolved`] (or rely on the derive macro for this trait) instead of returning
+    /// `false` for any [`Vc`]. [`ResolvedVc::is_resolved`] always returns `true`.
     ///
-    /// If this returns `true`, a "local" resolution task calling [`TaskInput::resolve_input`] will
-    /// be spawned before the function accepting the arguments is run.
-    ///
-    /// If this returns `false`, the `TaskInput` will be [cloned][Clone] instead of resolved, and
+    /// If this returns `true`, the `TaskInput` will be [cloned][Clone] instead of resolved, and
     /// the function's task will be spawned directly without a resolution step.
+    ///
+    /// If this returns `false`, a "local" resolution task calling [`TaskInput::resolve_input`]
+    /// will be spawned before the function accepting the arguments is run.
+    ///
+    /// The default implementation returns `true`, which is correct for types that cannot contain
+    /// a [`Vc`].
     fn is_resolved(&self) -> bool {
         true
     }
@@ -169,7 +177,8 @@ impl_task_input! {
     ValueTypeId,
     Duration,
     String,
-    HashAlgorithm
+    HashAlgorithm,
+    Bitset
 }
 
 impl<T> TaskInput for Vec<T>
@@ -186,6 +195,52 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         let mut resolved = Vec::with_capacity(self.len());
+        for value in self {
+            resolved.push(value.resolve_input().await?);
+        }
+        Ok(resolved)
+    }
+}
+
+/// A boxed slice has no spare capacity, so it is a good fit for list inputs that are stored for as
+/// long as the task exists.
+impl<T> TaskInput for Box<[T]>
+where
+    T: TaskInput + 'static,
+{
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut resolved = Vec::with_capacity(self.len());
+        for value in self {
+            resolved.push(value.resolve_input().await?);
+        }
+        Ok(resolved.into_boxed_slice())
+    }
+}
+
+impl<A> TaskInput for SmallVec<A>
+where
+    A: Array + Send + Sync,
+    A::Item: TaskInput,
+    SmallVec<A>: Encode + Decode<()>,
+{
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut resolved = SmallVec::with_capacity(self.len());
         for value in self {
             resolved.push(value.resolve_input().await?);
         }
@@ -306,9 +361,22 @@ where
     }
 }
 
+impl<T> TaskInput for OrdResolvedVc<T>
+where
+    T: Send + Sync + ?Sized,
+{
+    fn is_resolved(&self) -> bool {
+        true
+    }
+
+    fn is_transient(&self) -> bool {
+        self.node.is_transient()
+    }
+}
+
 impl<T> TaskInput for TransientValue<T>
 where
-    T: DynTaskInputs + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
+    T: DynTaskInputs + Clone + Debug + Hash + Eq + 'static,
 {
     fn is_transient(&self) -> bool {
         true
@@ -329,7 +397,7 @@ impl<Context, T> Decode<Context> for TransientValue<T> {
 
 impl<T> TaskInput for TransientInstance<T>
 where
-    T: Sync + Send + TraceRawVcs + 'static,
+    T: Sync + Send + 'static,
 {
     fn is_transient(&self) -> bool {
         true
@@ -447,7 +515,7 @@ where
 
 /// A thin wrapper around [`Either`] that implements the traits required by [`TaskInput`], notably
 /// [`Encode`] and [`Decode`].
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EitherTaskInput<L, R>(pub Either<L, R>);
 
 impl<L, R> Deref for EitherTaskInput<L, R> {
@@ -491,8 +559,8 @@ where
 {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         self.as_ref().map_either(
-            |l| async move { anyhow::Ok(Self(Either::Left(l.resolve_input().await?))) },
-            |r| async move { anyhow::Ok(Self(Either::Right(r.resolve_input().await?))) },
+            async |l| anyhow::Ok(Self(Either::Left(l.resolve_input().await?))),
+            async |r| anyhow::Ok(Self(Either::Right(r.resolve_input().await?))),
         )
     }
 
@@ -562,17 +630,88 @@ mod tests {
     #[test]
     fn test_no_fields() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
         struct NoFields;
 
         assert_task_input(NoFields);
         Ok(())
     }
 
+    #[tokio::test]
+    async fn test_small_vec() -> Result<()> {
+        let inline: SmallVec<[RcStr; 1]> = smallvec::smallvec![rcstr!("a")];
+        assert_task_input(inline.clone());
+        assert!(inline.is_resolved());
+        assert!(!inline.is_transient());
+        let resolved = inline.resolve_input().await?;
+        assert_eq!(resolved, inline);
+        assert!(!resolved.spilled());
+
+        let spilled: SmallVec<[u32; 1]> = smallvec::smallvec![1, 2, 3];
+        assert!(spilled.is_resolved());
+        assert!(!spilled.is_transient());
+        assert_eq!(spilled.resolve_input().await?, spilled);
+        Ok(())
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
+    enum ResolvableInput {
+        Resolved(u32),
+        Unresolved(u32),
+        Transient(u32),
+    }
+
+    impl TaskInput for ResolvableInput {
+        async fn resolve_input(&self) -> Result<Self> {
+            Ok(match *self {
+                Self::Unresolved(value) => Self::Resolved(value),
+                ref value => value.clone(),
+            })
+        }
+
+        fn is_resolved(&self) -> bool {
+            !matches!(self, Self::Unresolved(_))
+        }
+
+        fn is_transient(&self) -> bool {
+            matches!(self, Self::Transient(_))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_boxed_slice() -> Result<()> {
+        let boxed: Box<[ResolvableInput]> = Box::new([
+            ResolvableInput::Resolved(1),
+            ResolvableInput::Unresolved(2),
+            ResolvableInput::Transient(3),
+        ]);
+        assert_task_input(boxed.clone());
+        assert!(!boxed.is_resolved());
+        assert!(boxed.is_transient());
+
+        let resolved = boxed.resolve_input().await?;
+        assert_eq!(
+            &*resolved,
+            &[
+                ResolvableInput::Resolved(1),
+                ResolvableInput::Resolved(2),
+                ResolvableInput::Transient(3),
+            ]
+        );
+        assert!(resolved.is_resolved());
+        assert!(resolved.is_transient());
+
+        let empty: Box<[ResolvableInput]> = Box::new([]);
+        assert!(empty.is_resolved());
+        assert!(!empty.is_transient());
+        assert_eq!(empty.resolve_input().await?, empty);
+        Ok(())
+    }
+
     #[test]
     fn test_one_unnamed_field() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
         struct OneUnnamedField(u32);
 
         assert_task_input(OneUnnamedField(42));
@@ -582,7 +721,7 @@ mod tests {
     #[test]
     fn test_multiple_unnamed_fields() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
         struct MultipleUnnamedFields(u32, RcStr);
 
         assert_task_input(MultipleUnnamedFields(42, rcstr!("42")));
@@ -592,7 +731,7 @@ mod tests {
     #[test]
     fn test_one_named_field() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
         struct OneNamedField {
             named: u32,
         }
@@ -604,7 +743,7 @@ mod tests {
     #[test]
     fn test_multiple_named_fields() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
         struct MultipleNamedFields {
             named: u32,
             other: RcStr,
@@ -620,7 +759,7 @@ mod tests {
     #[test]
     fn test_generic_field() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
         struct GenericField<T>(T);
 
         assert_task_input(GenericField(42));
@@ -629,7 +768,7 @@ mod tests {
     }
 
     #[turbo_tasks::task_input]
-    #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+    #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
     enum OneVariant {
         Variant,
     }
@@ -643,7 +782,7 @@ mod tests {
     #[test]
     fn test_multiple_variants() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, PartialEq, Eq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
         enum MultipleVariants {
             Variant1,
             Variant2,
@@ -654,7 +793,7 @@ mod tests {
     }
 
     #[turbo_tasks::task_input]
-    #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+    #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
     enum MultipleVariantsAndHeterogeneousFields {
         Variant1,
         Variant2(u32),
@@ -675,7 +814,7 @@ mod tests {
     #[test]
     fn test_nested_variants() -> Result<()> {
         #[turbo_tasks::task_input]
-        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(Clone, Eq, PartialEq, Hash, Debug, Encode, Decode)]
         enum NestedVariants {
             Variant1,
             Variant2(MultipleVariantsAndHeterogeneousFields),

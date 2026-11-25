@@ -3,7 +3,7 @@ import { CachedData, getCachedData } from '../../data-fetching'
 import { cookies } from 'next/headers'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 const CACHE_KEY = __dirname + '/__PAGE__'
 

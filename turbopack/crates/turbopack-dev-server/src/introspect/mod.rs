@@ -22,20 +22,18 @@ pub struct IntrospectionSource {
     pub roots: FxHashSet<ResolvedVc<Box<dyn Introspectable>>>,
 }
 
-fn introspection_source() -> RcStr {
-    rcstr!("introspection-source")
-}
+static INTROSPECTION_SOURCE: RcStr = rcstr!("introspection-source");
 
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectionSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        Vc::cell(introspection_source())
+        Vc::cell(INTROSPECTION_SOURCE.clone())
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        Vc::cell(introspection_source())
+        Vc::cell(INTROSPECTION_SOURCE.clone())
     }
 
     #[turbo_tasks::function]
@@ -135,7 +133,7 @@ impl GetContentSourceContent for IntrospectionSource {
         let has_children = !children.is_empty();
         let children = children
             .iter()
-            .map(|(name, child)| async move {
+            .map(async |(name, child)| {
                 let ty = child.ty().await;
                 let ty = str_or_err(&ty);
                 let title = child.title().await;

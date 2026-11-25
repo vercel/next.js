@@ -10,29 +10,28 @@ import stripAnsi from 'strip-ansi'
 import { createSandbox } from 'development-sandbox'
 
 describe('use-cache-unknown-cache-kind', () => {
-  const { next, isNextStart, isTurbopack, isRspack, skipped } = nextTestSetup({
-    files: __dirname,
-    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
-  })
-
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
-    beforeAll(async () => {
-      await next.build()
+  const { next, isNextDev, isNextDeploy, isTurbopack, isRspack } =
+    nextTestSetup({
+      files: __dirname,
+      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     })
 
+  if (!isNextDev) {
     it('should fail the build with an error', async () => {
+      await expect(next.start()).rejects.toThrow()
       const buildOutput = getBuildOutput(next.cliOutput)
 
-      if (isTurbopack) {
+      if (isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'Unknown cache kind "custom". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.'
+        )
+        expect(next.cliOutput).toContain('./app/page.tsx')
+        expect(next.cliOutput).toContain("'use cache: custom'")
+      } else if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
-         "Error: Turbopack build failed with 1 errors:
+         "Error: Turbopack build failed with 1 error:
          ./app/page.tsx:1:1
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
+         Error: Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |
@@ -42,8 +41,7 @@ describe('use-cache-unknown-cache-kind', () => {
          Ecmascript file had an error
 
 
-             at <unknown> (./app/page.tsx:1:1)
-         "
+             at printBuildErrors (<next-internal>)"
         `)
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
@@ -89,7 +87,7 @@ describe('use-cache-unknown-cache-kind', () => {
          "
         `)
       }
-    })
+    }, 240_000)
 
     it('should not fail the build for default cache kinds', async () => {
       expect(next.cliOutput).not.toInclude('Unknown cache kind "remote"')
@@ -127,7 +125,7 @@ describe('use-cache-unknown-cache-kind', () => {
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx (1:1)
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
+         Error: Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |
@@ -202,7 +200,15 @@ function getBuildOutput(cliOutput: string): string {
         break
       }
 
-      lines.push(stripAnsi(line))
+      lines.push(
+        // Framework frames are intentionally printed unsourcemapped (the build
+        // process has no source maps); their install-specific paths are not
+        // stable.
+        stripAnsi(line).replace(
+          /(at (?:async )?[\w$.]+) \([^)]*node_modules\/next\/dist[^)]*\)/,
+          '$1 (<next-internal>)'
+        )
+      )
     } else if (
       line.includes('Build error occurred') ||
       line.includes('Failed to compile')

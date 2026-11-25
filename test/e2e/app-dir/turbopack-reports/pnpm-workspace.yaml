@@ -1,0 +1,5 @@
+# `native-addon` is compiled by node-gyp during install, and pnpm does
+# not run a dependency's build scripts unless they are approved here. Local
+# file dependencies require an approval for their full dependency path.
+allowBuilds:
+  native-addon@file:native-addon: true

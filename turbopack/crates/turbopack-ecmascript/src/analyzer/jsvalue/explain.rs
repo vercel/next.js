@@ -91,9 +91,11 @@ impl JsValue<'_> {
                     ""
                 )
             ),
-            JsValue::Object { parts, mutable, .. } => format!(
+            JsValue::Object {
+                parts, mutability, ..
+            } => format!(
                 "{}{{{}}}",
-                if *mutable { "" } else { "frozen " },
+                mutability,
                 pretty_join(
                     &parts
                         .iter()
@@ -342,17 +344,31 @@ impl JsValue<'_> {
                     prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
+            JsValue::In(_, left, right) => {
+                format!(
+                    "{} in {}",
+                    left.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    right.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
+                analyze_for_constants,
+                reference: _,
             }) => {
                 format!(
-                    "module<{}, {}>",
+                    "module<{}, {}{}>",
                     name.to_string_lossy(),
                     if let Some(annotations) = annotations {
                         Either::Left(annotations)
                     } else {
                         Either::Right("{}")
+                    },
+                    if *analyze_for_constants {
+                        ", analyze for constants"
+                    } else {
+                        ""
                     }
                 )
             }

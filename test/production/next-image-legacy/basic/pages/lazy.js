@@ -24,7 +24,7 @@ const Lazy = () => {
       <div style={{ height: '2000px' }}></div>
       <Image
         id="lazy-bottom"
-        src="https://www.otherhost.com/lazy3.jpg"
+        src="https://next-data-api-endpoint.vercel.app/next-image-legacy/lazy3.jpg"
         height={400}
         width={300}
         unoptimized

@@ -1,12 +1,12 @@
 use anyhow::{Result, bail};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
     File, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
-    RawDirectoryEntry,
+    RawDirectoryEntry, WriteLinkContent,
 };
 
 #[derive(ValueToString)]
@@ -14,7 +14,7 @@ use crate::{
 #[turbo_tasks::value(serialization = "skip", cell = "new", eq = "manual")]
 pub struct EmbeddedFileSystem {
     name: RcStr,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     dir: &'static Dir<'static>,
 }
 
@@ -38,7 +38,15 @@ impl FileSystem for EmbeddedFileSystem {
 
     #[turbo_tasks::function]
     fn read_link(&self, _path: FileSystemPath) -> Vc<LinkContent> {
-        LinkContent::NotFound.cell()
+        LinkContent::Invalid {
+            reason: rcstr!("the filesystem does not support symbolic links"),
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn is_junction_point(&self, _path: FileSystemPath) -> Vc<bool> {
+        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
@@ -77,7 +85,7 @@ impl FileSystem for EmbeddedFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_link(&self, _path: FileSystemPath, _target: Vc<WriteLinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 

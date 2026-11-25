@@ -13,22 +13,6 @@ export function isParallelRouteSegment(segment: string) {
   return segment.startsWith('@') && segment !== '@children'
 }
 
-export function addSearchParamsIfPageSegment(
-  segment: Segment,
-  searchParams: Record<string, string | string[] | undefined>
-) {
-  const isPageSegment = segment.includes(PAGE_SEGMENT_KEY)
-
-  if (isPageSegment) {
-    const stringifiedQuery = JSON.stringify(searchParams)
-    return stringifiedQuery !== '{}'
-      ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
-      : PAGE_SEGMENT_KEY
-  }
-
-  return segment
-}
-
 export function computeSelectedLayoutSegment(
   segments: string[] | null,
   parallelRouteKey: string
@@ -70,7 +54,7 @@ export function getSelectedLayoutSegmentPath(
 
   let segmentValue = getSegmentValue(segment)
 
-  if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) {
+  if (!segmentValue || segmentValue === PAGE_SEGMENT_KEY) {
     return segmentPath
   }
 

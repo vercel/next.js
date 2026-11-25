@@ -4,7 +4,7 @@ const config = {
   experimental: {
     typedRoutes: true,
     turbopackMinify: true,
-    turbopackTreeShaking: false,
+    turbopackModuleFragments: false,
     turbopackSourceMaps: true
   },
 

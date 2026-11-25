@@ -4,8 +4,8 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, ValueToStringRef, Vc,
-    fxindexset,
+    Completion, FxIndexMap, OrderedAutoMap, OrderedAutoSet, ResolvedVc, State, TryJoinIterExt,
+    ValueToStringRef, Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -21,10 +21,7 @@ use crate::source::{
 };
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsMap(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
-);
+struct OutputAssetsMap(OrderedAutoMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 
@@ -45,7 +42,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }.into()),
             expanded: None,
         })
     }
@@ -59,7 +56,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }.into()),
             expanded: Some(State::new(FxHashSet::default())),
         })
     }
@@ -72,13 +69,14 @@ impl AssetGraphContentSource {
                 &self.root_path,
                 self.expanded.as_ref(),
             )
-            .await?,
+            .await?
+            .into(),
         ))
     }
 }
 
 async fn expand(
-    root_assets: &FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
+    root_assets: &OrderedAutoSet<ResolvedVc<Box<dyn OutputAsset>>>,
     root_path: &FileSystemPath,
     expanded: Option<&ExpandedState>,
 ) -> Result<FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>> {
@@ -89,7 +87,7 @@ async fn expand(
     let mut assets_set = FxHashSet::default();
     let root_assets_with_path = root_assets
         .iter()
-        .map(|&asset| async move {
+        .map(async |&asset| {
             let path = asset.path().await?;
             Ok((path, asset))
         })
@@ -220,7 +218,7 @@ impl ContentSource for AssetGraphContentSource {
                     )),
                 )
             })
-            .map(|v| async move { v.to_resolved().await })
+            .map(|v| v.to_resolved())
             .try_join()
             .await?;
         Ok(Vc::<RouteTrees>::cell(routes).merge())
@@ -307,7 +305,7 @@ impl Introspectable for AssetGraphContentSource {
         let root_assets = this.root_assets.await?;
         let root_asset_children = root_assets
             .iter()
-            .map(|&asset| async move {
+            .map(async |&asset| {
                 Ok((
                     rcstr!("root"),
                     IntrospectableOutputAsset::new(*asset).to_resolved().await?,
@@ -320,7 +318,7 @@ impl Introspectable for AssetGraphContentSource {
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|&a| !root_assets.contains(a))
-            .map(|&asset| async move {
+            .map(async |&asset| {
                 Ok((
                     rcstr!("inner"),
                     IntrospectableOutputAsset::new(*asset).to_resolved().await?,
@@ -364,7 +362,7 @@ impl Introspectable for FullyExpanded {
         let expanded_assets = expand(&*source.root_assets.await?, &source.root_path, None).await?;
         let children = expanded_assets
             .iter()
-            .map(|(_k, &v)| async move {
+            .map(async |(_k, &v)| {
                 Ok((
                     rcstr!("asset"),
                     IntrospectableOutputAsset::new(*v).to_resolved().await?,

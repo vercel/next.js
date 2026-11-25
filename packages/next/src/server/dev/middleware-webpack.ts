@@ -647,8 +647,8 @@ export function getOverlayMiddleware(options: {
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
         const appPath = path.join(
-          'app',
           isSrcDir ? 'src' : '',
+          'app',
           relativeFilePath
         )
         openEditorResult = await openFileInEditor(appPath, 1, 1, rootDirectory)

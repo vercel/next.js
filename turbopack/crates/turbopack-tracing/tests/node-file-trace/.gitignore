@@ -4,3 +4,8 @@ integration/**/dist
 
 !integration/**/node_modules
 !integration/**/.pnpm
+
+# Some unit cases need a checked-in node_modules to model a package layout
+!test/unit/**/node_modules
+# ...and some checked-in `dist` directories (e.g. a package's build output)
+!test/unit/**/dist

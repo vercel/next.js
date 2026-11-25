@@ -8,10 +8,8 @@ import { CompileError } from '../compile-error'
 import { warn } from '../../build/output/log'
 
 export interface TypeCheckResult {
-  hasWarnings: boolean
-  warnings?: string[]
-  inputFilesCount: number
-  totalFilesCount: number
+  inputFilesCount?: number
+  totalFilesCount?: number
   incremental: boolean
 }
 
@@ -54,7 +52,8 @@ export async function runTypeCheck(
   // tsconfig includes both .next/types and .next/dev/types to avoid config churn
   // between dev/build modes. During build, we filter out .next/dev/types files to
   // prevent stale dev types from causing errors when routes have been deleted since
-  // the last dev session.
+  // the last dev session. Build also removes the types of a stopped dev server
+  // (see `removeStaleDevTypes`), but keeps those of a running one.
   let fileNames = effectiveConfiguration.fileNames
 
   // Get the dev types path to filter (null if not applicable)
@@ -108,7 +107,6 @@ export async function runTypeCheck(
 
   if (fileNames.length < 1) {
     return {
-      hasWarnings: false,
       inputFilesCount: 0,
       totalFilesCount: 0,
       incremental: false,
@@ -214,15 +212,7 @@ export async function runTypeCheck(
     )
   }
 
-  const warnings = allDiagnostics
-    .filter((d) => d.category === typescript.DiagnosticCategory.Warning)
-    .map((d) =>
-      getFormattedDiagnostic(typescript, baseDir, distDir, d, isAppDirEnabled)
-    )
-
   return {
-    hasWarnings: true,
-    warnings,
     inputFilesCount: fileNames.length,
     totalFilesCount: program.getSourceFiles().length,
     incremental,

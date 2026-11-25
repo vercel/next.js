@@ -30,7 +30,7 @@ export default async function Page({
   return (
     <div>
       <p id="page-independent-head">Independent head page</p>
-      <LinkAccordion href={`/test-independent-head/${sibling}`}>
+      <LinkAccordion href={`/test-independent-head/${sibling}`} prefetch={true}>
         Go to {sibling}
       </LinkAccordion>
     </div>

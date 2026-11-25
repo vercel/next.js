@@ -1,0 +1,4 @@
+{
+  "productionChunking": true,
+  "globalModuleIds": true
+}

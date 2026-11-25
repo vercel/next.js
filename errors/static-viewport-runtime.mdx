@@ -1,0 +1,99 @@
+---
+title: Next.js encountered runtime data in `generateViewport()` on a route that must be fully static
+kind: error
+---
+
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This error is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide.
+</div>
+
+A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
+
+During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) read request-specific data from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). Reading these values in `generateViewport()` requires rendering at request time, which conflicts with the route's static requirement.
+
+A [`use cache`](/docs/app/api-reference/directives/use-cache) scope also triggers this error when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
+
+Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) requests, database calls, and [`connection()`](/docs/app/api-reference/functions/connection) have different fixes. See [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/static-viewport-dynamic).
+
+## Ways to fix this
+
+<FixCardGrid>
+  <FixCard
+    group="static"
+    title="Use static viewport"
+    href="#use-static-viewport"
+    snippets={[
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ]}
+  />
+</FixCardGrid>
+
+## Use static viewport
+
+Choose this fix when viewport settings do not need request-specific data.
+
+### Patterns
+
+#### Export a static viewport object
+
+Replace `generateViewport()` with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export:
+
+```jsx filename="app/dashboard/layout.jsx"
+export const viewport = { themeColor: 'black' }
+
+export default function Layout({ children }) {
+  return <section>{children}</section>
+}
+```
+
+Learn more: [Static viewport](/docs/app/api-reference/functions/generate-viewport#the-viewport-object).
+
+### Trade-off
+
+The viewport is determined during prerendering rather than per request.
+
+### Gotchas
+
+- This fixes viewport settings only. Page content, metadata, and other segments must also satisfy the static requirement.
+- A static export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
+
+## Other options
+
+### Extend the cache lifetime
+
+Set `expire` to at least five minutes, `stale` to at least 30 seconds, and `revalidate` above `0`. Increase the lifetime only when serving shared, older viewport data is acceptable.
+
+Learn more: [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+
+## Verifying the fix
+
+After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering. If the error also appeared in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), reload the route and confirm that the overlay clears. Wrapping the access in Suspense or setting `instant = false` does not relax this static requirement.
+
+In `next dev`, the error overlay points at the failing function with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+
+## Remove the static requirement
+
+The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only viewport settings.
+
+If request-time rendering is intentional for this route, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
+
+Learn more: [Combining `ensureStatic` levels across layouts and pages](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#combining-levels-across-layouts-and-pages).
+
+## Related validation errors
+
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

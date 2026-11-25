@@ -2,7 +2,7 @@ use anyhow::Result;
 use either::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, ValueToString, Vc,
+    FxIndexSet, OrderedAutoSet, ResolvedVc, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -111,9 +111,7 @@ pub struct ExpandedOutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssetsSet(
-    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
-);
+pub struct OutputAssetsSet(OrderedAutoSet<ResolvedVc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
@@ -278,8 +276,8 @@ pub async fn expand_output_assets(
     inner_output_assets: bool,
 ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
     let edges = AdjacencyMap::new()
-        .visit(inputs, async |input| {
-            get_referenced_assets(inner_output_assets, input).await
+        .visit(inputs, |input| {
+            get_referenced_assets(inner_output_assets, input)
         })
         .await
         .completed()?

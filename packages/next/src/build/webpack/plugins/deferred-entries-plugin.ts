@@ -9,6 +9,7 @@ interface DeferredEntriesPluginOptions {
   dev: boolean
   config: NextConfigComplete
   deferredEntrypoints?: webpack.EntryObject
+  deferredEntrySourceDirectories?: string[]
 }
 
 /**
@@ -22,12 +23,14 @@ interface DeferredEntriesPluginOptions {
 export class DeferredEntriesPlugin {
   private onBeforeDeferredEntries?: () => Promise<void>
   private deferredEntrypoints?: webpack.EntryObject
+  private deferredEntrySourceDirectories?: string[]
   private callbackCalled: boolean = false
 
   constructor(options: DeferredEntriesPluginOptions) {
     this.onBeforeDeferredEntries =
       options.config.experimental.onBeforeDeferredEntries
     this.deferredEntrypoints = options.deferredEntrypoints
+    this.deferredEntrySourceDirectories = options.deferredEntrySourceDirectories
   }
 
   apply(compiler: webpack.Compiler) {
@@ -53,6 +56,12 @@ export class DeferredEntriesPlugin {
       if (this.onBeforeDeferredEntries) {
         debug('calling onBeforeDeferredEntries callback')
         await this.onBeforeDeferredEntries()
+        // The callback can update deferred entry source files after Webpack has
+        // already cached them while building the initial entries. Only purge
+        // their owning directories so unrelated entries keep their cache state.
+        if (this.deferredEntrySourceDirectories?.length) {
+          compiler.inputFileSystem?.purge?.(this.deferredEntrySourceDirectories)
+        }
         debug('onBeforeDeferredEntries callback completed')
       }
 

@@ -1,18 +1,16 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('node-worker-threads', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       pino: '9.6.0',
       jspdf: '4.2.1',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   // These tests are Turbopack-specific since they rely on Turbopack's worker bundling
   if (!isTurbopack) {

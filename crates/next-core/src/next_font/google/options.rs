@@ -1,14 +1,15 @@
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, FxIndexSet, NonLocalValue, Vc, fxindexset, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexSet, NonLocalValue, Vc, fxindexset};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
-pub(super) type FontData = FxIndexMap<RcStr, FontDataEntry>;
+pub(super) type FontData = FxHashMap<RcStr, FontDataEntry>;
 
 #[turbo_tasks::value(task_input)]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
@@ -43,22 +44,20 @@ impl NextFontGoogleOptions {
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Encode, Decode)]
 pub(super) enum FontWeights {
     Variable,
     Fixed(Vec<u16>),
 }
 
-#[derive(Debug, PartialEq, Eq, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
 pub(super) struct FontDataEntry {
     pub weights: Vec<RcStr>,
     pub styles: Vec<RcStr>,
     pub axes: Option<Vec<Axis>>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, PartialEq, Deserialize, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Axis {
     pub tag: RcStr,
@@ -73,7 +72,7 @@ impl Eq for Axis {}
 // https://github.com/vercel/next.js/blob/28454c6ddbc310419467e5415aee26e48d079b46/packages/font/src/google/utils.ts#L22
 pub(super) fn options_from_request(
     request: &NextFontRequest,
-    data: &FxIndexMap<RcStr, FontDataEntry>,
+    data: &FontData,
 ) -> Result<NextFontGoogleOptions> {
     if request.arguments.len() > 1 {
         anyhow::bail!("Only zero or one arguments to font functions are currently supported")
@@ -204,16 +203,15 @@ pub(super) fn options_from_request(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::FxIndexMap;
+    use turbo_rcstr::rcstr;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
-    use super::{FontDataEntry, NextFontGoogleOptions, options_from_request};
+    use super::{FontData, NextFontGoogleOptions, options_from_request};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};
 
     #[test]
     fn test_errors_on_unknown_font() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -246,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_default_values_when_no_arguments() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -288,8 +286,46 @@ mod tests {
     }
 
     #[test]
+    fn test_respects_adjust_font_fallback_false() -> Result<()> {
+        let data: FontData = parse_json_with_source_context(
+            r#"
+            {
+                "ABeeZee": {
+                    "weights": ["variable"],
+                    "styles": ["normal", "italic"]
+                }
+            }
+            "#,
+        )?;
+
+        // The swc transform serializes the options object as-is, so the key is camelCase.
+        let request: NextFontRequest = parse_json_with_source_context(
+            r#"
+            {
+                "import": "ABeeZee",
+                "path": "index.js",
+                "variableName": "abeezee",
+                "arguments": [{
+                    "fallback": ["system-ui", "Arial"],
+                    "adjustFontFallback": false
+                }]
+            }
+            "#,
+        )?;
+
+        let options = options_from_request(&request, &data)?;
+        assert!(!options.adjust_font_fallback);
+        assert_eq!(
+            options.fallback,
+            Some(vec![rcstr!("system-ui"), rcstr!("Arial")])
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn test_errors_when_no_weights_chosen_no_variable() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -325,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unnecessary_weights() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -364,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unvavailable_weights() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -402,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_only_style_when_one_available() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -434,7 +470,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_normal_style_when_multiple() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -466,7 +502,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_styles() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -506,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_display() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -547,7 +583,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_axes_without_variable_weight() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -588,7 +624,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_axes_without_variable_font() -> Result<()> {
-        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {

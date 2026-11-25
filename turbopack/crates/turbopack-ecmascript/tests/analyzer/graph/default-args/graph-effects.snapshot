@@ -1,9 +1,25 @@
 [
+    DestructuredMember {
+        obj: Argument(
+            105,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "value2",
+                ),
+            ),
+        ),
+        span: 108..114,
+        target_escapes: true,
+    },
     ImportedBinding {
         esm_reference_index: 1,
         export: Some(
             "named",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -57,6 +73,7 @@
             ),
         ],
         span: 117..122,
+        usage: Escapes,
     },
     Unreachable {
         start_ast_path: [
@@ -91,10 +108,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -104,11 +121,27 @@
             ),
         ],
     },
+    DestructuredMember {
+        obj: Argument(
+            39,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "value",
+                ),
+            ),
+        ),
+        span: 54..59,
+        target_escapes: true,
+    },
     ImportedBinding {
         esm_reference_index: 1,
         export: Some(
             "named",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -157,6 +190,7 @@
             ),
         ],
         span: 62..67,
+        usage: Escapes,
     },
     Unreachable {
         start_ast_path: [
@@ -183,7 +217,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

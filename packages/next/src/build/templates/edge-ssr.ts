@@ -25,7 +25,12 @@ import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 import type { RequestMeta } from '../../server/request-meta'
@@ -114,7 +119,7 @@ async function requestHandler(
     deploymentId,
     isNextDataRequest,
     buildManifest,
-    prerenderManifest,
+    previewProps,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
@@ -150,7 +155,7 @@ async function requestHandler(
       ComponentMod: pageMod,
       pageConfig: pageMod.pageConfig,
       routeModule: pageMod.routeModule,
-      previewProps: prerenderManifest.preview,
+      previewProps,
       basePath: nextConfig.basePath,
       assetPrefix: nextConfig.assetPrefix,
       images: nextConfig.images,
@@ -266,6 +271,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled
@@ -388,15 +403,21 @@ export async function handler(
       headers: toNodeOutgoingHttpHeaders(request.headers),
       nextConfig: {
         basePath: process.env.__NEXT_BASE_PATH,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         i18n: process.env.__NEXT_I18N_CONFIG as any,
         trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
         experimental: {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           cacheLife: process.env.__NEXT_CACHE_LIFE as any,
           authInterrupts: Boolean(
             process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
           ),
-          clientParamParsingOrigins: process.env
-            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+          clientParamParsingOrigins:
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
         },
       },
       page: {

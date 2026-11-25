@@ -18,7 +18,11 @@ import os from 'os'
 import { exec } from 'child_process'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE } from './utils'
+import {
+  blockOnOutputWrites,
+  getMemoryRestartStats,
+  RESTART_EXIT_CODE,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
@@ -26,11 +30,14 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 import {
-  ensureAgentRulesForDev,
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentUpgradeForDev,
+  syncAgentFeedbackForDev,
+  syncAgentRulesForDev,
 } from './app-info-log'
+import type { AgentFilesResult } from './generate-agent-files'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -43,6 +50,11 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { isCI } from '../ci-info'
+import {
+  restoreSwitchyardConnection,
+  SWITCHYARD_HEADER_OVERHEAD,
+} from './switchyard-connection'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -134,6 +146,43 @@ export interface StartServerOptions {
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   serverFastRefresh?: boolean
+  /**
+   * Set when another process owns the public port and forwards to this
+   * server (see `switchyard.ts`). Runs once this server listens, before the
+   * URLs print, and returns the public address.
+   */
+  beforeStartLog?: (privateServer: PrivateServer) => Promise<PublicServer>
+  /**
+   * Bind again if the OS picks this port for a `port: 0` listener, so a
+   * Switchyard can take it.
+   */
+  avoidPort?: number
+  /** Authenticates client connection metadata from Switchyard. */
+  switchyardToken?: string
+}
+
+/** This server's port and HTTP limits, passed to the public listener. */
+export type PrivateServer = {
+  port: number
+  keepAliveTimeout: number
+  headersTimeout: number
+  requestTimeout: number
+  maxHeaderSize: number
+}
+
+/** The address clients use, when it isn't the one this server listens on. */
+export type PublicServer = {
+  hostname: string | undefined
+  port: number
+  /** Stops accepting connections and resolves once in-flight requests end. */
+  close: () => Promise<void>
+  /**
+   * Gives Switchyard the route table, once the router has loaded the
+   * app. Until then Switchyard sends every request to this Node server.
+   */
+  setRouteTable?: (
+    table: import('./switchyard-route-table').SwitchyardRouteTable
+  ) => void
 }
 
 export async function getRequestHandlers({
@@ -195,6 +244,9 @@ export async function startServer(
     serverFastRefresh,
   } = serverOptions
   let { port } = serverOptions
+  const switchyardToken = serverOptions.switchyardToken
+    ? Buffer.from(serverOptions.switchyardToken)
+    : undefined
 
   process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
@@ -229,6 +281,7 @@ export async function startServer(
   }
 
   let nextServer: NextServer | undefined
+  let devMemoryThresholdRestart = true
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -239,6 +292,14 @@ export async function startServer(
 
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
     try {
+      if (
+        switchyardToken &&
+        !restoreSwitchyardConnection(req, switchyardToken)
+      ) {
+        res.writeHead(400, { Connection: 'close' })
+        res.end()
+        return
+      }
       if (handlersPromise) {
         await handlersPromise
         handlersPromise = undefined
@@ -250,23 +311,21 @@ export async function startServer(
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
     } finally {
-      if (isDev) {
-        if (
-          v8.getHeapStatistics().used_heap_size >
-          0.8 * v8.getHeapStatistics().heap_size_limit
-        ) {
-          Log.warn(
-            `Server is approaching the used memory threshold, restarting...`
-          )
-          trace('server-restart-close-to-memory-threshold', undefined, {
-            'memory.heapSizeLimit': String(
-              v8.getHeapStatistics().heap_size_limit
-            ),
-            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
-          }).stop()
-          await flushAllTraces()
-          process.exit(RESTART_EXIT_CODE)
-        }
+      const memoryRestartStats = getMemoryRestartStats(
+        isDev,
+        devMemoryThresholdRestart,
+        v8.getHeapStatistics
+      )
+      if (memoryRestartStats) {
+        Log.warn(
+          `Server is approaching the used memory threshold, restarting...`
+        )
+        trace('server-restart-close-to-memory-threshold', undefined, {
+          'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
+          'memory.heapUsed': String(memoryRestartStats.used_heap_size),
+        }).stop()
+        flushAllTraces()
+        process.exit(RESTART_EXIT_CODE)
       }
     }
   }
@@ -279,13 +338,27 @@ export async function startServer(
         },
         requestListener
       )
-    : http.createServer(requestListener)
+    : http.createServer(
+        {
+          maxHeaderSize: switchyardToken
+            ? http.maxHeaderSize + SWITCHYARD_HEADER_OVERHEAD
+            : undefined,
+        },
+        requestListener
+      )
 
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
   server.on('upgrade', async (req, socket, head) => {
     try {
+      if (
+        switchyardToken &&
+        !restoreSwitchyardConnection(req, switchyardToken)
+      ) {
+        socket.destroy()
+        return
+      }
       await upgradeHandler(req, socket, head)
     } catch (err) {
       socket.destroy()
@@ -325,14 +398,56 @@ export async function startServer(
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-      const formattedHostname =
-        !hostname || actualHostname === '0.0.0.0'
-          ? 'localhost'
-          : actualHostname === '[::]'
-            ? '[::1]'
-            : formatHostname(hostname)
-
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      if (serverOptions.avoidPort && port === serverOptions.avoidPort) {
+        debug(
+          'the OS gave the Node server port %d, which Switchyard needs as its public port; binding the Node server to another port',
+          port
+        )
+        server.close(() => server.listen(0, hostname))
+        return
+      }
+
+      // With Switchyard (`beforeStartLog` set), start it now and switch to
+      // its public address: the URLs printed below, `PORT`, and the hostname
+      // and port the router builds `request.url` from all use the public port,
+      // so the app sees the same values as without Switchyard. Only
+      // `__NEXT_PRIVATE_ORIGIN` keeps the Node server's own address
+      // (`privateAppUrl`), because Node uses it to send requests to itself
+      // (server actions), and those don't need to pass through Switchyard.
+      const privateAppUrl = `http://${actualHostname}:${port}`
+      let publicServer: PublicServer | undefined
+      if (serverOptions.beforeStartLog) {
+        try {
+          publicServer = await serverOptions.beforeStartLog({
+            port,
+            keepAliveTimeout: server.keepAliveTimeout,
+            headersTimeout: server.headersTimeout,
+            requestTimeout: server.requestTimeout,
+            maxHeaderSize: http.maxHeaderSize,
+          })
+        } catch (err) {
+          Log.error(`Failed to start server`)
+          console.error(err)
+          process.exit(1)
+        }
+      }
+      const publicHostname = publicServer ? publicServer.hostname : hostname
+      if (publicServer) {
+        port = publicServer.port
+      }
+      const publicActualHostname = publicServer
+        ? publicHostname
+          ? formatHostname(publicHostname)
+          : '[::]'
+        : actualHostname
+      const formattedHostname =
+        !publicHostname || publicActualHostname === '0.0.0.0'
+          ? 'localhost'
+          : publicActualHostname === '[::]'
+            ? '[::1]'
+            : formatHostname(publicHostname)
 
       if (portRetryCount) {
         const pid = await getProcessIdUsingPort(originalPort)
@@ -348,7 +463,8 @@ export async function startServer(
       }
 
       const networkHostname =
-        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+        publicHostname ??
+        getNetworkHost(isIPv6(publicActualHostname) ? 'IPv6' : 'IPv4')
 
       const protocol = selfSignedCertificate ? 'https' : 'http'
 
@@ -363,7 +479,7 @@ export async function startServer(
       // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
 
-      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+      process.env.__NEXT_PRIVATE_ORIGIN = publicServer ? privateAppUrl : appUrl
 
       // Set experimental HTTPS flag for metadata resolution
       if (selfSignedCertificate) {
@@ -411,6 +527,12 @@ export async function startServer(
 
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
+            //
+            // With Switchyard on, it stops first: it stops accepting and
+            // finishes the requests it already has, which still need Node.
+            // Closing Node's server at the same time would refuse Switchyard's
+            // new connections to Node and turn those requests into 502s.
+            await publicServer?.close()
             await new Promise<void>((res) => {
               server.close((err) => {
                 if (err) console.error(err)
@@ -429,7 +551,7 @@ export async function startServer(
             ])
 
             // Flush any remaining traces to the trace file on shutdown
-            await flushAllTraces()
+            flushAllTraces()
 
             // Flush telemetry if this is a dev server
             if (isDev) {
@@ -445,7 +567,11 @@ export async function startServer(
                   // Use flushDetached to avoid blocking process exit
                   // Each process writes to a unique file (_events_${pid}.json)
                   // to avoid race conditions with the parent process
-                  telemetry.flushDetached('dev', dir)
+                  telemetry.flushDetached({
+                    mode: 'dev',
+                    dir,
+                    events: null,
+                  })
                 }
               } catch (_) {
                 // Ignore telemetry errors during cleanup
@@ -489,47 +615,74 @@ export async function startServer(
             ? cleanupListeners.add.bind(cleanupListeners)
             : undefined,
           server,
-          hostname,
+          hostname: publicHostname,
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
         })
+        devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
+        if (publicServer?.setRouteTable && initResult.getSwitchyardRouteTable) {
+          publicServer.setRouteTable(initResult.getSwitchyardRouteTable())
+        }
 
         // Log experimental features after config is loaded
         if (isDev) {
           logExperimentalInfo({
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
+            partialPrefetching: initResult.partialPrefetching,
           })
 
-          // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
-          // is detected but the managed agent-rules block is missing.
-          // Gated on `agentRules` in next.config (default true).
-          if (initResult.agentRules !== false) {
-            const result = ensureAgentRulesForDev(dir)
-            if (result) {
-              const generated: string[] = []
-              if (
-                result.agentsMd === 'created' ||
-                result.agentsMd === 'updated'
-              )
-                generated.push('AGENTS.md')
-              if (
-                result.claudeMd === 'created' ||
-                result.claudeMd === 'updated'
-              )
-                generated.push('CLAUDE.md')
-              if (generated.length > 0) {
-                Log.event(
-                  `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
-                )
-              }
-            }
+          logAgentFileSync(
+            await syncAgentRulesForDev(dir, initResult.agentRules !== false),
+            (files) =>
+              `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
+            (files) =>
+              `Removed agent rules from ${files} because \`agentRules\` is disabled.`
+          )
+
+          logAgentFileSync(
+            await syncAgentUpgradeForDev(
+              dir,
+              initResult.agentUpgrade !== false
+            ),
+            (files) =>
+              `Generated upgrade instructions in ${files}. Set \`experimental.agentUpgrade: false\` in next.config to disable.`,
+            (files) =>
+              `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
+          )
+
+          const agentFeedbackConfigured = initResult.agentFeedback === true
+          // A temporary runtime opt-out preserves instructions only while the
+          // project still enables feedback. Explicit disablement must clean up.
+          if (
+            !isCI &&
+            (!agentFeedbackConfigured || !process.env.NEXT_TELEMETRY_DISABLED)
+          ) {
+            const { traceGlobals } =
+              require('../../trace/shared') as typeof import('../../trace/shared')
+            const telemetry = traceGlobals.get('telemetry') as
+              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
+              | undefined
+            const telemetryEnabled = telemetry?.isEnabled === true
+
+            logAgentFileSync(
+              await syncAgentFeedbackForDev(
+                dir,
+                agentFeedbackConfigured && telemetryEnabled
+              ),
+              (files) =>
+                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+              (files) =>
+                agentFeedbackConfigured
+                  ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
+                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+            )
           }
         }
 
@@ -599,6 +752,8 @@ export async function startServer(
       if (dirWatchPaths.includes(removedPath)) {
         Log.error(
           `The directory at "${removedPath}" was deleted.\n\n` +
+            'Deleting this directory removes caches and will cause slower ' +
+            'performance.\n\n' +
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )
@@ -611,7 +766,22 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Output is piped to the CLI to hold it while the upgrade menu is open.
+  if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    blockOnOutputWrites()
+  }
   process.addListener('message', async (msg: any) => {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      typeof msg.nextTerminalColumns === 'number'
+    ) {
+      // The CLI's terminal was resized. Code frames read this width.
+      process.env.NEXT_PRIVATE_TERMINAL_COLUMNS = String(
+        msg.nextTerminalColumns
+      )
+      return
+    }
     if (
       msg &&
       typeof msg === 'object' &&
@@ -637,7 +807,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       }
 
       startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.cpus().length),
+        cpus: String(os.availableParallelism()),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
@@ -668,8 +838,33 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         nextServerReady: true,
         port: process.env.PORT,
         distDir: result.distDir,
+        telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
       })
     }
   })
   process.send({ nextWorkerReady: true })
+}
+
+/**
+ * Report which agent files a managed-block sync touched. Silent when the sync
+ * was a no-op so every `next dev` start doesn't mention the files.
+ */
+function logAgentFileSync(
+  result: AgentFilesResult | null,
+  generatedMessage: (files: string) => string,
+  removedMessage: (files: string) => string
+): void {
+  if (!result) return
+
+  const generated: string[] = []
+  const removed: string[] = []
+  for (const [file, action] of [['AGENTS.md', result.agentsMd]] as const) {
+    if (action === 'created' || action === 'updated') {
+      generated.push(file)
+    } else if (action === 'removed') {
+      removed.push(file)
+    }
+  }
+  if (generated.length > 0) Log.event(generatedMessage(generated.join(' and ')))
+  if (removed.length > 0) Log.event(removedMessage(removed.join(' and ')))
 }
