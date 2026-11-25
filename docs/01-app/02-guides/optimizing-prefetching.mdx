@@ -218,7 +218,7 @@ The App Shell is shared by the links into a route. A per-link prefetch runs for 
 Uncached work is already left out of prefetches. For cacheable work, `next/cache` exports functions that defer the code below each call:
 
 - [`prefetch()`](/docs/app/api-reference/functions/prefetch) defers the code until a per-link prefetch or navigation.
-- [`navigation()`](/docs/app/api-reference/functions/navigation) defers the code until navigation.
+- [`navigation()`](/docs/app/api-reference/functions/navigation) defers the code until navigation, or until a `<Link prefetch="navigation">` prefetch.
 
 In the following diagram, a gray dashed outline marks the Suspense fallback, while blue marks the deferred work once it renders:
 
@@ -230,7 +230,7 @@ In the following diagram, a gray dashed outline marks the Suspense fallback, whi
   height="480"
 />
 
-Both functions apply only during runtime rendering, so they do not change a fully static route. Each call defers the component that awaits it and that component's descendants. Earlier stages render the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, which the deferred subtree replaces when its stage runs. Unlike [`connection()`](/docs/app/api-reference/functions/connection), neither function makes the subtree request-dependent, so functions within it can still use `use cache`. See [How `navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-navigation-differs-from-connection).
+Both functions apply only during runtime rendering, so they do not change a fully static route. Each call defers the component that awaits it and that component's descendants. Earlier stages render the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, which the deferred subtree replaces when its stage runs. Unlike [`connection()`](/docs/app/api-reference/functions/connection), neither function excludes the subtree from static prerenders. See [How `navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-navigation-differs-from-connection).
 
 ### Keep expensive session data out of the App Shell
 
@@ -313,7 +313,7 @@ export async function getLatestMessage(threadId: string) {
 
 The per-link prefetch includes the cached subject and the message fallback. The cached message body loads when the user opens the thread, then remains available for later visits.
 
-{/* TODO: once `<Link prefetch="navigation">` ships, document it here as the opt-in for a link that also prefetches cacheable work deferred with `navigation()`. */}
+As a later refinement, you can prefetch the message body for the thread the user is most likely to open, such as the first unread thread, by giving that link [`prefetch="navigation"`](/docs/app/api-reference/components/link#prefetch). The prefetch renders the code below `navigation()` before the click, at the cost of a server render for one user and one link. See [Prefetching deferred content for a likely navigation](/docs/app/api-reference/functions/navigation#prefetching-deferred-content-for-a-likely-navigation).
 
 Leaving the subtree uncached would also keep it out of prefetches, but it would lose its cache lifetime on navigation too. For `use cache` content, a [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time of five minutes or more lets the client-side router reuse it after the first navigation. Below that, each navigation fetches it again.
 
@@ -346,7 +346,7 @@ async function Stories() {
 }
 ```
 
-Reading the cookie below `navigation()` does not make the per-link prefetch render per request, because that read would not have resolved during the prefetch anyway. The same holds for `prefetch()` and the App Shell. When every `cookies()` and `headers()` read sits below `prefetch()`, the shell is served from static output. Reading `params` or `searchParams` does not require a runtime shell. URL data is excluded from the shared shell, but it can make a per-link prefetch render at runtime unless it sits below `navigation()`.
+Reading the cookie below `navigation()` does not make a `prefetch={true}` prefetch render per request, because that read would not have resolved during the prefetch anyway. A `<Link prefetch="navigation">` renders that content at request time. The same holds for `prefetch()` and the App Shell. When every `cookies()` and `headers()` read sits below `prefetch()`, the shell is served from static output. Reading `params` or `searchParams` does not require a runtime shell. URL data is excluded from the shared shell, but it can make a per-link prefetch render at runtime unless it sits below `navigation()`.
 
 Each call defers one subtree. To require static output for the whole route, so a later change cannot reintroduce request-time rendering, set [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic). The [Keeping pages static](/docs/app/guides/keeping-pages-static) guide walks through each level.
 
@@ -410,6 +410,8 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 | Content | Route's rendered output minus per-link data and work below `prefetch()` or `navigation()` | App Shell plus per-link URL data and work below `prefetch()`, excluding work below `navigation()` | Everything left, including work below `navigation()` |
 | Cost    | Bounded by route count                                                                    | Bounded by visible-link count                                                                     | Bounded by navigations                               |
 | Role    | Default prefetch                                                                          | More rendered before click                                                                        | Completes the route                                  |
+
+A `<Link prefetch="navigation">` also renders the navigation stage before the click. Its cost is bounded by visible-link count, like `prefetch={true}`, and adds to the work the navigation does.
 
 [Deferring work](#defer-work-to-a-later-stage) avoids generating content for prefetches that may never be used. The tradeoff is that a navigation may show the nearest `<Suspense>` fallback while the deferred content renders.
 
