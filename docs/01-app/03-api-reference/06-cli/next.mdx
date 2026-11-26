@@ -314,13 +314,13 @@ The `list` subcommand (alias `ls`) lists recent requests.
 
 The `get` subcommand inspects one request.
 
-| Option          | Description                                                                        |
-| --------------- | ---------------------------------------------------------------------------------- |
-| `<request-id>`  | A full request ID or unambiguous prefix.                                           |
-| `[directory]`   | A directory containing the Next.js application. Defaults to the current directory. |
-| `--url <url>`   | Override automatic discovery with the running development server's URL.            |
-| `--json`        | Output the complete request, including span attributes, as JSON.                   |
-| `--kind <kind>` | Select `request` or `instant-insights` when both share an ID.                      |
+| Option          | Description                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------- |
+| `<request-id>`  | A full request ID or unambiguous prefix.                                                                |
+| `[directory]`   | A directory containing the Next.js application. Defaults to the current directory.                      |
+| `--url <url>`   | Override automatic discovery with the running development server's URL.                                 |
+| `--json`        | Output the complete request, including span attributes, as JSON.                                        |
+| `--kind <kind>` | Select `request` or `instant-insights`. With `instant-insights`, the validated request's ID also works. |
 
 ## Examples
 

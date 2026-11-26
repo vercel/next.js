@@ -1,6 +1,7 @@
 import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
+  type RequestInsightRelation,
 } from '../../../shared/request-insights'
 import { getRequestInsightFilterResult } from './request-filters'
 import {
@@ -17,7 +18,8 @@ import {
 } from './trace-viewer'
 
 function createRequest(
-  overrides: Partial<RequestInsight> = {}
+  overrides: Partial<Omit<RequestInsight, keyof RequestInsightRelation>> &
+    RequestInsightRelation = {}
 ): RequestInsight {
   return {
     requestId: 'request-1',
@@ -49,33 +51,18 @@ describe('request insights trace viewer', () => {
     const selectedRequest = createRequest({ requestId: 'selected' })
     const newerRequest = createRequest({ requestId: 'newer' })
 
-    expect(getActiveRequestKey([selectedRequest], null)).toBe(
-      'request:selected'
-    )
+    expect(getActiveRequestKey([selectedRequest], null)).toBe('selected')
     expect(
-      getActiveRequestKey([newerRequest, selectedRequest], 'request:selected')
-    ).toBe('request:selected')
-    expect(getActiveRequestKey([newerRequest], 'request:selected')).toBe(
-      'request:newer'
-    )
-  })
-
-  it('selects request and Instant Insights items independently', () => {
-    const request = createRequest({ requestId: 'shared' })
-    const instantInsights = createRequest({
-      requestId: 'shared',
-      kind: 'instant-insights',
-    })
-
-    expect(
-      getActiveRequestKey([request, instantInsights], 'instant-insights:shared')
-    ).toBe('instant-insights:shared')
+      getActiveRequestKey([newerRequest, selectedRequest], 'selected')
+    ).toBe('selected')
+    expect(getActiveRequestKey([newerRequest], 'selected')).toBe('newer')
   })
 
   it('hides internal records from the request list by default', () => {
     const request = createRequest({ requestId: 'shared' })
     const instantInsights = createRequest({
-      requestId: 'shared',
+      requestId: 'shared-validation',
+      parentRequestId: 'shared',
       kind: 'instant-insights',
     })
 
@@ -88,11 +75,13 @@ describe('request insights trace viewer', () => {
     const newerRequest = createRequest({ requestId: 'newer' })
     const olderRequest = createRequest({ requestId: 'older' })
     const newerInstantInsights = createRequest({
-      requestId: 'newer',
+      requestId: 'newer-validation',
+      parentRequestId: 'newer',
       kind: 'instant-insights',
     })
     const olderInstantInsights = createRequest({
-      requestId: 'older',
+      requestId: 'older-validation',
+      parentRequestId: 'older',
       kind: 'instant-insights',
     })
 
@@ -116,7 +105,8 @@ describe('request insights trace viewer', () => {
 
   it('keeps internal records without a retained owner at the root', () => {
     const instantInsights = createRequest({
-      requestId: 'orphan',
+      requestId: 'orphan-validation',
+      parentRequestId: 'orphan',
       kind: 'instant-insights',
     })
 
@@ -210,6 +200,7 @@ describe('request insights trace viewer', () => {
         createRequest({
           requestId: initialRequestId,
           source: 'instant-insights',
+          parentRequestId: initialRequestId,
           kind: 'instant-insights',
           spans: [htmlSpan],
         }),
@@ -221,6 +212,7 @@ describe('request insights trace viewer', () => {
   it('shows the Instant Insights pipeline in the default trace', () => {
     const request = createRequest({
       kind: 'instant-insights',
+      parentRequestId: 'request-0',
       spans: [
         {
           name: 'Instant Insights',

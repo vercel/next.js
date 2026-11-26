@@ -199,10 +199,10 @@ function trackFetchMetric(
       recordRequestInsightFetch(
         {
           requestId: requestInsightsRequestId,
+          parentRequestId: requestInsightsIdentity?.parentRequestId,
           kind: requestInsightsIdentity?.kind,
           htmlRequestId:
             requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
-          route: workStore.route,
         },
         {
           url: metric.url,

@@ -17,13 +17,6 @@ export const REQUEST_INSIGHT_SOURCES = [
 export type RequestInsightSource = (typeof REQUEST_INSIGHT_SOURCES)[number]
 export type RequestInsightProxyStatus = 'matched' | 'bypassed'
 
-export type RequestInsightIdentity = Readonly<{
-  requestId: string
-  kind?: RequestInsightKind
-  source?: RequestInsightSource
-  proxyStatus?: RequestInsightProxyStatus
-}>
-
 type RequestInsightAttributeValue =
   | string
   | number
@@ -58,6 +51,7 @@ export type RequestInsightSpan = {
 }
 
 export type RequestInsightFetch = {
+  parentSpanId?: string
   url?: string
   method?: string
   statusCode?: number
@@ -68,9 +62,16 @@ export type RequestInsightFetch = {
   index?: number
 }
 
-export type RequestInsight = {
+// Instant Insights validates another request, so it must name that request.
+export type RequestInsightRelation =
+  | {
+      kind?: Exclude<RequestInsightKind, 'instant-insights'>
+      parentRequestId?: undefined
+    }
+  | { kind: 'instant-insights'; parentRequestId: string }
+
+export type RequestInsight = RequestInsightRelation & {
   requestId: string
-  kind?: RequestInsightKind
   source: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
   htmlRequestId: string
@@ -130,32 +131,31 @@ export function isSameRequestInsightFetch(
   )
 }
 
-export function getRequestInsightKind(
-  insight: Pick<RequestInsightIdentity, 'kind'>
-): RequestInsightKind {
+export function getRequestInsightKind(insight: {
+  kind?: RequestInsightKind
+}): RequestInsightKind {
   return insight.kind ?? 'request'
 }
 
-export function getRequestInsightSource(
-  insight: Pick<RequestInsightIdentity, 'kind' | 'source'>
-): RequestInsightSource {
+export function getRequestInsightSource(insight: {
+  kind?: RequestInsightKind
+  source?: RequestInsightSource
+}): RequestInsightSource {
   if (getRequestInsightKind(insight) === 'instant-insights') {
     return 'instant-insights'
   }
   return insight.source ?? 'unknown'
 }
 
-export function getRequestInsightKey(insight: RequestInsightIdentity): string {
-  return `${getRequestInsightKind(insight)}:${insight.requestId}`
-}
-
 /**
  * Whether `insight` describes the request with `requestId`: the request itself
- * or an Instant Insights entry for it, which shares its request ID.
+ * or an Instant Insights entry that validated it.
  */
 export function isRequestInsightFor(
-  insight: Pick<RequestInsightIdentity, 'requestId'>,
+  insight: Pick<RequestInsight, 'requestId' | 'parentRequestId'>,
   requestId: string
 ): boolean {
-  return insight.requestId === requestId
+  return (
+    insight.requestId === requestId || insight.parentRequestId === requestId
+  )
 }

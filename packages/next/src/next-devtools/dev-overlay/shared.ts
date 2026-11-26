@@ -13,7 +13,6 @@ import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
 import {
-  getRequestInsightKey,
   MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
   type RequestInsight,
   type RequestInsightDelta,
@@ -144,9 +143,9 @@ export function updateRequestInsights(
   currentRequests: readonly RequestInsight[],
   update: RequestInsight | RequestInsightDelta
 ): RequestInsight[] {
-  const insightKey = getRequestInsightKey(update)
+  const insightKey = update.requestId
   const index = currentRequests.findIndex(
-    (request) => getRequestInsightKey(request) === insightKey
+    (request) => request.requestId === insightKey
   )
   const previous = currentRequests[index]
   let insight: RequestInsight
@@ -195,7 +194,7 @@ export function updateRequestInsights(
   const retained = getLatestPageRequestInsightKeys(completed)
   return requests.filter((request) => {
     if (request.completedAt === undefined || excess <= 0) return true
-    if (retained.has(getRequestInsightKey(request))) return true
+    if (retained.has(request.requestId)) return true
     excess--
     return false
   })

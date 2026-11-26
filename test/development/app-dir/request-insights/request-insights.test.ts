@@ -9,6 +9,7 @@ import {
 
 type RequestInsight = {
   requestId: string
+  parentRequestId?: string
   kind?: 'request' | 'instant-insights'
   source:
     | 'page'
@@ -36,8 +37,18 @@ type RequestInsight = {
     durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
+    events?: Array<{
+      name: string
+      attributes?: Record<string, string | number | boolean>
+    }>
+    links?: Array<{
+      traceId: string
+      spanId: string
+      attributes?: Record<string, string | number | boolean>
+    }>
   }>
   fetches: Array<{
+    parentSpanId?: string
     startTime?: number
     durationMs: number
     statusCode: number
@@ -52,7 +63,6 @@ describe('request insights', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
-
   function createRequest(index: number, fetchCount = 0): RequestInsight {
     return {
       requestId: `request-${index}`,
@@ -209,6 +219,56 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+      expect(
+        requestsWithRelevantSpans[0].spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+        )?.name
+      ).toBe('GET /')
+    })
+  })
+
+  it('keeps the rendered route when the proxy records spans', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    expect((await next.fetch('/api/proxied-route?proxy-fetch=1')).status).toBe(
+      200
+    )
+    expect((await next.fetch('/proxied?proxy-fetch=1')).status).toBe(200)
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      for (const [pathname, route] of [
+        ['/api/proxied-route', '/api/proxied-route'],
+        ['/proxied', '/proxied'],
+      ]) {
+        const request = snapshot.requests.find(
+          (candidate) =>
+            !existingRequestIds.has(candidate.requestId) &&
+            candidate.kind !== 'instant-insights' &&
+            candidate.url?.split('?')[0] === pathname
+        )
+        expect(request?.route).toBe(route)
+        expect(
+          request?.spans.find(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' && span.name !== 'GET'
+          )?.name
+        ).toBe(`GET ${route}`)
+      }
     })
   })
 
@@ -456,7 +516,7 @@ describe('request insights', () => {
       const request = routeInsights.find(
         (item) =>
           (item.kind === undefined || item.kind === 'request') &&
-          item.requestId === instantInsights?.requestId
+          item.requestId === instantInsights?.parentRequestId
       )
 
       expect(instantInsights).toEqual(
@@ -467,6 +527,7 @@ describe('request insights', () => {
         })
       )
       expect(instantInsights?.htmlRequestId).toBe(request?.htmlRequestId)
+      expect(instantInsights?.parentRequestId).toBe(request?.requestId)
       const rootSpans = instantInsights?.spans.filter(
         (span) =>
           span.attributes?.['next.span_type'] === 'AppRender.instantInsights' &&
@@ -1150,6 +1211,22 @@ describe('request insights', () => {
       ).toBe(true)
       expect(details.text).not.toContain('Q2_SECRET_SENTINEL')
     })
+
+    const snapshot = (await next
+      .fetch('/_next/development/request-insights')
+      .then((response) => response.json())) as { requests: RequestInsight[] }
+    const request = snapshot.requests.find(
+      (candidate) =>
+        candidate.url === '/products/blue?query=redacted' &&
+        candidate.kind !== 'instant-insights'
+    )
+    expect(request?.fetches.length).toBeGreaterThan(0)
+    expect(request?.fetches.every((fetch) => fetch.parentSpanId)).toBe(true)
+    expect(
+      request?.fetches.every((fetch) =>
+        request.spans.some((span) => span.spanId === fetch.parentSpanId)
+      )
+    ).toBe(true)
 
     const requestHeader = await browser.eval(() => {
       const root = document.querySelector('nextjs-portal')?.shadowRoot
@@ -1911,31 +1988,6 @@ describe('request insights', () => {
     ])
   })
 
-  it('lists the most recent requests in start order with --sort start', async () => {
-    const requests = [1, 2, 3].map((index) => ({
-      ...createRequest(index),
-      startTime: index * 100,
-      durationMs: 10,
-    }))
-
-    const { result } = await runWithResponse({ requests }, [
-      'list',
-      '--sort',
-      'start',
-      '--limit',
-      '2',
-    ])
-
-    expect(result.code).toBe(0)
-    expect(result.stdout).toContain(
-      'Showing 2 of 3 retained requests (most recent, by start time).'
-    )
-    expect(result.stdout).not.toContain('/route-1 ')
-    expect(result.stdout.indexOf('/route-2')).toBeLessThan(
-      result.stdout.indexOf('/route-3')
-    )
-  })
-
   it.each([
     {
       id: 'missing',
@@ -1978,6 +2030,115 @@ describe('request insights', () => {
     expect(JSON.parse(byKind.result.stdout)).toEqual({
       request: instantInsights,
     })
+  })
+
+  it('resolves an Instant Insights entry by the request it validated', async () => {
+    const request = createRequest(1)
+    const instantInsights = {
+      ...createRequest(2),
+      requestId: 'validation-1',
+      parentRequestId: request.requestId,
+      kind: 'instant-insights',
+      route: '/instant',
+    } satisfies RequestInsight
+    const body = { requests: [request, instantInsights] }
+
+    const byParent = await runWithResponse(body, [
+      'get',
+      request.requestId,
+      '--kind',
+      'instant-insights',
+      '--json',
+    ])
+    expect(byParent.result.code).toBe(0)
+    expect(JSON.parse(byParent.result.stdout)).toEqual({
+      request: instantInsights,
+    })
+
+    const byId = await runWithResponse(body, [
+      'get',
+      request.requestId,
+      '--json',
+    ])
+    expect(JSON.parse(byId.result.stdout)).toEqual({ request })
+
+    // The page request completes, and is evicted, before its validation render.
+    const evicted = await runWithResponse({ requests: [instantInsights] }, [
+      'get',
+      request.requestId,
+      '--kind',
+      'instant-insights',
+      '--json',
+    ])
+    expect(evicted.result.code).toBe(0)
+    expect(JSON.parse(evicted.result.stdout)).toEqual({
+      request: instantInsights,
+    })
+  })
+
+  it('lists the most recent requests in start order with --sort start', async () => {
+    const requests = [1, 2, 3].map((index) => ({
+      ...createRequest(index),
+      startTime: index * 100,
+      durationMs: 10,
+    }))
+
+    const { result } = await runWithResponse({ requests }, [
+      'list',
+      '--sort',
+      'start',
+      '--limit',
+      '2',
+    ])
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain(
+      'Showing 2 of 3 retained requests (most recent, by start time).'
+    )
+    expect(result.stdout).not.toContain('/route-1 ')
+    expect(result.stdout.indexOf('/route-2')).toBeLessThan(
+      result.stdout.indexOf('/route-3')
+    )
+  })
+
+  it('prints unique IDs, timeline offsets, overlaps, and ambiguity candidates', async () => {
+    const first = {
+      ...createRequest(1),
+      requestId: 'TDKQ5iNL-first',
+      startTime: 100,
+      durationMs: 50,
+    }
+    const second = {
+      ...createRequest(2),
+      requestId: 'TDKQ5iNL-second',
+      parentRequestId: first.requestId,
+      kind: 'instant-insights' as const,
+      startTime: 125,
+      durationMs: 50,
+    }
+    const listed = await runWithResponse({ requests: [second, first] }, [
+      'list',
+      '--sort',
+      'start',
+    ])
+    expect(listed.result.stdout).toContain('id TDKQ5iNL-')
+    expect(listed.result.stdout).toContain('timeline +0 ms to +50 ms')
+
+    const inspected = await runWithResponse({ requests: [first, second] }, [
+      'get',
+      first.requestId,
+    ])
+    expect(inspected.result.stdout).toContain(
+      `25 ms instant-insights ${second.requestId}`
+    )
+
+    const ambiguous = await runWithResponse({ requests: [first, second] }, [
+      'get',
+      'TDKQ5iNL',
+    ])
+    expect(ambiguous.result.code).toBe(1)
+    expect(ambiguous.result.stderr).toContain(first.requestId)
+    expect(ambiguous.result.stderr).toContain(second.requestId)
   })
 
   it.each(['localhost:3000', 'https://[', 'ftp://localhost:3000'])(

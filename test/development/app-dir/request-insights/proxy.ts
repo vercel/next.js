@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  if (request.nextUrl.searchParams.has('proxy-fetch')) {
+    await fetch(new URL('/request-insights-asset.svg', request.url))
+  }
+
   if (
     request.nextUrl.pathname === '/request-insights-asset.svg' &&
     request.nextUrl.searchParams.has('rewrite-to-page')
@@ -12,5 +16,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/:path*', '/request-insights-asset.svg'],
+  matcher: ['/api/:path*', '/proxied', '/request-insights-asset.svg'],
 }

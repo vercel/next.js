@@ -264,11 +264,11 @@ function getLocalSpanAsyncStorage() {
 
 type RequestIdentity = {
   requestId?: string
+  parentRequestId?: string
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus
   htmlRequestId?: string
-  route?: string
   url?: string
 }
 
@@ -487,6 +487,7 @@ class LocalRecordingSpan implements Span {
         spanId: this.spanContextValue.spanId,
         parentSpanId: this.parentSpanId,
         requestId: this.requestIdentity.requestId,
+        parentRequestId: this.requestIdentity.parentRequestId,
         requestInsightKind: this.requestIdentity.requestInsightKind,
         requestInsightSource: this.requestIdentity.requestInsightSource,
         requestInsightProxyStatus:
@@ -494,8 +495,7 @@ class LocalRecordingSpan implements Span {
         htmlRequestId: this.requestIdentity.htmlRequestId,
         route:
           getStringAttribute(recordAttributes, 'next.route') ??
-          getStringAttribute(recordAttributes, 'http.route') ??
-          this.requestIdentity.route,
+          getStringAttribute(recordAttributes, 'http.route'),
         url:
           getStringAttribute(recordAttributes, 'http.url') ??
           this.requestIdentity.url,
@@ -687,12 +687,12 @@ function getCurrentRequestIdentity(): RequestIdentity {
 
     return {
       requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+      parentRequestId: requestInsightsIdentity?.parentRequestId,
       requestInsightKind: requestInsightsIdentity?.kind,
       requestInsightSource: requestInsightsIdentity?.source,
       requestInsightProxyStatus: requestInsightsIdentity?.proxyStatus,
       htmlRequestId:
         requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
-      route: workStore?.route,
       url: url ? `${url.pathname}${url.search}` : requestInsightsIdentity?.url,
     }
   } catch {

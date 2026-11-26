@@ -1,5 +1,4 @@
 import {
-  getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
   REQUEST_INSIGHT_PROXY_SPAN_TYPE,
@@ -69,6 +68,7 @@ export function summarizeRequestInsight(
 ): RequestInsightSummary {
   return {
     requestId: request.requestId,
+    parentRequestId: request.parentRequestId,
     kind: request.kind,
     source: request.source,
     proxyStatus: request.proxyStatus,
@@ -126,8 +126,8 @@ export function getLatestPageRequestInsightKeys(
     const request = completedRequests[i]
     if (request.source !== 'page') continue
     const isRsc = getRequestInsightIsRsc(request)
-    if (isRsc === true) rsc ??= getRequestInsightKey(request)
-    else if (isRsc === false) html ??= getRequestInsightKey(request)
+    if (isRsc === true) rsc ??= request.requestId
+    else if (isRsc === false) html ??= request.requestId
   }
   const keys = new Set<string>()
   if (rsc) keys.add(rsc)

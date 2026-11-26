@@ -30,6 +30,7 @@ function restoreEnv(name: string, value: string | undefined) {
 describe('request insights', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     registerRequestInsightsExporter()
   })
 
@@ -40,7 +41,7 @@ describe('request insights', () => {
   })
 
   it('derives request history from local span records', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'req_1' })
 
     recordSpan({
@@ -144,7 +145,7 @@ describe('request insights', () => {
   })
 
   it('notifies subscribers when a request insight changes', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'req_2' })
     const listener = jest.fn()
     const unsubscribe = subscribeRequestInsights(listener)
@@ -167,15 +168,51 @@ describe('request insights', () => {
     unsubscribe()
   })
 
+  it('names the request span with the request route', () => {
+    process.env.__NEXT_DEV_SERVER = 'true'
+    startRequestInsight({ requestId: 'req_named' })
+    recordSpan({
+      name: 'executing api route (app) /api/items',
+      requestId: 'req_named',
+      route: '/api/items',
+    })
+    recordSpan({
+      name: 'GET',
+      requestId: 'req_named',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+        'http.method': 'GET',
+      },
+    })
+
+    const request = getRequestInsightsSnapshot().requests.find(
+      (insight) => insight.requestId === 'req_named'
+    )
+    expect(
+      request?.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+      )
+    ).toMatchObject({
+      name: 'GET /api/items',
+      attributes: { 'next.route': '/api/items' },
+    })
+  })
+
   it('imports a worker span batch with the main-thread identity', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    startRequestInsight({ requestId: 'instant_1', kind: 'instant-insights' })
+    process.env.__NEXT_DEV_SERVER = 'true'
+    startRequestInsight({
+      requestId: 'instant_1',
+      parentRequestId: 'req_1',
+      kind: 'instant-insights',
+    })
     const listener = jest.fn()
     const unsubscribe = subscribeRequestInsights(listener)
 
     importRequestInsightSpans(
       {
         requestId: 'instant_1',
+        parentRequestId: 'req_1',
         kind: 'instant-insights',
         htmlRequestId: 'html_1',
         url: '/dashboard',
@@ -228,6 +265,7 @@ describe('request insights', () => {
     expect(request).toEqual(
       expect.objectContaining({
         requestId: 'instant_1',
+        parentRequestId: 'req_1',
         kind: 'instant-insights',
         htmlRequestId: 'html_1',
         url: '/dashboard',
@@ -261,7 +299,7 @@ describe('request insights', () => {
   })
 
   it('uses the HTTP request span as the end-to-end request timing', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'req_timing' })
 
     recordSpan({
@@ -318,7 +356,7 @@ describe('request insights', () => {
   )
 
   it('waits for explicit outer completion after middleware and final routing', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'middleware-route' })
 
     recordSpan({
@@ -353,7 +391,7 @@ describe('request insights', () => {
   })
 
   it('keeps active requests until they finish before applying the completed request limit', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'long-running' })
 
     recordSpan({
@@ -404,7 +442,6 @@ describe('request insights', () => {
   })
 
   it('retains the latest RSC and HTML page requests within the completed limit', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     for (const [requestId, isRsc] of [
       ['page', false],
       ['rsc', true],
@@ -444,7 +481,7 @@ describe('request insights', () => {
   })
 
   it('closes an untraced request without reopening it when its identity is reused', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     const identity = resolveRequestInsightsIdentity({
       previousIdentity: undefined,
       requestIdHeader: undefined,
@@ -474,7 +511,7 @@ describe('request insights', () => {
   it.each(['request', 'instant-insights'] as const)(
     'keeps an active %s eligible for its first span across completed request eviction',
     (kind) => {
-      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      process.env.__NEXT_DEV_SERVER = 'true'
       startRequestInsight({ requestId: 'waiting', kind })
       expect(getRequestInsightsSnapshot().requests).toEqual([])
       for (let i = 0; i <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; i++) {
@@ -487,6 +524,7 @@ describe('request insights', () => {
       recordSpan({
         name: 'first span',
         requestId: 'waiting',
+        parentRequestId: kind === 'instant-insights' ? 'parent' : undefined,
         requestInsightKind: kind,
       })
       expect(getRequestInsightsSnapshot().requests).toHaveLength(
@@ -501,11 +539,16 @@ describe('request insights', () => {
   )
 
   it('does not restart a completed Instant Insights lifetime on a repeated start', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    const identity = { requestId: 'instant', kind: 'instant-insights' as const }
+    process.env.__NEXT_DEV_SERVER = 'true'
+    const identity = {
+      requestId: 'instant',
+      parentRequestId: 'parent',
+      kind: 'instant-insights' as const,
+    }
     const span = {
       name: 'Instant Insights',
       requestId: identity.requestId,
+      parentRequestId: identity.parentRequestId,
       requestInsightKind: identity.kind,
       durationMs: 1,
       attributes: { 'next.span_type': 'AppRender.instantInsights' },
@@ -533,35 +576,34 @@ describe('request insights', () => {
     ).toBe(false)
   })
 
-  it.each(['disabled', 'production'])(
-    'does not register new identities when recording is %s',
-    (mode) => {
-      process.env.__NEXT_REQUEST_INSIGHTS =
-        mode === 'disabled' ? 'false' : 'true'
-      if (mode === 'production') delete process.env.__NEXT_DEV_SERVER
-      const identity = resolveRequestInsightsIdentity({
-        previousIdentity: undefined,
-        requestIdHeader: undefined,
-        htmlRequestIdHeader: undefined,
-        url: '/',
-        createRequestId: () => 'not-recorded',
-      })
-      startRequestInsight({ ...identity, kind: 'instant-insights' })
+  it('does not register new identities outside the dev server', () => {
+    delete process.env.__NEXT_DEV_SERVER
+    const identity = resolveRequestInsightsIdentity({
+      previousIdentity: undefined,
+      requestIdHeader: undefined,
+      htmlRequestIdHeader: undefined,
+      url: '/',
+      createRequestId: () => 'not-recorded',
+    })
+    startRequestInsight({
+      requestId: 'not-recorded-instant',
+      parentRequestId: identity.requestId,
+      kind: 'instant-insights',
+    })
 
-      process.env.__NEXT_DEV_SERVER = '1'
-      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-      recordSpan({ name: 'request span', requestId: identity.requestId })
-      recordSpan({
-        name: 'Instant span',
-        requestId: identity.requestId,
-        requestInsightKind: 'instant-insights',
-      })
-      expect(getRequestInsightsSnapshot().requests).toEqual([])
-    }
-  )
+    process.env.__NEXT_DEV_SERVER = 'true'
+    recordSpan({ name: 'request span', requestId: identity.requestId })
+    recordSpan({
+      name: 'Instant span',
+      requestId: 'not-recorded-instant',
+      parentRequestId: identity.requestId,
+      requestInsightKind: 'instant-insights',
+    })
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
+  })
 
   it('classifies framework request sources without letting the root span erase a specific source', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'req_source' })
 
     recordSpan({
@@ -589,7 +631,7 @@ describe('request insights', () => {
     ['NextNodeServer.imageOptimizer', 'image'],
     ['Middleware.execute', 'proxy'],
   ] as const)('classifies %s spans as %s requests', (spanType, source) => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: `req_${source}` })
 
     recordSpan({
@@ -606,7 +648,7 @@ describe('request insights', () => {
   })
 
   it('records an authoritative static asset source after tracing starts', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     const identity: Parameters<typeof recordRequestInsightSource>[0] = {
       requestId: 'req_asset',
     }
@@ -628,7 +670,7 @@ describe('request insights', () => {
   })
 
   it('does not create a request only because a source was recorded', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
 
     startRequestInsight({ requestId: 'untraced-asset' })
     recordRequestInsightSource({ requestId: 'untraced-asset' }, 'asset')
@@ -637,7 +679,7 @@ describe('request insights', () => {
   })
 
   it('does not classify the middleware pass as a page before an App Route runs', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     const identity = {
       requestId: 'middleware-app-route',
       source: 'proxy' as const,
@@ -698,7 +740,7 @@ describe('request insights', () => {
   })
 
   it('classifies the route pass as a page after middleware completes', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     const identity = {
       requestId: 'middleware-page',
       source: 'proxy' as 'proxy' | undefined,
@@ -742,84 +784,8 @@ describe('request insights', () => {
     ])
   })
 
-  it('keeps request and Instant Insights data separate for the same request ID', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    startRequestInsight({ requestId: 'req_shared' })
-    startRequestInsight({ requestId: 'req_shared', kind: 'instant-insights' })
-    const listener = jest.fn()
-    const unsubscribe = subscribeRequestInsights(listener)
-
-    recordSpan({
-      name: 'GET /dashboard',
-      requestId: 'req_shared',
-      htmlRequestId: 'html_shared',
-      route: '/dashboard',
-      startTime: 100,
-      durationMs: 40,
-      status: 'ok',
-      attributes: {
-        'next.span_type': 'BaseServer.handleRequest',
-      },
-    })
-    recordSpan({
-      name: 'Instant Insights',
-      requestId: 'req_shared',
-      requestInsightKind: 'instant-insights',
-      htmlRequestId: 'html_shared',
-      route: '/dashboard',
-      startTime: 150,
-      durationMs: 75,
-      status: 'ok',
-      attributes: {
-        'next.span_type': 'AppRender.instantInsights',
-      },
-    })
-    recordRequestInsightFetch(
-      {
-        requestId: 'req_shared',
-        kind: 'instant-insights',
-        htmlRequestId: 'html_shared',
-        route: '/dashboard',
-      },
-      {
-        url: 'https://example.com/validation-data',
-        startTime: 175,
-        durationMs: 10,
-      }
-    )
-
-    expect(getRequestInsightsSnapshot().requests).toEqual([
-      expect.objectContaining({
-        requestId: 'req_shared',
-        kind: 'request',
-        startTime: 100,
-        durationMs: 40,
-        fetches: [],
-      }),
-      expect.objectContaining({
-        requestId: 'req_shared',
-        kind: 'instant-insights',
-        startTime: 150,
-        durationMs: 75,
-        fetches: [
-          expect.objectContaining({
-            url: 'https://example.com/validation-data',
-          }),
-        ],
-      }),
-    ])
-    expect(listener).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'request' })
-    )
-    expect(listener).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'instant-insights' })
-    )
-
-    unsubscribe()
-  })
-
   it('does not treat aggregate client component loading as a trace span', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'req_client_loading' })
 
     recordSpan({
@@ -836,7 +802,7 @@ describe('request insights', () => {
   })
 
   it('records request fetch metrics when the OTel fetch span does not complete locally', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'req_3' })
     recordRequestInsightFetch(
       {
@@ -876,7 +842,7 @@ describe('request insights', () => {
   })
 
   it('redacts sensitive request insight payload fields', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     startRequestInsight({ requestId: 'req_4' })
 
     const secret = 'Q2_SECRET_SENTINEL'
@@ -970,7 +936,7 @@ describe('request insights', () => {
   })
 
   it('only exposes bounded URLs without query payloads', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
 
     const cases = [
       {
