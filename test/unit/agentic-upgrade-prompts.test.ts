@@ -2083,8 +2083,14 @@ describe('upgrade model discovery protocol', () => {
     })
     expect(crossSpawn).toHaveBeenCalledWith('/agents/codex', ['app-server'], {
       cwd: '/project',
+      env: expect.anything(),
       stdio: 'pipe',
+      // In its own process group, so it cannot reset the shared terminal.
+      detached: process.platform !== 'win32',
     })
+    // Without an environment the CLI inherits this one. Compared by identity,
+    // so a failure never prints the environment.
+    expect(crossSpawn.mock.calls[0][2].env === process.env).toBe(true)
     expect(child.stdin.end).toHaveBeenCalled()
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
   })
@@ -2157,9 +2163,54 @@ describe('upgrade model discovery protocol', () => {
         '--verbose',
         '--no-session-persistence',
       ],
-      { cwd: '/project', stdio: 'pipe' }
+      {
+        cwd: '/project',
+        env: expect.anything(),
+        stdio: 'pipe',
+        detached: process.platform !== 'win32',
+      }
     )
+    expect(crossSpawn.mock.calls[0][2].env === process.env).toBe(true)
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+  })
+
+  it('starts the CLI with the given environment and stops its process group', async () => {
+    const child = Object.assign(
+      probe((message, respond) => {
+        if (message.method === 'initialize') {
+          respond({ id: message.id, result: {} })
+        } else if (message.method === 'model/list') {
+          respond({ id: message.id, result: { data: [], nextCursor: null } })
+        }
+      }),
+      { pid: 4321 }
+    )
+    const kill = jest.spyOn(process, 'kill').mockImplementation(() => {
+      process.nextTick(() => child.emit('close', null, 'SIGTERM'))
+      return true
+    })
+    try {
+      const env: NodeJS.ProcessEnv = {
+        NODE_ENV: 'production',
+        HOME: '/fresh',
+        CODEX_HOME: '/fresh/codex',
+      }
+      await discover('codex', '/agents/codex', '/project', undefined, env)
+      expect(crossSpawn).toHaveBeenCalledWith(
+        '/agents/codex',
+        ['app-server'],
+        expect.objectContaining({ env })
+      )
+      if (process.platform === 'win32') {
+        expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+      } else {
+        // Every helper the CLI started is signalled, not only the CLI.
+        expect(kill).toHaveBeenCalledWith(-4321, 'SIGTERM')
+        expect(child.kill).not.toHaveBeenCalled()
+      }
+    } finally {
+      kill.mockRestore()
+    }
   })
 
   it.each(['codex', 'claude'] as const)(
