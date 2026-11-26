@@ -130,6 +130,7 @@ export type ClientState = {
   messages: Map<string, HmrMessageSentToBrowser>
   turbopackUpdates: TurbopackUpdate[]
   subscriptions: Map<string, AsyncIterator<any>>
+  hmrVersionChecked: boolean
 }
 
 export type ClientStateMap = WeakMap<ws, ClientState>

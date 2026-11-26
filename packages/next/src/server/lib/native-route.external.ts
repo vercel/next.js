@@ -78,13 +78,17 @@ export type NativeRouteWorkerEvent =
       tokenHeader: string
       token: string
     }>
-  | Readonly<{ event: 'gone'; address: string }>
+  // token identifies the worker: a new worker can get an exited one's port.
+  | Readonly<{ event: 'gone'; address: string; token: string }>
 
 let workerObserver: ((event: NativeRouteWorkerEvent) => void) | undefined
 
-/** Registers the one observer of every NativeRouteManager's workers. */
+/**
+ * Registers the one observer of every NativeRouteManager's workers, replacing
+ * any earlier one. Pass undefined to stop observing.
+ */
 export function observeNativeRouteWorkers(
-  observer: (event: NativeRouteWorkerEvent) => void
+  observer: ((event: NativeRouteWorkerEvent) => void) | undefined
 ) {
   workerObserver = observer
 }
@@ -92,7 +96,11 @@ export function observeNativeRouteWorkers(
 function reportGone(worker: Worker) {
   if (worker.announced.size === 0) return
   worker.announced.clear()
-  workerObserver?.({ event: 'gone', address: `127.0.0.1:${worker.port}` })
+  workerObserver?.({
+    event: 'gone',
+    address: `127.0.0.1:${worker.port}`,
+    token: worker.token,
+  })
 }
 
 /** Owns worker activation and lifetime, never compilation or filesystem watching. */
@@ -149,6 +157,24 @@ export class NativeRouteManager {
 
   private async start(executable: string): Promise<Worker> {
     const token = randomBytes(32).toString('hex')
+    // A freshly written executable can briefly stay open for writing, for
+    // example in a process forked while Turbopack wrote it. Spawning it then
+    // fails with ETXTBSY until that handle closes, so retry for a short while.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.launch(executable, token)
+      } catch (error) {
+        if (
+          (error as NodeJS.ErrnoException)?.code !== 'ETXTBSY' ||
+          attempt >= 20
+        )
+          throw error
+        await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)))
+      }
+    }
+  }
+
+  private async launch(executable: string, token: string): Promise<Worker> {
     const child = spawn(/* turbopackIgnore: true */ executable, [], {
       stdio: ['pipe', 'pipe', 'inherit'],
       env: { ...process.env, __NEXT_GO_TOKEN: token },

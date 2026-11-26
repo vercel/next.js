@@ -335,7 +335,10 @@ export const PanelRouter = () => {
             // Tall enough for every row with its description; the content
             // scrolls if the window is shorter.
             height: 600 / state.scale,
-            width: 480 + 32,
+            // The 420px grid, the wrapper's 20px padding on each side and
+            // the panel's border, so the controls end where the close button
+            // does.
+            width: 420 + 40 + 2,
           }}
           closeOnClickOutside
           header={<DevToolsHeader title="Preferences" />}

@@ -1,0 +1,5 @@
+{
+  "runtime": "NodeJs",
+  "environment": "NodeJs",
+  "productionChunking": true
+}

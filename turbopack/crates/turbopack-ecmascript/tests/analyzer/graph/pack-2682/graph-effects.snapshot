@@ -12,6 +12,7 @@
             ),
         ),
         span: 27..35,
+        target_escapes: true,
     },
     Member {
         obj: FreeVar(
@@ -161,7 +162,7 @@
             ),
         ],
         span: 50..61,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(
@@ -368,7 +369,7 @@
             ),
         ],
         span: 273..287,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(

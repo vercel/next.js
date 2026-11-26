@@ -1,3 +1,4 @@
+runtime_all: false
 runtime: [
     "FOO_COMPOUND_READ1",
     "FOO_COMPOUND_READ2",
@@ -11,8 +12,10 @@ runtime: [
     "FOO_TERNARY_READ1",
     "FOO_READ_DOMINATES",
     "FOO_BOTH",
+    "hasOwnProperty",
     "FOO_FN_READ5",
     "FOO_SHADOWED_READ6",
+    "FOO_HAS_OWN_READ",
 ]
 runtime_existence: [
     "FOO1",
@@ -32,6 +35,11 @@ runtime_existence: [
     "FOO_TERNARY_TEST",
     "FOO_TERNARY2",
     "FOO_TERNARY1",
+    "FOO_HAS_OWN1",
     "FOO3",
     "FOO4",
+    "FOO_HAS_OWN2",
+    "FOO_HAS_OWN3",
+    "FOO_HAS_OWN4",
+    "FOO_HAS_OWN5",
 ]

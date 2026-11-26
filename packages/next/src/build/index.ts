@@ -125,6 +125,7 @@ import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
 import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
+import { ensureGoSdk, goSdkOptions } from '../lib/go-sdk'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -1944,6 +1945,9 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
+          if (config.experimental.goRoutes) {
+            await ensureGoSdk(goSdkOptions(dir, distDir, config))
+          }
           const {
             duration: compilerDuration,
             shutdownPromise: p,
@@ -3179,6 +3183,10 @@ export default async function build(
         {
           featureName: 'experimental/cacheComponents',
           invocationCount: config.cacheComponents ? 1 : 0,
+        },
+        {
+          featureName: 'experimental/goRoutes',
+          invocationCount: config.experimental.goRoutes ? 1 : 0,
         },
         {
           featureName: 'experimental/optimizeCss',

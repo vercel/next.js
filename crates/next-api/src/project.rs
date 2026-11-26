@@ -49,6 +49,7 @@ use next_core::{
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
+use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
@@ -1297,6 +1298,7 @@ impl Project {
             include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
             include_traced: *self.should_trace().await?,
             include_binding_usage: self.next_mode().await?.is_production(),
+            force_activated: false,
         })
     }
 }
@@ -3045,25 +3047,18 @@ impl Project {
         }
     }
 
-    /// Server entry chunk lists that server HMR pulls select from.
+    /// The server entry chunk lists of `entry_paths` (relative to the server HMR root) that a
+    /// server HMR pull diffs.
     #[turbo_tasks::function]
-    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
+    pub async fn server_hmr_chunks_for_entries(
+        self: Vc<Self>,
+        entry_paths: FrozenSet<RcStr>,
+    ) -> Result<Vc<ServerHmrChunkLists>> {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
         };
         let root = self.server_hmr_root_path().owned().await?;
-        Ok(map.server_hmr_chunks_in_path(root))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks_for_entries(
-        self: Vc<Self>,
-        entry_paths: Vec<RcStr>,
-    ) -> Result<Vc<ServerHmrChunkLists>> {
-        let mut chunk_lists =
-            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
-        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
-        Ok(chunk_lists.cell())
+        Ok(map.server_hmr_chunks_in_path(root, entry_paths))
     }
 
     /// Gets a list of all client HMR chunk names that can be subscribed to.

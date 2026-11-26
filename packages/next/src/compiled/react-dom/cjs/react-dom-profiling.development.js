@@ -15759,7 +15759,7 @@
                 "Expected finished root and lanes to be set. This is a bug in React."
               );
           var retry = resolveRetryWakeable.bind(null, finishedWork, wakeable);
-          wakeable.then(retry, retry);
+          attachContextPreservingListener(wakeable, retry);
         }
       });
     }
@@ -20326,7 +20326,25 @@
         threadIDs.add(lanes),
         (pingCache = pingSuspendedRoot.bind(null, root, wakeable, lanes)),
         isDevToolsPresent && restorePendingUpdaters(root, lanes),
-        wakeable.then(pingCache, pingCache));
+        attachContextPreservingListener(wakeable, pingCache));
+    }
+    function attachContextPreservingListener(wakeable, listener) {
+      if (
+        "function" !== typeof Promise ||
+        null !== ReactSharedInternals.actQueue ||
+        isConcurrentActEnvironment()
+      )
+        wakeable.then(listener, listener);
+      else {
+        var resolve = noop$1;
+        new Promise(function (r) {
+          resolve = r;
+        }).then(listener);
+        listener = function () {
+          return resolve();
+        };
+        wakeable.then(listener, listener);
+      }
     }
     function pingSuspendedRoot(root, wakeable, pingedLanes) {
       var pingCache = root.pingCache;
@@ -30098,6 +30116,7 @@
         cacheSignal: function () {
           return readContext(CacheContext).controller.signal;
         },
+        units: null,
         getOwner: function () {
           return current;
         }
@@ -31201,11 +31220,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-a8342585-20261117" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-89d7b2b4-20261123" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-a8342585-20261117\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-89d7b2b4-20261123\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -31242,10 +31261,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-a8342585-20261117",
+          version: "19.3.0-canary-89d7b2b4-20261123",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-a8342585-20261117"
+          reconcilerVersion: "19.3.0-canary-89d7b2b4-20261123"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -31725,7 +31744,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-canary-a8342585-20261117";
+    exports.version = "19.3.0-canary-89d7b2b4-20261123";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

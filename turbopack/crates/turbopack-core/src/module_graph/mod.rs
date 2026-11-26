@@ -308,6 +308,21 @@ pub struct ModuleGraphOptions {
     pub include_traced: bool,
     /// Whether to read `ModuleReference::binding_usage()`.
     pub include_binding_usage: bool,
+    /// Treat every [`ActivatableModule`] in this graph as if it were already activated. This is
+    /// for graphs whose consumer can't activate modules on demand, e.g. code evaluated during the
+    /// build.
+    ///
+    /// The graph then follows [`ActivatableModule::activated_references`] instead of
+    /// [`Module::references`], so it includes what the module would reference once activated.
+    /// Chunk items of activatable modules check [`ModuleGraph::force_activated`] and generate
+    /// the code of an active module.
+    ///
+    /// This only affects this graph. It doesn't change the activation state, so other graphs that
+    /// contain the same modules still see them as inactive until they are really activated.
+    ///
+    /// [`ActivatableModule`]: crate::module::ActivatableModule
+    /// [`ActivatableModule::activated_references`]: crate::module::ActivatableModule::activated_references
+    pub force_activated: bool,
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -349,6 +364,9 @@ pub struct SingleModuleGraph {
 
     entries: GraphEntries,
 
+    /// Built with [`ModuleGraphOptions::force_activated`].
+    force_activated: bool,
+
     /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node
     /// indices are stable because graph nodes are never removed.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
@@ -368,6 +386,7 @@ impl Clone for SingleModuleGraph {
             is_mergeable: self.is_mergeable.clone(),
             modules: self.modules.clone(),
             entries: self.entries.clone(),
+            force_activated: self.force_activated,
             // Never carry derived state into a clone that might be modified before being stored.
             entry_nodes: OnceLock::new(),
         }
@@ -616,6 +635,7 @@ impl SingleModuleGraph {
             is_mergeable,
             modules,
             entries: entries.clone(),
+            force_activated: options.force_activated,
             entry_nodes: OnceLock::new(),
         }
         .cell();
@@ -984,6 +1004,21 @@ impl ModuleGraph {
             },
         }
         .cell())
+    }
+
+    /// Whether the graph was built with [`ModuleGraphOptions::force_activated`], so its
+    /// activatable modules have to generate the code of an active module. Errors if the graph
+    /// combines graphs built with and without it, since activatable modules in the others would
+    /// lack the references that active code needs.
+    #[turbo_tasks::function]
+    pub async fn force_activated(self: Vc<Self>) -> Result<Vc<bool>> {
+        let this = self.await?;
+        let graphs = &this.snapshot.graphs;
+        let force_activated = graphs.iter().any(|graph| graph.force_activated);
+        if force_activated && !graphs.iter().all(|graph| graph.force_activated) {
+            bail!("graphs built with and without `force_activated` can't be combined");
+        }
+        Ok(Vc::cell(force_activated))
     }
 
     #[turbo_tasks::function]
@@ -2420,12 +2455,18 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         let ModuleGraphOptions {
             include_traced,
             include_binding_usage,
+            force_activated,
             ..
         } = options;
         async move {
             // Issued before resolving the node data so both run concurrently.
             let refs_cell = if !is_traced {
-                primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
+                primary_chunkable_referenced_modules(
+                    *module,
+                    include_traced,
+                    include_binding_usage,
+                    force_activated,
+                )
             } else {
                 // Currently we don't care about the binding usage of traced references
                 referenced_modules_and_affecting_sources(*module, false)
@@ -2591,7 +2632,7 @@ pub mod tests {
         module::{ActivatableModule, Module, ModuleSideEffects, Modules},
         module_graph::chunk_group_info::{
             AsyncLoaderRelevantChunkGroups, AsyncLoaderRelevantChunkGroupsMap, ChunkGroup,
-            ChunkGroupKey, EntryHeuristics, chunk_group_at,
+            ChunkGroupKey, ChunkGroupKind, EntryHeuristics, chunk_group_at,
         },
         reference::{ModuleReference, ModuleReferences},
         resolve::ModuleResolveResult,
@@ -3587,7 +3628,12 @@ pub mod tests {
     }
 
     #[turbo_tasks::value_impl]
-    impl ActivatableModule for MockActivatableModule {}
+    impl ActivatableModule for MockActivatableModule {
+        #[turbo_tasks::function]
+        fn activated_references(&self) -> Vc<ModuleReferences> {
+            self.inner.references()
+        }
+    }
 
     /// A [`MockModule`] that is also a [`CollectingModule`].
     #[turbo_tasks::value]
@@ -4296,13 +4342,17 @@ pub mod tests {
                 .await?
                 .iter()
             {
-                let kind = match &group.chunk_group {
-                    ChunkGroup::Entry(_) => "entry",
-                    ChunkGroup::Async(_) => "async",
+                let kind = match &group.kind {
+                    ChunkGroupKind::Entry => "entry",
+                    ChunkGroupKind::Async(_) => "async",
                     _ => "other",
                 };
-                let entry_names = group
-                    .chunk_group
+                let chunk_group = chunk_group_info
+                    .chunk_groups()
+                    .get(&(group.index as usize))
+                    .await?
+                    .context("chunk group index out of range")?;
+                let entry_names = chunk_group
                     .entries()
                     .map(async |entry| Ok(entry.ident().await?.path.path.clone()))
                     .try_join()
@@ -5556,7 +5606,7 @@ pub mod tests {
             .get_async_loader_ancestor_chunk_groups(*a)
             .await?
             .iter()
-            .map(|g| g.index)
+            .copied()
             .collect();
         let index_of_a = chunk_group_info
             .get_index_of(ChunkGroupKey::Async(a))

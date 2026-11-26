@@ -631,27 +631,31 @@ impl TurboTasksBackend {
             }
             TaskError::TaskChain(chain) => {
                 let task_id = chain.last().unwrap();
-                let error = {
-                    let task = ctx.task(*task_id, TaskDataCategory::Meta);
-                    if let Some(OutputValue::Error(error)) = task.get_output() {
-                        Some(error.clone())
-                    } else {
-                        None
+                // Eventual consistency (or GC) will cause errors to no longer be available
+                fn make_missing_error_error(hint: &'static str) -> TurboTasksExecutionError {
+                    TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
+                        message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Owned(format!(
+                            "Error no longer available: {hint}"
+                        ))),
+                        location: None,
+                        kind: Default::default(),
+                    }))
+                }
+                // When recovering a chain, eventual consistency means that the task can be missing
+                // and it might also not be an error any more, handle both.
+                let error = if let Some(task) = ctx.try_task(*task_id, TaskDataCategory::Meta) {
+                    match task.get_output() {
+                        Some(OutputValue::Error(error)) => {
+                            let error = error.clone();
+                            drop(task);
+                            self.task_error_to_turbo_tasks_execution_error(&error, ctx)
+                        }
+                        _ => make_missing_error_error("not errored"),
                     }
+                } else {
+                    make_missing_error_error("task missing, likely garbage collected")
                 };
-                let error = error.map_or_else(
-                    || {
-                        // Eventual consistency will cause errors to no longer be available
-                        TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
-                            message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(
-                                "Error no longer available",
-                            )),
-                            location: None,
-                            kind: Default::default(),
-                        }))
-                    },
-                    |e| self.task_error_to_turbo_tasks_execution_error(&e, ctx),
-                );
+
                 let mut current_error = error;
                 for &task_id in chain.iter().rev() {
                     current_error =
@@ -695,20 +699,17 @@ fn lock_task_and_optional_reader<'e>(
     };
 
     // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
-    // reader too in that common case. When the task is still mutable, drop the speculative lock
-    // and reacquire both locks together to preserve the invalidation race guarantee.
+    // reader too in that common case. When the task is still mutable, lock the reader together
+    // with it to preserve the invalidation race guarantee: locking the reader separately could
+    // lose an invalidation that races with dependency edge insertion.
     if task.immutable() && !cfg!(feature = "verify_immutable") {
         Some((task, None))
     } else {
-        drop(task);
-
-        // Having a task_pair here is not optimal, but locking the reader separately could lose an
-        // invalidation that races with dependency edge insertion.
-        // TODO(sokra): solve this more performantly for mutable tasks.
-        let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-        // The task can become immutable between the speculative task lock and the pair lock.
-        // Recheck under the final lock so callers can rely on a reader guard only being returned
-        // when dependency edges may still be added.
+        // Keeps the task locked when the reader can be locked right away, otherwise relocks both.
+        let (task, reader) = ctx.task_pair_upgrade(task, reader_id, TaskDataCategory::All);
+        // When the task was relocked, it can have become immutable in between. Recheck under the
+        // final lock so callers can rely on a reader guard only being returned when dependency
+        // edges may still be added.
         if task.immutable() && !cfg!(feature = "verify_immutable") {
             drop(reader);
             Some((task, None))
@@ -1256,12 +1257,20 @@ impl TurboTasksBackend {
         task_id: TaskId,
         cell: CellId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
+    ) -> Result<()> {
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        // The caller can hold a reference to a cell of a task that GC collected while it was
+        // executing (e.g. its parent dropped both). Fail like a read of that cell would.
+        let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::Data) else {
+            return Err(collected_task_read_error(
+                task_id,
+                "drop_task_cell_content_hint",
+            ));
+        };
         // Only drop the content, if it's there. A later read recomputes the task, exactly like
         // after a `final_read_hint` read.
         let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
+        Ok(())
     }
 
     /// Refines the [`CellKeyKind::Provisional`] dependency of `reader` on `cell` of `task_id`
@@ -1273,6 +1282,11 @@ impl TurboTasksBackend {
     /// dependents), the [`CellKeyKind::Provisional`] dependency is kept, conservatively depending
     /// on the whole cell.
     ///
+    /// Fails when the cell's task no longer exists. GC doesn't wait for executions to finish, and
+    /// it ignores cell dependents, so it collects the task of a cell that `reader` is still using
+    /// when the task's parent drops it. That usually means `reader` is being dropped by its own
+    /// parent as well, so the caller fails the execution.
+    ///
     /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
     /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn refine_provisional_cell_dependency(
@@ -1283,28 +1297,42 @@ impl TurboTasksBackend {
         id: u32,
         key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
+    ) -> Result<()> {
         if !self.should_track_dependencies() || reader == task_id {
-            return;
+            return Ok(());
         }
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
-        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
-        if !immutable && !task.cell_data_contains(&cell) {
-            return;
-        }
-        let reverse = CellRef { task: reader, cell };
         let target = CellRef {
             task: task_id,
             cell,
         };
         let provisional = CellKey::provisional(id);
+        // GC removed both halves of the edge when it collected the task. Drop the reader's half
+        // anyway, so nothing is left behind if it didn't. Checking existence first is race-free:
+        // the context excludes GC until it's dropped, and if `task_pair_upgrade` has to relock the
+        // task, it restores it when it was evicted in between.
+        let Some(task) = ctx.try_task(task_id, TaskDataCategory::All) else {
+            let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
+            reader_task.remove_cell_dependencies_keyed(&(target, provisional));
+            reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
+            return Err(collected_task_read_error(
+                task_id,
+                "refine_provisional_cell_dependency",
+            ));
+        };
+        let (mut task, mut reader_task) =
+            ctx.task_pair_upgrade(task, reader, TaskDataCategory::All);
+        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+        if !immutable && !task.cell_data_contains(&cell) {
+            return Ok(());
+        }
+        let reverse = CellRef { task: reader, cell };
         task.remove_keyed_cell_dependent(&(reverse, provisional));
         reader_task.remove_cell_dependencies_keyed(&(target, provisional));
         reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
         // Immutable tasks never need dependency edges and can never be invalidated.
         if immutable {
-            return;
+            return Ok(());
         }
         // Many readers can refine their dependencies on the same cell at once, all serialized on
         // the owner task's lock. So the owner side is updated first, and the owner is released
@@ -1336,6 +1364,7 @@ impl TurboTasksBackend {
                 let _ = reader_task.add_cell_dependencies_keyed((target, key));
             }
         }
+        Ok(())
     }
 
     /// Converts all [`CellKeyKind::Provisional`] dependencies of `reader` that are still present
@@ -4263,7 +4292,7 @@ impl Backend for TurboTasksBackend {
         id: u32,
         key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<Self>,
-    ) {
+    ) -> Result<()> {
         self.refine_provisional_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
     }
 
@@ -4281,7 +4310,7 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         cell: CellId,
         turbo_tasks: &TurboTasks<Self>,
-    ) {
+    ) -> Result<()> {
         self.drop_task_cell_content_hint(task_id, cell, turbo_tasks)
     }
 

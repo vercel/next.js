@@ -115,6 +115,7 @@
                                 ),
                             ],
                             span: 152..157,
+                            usage: Escapes,
                         },
                         Call {
                             func: Member(

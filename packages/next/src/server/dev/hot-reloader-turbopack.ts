@@ -24,6 +24,7 @@ import {
   HMR_MESSAGE_SENT_TO_SERVER,
 } from './hot-reloader-types'
 import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
+import { ensureGoSdkQueued, goSdkOptions } from '../../lib/go-sdk'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
@@ -111,6 +112,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
   formatIssue,
+  getIssueKey,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
   ModuleBuildError,
@@ -695,6 +697,34 @@ export async function createHotReloaderTurbopack(
     }
   }, 500)
 
+  const goSdk = goSdkOptions(projectPath, distDir, nextConfig)
+  // The last written state of each Go endpoint: its descriptor, or none when
+  // compilation failed, and its issues.
+  const goEndpointStates = new Map<EntryKey, string>()
+  // Turbopack recompiles a Go endpoint when any of its tracked inputs change,
+  // including imported packages outside the route directories that the dev
+  // server's file watcher sees. A source there can start importing next/go,
+  // which then fails to compile until go.mod requires it. Keep the go.mod
+  // mapping current whenever an endpoint's result changes. Endpoints are also
+  // written for requests that recompile nothing, so unchanged results are
+  // skipped. Syncing writes nothing when nothing needs changing, so it cannot
+  // loop; when it adds the requirement, Turbopack sees go.mod change.
+  function syncGoSdkIfChanged(
+    key: EntryKey,
+    result: TurbopackResult<WrittenEndpoint>
+  ) {
+    if (!nextConfig.experimental.goRoutes || result.value.type !== 'native') {
+      return
+    }
+    const state = [
+      result.value.entryPath ?? '',
+      ...result.issues.map(getIssueKey),
+    ].join('\0')
+    if (goEndpointStates.get(key) === state) return
+    goEndpointStates.set(key, state)
+    void ensureGoSdkQueued(goSdk)
+  }
+
   // Server HMR supports App Router entries on the Node.js runtime.
   function participatesInServerHmr(
     key: EntryKey,
@@ -1238,6 +1268,7 @@ export async function createHotReloaderTurbopack(
   }
 
   let nativeRoutePages: ReadonlySet<string> | undefined
+  let previousGoEntries: string | undefined
   const nativeRouteListeners = new Set<(pages: ReadonlySet<string>) => void>()
 
   async function handleEntrypointsSubscription() {
@@ -1287,6 +1318,20 @@ export async function createHotReloaderTurbopack(
         )
       )
       for (const listener of nativeRouteListeners) listener(nativeRoutePages)
+      // A Go route or Proxy file added after startup can import next/go. Add
+      // the go.mod requirement before it is compiled, as the Webpack watcher
+      // does when a .go file changes. Edits to existing Go sources are covered
+      // when their endpoints are written (syncGoSdkIfChanged).
+      const goEntries = [
+        ...nativeRoutePages,
+        ...(entrypoints.value.middleware ? ['/proxy'] : []),
+      ]
+        .sort()
+        .join('\n')
+      if (nextConfig.experimental.goRoutes && goEntries !== previousGoEntries) {
+        previousGoEntries = goEntries
+        void ensureGoSdkQueued(goSdk)
+      }
       routeGeneration++
       const routes = new Set(routeSnapshot.sortedRoutes)
       const prevRouteKeys = previousRouteKeys
@@ -1328,6 +1373,7 @@ export async function createHotReloaderTurbopack(
           hooks: {
             handleWrittenEndpoint: (id, result, forceDeleteCache) => {
               currentWrittenEntrypoints.set(id, result.value)
+              syncGoSdkIfChanged(id, result)
               return clearRequireCache(id, result.value, {
                 force: forceDeleteCache,
               })
@@ -1699,6 +1745,7 @@ export async function createHotReloaderTurbopack(
           clientIssues,
           messages: new Map(),
           turbopackUpdates: [],
+          hmrVersionChecked: false,
           subscriptions,
         })
 
@@ -1841,19 +1888,29 @@ export async function createHotReloaderTurbopack(
 
           // Turbopack messages
           switch (parsedData.type) {
-            case 'turbopack-subscribe':
+            case 'turbopack-subscribe': {
+              // Check the version once per connection, on its first versioned subscription. That
+              // catches updates missed through stale HTML or a dropped connection. Later mismatches
+              // are skipped, since lazily compiling a chunk list advances the version without the
+              // client missing an update.
+              const state = clientStates.get(client)
               if (
                 parsedData.hmrVersion !== undefined &&
-                parsedData.hmrVersion !== String(clientHmrVersion)
+                state &&
+                !state.hmrVersionChecked
               ) {
-                sendToClient(client, {
-                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-                  data: 'HMR hash mismatch',
-                })
-                break
+                state.hmrVersionChecked = true
+                if (parsedData.hmrVersion !== String(clientHmrVersion)) {
+                  sendToClient(client, {
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+                    data: 'HMR hash mismatch',
+                  })
+                  break
+                }
               }
               subscribeToClientHmrEvents(client, parsedData.path)
               break
+            }
 
             case 'turbopack-unsubscribe':
               unsubscribeFromClientHmrEvents(client, parsedData.path)
@@ -2214,6 +2271,7 @@ export async function createHotReloaderTurbopack(
                     subscribeToChanges: subscribeToClientChanges,
                     handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                       currentWrittenEntrypoints.set(id, result.value)
+                      syncGoSdkIfChanged(id, result)
                       assetMapper.setPathsForKey(id, result.value.clientPaths)
                       serverAssetMapper.setPathsForKey(
                         id,
@@ -2294,6 +2352,7 @@ export async function createHotReloaderTurbopack(
                   handleServerComponentChanges,
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
+                    syncGoSdkIfChanged(id, result)
                     assetMapper.setPathsForKey(id, result.value.clientPaths)
                     serverAssetMapper.setPathsForKey(
                       id,

@@ -9,6 +9,7 @@ use turbopack_core::resolve::ExportUsage;
 pub use crate::analyzer::graph::{
     effects::{
         AssignmentScope, AssignmentScopes, ConditionalKind, Effect, EffectArg, EffectsBlock,
+        ValueUsage,
     },
     eval_context::EvalContext,
 };

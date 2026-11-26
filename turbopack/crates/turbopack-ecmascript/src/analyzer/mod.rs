@@ -66,7 +66,9 @@ pub mod test_utils {
 
     use super::{
         ConstantValue, JsValue, JsValueUrlKind, Modified, ModuleValue, WellKnownFunctionKind,
-        WellKnownObjectKind, builtin::early_replace_builtin, well_known::replace_well_known,
+        WellKnownObjectKind,
+        builtin::early_replace_builtin,
+        well_known::{replace_well_known, replace_well_known_global},
     };
     use crate::{
         analyzer::{
@@ -88,11 +90,14 @@ pub mod test_utils {
     /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor<'a>(
         arena: &'a ThreadLocal<Bump>,
-        v: JsValue<'a>,
+        mut v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
     ) -> Result<(JsValue<'a>, Modified)> {
         let ImportAttributes { ignore, .. } = *attributes;
+        if replace_well_known_global(&mut v, ignore) {
+            return Ok((v, Modified::Yes));
+        }
         let mut new_value = match v {
             JsValue::Call(_, ref call)
                 if matches!(
@@ -223,19 +228,9 @@ pub mod test_utils {
                     true,
                     rcstr!("ignored import"),
                 ),
-                "Worker" => JsValue::unknown_if(
-                    ignore,
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
-                    true,
-                    rcstr!("ignored Worker constructor"),
-                ),
+                // Globals like `process` or `URL` are handled by `replace_well_known_global`
+                // above.
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-                "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "process" => {
-                    JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault)
-                }
-                "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
-                "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, rcstr!("unknown global")),
             },
             JsValue::Module(ref mv) => {

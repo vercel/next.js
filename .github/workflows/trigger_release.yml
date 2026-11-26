@@ -44,12 +44,43 @@ env:
 permissions: {}
 
 jobs:
-  start:
+  # Runs before `start`, which may wait for approval of the `bot-approved`
+  # environment, so approvers can see which inputs they are approving.
+  print-inputs:
     runs-on: ubuntu-latest
-    # Prerelease channels (and the scheduled nightly, where inputs are empty)
-    # run autonomously; only stable requires approval before the tag exists.
+    steps:
+      - name: Print workflow inputs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.triggering_actor }}
+          INPUTS: ${{ toJSON(inputs) }}
+        run: |
+          set -euo pipefail
+          summary="$(
+            echo "### Trigger Release inputs"
+            echo
+            echo "- Event: \`$EVENT_NAME\`"
+            echo "- Ref: \`$REF_NAME\` (\`$SHA\`)"
+            echo "- Triggered by: \`$ACTOR\`"
+            echo
+            echo '```json'
+            echo "$INPUTS"
+            echo '```'
+          )"
+          echo "$summary"
+          echo "$summary" >> "$GITHUB_STEP_SUMMARY"
+
+  start:
+    needs: print-inputs
+    runs-on: ubuntu-latest
+    # The scheduled nightly (where inputs are empty) and prereleases dispatched
+    # from canary run autonomously. Everything else requires approval before
+    # the tag exists: stable releases, and any release dispatched from a
+    # releases/** branch (bot-autonomous only allows canary and v* tags).
     # Prerelease publishes are still gated by their release-* environments.
-    environment: ${{ (github.event_name == 'schedule' || inputs.releaseType != 'stable') && 'bot-autonomous' || 'bot-approved' }}
+    environment: ${{ (github.event_name == 'schedule' || (github.ref_name == 'canary' && inputs.releaseType != 'stable')) && 'bot-autonomous' || 'bot-approved' }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
 

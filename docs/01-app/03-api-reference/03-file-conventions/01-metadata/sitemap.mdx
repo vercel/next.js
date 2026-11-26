@@ -120,6 +120,63 @@ Output:
 </urlset>
 ```
 
+### Prerendering with Cache Components
+
+When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, a sitemap that sets `lastModified` with `new Date()` is generated on every request instead of being prerendered at build time. To prerender the sitemap, make the function `async`, add the [`use cache`](/docs/app/api-reference/directives/use-cache) directive, and set how often the sitemap is regenerated with [`cacheLife`](/docs/app/api-reference/functions/cacheLife):
+
+```ts filename="app/sitemap.ts" highlight={2,4-6} switcher
+import type { MetadataRoute } from 'next'
+import { cacheLife } from 'next/cache'
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  'use cache'
+  cacheLife('max')
+
+  return [
+    {
+      url: 'https://acme.com',
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 1,
+    },
+  ]
+}
+```
+
+```js filename="app/sitemap.js" highlight={1,3-5} switcher
+import { cacheLife } from 'next/cache'
+
+export default async function sitemap() {
+  'use cache'
+  cacheLife('max')
+
+  return [
+    {
+      url: 'https://acme.com',
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 1,
+    },
+  ]
+}
+```
+
+With the `max` profile, Next.js reuses the date for 30 days, then regenerates the sitemap in the background on the next request. Choose a shorter [preset profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) if your URLs change more often.
+
+The current date is one of the [random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps) that are not prerendered, along with `Date.now()`, `Math.random()`, and `crypto.randomUUID()`. A sitemap is also generated on every request when it fetches data without caching it, such as a list of posts from a CMS. The `use cache` directive covers all of these cases.
+
+The build succeeds without a warning in each case, so check the route table that `next build` prints. A prerendered sitemap is marked `○` (Static), and a sitemap generated on every request is marked `ƒ` (Dynamic):
+
+```bash filename="Terminal"
+Route (app)       Revalidate  Expire
+┌ ○ /
+├ ○ /_not-found
+└ ○ /sitemap.xml         30d      1y
+
+
+○  (Static)  prerendered as static content
+```
+
 ### Image Sitemaps
 
 You can use `images` property to create image sitemaps. Learn more details in the [Google Developer Docs](https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps).

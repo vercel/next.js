@@ -1,44 +1,14 @@
-package main
+package __NEXT_GO_PACKAGE__
 
 import (
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 )
 
-// ProxyOptions configures the request forwarded by Next or Rewrite.
-type ProxyOptions struct {
-	Request RequestOptions
-}
-
-// RequestOptions contains downstream request overrides.
-type RequestOptions struct {
-	// A nil map preserves the request headers. A non-nil map replaces them;
-	// an empty map removes them. Names are case-insensitive: values for names
-	// that differ only in case are combined. Hop-by-hop headers, such as
-	// Connection and the headers it lists, are ignored.
-	Headers http.Header
-}
-
-// nextGoEmptyOverride stands in for an empty override list, which Next.js
-// otherwise ignores. Listing a header that the request never carries removes
-// every other request header without changing JavaScript proxy semantics.
-const nextGoEmptyOverride = "x-next-internal-go-empty-override"
-
-// Next continues routing only when the proxy explicitly returns this header.
-// All other responses are terminal, including empty responses.
-func Next(w http.ResponseWriter, options ...ProxyOptions) {
-	nextGoProxyOptions(w, options)
-	w.Header().Set("x-middleware-next", "1")
-}
-
-func Rewrite(w http.ResponseWriter, destination string, options ...ProxyOptions) {
-	nextGoProxyOptions(w, options)
-	w.Header().Set("x-middleware-rewrite", destination)
-}
-
+// Proxy calls proxy.Next and proxy.Rewrite from next/go/proxy, which only set
+// control headers. This writer turns those headers into the proxy response.
 type nextGoProxyWriter struct {
 	http.ResponseWriter
 	request     *http.Request
@@ -101,66 +71,6 @@ func (w *nextGoProxyWriter) Flush() {
 	_ = http.NewResponseController(w.ResponseWriter).Flush()
 }
 
-func nextGoProxyOptions(w http.ResponseWriter, options []ProxyOptions) {
-	if len(options) > 1 {
-		panic("Next and Rewrite accept at most one ProxyOptions value")
-	}
-	if len(options) == 0 || options[0].Request.Headers == nil {
-		return
-	}
-	headers := options[0].Request.Headers
-	// Connection-level headers describe the hop to the proxy, not the
-	// downstream request, and r.Header.Clone() includes them. Proxy
-	// credentials are kept so a cloned map matches passing nil.
-	hopByHop := map[string]bool{
-		"connection":        true,
-		"keep-alive":        true,
-		"proxy-connection":  true,
-		"te":                true,
-		"trailer":           true,
-		"transfer-encoding": true,
-		"upgrade":           true,
-	}
-	for key, values := range headers {
-		if strings.EqualFold(key, "Connection") {
-			for _, value := range values {
-				for _, name := range strings.Split(value, ",") {
-					if name = strings.TrimSpace(name); name != "" {
-						hopByHop[strings.ToLower(name)] = true
-					}
-				}
-			}
-		}
-	}
-	// Iterate in a stable order so values for names that differ only in case
-	// are combined deterministically instead of the last map entry winning.
-	keys := make([]string, 0, len(headers))
-	for key := range headers {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	names := make([]string, 0, len(keys))
-	values := make(map[string][]string, len(keys))
-	for _, key := range keys {
-		name := strings.ToLower(key)
-		if hopByHop[name] {
-			continue
-		}
-		if _, seen := values[name]; !seen {
-			names = append(names, name)
-			values[name] = nil
-		}
-		values[name] = append(values[name], headers[key]...)
-	}
-	for _, name := range names {
-		w.Header()["x-middleware-request-"+name] = values[name]
-	}
-	if len(names) == 0 {
-		names = append(names, nextGoEmptyOverride)
-	}
-	w.Header().Set("x-middleware-override-headers", strings.Join(names, ","))
-}
-
 // nextGoForwardedProto returns the client-facing scheme. Proxies may append
 // their own hop to X-Forwarded-Proto, so only the first entry is used.
 func nextGoForwardedProto(value string) string {
@@ -187,7 +97,9 @@ const nextGoProxyMaxQueryParams = 4096
 // metadata, so nxtP/nxtI names are not promoted. Pages data URLs are rejected
 // because proxy.go only supports App Router applications, whose catch-all
 // handlers can otherwise reinterpret them, and so are paths that would still
-// carry an RSC suffix after decoding (see nextGoHasRSCSegment).
+// carry an RSC suffix after decoding (see nextGoHasRSCSegment), and targets
+// with a literal #, which proxy.ts would drop as a fragment but Go handlers do
+// not.
 func nextGoNormalizeURL(r *http.Request) bool {
 	target := r.RequestURI
 	if !strings.HasPrefix(target, "/") {
@@ -196,12 +108,25 @@ func nextGoNormalizeURL(r *http.Request) bool {
 			target += "?" + r.URL.RawQuery
 		}
 	}
-	target, _, _ = strings.Cut(target, "#")
+	// Clients never send a fragment, and Go's HTTP server does not treat # as
+	// one: a route.go handler that receives the original target parses query
+	// fields after it. Truncating here would hide those fields from Proxy, so
+	// reject a literal # instead.
+	if strings.Contains(target, "#") {
+		return false
+	}
 	rawPath, rawQuery, hasQuery := strings.Cut(target, "?")
 	path := nextGoParsePath(rawPath)
-	// Assigning URL.pathname reparses dot segments, including ones exposed by
-	// removing a transport suffix, such as /a/...rsc becoming /a/.. and then /.
-	path = nextGoParsePath(nextGoNormalizeRSCPath(path))
+	path = nextGoNormalizeRSCPath(path)
+	// Assigning URL.pathname reparses dot segments. If removing a transport
+	// suffix exposes one, such as /a/...rsc becoming /a/.. and then /, the proxy
+	// could authorize the parent while an adapter routes the original path to a
+	// protected handler. Reject literal and percent-encoded forms instead.
+	reparsedPath := nextGoParsePath(path)
+	if reparsedPath != path {
+		return false
+	}
+	path = reparsedPath
 	if nextGoIsDataPath(path) || nextGoHasRSCSegment(path) {
 		return false
 	}
@@ -419,7 +344,13 @@ func nextGoFormEncode(value string) string {
 	return strings.ReplaceAll(value, " ", "+")
 }
 
-func nextGoHandler() http.HandlerFunc {
+// NextInternalGoHandler is called by the entrypoint that Next.js generates. It is
+// not part of the proxy API.
+func NextInternalGoHandler(trustInternalHeaders bool) http.HandlerFunc {
+	return nextGoHandler(trustInternalHeaders)
+}
+
+func nextGoHandler(nextGoTrustInternalHeaders bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Bound normalization work before decoding or allocating query values.
 		// Count separators directly, including empty parameters.

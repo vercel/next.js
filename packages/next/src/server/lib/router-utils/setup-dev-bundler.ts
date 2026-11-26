@@ -58,6 +58,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { ensureGoSdkQueued, goSdkOptions } from '../../../lib/go-sdk'
 
 import {
   isMiddlewareFile,
@@ -215,6 +216,11 @@ async function startWatcher(
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
   fs.mkdirSync(distDir, { recursive: true })
+
+  const goSdk = goSdkOptions(dir, distDir, nextConfig)
+  if (nextConfig.experimental.goRoutes) {
+    await ensureGoSdkQueued(goSdk)
+  }
 
   // Create server info to store in the lockfile itself
   // This allows other processes to discover the running server
@@ -535,6 +541,7 @@ async function startWatcher(
       const slots: SlotInfo[] = []
 
       let envFileChange = false
+      let goFileChange = false
       let clientRouterFiltersChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
@@ -612,6 +619,10 @@ async function startWatcher(
               nextWatchTime >= initialWatchTime)) ||
           (watchTime && watchTime !== nextWatchTime)
         fileWatchTimes.set(fileName, nextWatchTime)
+
+        if (fileChanged && fileName.endsWith('.go')) {
+          goFileChange = true
+        }
 
         if (envFiles.includes(fileName)) {
           if (fileChanged) {
@@ -957,6 +968,14 @@ async function startWatcher(
           clientRouterFiltersChange = true
           previousClientRouterFilters = clientRouterFilters
         }
+      }
+
+      // A Go route or Proxy file can start importing next/go after startup.
+      // Add the go.mod requirement before it is compiled; Turbopack tracks
+      // go.mod. Other Go sources are covered when Turbopack recompiles the
+      // endpoints that import them (see the hot reloader).
+      if (goFileChange && nextConfig.experimental.goRoutes) {
+        void ensureGoSdkQueued(goSdk)
       }
 
       // Also set on the initial scan, so that typed env definitions exist
@@ -1640,13 +1659,24 @@ export async function setupDevBundler(opts: SetupOpts) {
   )
 
   // Track build features for dev server here:
-  opts.telemetry.record({
-    eventName: EVENT_BUILD_FEATURE_USAGE,
-    payload: {
-      featureName: 'turbopackFileSystemCache',
-      invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig) ? 1 : 0,
+  opts.telemetry.record([
+    {
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: {
+        featureName: 'turbopackFileSystemCache',
+        invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig)
+          ? 1
+          : 0,
+      },
     },
-  })
+    {
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: {
+        featureName: 'experimental/goRoutes',
+        invocationCount: opts.nextConfig.experimental.goRoutes ? 1 : 0,
+      },
+    },
+  ])
 
   return result
 }

@@ -47,17 +47,8 @@ pub struct ServerHmrChunkList {
 pub struct ServerHmrChunkLists(Vec<ServerHmrChunkList>);
 
 impl ServerHmrChunkLists {
-    pub fn new(chunk_lists: Vec<ServerHmrChunkList>) -> Self {
-        Self(chunk_lists)
-    }
-
     pub fn as_slice(&self) -> &[ServerHmrChunkList] {
         &self.0
-    }
-
-    pub fn retain_entry_paths(&mut self, entry_paths: &FxIndexSet<RcStr>) {
-        self.0
-            .retain(|chunk_list| entry_paths.contains(&chunk_list.relative_path));
     }
 }
 

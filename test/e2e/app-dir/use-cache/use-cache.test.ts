@@ -397,11 +397,23 @@ describe('use-cache', () => {
     // `cacheReady` before `<Cached />` is reached, the final phase throws and
     // the background revalidation never writes a new APP_PAGE entry, so the
     // unstable-time stays at its initial value forever.
+    //
+    // With stale-while-revalidate, the first request after the revalidation
+    // can serve the stale value while it recomputes in the background, so poll
+    // the server-rendered HTML. A full browser reload in dev can use the whole
+    // retry window before a later request has a chance to observe the refresh.
     await retry(async () => {
-      await browser.refresh()
-      const after = await browser.elementByCss('#unstable-time').text()
-      expect(after).not.toBe(initialUnstable)
+      const $ = await next.render$('/blocked-by-unstable-cache')
+      const after = $('#unstable-time')
+      expect(after).toHaveLength(1)
+      expect(after.text()).not.toBe(initialUnstable)
     })
+
+    // The cache has settled, so a browser reload now sees the refreshed value.
+    await browser.refresh()
+    expect(await browser.elementByCss('#unstable-time').text()).not.toBe(
+      initialUnstable
+    )
   })
 
   it('should revalidate caches nested in unstable_cache', async () => {
@@ -822,13 +834,20 @@ describe('use-cache', () => {
     const initialValue = await browser.elementByCss('#random').text()
 
     // Revalidate is set to 1 second, so after waiting the value should change.
+    // The first request after that can serve the stale value while it refetches
+    // in the background, so poll the server-rendered HTML. A full browser
+    // reload in dev can use the whole retry window before a later request has a
+    // chance to observe the refresh.
     await retry(async () => {
-      await browser.refresh()
-
-      expect(await browser.elementByCss('#random').text()).not.toBe(
-        initialValue
-      )
+      const $ = await next.render$('/fetch-revalidate')
+      const random = $('#random')
+      expect(random).toHaveLength(1)
+      expect(random.text()).not.toBe(initialValue)
     })
+
+    // The cache has settled, so a browser reload now sees the refreshed value.
+    await browser.refresh()
+    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
   })
 
   it('should cache fetch without no-store', async () => {

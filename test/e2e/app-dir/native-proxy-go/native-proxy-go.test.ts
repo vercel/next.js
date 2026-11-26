@@ -1,5 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaRawHttp, findPort, retry } from 'next-test-utils'
+import {
+  fetchViaRawHttp,
+  findPort,
+  initNextServerScript,
+  killApp,
+  retry,
+} from 'next-test-utils'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -116,6 +122,21 @@ describe('native-proxy-go', () => {
   // concurrently with an empty Go build cache, where that request has exceeded
   // the default 120s test timeout.
   const coldGoBuildTimeout = 180_000
+
+  it(
+    'maps next/go to the SDK in the installed next package',
+    async () => {
+      // proxy.go imports next/go. The fixture's go.mod has neither the
+      // requirement nor the replacement: Next.js adds the replacement, and the
+      // requirement because the SDK is imported, once the dev server or build
+      // has set up the bundler, which happens no later than the first request.
+      await next.fetch('/')
+      const goMod = await next.readFile('go.mod')
+      expect(goMod).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(goMod).toMatch(/^replace next\/go => \.\/\S+\/next\/go$/m)
+    },
+    coldGoBuildTimeout
+  )
 
   it(
     'continues to a JS handler and matches all paths',
@@ -330,7 +351,7 @@ describe('native-proxy-go', () => {
     { helper: 'Rewrite', mode: 'replace' },
     { helper: 'Rewrite', mode: 'empty' },
   ])(
-    '$helper applies ProxyOptions with $mode request headers',
+    '$helper applies WithRequestHeaders with $mode request headers',
     async ({ helper, mode }) => {
       const query = new URLSearchParams({
         headers: mode,
@@ -393,14 +414,14 @@ describe('native-proxy-go', () => {
   )
 
   it.each(['next', 'rewrite'])(
-    'rejects multiple options for %s without stopping the worker',
+    '%s uses the last WithRequestHeaders option',
     async (helper) => {
-      expect(
-        (await next.fetch(`/native-proxy/invalid-${helper}-options`)).status
-      ).toBe(500)
-      const following = await next.fetch('/native-proxy/inspect')
-      expect(following.status).toBe(200)
-      expect(following.headers.get('x-go-proxy')).toBe('yes')
+      const response = await next.fetch(
+        `/native-proxy/options?headers=multiple&rewrite=${helper === 'rewrite' ? '1' : '0'}`
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({ fromGo: 'last' })
+      expect(response.headers.get('x-go-proxy')).toBe('yes')
     }
   )
 
@@ -1097,6 +1118,80 @@ describe('native-proxy-go in src with Go route handlers', () => {
     } finally {
       await next.deleteFile('src/pages/legacy.tsx')
       await next.patchFile('src/proxy.go', proxy)
+    }
+  })
+})
+
+// Standalone output is a self-hosted production build.
+// @force-gate turbopack && start
+describe('native-proxy-go with standalone output', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'src-fixture'),
+    skipStart: true,
+    // Standalone output is self-hosted with `node server.js`.
+    skipDeployment: true,
+  })
+
+  it('runs proxy.go and Go handlers from .next/standalone/server.js', async () => {
+    await next.patchFile('next.config.ts', (config) =>
+      config.replace('experimental:', "output: 'standalone',\n  experimental:")
+    )
+    const result = await next.build()
+    expect(result.exitCode).toBe(0)
+    expect(result.cliOutput).not.toContain('Failed to copy traced files')
+
+    const functions = await next.readJSON(
+      '.next/standalone/.next/server/functions-config-manifest.json'
+    )
+    const proxy = functions.functions['/_middleware']
+    expect(proxy).toMatchObject({ runtime: 'go' })
+    const descriptor = JSON.parse(
+      await next.readFile(`.next/standalone/.next/server/${proxy.nativeEntry}`)
+    )
+    const metadata = await fs.stat(
+      join(next.testDir, '.next/standalone/.next/server', descriptor.executable)
+    )
+    if (process.platform !== 'win32') expect(metadata.mode & 0o111).not.toBe(0)
+
+    // The standalone server must not fall back to the original build output.
+    await next.renameFolder('.next/standalone', 'standalone')
+    await next.renameFolder('.next', '.next-original')
+
+    const port = await findPort()
+    const server = await initNextServerScript(
+      join(next.testDir, 'standalone/server.js'),
+      /- Local:/,
+      {
+        ...process.env,
+        PORT: String(port),
+        HOSTNAME: '127.0.0.1',
+        TURBOPACK_GO: '/missing-go-toolchain',
+      },
+      undefined,
+      { cwd: next.testDir }
+    )
+    try {
+      const origin = `http://127.0.0.1:${port}`
+      expect((await fetch(`${origin}/`)).headers.get('x-src-proxy')).toBe('yes')
+
+      const native = await fetch(`${origin}/native-proxy/native`)
+      expect(native.status).toBe(200)
+      expect(native.headers.get('x-src-proxy')).toBe('yes')
+      expect(await native.text()).toBe('native handler: ')
+
+      const rewritten = await fetch(`${origin}/native-proxy/rewrite`)
+      expect(rewritten.status).toBe(200)
+      expect(await rewritten.text()).toBe('native handler: proxy')
+
+      const body = JSON.stringify({ message: 'standalone body' })
+      const posted = await fetch(`${origin}/native-proxy/native?override=1`, {
+        method: 'POST',
+        body,
+      })
+      expect(posted.status).toBe(200)
+      expect(await posted.json()).toEqual({ method: 'POST', body })
+    } finally {
+      await killApp(server)
     }
   })
 })

@@ -6,11 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-)
 
-// Adapter builds serve requests from the platform, not from Next.js, so
-// x-next-internal-* request headers can only come from the client.
-const nextGoTrustInternalHeaders = false
+	nextroute "__NEXT_GO_ROUTE_IMPORT__"
+)
 
 func main() {
 	port := os.Getenv("PORT")
@@ -22,7 +20,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	handler := nextGoHandler()
+	// Adapter builds serve requests from the platform, not from Next.js, so
+	// x-next-internal-* request headers can only come from the client.
+	handler := nextroute.NextInternalGoHandler(false)
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for name := range r.Header {
 			if strings.HasPrefix(strings.ToLower(name), "x-next-internal-") {

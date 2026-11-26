@@ -68,9 +68,28 @@ async function getCodeHashes(
         )
         expect(valuesWithoutCodeHash.map((v) => v.page)).toMatchInlineSnapshot(`
          [
+           "app/env-dynamic/page",
            "app/use-server/page",
          ]
         `)
+      })
+
+      it('omits durability when process.env is accessed dynamically', async () => {
+        // `app/env-dynamic/logic.tsx` passes `process.env` to a function, so any
+        // env var could be read and the runtime env var list would be incomplete.
+        const manifest = await next.readJSON(
+          '.next/server/server-reference-manifest.json'
+        )
+        const entries = Object.values<any>(manifest.node).filter(
+          (entry) => entry.workers['app/env-dynamic/page'] !== undefined
+        )
+        expect(entries).toHaveLength(1)
+        const [entry] = entries
+        const worker = entry.workers['app/env-dynamic/page']
+        expect(worker.durability).toBeUndefined()
+        expect(entry.durability).toBeUndefined()
+        // Root param tracking doesn't depend on env vars, so it's still emitted.
+        expect(worker.rootParamDependencies).toBeDefined()
       })
 
       it('emits root dependencies alongside durability', async () => {
@@ -79,11 +98,15 @@ async function getCodeHashes(
         )
         let cacheWorkers = 0
         for (const entry of Object.values<any>(manifest.node)) {
-          for (const worker of Object.values<any>(entry.workers)) {
+          for (const [workerKey, worker] of Object.entries<any>(
+            entry.workers
+          )) {
             if (worker.durability !== undefined) {
               cacheWorkers++
               expect(worker.rootParamDependencies).toBeDefined()
-            } else {
+            } else if (workerKey !== 'app/env-dynamic/page') {
+              // `app/env-dynamic/page` is a use-cache function without
+              // durability (dynamic `process.env` access).
               expect(worker.rootParamDependencies).toBeUndefined()
             }
           }
@@ -138,15 +161,6 @@ async function getCodeHashes(
              "TEST_CONDITIONAL",
              "TEST_OTHER_VALUE",
              "TEST_VALUE",
-             "exist NEXT_PRIVATE_DEBUG_CACHE",
-             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
-             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
-             "exist __NEXT_DEV_SERVER",
-           ],
-           "app/env-dynamic/page": [
-             "NEXT_OTEL_PERFORMANCE_PREFIX",
-             "NEXT_OTEL_VERBOSE",
-             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
              "exist NEXT_PRIVATE_DEBUG_CACHE",
              "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
              "exist NEXT_PRIVATE_DEBUG_VALIDATION",
