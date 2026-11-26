@@ -3080,7 +3080,8 @@ export default async function build(
             ? await readGoProxyConfig(
                 path.join(distDir, SERVER_DIRECTORY, 'middleware.native.json'),
                 path.join(dir, middlewareFile),
-                config
+                config,
+                { isAdapterBuild: Boolean(config.adapterPath) }
               )
             : undefined
           functionsConfigManifest.functions['/_middleware'] = {

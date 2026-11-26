@@ -273,31 +273,80 @@ describe('static Go config', () => {
           `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))}, experimental:`
         )
       )
-      await next.build()
-      const output = await next.readJSON('go-config-output.json')
-      expect(output.middleware).toMatchObject({
-        runtime: 'go',
-        config: {
-          matchers: [
-            expect.objectContaining({ source: '/configured' }),
-            expect.anything(),
-            expect.anything(),
-            expect.anything(),
-            expect.anything(),
-            expect.anything(),
-            expect.anything(),
-            expect.anything(),
-          ],
-        },
-      })
-      expect(
-        output.routes.find(
-          (route: { pathname: string }) => route.pathname === '/configured'
+      const proxy = await next.readFile('proxy.go')
+      await next.patchFile(
+        'proxy.go',
+        proxy.replace(
+          /, (?:Has|Missing): \[\]proxy.Condition\{\{[^}]*\}\}/g,
+          ''
         )
-      ).toMatchObject({
-        runtime: 'go',
-        config: { maxDuration: 17 },
-      })
+      )
+      try {
+        await next.build()
+        const output = await next.readJSON('go-config-output.json')
+        expect(output.middleware).toMatchObject({
+          runtime: 'go',
+          config: {
+            matchers: [
+              expect.objectContaining({ source: '/configured' }),
+              expect.anything(),
+              expect.anything(),
+              expect.anything(),
+              expect.anything(),
+              expect.anything(),
+              expect.anything(),
+              expect.anything(),
+            ],
+          },
+        })
+        expect(
+          output.routes.find(
+            (route: { pathname: string }) => route.pathname === '/configured'
+          )
+        ).toMatchObject({
+          runtime: 'go',
+          config: { maxDuration: 17 },
+        })
+      } finally {
+        await next.patchFile('proxy.go', proxy)
+        await next.patchFile('next.config.ts', config)
+      }
+    })
+
+    it('rejects header and cookie conditions in adapter builds', async () => {
+      await next.stop()
+      const config = await next.readFile('next.config.ts')
+      const proxy = await next.readFile('proxy.go')
+      try {
+        await next.patchFile(
+          'next.config.ts',
+          config.replace(
+            'experimental:',
+            `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))}, experimental:`
+          )
+        )
+        for (const kind of ['Has', 'Missing']) {
+          for (const type of ['header', 'cookie']) {
+            const source = proxy.replace(
+              /, (Has|Missing): \[\]proxy.Condition\{\{Type: "(header|cookie)"[^}]*\}\}/g,
+              (condition, currentKind, currentType) =>
+                currentKind === kind && currentType === type ? condition : ''
+            )
+            expect(source).toContain(
+              `${kind}: []proxy.Condition{{Type: "${type}"`
+            )
+            await next.patchFile('proxy.go', source)
+            const result = await next.build()
+            expect(result.exitCode).not.toBe(0)
+            expect(result.cliOutput).toContain(
+              'Go proxy header and cookie matcher conditions are not supported in adapter builds'
+            )
+          }
+        }
+      } finally {
+        await next.patchFile('proxy.go', proxy)
+        await next.patchFile('next.config.ts', config)
+      }
     })
   }
 })

@@ -1,4 +1,4 @@
-import type { MiddlewareRoutingItem } from '../../base-server'
+import type { MiddlewareRoutingConfig } from '../../base-server'
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -165,7 +165,7 @@ export type ServerFields = {
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>
-  middleware?: MiddlewareRoutingItem
+  middleware?: MiddlewareRoutingConfig
   hasAppNotFound?: boolean
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
@@ -523,7 +523,7 @@ async function startWatcher(
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
-      let middlewareEntry: MiddlewareRoutingItem | undefined
+      let middlewareEntry: MiddlewareRoutingConfig | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
 
@@ -729,9 +729,6 @@ async function startWatcher(
           )
           middlewareEntry = {
             page: '/',
-            // TODO(as-any): pre-existing cast, not yet reviewed
-            // eslint-disable-next-line @next/internal/no-as-any
-            match: null as any,
             // proxy.go matchers come from Turbopack's compiled descriptor (see
             // loadNativeMiddleware); keep them across file system events.
             matchers: (fileBase === 'proxy.go' &&

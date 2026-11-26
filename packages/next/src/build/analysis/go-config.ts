@@ -97,7 +97,8 @@ export function readGoRouteConfig(descriptorPath: string, sourcePath: string) {
 export async function readGoProxyConfig(
   descriptorPath: string,
   sourcePath: string,
-  nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
+  nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>,
+  { isAdapterBuild = false }: { isAdapterBuild?: boolean } = {}
 ) {
   const { matcher } = await readDescriptorConfig(
     descriptorPath,
@@ -105,9 +106,26 @@ export async function readGoProxyConfig(
     proxySchema
   )
   try {
+    const matchers = createGoProxyMatchers(matcher ?? '/:path*', nextConfig)
+    if (
+      isAdapterBuild &&
+      matchers.some((compiledMatcher) =>
+        [
+          ...(compiledMatcher.has ?? []),
+          ...(compiledMatcher.missing ?? []),
+        ].some(
+          (condition) =>
+            condition.type === 'header' || condition.type === 'cookie'
+        )
+      )
+    ) {
+      throw new Error(
+        'Go proxy header and cookie matcher conditions are not supported in adapter builds. ' +
+          'Remove these conditions from proxy.go Config.Matcher or self-host with next start.'
+      )
+    }
     return {
-      // An omitted matcher matches every path.
-      matchers: createGoProxyMatchers(matcher ?? '/:path*', nextConfig),
+      matchers,
     }
   } catch (error) {
     throw invalid(sourcePath, error)

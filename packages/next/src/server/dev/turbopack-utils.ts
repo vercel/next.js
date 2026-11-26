@@ -811,9 +811,6 @@ export async function handleEntrypoints({
 
       if (dev && middlewareConfig && writtenEndpoint.value.type !== 'native') {
         dev.serverFields.middleware = {
-          // TODO(as-any): pre-existing cast, not yet reviewed
-          // eslint-disable-next-line @next/internal/no-as-any
-          match: null as any,
           page: '/',
           runtime: 'edge',
           matchers: middlewareConfig.matchers,

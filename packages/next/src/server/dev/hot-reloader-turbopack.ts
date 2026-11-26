@@ -28,7 +28,6 @@ import { ensureGoSdkQueued, goSdkOptions } from '../../lib/go-sdk'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
-  Issue,
   WrittenEndpoint,
   TurbopackResult,
   Project,
@@ -1337,51 +1336,21 @@ export async function createHotReloaderTurbopack(
                 ).matchers
                 serverFields.goProxyConfigError = undefined
               } catch (error) {
-                // `next build` fails on an invalid Config. In dev, report it as a
-                // compilation error of the proxy entry, which the next successful
-                // compile clears. Until then the proxy matches every path and
-                // `ensureMiddleware` fails each request with this error: matching
+                // Fail requests through ensureMiddleware's ModuleBuildError until
+                // a successful compile clears the error. Match every path: matching
                 // nothing would serve routes the proxy protects, and keeping the
                 // previous matchers would run it with a configuration that no
                 // longer applies.
                 const message =
                   error instanceof Error ? error.message : String(error)
-                const key = getEntryKey('root', 'server', 'middleware')
-                const issues = currentEntryIssues.get(key) ?? new Map()
-                const hasCompilationError =
-                  !entryPath &&
-                  [...issues.values()].some(
-                    (issue) =>
-                      issue.severity === 'error' || issue.severity === 'fatal'
-                  )
-                // processMiddleware already records and logs compiler errors.
-                // Add an issue only for descriptor validation or as a fallback
-                // when the failed compile did not report its own diagnostic.
-                if (!hasCompilationError) {
-                  const issue: Issue = {
-                    severity: 'error',
-                    stage: 'analyze',
-                    filePath: `[project]/${relative(projectPath, proxyPath).split(sep).join('/')}`,
-                    title: {
-                      type: 'text',
-                      value: entryPath
-                        ? 'Invalid proxy.go Config'
-                        : 'Failed to compile proxy.go',
-                    },
-                    description: { type: 'text', value: message },
-                    documentationLink: '',
-                  }
-                  issues.set(getIssueKey(issue), issue)
-                  currentEntryIssues.set(key, issues)
-                  Log.error(message)
-                }
+                // Rust compilation and static-value errors are already recorded by
+                // processMiddleware. Only Next.js descriptor/schema validation can
+                // fail here after a successful native compilation.
+                if (entryPath) Log.error(message)
                 serverFields.goProxyConfigError = message
                 matchers = [{ regexp: '^/.*$', originalSource: '/:path*' }]
               }
               serverFields.middleware = {
-                // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
-                // eslint-disable-next-line @next/internal/no-as-any
-                match: null as any,
                 page: '/',
                 matchers,
                 runtime: 'go',
