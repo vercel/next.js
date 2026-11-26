@@ -191,7 +191,7 @@ export function useUser() {
 }
 ```
 
-`use cache: private` lets `getCurrentUser()` read the incoming request's session cookie. The user's name isn't available at build time, but a layout can still pass the promise to `UserProvider` without awaiting it. Here, only `UserBadge` needs the name, so the rest of the UI can render while the badge shows `Loading…`:
+A layout can pass the promise to `UserProvider` without awaiting it. Wrap `UserBadge` in `<Suspense>` because it needs the user's name:
 
 ```tsx filename="app/page.tsx"
 function Dashboard() {
