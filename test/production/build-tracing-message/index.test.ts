@@ -30,31 +30,14 @@ import stripAnsi from 'strip-ansi'
           )
           .trim()
 
-        expect(stripAnsi(output)).toMatchInlineSnapshot(`
-         "Turbopack build encountered 1 warning:
-         ./app/join-cwd.js:4:10
-         Warning: Dynamic filesystem access causes tracing of the whole project
-           2 |
-           3 | export default function (f) {
-         > 4 |   return path.join(process.cwd(), f)
-             |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           5 | }
-           6 |
-
-         Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
-         This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
-         This can slow down deployments or lead to failures when size limits are exceeded.
-         To resolve this, you can
-         - make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
-         - only use them in development, or
-         - opt out by adding an ignore comment to the highlighted call: path.join(/*turbopackIgnore: true*/ ...), or
-         - remove them.
-
-         Import trace:
-           Server Component:
-             ./app/join-cwd.js
-             ./app/page.js"
-        `)
+        // Pure path.join (join-cwd.js) must NOT warn. Only real fs access
+        // (read-dynamic.js) warns, with fs function as origin.
+        expect(next.cliOutput).toContain(
+          'Turbopack build encountered 1 warning:'
+        )
+        expect(output).toContain('./app/read-dynamic.js')
+        expect(output).toContain('fs.readFileSync')
+        expect(output).not.toContain('./app/join-cwd.js')
       })
 
       it('should not warn for fs calls annotated with turbopackIgnore', async () => {
@@ -62,11 +45,12 @@ import stripAnsi from 'strip-ansi'
         // the `turbopackIgnore`-annotated accesses in ./app/read-ignored.js produced
         // a warning. This covers both the comment on the fs call's own argument
         // (`readBareArg`) and the comment on a nested `path.join(...)` argument
-        // (`readJoinedArg`, issue #95125). Only ./app/join-cwd.js should warn.
+        // (`readJoinedArg`, issue #95125). Only ./app/read-dynamic.js should warn.
         expect(next.cliOutput).toContain(
           'Turbopack build encountered 1 warning:'
         )
         expect(next.cliOutput).not.toContain('./app/read-ignored.js')
+        expect(next.cliOutput).not.toContain('./app/join-cwd.js')
       })
     })
 
