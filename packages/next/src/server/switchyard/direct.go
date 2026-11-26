@@ -189,6 +189,10 @@ type directAttempt struct {
 	up    *goUpstream
 	// The request as the client sent it, for handing it to Node.
 	request *http.Request
+	// The worker's response headers that Go's proxy removes and Node passes
+	// on (keepHopHeaders).
+	hopHeaders http.Header
+
 	// Whether the Transport has written the request to a worker, on any
 	// attempt. The Transport sends it on its own goroutine.
 	sent atomic.Bool
@@ -294,6 +298,10 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			ExpectContinueTimeout: 1 * time.Second,
 		}},
 		ModifyResponse: func(res *http.Response) error {
+			attempt := attemptOf(res.Request.Context())
+			for name, values := range attempt.hopHeaders {
+				res.Header[name] = values
+			}
 			skipCompression(res)
 			// Node passes the worker's Trailer header on but never the trailer
 			// fields themselves. The proxy writes the header from the names in
@@ -373,6 +381,9 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 // no-cache) or drop one (Connection, a duplicate Content-Length, the
 // Content-Length of a chunked body). Like Node, it fails at exactly the
 // limit.
+//
+// Also keep the hop-by-hop headers Node passes on, for ModifyResponse to put
+// back.
 type nodeHeaderLimitTransport struct {
 	transport *http.Transport
 }
@@ -405,7 +416,52 @@ func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, er
 		res.Body.Close()
 		return nil, fmt.Errorf("route.go response headers reach Node's %d-byte limit", limit)
 	}
+	attempt.hopHeaders = keepHopHeaders(res.Header)
 	return res, nil
+}
+
+// The hop-by-hop headers Go's proxy removes from every response (hopHeaders
+// in net/http/httputil) that are put back. Not among them: Transfer-Encoding
+// and Connection, which Node drops too, and Trailer. For a chunked response
+// the Transport has already moved Trailer out of the header map, and the
+// proxy announces the trailer fields itself. With Content-Length it stays,
+// the proxy removes it, and it isn't put back: Node can't send that response
+// at all (ServerResponse.end throws ERR_HTTP_TRAILER_INVALID).
+var hopHeaders = []string{"Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization", "Proxy-Connection", "Te", "Upgrade"}
+
+// keepHopHeaders returns the response headers Go's proxy is about to remove
+// but Node's worker proxy passes on, since it drops only Connection and
+// Transfer-Encoding (native-route-proxy.ts): the hop-by-hop headers, and any
+// header Connection names. Go's server writes each of them as is.
+//
+// Known difference: Switchyard's proxy to Node still drops these headers, so
+// a request that goes through Node (a route's first request, or one Decide
+// sends to Node) doesn't get them. Putting them back there too would also
+// forward Node's own Keep-Alive: timeout=5.
+func keepHopHeaders(h http.Header) http.Header {
+	var kept http.Header
+	keep := func(name string) {
+		values, ok := h[name]
+		// Trailer stays out for the reasons above, also when Connection names
+		// it.
+		if !ok || name == "Connection" || name == "Transfer-Encoding" || name == "Trailer" {
+			return
+		}
+		if kept == nil {
+			kept = http.Header{}
+		}
+		kept[name] = values
+	}
+	for _, name := range hopHeaders {
+		keep(name)
+	}
+	// Named as Go's proxy reads them (removeHopByHopHeaders).
+	for _, field := range h["Connection"] {
+		for _, name := range strings.Split(field, ",") {
+			keep(textproto.CanonicalMIMEHeaderKey(textproto.TrimString(name)))
+		}
+	}
+	return kept
 }
 
 // writeInternalError is Switchyard's own answer when a worker fails after it
