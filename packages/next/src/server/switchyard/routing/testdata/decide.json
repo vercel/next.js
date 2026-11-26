@@ -95,6 +95,80 @@
       "node": "target not in origin form"
     },
 
+    { "table": "app", "target": "/api/echo?", "node": "empty query" },
+    {
+      "table": "app",
+      "target": "/api/echo?a",
+      "node": "query pair without key=value"
+    },
+    { "table": "app", "target": "/api/echo?a=", "route": "/api/echo/route" },
+    {
+      "table": "app",
+      "target": "/api/echo?&a=1",
+      "node": "query pair without key=value"
+    },
+    { "table": "app", "target": "/api/echo?a=%7e", "node": "query characters" },
+    { "table": "app", "target": "/api/echo?a=b+c", "node": "query characters" },
+    { "table": "app", "target": "/api/echo?a==b", "node": "query characters" },
+    {
+      "table": "app",
+      "target": "/api/echo?a=1&a=2&b=3",
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?b=1&a=2&b=3",
+      "node": "query key repeated apart"
+    },
+    { "table": "app", "target": "/api/echo?2=x", "node": "integer query key" },
+    {
+      "table": "app",
+      "target": "/api/echo?__proto__=1",
+      "node": "query key __proto__"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?constructor=x",
+      "node": "query key constructor"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?q=hello%20world&tags=a%2Cb",
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?q=caf%C3%A9&a=(b)!*'",
+      "route": "/api/echo/route"
+    },
+    { "table": "app", "target": "/api/echo?=x", "route": "/api/echo/route" },
+    {
+      "table": "app",
+      "target": "/api/echo?tags=a,b",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?a=%2A",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?a=%c3%a9",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?x=%FF",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?a=%C3",
+      "node": "query characters"
+    },
+    { "table": "app", "target": "/api/echo?a=%", "node": "query characters" },
+
     {
       "table": "app",
       "target": "/api/echo",
@@ -201,7 +275,6 @@
     },
 
     { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" },
-    { "table": "app", "target": "/api/echo?a=1", "node": "query" },
     {
       "table": "app",
       "target": "/api/echo",
