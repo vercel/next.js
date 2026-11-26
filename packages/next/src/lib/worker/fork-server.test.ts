@@ -12,6 +12,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { PassThrough } from 'stream'
+import { finished } from 'stream/promises'
 import { readJsonLines, writeJsonLine } from './json-line-channel'
 
 const distDir = path.join(__dirname, '../../../dist/lib/worker')
@@ -160,6 +161,16 @@ exports.activity = () => {
   process.send([3, { type: 'activity' }])
   return process.connected
 }
+// Writes output while the worker shuts down, like diagnostics during teardown.
+let exitLogSize = 0
+exports.logOnExit = (size) => {
+  exitLogSize = size
+}
+exports.teardown = () => {
+  if (!exitLogSize) return
+  process.stdout.write('x'.repeat(exitLogSize))
+  process.stderr.write('final diagnostic\\n')
+}
 `
 
 beforeAll(() => {
@@ -281,6 +292,89 @@ describe('ForkServerWorkerProcess exit', () => {
     }
     await new Promise((resolve) => setImmediate(resolve))
     expect(created!.events).toEqual([{ exit: [null, 'SIGKILL'] }])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ForkServerWorkerProcess output streams
+// ---------------------------------------------------------------------------
+describe('ForkServerWorkerProcess output', () => {
+  // The pool waits for a worker's stdout/stderr to end on shutdown, so they
+  // must end once the worker's output was read, or when it can't produce any.
+  function createWorker() {
+    const worker = new ForkServerWorkerProcess(
+      '/unused.js',
+      spawnOptions(),
+      () => {}
+    )
+    // The pool consumes the output streams; they only end when read.
+    worker.stdout.resume()
+    worker.stderr.resume()
+    return worker
+  }
+
+  it('ends stdout/stderr after forwarding everything from their pipes', async () => {
+    const worker = createWorker()
+    const stdoutPipe = new PassThrough()
+    const stderrPipe = new PassThrough()
+    worker._setPid(1)
+    worker._setChannel('stdout', stdoutPipe as any)
+    worker._setChannel('stderr', stderrPipe as any)
+    const stdout = readAll(worker.stdout)
+    const stderr = readAll(worker.stderr)
+    worker._exit(0, null)
+    expect(worker.stdout.writableEnded).toBe(false)
+    stdoutPipe.end('last log')
+    stderrPipe.end('last diagnostic')
+    await Promise.all([
+      finished(worker.stdout, { writable: false }),
+      finished(worker.stderr, { writable: false }),
+    ])
+    expect(stdout()).toBe('last log')
+    expect(stderr()).toBe('last diagnostic')
+  })
+
+  it('ends stdout/stderr when their pipes are destroyed', async () => {
+    const worker = createWorker()
+    const stdoutPipe = new PassThrough()
+    const stderrPipe = new PassThrough()
+    worker._setChannel('stdout', stdoutPipe as any)
+    worker._setChannel('stderr', stderrPipe as any)
+    stdoutPipe.destroy(new Error('ECONNRESET'))
+    stderrPipe.destroy()
+    await Promise.all([
+      finished(worker.stdout, { writable: false }),
+      finished(worker.stderr, { writable: false }),
+    ])
+  })
+
+  it('ends stdout/stderr when the worker exits before its pipes arrived', async () => {
+    const worker = createWorker()
+    worker._exit(null, 'SIGKILL')
+    await Promise.all([
+      finished(worker.stdout, { writable: false }),
+      finished(worker.stderr, { writable: false }),
+    ])
+  })
+
+  it('ends stdout/stderr when spawning fails', async () => {
+    const worker = createWorker()
+    worker.on('error', () => {})
+    worker._spawnError(new Error('spawn failed'))
+    await Promise.all([
+      finished(worker.stdout, { writable: false }),
+      finished(worker.stderr, { writable: false }),
+    ])
+  })
+
+  it('unrefs the pipe behind an output stream', () => {
+    const worker = createWorker()
+    const pipe = Object.assign(new PassThrough(), { unref: jest.fn() })
+    worker._setChannel('stderr', pipe as any)
+    worker.stderr.unref()
+    expect(pipe.unref).toHaveBeenCalled()
+    // No pipe yet: nothing to unref.
+    worker.stdout.unref()
   })
 })
 
@@ -573,6 +667,20 @@ describeUnix('WorkerPool with a fork server', () => {
     expect(await pool.dispatch('activity', [])).toBe(true)
     expect(onCustomMessage).toHaveBeenCalledWith({ type: 'activity' })
     await pool.shutdown()
+  })
+
+  it('forwards all output workers write while shutting down', async () => {
+    const pool = createPool({ maxWorkers: 1 })
+    const stdout = readAll(pool.getStdout())
+    const stderr = readAll(pool.getStderr())
+    // Large enough that the pipe can't take it in one write.
+    const size = 1024 * 1024
+    await pool.dispatch('logOnExit', [size])
+    expect(await pool.shutdown()).toEqual({ forceExited: false })
+    // shutdown() resolves only after the worker's output was forwarded.
+    expect(pool.getStdout().writableEnded).toBe(true)
+    expect(stdout().length).toBe(size)
+    expect(stderr()).toBe('final diagnostic\n')
   })
 
   it('leaves no worker processes behind after shutdown', async () => {
