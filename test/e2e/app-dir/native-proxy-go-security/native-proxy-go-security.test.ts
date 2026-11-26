@@ -137,6 +137,7 @@ describe('native proxy authorization', () => {
 type CapturedOutputs = {
   middleware: { filePath: string }
   appRoutes: Array<{
+    id: string
     pathname: string
     runtime: string
     filePath: string
@@ -221,6 +222,7 @@ describe('adapter Go proxy authorization', () => {
     const goRouteEnv: NodeJS.ProcessEnv = {
       ...process.env,
       PORT: String(goRoutePort),
+      __NEXT_GO_ROUTE: goRoute.id,
     }
     delete goRouteEnv.__NEXT_GO_TOKEN
     goRouteChild = spawn(goRouteBinary, [], {
