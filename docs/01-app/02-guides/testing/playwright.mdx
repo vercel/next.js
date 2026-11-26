@@ -311,6 +311,7 @@ Registering either handler disables the browser's HTTP cache, even if no request
 
 ### Limitations
 
+- If a route has no static shell, `instant()` cannot display it and Next.js releases the pause. Open the route outside `instant()` in `next dev` to see what blocked it. See [Fixing a navigation that blocks](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
 - These tests assume a warm cache and check which UI can render before dynamic server content arrives. They do not measure cold-cache loading time or prefetch latency.
 - The pause applies to the browser context. Nested or concurrent `instant()` calls in the same context throw an error. Use separate contexts for concurrent tests.
 - The pause holds back dynamic server content but allows hydration to continue. Client Components that do not need that content may already be visible when assertions run.
