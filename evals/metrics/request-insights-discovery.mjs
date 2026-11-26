@@ -6,7 +6,9 @@ export const collectFailed = true
 // The CLI, or the dev endpoint and MCP tool it reads from.
 const requestInsightsCommand =
   /(?:node_modules\/\.bin\/next|\bnext|\bnpx\s+next)\s+experimental-request-insights\b|\/_next\/development\/request-insights\b/
-const requestInsightsTool = /(?:^|_)get_request_insights$/
+// Agents prefix MCP tool names differently (`mcp__server__tool`, `server.tool`),
+// and Cursor keeps the tool name in its args.
+const requestInsightsTool = /(?<![a-z\d])get_request_insights(?![a-z\d])/i
 const bundledDocsPath = /next\/dist\/docs\b/
 const agentGuidance =
   /next\/dist\/agent-faq\.md|(?:^|\/)\.(?:agents|claude)\/skills\//
@@ -24,9 +26,15 @@ const pipedStage = /(?<!\|)\|(?!\|)[^;&|]*/g
 const searchExclusions =
   /--exclude(?:-dir)?=\S+|(?:-not|!)\s+-i?(?:path|name)\s+\S+|(?:-g|--glob)[=\s]['"]?!\S+/g
 
-function classify({ name, args = {} }) {
+function classify({ name, originalName, args = {} }) {
   const text = args.command ?? JSON.stringify(args)
-  if (requestInsightsTool.test(name)) return { kind: 'request-insights' }
+  // agent-eval records MCP tools as `unknown`; the real name is elsewhere.
+  if (
+    name === 'unknown' &&
+    requestInsightsTool.test(`${originalName ?? ''} ${JSON.stringify(args)}`)
+  ) {
+    return { kind: 'request-insights' }
+  }
   // Searching for or reading about the CLI isn't running it, even after `cd`.
   if (
     name === 'shell' &&

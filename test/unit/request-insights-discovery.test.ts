@@ -179,14 +179,19 @@ it.each([
   [
     'shell',
     { command: 'curl -s localhost:3000/_next/development/request-insights' },
+    undefined,
   ],
-  ['mcp__next-devtools__get_request_insights', {}],
+  // agent-eval names MCP tools `unknown`; each agent keeps the real name
+  // differently.
+  ['unknown', {}, 'mcp__next-devtools__get_request_insights'],
+  ['unknown', {}, 'next-devtools.get_request_insights'],
+  ['unknown', { toolName: 'get_request_insights' }, 'mcpToolCall'],
 ])(
-  'counts the dev endpoint and MCP tool as Request Insights: %s',
-  (name, args) => {
+  'counts the dev endpoint and MCP tool as Request Insights: %s %j %s',
+  (name: string, args: Record<string, string>, originalName?: string) => {
     expect(
       collect([
-        toolCall(name, args),
+        { type: 'tool_call', tool: { name, originalName, args } },
         toolCall('file_read', { file_path: '/workspace/app/page.tsx' }),
       ])
     ).toMatchObject({ requestInsightsBeforeProjectInspection: true })
