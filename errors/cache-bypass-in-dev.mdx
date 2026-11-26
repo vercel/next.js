@@ -4,11 +4,13 @@ title: Caches Bypassed in Development Mode
 
 ## Disabling Caches in Development Mode
 
-Next.js shows this warning when a page load or client navigation bypasses server caches in `next dev`. Next.js skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request, so you won't see the errors or insights it would normally report.
+While running Next.js in development mode with `next dev`, an initial page load or client navigation was handled with server caches bypassed. This can happen when the request includes a `cache-control: no-cache` header. The most common reason for this is that you have your web browser's DevTools open with "Disable Cache" enabled. Another common reason is you performed a hard refresh (Cmd + Shift + R / Ctrl + Shift + R).
 
-A hard refresh (Cmd + Shift + R or Ctrl + Shift + R) or the **Disable cache** setting in browser DevTools can cause the browser to send `Cache-Control: no-cache`. A [Playwright test that intercepts requests](/docs/app/guides/testing/playwright#request-interception-in-development) can send the same header.
+This can also happen when [`draftMode`](/docs/app/api-reference/functions/draft-mode) is enabled. Draft Mode is designed to bypass caches so you can preview live or unpublished content before it is published to the cached or prerendered version of your site.
 
-[Draft Mode](/docs/app/api-reference/functions/draft-mode) also bypasses server caches so you can preview unpublished changes.
+A [Playwright test that intercepts requests](/docs/app/guides/testing/playwright#request-interception-in-development) can also trigger this warning, even if no request matches the handler.
+
+Bypassing caches while in development mode affects the debugging experience of Cache Components and Instant Insights. Next.js skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request, so you won't see the errors or insights it would normally report.
 
 ## Understanding Cache Handling in Development Mode
 
