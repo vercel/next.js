@@ -153,7 +153,7 @@ async function Dashboard() {
 }
 ```
 
-A top-level `await` on the session in a layout holds the whole segment, including `{children}`, behind that request, so push it into a component inside a boundary. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+If a layout calls `await getCurrentUser()`, it can't render its children until the session lookup finishes. Move the `await` into the component that needs the user. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
 
 > **Good to know:** `getCurrentUser` reads the session, checks it, and returns a narrow user. Centralizing those reads in one function is the [Data Access Layer](/docs/app/guides/authentication#creating-a-data-access-layer-dal) pattern.
 
@@ -161,7 +161,7 @@ A top-level `await` on the session in a layout holds the whole segment, includin
 
 You don't have to read the session again in every component that needs the user. Read it once, then hand it to as many Server and Client Components as you like.
 
-Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once, pass it through context, and unwrap it with [`use()`](https://react.dev/reference/react/use). For the general pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). Even with `use cache: private`, a layout can call `getCurrentUser()` and pass the promise to the provider without awaiting it. Place `<Suspense>` around the UI that waits for the user.
+Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once, pass it through context, and unwrap it with [`use()`](https://react.dev/reference/react/use). For the general pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider).
 
 ```tsx filename="app/user-provider.tsx"
 'use client'
@@ -191,7 +191,7 @@ export function useUser() {
 }
 ```
 
-In this example, `Dashboard` passes the promise to the provider without awaiting it. Only `UserBadge` waits for the session:
+`use cache: private` lets `getCurrentUser()` read the incoming request's session cookie. The user's name isn't available at build time, but a layout can still pass the promise to `UserProvider` without awaiting it. Here, only `UserBadge` needs the name, so the rest of the UI can render while the badge shows `Loading…`:
 
 ```tsx filename="app/page.tsx"
 function Dashboard() {
