@@ -59,6 +59,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getGoProxyMatcher } from '../native-proxy-matcher'
 import { ensureGoSdkQueued, goSdkOptions } from '../../../lib/go-sdk'
 
 import {
@@ -1354,8 +1355,12 @@ async function startWatcher(
       await propagateServerField(opts, 'middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
 
+      const getMatcher =
+        serverFields.middleware?.runtime === 'go'
+          ? getGoProxyMatcher
+          : getMiddlewareRouteMatcher
       opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
-        ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
+        ? getMatcher(serverFields.middleware.matchers)
         : undefined
 
       const interceptionRoutes = generateInterceptionRoutesRewrites(

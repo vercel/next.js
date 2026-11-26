@@ -1,7 +1,11 @@
 import { mkdtemp, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { IncomingMessage } from 'http'
+import { Socket } from 'net'
 import { readGoProxyConfig } from 'next/dist/build/analysis/go-config'
+import { getGoProxyMatcher } from 'next/dist/server/lib/native-proxy-matcher'
+import { NodeNextRequest } from 'next/dist/server/base-http/node'
 
 describe('go-config', () => {
   let directory: string
@@ -135,6 +139,90 @@ describe('go-config', () => {
     const unlocalized = new RegExp(matchers[1].regexp)
     expect(unlocalized.test('/settings')).toBe(true)
     expect(unlocalized.test('/fr/settings')).toBe(false)
+  })
+
+  it('matches the first repeated Go header while respecting request-header overrides', async () => {
+    const { matchers } = await readConfig([
+      {
+        source: '/secure',
+        has: [{ type: 'header', key: 'x-resource', value: 'private' }],
+      },
+    ])
+    const req = new IncomingMessage(new Socket())
+    req.method = 'GET'
+    req.url = '/secure'
+    req.headers = { 'x-resource': 'private, public' }
+    req.rawHeaders = ['X-Resource', 'private', 'x-resource', 'public']
+    try {
+      const match = getGoProxyMatcher(matchers)
+      expect(match('/secure', new NodeNextRequest(req), {})).toBe(true)
+
+      req.headers['x-resource'] = 'public'
+      expect(match('/secure', new NodeNextRequest(req), {})).toBe(false)
+    } finally {
+      req.destroy()
+    }
+  })
+
+  it('removes Connection-nominated fields from header and cookie conditions', async () => {
+    const { matchers } = await readConfig([
+      {
+        source: '/secure',
+        missing: [
+          { type: 'header', key: 'x-resource' },
+          { type: 'cookie', key: 'skip' },
+        ],
+      },
+    ])
+    const req = new IncomingMessage(new Socket())
+    req.method = 'GET'
+    req.url = '/secure'
+    req.headers = {
+      connection: 'X-Resource, Cookie',
+      'x-resource': 'public',
+      cookie: 'skip=yes',
+    }
+    req.rawHeaders = [
+      'Connection',
+      'X-Resource, Cookie',
+      'X-Resource',
+      'public',
+      'Cookie',
+      'skip=yes',
+    ]
+    try {
+      expect(
+        getGoProxyMatcher(matchers)('/secure', new NodeNextRequest(req), {})
+      ).toBe(true)
+      expect(req.headers['x-resource']).toBe('public')
+      expect(req.headers.cookie).toBe('skip=yes')
+    } finally {
+      req.destroy()
+    }
+  })
+
+  it('keeps repeated Cookie fields combined for header and cookie conditions', async () => {
+    const { matchers } = await readConfig([
+      {
+        source: '/secure',
+        has: [
+          { type: 'header', key: 'cookie', value: 'session=private; skip=yes' },
+          { type: 'cookie', key: 'skip', value: 'yes' },
+        ],
+      },
+    ])
+    const req = new IncomingMessage(new Socket())
+    req.method = 'GET'
+    req.url = '/secure'
+    req.headers = { cookie: 'session=private; skip=yes' }
+    req.rawHeaders = ['Cookie', 'session=private', 'Cookie', 'skip=yes']
+    try {
+      expect(
+        getGoProxyMatcher(matchers)('/secure', new NodeNextRequest(req), {})
+      ).toBe(true)
+    } finally {
+      req.destroy()
+    }
   })
 
   it('rejects invalid expanded sources without exiting and can recover', async () => {

@@ -61,6 +61,7 @@ import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { getGoProxyMatcher } from '../lib/native-proxy-matcher'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   isUnhandledRejectionListenerRegistered,
@@ -665,9 +666,11 @@ export default class DevServer extends Server {
     // We need to populate the match
     // field as it isn't serializable
     if (this.middleware?.match === null) {
-      this.middleware.match = getMiddlewareRouteMatcher(
-        this.middleware.matchers || []
-      )
+      const getMatcher =
+        this.middleware.runtime === 'go'
+          ? getGoProxyMatcher
+          : getMiddlewareRouteMatcher
+      this.middleware.match = getMatcher(this.middleware.matchers || [])
     }
     return this.middleware
   }

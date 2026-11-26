@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { retry } from 'next-test-utils'
+import { fetchViaRawHttp, retry } from 'next-test-utils'
 
 // Hosted Go support requires the companion adapter/builder releases.
 // @force-gate turbopack && !deploy
@@ -39,6 +39,47 @@ describe('static Go config', () => {
         await next.fetch('/missing', { headers: { cookie: 'skip=yes' } })
       ).headers.get('x-static-go-config')
     ).toBeNull()
+  })
+
+  it('keeps header conditions aligned with repeated Go request fields', async () => {
+    for (const headers of [
+      { 'x-resource': 'private' },
+      { 'x-resource': ['private', 'public'] },
+      { 'X-Resource': ['private', 'public', 'other'] },
+      { 'set-cookie': ['private', 'public'] },
+    ]) {
+      const response = await fetchViaRawHttp(next.url, '/headers/has', {
+        headers,
+      })
+      expect(response.status).toBe(403)
+      expect(await response.text()).not.toContain('secret')
+    }
+    for (const value of ['public', ['public', 'private'], 'private, public']) {
+      const response = await fetchViaRawHttp(next.url, '/headers/has', {
+        headers: { 'x-resource': value },
+      })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('public')
+    }
+  })
+
+  it('keeps header conditions aligned with Connection-nominated Go request fields', async () => {
+    for (const headers of [
+      {},
+      { connection: 'x-resource', 'x-resource': 'public' },
+      { connection: 'keep-alive, X-Resource', 'x-resource': 'public' },
+    ]) {
+      const response = await fetchViaRawHttp(next.url, '/headers/missing', {
+        headers,
+      })
+      expect(response.status).toBe(403)
+      expect(await response.text()).not.toContain('secret')
+    }
+    const response = await fetchViaRawHttp(next.url, '/headers/missing', {
+      headers: { 'x-resource': 'public' },
+    })
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('public')
   })
 
   if (isNextDev) {
@@ -184,6 +225,9 @@ describe('static Go config', () => {
           expect.objectContaining({ originalSource: '/configured' }),
           expect.anything(),
           expect.anything(),
+          expect.anything(),
+          expect.anything(),
+          expect.anything(),
         ],
       })
       await next.stop()
@@ -202,6 +246,9 @@ describe('static Go config', () => {
         config: {
           matchers: [
             expect.objectContaining({ source: '/configured' }),
+            expect.anything(),
+            expect.anything(),
+            expect.anything(),
             expect.anything(),
             expect.anything(),
           ],

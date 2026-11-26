@@ -39,7 +39,7 @@ import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { readGoProxyConfig } from '../../build/analysis/go-config'
 import type { ProxyMatcher } from '../../build/analysis/get-page-static-info'
-import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { getGoProxyMatcher } from '../lib/native-proxy-matcher'
 import {
   BLOCKED_PAGES,
   CLIENT_REFERENCE_MANIFEST,
@@ -1387,8 +1387,7 @@ export async function createHotReloaderTurbopack(
                 runtime: 'go',
                 nativeEntry: 'middleware.native.json',
               }
-              opts.fsChecker.middlewareMatcher =
-                getMiddlewareRouteMatcher(matchers)
+              opts.fsChecker.middlewareMatcher = getGoProxyMatcher(matchers)
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
