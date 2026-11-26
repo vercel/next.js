@@ -38,7 +38,7 @@ describe('json-line-channel', () => {
   function createReader() {
     const socket = new PassThrough()
     const messages: unknown[] = []
-    readJsonLines(socket as any, (message) => messages.push(message))
+    readJsonLines(socket, (message) => messages.push(message))
     return { socket, messages }
   }
 
@@ -70,8 +70,8 @@ describe('json-line-channel', () => {
   it('round trips strings with newlines', () => {
     const socket = new PassThrough()
     const messages: unknown[] = []
-    readJsonLines(socket as any, (message) => messages.push(message))
-    writeJsonLine(socket as any, ['line 1\nline 2\r\n', { nested: '\n' }])
+    readJsonLines(socket, (message) => messages.push(message))
+    writeJsonLine(socket, ['line 1\nline 2\r\n', { nested: '\n' }])
     expect(messages).toEqual([['line 1\nline 2\r\n', { nested: '\n' }]])
   })
 
@@ -256,7 +256,7 @@ describe('ForkServerWorkerProcess exit', () => {
     )
     const channel = new PassThrough()
     worker._setPid(1)
-    worker._setChannel('message', channel as any)
+    worker._setChannel('message', channel)
     const events: unknown[] = []
     worker.on('message', (message) => events.push(message))
     worker.on('exit', (code, signal) => events.push({ exit: [code, signal] }))
@@ -318,8 +318,8 @@ describe('ForkServerWorkerProcess output', () => {
     const stdoutPipe = new PassThrough()
     const stderrPipe = new PassThrough()
     worker._setPid(1)
-    worker._setChannel('stdout', stdoutPipe as any)
-    worker._setChannel('stderr', stderrPipe as any)
+    worker._setChannel('stdout', stdoutPipe)
+    worker._setChannel('stderr', stderrPipe)
     const stdout = readAll(worker.stdout)
     const stderr = readAll(worker.stderr)
     worker._exit(0, null)
@@ -338,8 +338,8 @@ describe('ForkServerWorkerProcess output', () => {
     const worker = createWorker()
     const stdoutPipe = new PassThrough()
     const stderrPipe = new PassThrough()
-    worker._setChannel('stdout', stdoutPipe as any)
-    worker._setChannel('stderr', stderrPipe as any)
+    worker._setChannel('stdout', stdoutPipe)
+    worker._setChannel('stderr', stderrPipe)
     stdoutPipe.destroy(new Error('ECONNRESET'))
     stderrPipe.destroy()
     await Promise.all([
@@ -370,7 +370,7 @@ describe('ForkServerWorkerProcess output', () => {
   it('unrefs the pipe behind an output stream', () => {
     const worker = createWorker()
     const pipe = Object.assign(new PassThrough(), { unref: jest.fn() })
-    worker._setChannel('stderr', pipe as any)
+    worker._setChannel('stderr', pipe)
     worker.stderr.unref()
     expect(pipe.unref).toHaveBeenCalled()
     // No pipe yet: nothing to unref.
