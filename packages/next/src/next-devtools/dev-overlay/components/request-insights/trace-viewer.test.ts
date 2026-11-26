@@ -2,6 +2,7 @@ import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
   type RequestInsightRelation,
+  type RequestInsightSpan,
 } from '../../../shared/request-insights'
 import { getRequestInsightFilterResult } from './request-filters'
 import {
@@ -17,10 +18,14 @@ import {
   getTraceRange,
 } from './trace-viewer'
 
-function createRequest(
-  overrides: Partial<Omit<RequestInsight, keyof RequestInsightRelation>> &
-    RequestInsightRelation = {}
-): RequestInsight {
+type SpanFixture = Omit<RequestInsightSpan, 'category'> &
+  Partial<Pick<RequestInsightSpan, 'category'>>
+
+function createRequest({
+  spans = [],
+  ...overrides
+}: Partial<Omit<RequestInsight, keyof RequestInsightRelation | 'spans'>> &
+  RequestInsightRelation & { spans?: SpanFixture[] } = {}): RequestInsight {
   return {
     requestId: 'request-1',
     source: 'unknown',
@@ -28,9 +33,12 @@ function createRequest(
     startTime: 100,
     durationMs: 100,
     status: 'ok',
-    spans: [],
     fetches: [],
     ...overrides,
+    // In place, so tests can still assert the trace viewer leaves spans intact.
+    spans: spans.map((span) =>
+      Object.assign(span, { category: span.category ?? 'application' })
+    ),
   }
 }
 
@@ -137,7 +145,16 @@ describe('request insights trace viewer', () => {
     })
     const api = createRequest({ requestId: 'api', source: 'app-route' })
     const asset = createRequest({ requestId: 'asset', source: 'asset' })
-
+    const otel = createRequest({
+      requestId: 'otel',
+      spans: [
+        {
+          name: 'database query',
+          category: 'opentelemetry',
+          startTime: 100,
+        },
+      ],
+    })
     expect(getRequestInsightRowType(page, true).label).toBe('Page load')
     expect(getRequestInsightRowType(rsc).label).toBe('RSC')
     expect(getRequestInsightRowType(api).label).toBe('API')
@@ -156,6 +173,12 @@ describe('request insights trace viewer', () => {
       getRequestInsightFilterResult([page, rsc, api, asset], ['source:asset'])
         .requests
     ).toEqual([asset])
+    expect(
+      getRequestInsightFilterResult(
+        [page, rsc, api, asset, otel],
+        ['activity:opentelemetry']
+      ).requests
+    ).toEqual([otel])
   })
 
   it('only marks the exact initial document request as the page load', () => {
@@ -669,13 +692,14 @@ describe('request insights trace viewer', () => {
     )
   })
 
-  it('uses exactly Next.js and Application categories', () => {
+  it('passes recorded span categories through', () => {
     const request = createRequest({
       spans: [
         {
           name: 'render',
           startTime: 100,
           durationMs: 10,
+          category: 'nextjs',
           attributes: {
             'next.span_category': 'nextjs',
             'next.span_type': 'BaseServer.render',
@@ -733,6 +757,7 @@ describe('request insights trace viewer', () => {
         },
         {
           name: 'internal fetch GET https://example.com/internal',
+          category: 'nextjs',
           spanId: 'internal-fetch-span',
           parentSpanId: 'root',
           startTime: 155,

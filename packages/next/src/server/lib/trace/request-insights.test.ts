@@ -9,12 +9,19 @@ import {
   subscribeRequestInsights,
 } from './request-insights'
 import { importRequestInsightSpans } from './import-request-insight-spans'
-import { recordSpan } from './span-store'
+import {
+  recordSpan as recordStoreSpan,
+  type SpanStoreRecord,
+} from './span-store'
 import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
 } from './request-insights-identity'
 import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../../shared/lib/request-insights'
+
+function recordSpan(span: Omit<SpanStoreRecord, 'timestamp' | 'category'>) {
+  recordStoreSpan({ category: 'application', ...span })
+}
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -222,6 +229,7 @@ describe('request insights', () => {
         spans: [
           {
             name: 'worker root',
+            category: 'application',
             timestamp: 1,
             traceId: 'worker-trace',
             spanId: 'worker-root',
@@ -229,6 +237,7 @@ describe('request insights', () => {
           },
           {
             name: 'worker child',
+            category: 'application',
             timestamp: 2,
             traceId: 'worker-trace',
             spanId: 'worker-child',
@@ -240,6 +249,7 @@ describe('request insights', () => {
           },
           {
             name: 'worker orphan',
+            category: 'application',
             timestamp: 3,
             traceId: 'worker-trace',
             spanId: 'worker-orphan',
@@ -933,6 +943,35 @@ describe('request insights', () => {
       })
     )
     expect(JSON.stringify(getRequestInsightsSnapshot())).not.toContain(secret)
+  })
+
+  it('drops URL credentials and query strings from OpenTelemetry spans', () => {
+    process.env.__NEXT_DEV_SERVER = 'true'
+    startRequestInsight({ requestId: 'req_otel_urls' })
+
+    recordStoreSpan({
+      category: 'opentelemetry',
+      name: 'fetch GET https://user:pass@api.example.com/v1?api_key=secret',
+      requestId: 'req_otel_urls',
+      startTime: 100,
+      durationMs: 5,
+      attributes: {
+        'url.full': 'https://user:pass@api.example.com/v1?api_key=secret',
+        'url.query': 'api_key=secret',
+        'http.target': '/v1?api_key=secret',
+        'db.statement': 'SELECT * FROM users WHERE id = ?',
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests[0].spans[0]).toMatchObject({
+      name: 'fetch GET https://api.example.com/v1?query=redacted',
+      attributes: {
+        'url.full': 'https://api.example.com/v1?query=redacted',
+        'url.query': 'redacted',
+        'http.target': '/v1?query=redacted',
+        'db.statement': 'SELECT * FROM users WHERE id = ?',
+      },
+    })
   })
 
   it('only exposes bounded URLs without query payloads', () => {

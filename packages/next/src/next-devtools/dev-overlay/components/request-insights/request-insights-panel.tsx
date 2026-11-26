@@ -1113,6 +1113,7 @@ function Trace({
                       }
                       className="request-insights-span-row"
                       data-active={index === displayedItemIndex || undefined}
+                      data-category={item.category}
                       data-kind={item.kind}
                       data-trace-item-id={item.id}
                       data-trace-index={index}
@@ -1132,15 +1133,25 @@ function Trace({
                         <span className="request-insights-span-label">
                           <span
                             className="request-insights-span-marker"
+                            data-category={item.category}
                             data-kind={item.kind}
                             data-status={item.status}
                           />
                           <span>{item.label}</span>
+                          {item.attributeLabel ? (
+                            <span
+                              className="request-insights-span-attribute-label"
+                              title={item.attributeLabel}
+                            >
+                              {item.attributeLabel}
+                            </span>
+                          ) : null}
                         </span>
                       </span>
                       <span className="request-insights-span-track">
                         <span
                           className="request-insights-span-bar"
+                          data-category={item.category}
                           data-status={item.status}
                           style={{
                             left: `${position.left}%`,
@@ -1161,6 +1172,14 @@ function Trace({
       </div>
     </div>
   )
+}
+
+function getTraceCategoryLabel(category: TraceItem['category']): string {
+  return category === 'nextjs'
+    ? 'Next.js'
+    : category === 'opentelemetry'
+      ? 'OpenTelemetry'
+      : 'Application'
 }
 
 function TraceSpanContextMenu({
@@ -1207,7 +1226,7 @@ function TraceSpanContextMenu({
               <div className="request-insights-context-preview">
                 <strong title={label}>{label}</strong>
                 <span>
-                  {item.category === 'nextjs' ? 'Next.js' : 'Application'} ·{' '}
+                  {getTraceCategoryLabel(item.category)} ·{' '}
                   {formatDuration(item.durationMs)} · {item.status}
                 </span>
                 <code title={spanId}>{spanId}</code>

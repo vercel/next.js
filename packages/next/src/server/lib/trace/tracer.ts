@@ -3,6 +3,7 @@ import type { TextMapSetter } from '@opentelemetry/api'
 import type { SpanTypes } from './constants'
 import type { LocalSpanRecorder } from './local-span-recorder'
 import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
+import { getRegisteredLocalSpanRecorder } from './local-span-recorder-registry'
 
 import type {
   Context,
@@ -17,22 +18,11 @@ import { isThenable } from '../../../shared/lib/is-thenable'
 
 const NEXT_OTEL_PERFORMANCE_PREFIX = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
 
-// Development entrypoints can contain their own tracer copy even though the
-// recorder is externalized. The registry contains only the recorder API; active
-// spans and validation collectors remain scoped by AsyncLocalStorage.
-const LOCAL_SPAN_RECORDER_KEY = Symbol.for(
-  `@next/local-span-recorder@${process.env.__NEXT_VERSION}`
-)
-
-type GlobalWithLocalSpanRecorder = typeof globalThis & {
-  [LOCAL_SPAN_RECORDER_KEY]?: LocalSpanRecorder
-}
-
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
-function getLocalSpanRecorder() {
+function getLocalSpanRecorder(): LocalSpanRecorder | undefined {
   if (process.env.__NEXT_DEV_SERVER) {
-    return (globalThis as GlobalWithLocalSpanRecorder)[LOCAL_SPAN_RECORDER_KEY]
+    return getRegisteredLocalSpanRecorder()
   } else {
     return undefined
   }
