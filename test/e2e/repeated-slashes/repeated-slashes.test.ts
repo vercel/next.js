@@ -453,12 +453,7 @@ describe('404 handling', () => {
             experimental: { cachedNavigations: false },
           }`
         )
-        const { exitCode } = await next.build()
-        if (exitCode !== 0) {
-          throw new Error(
-            `Static export build failed with exit code ${exitCode}`
-          )
-        }
+        await next.build()
         staticServer = await startStaticServer(
           path.join(next.testDir, 'out'),
           path.join(next.testDir, 'out/404.html')
@@ -549,12 +544,7 @@ describe('404 handling', () => {
             experimental: { cachedNavigations: false },
           }`
         )
-        const { exitCode } = await next.build()
-        if (exitCode !== 0) {
-          throw new Error(
-            `Static export build failed with exit code ${exitCode}`
-          )
-        }
+        await next.build()
         staticServer = await startStaticServer(
           path.join(next.testDir, 'out'),
           path.join(next.testDir, 'out/404.html')

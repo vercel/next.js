@@ -677,13 +677,15 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // The legacy option is normalized later and takes precedence when present.
-  const cacheComponents =
-    'cacheComponents' in result.experimental
-      ? result.experimental.cacheComponents
-      : result.cacheComponents
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheComponents',
+    'cacheComponents',
+    configFileName,
+    silent
+  )
 
-  if (result.output === 'export' && cacheComponents) {
+  if (result.output === 'export' && result.cacheComponents) {
     throw new Error(
       "`cacheComponents` is not yet supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#unsupported-features"
     )
@@ -1041,13 +1043,6 @@ function assignDefaultsAndValidate(
     result,
     'enablePrerenderSourceMaps',
     'enablePrerenderSourceMaps',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'cacheComponents',
-    'cacheComponents',
     configFileName,
     silent
   )
