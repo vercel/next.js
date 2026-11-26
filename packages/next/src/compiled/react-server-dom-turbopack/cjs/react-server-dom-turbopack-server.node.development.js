@@ -710,10 +710,6 @@
           if (isArrayImpl(value)) return "[...]";
           if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
             return "client";
-          if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
-            return "LedgerData";
-          if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
-            return "LedgerTotal";
           value = objectName(value);
           return "Object" === value ? "{...}" : value;
         case "function":
@@ -801,10 +797,6 @@
         objKind = "<" + describeElementType(objectOrArray.type) + "/>";
       else {
         if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
-        if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE)
-          return "LedgerData";
-        if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
-          return "LedgerTotal";
         if (jsxPropsParents.has(objectOrArray)) {
           objKind = jsxPropsParents.get(objectOrArray);
           objKind = "<" + (describeElementType(objKind) || "...");
@@ -1157,7 +1149,6 @@
       this.identifierPrefix = identifierPrefix || "";
       this.identifierCount = 1;
       this.taintCleanupQueue = [];
-      this.rootUnit = this.ledgers = null;
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
       this.onAllReady = onAllReady;
       this.onFatalError = onFatalError;
@@ -1261,8 +1252,8 @@
     }
     function resolveRequest() {
       if (currentRequest) return currentRequest;
-      var _store = requestStorage.getStore();
-      return _store ? _store : null;
+      var store = requestStorage.getStore();
+      return store ? store : null;
     }
     function runWithRequest(request, callback, argument) {
       var previousDispatcher = ReactSharedInternalsServer.H,
@@ -1972,7 +1963,7 @@
         task.debugStack,
         task.debugTask
       );
-      retryTaskImpl(request, task);
+      retryTask(request, task);
       return task.status === COMPLETED
         ? serializeByValueID(task.id)
         : serializeLazyID(task.id);
@@ -2104,7 +2095,7 @@
           { objectLimit: 2 * newFormatContext.length + 1 },
           newFormatContext
         );
-        writeToDedupeMap(request, newFormatContext, id, serializeByValueID(id));
+        request.writtenObjects.set(newFormatContext, serializeByValueID(id));
       }
       request = [
         REACT_ELEMENT_TYPE,
@@ -2370,7 +2361,7 @@
         null === model ||
         null !== keyPath ||
         implicitSlot ||
-        writeToDedupeMap(request, model, id, serializeByValueID(id));
+        request.writtenObjects.set(model, serializeByValueID(id));
       var task = {
         id: id,
         status: PENDING$1,
@@ -2382,7 +2373,6 @@
           return pingTask(request, task);
         },
         thenableState: null,
-        unit: null,
         timed: !1
       };
       task.time = lastTimestamp;
@@ -2460,11 +2450,6 @@
             : (jsonValue[_resolved] = resolvedValue);
         }
       return jsonValue;
-    }
-    function writeToDedupeMap(request, value, id, reference) {
-      id = { id: id, reference: reference };
-      request.writtenObjects.set(value, id);
-      return id;
     }
     function serializeByValueID(id) {
       return "$" + id.toString(16);
@@ -2588,7 +2573,7 @@
         null,
         null
       );
-      retryTaskImpl(request, value);
+      retryTask(request, value);
       return value.id;
     }
     function serializeServerReference(request, serverReference) {
@@ -2856,31 +2841,28 @@
       if ("object" === typeof value) {
         switch (value.$$typeof) {
           case REACT_ELEMENT_TYPE:
-            var elementEntry = null,
+            var elementReference = null,
               _writtenObjects = request.writtenObjects;
             if (null === task.keyPath && !task.implicitSlot) {
-              var _existingEntry = _writtenObjects.get(value);
-              if (void 0 !== _existingEntry)
+              var _existingReference = _writtenObjects.get(value);
+              if (void 0 !== _existingReference)
                 if (modelRoot === value) modelRoot = null;
-                else return _existingEntry.reference;
+                else return _existingReference;
               else
                 -1 === parentPropertyName.indexOf(":") &&
-                  ((_existingEntry = _writtenObjects.get(parent)),
-                  void 0 !== _existingEntry &&
-                    (elementEntry = writeToDedupeMap(
-                      request,
-                      value,
-                      _existingEntry.id,
-                      _existingEntry.reference + ":" + parentPropertyName
-                    )));
+                  ((_existingReference = _writtenObjects.get(parent)),
+                  void 0 !== _existingReference &&
+                    ((elementReference =
+                      _existingReference + ":" + parentPropertyName),
+                    _writtenObjects.set(value, elementReference)));
             }
             if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
-            if ((_existingEntry = value._debugInfo))
+            if ((_existingReference = value._debugInfo))
               if (canEmitDebugInfo)
-                forwardDebugInfo(request, task, _existingEntry);
+                forwardDebugInfo(request, task, _existingReference);
               else return outlineTask(request, task);
-            _existingEntry = value.props;
-            var refProp = _existingEntry.ref;
+            _existingReference = value.props;
+            var refProp = _existingReference.ref;
             refProp = void 0 !== refProp ? refProp : null;
             task.debugOwner = value._owner;
             task.debugStack = value._debugStack;
@@ -2907,19 +2889,19 @@
               value.type,
               value.key,
               refProp,
-              _existingEntry,
+              _existingReference,
               value._store.validated
             );
             "object" === typeof request &&
               null !== request &&
-              null !== elementEntry &&
+              null !== elementReference &&
               (_writtenObjects.has(request) ||
-                _writtenObjects.set(request, elementEntry));
+                _writtenObjects.set(request, elementReference));
             return request;
           case REACT_LAZY_TYPE:
             if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             task.thenableState = null;
-            elementEntry = callLazyInitInDEV(value);
+            elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
             if ((_writtenObjects = value._debugInfo))
               if (canEmitDebugInfo)
@@ -2930,7 +2912,7 @@
               task,
               parent,
               parentPropertyName,
-              elementEntry
+              elementReference
             );
           case REACT_LEGACY_ELEMENT_TYPE:
             throw Error(
@@ -2946,12 +2928,12 @@
           );
         if (
           void 0 !== request.temporaryReferences &&
-          ((elementEntry = request.temporaryReferences.get(value)),
-          void 0 !== elementEntry)
+          ((elementReference = request.temporaryReferences.get(value)),
+          void 0 !== elementReference)
         )
-          return "$T" + elementEntry;
-        elementEntry = request.writtenObjects;
-        _writtenObjects = elementEntry.get(value);
+          return "$T" + elementReference;
+        elementReference = request.writtenObjects;
+        _writtenObjects = elementReference.get(value);
         if ("function" === typeof value.then) {
           if (void 0 !== _writtenObjects) {
             if (null !== task.keyPath || task.implicitSlot)
@@ -2959,43 +2941,41 @@
                 "$@" + serializeThenable(request, task, value).toString(16)
               );
             if (modelRoot === value) modelRoot = null;
-            else return _writtenObjects.reference;
+            else return _writtenObjects;
           }
-          task = serializeThenable(request, task, value);
-          elementEntry = "$@" + task.toString(16);
-          writeToDedupeMap(request, value, task, elementEntry);
-          return elementEntry;
+          request = "$@" + serializeThenable(request, task, value).toString(16);
+          elementReference.set(value, request);
+          return request;
         }
         if (void 0 !== _writtenObjects)
           if (modelRoot === value) {
-            if (_writtenObjects.reference !== serializeByValueID(task.id))
-              return _writtenObjects.reference;
+            if (_writtenObjects !== serializeByValueID(task.id))
+              return _writtenObjects;
             modelRoot = null;
-          } else return _writtenObjects.reference;
+          } else return _writtenObjects;
         else if (
           -1 === parentPropertyName.indexOf(":") &&
-          ((elementEntry = elementEntry.get(parent)), void 0 !== elementEntry)
+          ((_writtenObjects = elementReference.get(parent)),
+          void 0 !== _writtenObjects)
         ) {
-          _writtenObjects = parentPropertyName;
+          _existingReference = parentPropertyName;
           if (isArrayImpl(parent) && parent[0] === REACT_ELEMENT_TYPE)
             switch (parentPropertyName) {
               case "1":
-                _writtenObjects = "type";
+                _existingReference = "type";
                 break;
               case "2":
-                _writtenObjects = "key";
+                _existingReference = "key";
                 break;
               case "3":
-                _writtenObjects = "props";
+                _existingReference = "props";
                 break;
               case "4":
-                _writtenObjects = "_owner";
+                _existingReference = "_owner";
             }
-          writeToDedupeMap(
-            request,
+          elementReference.set(
             value,
-            elementEntry.id,
-            elementEntry.reference + ":" + _writtenObjects
+            _writtenObjects + ":" + _existingReference
           );
         }
         if (isArrayImpl(value)) return renderFragment(request, task, value);
@@ -3032,27 +3012,28 @@
           return serializeTypedArray(request, "V", value);
         if ("function" === typeof Blob && value instanceof Blob)
           return serializeBlob(request, value);
-        if ((elementEntry = getIteratorFn(value)))
+        if ((elementReference = getIteratorFn(value)))
           return (
-            (elementEntry = elementEntry.call(value)),
-            elementEntry === value
+            (elementReference = elementReference.call(value)),
+            elementReference === value
               ? "$i" +
-                outlineModel(request, Array.from(elementEntry)).toString(16)
-              : renderFragment(request, task, Array.from(elementEntry))
+                outlineModel(request, Array.from(elementReference)).toString(16)
+              : renderFragment(request, task, Array.from(elementReference))
           );
         if (
           "function" === typeof ReadableStream &&
           value instanceof ReadableStream
         )
           return serializeReadableStream(request, task, value);
-        elementEntry = value[ASYNC_ITERATOR];
-        if ("function" === typeof elementEntry)
-          return renderAsyncFragment(request, task, value, elementEntry);
+        elementReference = value[ASYNC_ITERATOR];
+        if ("function" === typeof elementReference)
+          return renderAsyncFragment(request, task, value, elementReference);
         if (value instanceof Date) return "$D" + value.toJSON();
-        elementEntry = getPrototypeOf(value);
+        elementReference = getPrototypeOf(value);
         if (
-          elementEntry !== ObjectPrototype$1 &&
-          (null === elementEntry || null !== getPrototypeOf(elementEntry))
+          elementReference !== ObjectPrototype$1 &&
+          (null === elementReference ||
+            null !== getPrototypeOf(elementReference))
         )
           throw Error(
             "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
@@ -3147,10 +3128,11 @@
       }
       if ("symbol" === typeof value) {
         task = request.writtenSymbols;
-        elementEntry = task.get(value);
-        if (void 0 !== elementEntry) return serializeByValueID(elementEntry);
-        elementEntry = value.description;
-        if (Symbol.for(elementEntry) !== value)
+        elementReference = task.get(value);
+        if (void 0 !== elementReference)
+          return serializeByValueID(elementReference);
+        elementReference = value.description;
+        if (Symbol.for(elementReference) !== value)
           throw Error(
             "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
               (value.description + ") cannot be found among global symbols.") +
@@ -3158,7 +3140,7 @@
           );
         request.pendingChunks++;
         _writtenObjects = request.nextChunkId++;
-        emitSymbolChunk(request, _writtenObjects, elementEntry);
+        emitSymbolChunk(request, _writtenObjects, elementReference);
         task.set(value, _writtenObjects);
         return serializeByValueID(_writtenObjects);
       }
@@ -3426,10 +3408,10 @@
           (componentDebugInfo.stack = componentInfo.stack);
       componentDebugInfo.props = componentInfo.props;
       existingRef = outlineDebugModel(request, existingRef, componentDebugInfo);
-      componentDebugInfo = serializeByValueID(existingRef);
-      request.writtenDebugObjects.set(componentInfo, componentDebugInfo);
-      writeToDedupeMap(request, componentInfo, existingRef, componentDebugInfo);
-      return componentDebugInfo;
+      existingRef = serializeByValueID(existingRef);
+      request.writtenDebugObjects.set(componentInfo, existingRef);
+      request.writtenObjects.set(componentInfo, existingRef);
+      return existingRef;
     }
     function emitIOInfoChunk(
       request,
@@ -3664,7 +3646,7 @@
             return serializeByValueID(request);
           }
         parent = request.writtenObjects.get(value);
-        if (void 0 !== parent) return parent.reference;
+        if (void 0 !== parent) return parent;
         if (0 >= counter.objectLimit && !doNotLimit.has(value))
           return serializeDeferredObject(request, value);
         counter.objectLimit--;
@@ -4256,7 +4238,7 @@
       request.abortableTasks.delete(task);
       callOnAllReadyIfReady(request);
     }
-    function retryTaskImpl(request, task) {
+    function retryTask(request, task) {
       task.status === PENDING$1 &&
         runWithRequest(request, retryTaskWithRequest, task);
     }
@@ -4284,10 +4266,8 @@
           emitDebugChunk(request, task.id, { env: currentEnv }));
         task.timed && markOperationEndTime(request, task, performance.now());
         if ("object" === typeof resolvedModel && null !== resolvedModel)
-          writeToDedupeMap(
-            request,
+          request.writtenObjects.set(
             resolvedModel,
-            task.id,
             serializeByValueID(task.id)
           ),
             emitChunk(request, task, resolvedModel);
@@ -4353,7 +4333,7 @@
         var pingedTasks = request.pingedTasks;
         request.pingedTasks = [];
         for (var i = 0; i < pingedTasks.length; i++)
-          retryTaskImpl(request, pingedTasks[i]);
+          retryTask(request, pingedTasks[i]);
         flushCompletedChunks(request);
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
@@ -4520,10 +4500,9 @@
             }
           errorChunks.splice(0, debugChunks);
         } finally {
-          (request.flushScheduled = !1),
-            completeWriting(debugDestination),
-            flushBuffered(debugDestination);
+          (request.flushScheduled = !1), completeWriting(debugDestination);
         }
+        flushBuffered(debugDestination);
       }
       0 === request.pendingChunks &&
         (request.status < ABORTING &&
@@ -4552,10 +4531,7 @@
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
       scheduleMicrotask(function () {
-        var rootUnit = request.rootUnit;
-        null !== rootUnit
-          ? unitStorage.run(rootUnit, performWork, request)
-          : requestStorage.run(request, performWork, request);
+        requestStorage.run(request, performWork, request);
       });
       setImmediate(function () {
         request.status === OPENING && (request.status = 11);
@@ -6247,8 +6223,6 @@
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
-      REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
-      REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
@@ -6568,8 +6542,7 @@
         cacheSignal: function () {
           var request = resolveRequest();
           return request ? request.cacheController.signal : null;
-        },
-        units: null
+        }
       };
     DefaultAsyncDispatcher.getOwner = resolveOwner;
     var ReactSharedInternalsServer =
@@ -6836,7 +6809,6 @@
       PRERENDER = 21,
       NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol(),
       currentRequest = null,
-      unitStorage = requestStorage,
       canEmitDebugInfo = !1,
       serializedSize = 0,
       MAX_ROW_SIZE = 3200,
