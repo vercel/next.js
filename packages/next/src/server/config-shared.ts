@@ -46,7 +46,6 @@ export type PrefetchInliningConfig =
  */
 export interface ImgOptSafeModeConfig {
   nextImage: boolean
-  imageResponse: boolean
 }
 
 export type NextConfigComplete = Required<
@@ -704,12 +703,9 @@ export interface ExperimentalConfig {
    * `images.loader: 'custom'` and [`images.loaderFile`], as the built-in image
    * optimizer is not used.
    *
-   * `true` enables it everywhere. An object enables it individually for
-   * `next/image` (`nextImage`) and `ImageResponse` (`imageResponse`). Omitted
+   * `true` enables it everywhere. An object enables it individually per
+   * feature. Currently the only feature is `next/image` (`nextImage`). Omitted
    * keys default to `false`.
-   *
-   * Currently, only `nextImage` is implemented. `imageResponse` has no effect
-   * yet.
    *
    * Compared to `sharp`, for `next/image`:
    * - Output formats: Only WebP, PNG, JPEG, and GIF output are supported.
@@ -725,7 +721,6 @@ export interface ExperimentalConfig {
     | boolean
     | {
         nextImage?: boolean
-        imageResponse?: boolean
       }
   optimisticClientCache?: boolean
   /**
