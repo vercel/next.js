@@ -395,6 +395,8 @@ See the Playwright guide for [installation](/docs/app/guides/testing/playwright#
 
 ## Fixing a navigation that blocks
 
+Open the route in `next dev` without pausing navigations. Check the terminal or browser for the [validation message](/docs/messages/instant-navigation-validation) that identifies what blocked the route. In Playwright, open it outside `instant()` in a fresh browser context without [request interception](/docs/app/guides/testing/playwright#request-interception-in-development). A route handler can hide the message even when it never matches a request.
+
 Consider a different route, `/products/[slug]`, that fetches product data from a public API and shows a featured list alongside:
 
 ```tsx filename="app/products/[slug]/page.tsx"

@@ -306,7 +306,7 @@ To test a loading state, wrap the page load or link click in [`instant()`](#test
 
 Registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) disables the browser's HTTP cache, even if no request matches the handler. Chromium then sends `Cache-Control: no-cache` on every request, including the initial page load. As with a hard refresh, `next dev` [bypasses server caches](/docs/messages/cache-bypass-in-dev) and skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request.
 
-If your test needs to intercept requests, for example to simulate an API failure, also open the page in a separate browser context without request interception. You can then check the browser and the `next dev` terminal for navigation errors and insights.
+If your test needs to intercept requests, for example to simulate an API failure, also open the page in a separate browser context without request interception. Check the browser or the `next dev` terminal for navigation errors and insights. If the route blocks, use the [validation message to find the cause](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
 
 ### Limitations
 
