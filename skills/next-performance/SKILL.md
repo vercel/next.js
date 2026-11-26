@@ -26,7 +26,7 @@ Default: diagnose. Edit only on explicit request.
   request cannot be recovered.
 
 - **Browser:** For slow startup or navigation, or excess client JavaScript, use
-  `next-bundle-optimizer` in audit mode. If unavailable, install it:
+  `next-bundle-optimizer` in audit mode. If unavailable, ask before installing it:
 
   ```bash
   npx skills add vercel/next.js --skill next-bundle-optimizer

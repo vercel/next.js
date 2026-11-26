@@ -129,3 +129,36 @@ it('treats Grep and Glob tool calls like shell searches', () => {
     bundledDocsReads: [],
   })
 })
+
+it.each([
+  "find . -name '*.tsx' -not -path './node_modules/*'",
+  'grep -rn generateMetadata app lib --exclude-dir=node_modules/',
+  'rg -n generateMetadata',
+])('counts a project search before the CLI: %s', (command) => {
+  expect(
+    collect([
+      toolCall('shell', { command }),
+      toolCall('shell', {
+        command: 'npx next experimental-request-insights list --json',
+      }),
+    ])
+  ).toMatchObject({ requestInsightsBeforeProjectInspection: false })
+})
+
+it('does not treat a search for the CLI name as running it', () => {
+  const search =
+    "grep -rn 'next experimental-request-insights' node_modules/next/dist/docs/"
+  expect(
+    collect([
+      toolCall('shell', { command: search }),
+      toolCall('file_read', { file_path: '/workspace/app/page.tsx' }),
+      toolCall('shell', {
+        command: 'npx next experimental-request-insights list --json',
+      }),
+    ])
+  ).toEqual({
+    requestInsightsBeforeProjectInspection: false,
+    bundledDocsSearches: [search],
+    bundledDocsReads: [],
+  })
+})

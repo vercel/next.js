@@ -15,11 +15,23 @@ const outsideProject = /node_modules\/|(?:^|[\s"'])\/tmp\//
 const searchTools = new Set(['grep', 'glob'])
 const shellSearch = /\b(?:find|grep|rg)\b/
 const shellRead = /\b(?:cat|head|less|sed|tail)\b/
+const shellSearchOrReadLead = /^\s*(?:find|grep|rg|cat|head|less|sed|tail)\b/
+// Exclusion flags name dependencies without searching them.
+const searchExclusions =
+  /--exclude(?:-dir)?=\S+|(?:-not|!)\s+-i?(?:path|name)\s+\S+|(?:-g|--glob)[=\s]['"]?!\S+/g
 
 function classify({ name, args = {} }) {
   const text = args.command ?? JSON.stringify(args)
-  if (requestInsightsCommand.test(text)) return { kind: 'request-insights' }
-  const target = args.file_path ?? args.path ?? text
+  // Searching for or reading about the CLI isn't running it.
+  if (
+    name === 'shell' &&
+    !shellSearchOrReadLead.test(text) &&
+    requestInsightsCommand.test(text)
+  ) {
+    return { kind: 'request-insights' }
+  }
+  const target =
+    args.file_path ?? args.path ?? text.replace(searchExclusions, '')
   const search =
     searchTools.has(name) || (name === 'shell' && shellSearch.test(text))
   const read =
@@ -31,10 +43,9 @@ function classify({ name, args = {} }) {
       : { kind: 'docs-read', evidence: target }
   }
   if (outsideProject.test(target) || agentGuidance.test(target)) return null
-  // Grep/Glob default to the project root when no path is given.
-  return searchTools.has(name) || projectSource.test(target)
-    ? { kind: 'project' }
-    : null
+  // Searches without an outside path run from the project root, like Grep/Glob
+  // without `path`.
+  return search || projectSource.test(target) ? { kind: 'project' } : null
 }
 
 export async function collect(directory) {
