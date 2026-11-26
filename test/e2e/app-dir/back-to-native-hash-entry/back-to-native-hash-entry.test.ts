@@ -67,6 +67,31 @@ describe('back-to-native-hash-entry', () => {
     await expectNoReload(browser)
   })
 
+  it('does not reload when setting window.location.hash', async () => {
+    const browser = await openPageA()
+
+    // Regression coverage for #90268: setting the hash must not reload the page.
+    await browser.eval(`window.location.hash = 'section'`)
+    await expectPage(browser, 'Page A', '/#section')
+    await expectSectionScrolledIntoView(browser)
+    await expectNoReload(browser)
+
+    await browser.elementByCss('#link-to-b').click()
+    await expectPage(browser, 'Page B', '/b')
+
+    await browser.back()
+    await expectPage(browser, 'Page A', '/#section')
+    await expectNoReload(browser)
+
+    await browser.back()
+    await expectPage(browser, 'Page A', '/')
+
+    await browser.forward()
+    await expectPage(browser, 'Page A', '/#section')
+    await expectSectionScrolledIntoView(browser)
+    await expectNoReload(browser)
+  })
+
   it('renders the page that owns a next/link hash entry on Back', async () => {
     const browser = await openPageA()
 
