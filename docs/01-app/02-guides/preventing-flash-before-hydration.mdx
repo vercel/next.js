@@ -539,9 +539,7 @@ export function ThemeToggle() {
 
 ### Rendering client-specific content
 
-With React 19.3, call `use(browser())` in a Client Component to defer its rendering to the browser. Wrap the component in `<Suspense>` with a fallback.
-
-A `<Suspense>` boundary shows its fallback when a child suspends. Wrapping a Client Component in `<Suspense>` alone does not make it browser-only. In this example, `use(browser())` suspends during server rendering.
+With React 19.3, call [`use(browser())` in a Client Component inside a parent `<Suspense>` boundary](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to defer its rendering to the browser. A boundary alone does not make the component browser-only: it shows its fallback when `use(browser())` suspends during server rendering. The linked guide also explains when a browser-only library needs `next/dynamic` to defer its module import.
 
 Deferring prerendering with [`io()`](/docs/app/api-reference/functions/io) still allows request-time server rendering. It does not make a component browser-only or preserve generated values for hydration. Generating a fresh timestamp or random value on both the server and browser can still cause a mismatch. State and refs alone do not transfer those values between environments.
 
@@ -621,7 +619,9 @@ export default function Page() {
 
 The fallback uses the same `serverLabel` prop on the server and during hydration, so it doesn't need `suppressHydrationWarning`. The browser formats the date only inside `BrowserDate`, after `use(browser())` allows rendering to continue.
 
-Once `BrowserDate` is ready, React replaces the fallback with the browser-formatted date, coordinating the update with other pending Suspense reveals. This avoids a hydration mismatch, but the displayed date can still change. If browser formatting must be visible before React loads, use the [inline script approach](#fixing-it-with-an-inline-script).
+With a static import, `BrowserDate` can render in the pass that hydrates the page because `use(browser())` does not suspend in the browser. If the component also suspends for data or lazy-loaded code, its reveal follows the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+
+This avoids a hydration mismatch, but the displayed date can still change. If browser formatting must be visible before React loads, use the [inline script approach](#fixing-it-with-an-inline-script).
 
 A shared placeholder also avoids a hydration mismatch. For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
