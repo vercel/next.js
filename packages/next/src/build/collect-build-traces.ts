@@ -303,8 +303,7 @@ export async function collectBuildTraces({
         // affected, since routes can call `imageOptimizerTransform()` directly.
         // The package path itself is also ignored, or the pnpm symlink to it
         // would be copied and left dangling.
-        ...(config.experimental.imgOptSafeMode.nextImage ||
-        config.experimental.imgOptSafeMode.imageResponse
+        ...(config.experimental.imgOptSafeMode.nextImage
           ? []
           : [
               '**/node_modules/@next/safe-image-optimization*',
