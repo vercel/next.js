@@ -31,7 +31,7 @@
 # App Router runtime
 # ----------------------------------------------------------------------
 
-[app-render-pipeline] @unstubbable @lubieowoce
+[app-render-pipeline] @lubieowoce @acdlite
 packages/next/src/server/app-render/app-render.tsx
 packages/next/src/server/app-render/{create-component-tree,create-component-styles-and-scripts,get-layer-assets,get-css-inlined-link-tags,required-scripts,make-get-server-inserted-html,server-inserted-html,use-flight-response,render-css-resource,turbopack-bootstrap-script,get-asset-query-string,flight-render-result,react-large-shell-error,app-render-render-utils,app-render-scheduling,entry-base,interop-default,get-script-nonce-from-header,get-short-dynamic-param-type,has-loading-component-in-tree,install-global-module-loading-handlers,manifests-singleton,render-in-browser,types,wait-for-response}.{ts,tsx}
 packages/next/src/shared/lib/server-inserted-html.shared-runtime.tsx
@@ -45,7 +45,7 @@ packages/next/src/server/stream-utils/**
 packages/next/src/build/templates/app-page*.ts
 test/e2e/app-dir/{app-rendering,rsc-basic,app-css,app-inline-css,csp-nonce-segment-scripts,use-server-inserted-html,streaming-*}/**
 
-[rsc-payload-format] @acdlite @unstubbable
+[rsc-payload-format] @acdlite @lubieowoce
 packages/next/src/shared/lib/rsc-transport.ts
 packages/next/src/shared/lib/app-router-types.ts
 packages/next/src/shared/lib/segment-cache/**
@@ -82,7 +82,7 @@ packages/next/src/client/app-dir/link.tsx
 packages/next/src/server/app-render/collect-segment-data.tsx
 test/e2e/app-dir/segment-cache*/**
 
-[server-actions] @unstubbable @mischnic
+[server-actions] @mischnic @lubieowoce
 packages/next/src/server/app-render/{action-handler,csrf-protection,encryption,encryption-utils,encryption-utils-server,action-async-storage-instance,action-async-storage.external}.ts
 packages/next/src/server/lib/server-action-request-meta.ts
 packages/next/src/client/{app-call-server,concurrent-call-server,sequential-call-server,form,form-shared}.ts*
@@ -101,7 +101,7 @@ crates/next-api/src/server_actions.rs
 packages/next/src/server/dev/server-action-logger.ts
 test/e2e/app-dir/{actions*,action-*,server-action*,mpa-server-action-html,no-server-actions}/**
 
-[app-prerender-and-dynamic-apis] @lubieowoce @unstubbable
+[app-prerender-and-dynamic-apis] @lubieowoce @acdlite
 packages/next/src/server/app-render/{dynamic-rendering,dynamic-rendering-client,dynamic-rendering-validation,staged-rendering,postponed-state,app-render-prerender-utils,prospective-render-utils,cache-signal,stale-time,sync-io-messages,blocking-route-messages,dev-validation-*,dev-response-lifecycle,instant-test-bootstrap,work-async-storage-instance,work-async-storage.external,work-unit-async-storage-instance,work-unit-async-storage.external,dynamic-access-async-storage-instance,dynamic-access-async-storage.external,async-local-storage}.{ts,tsx}
 packages/next/src/server/app-render/instant-validation/**
 packages/next/src/server/app-render/segment-config/**
@@ -188,7 +188,7 @@ test/development/pages-dir/**
 # Caching
 # ----------------------------------------------------------------------
 
-[use-cache] @unstubbable @lubieowoce
+[use-cache] @lubieowoce @mischnic
 packages/next/src/server/use-cache/**
 packages/next/src/server/lib/cache-handlers/**
 packages/next/src/server/lib/incremental-cache/tags-manifest.external.ts
@@ -204,7 +204,7 @@ test/e2e/app-dir/{resume-data-cache,draft-mode-resume-data-cache,streamed-cache-
 test/e2e/cache-handlers-upstream-wiring/**
 test/unit/incremental-cache-handler-context.test.ts
 
-[incremental-cache-and-revalidation] @unstubbable @eps1lon
+[incremental-cache-and-revalidation] @timneutkens @lubieowoce
 packages/next/src/server/lib/incremental-cache/**
 packages/next/src/server/response-cache/**
 packages/next/src/server/lib/{patch-fetch,patch-fetch-symbol,dedupe-fetch,cache-control,route-cache-key,implicit-tags,disk-lru-cache.external,lru-cache,clone-response}.ts
@@ -242,7 +242,7 @@ test/e2e/{basepath*,i18n-*,custom-routes-i18n*,trailing-slash*,trailingslash-wit
 test/production/options-request/**
 test/e2e/app-dir/{app-basepath*,basepath-fallback-params,trailingslash,i18n-hybrid,rewrites-redirects,rewrite-headers,rewrite-with-search-params,redirect-rewrite-dynamic*,x-forwarded-headers,external-redirect,no-duplicate-headers-*,proxy-*,app-routes-trailing-slash,asset-prefix*}/**
 
-[server-request-pipeline] @unstubbable @lubieowoce
+[server-request-pipeline] @lubieowoce @timneutkens
 packages/next/src/server/{base-server,next-server,next,load-components,load-default-error-components,load-manifest.external,send-payload,send-response,serve-static,render-result,body-streams,pipe-readable,accept-header,server-route-utils,server-utils,route-kind,get-page-files,get-route-from-entrypoint,get-app-route-from-entrypoint,match-bundle,require,require-hook,setup-http-agent-env,post-process,patch-error-inspect,utils,internal-utils}.ts*
 packages/next/src/server/base-http/**
 packages/next/src/server/route-definitions/**
@@ -290,7 +290,7 @@ test/e2e/edge-*/**
 test/e2e/app-dir/{app-middleware*,middleware-*,app-edge*,edge-*,proxy-and-middleware-conflict,proxy-with-middleware,treeshake-mw,otel-middleware-trace}/**
 test/e2e/invalid-middleware-matchers/**
 
-[image-optimization] @styfle @eps1lon
+[image-optimization] @styfle @bgw
 packages/next/src/server/image-optimizer.ts
 packages/next/src/server/image-optimizer/**
 packages/next/src/server/is-private-ip.ts
@@ -538,7 +538,7 @@ packages/next/src/client/dev/noop-turbopack-hmr.ts
 # SWC / native transforms
 # ----------------------------------------------------------------------
 
-[swc-transforms] @lukesandberg @unstubbable
+[swc-transforms] @lukesandberg @mischnic
 crates/next-custom-transforms/**
 crates/next-core/src/next_shared/transforms/**
 crates/next-core/src/transform_options.rs
@@ -659,7 +659,7 @@ scripts/check-examples.sh
 packages/next-codemod/**
 packages/next/src/cli/next-upgrade.ts
 
-[satellite-packages] @eps1lon @devjiwonchoi
+[satellite-packages] @devjiwonchoi @timneutkens
 packages/eslint-plugin-next/**
 packages/eslint-config-next/**
 packages/eslint-plugin-internal/**
@@ -692,7 +692,7 @@ test/e2e/app-dir/{third-parties,mdx*,monaco-editor}/**
 # Infra / CI / test infra
 # ----------------------------------------------------------------------
 
-[ci-and-release] @eps1lon @bgw
+[ci-and-release] @bgw @timneutkens
 .github/**
 scripts/{start-release,publish-release,release-*,version-bump,normalize-version-bump,check-is-release,check-backport-canary-release,undraft-release,set-preview-version,create-preview-tarballs,upload-preview-tarballs,wait-for-preview-tarball,patch-preview-tarball,inject-deploy-url,generate-release-log,automated-update-workflow,adopt-pr,pr-ci-comment,pr-logs,pr-status,git-configure,git-info,run-for-change,sweep,rm,sync-react,upload-adapter-test-results,deploy-turbopack-docs,setup-node,next-with-deps,trace-dd,test-stats-benchmark,send-trace-to-jaeger}*
 scripts/github-utils/**
@@ -734,7 +734,7 @@ turbopack/.editorconfig
 AGENTS.md
 .agents/skills/{create-pr,gh-stack,backport-pr,pr-status-triage,deploy-release-test}/**
 
-[test-infra] @eps1lon @sokra
+[test-infra] @sokra @bgw
 test/lib/**
 test/*.js
 test/*.ts
@@ -756,7 +756,7 @@ bench/**
 test/production/bundle-size/**
 test/e2e/{testmode,next-test}/**
 
-[react-vendoring] @eps1lon @bgw
+[react-vendoring] @bgw @acdlite
 packages/next/src/compiled/react/**
 packages/next/src/compiled/react-dom/**
 packages/next/src/compiled/react-experimental/**
@@ -783,7 +783,7 @@ scripts/sync-react.js
 test/lib/react-channel-require-hook.js
 test/e2e/app-dir/{taint,temporary-references,view-transitions,gesture-transitions}/**
 
-[react] @acdlite @eps1lon @unstubbable
+[react] @acdlite @lubieowoce
 packages/next/src/compiled/react/**
 packages/next/src/compiled/react-dom/**
 packages/next/src/compiled/react-experimental/**
@@ -799,7 +799,7 @@ packages/next/src/server/app-render/entry-base.ts
 packages/next/src/server/app-render/react-server.node.ts
 scripts/sync-react.js
 
-[next-package-build] @eps1lon @timneutkens
+[next-package-build] @timneutkens @devjiwonchoi
 packages/next/src/compiled/**
 packages/next/taskfile*.js
 packages/next/tsconfig*.json
