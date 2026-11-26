@@ -206,13 +206,10 @@ export async function handleRouteType({
           }
           documentOrAppChanged ||=
             hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
-          processIssues(
-            currentEntryIssues,
-            key,
-            writtenEndpoint,
-            false,
-            logErrors
-          )
+          processIssues(currentEntryIssues, key, writtenEndpoint, {
+            throwIssue: false,
+            logErrors,
+          })
         }
         await manifestLoader.loadBuildManifest('_app')
         await manifestLoader.loadPagesManifest('_app')
@@ -224,13 +221,10 @@ export async function handleRouteType({
             await entrypoints.global.document.writeToDisk()
           documentOrAppChanged ||=
             hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
-          processIssues(
-            currentEntryIssues,
-            key,
-            writtenEndpoint,
-            false,
-            logErrors
-          )
+          processIssues(currentEntryIssues, key, writtenEndpoint, {
+            throwIssue: false,
+            logErrors,
+          })
         }
         await manifestLoader.loadPagesManifest('_document')
 
@@ -261,13 +255,10 @@ export async function handleRouteType({
           entrypoints,
         })
 
-        processIssues(
-          currentEntryIssues,
-          serverKey,
-          writtenEndpoint,
-          false,
-          logErrors
-        )
+        processIssues(currentEntryIssues, serverKey, writtenEndpoint, {
+          throwIssue: false,
+          logErrors,
+        })
       } finally {
         if (dev) {
           // TODO subscriptions should only be caused by the WebSocket connections
@@ -359,7 +350,10 @@ export async function handleRouteType({
         entrypoints,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, {
+        throwIssue: true,
+        logErrors,
+      })
 
       break
     }
@@ -422,7 +416,10 @@ export async function handleRouteType({
         entrypoints,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, {
+        throwIssue: dev,
+        logErrors,
+      })
 
       break
     }
@@ -465,7 +462,10 @@ export async function handleRouteType({
       if (isNative) {
         // Native compilation may fail without publishing manifests. Keep the
         // issue subscription above active so source edits can repair the route.
-        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+        processIssues(currentEntryIssues, key, writtenEndpoint, {
+          throwIssue: true,
+          logErrors,
+        })
       }
 
       manifestLoader.loadAppPathsManifest(page)
@@ -486,7 +486,10 @@ export async function handleRouteType({
         entrypoints,
       })
       if (!isNative) {
-        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+        processIssues(currentEntryIssues, key, writtenEndpoint, {
+          throwIssue: true,
+          logErrors,
+        })
       }
 
       break
@@ -744,7 +747,10 @@ export async function handleEntrypoints({
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, {
+        throwIssue: false,
+        logErrors,
+      })
       finishBuilding()
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
@@ -788,16 +794,10 @@ export async function handleEntrypoints({
       )
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
-      if (logErrors && writtenEndpoint.value.type === 'native') {
-        // A Go proxy that failed to build has no fallback, so report its
-        // errors in the terminal as well as in the overlay.
-        for (const issue of writtenEndpoint.issues) {
-          if (issue.severity === 'error' || issue.severity === 'fatal') {
-            Log.error(formatIssue(issue))
-          }
-        }
-      }
+      processIssues(currentEntryIssues, key, writtenEndpoint, {
+        throwIssue: false,
+        logErrors,
+      })
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
@@ -975,7 +975,10 @@ export async function handlePagesErrorRoute({
         }
       }
     )
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, {
+      throwIssue: false,
+      logErrors,
+    })
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
@@ -1003,7 +1006,10 @@ export async function handlePagesErrorRoute({
         }
       }
     )
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, {
+      throwIssue: false,
+      logErrors,
+    })
   }
   await manifestLoader.loadPagesManifest('_document')
 
@@ -1030,7 +1036,10 @@ export async function handlePagesErrorRoute({
         }
       }
     )
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, {
+      throwIssue: false,
+      logErrors,
+    })
   }
   await manifestLoader.loadClientBuildManifest('_error')
   await manifestLoader.loadBuildManifest('_error')

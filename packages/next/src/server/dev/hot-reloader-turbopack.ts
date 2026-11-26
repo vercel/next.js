@@ -112,6 +112,7 @@ import {
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
   type IssuesMap,
+  type ProcessIssuesOptions,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
@@ -1115,7 +1116,10 @@ export async function createHotReloaderTurbopack(
       const changed = await changedPromise
 
       for await (const change of changed) {
-        processIssues(currentEntryIssues, key, change, false, true)
+        processIssues(currentEntryIssues, key, change, {
+          throwIssue: false,
+          logErrors: true,
+        })
         // TODO: Get an actual content hash from Turbopack.
         const message = await createMessage(
           change,
@@ -1160,26 +1164,30 @@ export async function createHotReloaderTurbopack(
     const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
+    // Per-client issues: only well-known errors are printed, so other errors
+    // aren't printed once per connected client.
+    const clientIssueOptions: ProcessIssuesOptions = {
+      throwIssue: false,
+      logErrors: true,
+      logNewErrors: false,
+    }
+
     // Baseline capture and subscription setup are not atomic, so the first
     // emission can be a real update. Ignore only the usual issues-only result.
     try {
       const initial = await subscription.next()
       if (!initial.done && initial.value.value.type !== 'issues') {
-        // Per-client issues: only well-known errors are printed, so other errors
-        // aren't printed once per connected client.
         processIssues(
           state.clientIssues,
           key,
           initial.value,
-          false,
-          true,
-          false
+          clientIssueOptions
         )
         sendTurbopackMessage(initial.value.value)
       }
 
       for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data, false, true, false)
+        processIssues(state.clientIssues, key, data, clientIssueOptions)
         if (data.value.type !== 'issues') {
           sendTurbopackMessage(data.value)
         }

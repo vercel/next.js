@@ -50,6 +50,18 @@ export function getIssueKey(issue: Issue): IssueKey {
   )}-${JSON.stringify(issue.description)}`
 }
 
+export type ProcessIssuesOptions = {
+  /** Throw error issues as a `ModuleBuildError` for the caller to report. */
+  throwIssue: boolean
+  /** When not throwing, print error issues to the terminal. */
+  logErrors: boolean
+  /**
+   * With `logErrors`, print errors that are not well-known when they first
+   * appear. Defaults to `true`.
+   */
+  logNewErrors?: boolean
+}
+
 /**
  * Stores `result`'s issues as the current issues of the entry `key`.
  *
@@ -66,9 +78,7 @@ export function processIssues<T>(
   currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
   result: TurbopackResult<T>,
-  throwIssue: boolean,
-  logErrors: boolean,
-  logNewErrors: boolean = true
+  { throwIssue, logErrors, logNewErrors = true }: ProcessIssuesOptions
 ) {
   const previousIssues = currentEntryIssues.get(key)
   const newIssues = new Map<IssueKey, Issue>()
