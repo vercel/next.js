@@ -324,6 +324,12 @@
       "method": "POST",
       "contentLength": -1,
       "node": "request body"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Accept-Encoding": ["gzip;q=1.0, identity; q=0.5, *;q=0"] },
+      "route": "/api/echo/route"
     }
   ]
 }
