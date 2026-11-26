@@ -305,6 +305,8 @@ export const dynamic = 'error'
 
 [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) are not yet supported with static exports. Disable `cacheComponents` and `partialPrefetching` when using `output: 'export'`.
 
+A static export has no Next.js server at request time, so all server-rendered content must be generated during the build.
+
 </AppOnly>
 
 <PagesOnly>
