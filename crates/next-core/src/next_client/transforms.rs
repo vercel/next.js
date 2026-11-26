@@ -122,7 +122,9 @@ pub async fn get_next_client_transforms_rules(
             get_next_dynamic_transform_rule(false, false, is_app_dir, mode, enable_mdx_rs).await?,
         );
 
-        rules.push(get_next_image_rule().await?);
+        if !next_config.image_config().await?.disable_static_images {
+            rules.push(get_next_image_rule().await?);
+        }
 
         rules.extend(get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?);
         rules.extend(get_relay_transform_rule(next_config, project_path.clone()).await?);
