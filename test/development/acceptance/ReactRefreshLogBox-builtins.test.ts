@@ -92,34 +92,67 @@ describe('ReactRefreshLogBox', () => {
     }
   })
 
-  test('Node.js builtins with node: prefix in client code', async () => {
-    await using sandbox = await createSandbox(
-      next,
-      new Map([
-        [
-          'pages/_app.js',
-          outdent`
-            import 'node:async_hooks'
+  test.each([
+    ['static import', "import 'node:async_hooks'"],
+    ['require', "require('node:async_hooks')"],
+    ['dynamic import', "import('node:async_hooks')"],
+  ])(
+    'Node.js builtins with node: prefix in client code using %s',
+    async (syntax, expression) => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'pages/_app.js',
+            outdent`
+            ${expression}
 
             export default function App({ Component, pageProps }) {
               return <Component {...pageProps} />
             }
           `,
-        ],
-        [
-          'pages/index.js',
-          outdent`
+          ],
+          [
+            'pages/index.js',
+            outdent`
             export default function Page() {
               return <p>index page</p>
             }
           `,
-        ],
-      ])
-    )
-    const { browser } = sandbox
+          ],
+        ])
+      )
+      const { browser } = sandbox
 
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
+      if (isTurbopack) {
+        if (syntax === 'require') {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "node:async_hooks is an external module, which is not supported in the browser environment",
+             "environmentLabel": null,
+             "label": "Build Error",
+             "source": "./pages/_app.js (1:1)
+           Error: node:async_hooks is an external module, which is not supported in the browser environment
+           > 1 | require('node:async_hooks')
+               | ^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+             "stack": [],
+           }
+          `)
+        } else if (syntax === 'dynamic import') {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "node:async_hooks is an external module, which is not supported in the browser environment",
+             "environmentLabel": null,
+             "label": "Build Error",
+             "source": "./pages/_app.js (1:1)
+           Error: node:async_hooks is an external module, which is not supported in the browser environment
+           > 1 | import('node:async_hooks')
+               | ^^^^^^^^^^^^^^^^^^^^^^^^^^",
+             "stack": [],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayRedbox(`
        {
          "description": "node:async_hooks is an external module, which is not supported in the browser environment",
          "environmentLabel": null,
@@ -131,8 +164,9 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
-    } else if (isRspack) {
-      await expect({ browser, next }).toDisplayRedbox(`
+        }
+      } else if (isRspack) {
+        await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
          "environmentLabel": null,
@@ -145,8 +179,8 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
+      } else {
+        await expect(browser).toDisplayRedbox(`
        {
          "description": "Module build failed: UnhandledSchemeError: Reading from "node:async_hooks" is not handled by plugins (Unhandled scheme).",
          "environmentLabel": null,
@@ -158,8 +192,9 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
+      }
     }
-  })
+  )
 
   test('Module not found', async () => {
     await using sandbox = await createSandbox(next)

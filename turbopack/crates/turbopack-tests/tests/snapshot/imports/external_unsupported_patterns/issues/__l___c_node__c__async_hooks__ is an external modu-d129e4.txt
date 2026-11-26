@@ -1,0 +1,11 @@
+error - [code gen] /turbopack/crates/turbopack-tests/tests/snapshot/imports/external_unsupported_patterns/input/index.js:1:36  node:async_hooks is an external module, which is not supported in the browser environment
+  
+         +                                    v-------------------------v
+       1 + globalThis.requireExternal = () => require('node:async_hooks')
+         +                                    ^-------------------------^
+       2 | globalThis.importExternal = () => import('node:async_hooks')
+       3 | globalThis.resolveExternal = () => require.resolve('node:async_hooks')
+       4 | 
+       5 | let request
+  
+  External modules are loaded by the runtime instead of being bundled, which the browser environment can't do — this includes Node.js built-in modules. Remove the import from code that is bundled for the browser environment, or use an alternative that works there.

@@ -57,6 +57,7 @@ use crate::{
         },
         util::{
             SpecifiedChunkingType, throw_module_not_found_error_expr, throw_module_not_found_expr,
+            unsupported_external_issue,
         },
     },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
@@ -1097,39 +1098,15 @@ async fn unsupported_external_expr(
 ) -> Result<Expr> {
     let environment = chunking_context.environment().name().owned().await?;
 
-    CodeGenerationIssue {
-        severity: IssueSeverity::Error,
-        title: StyledString::Line(vec![
-            StyledString::Code(request.clone()),
-            StyledString::Text(
-                format!(
-                    " is an external module, which is not supported in the {environment} \
-                     environment"
-                )
-                .into(),
-            ),
-        ])
-        .resolved_cell(),
-        message: StyledString::Text(
-            format!(
-                "External modules are loaded by the runtime instead of being bundled, which the \
-                 {environment} environment can't do — this includes Node.js built-in modules. \
-                 Remove the import from code that is bundled for the {environment} environment, \
-                 or use an alternative that works there."
-            )
-            .into(),
-        )
-        .resolved_cell(),
-        path: issue_source.file_path().await?,
-        source: Some(issue_source),
-    }
-    .resolved_cell()
-    .emit();
-
-    Ok(throw_module_not_found_error_expr(
+    let (issue, message) = unsupported_external_issue(
         request,
-        &format!("external modules are not supported in the {environment} environment"),
-    ))
+        &environment,
+        issue_source.file_path().await?,
+        Some(issue_source),
+    );
+    issue.emit();
+
+    Ok(throw_module_not_found_error_expr(request, &message))
 }
 
 fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
