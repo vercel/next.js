@@ -106,6 +106,22 @@ function getPackageVersion(packageName, versionStr) {
 }
 
 /**
+ * The value for an `overrides` entry. pnpm only rewrites `peerDependencies`
+ * for overrides that are version ranges, not for `npm:` aliases, so a plain
+ * version is needed for `next`'s `react` peer to resolve to this release.
+ *
+ * @param {string} packageName
+ * @param {string} versionStr An NPM version or a file URL to a React checkout
+ * @returns {string}
+ */
+function getOverrideVersion(packageName, versionStr) {
+  if (versionStr.startsWith('file://') || versionStr.startsWith('vp:')) {
+    return getPackageVersion(packageName, versionStr)
+  }
+  return versionStr
+}
+
+/**
  * Replaces an existing entry of the top-level `overrides` map in
  * `pnpm-workspace.yaml`, leaving the rest of the file (comments, ordering,
  * quoting) untouched.
@@ -162,7 +178,10 @@ async function sync({ channel, newVersionStr, noInstall }) {
     ] = getPackageVersion(packageName, newVersionStr)
 
     if (!useExperimental) {
-      pnpmOverrides[packageName] = getPackageVersion(packageName, newVersionStr)
+      pnpmOverrides[packageName] = getOverrideVersion(
+        packageName,
+        newVersionStr
+      )
     }
   }
 
@@ -178,7 +197,7 @@ async function sync({ channel, newVersionStr, noInstall }) {
     `scheduler-${useExperimental ? 'experimental-' : ''}builtin`
   ] = getPackageVersion('scheduler', newSchedulerVersionStr)
   if (!useExperimental) {
-    pnpmOverrides.scheduler = getPackageVersion(
+    pnpmOverrides.scheduler = getOverrideVersion(
       'scheduler',
       newSchedulerVersionStr
     )
@@ -189,11 +208,7 @@ async function sync({ channel, newVersionStr, noInstall }) {
       : newVersionStr.startsWith('vp:')
         ? getPackageVersion('react-is', newVersionStr)
         : `npm:react-is@${newVersionStr}`
-    pnpmOverrides['react-is'] = newVersionStr.startsWith('file://')
-      ? new URL('react-is', newVersionStr).href
-      : newVersionStr.startsWith('vp:')
-        ? getPackageVersion('react-is', newVersionStr)
-        : `npm:react-is@${newVersionStr}`
+    pnpmOverrides['react-is'] = getOverrideVersion('react-is', newVersionStr)
   }
 
   await fsp.writeFile(
