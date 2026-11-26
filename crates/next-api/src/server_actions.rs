@@ -249,9 +249,7 @@ impl Asset for ServerActionManifestAsset {
         let actions_value = self.actions.await?;
         let async_module_info = self.module_graph.async_module_info();
         let next_config = self.project.next_config();
-        let durable_use_cache_entries = *next_config
-            .enable_durable_use_cache_entries(self.project.next_mode())
-            .await?;
+        let durable_use_cache_entries = *next_config.enable_durable_use_cache_entries().await?;
         let static_root_param_tracking_enabled = *next_config
             .enable_use_cache_static_root_param_tracking(self.project.next_mode())
             .await?;

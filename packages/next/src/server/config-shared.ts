@@ -1650,7 +1650,8 @@ export interface ExperimentalConfig {
 
   /**
    * Enables durable `"use cache"` remote cache entries across deployments. Enabled by default.
-   * Ignored in development and when using webpack or Rspack.
+   * Ignored when using webpack or Rspack. In development, entries are keyed by
+   * their code hash, so an edit only invalidates entries whose code changed.
    */
   durableUseCacheEntries?: boolean
 
