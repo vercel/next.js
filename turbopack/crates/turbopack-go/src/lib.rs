@@ -712,9 +712,10 @@ fn source_diagnostic(message: &str, project: &Path, aliases: &BTreeMap<RcStr, Rc
     let mut message = message.to_owned();
     // Replace longer virtual paths first, so one alias that prefixes another cannot rewrite
     // part of the longer path.
-    let mut aliases: Vec<_> = aliases.iter().collect();
-    aliases.sort_by_key(|(virtual_directory, _)| std::cmp::Reverse(virtual_directory.len()));
-    for (virtual_directory, source_directory) in aliases {
+    let mut ordered_aliases: Vec<_> = aliases.iter().collect();
+    ordered_aliases
+        .sort_by_key(|(virtual_directory, _)| std::cmp::Reverse(virtual_directory.len()));
+    for (virtual_directory, source_directory) in ordered_aliases {
         message = message.replace(
             &module_path(project, virtual_directory)
                 .to_string_lossy()
