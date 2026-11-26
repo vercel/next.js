@@ -144,6 +144,17 @@ describe('request insights', () => {
   }
 
   it('discovers the running dev server from the project lockfile', async () => {
+    // A stale default lock from an earlier run must not shadow `build/dev/lock`.
+    await next.patchFile(
+      '.next/dev/lock',
+      JSON.stringify({
+        pid: 999999,
+        port: 1,
+        hostname: 'localhost',
+        appUrl: 'http://localhost:1',
+        startedAt: 0,
+      })
+    )
     const result = await next.runCommand([
       'experimental-request-insights',
       'list',
@@ -155,6 +166,14 @@ describe('request insights', () => {
     expect(result.cliOutput).toMatch(
       /No request insights captured yet|retained requests \(newest first\)/
     )
+
+    const json = await next.runCommand([
+      'experimental-request-insights',
+      'list',
+      '--json',
+    ])
+    expect(json.code).toBe(0)
+    expect(JSON.parse(json.cliOutput)).toHaveProperty('requests')
   })
 
   it('keeps outer server and app render spans on the same request', async () => {
@@ -1890,6 +1909,31 @@ describe('request insights', () => {
         url: '/products/blue?query=redacted',
       }),
     ])
+  })
+
+  it('lists the most recent requests in start order with --sort start', async () => {
+    const requests = [1, 2, 3].map((index) => ({
+      ...createRequest(index),
+      startTime: index * 100,
+      durationMs: 10,
+    }))
+
+    const { result } = await runWithResponse({ requests }, [
+      'list',
+      '--sort',
+      'start',
+      '--limit',
+      '2',
+    ])
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain(
+      'Showing 2 of 3 retained requests (most recent, by start time).'
+    )
+    expect(result.stdout).not.toContain('/route-1 ')
+    expect(result.stdout.indexOf('/route-2')).toBeLessThan(
+      result.stdout.indexOf('/route-3')
+    )
   })
 
   it.each([
