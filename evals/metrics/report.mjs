@@ -39,11 +39,12 @@ export function summarize(directory, pricing) {
 
 export async function collect(directory, collector, pricing) {
   const result = read(join(directory, 'result.json'))
+  let collectorMeasurements
+  const collectorModule = await import(`./${collector}.mjs`)
   // Preserve effort for failed attempts without treating a broken app as a pass.
-  if (result.status === 'passed') {
+  if (result.status === 'passed' || collectorModule.collectFailed) {
     try {
-      const { collect } = await import(`./${collector}.mjs`)
-      await collect(directory)
+      collectorMeasurements = await collectorModule.collect(directory)
       rmSync(join(directory, 'metrics-error.json'), { force: true })
     } catch (error) {
       writeFileSync(
@@ -57,7 +58,12 @@ export async function collect(directory, collector, pricing) {
       throw error
     }
   }
-  const summary = summarize(directory, pricing)
+  const summary = {
+    ...summarize(directory, pricing),
+    ...(collectorMeasurements === undefined
+      ? {}
+      : { collector: collectorMeasurements }),
+  }
   writeFileSync(
     join(directory, 'metrics.json'),
     JSON.stringify(summary, null, 2) + '\n'
@@ -93,8 +99,9 @@ if (
   }
   const pricing = pricingPath ? read(pricingPath).pricing : null
   if (mode === 'collect') {
-    // Mirror normal local eval setup, loading only Sandbox authentication.
-    if (!process.env.VERCEL_OIDC_TOKEN) {
+    const collectorModule = await import(`./${collector}.mjs`)
+    // Mirror normal local eval setup for collectors that create a Sandbox.
+    if (collectorModule.requiresSandbox && !process.env.VERCEL_OIDC_TOKEN) {
       for (const file of ['.env.local', '.env']) {
         try {
           const token = parse(readFileSync(file)).VERCEL_OIDC_TOKEN
@@ -107,7 +114,7 @@ if (
         }
       }
     }
-    if (!process.env.VERCEL_OIDC_TOKEN)
+    if (collectorModule.requiresSandbox && !process.env.VERCEL_OIDC_TOKEN)
       throw new Error('Missing Sandbox VERCEL_OIDC_TOKEN')
     await collect(resolve(directory), collector, pricing)
   } else

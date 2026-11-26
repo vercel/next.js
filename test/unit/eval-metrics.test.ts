@@ -7,26 +7,47 @@ import { execFileSync } from 'node:child_process'
 const repository = path.join(__dirname, '../..')
 const runner = fs.readFileSync(path.join(repository, 'run-evals.js'), 'utf8')
 const fixture = 'agent-062-pokedex-dev-loop'
+const { evaluateEffortGate } = require('../../evals/lib/effort-gate')
 
-function run(args: string[], collectorStatus = 0) {
+function run(
+  args: string[],
+  {
+    collectorStatus = 0,
+    skillTokens = 50 as number | null,
+    skillStatus = 'passed',
+    dependsOnNext = false,
+  } = {}
+) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-metrics-'))
+  const preStackTarball = path.join(root, 'pre-stack-next.tgz')
+  fs.writeFileSync(preStackTarball, '')
+  args = args.map((arg) =>
+    arg === '__PRE_STACK_TARBALL__' ? preStackTarball : arg
+  )
   const calls: Array<{ command: string; args: string[] }> = []
   const write = (file: string, value: unknown) => {
     const target = path.join(root, file)
     fs.mkdirSync(path.dirname(target), { recursive: true })
     fs.writeFileSync(target, JSON.stringify(value))
   }
-  write(`evals/evals/${fixture}/package.json`, { private: true })
+  write(
+    `evals/evals/${fixture}/package.json`,
+    dependsOnNext ? { dependencies: { next: '*' } } : { private: true }
+  )
+  if (dependsOnNext)
+    fs.mkdirSync(path.join(root, 'packages/next/dist'), { recursive: true })
   write('evals/eval.suites.json', { regression: [fixture] })
+  const effortGate = args.includes('--effort-gate')
   write('evals/eval.config.json', {
     [fixture]: {
       publish: false,
       skills: ['next-dev-loop'],
-      metrics: 'pokedex',
+      metrics: effortGate ? 'effort' : 'pokedex',
     },
   })
-  write('evals/metrics/pokedex.mjs', {})
+  write(`evals/metrics/${effortGate ? 'effort' : 'pokedex'}.mjs`, {})
   let exitCode: number | undefined
+  let agentRun = 0
   const exit = new Error('runner exited')
   try {
     vm.runInNewContext(runner, {
@@ -37,10 +58,9 @@ function run(args: string[], collectorStatus = 0) {
           'node',
           'run-evals.js',
           fixture,
-          '--variant',
-          'baseline',
-          '--variant',
-          'skills',
+          ...(effortGate
+            ? []
+            : ['--variant', 'baseline', '--variant', 'skills']),
           ...args,
         ],
         env: {},
@@ -53,24 +73,58 @@ function run(args: string[], collectorStatus = 0) {
       require(name: string) {
         if (name === './evals/lib/pack')
           return {
-            packPackage() {
-              throw new Error('Pinned fixture must not pack Next.js')
+            packPackage(_: string, target: string) {
+              if (!dependsOnNext)
+                throw new Error('Pinned fixture must not pack Next.js')
+              fs.mkdirSync(path.dirname(target), { recursive: true })
+              fs.writeFileSync(target, '')
             },
           }
         if (name === './evals/lib/environment') return { linkEnvironment() {} }
+        if (name === './evals/lib/effort-gate')
+          return require(path.join(repository, 'evals/lib/effort-gate'))
         if (name === 'child_process')
           return {
             spawnSync(command: string, args: string[]) {
               calls.push({ command, args })
               if (args[0] === 'run') {
-                for (const variant of ['baseline', 'skills']) {
+                agentRun++
+                const resultVariants = effortGate
+                  ? args.slice(1, -1)
+                  : ['baseline', 'skills']
+                for (const variant of resultVariants) {
+                  const timestamp = effortGate
+                    ? `2026-11-${String(agentRun).padStart(2, '0')}`
+                    : '2026-11-02'
                   write(
-                    `evals/results/${variant}/2026-11-02/${fixture}/run-1/result.json`,
+                    `evals/results/${variant}/${timestamp}/${fixture}/run-1/result.json`,
                     { status: 'passed' }
                   )
                 }
               }
-              return { status: args.includes('collect') ? collectorStatus : 0 }
+              if (effortGate && args.includes('collect')) {
+                const directory = args[3]
+                write(
+                  path.relative(root, path.join(directory, 'metrics.json')),
+                  {
+                    status: directory.split(path.sep).includes('skills')
+                      ? skillStatus
+                      : 'passed',
+                    inputTokens: directory.split(path.sep).includes('baseline')
+                      ? 100
+                      : directory.split(path.sep).includes('agents-md')
+                        ? 60
+                        : skillTokens,
+                  }
+                )
+              }
+              return {
+                status: args.includes('collect')
+                  ? collectorStatus
+                  : effortGate && skillStatus === 'failed'
+                    ? 1
+                    : 0,
+              }
             },
           }
         return require(name)
@@ -95,7 +149,7 @@ describe('normal eval metrics workflow', () => {
         '--model',
         'openai/gpt-6-sol',
       ],
-      1
+      { collectorStatus: 1 }
     )
     try {
       expect(calls[0].args).toEqual(['run', 'baseline', 'skills', '--force'])
@@ -141,6 +195,173 @@ describe('normal eval metrics workflow', () => {
       }
     }
   )
+})
+
+describe('effort gate', () => {
+  it('leaves samples without token counts out of the median', () => {
+    expect(
+      evaluateEffortGate({
+        baseline: [
+          { inputTokens: 100, status: 'passed' },
+          { inputTokens: null, status: 'failed' },
+        ],
+        'agents-md': [
+          { inputTokens: 60, status: 'passed' },
+          { inputTokens: 60, status: 'passed' },
+        ],
+        skills: [
+          { inputTokens: null, status: 'failed' },
+          { inputTokens: null, status: 'failed' },
+        ],
+      })
+    ).toMatchObject({
+      passed: false,
+      variants: {
+        baseline: { medianInputTokens: 100, passes: 1 },
+        'agents-md': { reduction: 0.4 },
+        skills: { medianInputTokens: null, reduction: null },
+      },
+    })
+  })
+
+  it('averages the middle values for an even sample count', () => {
+    const samples = (inputTokens: number[]) =>
+      inputTokens.map((tokens) => ({ inputTokens: tokens, status: 'passed' }))
+
+    expect(
+      evaluateEffortGate({
+        baseline: samples([100, 200]),
+        'agents-md': samples([50, 100]),
+        skills: samples([25, 75]),
+      })
+    ).toMatchObject({
+      variants: {
+        baseline: { medianInputTokens: 150 },
+        'agents-md': { medianInputTokens: 75 },
+        skills: { medianInputTokens: 50 },
+      },
+    })
+  })
+
+  it('compares five sequential baseline, agents-md, and skill samples', () => {
+    const { root, calls, exitCode } = run(['--effort-gate'], {
+      dependsOnNext: true,
+    })
+    try {
+      expect(calls.filter((call) => call.args[0] === 'run')).toHaveLength(5)
+      expect(
+        calls.filter((call) => call.args.includes('collect'))
+      ).toHaveLength(15)
+      expect(exitCode).toBe(0)
+      const reports = fs.readdirSync(
+        path.join(root, 'evals/results/effort-gate')
+      )
+      expect(reports).toHaveLength(1)
+      expect(
+        JSON.parse(
+          fs.readFileSync(
+            path.join(root, 'evals/results/effort-gate', reports[0]),
+            'utf8'
+          )
+        )
+      ).toMatchObject({
+        variants: { 'agents-md': { medianInputTokens: 60, passes: 5 } },
+        samples: { 'agents-md': expect.any(Array) },
+      })
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps effort samples when the collector fails after writing metrics', () => {
+    const { root, exitCode } = run(['--effort-gate'], { collectorStatus: 1 })
+    try {
+      expect(exitCode).toBe(0)
+      const [report] = fs.readdirSync(
+        path.join(root, 'evals/results/effort-gate')
+      )
+      const { samples } = JSON.parse(
+        fs.readFileSync(
+          path.join(root, 'evals/results/effort-gate', report),
+          'utf8'
+        )
+      )
+      expect(samples.skills).toHaveLength(5)
+      expect(samples.skills[0]).toMatchObject({ collectorFailed: true })
+      // Non-Next fixtures skip agents-md, which would match baseline.
+      expect(samples).not.toHaveProperty('agents-md')
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('prepends a pre-stack package to the effort comparison', () => {
+    const { root, calls, exitCode } = run(
+      [
+        '--effort-gate',
+        '--effort-samples',
+        '2',
+        '--effort-pre-stack-tarball',
+        '__PRE_STACK_TARBALL__',
+      ],
+      { dependsOnNext: true }
+    )
+    try {
+      expect(
+        calls.filter((call) => call.args.includes('collect'))
+      ).toHaveLength(8)
+      expect(exitCode).toBe(0)
+      const config = fs.readFileSync(
+        path.join(root, 'evals/experiments/pre-stack.ts'),
+        'utf8'
+      )
+      expect(config).toContain(
+        JSON.stringify(path.join(root, 'pre-stack-next.tgz'))
+      )
+      const [report] = fs.readdirSync(
+        path.join(root, 'evals/results/effort-gate')
+      )
+      expect(
+        JSON.parse(
+          fs.readFileSync(
+            path.join(root, 'evals/results/effort-gate', report),
+            'utf8'
+          )
+        ).samples
+      ).toMatchObject({ 'pre-stack': expect.any(Array) })
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a pre-stack tarball for a fixture that does not use Next.js', () => {
+    expect(() =>
+      run([
+        '--effort-gate',
+        '--effort-pre-stack-tarball',
+        '__PRE_STACK_TARBALL__',
+      ])
+    ).toThrow('requires a fixture that depends on Next.js')
+  })
+
+  it.each([
+    ['token reduction', 80, 'passed'],
+    ['pass rate', 30, 'failed'],
+    ['token count', null, 'failed'],
+  ])('fails when the skill misses the %s gate', (_, tokens, status) => {
+    const { root, exitCode } = run(['--effort-gate'], {
+      skillTokens: tokens,
+      skillStatus: status,
+    })
+    try {
+      expect(exitCode).toBe(1)
+      expect(
+        fs.readdirSync(path.join(root, 'evals/results/effort-gate'))
+      ).toHaveLength(1)
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('saved eval effort', () => {
