@@ -151,12 +151,7 @@ The [`next-dev-loop` skill](#next-dev-loop) adds the **browser's view** through 
 
 Together with the Next.js MCP server, `next-dev-loop` combines the framework's and the browser's perspectives into one edit-and-verify loop.
 
-### Inspecting a client navigation
-
-With Cache Components enabled, an agent can pause a navigation in `next dev` to see which parts of the destination are ready from the link's prefetch:
-
-- In an existing `agent-browser` session, use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to pause the navigation. Click the link, inspect the destination's content and loading states, then resume to see the completed page.
-- In Playwright, open the source page and click the link inside [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#client-navigations). Next.js waits for the link's prefetch to finish. For example, assert inside the callback that the product price is visible while inventory is still loading. After `instant()` returns, check that the stock count appears.
+With Cache Components enabled, an agent can inspect a link’s prefetched UI in `next dev` with the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) or [Playwright’s `instant()`](/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
 
 <span id="step-3-let-errors-drive-the-fixes" />
 
