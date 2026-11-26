@@ -519,6 +519,39 @@
     function createCacheNode() {
       return { s: 0, v: void 0, o: null, p: null, u: null };
     }
+    function createLedger(kind) {
+      kind = { kind: kind };
+      Object.freeze && Object.freeze(kind);
+      return kind;
+    }
+    function normalizeLedgerEntry(type, entry) {
+      switch (type.kind) {
+        case 0:
+          return !0;
+        case 1:
+          return entry >>> 0;
+        case 2:
+        case 3:
+          if ("number" === typeof entry && isNaN(entry))
+            throw Error(
+              "NaN cannot be added to a min or max ledger. NaN compares as neither smaller nor larger than any number, so the total would depend on the order of the writes."
+            );
+          return 0 === entry ? 0 : entry;
+        default:
+          if (
+            ("object" === typeof entry || "function" === typeof entry) &&
+            null !== entry
+          )
+            throw Error(
+              "Only a primitive can be added to a set ledger. A set ledger nets entries by value, but a Set can only compare this entry by reference, so structurally equal entries would silently count as distinct. Primitives are the only entries whose equality is well defined."
+            );
+          if ("symbol" === typeof entry && void 0 === Symbol.keyFor(entry))
+            throw Error(
+              "Only a global symbol received from Symbol.for(...) can be added to a set ledger. A set ledger nets entries by value, but a symbol that is not registered has no name to net it by, so no other entry could ever equal it and it could not reach the client."
+            );
+          return 0 === entry ? 0 : entry;
+      }
+    }
     function releaseAsyncTransition() {
       ReactSharedInternals.asyncTransitions--;
     }
@@ -672,10 +705,11 @@
     exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
     exports.addToLedger = function (ledger, entry) {
+      entry = normalizeLedgerEntry(ledger, entry);
       var dispatcher = ReactSharedInternals.A;
       null !== dispatcher &&
         void 0 !== dispatcher.addToLedger &&
-        dispatcher.addToLedger(ledger, entry >>> 0);
+        dispatcher.addToLedger(ledger, entry);
     };
     exports.cache = function (fn) {
       return function () {
@@ -822,6 +856,9 @@
         validateChildKeys(arguments[key]);
       return props;
     };
+    exports.createBitLedger = function () {
+      return createLedger(0);
+    };
     exports.createElement = function (type, config, children) {
       for (var i = 2; i < arguments.length; i++)
         validateChildKeys(arguments[i]);
@@ -884,14 +921,21 @@
       );
     };
     exports.createMaskLedger = function () {
-      var type = { kind: 1 };
-      Object.freeze && Object.freeze(type);
-      return type;
+      return createLedger(1);
+    };
+    exports.createMaxLedger = function () {
+      return createLedger(3);
+    };
+    exports.createMinLedger = function () {
+      return createLedger(2);
     };
     exports.createRef = function () {
       var refObject = { current: null };
       Object.seal(refObject);
       return refObject;
+    };
+    exports.createSetLedger = function () {
+      return createLedger(4);
     };
     exports.experimental_taintObjectReference = function (message, object) {
       if ("string" === typeof object || "bigint" === typeof object)
@@ -1108,5 +1152,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.3.0-experimental-89d7b2b4-20261123";
+    exports.version = "19.3.0-experimental-edae846a-20261125";
   })();

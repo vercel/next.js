@@ -713,6 +713,123 @@ DefaultAsyncDispatcher.addToLedger = addToLedger;
 var ReactSharedInternalsServer =
   React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 if (!ReactSharedInternalsServer) throw Error(formatProdErrorMessage(492));
+function createLedgerCell(type) {
+  switch (type.kind) {
+    case 0:
+      return { kind: 0, state: !1 };
+    case 1:
+      return { kind: 1, state: 0 };
+    case 2:
+      return { kind: 2, state: null };
+    case 3:
+      return { kind: 3, state: null };
+    default:
+      return { kind: 4, state: new Set() };
+  }
+}
+function readLedgerTotal(total) {
+  var graph = total.graph;
+  if (null !== graph) {
+    var dirty = graph.dirtyUnits;
+    if (null !== dirty) {
+      graph.totals.forEach(function (record) {
+        updateLedgerTotal(record, dirty);
+      });
+      for (var unit = dirty; null !== unit; ) {
+        var next = unit.nextDirty;
+        unit.isQueued = !1;
+        unit.nextDirty = null;
+        unit.newEntries = null;
+        unit = next;
+      }
+      graph.dirtyUnits = null;
+    }
+  }
+  unit = total.cell;
+  null === unit &&
+    ((total.cell = unit = createLedgerCell(total.type)),
+    (total.visitedUnits = new WeakSet()),
+    updateLedgerTotal(total, null));
+  null !== graph &&
+    (graph.closed
+      ? ((total.graph = null), (total.visitedUnits = null))
+      : graph.isTracking || (graph.isTracking = !0));
+  return unit;
+}
+function updateLedgerTotal(total, dirty) {
+  var acc = total.cell,
+    visitedUnits = total.visitedUnits;
+  if (null !== acc && null !== visitedUnits) {
+    for (var type = total.type, queue = []; null !== dirty; )
+      visitedUnits.has(dirty) && queue.push(dirty), (dirty = dirty.nextDirty);
+    dirty = queue.length;
+    for (
+      var pendingCaptureUnits = total.pendingCaptureUnits, i = 0;
+      i < pendingCaptureUnits.length;
+      i++
+    ) {
+      var unit = pendingCaptureUnits[i];
+      visitedUnits.has(unit) || (visitedUnits.add(unit), queue.push(unit));
+    }
+    i = function (entry) {
+      var accumulated = acc.state,
+        log = total.entries;
+      null === log
+        ? accumulated.add(entry)
+        : accumulated.has(entry) || (accumulated.add(entry), log.push(entry));
+    };
+    for (unit = 0; unit < queue.length; unit++) {
+      var unit$8 = queue[unit],
+        cells = unit$8.cells;
+      cells = null === cells ? void 0 : cells.get(type);
+      if (void 0 !== cells)
+        switch (acc.kind) {
+          case 0:
+            acc.state = acc.state || cells.state;
+            break;
+          case 1:
+            acc.state = (acc.state | cells.state) >>> 0;
+            break;
+          case 2:
+            cells = cells.state;
+            var previous = acc.state;
+            null !== cells &&
+              (null === previous || cells < previous) &&
+              (acc.state = cells);
+            break;
+          case 3:
+            cells = cells.state;
+            previous = acc.state;
+            null !== cells &&
+              (null === previous || cells > previous) &&
+              (acc.state = cells);
+            break;
+          case 4:
+            unit < dirty
+              ? ((cells = unit$8.newEntries),
+                (cells = null === cells ? void 0 : cells.get(type)),
+                void 0 !== cells && cells.forEach(i))
+              : cells.state.forEach(i);
+        }
+      cells = unit$8.references;
+      if (null !== cells)
+        for (previous = 0; previous < cells.length; previous++) {
+          var target = cells[previous];
+          visitedUnits.has(target) ||
+            (visitedUnits.add(target), queue.push(target));
+        }
+      unit$8 = unit$8.children;
+      if (null !== unit$8)
+        for (cells = 0; cells < unit$8.length; cells++)
+          (previous = unit$8[cells]),
+            (target = previous.capturedLedgers),
+            (null !== target && -1 !== target.indexOf(type)) ||
+              visitedUnits.has(previous) ||
+              (visitedUnits.add(previous), queue.push(previous));
+    }
+    pendingCaptureUnits.length = 0;
+  }
+}
 var isArrayImpl = Array.isArray,
   getPrototypeOf = Object.getPrototypeOf;
 function objectName(object) {
@@ -839,8 +956,13 @@ var ObjectPrototype$1 = Object.prototype,
     ReactSharedInternalsServer.TaintRegistryByteLengths,
   TaintRegistryPendingRequests =
     ReactSharedInternalsServer.TaintRegistryPendingRequests;
-function throwTaintViolation(message) {
-  throw Error(message);
+function throwIfTaintedObject(value) {
+  value = TaintRegistryObjects.get(value);
+  if (void 0 !== value) throw Error(value);
+}
+function throwIfTaintedValue(value) {
+  value = TaintRegistryValues.get(value);
+  if (void 0 !== value) throw Error(value.message);
 }
 function cleanupTaintQueue(request) {
   request = request.taintCleanupQueue;
@@ -931,19 +1053,60 @@ var currentUnit = null;
 function resolveRunningUnit() {
   return null !== currentUnit ? currentUnit : null;
 }
+function currentUnitForRequest(request) {
+  var unit = resolveRunningUnit();
+  return null !== unit && unit.request === request ? unit : request.rootUnit;
+}
 function ensureRequestLedgers(request) {
   var ledgers = request.ledgers;
   return null !== ledgers
     ? ledgers
-    : (request.ledgers = { dirtyUnits: [], declarations: null });
+    : (request.ledgers = {
+        dirtyUnits: [],
+        declarations: null,
+        forwardedTotals: null
+      });
 }
 function accumulateLedgerEntry(cell, entry) {
-  if ("number" !== typeof entry) return !1;
-  var state = cell.state;
-  entry = (state | entry) >>> 0;
-  if (entry === state) return !1;
-  cell.state = entry;
-  return !0;
+  switch (cell.kind) {
+    case 0:
+      return cell.state ? !1 : (cell.state = !0);
+    case 1:
+      if ("number" !== typeof entry) return !1;
+      var state = cell.state;
+      entry = (state | entry) >>> 0;
+      if (entry === state) return !1;
+      cell.state = entry;
+      return !0;
+    case 2:
+      if ("number" !== typeof entry) return !1;
+      state = cell.state;
+      if (null !== state && state <= entry) return !1;
+      cell.state = entry;
+      return !0;
+    case 3:
+      if ("number" !== typeof entry) return !1;
+      state = cell.state;
+      if (null !== state && state >= entry) return !1;
+      cell.state = entry;
+      return !0;
+    default:
+      cell = cell.state;
+      if (cell.has(entry)) return !1;
+      cell.add(entry);
+      return !0;
+  }
+}
+function createUnit(request, creator, id) {
+  return {
+    request: request,
+    id: id,
+    creator: creator,
+    totals: null,
+    declared: !1,
+    dirtyDeltas: null,
+    dirtyReferences: null
+  };
 }
 function recordUnitReference(unit, row) {
   if (null !== unit && row !== unit.id) {
@@ -961,21 +1124,25 @@ function recordUnitReference(unit, row) {
         : pending.has(row) || pending.add(row);
   }
 }
+function writeLedgerEntry(unit, type, entry) {
+  var ledgers = ensureRequestLedgers(unit.request),
+    dirty = unit.dirtyDeltas,
+    cell = null === dirty ? void 0 : dirty.get(type);
+  void 0 === cell
+    ? ((cell = createLedgerCell(type)),
+      accumulateLedgerEntry(cell, entry) &&
+        (null === dirty &&
+          (null === unit.dirtyReferences && ledgers.dirtyUnits.push(unit),
+          (unit.dirtyDeltas = dirty = new Map())),
+        dirty.set(type, cell)))
+    : accumulateLedgerEntry(cell, entry);
+}
 function addToLedger(type, entry) {
   var unit = resolveRunningUnit();
-  if (null !== unit) {
-    var ledgers = ensureRequestLedgers(unit.request),
-      dirty = unit.dirtyDeltas,
-      cell = null === dirty ? void 0 : dirty.get(type);
-    void 0 === cell
-      ? ((cell = { kind: 1, state: 0 }),
-        accumulateLedgerEntry(cell, entry) &&
-          (null === dirty &&
-            (null === unit.dirtyReferences && ledgers.dirtyUnits.push(unit),
-            (unit.dirtyDeltas = dirty = new Map())),
-          dirty.set(type, cell)))
-      : accumulateLedgerEntry(cell, entry);
-  }
+  null !== unit &&
+    (("string" !== typeof entry && "bigint" !== typeof entry) ||
+      throwIfTaintedValue(entry),
+    writeLedgerEntry(unit, type, entry));
 }
 function serializeThenable(request, task, thenable) {
   switch (thenable.status) {
@@ -1048,7 +1215,7 @@ function serializeThenable(request, task, thenable) {
       );
       return id;
     default:
-      var newTask$12 = createTask(
+      var newTask$21 = createTask(
         request,
         thenable,
         task.keyPath,
@@ -1058,13 +1225,13 @@ function serializeThenable(request, task, thenable) {
       );
       if (12 === request.status)
         return (
-          request.abortableTasks.delete(newTask$12),
+          request.abortableTasks.delete(newTask$21),
           21 === request.type
-            ? (haltTask(newTask$12), finishHaltedTask(newTask$12, request))
+            ? (haltTask(newTask$21), finishHaltedTask(newTask$21, request))
             : ((task = request.fatalError),
-              abortTask(newTask$12),
-              finishAbortedTask(newTask$12, request, task)),
-          newTask$12.id
+              abortTask(newTask$21),
+              finishAbortedTask(newTask$21, request, task)),
+          newTask$21.id
         );
       "string" !== typeof thenable.status &&
         ((thenable.status = "pending"),
@@ -1081,17 +1248,17 @@ function serializeThenable(request, task, thenable) {
         ));
       thenable.then(
         function (value) {
-          newTask$12.model = value;
-          pingTask(request, newTask$12);
+          newTask$21.model = value;
+          pingTask(request, newTask$21);
         },
         function (reason) {
-          0 === newTask$12.status &&
-            (erroredTask(request, newTask$12, reason),
+          0 === newTask$21.status &&
+            (erroredTask(request, newTask$21, reason),
             completeWork(request),
             enqueueFlush(request));
         }
       );
-      return newTask$12.id;
+      return newTask$21.id;
   }
 }
 function serializeReadableStream(request, task, stream) {
@@ -1125,8 +1292,8 @@ function serializeReadableStream(request, task, stream) {
             completeWork(request),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$13) {
-          error(x$13);
+        } catch (x$22) {
+          error(x$22);
         }
   }
   function error(reason) {
@@ -1218,8 +1385,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             completeWork(request),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$14) {
-          error(x$14);
+        } catch (x$23) {
+          error(x$23);
         }
   }
   function error(reason) {
@@ -1585,39 +1752,39 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
   value = JSCompiler_inline_result;
   if (null === value || "object" !== typeof value) return value;
   if (isArrayImpl(value)) {
-    var resolved$16 = [];
+    var resolved$25 = [];
     for (
       prevImplicitSlot = 0;
       prevImplicitSlot < value.length;
       prevImplicitSlot++
     )
-      resolved$16[prevImplicitSlot] = resolveModel(
+      resolved$25[prevImplicitSlot] = resolveModel(
         request,
         task,
         value,
         "" + prevImplicitSlot,
         value[prevImplicitSlot]
       );
-    return resolved$16;
+    return resolved$25;
   }
   prevImplicitSlot = {};
-  for (resolved$16 in value)
-    hasOwnProperty.call(value, resolved$16) &&
+  for (resolved$25 in value)
+    hasOwnProperty.call(value, resolved$25) &&
       ((parent = resolveModel(
         request,
         task,
         value,
-        resolved$16,
-        value[resolved$16]
+        resolved$25,
+        value[resolved$25]
       )),
-      "__proto__" === resolved$16
-        ? Object.defineProperty(prevImplicitSlot, resolved$16, {
+      "__proto__" === resolved$25
+        ? Object.defineProperty(prevImplicitSlot, resolved$25, {
             value: parent,
             enumerable: !0,
             writable: !0,
             configurable: !0
           })
-        : (prevImplicitSlot[resolved$16] = parent));
+        : (prevImplicitSlot[resolved$25] = parent));
   return prevImplicitSlot;
 }
 function writeToDedupeMap(request, value, id, reference) {
@@ -1895,61 +2062,83 @@ function renderModelDestructive(
           ensureRequestLedgers(request);
           for (parentPropertyName = []; 0 < value.totals.length; )
             throw Error(formatProdErrorMessage(666));
-          parent = value.input;
+          value = value.input;
           if (
-            null !== parent &&
-            "object" === typeof parent &&
+            null !== value &&
+            "object" === typeof value &&
             null === task.keyPath &&
             !task.implicitSlot &&
-            ((value = request.writtenObjects.get(parent)), void 0 !== value)
+            ((parent = request.writtenObjects.get(value)), void 0 !== parent)
           ) {
-            task = resolveRunningUnit();
-            task =
-              null !== task && task.request === request
-                ? task
-                : request.rootUnit;
-            parent = request.nextChunkId++;
-            recordUnitReference(
-              {
-                request: request,
-                id: parent,
-                creator: task,
-                declared: !1,
-                dirtyDeltas: null,
-                dirtyReferences: null,
-                totals: parentPropertyName
-              },
-              value.id
+            request = createUnit(
+              request,
+              currentUnitForRequest(request),
+              request.nextChunkId++
             );
-            request = value.reference;
+            request.totals = parentPropertyName;
+            recordUnitReference(request, parent.id);
+            request = parent.reference;
             break a;
           }
-          value = createTask(
+          task = createTask(
             request,
-            parent,
+            value,
             task.keyPath,
             task.implicitSlot,
             task.formatContext,
             request.abortableTasks
           );
-          task = value.unit;
-          null !== task && (task.totals = parentPropertyName);
-          retryTask(request, value);
+          parent = task.unit;
+          null !== parent && (parent.totals = parentPropertyName);
+          retryTask(request, task);
           request =
-            1 === value.status
-              ? serializeByValueID(value.id)
-              : "object" !== typeof parent ||
-                  null === parent ||
-                  (parent.$$typeof !== REACT_ELEMENT_TYPE &&
-                    parent.$$typeof !== REACT_LAZY_TYPE)
-                ? serializeByValueID(value.id)
-                : serializeLazyID(value.id);
+            1 === task.status
+              ? serializeByValueID(task.id)
+              : "object" !== typeof value ||
+                  null === value ||
+                  (value.$$typeof !== REACT_ELEMENT_TYPE &&
+                    value.$$typeof !== REACT_LAZY_TYPE)
+                ? serializeByValueID(task.id)
+                : serializeLazyID(task.id);
         }
         return request;
       case REACT_LEDGER_TOTAL_TYPE:
-        throw (
-          (ensureRequestLedgers(request), Error(formatProdErrorMessage(666)))
-        );
+        throwIfTaintedObject(value);
+        task = value.total;
+        if (void 0 === task)
+          throw (
+            (ensureRequestLedgers(request), Error(formatProdErrorMessage(666)))
+          );
+        parentPropertyName = request.writtenObjects.get(value);
+        void 0 !== parentPropertyName && "y" === parentPropertyName.reference[1]
+          ? (request = parentPropertyName.reference)
+          : ((parent = ensureRequestLedgers(request)),
+            (parentPropertyName = parent.forwardedTotals),
+            null === parentPropertyName &&
+              (parent.forwardedTotals = parentPropertyName = []),
+            (elementEntry = ensureLedgerDeclared(request, parent, task.type)),
+            (parent = request.nextChunkId++),
+            emitLedgerChunk(
+              request,
+              parent.toString(16) + ":Y" + elementEntry.toString(16) + "\n"
+            ),
+            (elementEntry = createUnit(
+              request,
+              currentUnitForRequest(request),
+              request.nextChunkId++
+            )),
+            (elementEntry.totals = [parent]),
+            declareUnit(request, elementEntry),
+            parentPropertyName.push({
+              source: task,
+              carrier: elementEntry,
+              emitted: createLedgerCell(task.type),
+              emittedEntries: 0
+            }),
+            (task = "$y" + parent.toString(16)),
+            writeToDedupeMap(request, value, elementEntry.id, task),
+            (request = task));
+        return request;
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(formatProdErrorMessage(525));
     }
@@ -1968,8 +2157,7 @@ function renderModelDestructive(
       void 0 !== elementEntry)
     )
       return "$T" + elementEntry;
-    elementEntry = TaintRegistryObjects.get(value);
-    void 0 !== elementEntry && throwTaintViolation(elementEntry);
+    throwIfTaintedObject(value);
     elementEntry = request.writtenObjects;
     writtenObjects = elementEntry.get(value);
     if ("function" === typeof value.then) {
@@ -2127,8 +2315,7 @@ function renderModelDestructive(
   }
   if ("string" === typeof value)
     return (
-      (task = TaintRegistryValues.get(value)),
-      void 0 !== task && throwTaintViolation(task.message),
+      throwIfTaintedValue(value),
       (serializedSize += value.length),
       "Z" === value[value.length - 1] &&
       parent[parentPropertyName] instanceof Date
@@ -2158,8 +2345,7 @@ function renderModelDestructive(
       ((request = request.temporaryReferences.get(value)), void 0 !== request)
     )
       return "$T" + request;
-    request = TaintRegistryObjects.get(value);
-    void 0 !== request && throwTaintViolation(request);
+    throwIfTaintedObject(value);
     if (value.$$typeof === TEMPORARY_REFERENCE_TAG)
       throw Error(formatProdErrorMessage(526));
     if (/^on[A-Z]/.test(parentPropertyName))
@@ -2201,11 +2387,7 @@ function renderModelDestructive(
     return serializeByValueID(parentPropertyName);
   }
   if ("bigint" === typeof value)
-    return (
-      (request = TaintRegistryValues.get(value)),
-      void 0 !== request && throwTaintViolation(request.message),
-      "$n" + value.toString(10)
-    );
+    return throwIfTaintedValue(value), "$n" + value.toString(10);
   throw Error(
     formatProdErrorMessage(
       378,
@@ -2296,14 +2478,14 @@ function transformImportMetadata(request, value, depth) {
       for (i = 0; i < length.length; i++) {
         element = length[i];
         if (element in ObjectPrototype$1) return NOT_PLAIN_IMPORT_METADATA;
-        var element$28 = value[element];
-        if ("string" === typeof element$28)
-          copy[element] = serializeImportString(request, element$28);
+        var element$34 = value[element];
+        if ("string" === typeof element$34)
+          copy[element] = serializeImportString(request, element$34);
         else {
-          element$28 = transformImportMetadata(request, element$28, depth + 1);
-          if (element$28 === NOT_PLAIN_IMPORT_METADATA)
+          element$34 = transformImportMetadata(request, element$34, depth + 1);
+          if (element$34 === NOT_PLAIN_IMPORT_METADATA)
             return NOT_PLAIN_IMPORT_METADATA;
-          copy[element] = element$28;
+          copy[element] = element$34;
         }
       }
       return copy;
@@ -2314,17 +2496,93 @@ function transformImportMetadata(request, value, depth) {
 function emitLedgerChunk(request, row) {
   request.completedLedgerChunks.push(stringToChunk(row));
 }
+function ensureLedgerDeclared(request, ledgers, type) {
+  var declarations = ledgers.declarations;
+  null === declarations && (ledgers.declarations = declarations = new Map());
+  ledgers = declarations.get(type);
+  void 0 === ledgers &&
+    ((ledgers = request.nextChunkId++),
+    declarations.set(type, ledgers),
+    emitLedgerChunk(request, ledgers.toString(16) + ":K" + type.kind + "\n"));
+  return ledgers;
+}
+function serializeLedgerEntry(entry) {
+  switch (typeof entry) {
+    case "string":
+      return throwIfTaintedValue(entry), escapeStringValue(entry);
+    case "number":
+      return serializeNumber(entry);
+    case "bigint":
+      return throwIfTaintedValue(entry), "$n" + entry.toString(10);
+    case "symbol":
+      if (((entry = Symbol.keyFor(entry)), null != entry)) return "$S" + entry;
+    case "undefined":
+      return "$undefined";
+    case "boolean":
+      return entry;
+    default:
+      return null;
+  }
+}
+function declareUnit(request$jscomp$0, unit$jscomp$0) {
+  if (!unit$jscomp$0.declared) {
+    var undeclared = [unit$jscomp$0];
+    for (
+      unit$jscomp$0 = unit$jscomp$0.creator;
+      null !== unit$jscomp$0 && !unit$jscomp$0.declared;
+
+    )
+      undeclared.push(unit$jscomp$0), (unit$jscomp$0 = unit$jscomp$0.creator);
+    for (
+      unit$jscomp$0 = undeclared.length - 1;
+      0 <= unit$jscomp$0;
+      unit$jscomp$0--
+    ) {
+      var request = request$jscomp$0,
+        unit = undeclared[unit$jscomp$0];
+      unit.declared = !0;
+      var creator = unit.creator,
+        totalIds = "",
+        totals = unit.totals;
+      if (null !== totals)
+        for (var i = 0; i < totals.length; i++)
+          totalIds += ',"' + totals[i].toString(16) + '"';
+      emitLedgerChunk(
+        request,
+        unit.id.toString(16) +
+          ":Q" +
+          (null === creator
+            ? "[null,["
+            : '["' + creator.id.toString(16) + '",[') +
+          totalIds.slice(1) +
+          "]]\n"
+      );
+    }
+  }
+}
 function emitLedgerDeltas(request, ledgers, unit, dirtyDeltas) {
   dirtyDeltas.forEach(function (cell, type) {
-    cell = serializeNumber(cell.state);
-    var declarations = ledgers.declarations;
-    null === declarations && (ledgers.declarations = declarations = new Map());
-    var id = declarations.get(type);
-    void 0 === id &&
-      ((id = request.nextChunkId++),
-      declarations.set(type, id),
-      emitLedgerChunk(request, id.toString(16) + ":K" + type.kind + "\n"));
-    type = [id.toString(16), cell];
+    switch (cell.kind) {
+      case 0:
+        cell = 1;
+        break;
+      case 1:
+        cell = serializeNumber(cell.state);
+        break;
+      case 2:
+      case 3:
+        cell = cell.state;
+        if (null === cell) return;
+        cell = serializeNumber(cell);
+        break;
+      default:
+        var entries = [];
+        cell.state.forEach(function (entry) {
+          entries.push(serializeLedgerEntry(entry));
+        });
+        cell = entries;
+    }
+    type = [ensureLedgerDeclared(request, ledgers, type).toString(16), cell];
     emitLedgerChunk(
       request,
       unit.id.toString(16) + ":Z" + stringify(type) + "\n"
@@ -2359,7 +2617,7 @@ function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
         )
       )
     );
-    void 0 !== tainted && throwTaintViolation(tainted.message);
+    if (void 0 !== tainted) throw Error(tainted.message);
   }
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
   a: {
@@ -2408,9 +2666,7 @@ function emitTextChunk(request, id, text, debug) {
 function emitChunk(request, task, value) {
   var id = task.id;
   "string" === typeof value && null !== byteLengthOfChunk
-    ? ((task = TaintRegistryValues.get(value)),
-      void 0 !== task && throwTaintViolation(task.message),
-      emitTextChunk(request, id, value, !1))
+    ? (throwIfTaintedValue(value), emitTextChunk(request, id, value, !1))
     : "object" === typeof value &&
         null !== value &&
         value.$$typeof === SERVER_REFERENCE_TAG
@@ -2560,55 +2816,75 @@ function performWorkWithRequest(request) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
 }
-function completeWork(request$jscomp$1) {
-  var ledgers = request$jscomp$1.ledgers;
-  if (null !== ledgers && null !== ledgers.declarations) {
-    for (
-      var dirtyUnits = ledgers.dirtyUnits, i = 0;
-      i < dirtyUnits.length;
-      i++
-    ) {
-      var unit = dirtyUnits[i],
-        request = request$jscomp$1;
-      if (!unit.declared) {
-        for (
-          var undeclared = [unit], ancestor = unit.creator;
-          null !== ancestor && !ancestor.declared;
-
-        )
-          undeclared.push(ancestor), (ancestor = ancestor.creator);
-        for (ancestor = undeclared.length - 1; 0 <= ancestor; ancestor--) {
-          var request$jscomp$0 = request,
-            unit$jscomp$0 = undeclared[ancestor];
-          unit$jscomp$0.declared = !0;
-          var creator = unit$jscomp$0.creator,
-            totalIds = "",
-            totals = unit$jscomp$0.totals;
-          if (null !== totals)
-            for (var i$jscomp$0 = 0; i$jscomp$0 < totals.length; i$jscomp$0++)
-              totalIds += ',"' + totals[i$jscomp$0].toString(16) + '"';
-          emitLedgerChunk(
-            request$jscomp$0,
-            unit$jscomp$0.id.toString(16) +
-              ":Q" +
-              (null === creator
-                ? "[null,["
-                : '["' + creator.id.toString(16) + '",[') +
-              totalIds.slice(1) +
-              "]]\n"
-          );
+function completeWork(request) {
+  a: {
+    var ledgers = request.ledgers;
+    if (null !== ledgers && null !== ledgers.declarations) {
+      var forwardedTotals = ledgers.forwardedTotals;
+      if (null !== forwardedTotals) {
+        for (var pending = 0, i = 0; i < forwardedTotals.length; i++) {
+          var forwarded = forwardedTotals[i],
+            source = forwarded.source,
+            reduced = readLedgerTotal(source),
+            carrier = forwarded.carrier,
+            emitted = forwarded.emitted;
+          switch (reduced.kind) {
+            case 0:
+              reduced.state &&
+                accumulateLedgerEntry(emitted, !0) &&
+                writeLedgerEntry(carrier, source.type, !0);
+              break;
+            case 1:
+              accumulateLedgerEntry(emitted, reduced.state) &&
+                writeLedgerEntry(carrier, source.type, reduced.state);
+              break;
+            case 2:
+            case 3:
+              reduced = reduced.state;
+              null !== reduced &&
+                accumulateLedgerEntry(emitted, reduced) &&
+                writeLedgerEntry(carrier, source.type, reduced);
+              break;
+            default:
+              emitted = source.entries;
+              null === emitted &&
+                (source.entries = emitted = Array.from(reduced.state));
+              for (
+                reduced = forwarded.emittedEntries;
+                reduced < emitted.length;
+                reduced++
+              )
+                writeLedgerEntry(carrier, source.type, emitted[reduced]);
+              forwarded.emittedEntries = emitted.length;
+          }
+          null !== forwarded.source.graph &&
+            (forwardedTotals[pending++] = forwarded);
         }
+        forwardedTotals.length = pending;
+        0 === pending && (ledgers.forwardedTotals = null);
       }
-      request = unit.dirtyDeltas;
-      null !== request &&
-        (emitLedgerDeltas(request$jscomp$1, ledgers, unit, request),
-        (unit.dirtyDeltas = null));
-      request = unit.dirtyReferences;
-      null !== request &&
-        (emitUnitReferences(request$jscomp$1, unit, request),
-        (unit.dirtyReferences = null));
+      forwardedTotals = ledgers.dirtyUnits;
+      try {
+        for (pending = 0; pending < forwardedTotals.length; pending++) {
+          var unit = forwardedTotals[pending];
+          declareUnit(request, unit);
+          var dirtyDeltas = unit.dirtyDeltas;
+          null !== dirtyDeltas &&
+            (emitLedgerDeltas(request, ledgers, unit, dirtyDeltas),
+            (unit.dirtyDeltas = null));
+          var dirtyReferences = unit.dirtyReferences;
+          null !== dirtyReferences &&
+            (emitUnitReferences(request, unit, dirtyReferences),
+            (unit.dirtyReferences = null));
+        }
+      } catch (error) {
+        forwardedTotals.length = 0;
+        logRecoverableError(request, error, null);
+        fatalError(request, error);
+        break a;
+      }
+      forwardedTotals.length = 0;
     }
-    dirtyUnits.length = 0;
   }
 }
 function abortTask(task) {
@@ -2811,9 +3087,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$38) {
-      logRecoverableError(request, error$38, null),
-        fatalError(request, error$38);
+    } catch (error$46) {
+      logRecoverableError(request, error$46, null),
+        fatalError(request, error$46);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -3665,12 +3941,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$41 = new ReactPromise("pending", null, null);
-          chunk$41.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$41;
+          var chunk$49 = new ReactPromise("pending", null, null);
+          chunk$49.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$49;
           chunk.then(function () {
-            previousBlockedChunk === chunk$41 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$41, json, -1);
+            previousBlockedChunk === chunk$49 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$49, json, -1);
           });
         }
       },
