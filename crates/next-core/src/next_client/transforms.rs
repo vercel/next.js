@@ -69,6 +69,10 @@ pub async fn get_next_client_transforms_rules(
 
     rules.push(get_next_font_transform_rule(enable_mdx_rs).await?);
 
+    // Static image imports produce `StaticImageData` regardless of whether the
+    // image lives in the project or in `node_modules` (matching webpack).
+    rules.push(get_next_image_rule().await?);
+
     let is_development = mode.await?.is_development();
     if is_development {
         rules.push(get_debug_fn_name_rule(enable_mdx_rs).await?);
@@ -121,8 +125,6 @@ pub async fn get_next_client_transforms_rules(
         rules.push(
             get_next_dynamic_transform_rule(false, false, is_app_dir, mode, enable_mdx_rs).await?,
         );
-
-        rules.push(get_next_image_rule().await?);
 
         rules.extend(get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?);
         rules.extend(get_relay_transform_rule(next_config, project_path.clone()).await?);
