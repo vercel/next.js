@@ -1854,8 +1854,22 @@ describe('request insights', () => {
       url: '/products/blue?query=redacted',
     }
 
+    // Also matches the template, so `--limit 1` has to drop it.
+    const olderTemplateMatch = {
+      ...createRequest(4),
+      route: '/products/[slug]',
+      url: '/products/green?query=redacted',
+    }
+
     const byTemplate = await runWithResponse(
-      { requests: [templateMatch, urlMatch, createRequest(3)] },
+      {
+        requests: [
+          olderTemplateMatch,
+          templateMatch,
+          urlMatch,
+          createRequest(3),
+        ],
+      },
       ['list', '--route', '/products/[slug]', '--limit', '1', '--json']
     )
     const templateRequests = JSON.parse(byTemplate.result.stdout).requests
