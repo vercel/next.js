@@ -178,8 +178,8 @@ export function traverse(
  */
 export function prepare(href: string): PreparedNavigation {
   // Only reachable through `router.experimental_prepare()`, which exists only
-  // when the flag is on. The router modules are CommonJS, so this export isn't
-  // tree-shaken; the throw lets the minifier drop the body instead.
+  // when the flag is on. The throw lets the minifier drop the body when the
+  // flag is off.
   if (!process.env.__NEXT_PREPARE_NAVIGATION) {
     throw new Error(
       '`router.experimental_prepare()` requires `experimental.prepareNavigation`.'
