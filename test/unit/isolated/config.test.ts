@@ -1,11 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
-import type { NextConfig } from 'next'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
-  PHASE_TEST,
-} from 'next/constants'
+import { PHASE_DEVELOPMENT_SERVER, PHASE_TEST } from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -416,49 +411,6 @@ describe('config', () => {
         }
       )
       expect(config.partialPrefetching).toBe(true)
-    })
-  })
-
-  describe('static export config with Cache Components', () => {
-    it.each<{ name: string; config: NextConfig }>([
-      ...[undefined, false, true].map((partialPrefetching) => ({
-        name: `partialPrefetching=${partialPrefetching}`,
-        config: { cacheComponents: true, partialPrefetching },
-      })),
-      {
-        name: 'legacy Cache Components',
-        config: { experimental: { cacheComponents: true } },
-      },
-      {
-        name: 'legacy true overriding top-level false',
-        config: {
-          cacheComponents: false,
-          experimental: { cacheComponents: true },
-        },
-      },
-    ])('rejects $name', async ({ config }) => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, '<rootDir>-export', {
-          customConfig: { output: 'export', ...config },
-        })
-      ).rejects.toThrow(
-        "`cacheComponents` is not yet supported with `output: 'export'`."
-      )
-    })
-
-    it('accepts legacy false overriding top-level true', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, '<rootDir>-export', {
-          customConfig: {
-            output: 'export',
-            cacheComponents: true,
-            experimental: { cacheComponents: false },
-          },
-        })
-      ).resolves.toMatchObject({
-        output: 'export',
-        cacheComponents: false,
-      })
     })
   })
 

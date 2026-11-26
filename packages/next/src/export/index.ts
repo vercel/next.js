@@ -916,11 +916,9 @@ async function exportAppImpl(
     }
   }
 
-  // Config validation rejects Cache Components with static export. Guard callers
-  // that pass a preloaded config as well.
   if (!options.buildExport && nextConfig.cacheComponents) {
     throw new Error(
-      'Invariant: Cache Components cannot yet be enabled in export mode'
+      "`cacheComponents` is not yet supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#with-cache-components"
     )
   }
 

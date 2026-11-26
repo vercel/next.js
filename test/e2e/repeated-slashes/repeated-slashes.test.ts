@@ -446,12 +446,7 @@ describe('404 handling', () => {
 
         await next.patchFile(
           'next.config.js',
-          `module.exports = {
-            output: 'export',
-            cacheComponents: false,
-            partialPrefetching: false,
-            experimental: { cachedNavigations: false },
-          }`
+          `module.exports = { output: 'export' }`
         )
         await next.build()
         staticServer = await startStaticServer(
@@ -537,12 +532,7 @@ describe('404 handling', () => {
         )
         await next.patchFile(
           'next.config.js',
-          `module.exports = {
-            output: 'export',
-            cacheComponents: false,
-            partialPrefetching: false,
-            experimental: { cachedNavigations: false },
-          }`
+          `module.exports = { output: 'export' }`
         )
         await next.build()
         staticServer = await startStaticServer(

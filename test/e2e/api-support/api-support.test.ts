@@ -615,12 +615,7 @@ describe('API routes output export error', () => {
 
     await next.patchFile(
       'next.config.js',
-      `module.exports = {
-        output: 'export',
-        cacheComponents: false,
-        partialPrefetching: false,
-        experimental: { cachedNavigations: false },
-      }`
+      `module.exports = { output: 'export' }`
     )
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).toContain('https://nextjs.org/docs/messages/gssp-export')

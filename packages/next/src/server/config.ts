@@ -677,20 +677,6 @@ function assignDefaultsAndValidate(
     )
   }
 
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'cacheComponents',
-    'cacheComponents',
-    configFileName,
-    silent
-  )
-
-  if (result.output === 'export' && result.cacheComponents) {
-    throw new Error(
-      "`cacheComponents` is not yet supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#unsupported-features"
-    )
-  }
-
   // TODO: Before Next.js 17, also warn when `partialPrefetching` is `false`
   // so apps can migrate before both features are enabled together by default.
   if (
@@ -1043,6 +1029,13 @@ function assignDefaultsAndValidate(
     result,
     'enablePrerenderSourceMaps',
     'enablePrerenderSourceMaps',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheComponents',
+    'cacheComponents',
     configFileName,
     silent
   )

@@ -189,12 +189,7 @@ describe('config telemetry', () => {
     it('detects output config for session start', async () => {
       await fs.writeFile(
         path.join(next.testDir, 'next.config.js'),
-        `module.exports = {
-          output: 'export',
-          cacheComponents: false,
-          partialPrefetching: false,
-          experimental: { cachedNavigations: false },
-        }`
+        'module.exports = { output: "export" }'
       )
       try {
         const { cliOutput } = await next.build({
