@@ -1175,11 +1175,9 @@ describe('instant-navigation-testing-api', () => {
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "This is a blocking route, so it has no static shell to show while navigations are paused. The pause, set by \`instant()\` from @next/playwright or by the Navigation Inspector, has been released. Reload the page to load the route.
+         "description": "The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.
 
-       To see which data access blocks the route, load it without the pause: Next.js reports it in the terminal and in the browser.
-
-       Learn more: https://nextjs.org/docs/app/guides/instant-navigation",
+       To identify why this route is blocking, refer to the Instant Navigation docs: https://preview.nextjs.org/docs/app/guides/instant-navigation",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
