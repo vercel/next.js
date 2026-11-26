@@ -241,6 +241,8 @@ A soft navigation into a page with `"use client"` at the top behaves like a sing
 
 Use the **Navigation Inspector** in Next.js DevTools to see what appears during page loads and client navigations before dynamic data streams in. Preview loading states to check which content appears immediately and where to place `<Suspense>` boundaries.
 
+> **Good to know:** When `next dev` [bypasses server caches](/docs/messages/cache-bypass-in-dev), it skips Instant Navigation validation. You won't see validation errors or insights for that request. For Playwright tests, see [Request interception in development](/docs/app/guides/testing/playwright#request-interception-in-development).
+
 If the indicator covers part of your app, [move the badge](/docs/app/guides/devtools#move-the-badge) to another corner.
 
 The [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools) complements this: it lists the `<Suspense>` boundaries in the tree and lets you toggle each one between its fallback and resolved state, so you can see exactly which boundary covers which part of the page.
@@ -422,7 +424,7 @@ async function getFeatured() {
 }
 ```
 
-Two `fetch()` calls block at the top level: an uncached featured-list fetch and a per-slug product fetch (which also awaits `params`). Both will surface as Instant validation errors, one at a time. If neither error appears in Playwright, [check the route without request interception](/docs/app/guides/testing/playwright#request-interception-in-development).
+Two `fetch()` calls block at the top level: an uncached featured-list fetch and a per-slug product fetch (which also awaits `params`). Both will surface as Instant validation errors, one at a time.
 
 ### Step 1: Move the slug-dependent work into Suspense
 
