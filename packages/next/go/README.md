@@ -41,7 +41,7 @@ Import `next/go/assets`; it uses the same module mapping as the rest of the SDK.
 
 ```go
 // app/dashboard/route.go
-package main
+package route
 
 import (
   "fmt"
