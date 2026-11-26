@@ -16,6 +16,8 @@ const searchTools = new Set(['grep', 'glob'])
 const shellSearch = /\b(?:find|grep|rg)\b/
 const shellRead = /\b(?:cat|head|less|sed|tail)\b/
 const shellSearchOrReadLead = /^\s*(?:find|grep|rg|cat|head|less|sed|tail)\b/
+// `ps aux | grep next` filters another command's output instead of reading files.
+const pipedStage = /(?<!\|)\|(?!\|)[^;&|]*/g
 // Exclusion flags name dependencies without searching them.
 const searchExclusions =
   /--exclude(?:-dir)?=\S+|(?:-not|!)\s+-i?(?:path|name)\s+\S+|(?:-g|--glob)[=\s]['"]?!\S+/g
@@ -32,10 +34,11 @@ function classify({ name, args = {} }) {
   }
   const target =
     args.file_path ?? args.path ?? text.replace(searchExclusions, '')
+  const ownStages = text.replace(pipedStage, '')
   const search =
-    searchTools.has(name) || (name === 'shell' && shellSearch.test(text))
+    searchTools.has(name) || (name === 'shell' && shellSearch.test(ownStages))
   const read =
-    name === 'file_read' || (name === 'shell' && shellRead.test(text))
+    name === 'file_read' || (name === 'shell' && shellRead.test(ownStages))
   if (!search && !read) return null
   if (bundledDocsPath.test(target)) {
     return search

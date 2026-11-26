@@ -162,3 +162,14 @@ it('does not treat a search for the CLI name as running it', () => {
     bundledDocsReads: [],
   })
 })
+
+it('ignores grep filtering another command before the CLI', () => {
+  expect(
+    collect([
+      toolCall('shell', { command: 'ps aux | grep "next dev"' }),
+      toolCall('shell', {
+        command: 'npx next experimental-request-insights list --json',
+      }),
+    ])
+  ).toMatchObject({ requestInsightsBeforeProjectInspection: true })
+})
