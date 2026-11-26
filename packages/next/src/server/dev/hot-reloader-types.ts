@@ -389,7 +389,7 @@ export interface NextJsHotReloaderInterface {
    * render produces: it makes connected clients refetch server components, and
    * advances `getServerComponentsHmrRefreshHash`, discarding `"use cache"`
    * entries that aren't keyed by their code hash (see
-   * `experimental.durableUseCacheEntries`).
+   * `experimental.durableUseCacheEntriesInDev`).
    */
   invalidate({
     reloadAfterInvalidation,

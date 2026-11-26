@@ -2469,8 +2469,9 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn enable_durable_use_cache_entries(&self) -> Vc<bool> {
-        // In development this keys `"use cache"` entries by their code hash instead of the HMR
-        // refresh hash, so an edit only invalidates entries whose code changed.
+        // In development, the resolved config sets this from `durableUseCacheEntriesInDev`. It keys
+        // `"use cache"` entries by their code hash instead of the HMR refresh hash, so an edit only
+        // invalidates entries whose code changed.
         Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
     }
 

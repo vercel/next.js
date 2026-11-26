@@ -11,15 +11,15 @@ async function readValues(browser: {
   return { cached, unrelated }
 }
 
-// `experimental.durableUseCacheEntries` only applies with Turbopack.
+// `experimental.durableUseCacheEntriesInDev` only applies with Turbopack.
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'use-cache-durable-dev',
   () => {
-    describe('with durableUseCacheEntries', () => {
+    describe('with durableUseCacheEntriesInDev', () => {
       const { next } = nextTestSetup({
         files: __dirname,
         nextConfig: {
-          experimental: { useCache: true, durableUseCacheEntries: true },
+          experimental: { useCache: true, durableUseCacheEntriesInDev: true },
         },
       })
 
@@ -63,11 +63,12 @@ async function readValues(browser: {
       })
     })
 
-    describe('without durableUseCacheEntries', () => {
+    describe('without durableUseCacheEntriesInDev', () => {
+      // `durableUseCacheEntries` alone doesn't apply to development.
       const { next } = nextTestSetup({
         files: __dirname,
         nextConfig: {
-          experimental: { useCache: true },
+          experimental: { useCache: true, durableUseCacheEntries: true },
         },
       })
 

@@ -435,7 +435,7 @@ export async function handleRouteType({
       if (dev) {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries that aren't keyed
-        // by a code hash (see `experimental.durableUseCacheEntries`) are
+        // by a code hash (see `experimental.durableUseCacheEntriesInDev`) are
         // invalidated after an edit. Subscribing runs `subscribeToClientChanges`, which
         // bumps the `hmrHash` counter on each change; that counter is returned
         // by `getServerComponentsHmrRefreshHash` and folded into cache keys by
