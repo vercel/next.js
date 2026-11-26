@@ -145,9 +145,10 @@ it.each([
   ).toMatchObject({ requestInsightsBeforeProjectInspection: false })
 })
 
-it('does not treat a search for the CLI name as running it', () => {
-  const search =
-    "grep -rn 'next experimental-request-insights' node_modules/next/dist/docs/"
+it.each([
+  "grep -rn 'next experimental-request-insights' node_modules/next/dist/docs/",
+  "cd node_modules/next/dist/docs && grep -rn 'next experimental-request-insights' .",
+])('does not treat a search for the CLI name as running it: %s', (search) => {
   expect(
     collect([
       toolCall('shell', { command: search }),

@@ -27,11 +27,16 @@ const searchExclusions =
 function classify({ name, args = {} }) {
   const text = args.command ?? JSON.stringify(args)
   if (requestInsightsTool.test(name)) return { kind: 'request-insights' }
-  // Searching for or reading about the CLI isn't running it.
+  // Searching for or reading about the CLI isn't running it, even after `cd`.
   if (
     name === 'shell' &&
-    !shellSearchOrReadLead.test(text) &&
-    requestInsightsCommand.test(text)
+    text
+      .split(/&&|\|\||;/)
+      .some(
+        (command) =>
+          !shellSearchOrReadLead.test(command) &&
+          requestInsightsCommand.test(command)
+      )
   ) {
     return { kind: 'request-insights' }
   }
