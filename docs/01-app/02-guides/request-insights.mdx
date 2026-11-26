@@ -14,9 +14,9 @@ This guide walks through a typical performance audit workflow that you can apply
 
 ## Example
 
-Suppose a request to `/reports` takes several seconds. We'll record the request, find it in the development overlay, and inspect its timeline.
+Suppose a request to `/reports` takes several seconds. We'll find it in the development overlay and inspect its timeline.
 
-### Step 1: Record the slow request
+### Step 1: Reproduce the slow request
 
 Enable Request Insights in `next.config.ts`, then start the development server:
 
@@ -45,7 +45,7 @@ module.exports = nextConfig
 
 This option enables both the **Request Insights** panel in the development overlay and the `next experimental-request-insights` CLI. If the development server is already running, restart it before continuing.
 
-Open `http://localhost:3000/reports` and reproduce the slowdown. The development server keeps the most recent completed requests in memory until it restarts.
+Open `http://localhost:3000/reports` and reproduce the slowdown. The development server keeps up to 500 completed requests in memory, including the latest RSC and HTML page requests, until it restarts.
 
 ### Step 2: Find the request in the overlay
 
@@ -75,6 +75,12 @@ Request Insights also provides a CLI for terminal workflows and automation. List
 next experimental-request-insights list --route /reports
 ```
 
+To inspect concurrency in chronological order, include relative start and end times:
+
+```bash
+next experimental-request-insights list --sort start
+```
+
 Then inspect the matching request using its full ID or an unambiguous prefix:
 
 ```bash
@@ -85,9 +91,10 @@ Add `--json` to `get` for the complete request with span attributes, or to `list
 
 ## Next steps
 
-You can now record a slow development request, inspect it in the development overlay, and use the CLI for terminal workflows or automation.
+You can now inspect a slow development request in the development overlay and use the CLI for terminal workflows or automation.
 
 Next, learn how to:
 
 - Use the [`next experimental-request-insights` CLI options](/docs/app/api-reference/cli/next#next-experimental-request-insights-options).
+- Let a coding agent diagnose slow requests with the [`next-performance` Skill](/docs/app/guides/ai-agents#next-performance).
 - [Debug a Next.js application](/docs/app/guides/debugging).

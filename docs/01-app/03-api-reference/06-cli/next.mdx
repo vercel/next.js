@@ -299,7 +299,7 @@ The `export` subcommand streams an existing snapshot as a series of JSON Lines. 
 
 ### `next experimental-request-insights list` options
 
-The `list` subcommand (alias `ls`) lists recent requests, newest first.
+The `list` subcommand (alias `ls`) lists recent requests.
 
 | Option            | Description                                                                        |
 | ----------------- | ---------------------------------------------------------------------------------- |
@@ -307,6 +307,7 @@ The `list` subcommand (alias `ls`) lists recent requests, newest first.
 | `--url <url>`     | Override automatic discovery with the running development server's URL.            |
 | `--json`          | Output request summaries as JSON.                                                  |
 | `--route <route>` | Match a route template or request URL pathname.                                    |
+| `--sort <order>`  | Order by `newest` (default) or `start` time. Both keep the most recent requests.   |
 | `--limit <count>` | Maximum number of requests to return. Defaults to 10.                              |
 
 ### `next experimental-request-insights get` options
