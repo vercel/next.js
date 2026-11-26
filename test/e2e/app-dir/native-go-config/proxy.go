@@ -30,5 +30,6 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("x-static-go-config", "matched")
+	w.Header().Set("x-request-cookie", r.Header.Get("Cookie"))
 	proxy.Next(w)
 }

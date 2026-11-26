@@ -60,7 +60,7 @@ var Config = proxy.Config{
 
 Use `Has` or `Missing` to test headers, cookies, query parameters, or the host. Values must be literals; calls and computed values are not supported.
 
-Header and cookie conditions require self-hosting with `next start`. Builds using `adapterPath` do not support these conditions because adapters do not run Next.js's request-header validation. Use source-only matchers for adapter deployments.
+Header and cookie conditions are supported when self-hosting and with adapters. Requests whose condition headers have ambiguous values, such as repeated header fields that JavaScript joins but Go reads separately, receive a `400` response. Adapter-built Go routes validate these headers even when a condition causes the platform to skip the proxy.
 
 ## Examples
 

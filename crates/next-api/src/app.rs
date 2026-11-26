@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result, bail, ensure};
 use async_trait::async_trait;
@@ -70,7 +70,10 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
-    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    resolve::{
+        FindContextFileResult, ResolveErrorMode, origin::PlainResolveOrigin, parse::Request,
+        pattern::Pattern,
+    },
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
@@ -1210,6 +1213,61 @@ fn go_proxy_handler_source(skip_proxy_url_normalize: bool, base_path: &str) -> R
     ))
 }
 
+/// Adapter routing may skip the proxy entirely. Every native entrypoint must therefore validate
+/// the header fields its proxy conditions depend on, before Go can interpret a different value.
+/// Keep this separate from code generation so a proxy body edit does not rebuild every route.
+#[turbo_tasks::function]
+async fn go_proxy_condition_headers(
+    project: Vc<Project>,
+    session: Vc<GoBuildSession>,
+) -> Result<Vc<RcStr>> {
+    let middleware = project.find_middleware().await?;
+    let mut names = BTreeSet::new();
+    if let FindContextFileResult::Found(path, _) = &*middleware
+        && path.file_name() == "proxy.go"
+    {
+        let sources = go_source_set(
+            project.project_root_path().owned().await?,
+            path.parent(),
+            GoSourceSelection::Directory,
+            session,
+        );
+        let source_set = sources.await?;
+        let name = source_set
+            .root
+            .get_path_to(path)
+            .context("Go proxy outside module")?;
+        let entry = go_declarations(sources, vec![RcStr::from(name)], session).await?;
+        let config =
+            go_entry_config(&entry.functions, &entry.values, true).map_err(anyhow::Error::msg)?;
+        for matcher in config["matcher"].as_array().into_iter().flatten() {
+            for kind in ["has", "missing"] {
+                for condition in matcher[kind].as_array().into_iter().flatten() {
+                    match condition["type"].as_str() {
+                        Some("header") => {
+                            if let Some(key) = condition["key"].as_str() {
+                                names.insert(key.to_ascii_lowercase());
+                            }
+                        }
+                        Some("cookie") => {
+                            names.insert("cookie".to_owned());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    Ok(Vc::cell(
+        names
+            .iter()
+            .map(|name| serde_json::to_string(name).map(|name| format!("{name},")))
+            .collect::<Result<Vec<_>, _>>()?
+            .join(" ")
+            .into(),
+    ))
+}
+
 /// proxy.go only supports App Router applications. Pages Router routing (data
 /// requests and locales) would need its own URL normalization in Go to match
 /// proxy.ts.
@@ -1754,9 +1812,14 @@ impl Endpoint for GoEndpoint {
         // All executables extract parameters from the selected destination URL.
         // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
-            include_str!("templates/go_route_adapter_main.go")
+            include_str!("templates/go_route_adapter_main.go").replace(
+                "// __NEXT_GO_PROXY_CONDITION_HEADERS__",
+                go_proxy_condition_headers(*project, session)
+                    .await?
+                    .as_str(),
+            )
         } else {
-            include_str!("templates/go_route_main.go")
+            include_str!("templates/go_route_main.go").to_owned()
         }
         .replace(
             "\"__NEXT_GO_ROUTE_IMPORT__\"",

@@ -1,6 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { fetchViaRawHttp, retry } from 'next-test-utils'
+import { fetchViaRawHttp, findPort, retry } from 'next-test-utils'
+import { spawn, type ChildProcess } from 'child_process'
+import { once } from 'events'
+import { chmod, copyFile, mkdtemp, rm } from 'fs/promises'
+import { createServer, request } from 'http'
+import { tmpdir } from 'os'
+import { createConnection } from 'net'
+import type { AdapterOutput } from 'next'
+import { NodeNextRequest } from 'next/dist/server/base-http/node'
+import { distinctHeaders } from 'next/dist/server/lib/native-headers'
+import { getMiddlewareRouteMatcher } from 'next/dist/shared/lib/router/utils/middleware-route-matcher'
 
 // Hosted Go support requires the companion adapter/builder releases.
 // @force-gate turbopack && !deploy
@@ -273,14 +283,6 @@ describe('static Go config', () => {
           `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))}, experimental:`
         )
       )
-      const proxy = await next.readFile('proxy.go')
-      await next.patchFile(
-        'proxy.go',
-        proxy.replace(
-          /, (?:Has|Missing): \[\]proxy.Condition\{\{[^}]*\}\}/g,
-          ''
-        )
-      )
       try {
         await next.build()
         const output = await next.readJSON('go-config-output.json')
@@ -308,15 +310,16 @@ describe('static Go config', () => {
           config: { maxDuration: 17 },
         })
       } finally {
-        await next.patchFile('proxy.go', proxy)
         await next.patchFile('next.config.ts', config)
       }
     })
 
-    it('rejects header and cookie conditions in adapter builds', async () => {
+    it('supports adapter conditions and validates Go routes even when the platform skips the proxy', async () => {
       await next.stop()
       const config = await next.readFile('next.config.ts')
-      const proxy = await next.readFile('proxy.go')
+      const children: ChildProcess[] = []
+      const directory = await mkdtemp(join(tmpdir(), 'go-condition-adapter-'))
+      const server = createServer()
       try {
         await next.patchFile(
           'next.config.ts',
@@ -325,29 +328,182 @@ describe('static Go config', () => {
             `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))}, experimental:`
           )
         )
-        for (const kind of ['Has', 'Missing']) {
-          for (const type of ['header', 'cookie']) {
-            const source = proxy.replace(
-              /, (Has|Missing): \[\]proxy.Condition\{\{Type: "(header|cookie)"[^}]*\}\}/g,
-              (condition, currentKind, currentType) =>
-                currentKind === kind && currentType === type ? condition : ''
+        const result = await next.build()
+        expect(result.exitCode).toBe(0)
+        const output: {
+          middleware: AdapterOutput['MIDDLEWARE']
+          routes: AdapterOutput['APP_ROUTE'][]
+        } = await next.readJSON('go-config-output.json')
+        const matchers = output.middleware.config.matchers!
+        for (const [kind, type] of [
+          ['has', 'header'],
+          ['missing', 'header'],
+          ['has', 'cookie'],
+          ['missing', 'cookie'],
+        ] as const) {
+          expect(matchers).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                [kind]: expect.arrayContaining([
+                  expect.objectContaining({ type }),
+                ]),
+              }),
+            ])
+          )
+        }
+        const match = getMiddlewareRouteMatcher(
+          matchers.map((matcher) => ({
+            ...matcher,
+            regexp: matcher.sourceRegex,
+            originalSource: matcher.source,
+          }))
+        )
+        const origins = new Map<string, string>()
+        const paths = ['/_middleware', '/headers/has', '/headers/missing']
+        for (const [index, pathname] of paths.entries()) {
+          const entry =
+            pathname === '/_middleware'
+              ? output.middleware
+              : output.routes.find((route) => route.pathname === pathname)!
+          expect(entry.runtime).toBe('go')
+          const binary = join(
+            directory,
+            `${index}${process.platform === 'win32' ? '.exe' : ''}`
+          )
+          await copyFile(entry.filePath, binary)
+          await chmod(binary, 0o755)
+          const port = await findPort()
+          children.push(
+            spawn(binary, [], {
+              cwd: directory,
+              env: { ...process.env, PORT: String(port) },
+              stdio: 'inherit',
+            })
+          )
+          const origin = `http://127.0.0.1:${port}`
+          origins.set(pathname, origin)
+          await retry(async () => {
+            await fetchViaRawHttp(origin, '/unmatched-readiness')
+          })
+        }
+        // Released deployment builders cannot host Go middleware yet. Dispatch
+        // the real adapter executables using the ordinary JavaScript matcher,
+        // without Next's Node-only Go header guard. Preserve repeated headers
+        // when forwarding, including when the platform skips the proxy.
+        let proxyCalls = 0
+        server.on('request', (req, res) => {
+          try {
+            const pathname = new URL(req.url!, 'http://localhost').pathname
+            const matched = match(pathname, new NodeNextRequest(req), {})
+            if (matched) proxyCalls++
+            const target = origins.get(matched ? '/_middleware' : pathname)
+            if (!target) {
+              res.end('skipped')
+              return
+            }
+            const upstream = request(
+              new URL(req.url!, target),
+              {
+                method: req.method,
+                headers: { ...distinctHeaders(req), host: req.headers.host },
+              },
+              (response) => {
+                res.writeHead(response.statusCode!, response.headers)
+                response.pipe(res)
+              }
             )
-            expect(source).toContain(
-              `${kind}: []proxy.Condition{{Type: "${type}"`
-            )
-            await next.patchFile('proxy.go', source)
-            const result = await next.build()
-            expect(result.exitCode).not.toBe(0)
-            expect(result.cliOutput).toContain(
-              'Go proxy header and cookie matcher conditions are not supported in adapter builds'
-            )
+            upstream.on('error', (error) => res.destroy(error))
+            req.pipe(upstream)
+          } catch (error) {
+            console.error(error)
+            res.statusCode = 500
+            res.end('Adapter request failed')
+          }
+        })
+        const port = await findPort()
+        await new Promise<void>((resolve) =>
+          server.listen(port, '127.0.0.1', resolve)
+        )
+        const origin = `http://127.0.0.1:${port}`
+        for (const [pathname, headers, matched] of [
+          ['/conditional', { 'x-config-match': 'yes' }, true],
+          ['/conditional', { 'x-config-match': 'no' }, false],
+          ['/missing', {}, true],
+          ['/missing', { cookie: 'skip=yes' }, false],
+          ['/headers/javascript', { cookie: 'resource=private' }, true],
+          ['/headers/javascript', { cookie: 'resource=public' }, false],
+          ['/headers/missing', {}, true],
+          ['/headers/missing', { 'x-resource': 'public' }, false],
+        ] as const) {
+          const response = await fetchViaRawHttp(origin, pathname, { headers })
+          expect(
+            response.status === 403 ||
+              response.headers.get('x-static-go-config') === 'matched'
+          ).toBe(matched)
+        }
+        for (const headers of [
+          { 'x-resource': ['private', 'public'] },
+          { 'x-resource': ['public', 'private'] },
+          { 'set-cookie': ['private', 'public'] },
+          { connection: 'x-resource', 'x-resource': 'public' },
+          { connection: 'cookie', cookie: 'skip=yes' },
+        ]) {
+          const before = proxyCalls
+          const response = await fetchViaRawHttp(origin, '/headers/has', {
+            headers,
+          })
+          expect(response.status).toBe(400)
+          expect(await response.text()).not.toContain('secret')
+          expect(proxyCalls).toBe(before)
+        }
+        // An array-valued Cookie option is already joined by Node's client.
+        // Use raw field lines to exercise the Go entrypoint's normalization.
+        const repeatedCookies = await new Promise<string>((resolve, reject) => {
+          let response = ''
+          const socket = createConnection(
+            {
+              host: '127.0.0.1',
+              port: Number(new URL(origins.get('/_middleware')!).port),
+            },
+            () => {
+              socket.write(
+                'GET /conditional HTTP/1.1\r\nHost: localhost\r\nx-config-match: yes\r\nCookie: session=one\r\nCookie: skip=yes\r\nConnection: close\r\n\r\n'
+              )
+            }
+          )
+          socket.on('error', reject)
+          socket.on('data', (chunk) => {
+            response += chunk.toString()
+          })
+          socket.on('end', () => resolve(response))
+        })
+        expect(repeatedCookies).toMatch(/^HTTP\/1\.1 200 /)
+        expect(repeatedCookies.toLowerCase()).toContain(
+          '\r\nx-request-cookie: session=one; skip=yes\r\n'
+        )
+        const unrelated = await fetchViaRawHttp(origin, '/headers/has', {
+          headers: { 'x-unrelated': ['one', 'two'] },
+        })
+        expect(unrelated.status).toBe(200)
+        expect(unrelated.headers.get('x-unrelated-values')).toBe('one|two')
+      } finally {
+        if (server.listening) {
+          server.closeAllConnections()
+          await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()))
+          })
+        }
+        for (const child of children) {
+          if (child.exitCode === null) {
+            const exited = once(child, 'exit')
+            child.kill()
+            await exited
           }
         }
-      } finally {
-        await next.patchFile('proxy.go', proxy)
+        await rm(directory, { recursive: true, force: true })
         await next.patchFile('next.config.ts', config)
       }
-    })
+    }, 360_000)
   }
 })
 
