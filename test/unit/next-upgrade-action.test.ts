@@ -1,0 +1,970 @@
+import { execFileSync, spawnSync } from 'node:child_process'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+
+const sourceRoot = resolve(__dirname, '../..')
+const actionRoot = join(sourceRoot, '.github/actions/next-upgrade')
+const fixtureRoot = join(
+  __dirname,
+  '../e2e/agent-upgrade-ci/fixtures/single-app-npm'
+)
+const sourceVersion = '16.1.6'
+const targetVersion = '16.2.0'
+const appPath = 'apps/site'
+const credential = 'dummy-test-key'
+// Each preparation runs a real `npm ci` for the fixture app.
+const prepareTimeout = 600_000
+
+function git(cwd: string, ...args: string[]) {
+  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+}
+
+function runScript<T>(script: string, input: unknown, cwd: string): T {
+  const output = execFileSync(
+    process.execPath,
+    ['--input-type=module', '-e', script, JSON.stringify(input)],
+    { cwd, encoding: 'utf8', timeout: prepareTimeout }
+  )
+  return JSON.parse(output.trimEnd().split('\n').pop()!) as T
+}
+
+function writeFakeSudo(directory: string, { allowAgentSudo = false } = {}) {
+  const log = join(directory, 'sudo.log')
+  writeFileSync(
+    join(directory, 'sudo'),
+    `#!/bin/sh
+{ printf '%s' "$*" | tr '\\n' ' '; echo; } >> "${log}"
+[ "$1" = -n ] && shift
+case "$1" in
+  -u)
+    shift 3
+    # The same user can read its own /proc entries, so answer the
+    # isolation probe the way a separate user without sudo would.
+    case "$*" in
+      *environ*) echo '{"environ":false,"sudo":${allowAgentSudo}}'; exit 0 ;;
+    esac
+    exec "$@" ;;
+  chown|chgrp|pkill) exit 0 ;;
+esac
+exit 2
+`,
+    { mode: 0o700 }
+  )
+  return () => readFileSync(log, 'utf8').split('\n').filter(Boolean)
+}
+
+type Handoff =
+  | { status: 'ready' }
+  | { status: 'unaffected' | 'blocked' | 'unknown'; reason: string }
+
+// A stand-in for the pinned CLI: it reports its version and writes the
+// configured handoff, so assessment needs no registry.
+function writeFakeCli(directory: string, handoff: Handoff) {
+  const cliPath = join(directory, 'next.cjs')
+  const log = join(directory, 'cli-runs.jsonl')
+  writeFileSync(join(directory, 'handoff-config.json'), JSON.stringify(handoff))
+  writeFileSync(
+    cliPath,
+    `const fs = require('node:fs')
+const path = require('node:path')
+const args = process.argv.slice(2)
+if (args[0] === '--version') {
+  console.log('Next.js v${targetVersion}')
+  return
+}
+const { env } = process
+const handoff = env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
+const guides = env.__NEXT_AGENT_UPGRADE_CI_GUIDES
+let installed = null
+try {
+  installed = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'node_modules/next/package.json'), 'utf8')).version
+} catch {}
+fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({
+  args,
+  cwd: process.cwd(),
+  expectedVersion: env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION ?? null,
+  handoff,
+  guides,
+  installed,
+  credential: JSON.stringify(env).includes(${JSON.stringify(credential)}),
+}) + '\\n')
+const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'handoff-config.json'), 'utf8'))
+fs.mkdirSync(guides, { recursive: true })
+const guide = path.join(guides, 'upgrade.md')
+fs.writeFileSync(guide, 'Upgrade guide')
+const result = config.status === 'ready'
+  ? {
+      status: 'ready',
+      installedVersion: installed,
+      targetVersion: '${targetVersion}',
+      prompt: 'Upgrade from Next.js ' + installed + ' to ${targetVersion}. Read ' + JSON.stringify(guide) + '.',
+    }
+  : config
+fs.writeFileSync(handoff, JSON.stringify(result), { flag: 'wx' })
+`
+  )
+  return {
+    cliPath,
+    runs: () =>
+      readFileSync(log, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map(
+          (line) =>
+            JSON.parse(line) as {
+              args: string[]
+              cwd: string
+              expectedVersion: string | null
+              handoff: string
+              guides: string
+              installed: string | null
+              credential: boolean
+            }
+        ),
+  }
+}
+
+type Agent =
+  | 'none'
+  | 'upgrade'
+  | 'unchanged'
+  | 'github'
+  | 'credential'
+  | 'setuid'
+
+type Index = {
+  baseSha: string
+  candidates: {
+    id: string
+    path: string
+    policy: string
+    fromVersion: string
+    targetVersion: string
+  }[]
+  outcomes: { paths: string[]; status: string; failureStage?: string }[]
+}
+
+type Preparation = {
+  index: Index
+  written: Index
+  messages: string[]
+  agentCalls: {
+    root: string
+    cwd: string
+    guides: string
+    prompt: string
+    guide: string
+    privateMode: number
+    scratchMode: number
+  }[]
+  cliRuns: ReturnType<ReturnType<typeof writeFakeCli>['runs']>
+  sudoCalls: string[]
+}
+
+// The fixture's lockfile, resolved once per run instead of committed.
+let fixtureLock: string | undefined
+function resolveFixtureLock() {
+  if (fixtureLock === undefined) {
+    const directory = mkdtempSync(join(tmpdir(), 'next-upgrade-lock-'))
+    try {
+      cpSync(fixtureRoot, directory, { recursive: true })
+      execFileSync(
+        'npm',
+        [
+          'install',
+          '--package-lock-only',
+          '--ignore-scripts',
+          '--no-audit',
+          '--no-fund',
+        ],
+        { cwd: directory, stdio: 'ignore' }
+      )
+      fixtureLock = readFileSync(join(directory, 'package-lock.json'), 'utf8')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
+  return fixtureLock
+}
+
+// A consumer repository with the fixture app at `apps/site`.
+function createConsumer(
+  directory: string,
+  {
+    lockfile = true,
+    files = {},
+  }: { lockfile?: boolean; files?: Record<string, string> } = {}
+) {
+  const root = join(directory, 'consumer')
+  cpSync(fixtureRoot, join(root, appPath), { recursive: true })
+  if (lockfile) {
+    writeFileSync(
+      join(root, appPath, 'package-lock.json'),
+      resolveFixtureLock()
+    )
+  }
+  for (const [name, contents] of Object.entries(files)) {
+    writeFileSync(join(root, appPath, name), contents)
+  }
+  writeFileSync(join(root, 'README.md'), '# Consumer\n')
+  git(root, 'init', '--initial-branch=main')
+  git(root, 'config', 'user.name', 'Upgrade test')
+  git(root, 'config', 'user.email', 'upgrade-fixture@example.com')
+  git(root, 'config', 'commit.gpgsign', 'false')
+  git(root, 'add', '.')
+  git(root, 'commit', '-m', 'Add the upgrade fixture')
+  return root
+}
+
+function prepare({
+  directory,
+  handoff = { status: 'ready' },
+  agent,
+  lockfile = true,
+  files,
+  agentUser,
+  shallow = false,
+}: {
+  directory: string
+  handoff?: Handoff
+  agent: Agent
+  lockfile?: boolean
+  files?: Record<string, string>
+  agentUser?: string
+  // Like actions/checkout, which fetches one commit by default.
+  shallow?: boolean
+}) {
+  const consumer = createConsumer(directory, { lockfile, files })
+  const root = shallow ? join(directory, 'shallow') : consumer
+  if (shallow) {
+    git(
+      directory,
+      'clone',
+      '--quiet',
+      '--depth',
+      '1',
+      pathToFileURL(consumer).href,
+      root
+    )
+  }
+  const artifactDirectory = join(directory, 'candidates')
+  const { cliPath, runs } = writeFakeCli(directory, handoff)
+  const sudoCalls = agentUser ? writeFakeSudo(directory) : () => []
+  const script = `
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+const { modulePath, agent, fakeSudo, targetVersion, ...input } = JSON.parse(process.argv[1])
+if (fakeSudo) {
+  process.env.PATH = fakeSudo + ':' + process.env.PATH
+  process.env.NEXT_UPGRADE_SYSTEM_PATH = fakeSudo + ':/usr/bin:/bin'
+}
+const { prepareUpgradeCandidate } = await import(pathToFileURL(modulePath).href)
+// Keep the explanations preparation writes to the consumer's log.
+const messages = []
+const logError = console.error
+console.error = (...args) => {
+  messages.push(args.join(' '))
+  logError(...args)
+}
+const editJson = (file, edit) => {
+  const value = JSON.parse(readFileSync(file, 'utf8'))
+  edit(value)
+  writeFileSync(file, JSON.stringify(value, null, 2) + '\\n')
+}
+const agentCalls = []
+const index = await prepareUpgradeCandidate({
+  ...input,
+  runAgent: async (task) => {
+    const scratch = join(task.root, '..')
+    agentCalls.push({
+      ...task,
+      guide: readFileSync(join(task.guides, 'upgrade.md'), 'utf8'),
+      privateMode: statSync(join(scratch, 'private')).mode & 0o777,
+      scratchMode: statSync(scratch).mode & 0o777,
+    })
+    if (agent === 'none') {
+      throw new Error('An unexpected candidate invoked the agent')
+    }
+    if (agent === 'unchanged') {
+      return
+    }
+    editJson(join(task.cwd, 'package.json'), (manifest) => {
+      manifest.dependencies.next = targetVersion
+    })
+    editJson(join(task.cwd, 'package-lock.json'), (lock) => {
+      lock.packages[''].dependencies.next = targetVersion
+      lock.packages['node_modules/next'].version = targetVersion
+    })
+    const page = join(task.cwd, 'pages/index.js')
+    writeFileSync(page, readFileSync(page, 'utf8') + '// Upgraded\\n')
+    if (agent === 'github') {
+      mkdirSync(join(task.root, '.github/workflows'), { recursive: true })
+      writeFileSync(join(task.root, '.github/workflows/agent.yml'), 'name: agent\\n')
+    } else if (agent === 'credential') {
+      writeFileSync(join(task.cwd, 'notes.txt'), 'Used ' + input.credential + '\\n')
+    } else if (agent === 'setuid') {
+      // Git keeps the file mode, so only the snapshot check sees the bit.
+      chmodSync(page, 0o4644)
+      if ((statSync(page).mode & 0o4000) === 0) {
+        throw new Error('Could not set the setuid bit')
+      }
+    }
+  },
+})
+const indexPath = join(input.artifactDirectory, 'index.json')
+const written = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : null
+console.log(JSON.stringify({ index, written, messages, agentCalls }))
+`
+  const result = runScript<Omit<Preparation, 'cliRuns' | 'sudoCalls'>>(
+    script,
+    {
+      modulePath: join(actionRoot, 'prepare-upgrade.mjs'),
+      root,
+      artifactDirectory,
+      appPath,
+      policy: 'latest',
+      cliPath,
+      authMode: 'codex-openai-api-key',
+      credential,
+      agentUser,
+      agent,
+      targetVersion,
+      fakeSudo: agentUser ? directory : undefined,
+    },
+    root
+  )
+  let cliRuns: Preparation['cliRuns'] = []
+  try {
+    cliRuns = runs()
+  } catch {}
+  return {
+    root,
+    artifactDirectory,
+    ...result,
+    cliRuns,
+    sudoCalls: sudoCalls(),
+  }
+}
+
+type Assessment = {
+  baseSha: string
+  outcome: {
+    paths: string[]
+    status: string
+    failureStage?: string
+    targetVersion?: string
+  }
+}
+
+// Runs only the assessment, as the workflow's prepare job does.
+function assess({
+  directory,
+  handoff = { status: 'ready' },
+  lockfile = true,
+}: {
+  directory: string
+  handoff?: Handoff
+  lockfile?: boolean
+}) {
+  const root = createConsumer(directory, { lockfile })
+  const { cliPath, runs } = writeFakeCli(directory, handoff)
+  const script = `
+import { pathToFileURL } from 'node:url'
+const { modulePath, ...input } = JSON.parse(process.argv[1])
+const { assessUpgrade } = await import(pathToFileURL(modulePath).href)
+const messages = []
+const logError = console.error
+console.error = (...args) => {
+  messages.push(args.join(' '))
+  logError(...args)
+}
+const assessment = await assessUpgrade(input)
+console.log(JSON.stringify({ assessment, messages }))
+`
+  const result = runScript<{ assessment: Assessment; messages: string[] }>(
+    script,
+    {
+      modulePath: join(actionRoot, 'prepare-upgrade.mjs'),
+      root,
+      appPath,
+      policy: 'latest',
+      cliPath,
+    },
+    root
+  )
+  let cliRuns: ReturnType<typeof runs> = []
+  try {
+    cliRuns = runs()
+  } catch {}
+  return { root, cliPath, ...result, cliRuns }
+}
+
+// Runs the preparation CLI the way a workflow step does.
+function runPreparationCli(
+  directory: string,
+  env: Record<string, string | undefined>
+) {
+  const output = join(directory, 'github-output')
+  writeFileSync(output, '')
+  const result = spawnSync(
+    process.execPath,
+    [join(actionRoot, 'prepare-upgrade.mjs')],
+    {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: prepareTimeout,
+      env: {
+        NODE_ENV: 'production',
+        PATH: process.env.PATH,
+        GITHUB_OUTPUT: output,
+        NEXT_UPGRADE_APP_PATH: appPath,
+        NEXT_UPGRADE_POLICY: 'latest',
+        ...env,
+      },
+    }
+  )
+  return {
+    status: result.status,
+    stderr: result.stderr,
+    outputs: Object.fromEntries(
+      readFileSync(output, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => line.split('='))
+    ),
+  }
+}
+
+// @force-gate !windows
+describe('scheduled upgrade assessment', () => {
+  const directories: string[] = []
+  function scratchDirectory() {
+    const directory = mkdtempSync(join(tmpdir(), 'next-upgrade-assess-'))
+    directories.push(directory)
+    return directory
+  }
+
+  afterAll(() => {
+    for (const directory of directories) {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['ready', { status: 'ready' }, { status: 'ready', targetVersion }],
+    [
+      'unaffected',
+      { status: 'unaffected', reason: 'Already on the latest release.' },
+      { status: 'no_upgrade' },
+    ],
+    [
+      'blocked',
+      { status: 'blocked', reason: 'The policy forbids a major upgrade.' },
+      { status: 'blocked' },
+    ],
+    [
+      'unknown',
+      { status: 'unknown', reason: 'The registry is unavailable.' },
+      { status: 'failed', failureStage: 'assessment' },
+    ],
+  ] as const)(
+    'reports a %s assessment with the installed app',
+    (_, handoff, outcome) => {
+      const result = assess({ directory: scratchDirectory(), handoff })
+      expect(result.assessment).toEqual({
+        baseSha: git(result.root, 'rev-parse', 'HEAD'),
+        outcome: { paths: [appPath], ...outcome },
+      })
+      expect(result.cliRuns).toHaveLength(1)
+      expect(result.cliRuns[0]).toMatchObject({
+        args: ['upgrade', '.', '--agent=latest'],
+        installed: sourceVersion,
+        credential: false,
+      })
+      if ('reason' in handoff) {
+        expect(result.messages.join('\n')).toContain(handoff.reason)
+      }
+      // Assessment never touches the consumer checkout.
+      expect(git(result.root, 'status', '--porcelain')).toBe('')
+    },
+    prepareTimeout
+  )
+
+  it(
+    'fails an app without a package-lock.json before installing',
+    () => {
+      const result = assess({ directory: scratchDirectory(), lockfile: false })
+      expect(result.assessment.outcome).toEqual({
+        paths: [appPath],
+        status: 'failed',
+        failureStage: 'preflight',
+      })
+      expect(result.cliRuns).toEqual([])
+    },
+    prepareTimeout
+  )
+
+  it(
+    'sets the step outputs and fails the step when assessment fails',
+    () => {
+      const ready = scratchDirectory()
+      const root = createConsumer(ready)
+      const { cliPath } = writeFakeCli(ready, { status: 'ready' })
+      const passed = runPreparationCli(ready, {
+        NEXT_UPGRADE_STAGE: 'assess',
+        NEXT_UPGRADE_ROOT: root,
+        NEXT_UPGRADE_CLI_PATH: cliPath,
+      })
+      expect(passed.status).toBe(0)
+      expect(passed.outputs).toEqual({
+        status: 'ready',
+        'base-sha': git(root, 'rev-parse', 'HEAD'),
+      })
+
+      const unknown = scratchDirectory()
+      const unknownRoot = createConsumer(unknown)
+      const unknownCli = writeFakeCli(unknown, {
+        status: 'unknown',
+        reason: 'The registry is unavailable.',
+      })
+      const failed = runPreparationCli(unknown, {
+        NEXT_UPGRADE_STAGE: 'assess',
+        NEXT_UPGRADE_ROOT: unknownRoot,
+        NEXT_UPGRADE_CLI_PATH: unknownCli.cliPath,
+      })
+      expect(failed.status).toBe(1)
+      expect(failed.outputs.status).toBe('failed')
+      expect(failed.stderr).toContain(
+        `${appPath}: Failed during assessment. The registry is unavailable.`
+      )
+    },
+    prepareTimeout
+  )
+
+  it(
+    'fails the agent step when preparation fails',
+    () => {
+      const directory = scratchDirectory()
+      const root = createConsumer(directory, { lockfile: false })
+      const { cliPath } = writeFakeCli(directory, { status: 'ready' })
+      writeFakeSudo(directory)
+      const artifactDirectory = join(directory, 'candidates')
+      const result = runPreparationCli(directory, {
+        PATH: `${directory}:${process.env.PATH}`,
+        NEXT_UPGRADE_SYSTEM_PATH: `${directory}:/usr/bin:/bin`,
+        NEXT_UPGRADE_ROOT: root,
+        NEXT_UPGRADE_CLI_PATH: cliPath,
+        NEXT_UPGRADE_ARTIFACT_DIR: artifactDirectory,
+        NEXT_UPGRADE_AUTH_MODE: 'codex-openai-api-key',
+        NEXT_UPGRADE_AGENT_CREDENTIAL: credential,
+        NEXT_UPGRADE_AGENT_USER: 'next-upgrade-agent',
+      })
+      expect(result.status).toBe(1)
+      expect(result.outputs).toEqual({ status: 'failed' })
+      expect(
+        JSON.parse(readFileSync(join(artifactDirectory, 'index.json'), 'utf8'))
+          .outcomes
+      ).toEqual([
+        { paths: [appPath], status: 'failed', failureStage: 'preflight' },
+      ])
+    },
+    prepareTimeout
+  )
+})
+
+// The workflow only runs on Linux runners.
+// @force-gate !windows
+describe('scheduled upgrade candidates', () => {
+  const directories: string[] = []
+  function scratchDirectory() {
+    const directory = mkdtempSync(join(tmpdir(), 'next-upgrade-action-'))
+    directories.push(directory)
+    return directory
+  }
+
+  afterAll(() => {
+    for (const directory of directories) {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('stops the preparation CLI without an agent user before it runs anything', () => {
+    const directory = scratchDirectory()
+    const artifactDirectory = join(directory, 'artifacts')
+    const result = spawnSync(
+      process.execPath,
+      [join(actionRoot, 'prepare-upgrade.mjs')],
+      {
+        cwd: directory,
+        encoding: 'utf8',
+        env: {
+          NODE_ENV: 'production',
+          PATH: process.env.PATH,
+          NEXT_UPGRADE_ROOT: directory,
+          NEXT_UPGRADE_ARTIFACT_DIR: artifactDirectory,
+          NEXT_UPGRADE_APP_PATH: '.',
+          NEXT_UPGRADE_POLICY: 'latest',
+          NEXT_UPGRADE_AUTH_MODE: 'claude-anthropic-api-key',
+          NEXT_UPGRADE_AGENT_CREDENTIAL: 'sk-ant-test',
+        },
+      }
+    )
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(
+      'Next.js upgrade preparation failed. An agent user is required.'
+    )
+    expect(existsSync(artifactDirectory)).toBe(false)
+  })
+
+  it(
+    'prepares a candidate from a shallow checkout',
+    () => {
+      const result = prepare({
+        directory: scratchDirectory(),
+        agent: 'upgrade',
+        shallow: true,
+      })
+      expect(result.index.outcomes).toEqual([
+        { paths: [appPath], status: 'prepared' },
+      ])
+    },
+    prepareTimeout
+  )
+
+  describe('a ready assessment', () => {
+    let directory: string
+    let prepared: ReturnType<typeof prepare>
+    beforeAll(() => {
+      directory = scratchDirectory()
+      prepared = prepare({
+        directory,
+        agent: 'upgrade',
+        agentUser: 'next-upgrade-agent',
+      })
+    }, prepareTimeout)
+
+    it('assesses the installed app with the pinned CLI', () => {
+      expect(prepared.cliRuns).toHaveLength(1)
+      const [run] = prepared.cliRuns
+      expect(run).toMatchObject({
+        args: ['upgrade', '.', '--agent=latest'],
+        expectedVersion: targetVersion,
+        // npm ci installed the locked version before the assessment.
+        installed: sourceVersion,
+        credential: false,
+      })
+      expect(run.cwd.endsWith(`/${appPath}`)).toBe(true)
+      // The handoff stays private; the guides sit where the agent can read them.
+      const scratch = join(run.cwd, '../../..')
+      expect(run.handoff).toBe(join(scratch, 'private/handoff.json'))
+      expect(run.guides.startsWith(`${scratch}/`)).toBe(true)
+      expect(run.guides.startsWith(join(scratch, 'private'))).toBe(false)
+    })
+
+    it('hands the agent the checkout, guides and prompt', () => {
+      expect(prepared.agentCalls).toHaveLength(1)
+      const [call] = prepared.agentCalls
+      expect(call.cwd).toBe(join(call.root, appPath))
+      expect(call.prompt).toBe(
+        `Upgrade from Next.js ${sourceVersion} to ${targetVersion}. Read ${JSON.stringify(join(call.guides, 'upgrade.md'))}.`
+      )
+      expect(call.guide).toBe('Upgrade guide')
+      // The base clone and handoff stay private to the preparation process.
+      expect(call.privateMode).toBe(0o700)
+      // With an agent user, only that user's group can pass through.
+      expect(call.scratchMode).toBe(0o710)
+      expect(prepared.sudoCalls).toContainEqual(
+        expect.stringMatching(/^-n chgrp next-upgrade-agent \//)
+      )
+    })
+
+    it('writes one prepared candidate and its patch', () => {
+      const baseSha = git(prepared.root, 'rev-parse', 'HEAD')
+      expect(prepared.index).toEqual({
+        baseSha,
+        candidates: [
+          {
+            id: expect.stringMatching(/^[0-9a-f]{24}$/),
+            path: appPath,
+            policy: 'latest',
+            fromVersion: sourceVersion,
+            targetVersion,
+          },
+        ],
+        outcomes: [{ paths: [appPath], status: 'prepared' }],
+      })
+      expect(prepared.written).toEqual(prepared.index)
+      const [{ id }] = prepared.index.candidates
+      expect(readdirSync(prepared.artifactDirectory).sort()).toEqual([
+        `${id}.patch`,
+        'index.json',
+      ])
+      const patch = join(prepared.artifactDirectory, `${id}.patch`)
+      expect(
+        git(prepared.root, 'apply', '--numstat', patch).split('\n')
+      ).toEqual([
+        expect.stringMatching(/\tapps\/site\/package-lock\.json$/),
+        expect.stringMatching(/\tapps\/site\/package\.json$/),
+        expect.stringMatching(/\tapps\/site\/pages\/index\.js$/),
+      ])
+      for (const file of readdirSync(prepared.artifactDirectory)) {
+        expect(
+          readFileSync(join(prepared.artifactDirectory, file), 'utf8')
+        ).not.toContain(credential)
+      }
+      // Preparation never touches the consumer checkout.
+      expect(git(prepared.root, 'status', '--porcelain')).toBe('')
+    })
+  })
+
+  it.each([
+    [
+      'unaffected',
+      { status: 'unaffected', reason: 'Already on the latest release.' },
+      { status: 'no_upgrade' },
+    ],
+    [
+      'blocked',
+      { status: 'blocked', reason: 'The policy forbids a major upgrade.' },
+      { status: 'blocked' },
+    ],
+    [
+      'unknown',
+      { status: 'unknown', reason: 'The registry is unavailable.' },
+      { status: 'failed', failureStage: 'assessment' },
+    ],
+  ] as const)(
+    'reports a %s assessment without starting the agent',
+    (_, handoff, outcome) => {
+      const result = prepare({
+        directory: scratchDirectory(),
+        handoff,
+        agent: 'none',
+      })
+      expect(result.agentCalls).toEqual([])
+      expect(result.cliRuns).toHaveLength(1)
+      expect(result.index).toEqual({
+        baseSha: git(result.root, 'rev-parse', 'HEAD'),
+        candidates: [],
+        outcomes: [{ paths: [appPath], ...outcome }],
+      })
+      expect(result.written).toEqual(result.index)
+      expect(readdirSync(result.artifactDirectory)).toEqual(['index.json'])
+      expect(result.messages.join('\n')).toContain(handoff.reason)
+    },
+    prepareTimeout
+  )
+
+  it(
+    'fails an app without a package-lock.json before installing',
+    () => {
+      const result = prepare({
+        directory: scratchDirectory(),
+        agent: 'none',
+        lockfile: false,
+      })
+      expect(result.index.outcomes).toEqual([
+        { paths: [appPath], status: 'failed', failureStage: 'preflight' },
+      ])
+      expect(result.index.candidates).toEqual([])
+      expect(result.cliRuns).toEqual([])
+      expect(result.agentCalls).toEqual([])
+      expect(result.messages).toContain(
+        `${appPath}: Failed during preflight. Scheduled upgrades need a committed package-lock.json next to the app package.json on the default branch.`
+      )
+    },
+    prepareTimeout
+  )
+
+  it(
+    'fails an app that also has a Yarn lockfile before running anything',
+    () => {
+      // Yarn runs repository code when probed, e.g. through `yarnPath`.
+      const result = prepare({
+        directory: scratchDirectory(),
+        agent: 'none',
+        files: { 'yarn.lock': '# yarn lockfile v1\n' },
+      })
+      expect(result.index.outcomes).toEqual([
+        { paths: [appPath], status: 'failed', failureStage: 'preflight' },
+      ])
+      expect(result.cliRuns).toEqual([])
+      expect(result.agentCalls).toEqual([])
+      expect(result.messages).toContain(
+        `${appPath}: Failed during preflight. Scheduled upgrades support npm only, and the app also has yarn.lock.`
+      )
+    },
+    prepareTimeout
+  )
+
+  it(
+    'fetches Git dependencies with the system Git, not one the app picks',
+    () => {
+      const directory = scratchDirectory()
+      // A Git dependency the lockfile pins, served from a local repository.
+      const dependency = join(directory, 'local-dep')
+      mkdirSync(dependency)
+      writeFileSync(
+        join(dependency, 'package.json'),
+        JSON.stringify({ name: 'local-dep', version: '1.0.0' })
+      )
+      git(dependency, 'init', '--initial-branch=main')
+      git(dependency, 'add', '.')
+      git(
+        dependency,
+        '-c',
+        'user.name=Upgrade test',
+        '-c',
+        'user.email=upgrade-fixture@example.com',
+        '-c',
+        'commit.gpgsign=false',
+        'commit',
+        '-m',
+        'Add the dependency'
+      )
+      const lockDirectory = join(directory, 'lock')
+      cpSync(fixtureRoot, lockDirectory, { recursive: true })
+      const manifest = JSON.parse(
+        readFileSync(join(fixtureRoot, 'package.json'), 'utf8')
+      )
+      manifest.dependencies['local-dep'] = `git+file://${dependency}`
+      writeFileSync(
+        join(lockDirectory, 'package.json'),
+        JSON.stringify(manifest, null, 2)
+      )
+      writeFileSync(
+        join(lockDirectory, 'package-lock.json'),
+        resolveFixtureLock()
+      )
+      execFileSync(
+        'npm',
+        [
+          'install',
+          '--package-lock-only',
+          '--ignore-scripts',
+          '--no-audit',
+          '--no-fund',
+        ],
+        { cwd: lockDirectory, stdio: 'ignore' }
+      )
+      // The app's .npmrc points npm at its own Git, which leaves a marker.
+      const marker = join(directory, 'app-git-ran')
+      const appGit = join(directory, 'app-git')
+      writeFileSync(
+        appGit,
+        `#!/bin/sh\ntouch ${JSON.stringify(marker)}\nexec git "$@"\n`,
+        { mode: 0o755 }
+      )
+      const result = prepare({
+        directory,
+        agent: 'none',
+        files: {
+          'package.json': readFileSync(
+            join(lockDirectory, 'package.json'),
+            'utf8'
+          ),
+          'package-lock.json': readFileSync(
+            join(lockDirectory, 'package-lock.json'),
+            'utf8'
+          ),
+          '.npmrc': `git=${appGit}\n`,
+        },
+      })
+      expect(existsSync(marker)).toBe(false)
+      // npm ci still installed the Git dependency and the assessment ran.
+      expect(result.cliRuns).toHaveLength(1)
+    },
+    prepareTimeout
+  )
+
+  it.each([
+    [
+      'changes a workflow',
+      'github',
+      'The candidate contains a protected path or unsupported file mode.',
+    ],
+    ['leaves no change', 'unchanged', 'The agent did not change any files.'],
+    [
+      'writes the credential to a file',
+      'credential',
+      'The candidate contains the agent credential.',
+    ],
+    [
+      'leaves a setuid file',
+      'setuid',
+      'The candidate contains a file with special permissions.',
+    ],
+  ] as const)(
+    'rejects a candidate when the agent %s',
+    (_, agent, reason) => {
+      const result = prepare({ directory: scratchDirectory(), agent })
+      expect(result.agentCalls).toHaveLength(1)
+      expect(result.index.outcomes).toEqual([
+        { paths: [appPath], status: 'failed', failureStage: 'packaging' },
+      ])
+      expect(result.index.candidates).toEqual([])
+      expect(readdirSync(result.artifactDirectory)).toEqual(['index.json'])
+      expect(result.messages).toContain(
+        `${appPath}: Failed during packaging. ${reason}`
+      )
+    },
+    prepareTimeout
+  )
+})
+
+// @force-gate !windows
+describe('scheduled upgrade agent authentication modes', () => {
+  let directory: string
+
+  beforeEach(() => {
+    directory = mkdtempSync(join(tmpdir(), 'next-upgrade-auth-'))
+  })
+
+  afterEach(() => {
+    rmSync(directory, { recursive: true, force: true })
+  })
+
+  it('rejects unsupported authentication modes', () => {
+    const script = `
+import { pathToFileURL } from 'node:url'
+const { modulePath, authMode } = JSON.parse(process.argv[1])
+const { prepareUpgradeCandidate } = await import(pathToFileURL(modulePath).href)
+const message = await prepareUpgradeCandidate({
+  root: '.', artifactDirectory: '.', appPath: '.', policy: 'latest',
+  cliPath: '.', authMode, credential: 'fixture-key',
+}).then(() => null, (error) => error.message)
+console.log(JSON.stringify(message))
+`
+    for (const authMode of [
+      'codex-api-key',
+      'claude-api-key',
+      // The former Vercel AI Gateway modes.
+      'codex-ai-gateway-api-key',
+      'claude-ai-gateway-api-key',
+      // Not one of the modes, though objects have it.
+      'toString',
+    ]) {
+      expect(
+        runScript(
+          script,
+          { modulePath: join(actionRoot, 'prepare-upgrade.mjs'), authMode },
+          directory
+        )
+      ).toBe(
+        'A supported agent authentication mode and its credential are required.'
+      )
+    }
+  })
+})

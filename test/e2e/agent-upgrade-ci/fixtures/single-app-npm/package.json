@@ -1,0 +1,12 @@
+{
+  "name": "scheduled-upgrade-fixture",
+  "private": true,
+  "scripts": {
+    "build": "next build"
+  },
+  "dependencies": {
+    "next": "16.1.6",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  }
+}
