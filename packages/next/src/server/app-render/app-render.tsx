@@ -99,6 +99,11 @@ import {
   createWorkStore,
 } from '../async-storage/work-store'
 import { formatValidationEvent } from './dev-validation-events'
+import {
+  describeValidationError,
+  isAwaitingDevValidation,
+  reportDevValidationResult,
+} from './dev-validation-results'
 import { createSnapshot } from './async-local-storage'
 import {
   getDevValidationWorker,
@@ -4810,6 +4815,10 @@ function forwardInvalidDynamicUsageError(
     return false
   }
 
+  reportDevValidationResult(ctx.htmlRequestId, 'validated', () => [
+    describeValidationError(invalidDynamicUsageError),
+  ])
+
   // Forward only if userland caught the rejection. If userland didn't catch,
   // the rejection propagated into the React render and React's
   // `serverComponentsErrorHandler` already stamped a digest on the error and
@@ -4954,10 +4963,23 @@ function runDevValidationInBackground(
                   snapshot,
                   validationAbortSignal,
                   {
+                    captureValidationErrors: isAwaitingDevValidation(
+                      ctx.htmlRequestId
+                    ),
                     captureLocalSpans: Boolean(
                       runValidationSpanContext && requestInsightsIdentity
                     ),
                   }
+                )
+
+                reportDevValidationResult(
+                  ctx.htmlRequestId,
+                  validationAbortSignal.aborted
+                    ? 'aborted'
+                    : workerResult.errors === null
+                      ? 'failed'
+                      : 'validated',
+                  () => workerResult.errors ?? []
                 )
 
                 // A newer navigation may have superseded this validation while
@@ -5019,6 +5041,15 @@ function runDevValidationInBackground(
                       validationAbortSignal
                     )
 
+                    reportDevValidationResult(
+                      ctx.htmlRequestId,
+                      // `undefined` without an abort means validation ran and
+                      // found nothing.
+                      validationAbortSignal.aborted ? 'aborted' : 'validated',
+                      () =>
+                        (validationErrors ?? []).map(describeValidationError)
+                    )
+
                     if (
                       validationErrors !== undefined &&
                       !validationAbortSignal.aborted
@@ -5039,6 +5070,10 @@ function runDevValidationInBackground(
     // The catch keeps a failed render, or anything thrown inside validation,
     // from surfacing as an unhandled rejection.
     .catch((err) => {
+      reportDevValidationResult(
+        ctx.htmlRequestId,
+        validationAbortSignal.aborted ? 'aborted' : 'failed'
+      )
       // Superseded validation is intentionally torn down. Don't log errors
       // caused by its abort signal.
       if (validationAbortSignal.aborted) {
@@ -5472,6 +5507,9 @@ async function resolveLazyDevValidationInputs(
   }
 
   if ('syncInterruptReason' in inputs) {
+    reportDevValidationResult(ctx.htmlRequestId, 'validated', () => [
+      describeValidationError(inputs.syncInterruptReason),
+    ])
     await logMessagesAndSendErrorsToBrowser(
       [inputs.syncInterruptReason],
       ctx,
@@ -5489,6 +5527,9 @@ function forwardErrorsFromWarmRender(
   ctx: AppRenderContext
 ) {
   if ('syncInterruptReason' in inputs) {
+    reportDevValidationResult(ctx.htmlRequestId, 'validated', () => [
+      describeValidationError(inputs.syncInterruptReason),
+    ])
     void logMessagesAndSendErrorsToBrowser(
       [inputs.syncInterruptReason],
       ctx,
@@ -6709,6 +6750,7 @@ async function logMessagesAndSendErrorsToBrowser(
 }
 
 function logValidationSkipped(ctx: AppRenderContext) {
+  reportDevValidationResult(ctx.htmlRequestId, 'skipped')
   if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
     const requestId = ctx.requestId
     const url = ctx.url.href
@@ -6722,6 +6764,7 @@ function logValidationSkipped(ctx: AppRenderContext) {
 }
 
 function logValidationAborted(ctx: AppRenderContext) {
+  reportDevValidationResult(ctx.htmlRequestId, 'aborted')
   if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
     const requestId = ctx.requestId
     const url = ctx.url.href

@@ -7,6 +7,7 @@ import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import { registerGetRoutesTool } from './tools/get-routes'
 import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import { registerCompileRouteTool } from './tools/compile-route'
+import { registerCheckRouteTool } from './tools/check-route'
 import { registerGetRequestInsightsTool } from './tools/get-request-insights'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
@@ -73,6 +74,12 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
   if (options.compileRoute) {
     registerCompileRouteTool(mcpServer, options.compileRoute)
   }
+
+  registerCheckRouteTool(mcpServer, {
+    getDevServerUrl: options.getDevServerUrl,
+    cacheComponents: Boolean(options.nextConfig.cacheComponents),
+    compileRoute: options.compileRoute,
+  })
 
   return mcpServer
 }

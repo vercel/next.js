@@ -8,6 +8,7 @@ import type { AdvanceableRenderStage } from './staged-rendering'
 import type { RenderOpts } from './types'
 import type { NonPartial } from '../../shared/lib/typescript-utils'
 import type { LocalSpanBatch } from '../lib/trace/span-store'
+import type { DevValidationError } from './dev-validation-results'
 
 /**
  * Cross-module handoff for the dev validation worker (client-module warmup,
@@ -134,6 +135,7 @@ export interface DevValidationInstallFields {
  */
 export type DevValidationWorkerMessage = DevValidationSnapshot &
   DevValidationInstallFields & {
+    captureValidationErrors: boolean
     captureLocalSpans: boolean
   }
 
@@ -146,6 +148,11 @@ export type DevValidationWorkerMessage = DevValidationSnapshot &
  */
 export type DevValidationWorkerResult = {
   chunks: Uint8Array[] | null
+  /**
+   * Every validation error as data, or null when validation was superseded or
+   * did not run, or when no tool requested diagnostics.
+   */
+  errors: DevValidationError[] | null
   localSpans: LocalSpanBatch | null
 }
 
@@ -162,6 +169,7 @@ export type DevValidationWorker = (
   snapshot: DevValidationSnapshot,
   validationAbortSignal: AbortSignal,
   options?: {
+    captureValidationErrors?: boolean
     captureLocalSpans?: boolean
   }
 ) => Promise<DevValidationWorkerResult>

@@ -1,0 +1,60 @@
+---
+title: How to run and debug a Next.js app with a coding agent
+nav_title: Debugging with a coding agent
+description: Use your running Next.js app to check a route, debug browser interactions, and verify a fix with a coding agent.
+---
+
+Your coding agent can ask the running Next.js dev server for diagnostics directly. You don't need to install a skill or configure an MCP client.
+
+## Start the app
+
+Run your project's development script, such as `npm run dev`. If `next dev` reports that a server is already running, reuse it. Give your agent the URL printed in the terminal, the affected route, and the steps that reproduce the problem.
+
+## Find the error
+
+On Next.js 16 and later, `next dev` exposes an HTTP endpoint at `/_next/mcp`. Your agent sends `tools/list` there to discover what's available in your installed version. To use one of those tools, it sends `tools/call` **to the same endpoint** with the tool name and its arguments.
+
+Call `check_route` with the path you want to check, for example `{"path":"/settings"}`. Include the query string if it affects the page. The tool compiles and requests the route without opening a browser. With Turbopack, compiler diagnostics appear in `compilationIssues`. The request does not use your browser’s cookies. If the page requires sign-in, reproduce the issue in the signed-in browser.
+
+With Cache Components enabled, `check_route` also waits for development validation. Its `validation.errors` list includes [Instant Navigation findings](/docs/app/guides/instant-navigation#validate-instant-navigation). For example, uncached data can delay a navigation even when the page renders successfully. This is the same finding that [Next.js DevTools shows as an amber Insight](https://github.com/vercel/next.js/blob/ecc4775a74f65b1376e8fc571dfc885692f1fabb/docs/01-app/02-guides/devtools.mdx#issues-and-insights).
+
+- **For a browser error**, open the page, reproduce the problem, then call `get_errors` with no arguments. It reads the connected browser's error state.
+- **For log output**, call `get_logs` with no arguments and read the file at the path it returns.
+
+<details>
+<summary>See the HTTP requests</summary>
+
+Use the port your dev server printed. For example, on port 3000:
+
+```bash filename="Terminal"
+mcp() {
+  curl -sS http://localhost:3000/_next/mcp \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d "$1"
+}
+
+mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+Choose the call that matches the problem:
+
+```bash filename="Terminal"
+mcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"check_route","arguments":{"path":"/settings"}}}'
+mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_errors","arguments":{}}}'
+mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_logs","arguments":{}}}'
+```
+
+</details>
+
+If your agent already has the optional [Next.js DevTools MCP connector](/docs/app/guides/mcp), it can use `nextjs_index` to discover the server and `nextjs_call` to call its tools instead.
+
+## Verify the fix
+
+After the fix, call `check_route` with the same path and query string. If you fixed a compiler error, confirm that it no longer appears in `compilationIssues`. For an Instant Navigation finding, check that `validation.status` is `"validated"` and the finding is gone from `validation.errors`. A status of `"not-run"` means the check did not verify the fix, even if the page returned HTTP 200. Read `validation.reason` to see why.
+
+For a browser interaction, repeat the steps that exposed the problem and check the visible result and the console. The optional [`next-dev-loop` skill](/docs/app/guides/ai-agents#next-dev-loop) can help your agent do that.
+
+If the issue happens while a navigation is pending, a check after the page settles will miss it. The [Instant Navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) shows how to assert what appears before the response arrives.
+
+For an issue that only happens in production, run `next build`. If the build succeeds, start the app with `next start` and reproduce the issue there. If prerendering fails, rerun the build with [`--debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for a readable stack trace. On a large app, [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) lets you build just the affected routes. Verify the fix with a normal production build.
