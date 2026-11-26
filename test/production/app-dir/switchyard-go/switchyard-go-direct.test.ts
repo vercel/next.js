@@ -1,6 +1,7 @@
 import { request, type IncomingHttpHeaders } from 'http'
+import { join } from 'path'
 import { gunzipSync, inflateSync } from 'zlib'
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   SWITCHYARD_DIRECT_ENV,
   SWITCHYARD_ENV,
@@ -167,5 +168,61 @@ describe('switchyard-go direct path', () => {
       await next.stop()
       await next.start({ skipBuild: true })
     }
+  })
+})
+
+// The same app with a basePath: Node's route table carries it, and a direct
+// request reaches the worker with the basePath in its URL, as through Node.
+// @force-gate turbopack
+// @force-gate switchyardBinary
+describe('switchyard-go direct path with a basePath', () => {
+  const { next, skipped } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      internal: new FileRef(join(__dirname, 'internal')),
+      pages: new FileRef(join(__dirname, 'pages')),
+      'go.mod': new FileRef(join(__dirname, 'go.mod')),
+      'next.config.ts': `
+        import type { NextConfig } from 'next'
+        const nextConfig: NextConfig = {
+          basePath: '/docs',
+          experimental: { goRoutes: true },
+          compress: false,
+        }
+        export default nextConfig
+      `,
+    },
+    skipDeployment: true,
+    env: { [SWITCHYARD_ENV]: '1' },
+  })
+  if (skipped) return
+
+  async function received(target: string) {
+    // The timeout ends a request that needs the paused Node, so the test's
+    // finally can resume it.
+    const res = await next.fetch(target, { signal: AbortSignal.timeout(5000) })
+    expect(res.status).toBe(200)
+    return res.json()
+  }
+
+  it('sends requests under the basePath directly while Node is paused', async () => {
+    for (const target of ['/docs/go/users/warm-up', '/docs/go/echo']) {
+      await received(target)
+    }
+    const { parentPid } = await received('/docs/go/echo')
+    process.kill(parentPid, 'SIGSTOP')
+    try {
+      expect(await received('/docs/go/users/42?sort=asc')).toMatchObject({
+        requestURI: '/docs/go/users/42?sort=asc',
+        params: { id: '42' },
+      })
+      expect((await received('/docs/go/echo')).requestURI).toBe('/docs/go/echo')
+    } finally {
+      process.kill(parentPid, 'SIGCONT')
+    }
+  })
+
+  it('leaves paths outside the basePath to Node', async () => {
+    expect((await next.fetch('/go/echo')).status).toBe(404)
   })
 })

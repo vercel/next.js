@@ -89,6 +89,15 @@ describe('switchyard-route-table', () => {
       ...overrides,
     })
 
+    it('passes the basePath to Switchyard', () => {
+      expect(
+        buildSwitchyardRouteTable(input({ basePath: '/docs' }))
+      ).toMatchObject({
+        basePath: '/docs',
+        goExact: { '/api/health': '/api/health/route' },
+      })
+    })
+
     it("splits Node's routes into Node's and route.go's, in Node's order", () => {
       const table = buildSwitchyardRouteTable(input())
       expect(table).toMatchObject({
@@ -116,7 +125,6 @@ describe('switchyard-route-table', () => {
       ['rewrites', { afterFilesRewrites: [{}] }],
       ['trailingSlash', { trailingSlash: true }],
       ['redirects', { redirects: [{ internal: true }, {}] }],
-      ['basePath', { basePath: '/shop' }],
       ['useFileSystemPublicRoutes', { useFileSystemPublicRoutes: false }],
       ['NEXT_PRIVATE_TEST_HEADERS', { keepsInternalHeaders: true }],
       [
