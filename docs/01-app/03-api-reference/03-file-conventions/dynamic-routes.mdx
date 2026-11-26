@@ -116,8 +116,6 @@ The difference between **catch-all** and **optional catch-all** segments is that
 
 When using TypeScript, you can add types for `params` depending on your configured route segment — use [`PageProps<'/route'>`](/docs/app/api-reference/file-conventions/page#page-props-helper), [`LayoutProps<'/route'>`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), or [`RouteContext<'/route'>`](/docs/app/api-reference/file-conventions/route#route-context-helper) to type `params` in `page`, `layout`, and `route` respectively.
 
-Route literals exclude [route group](/docs/app/api-reference/file-conventions/route-groups) folders and preserve dynamic segments. For example, use `PageProps<'/blog/[slug]'>` for `app/(marketing)/blog/[slug]/page.tsx`.
-
 Route `params` values are typed as `string`, `string[]`, or `undefined` (for optional catch-all segments), because their values aren't known until runtime. Users can enter any URL into the address bar, and these broad types help ensure that your application code handles all these possible cases.
 
 | Route                               | `params` Type Definition                 |
