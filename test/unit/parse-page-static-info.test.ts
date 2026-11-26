@@ -1,4 +1,7 @@
-import { getPagesPageStaticInfo } from 'next/dist/build/analysis/get-page-static-info'
+import {
+  getAppPageStaticInfo,
+  getPagesPageStaticInfo,
+} from 'next/dist/build/analysis/get-page-static-info'
 import { installBindings } from 'next/dist/build/swc/install-bindings'
 import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
@@ -55,5 +58,22 @@ describe('parse page static info', () => {
       isDev: false,
     })
     expect(runtime).toBe(undefined)
+  })
+
+  it('should detect generateStaticParams declared after another binding in the same export', async () => {
+    await expect(
+      getAppPageStaticInfo({
+        page: '/[slug]/page',
+        pageFilePath: join(
+          fixtureDir,
+          'page-static-info-multi-declarator/client-generate-static-params.js'
+        ),
+        nextConfig: createNextConfig(),
+        pageType: PAGE_TYPES.APP,
+        isDev: false,
+      })
+    ).rejects.toThrow(
+      'cannot use both "use client" and export function "generateStaticParams()"'
+    )
   })
 })

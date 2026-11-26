@@ -27,6 +27,7 @@ describe('proxy-missing-export', () => {
     'named-arrow',
     'destructured-alias',
     'destructured-shorthand',
+    'multi-declarator',
   ])('%s export', (fixture) => {
     const { next } = nextTestSetup({
       files: {
