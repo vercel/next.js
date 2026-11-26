@@ -1,6 +1,6 @@
 import { constants } from 'fs'
 import { access, stat } from 'fs/promises'
-import { delimiter, resolve } from 'path'
+import { delimiter, isAbsolute, resolve } from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
@@ -51,7 +51,7 @@ async function chooseWorktree(): Promise<boolean | null | undefined> {
   throw new Error(`Unknown worktree choice: ${choice}`)
 }
 
-function getHarnessDisplayName(name: UpgradeHarness['name']): string {
+export function getHarnessDisplayName(name: UpgradeHarness['name']): string {
   return name === 'codex' ? 'Codex' : 'Claude Code'
 }
 
@@ -89,7 +89,10 @@ function getClaudePermissionSupport(path: string) {
 
 async function findHarnesses(): Promise<UpgradeHarness[]> {
   const names: UpgradeHarness['name'][] = ['codex', 'claude']
-  const directories = (process.env.PATH ?? '').split(delimiter).filter(Boolean)
+  // A relative PATH entry would find a CLI planted in the project.
+  const directories = (process.env.PATH ?? '')
+    .split(delimiter)
+    .filter((directory) => isAbsolute(directory))
   const extensions =
     process.platform === 'win32'
       ? (process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM')
