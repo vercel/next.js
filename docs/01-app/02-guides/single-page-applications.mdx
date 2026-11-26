@@ -250,19 +250,22 @@ export default function Page() {
 
 In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft in place of the fallback.
 
-If you also want to load the component's JavaScript only when the component renders in the browser, use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic) with `ssr: false`:
+If you also want to lazy load the component's JavaScript, use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic). It uses `React.lazy` with the dynamic `import()` you pass, so the browser downloads the JavaScript only when the component renders. Set `ssr: false` to skip prerendering:
 
 ```jsx
 import dynamic from 'next/dynamic'
 
 const ClientOnlyComponent = dynamic(() => import('./component'), {
   ssr: false,
+  loading: () => <p>Loading…</p>,
 })
 ```
 
-By default, `next/dynamic` renders nothing in place of the component until it loads. To render a placeholder in the initial HTML, pass a [`loading` component](/docs/app/guides/lazy-loading#adding-a-custom-loading-component).
+The `loading` component is included in the initial HTML as a placeholder. Without it, `next/dynamic` renders nothing until the component loads.
 
-The component appears after the browser downloads its JavaScript, and React can delay the reveal further. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats). Prerender the element that determines your page's [Largest Contentful Paint](https://web.dev/articles/lcp) instead of loading it with `next/dynamic`.
+The component appears after the browser downloads its JavaScript. React reveals suspended content in batches, so components that become ready close together appear at once instead of one at a time. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+
+If the component is likely to be the page's [Largest Contentful Paint](https://web.dev/articles/lcp) element, provide a fallback that resembles the final content. When possible, prerender that element instead.
 
 See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only). The [demo source](https://github.com/nextjs/next-spa-patterns/tree/main/app/browser-only) contains the complete examples.
 
