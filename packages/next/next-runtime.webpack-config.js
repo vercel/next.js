@@ -87,7 +87,11 @@ const externalsRegexMap = {
   '(.*)trace/tracer$': 'next/dist/server/lib/trace/tracer',
 }
 
-const devExternalTraceModules = new Set(['local-span-recorder', 'span-store'])
+const devExternalTraceModules = new Set([
+  'local-span-ids',
+  'local-span-recorder',
+  'span-store',
+])
 
 const bundleTypes = {
   app: {
@@ -174,9 +178,10 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       }
 
       // Development runtimes can load more than one precompiled bundle in the
-      // same Node.js realm. Resolve the recorder and its AsyncLocalStorage-backed
-      // store through the installed Next.js package so every bundle uses the
-      // same instances. Production runtimes keep these modules bundled.
+      // same Node.js realm. Resolve the recorder, its span ID counter, and its
+      // AsyncLocalStorage-backed store through the installed Next.js package so
+      // every bundle uses the same instances. Production runtimes keep these
+      // modules bundled.
       if (dev) {
         const requestBasename = path.basename(request, path.extname(request))
         if (devExternalTraceModules.has(requestBasename)) {
