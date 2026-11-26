@@ -17,6 +17,7 @@ import type { AdapterOutput, NextAdapter } from 'next'
 import { getRouteMatcher } from 'next/dist/shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 import { resolveRoutes } from '../../../../packages/next-routing/src'
+import matchedPathCases from './matched-path-cases.json'
 
 async function expectParameterParity(
   pattern: string,
@@ -403,6 +404,54 @@ describe('native-route-go', () => {
     })
   })
   if (isNextDev) {
+    it('warns about mixed Go modules while continuing to serve in development', async () => {
+      const outputStart = next.cliOutput.length
+      await next.patchFile(
+        'app/methods/go.mod',
+        'module example.com/nested-methods\n\ngo 1.24\n',
+        async () => {
+          const response = await next.fetch('/methods')
+          expect(response.status).toBe(200)
+          expect(await response.text()).toBe('GET')
+          await retry(() => {
+            const output = next.cliOutput.slice(outputStart)
+            expect(output).toContain('route.go fails production builds')
+            expect(output).toContain('must belong to one Go module')
+            expect(output).toContain('app/methods/go.mod')
+            expect(output).toContain('./go.mod')
+          })
+        }
+      )
+    })
+    it('warns about adapter-incompatible IDs while serving them in development', async () => {
+      const outputStart = next.cliOutput.length
+      try {
+        await next.patchFile(
+          'app/index/dev-warning/route.go',
+          `package route
+
+import "net/http"
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tw.Write([]byte("dev warning route"))
+}
+`
+        )
+        const response = await next.fetch('/index/dev-warning')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe('dev warning route')
+        await retry(() => {
+          const output = next.cliOutput.slice(outputStart)
+          expect(output).toContain(
+            'route.go cannot be selected in adapter deployments'
+          )
+          expect(output).toContain('reads /index/dev-warning as /dev-warning')
+          expect(output).toContain('Rename the folder')
+        })
+      } finally {
+        await next.deleteFile('app/index')
+      }
+    })
     it.each(['delete', 'rename', 'replace'])(
       'retires the Go worker after route %s',
       async (change) => {
@@ -884,6 +933,8 @@ describe('native-route-go', () => {
       // With NEXT_PRIVATE_TEST_HEADERS, router-server keeps internal headers
       // such as x-matched-path, so only the route.go proxy (proxyNativeRequest)
       // stands between the client and the executable's route selection.
+      // Hosted ingress strips those client headers before they reach Next.js,
+      // so a deployment cannot exercise this inner proxy boundary in isolation.
       await next.stop()
       try {
         await next.start({
@@ -897,19 +948,11 @@ describe('native-route-go', () => {
       }
     })
 
-    // TODO: enable once Next.js routes a request whose path must be decoded to
-    // match an app route. The Go side serves this route: Next.js sends its
-    // exact ID, /adapter-special/café a 100%, as raw UTF-8 bytes, and the
-    // executable selects it and matches the decoded request path (also
-    // covered by the adapter test below). The 404 comes from Node routing
-    // before the request reaches Go: setupFsCheck's getItem
-    // (server/lib/router-utils/filesystem.ts) looks up the route definition
-    // with the still-encoded path, then matches the file through its decoded
-    // fallback, so router-server forwards no match. handleCatchallRenderRequest
-    // (next-server.ts) then matches the encoded pathname against decoded route
-    // definitions, finds none, and renders a 404. CI showed that 404 at
-    // 4b2ef71a.
-    it.skip('serves a Go route whose path needs decoding under next start', async () => {
+    // Node routing returns 404 before this encoded pathname reaches Go. The
+    // adapter test below verifies that the Go executable serves it directly.
+    // Keep running this assertion so the gate becomes stale when Node routes it.
+    // @gate FIXME
+    it('serves a Go route whose path needs decoding under next start', async () => {
       const response = await next.fetch(
         '/adapter-special/caf%C3%A9%20a%20100%25',
         { headers: { 'x-matched-path': '/native/[id]' } }
@@ -999,6 +1042,12 @@ describe('native-route-go', () => {
       const additionalRoutes = Array.from(
         { length: 32 },
         (_, index) => `app/large-route-table/route-${index}`
+      )
+      // One corpus crosses both implementations: next-api must accept these
+      // IDs at build time, and the emitted Go selector must select that same
+      // handler for its own ID and each supported header spelling below.
+      additionalRoutes.push(
+        ...matchedPathCases.accepted.map(({ id }) => `app${id}`)
       )
       for (const directory of [
         'app/catch/static',
@@ -1430,6 +1479,14 @@ func GET(w http.ResponseWriter, r *http.Request) {
                 'x-next-internal-go-token': 'forged',
               },
             })
+          for (const { id, path, headers } of matchedPathCases.accepted) {
+            expect(goOutputs.find((output) => output.id === id)).toBeDefined()
+            for (const header of headers) {
+              const response = await invoke(`/adapter-base${path}`, header)
+              expect(response.status).toBe(200)
+              expect(await response.json()).toMatchObject({ route: `app${id}` })
+            }
+          }
           for (const [matched, path, expected] of [
             [
               '/catch/static',
@@ -1857,8 +1914,8 @@ describe('native route diagnostics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // These assertions invoke local failing builds, which cannot be deployed.
-    // See README.md; HTTP adapter behavior is exercised by the start-mode cases.
+    // These CLI checks mutate the fixture and run multiple build commands.
+    // The deployment harness also lacks a Go adapter; see README.md.
     skipDeployment: true,
   })
   it('reports Go routes without the experiment before invoking the compiler', async () => {
@@ -2009,47 +2066,109 @@ func init() {
       for (const file of files) await next.deleteFile(file)
     }
   })
-  it('rejects Go routes that x-matched-path cannot select in adapter builds', async () => {
-    // Adapter executables read x-matched-path as the Next.js server does,
-    // which drops a leading /index from a static path, so /index/collide/docs
-    // would select /collide/docs, a different handler than the one the
-    // platform routed to. next start looks up the exact ID instead.
-    const config = await next.readFile('next.config.ts')
-    const source = `package route
+  it.each(matchedPathCases.rejected)(
+    'rejects $name in adapter builds',
+    async ({ ids, diagnostic, adapterOnly }) => {
+      // Adapter executables read x-matched-path as the Next.js server does,
+      // which drops a leading /index from a static path, so /index/collide/docs
+      // would select /collide/docs, a different handler than the one the
+      // platform routed to. next start looks up the exact ID instead.
+      const config = await next.readFile('next.config.ts')
+      const source = `package route
 
 import "net/http"
 
 func GET(w http.ResponseWriter, r *http.Request) {}
 `
-    const build = () =>
-      next.runCommand(['build', '--turbopack'], {
-        env: {
-          IS_WEBPACK_TEST: '',
-          IS_TURBOPACK_TEST: '1',
-          NEXT_RSPACK: '',
-          NEXT_TEST_USE_RSPACK: '',
-        },
-      })
-    try {
-      await next.patchFile('app/collide/docs/route.go', source)
-      await next.patchFile('app/index/collide/docs/route.go', source)
-      expect((await build()).exitCode).toBe(0)
-      await next.patchFile(
-        'next.config.ts',
-        config.replace(
-          'experimental:',
-          `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
+      const build = () =>
+        next.runCommand(['build', '--turbopack'], {
+          env: {
+            IS_WEBPACK_TEST: '',
+            IS_TURBOPACK_TEST: '1',
+            NEXT_RSPACK: '',
+            NEXT_TEST_USE_RSPACK: '',
+          },
+        })
+      try {
+        for (const id of ids) await next.patchFile(`app${id}/route.go`, source)
+        const selfHosted = await build()
+        if (adapterOnly) {
+          if (selfHosted.exitCode !== 0) throw new Error(selfHosted.cliOutput)
+          expect(selfHosted.exitCode).toBe(0)
+        } else {
+          // General route validation rejects encoded dynamic-segment aliases
+          // before next-api's Go-specific adapter checks, in either mode.
+          expect(selfHosted.exitCode).not.toBe(0)
+          expect(selfHosted.cliOutput).toContain(diagnostic)
+        }
+        await next.patchFile(
+          'next.config.ts',
+          config.replace(
+            'experimental:',
+            `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
+          )
         )
-      )
-      const result = await build()
+        const result = await build()
+        expect(result.exitCode).not.toBe(0)
+        if (adapterOnly) {
+          expect(result.cliOutput).toContain(
+            'cannot be selected in adapter deployments'
+          )
+        }
+        expect(result.cliOutput).toContain(diagnostic)
+      } finally {
+        await next.patchFile('next.config.ts', config)
+        await next.deleteFile('app/collide')
+        await next.deleteFile('app/index')
+        await next.deleteFile('app/%69ndex')
+      }
+    }
+  )
+  it('rejects routes from different Go modules with an actionable diagnostic', async () => {
+    await next.patchFile(
+      'app/methods/go.mod',
+      'module example.com/nested-methods\n\ngo 1.24\n',
+      async () => {
+        const result = await next.runCommand(['build', '--turbopack'], {
+          env: { IS_TURBOPACK_TEST: '1', IS_WEBPACK_TEST: '' },
+        })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.cliOutput).toContain('must belong to one Go module')
+        expect(result.cliOutput).toContain('app/methods/go.mod')
+        expect(result.cliOutput).toContain('./go.mod')
+        expect(result.cliOutput).toContain(
+          'using a single go.mod at the project root'
+        )
+      }
+    )
+  })
+  it('rejects duplicate generated Go package aliases instead of replacing a handler', async () => {
+    // These directories have the same sanitized name and truncated xxh3 hash
+    // (86c6fa2a) in go_package_alias. Keep them literal so this exercises the
+    // next-api collision diagnostic without mocking the compiler or hasher.
+    const directories = [
+      'app/(alias-collision)/a_a_a_a_a-a-a-a_a-a-a_a_a_a-a_a_a-a_a_a_a_a_a',
+      'app/(alias-collision)/a-a_a_a-a_a-a_a-a_a-a-a-a_a_a-a-a-a_a_a_a_a_a',
+    ]
+    try {
+      for (const directory of directories) {
+        await next.patchFile(
+          `${directory}/route.go`,
+          'package route\n\nimport "net/http"\n\nfunc GET(w http.ResponseWriter, r *http.Request) {}\n'
+        )
+      }
+      const result = await next.runCommand(['build', '--turbopack'], {
+        env: { IS_TURBOPACK_TEST: '1', IS_WEBPACK_TEST: '' },
+      })
       expect(result.exitCode).not.toBe(0)
-      expect(result.stdout + result.stderr).toContain(
-        'The Go route /index/collide/docs cannot be selected in adapter deployments, because the x-matched-path header reads /index/collide/docs as the Go route /collide/docs, a different route'
-      )
+      expect(result.cliOutput).toContain('map to the same Go package path')
+      expect(result.cliOutput).toContain('86c6fa2a')
+      expect(result.cliOutput).toContain('Rename one of the route directories')
+      for (const directory of directories) {
+        expect(result.cliOutput).toContain(directory)
+      }
     } finally {
-      await next.patchFile('next.config.ts', config)
-      await next.deleteFile('app/collide')
-      await next.deleteFile('app/index')
+      await next.deleteFile('app/(alias-collision)')
     }
   })
   it('skips the Go startup check when experimental.goRoutesStartupCheck is false', async () => {

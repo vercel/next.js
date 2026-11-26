@@ -1,0 +1,88 @@
+{
+  "accepted": [
+    {
+      "id": "/selector/static",
+      "path": "/selector/static",
+      "headers": [
+        "/selector/static",
+        "/index/selector/static",
+        "\\selector\\static"
+      ]
+    },
+    {
+      "id": "/index/selector/[id]",
+      "path": "/index/selector/value",
+      "headers": [
+        "/index/selector/[id]",
+        "/index/selector/%5Bid%5D",
+        "\\index\\selector\\[id]"
+      ]
+    },
+    {
+      "id": "/index/selector-catch/[...slug]",
+      "path": "/index/selector-catch/one/two",
+      "headers": ["/index/selector-catch/[...slug]"]
+    },
+    {
+      "id": "/index/selector-optional/[[...slug]]",
+      "path": "/index/selector-optional",
+      "headers": ["/index/selector-optional/[[...slug]]"]
+    },
+    {
+      "id": "/selector/café",
+      "path": "/selector/caf%C3%A9",
+      "headers": ["/selector/café", "/selector/caf%C3%A9"]
+    },
+    {
+      "id": "/selector/日本語",
+      "path": "/selector/%E6%97%A5%E6%9C%AC%E8%AA%9E",
+      "headers": ["/selector/日本語", "/selector/%E6%97%A5%E6%9C%AC%E8%AA%9E"]
+    },
+    {
+      "id": "/selector/percent%",
+      "path": "/selector/percent%25",
+      "headers": ["/selector/percent%", "/selector/percent%25"]
+    },
+    {
+      "id": "/selector/escaped%2Fslash",
+      "path": "/selector/escaped%252Fslash",
+      "headers": ["/selector/escaped%2Fslash", "/selector/escaped%252Fslash"]
+    },
+    {
+      "id": "/selector/encoded%5Bid%5D",
+      "path": "/selector/encoded%255Bid%255D",
+      "headers": ["/selector/encoded%5Bid%5D", "/selector/encoded%255Bid%255D"]
+    },
+    {
+      "id": "/selector/%FF",
+      "path": "/selector/%25FF",
+      "headers": ["/selector/%FF", "/selector/%25FF"]
+    }
+  ],
+  "rejected": [
+    {
+      "name": "a static /index prefix",
+      "adapterOnly": true,
+      "ids": ["/collide/docs", "/index/collide/docs"],
+      "diagnostic": "reads /index/collide/docs as the Go route /collide/docs, a different route"
+    },
+    {
+      "name": "ambiguous UTF-8 spellings",
+      "adapterOnly": true,
+      "ids": ["/collide/café", "/collide/caf%C3%A9"],
+      "diagnostic": "the percent-encoded spelling of the Go route /collide/café"
+    },
+    {
+      "name": "ambiguous dynamic-segment spellings",
+      "adapterOnly": false,
+      "ids": ["/collide/[id]", "/collide/%5Bid%5D"],
+      "diagnostic": "Ambiguous route pattern \"/collide/[*]\" matches multiple routes"
+    },
+    {
+      "name": "normalization after percent decoding",
+      "adapterOnly": true,
+      "ids": ["/collide/docs", "/%69ndex/collide/docs"],
+      "diagnostic": "the percent-encoded spelling of the Go route /collide/docs"
+    }
+  ]
+}

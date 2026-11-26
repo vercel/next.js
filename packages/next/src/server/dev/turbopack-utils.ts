@@ -466,6 +466,12 @@ export async function handleRouteType({
         // Native compilation may fail without publishing manifests. Keep the
         // issue subscription above active so source edits can repair the route.
         processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+        if (dev) {
+          // API requests may have no HMR client to surface compilation warnings.
+          for (const issue of writtenEndpoint.issues) {
+            printNonFatalIssue(issue)
+          }
+        }
       }
 
       manifestLoader.loadAppPathsManifest(page)
