@@ -82,7 +82,10 @@ import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
-import { getGoProxyMatcher } from './lib/native-proxy-matcher'
+import {
+  getGoProxyMatcher,
+  InvalidGoProxyRequestError,
+} from './lib/native-proxy-matcher'
 import { loadEnvConfig } from '@next/env'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
@@ -1947,13 +1950,22 @@ export default class NextNodeServer extends BaseServer<
       /* non-fatal we can't decode so can't match it */
     }
 
-    if (
-      !(
-        middleware.match(normalizedPathname, req, parsedUrl.query) ||
-        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
-      )
-    ) {
-      return handleFinished()
+    try {
+      if (
+        !(
+          middleware.match(normalizedPathname, req, parsedUrl.query) ||
+          middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+        )
+      ) {
+        return handleFinished()
+      }
+    } catch (error) {
+      if (error instanceof InvalidGoProxyRequestError) {
+        res.statusCode = 400
+        res.body('Bad Request').send()
+        return true
+      }
+      throw error
     }
 
     let result: Awaited<

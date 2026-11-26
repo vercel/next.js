@@ -19,6 +19,7 @@ import {
   registerUnhandledRejectionListener,
 } from '../node-environment-extensions/process-error-handlers'
 import { DecodeError } from '../../shared/lib/utils'
+import { InvalidGoProxyRequestError } from './native-proxy-matcher'
 import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -1081,6 +1082,11 @@ export async function initialize(opts: {
     try {
       await handleRequest(0)
     } catch (err) {
+      if (err instanceof InvalidGoProxyRequestError) {
+        res.statusCode = 400
+        res.end('Bad Request')
+        return
+      }
       try {
         let invokePath = '/500'
         let invokeStatus = '500'

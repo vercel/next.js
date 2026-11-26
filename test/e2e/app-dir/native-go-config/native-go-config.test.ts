@@ -42,19 +42,23 @@ describe('static Go config', () => {
   })
 
   it('keeps header conditions aligned with repeated Go request fields', async () => {
+    const protectedResponse = await fetchViaRawHttp(next.url, '/headers/has', {
+      headers: { 'x-resource': 'private' },
+    })
+    expect(protectedResponse.status).toBe(403)
     for (const headers of [
-      { 'x-resource': 'private' },
       { 'x-resource': ['private', 'public'] },
+      { 'x-resource': ['public', 'private'] },
       { 'X-Resource': ['private', 'public', 'other'] },
       { 'set-cookie': ['private', 'public'] },
     ]) {
       const response = await fetchViaRawHttp(next.url, '/headers/has', {
         headers,
       })
-      expect(response.status).toBe(403)
+      expect(response.status).toBe(400)
       expect(await response.text()).not.toContain('secret')
     }
-    for (const value of ['public', ['public', 'private'], 'private, public']) {
+    for (const value of ['public', 'private, public']) {
       const response = await fetchViaRawHttp(next.url, '/headers/has', {
         headers: { 'x-resource': value },
       })
@@ -64,15 +68,15 @@ describe('static Go config', () => {
   })
 
   it('keeps header conditions aligned with Connection-nominated Go request fields', async () => {
+    expect((await next.fetch('/headers/missing')).status).toBe(403)
     for (const headers of [
-      {},
       { connection: 'x-resource', 'x-resource': 'public' },
       { connection: 'keep-alive, X-Resource', 'x-resource': 'public' },
     ]) {
       const response = await fetchViaRawHttp(next.url, '/headers/missing', {
         headers,
       })
-      expect(response.status).toBe(403)
+      expect(response.status).toBe(400)
       expect(await response.text()).not.toContain('secret')
     }
     const response = await fetchViaRawHttp(next.url, '/headers/missing', {
@@ -80,6 +84,34 @@ describe('static Go config', () => {
     })
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('public')
+  })
+
+  it('rejects ambiguous header conditions before JavaScript routes', async () => {
+    for (const headers of [
+      { connection: 'x-resource', 'x-resource': 'private' },
+      { connection: 'keep-alive, X-Resource', 'x-resource': 'private' },
+      { connection: 'cookie', cookie: 'resource=private' },
+      { 'x-resource': ['private', 'public'] },
+      { 'x-resource': ['public', 'private'] },
+    ]) {
+      const response = await fetchViaRawHttp(next.url, '/headers/javascript', {
+        headers,
+      })
+      expect(response.status).toBe(400)
+      expect(await response.text()).not.toContain('secret')
+    }
+    for (const headers of [
+      { 'x-resource': 'private' },
+      { cookie: 'resource=private' },
+    ]) {
+      const response = await fetchViaRawHttp(next.url, '/headers/javascript', {
+        headers,
+      })
+      expect(response.status).toBe(403)
+    }
+    expect(await (await next.fetch('/headers/javascript')).text()).toBe(
+      'public'
+    )
   })
 
   if (isNextDev) {
@@ -228,6 +260,8 @@ describe('static Go config', () => {
           expect.anything(),
           expect.anything(),
           expect.anything(),
+          expect.anything(),
+          expect.anything(),
         ],
       })
       await next.stop()
@@ -246,6 +280,8 @@ describe('static Go config', () => {
         config: {
           matchers: [
             expect.objectContaining({ source: '/configured' }),
+            expect.anything(),
+            expect.anything(),
             expect.anything(),
             expect.anything(),
             expect.anything(),

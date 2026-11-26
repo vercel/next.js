@@ -6,13 +6,21 @@ import type {
   MiddlewareRouteMatch,
 } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { matchHas } from '../../shared/lib/router/utils/prepare-destination'
+import { DecodeError } from '../../shared/lib/utils'
 import { prepareNativeRequestHeaders } from './native-route-proxy'
+
+export class InvalidGoProxyRequestError extends DecodeError {
+  constructor() {
+    super('Go proxy conditions require unambiguous request headers')
+  }
+}
 
 export function getGoProxyMatcher(
   matchers: Parameters<typeof getMiddlewareRouteMatcher>[0]
 ): MiddlewareRouteMatch {
   return (pathname, req, query) => {
-    let request: Parameters<typeof matchHas>[0] | undefined
+    let request: Pick<NodeNextRequest, 'headers' | 'cookies'> | undefined
+    let originalCookies: NodeNextRequest['cookies'] | undefined
     for (const matcher of matchers) {
       if (!new RegExp(matcher.regexp).test(pathname || '')) continue
       if (matcher.has || matcher.missing) {
@@ -32,6 +40,33 @@ export function getGoProxyMatcher(
             if (Array.isArray(value)) headers[name] = value[0]
           }
           request = { headers, cookies }
+        }
+        // Go proxies can protect either runtime. A condition cannot safely
+        // select a resource when Go and JavaScript would see different values.
+        for (const conditions of [matcher.has, matcher.missing]) {
+          for (const condition of conditions || []) {
+            let originalValue
+            let forwardedValue
+            if (condition.type === 'cookie') {
+              originalCookies ||= getCookieParser(req.headers)()
+              originalValue = originalCookies[condition.key]
+              forwardedValue = request.cookies[condition.key]
+            } else if (
+              condition.type === 'header' ||
+              condition.type === 'host'
+            ) {
+              const key =
+                condition.type === 'host' ? 'host' : condition.key.toLowerCase()
+              const value = req.headers[key]
+              originalValue = Array.isArray(value) ? value.join(', ') : value
+              forwardedValue = request.headers[key]
+            } else {
+              continue
+            }
+            if (originalValue !== forwardedValue) {
+              throw new InvalidGoProxyRequestError()
+            }
+          }
         }
         if (!matchHas(request, query, matcher.has, matcher.missing)) continue
       }

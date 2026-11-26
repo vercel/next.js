@@ -141,7 +141,7 @@ describe('go-config', () => {
     expect(unlocalized.test('/fr/settings')).toBe(false)
   })
 
-  it('matches the first repeated Go header while respecting request-header overrides', async () => {
+  it('rejects ambiguous repeated headers while respecting request-header overrides', async () => {
     const { matchers } = await readConfig([
       {
         source: '/secure',
@@ -155,7 +155,9 @@ describe('go-config', () => {
     req.rawHeaders = ['X-Resource', 'private', 'x-resource', 'public']
     try {
       const match = getGoProxyMatcher(matchers)
-      expect(match('/secure', new NodeNextRequest(req), {})).toBe(true)
+      expect(() => match('/secure', new NodeNextRequest(req), {})).toThrow(
+        'unambiguous request headers'
+      )
 
       req.headers['x-resource'] = 'public'
       expect(match('/secure', new NodeNextRequest(req), {})).toBe(false)
@@ -164,7 +166,7 @@ describe('go-config', () => {
     }
   })
 
-  it('removes Connection-nominated fields from header and cookie conditions', async () => {
+  it('rejects Connection-nominated fields in header and cookie conditions', async () => {
     const { matchers } = await readConfig([
       {
         source: '/secure',
@@ -191,9 +193,9 @@ describe('go-config', () => {
       'skip=yes',
     ]
     try {
-      expect(
+      expect(() =>
         getGoProxyMatcher(matchers)('/secure', new NodeNextRequest(req), {})
-      ).toBe(true)
+      ).toThrow('unambiguous request headers')
       expect(req.headers['x-resource']).toBe('public')
       expect(req.headers.cookie).toBe('skip=yes')
     } finally {

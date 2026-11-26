@@ -13,6 +13,8 @@ var Config = proxy.Config{
 		{Source: "/headers/has", Has: []proxy.Condition{{Type: "header", Key: "x-resource", Value: "private"}}},
 		{Source: "/headers/has", Has: []proxy.Condition{{Type: "header", Key: "set-cookie", Value: "private"}}},
 		{Source: "/headers/missing", Missing: []proxy.Condition{{Type: "header", Key: "x-resource"}}},
+		{Source: "/headers/javascript", Has: []proxy.Condition{{Type: "header", Key: "x-resource", Value: "private"}}},
+		{Source: "/headers/javascript", Has: []proxy.Condition{{Type: "cookie", Key: "resource", Value: "private"}}},
 	},
 }
 
@@ -21,7 +23,8 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 	if resource == "" && r.URL.Path == "/headers/has" {
 		resource = r.Header.Get("Set-Cookie")
 	}
-	if (r.URL.Path == "/headers/has" && resource == "private") ||
+	if r.URL.Path == "/headers/javascript" ||
+		(r.URL.Path == "/headers/has" && resource == "private") ||
 		(r.URL.Path == "/headers/missing" && resource == "") {
 		http.Error(w, "protected", http.StatusForbidden)
 		return
