@@ -11,10 +11,8 @@ import {
 import { join, relative, isAbsolute } from 'path'
 import { PassThrough, Readable, pipeline, type Transform } from 'stream'
 import { createBrotliDecompress, createUnzip } from 'zlib'
-import {
-  prepareNativeRequestHeaders,
-  proxyNativeRequest,
-} from './native-route-proxy'
+import { proxyNativeRequest } from './native-route-proxy'
+import { prepareNativeRequestHeaders } from './native-headers'
 
 const noop = () => {}
 

@@ -7,7 +7,7 @@ import type {
 } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { matchHas } from '../../shared/lib/router/utils/prepare-destination'
 import { DecodeError } from '../../shared/lib/utils'
-import { prepareNativeRequestHeaders } from './native-route-proxy'
+import { prepareNativeRequestHeaders } from './native-headers'
 
 export class InvalidGoProxyRequestError extends DecodeError {
   constructor() {
