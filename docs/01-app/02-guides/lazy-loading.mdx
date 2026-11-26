@@ -23,6 +23,18 @@ By default, Server Components are automatically [code split](https://developer.m
 
 `next/dynamic` is a composite of [`React.lazy()`](https://react.dev/reference/react/lazy) and [Suspense](https://react.dev/reference/react/Suspense). It behaves the same way in the `app` and `pages` directories to allow for incremental migration.
 
+## Choosing what to lazy load
+
+Next.js already splits Client Component code by route, so a route loads the code for the components it renders. Lazy loading splits code within a route. The lazy loaded code is a separate request, so it suits code the route doesn't need for its first render.
+
+| The component is                                                  | Approach                                                                                                                   |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Visible when the page loads                                       | Import it normally, so it is prerendered with the page                                                                     |
+| Visible when the page loads, but can only render in the browser   | [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) inside `<Suspense>` |
+| Built on a module that reads `window` or `document` when imported | [`next/dynamic` with `ssr: false`](#skipping-ssr)                                                                          |
+| Rarely opened, such as an export dialog                           | [Load it on interaction](#loading-on-interaction)                                                                          |
+| Likely to be opened, such as a reply box or the next tab          | [Preload it before the interaction](#preloading-before-interaction)                                                        |
+
 ## Examples
 
 ### Importing Client Components
@@ -65,7 +77,7 @@ When using `React.lazy()` and Suspense, Client Components will be [prerendered](
 
 > **Note:** `ssr: false` option will only work for Client Components, move it into Client Components ensure the client code-splitting working properly.
 
-If you want to disable prerendering for a Client Component, you can use the `ssr` option set to `false`:
+To lazy load a Client Component and skip prerendering it, set the `ssr` option to `false`. Next.js then leaves the component's module out of the server render, which suits libraries that read `window` or `document` when imported:
 
 ```jsx
 const ComponentC = dynamic(() => import('../components/C'), { ssr: false })
@@ -153,6 +165,100 @@ export default function Page() {
   )
 }
 ```
+
+### Loading on interaction
+
+A component that renders conditionally loads its code the first time it renders, for example when a user opens a dialog. With a `loading` component, React shows the placeholder right away and reveals the dialog with its next batch of suspended content. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+
+To show the component as soon as its code loads, leave out `loading` and update state in a [transition](https://react.dev/reference/react/useTransition). React keeps the current UI on screen until the component is ready, and `isPending` lets you show that the click registered:
+
+```jsx filename="app/page.js"
+'use client'
+
+import { useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
+
+const ExportDialog = dynamic(() => import('../components/export-dialog'))
+
+export default function Page() {
+  const [open, setOpen] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <div>
+      <button
+        disabled={isPending}
+        onClick={() => startTransition(() => setOpen(true))}
+      >
+        {isPending ? 'Opening…' : 'Export'}
+      </button>
+      {open && <ExportDialog />}
+    </div>
+  )
+}
+```
+
+Without a transition, the closest `<Suspense>` boundary above the component shows its fallback while the code loads.
+
+### Preloading before interaction
+
+When a component is likely to be opened, load its code ahead of the interaction so it appears without a wait.
+
+Render the component inside a hidden [`<Activity>`](https://react.dev/reference/react/Activity). React prepares hidden content in the background, which loads the code, and shows the component when `mode` changes to `visible`:
+
+```jsx filename="app/page.js"
+'use client'
+
+import { Activity, useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const ReplyBox = dynamic(() => import('../components/reply-box'))
+
+export default function Page() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button onClick={() => setOpen(true)}>Reply</button>
+      <Activity mode={open ? 'visible' : 'hidden'}>
+        <ReplyBox />
+      </Activity>
+    </div>
+  )
+}
+```
+
+The code downloads on every visit, shortly after the page hydrates, whether or not the user opens the component.
+
+To download the code only when a user shows intent, start the download when they hover or focus the trigger. Share one loader function between the preload and [`React.lazy()`](https://react.dev/reference/react/lazy):
+
+```jsx filename="app/page.js"
+'use client'
+
+import { lazy, startTransition, useState } from 'react'
+
+const loadReplyBox = () => import('../components/reply-box')
+const ReplyBox = lazy(loadReplyBox)
+
+export default function Page() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button
+        onMouseEnter={loadReplyBox}
+        onFocus={loadReplyBox}
+        onClick={() => startTransition(() => setOpen(true))}
+      >
+        Reply
+      </button>
+      {open && <ReplyBox />}
+    </div>
+  )
+}
+```
+
+This example uses `React.lazy()` because it accepts the shared loader. With `next/dynamic`, write the `import()` inside the `dynamic()` call.
 
 ### Importing Named Exports
 

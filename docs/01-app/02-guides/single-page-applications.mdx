@@ -206,6 +206,16 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/use-context) and i
 
 Client Components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and render it only in the browser, call `use(browser())` in the component and wrap the component in a `<Suspense>` boundary.
 
+Which API to use depends on what else the component needs:
+
+| You want to skip prerendering, and                             | Use                                  |
+| -------------------------------------------------------------- | ------------------------------------ |
+| the component's code can load with the rest of the route       | `use(browser())` inside `<Suspense>` |
+| a module it imports reads `window` or `document` when imported | `next/dynamic` with `ssr: false`     |
+| its code should load separately, when the component renders    | `next/dynamic` with `ssr: false`     |
+
+To decide whether a component's code should load separately, see [Choosing what to lazy load](/docs/app/guides/lazy-loading#choosing-what-to-lazy-load).
+
 React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
 
 During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary.
