@@ -173,3 +173,21 @@ it('ignores grep filtering another command before the CLI', () => {
     ])
   ).toMatchObject({ requestInsightsBeforeProjectInspection: true })
 })
+
+it.each([
+  [
+    'shell',
+    { command: 'curl -s localhost:3000/_next/development/request-insights' },
+  ],
+  ['mcp__next-devtools__get_request_insights', {}],
+])(
+  'counts the dev endpoint and MCP tool as Request Insights: %s',
+  (name, args) => {
+    expect(
+      collect([
+        toolCall(name, args),
+        toolCall('file_read', { file_path: '/workspace/app/page.tsx' }),
+      ])
+    ).toMatchObject({ requestInsightsBeforeProjectInspection: true })
+  }
+)

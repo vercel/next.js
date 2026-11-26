@@ -3,8 +3,10 @@ import { join } from 'node:path'
 
 export const collectFailed = true
 
+// The CLI, or the dev endpoint and MCP tool it reads from.
 const requestInsightsCommand =
-  /(?:node_modules\/\.bin\/next|\bnext|\bnpx\s+next)\s+experimental-request-insights\b/
+  /(?:node_modules\/\.bin\/next|\bnext|\bnpx\s+next)\s+experimental-request-insights\b|\/_next\/development\/request-insights\b/
+const requestInsightsTool = /(?:^|_)get_request_insights$/
 const bundledDocsPath = /next\/dist\/docs\b/
 const agentGuidance =
   /next\/dist\/agent-faq\.md|(?:^|\/)\.(?:agents|claude)\/skills\//
@@ -24,6 +26,7 @@ const searchExclusions =
 
 function classify({ name, args = {} }) {
   const text = args.command ?? JSON.stringify(args)
+  if (requestInsightsTool.test(name)) return { kind: 'request-insights' }
   // Searching for or reading about the CLI isn't running it.
   if (
     name === 'shell' &&
