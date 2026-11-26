@@ -1767,6 +1767,9 @@
           break;
         case "resolved_module":
           initializeModuleChunk(chunk);
+          break;
+        case "resolved_ledger":
+          initializeLedgerChunk(chunk);
       }
       switch (chunk.status) {
         case "fulfilled":
@@ -2998,6 +3001,8 @@
             return;
           case "S":
             return Symbol.for(value.slice(2));
+          case "y":
+            return;
           case "h":
             var ref = value.slice(2);
             return getOutlinedModel(
@@ -3475,8 +3480,8 @@
                   (previousBlockedChunk = chunk));
             } else {
               chunk = previousBlockedChunk;
-              var _chunk4 = createPendingChunk(response);
-              _chunk4.then(
+              var _chunk5 = createPendingChunk(response);
+              _chunk5.then(
                 function (v) {
                   return controller.enqueue(v);
                 },
@@ -3484,11 +3489,11 @@
                   return controller.error(e);
                 }
               );
-              previousBlockedChunk = _chunk4;
+              previousBlockedChunk = _chunk5;
               chunk.then(function () {
-                previousBlockedChunk === _chunk4 &&
+                previousBlockedChunk === _chunk5 &&
                   (previousBlockedChunk = null);
-                resolveModelChunk(response, _chunk4, json);
+                resolveModelChunk(response, _chunk5, json);
               });
             }
           },
@@ -3695,6 +3700,45 @@
       response.name = name;
       response.environmentName = env;
       return response;
+    }
+    function initializeLedgerChunk(chunk) {
+      var response = chunk.reason,
+        total = chunk.value,
+        type = total.type,
+        JSCompiler_object_inline_state_347 = 0,
+        units = total.graph.units;
+      total = total.roots.slice();
+      for (var visited = new Set(), i = 0; i < total.length; i++) {
+        var unit = total[i];
+        if (!visited.has(unit)) {
+          visited.add(unit);
+          var cells = unit.cells;
+          cells = null === cells ? void 0 : cells.get(type);
+          void 0 !== cells &&
+            (JSCompiler_object_inline_state_347 =
+              (JSCompiler_object_inline_state_347 | cells.state) >>> 0);
+          cells = unit.references;
+          if (null !== cells)
+            for (var j = 0; j < cells.length; j++) {
+              var target = units.get(cells[j]);
+              void 0 !== target && total.push(target);
+            }
+          unit = unit.children;
+          if (null !== unit)
+            for (cells = 0; cells < unit.length; cells++)
+              (j = unit[cells]),
+                (target = j.capturedLedgers),
+                (null !== target && -1 !== target.indexOf(type)) ||
+                  total.push(j);
+        }
+      }
+      type = JSCompiler_object_inline_state_347;
+      chunk.status = "fulfilled";
+      chunk.value = type;
+      chunk.reason = null;
+      null !== response &&
+        (filterDebugInfo(response, chunk),
+        moveDebugInfoFromChunkToInnerValue(chunk, type));
     }
     function createFakeFunction(
       name,
@@ -3997,18 +4041,18 @@
                 ),
                 (response._blockedConsole = blockedChunk));
         else {
-          var _chunk5 = createPendingChunk(response);
-          _chunk5.then(
+          var _chunk6 = createPendingChunk(response);
+          _chunk6.then(
             function (v) {
               return replayConsoleWithCallStackInDEV(response, v);
             },
             function () {}
           );
-          response._blockedConsole = _chunk5;
+          response._blockedConsole = _chunk6;
           var unblock = function () {
-            response._blockedConsole === _chunk5 &&
+            response._blockedConsole === _chunk6 &&
               (response._blockedConsole = null);
-            resolveModelChunk(response, _chunk5, json);
+            resolveModelChunk(response, _chunk6, json);
           };
           blockedChunk.then(unblock, unblock);
         }
@@ -4928,6 +4972,7 @@
             "halted" !== id.status &&
             "blocked" !== id.status &&
             "resolved_module" !== id.status &&
+            "resolved_ledger" !== id.status &&
             ((streamState = id._debugChunk),
             (tag = createResolvedModelChunk(response, row)),
             (tag._debugChunk = streamState),
@@ -5188,6 +5233,9 @@
                 : delete value[i]));
       return value;
     }
+    function resolveLedgerTotals(weakResponse) {
+      hasGCedResponse(weakResponse) || unwrapWeakResponse(weakResponse);
+    }
     function close(weakResponse) {
       if (!hasGCedResponse(weakResponse)) {
         var response = unwrapWeakResponse(weakResponse);
@@ -5441,6 +5489,9 @@
             break;
           case "resolved_module":
             initializeModuleChunk(this);
+            break;
+          case "resolved_ledger":
+            initializeLedgerChunk(this);
         }
         var resolveCallback = resolve,
           rejectCallback = reject,
@@ -5601,7 +5652,15 @@
               options.debugChannel.readable,
               handleDone
             );
-            startReadingFromStream$1(response, r.body, handleDone, r);
+            startReadingFromStream$1(
+              response,
+              r.body,
+              function () {
+                resolveLedgerTotals(response);
+                handleDone();
+              },
+              r
+            );
           } else
             startReadingFromStream$1(
               response,
@@ -5643,16 +5702,15 @@
         options ? options.unstable_requestId : void 0
       );
       if (options && options.debugChannel) {
-        var streamEndedCount = 0;
-        serverConsumerManifest = function () {
-          2 === ++streamEndedCount && close(response);
-        };
-        startReadingFromStream(
-          response,
-          options.debugChannel,
-          serverConsumerManifest
-        );
-        startReadingFromStream(response, stream, serverConsumerManifest);
+        var streamEndedCount = 0,
+          handleEnd = function () {
+            2 === ++streamEndedCount && close(response);
+          };
+        startReadingFromStream(response, options.debugChannel, handleEnd);
+        startReadingFromStream(response, stream, function () {
+          resolveLedgerTotals(response);
+          handleEnd();
+        });
       } else
         startReadingFromStream(response, stream, close.bind(null, response));
       return getRoot(response);
@@ -5669,7 +5727,15 @@
           options.debugChannel.readable,
           handleDone
         );
-        startReadingFromStream$1(response, stream, handleDone, stream);
+        startReadingFromStream$1(
+          response,
+          stream,
+          function () {
+            resolveLedgerTotals(response);
+            handleDone();
+          },
+          stream
+        );
       } else
         startReadingFromStream$1(
           response,

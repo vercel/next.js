@@ -1748,6 +1748,9 @@
       this._debugInfo = [];
       this._receivedDebugInfo = null;
     }
+    function hasGCedResponse(weakResponse) {
+      return void 0 === weakResponse.weak.deref();
+    }
     function unwrapWeakResponse(weakResponse) {
       weakResponse = weakResponse.weak.deref();
       if (void 0 === weakResponse)
@@ -1766,6 +1769,9 @@
           break;
         case "resolved_module":
           initializeModuleChunk(chunk);
+          break;
+        case "resolved_ledger":
+          initializeLedgerChunk(chunk);
       }
       switch (chunk.status) {
         case "fulfilled":
@@ -2194,10 +2200,11 @@
       }
     }
     function reportGlobalError(weakResponse, error) {
-      if (void 0 !== weakResponse.weak.deref()) {
+      if (!hasGCedResponse(weakResponse)) {
         var response = unwrapWeakResponse(weakResponse);
         response._closed = !0;
         response._closedReason = error;
+        resolveLedgerTotalsAtClose(response);
         response._chunks.forEach(function (chunk, id) {
           "pending" === chunk.status
             ? (null !== response._missingChunks &&
@@ -3024,6 +3031,19 @@
             );
           case "S":
             return Symbol.for(value.slice(2));
+          case "y":
+            response = getResponseLedgers(response).totals.get(
+              parseInt(value.slice(2), 16)
+            );
+            if (void 0 !== response)
+              return (
+                (response = response.chunk),
+                null !== initializingChunk &&
+                  isArrayImpl(initializingChunk._children) &&
+                  initializingChunk._children.push(response),
+                response
+              );
+            return;
           case "h":
             var ref = value.slice(2);
             return getOutlinedModel(
@@ -3217,6 +3237,7 @@
       this._closedReason = null;
       this._allowPartialStream = allowPartialStream;
       this._tempRefs = temporaryReferences;
+      this._ledgers = null;
       this._timeOrigin = 0;
       this._pendingInitialRender = null;
       this._pendingChunks = 0;
@@ -3453,8 +3474,8 @@
                   (previousBlockedChunk = chunk));
             } else {
               chunk = previousBlockedChunk;
-              var _chunk4 = createPendingChunk(response);
-              _chunk4.then(
+              var _chunk5 = createPendingChunk(response);
+              _chunk5.then(
                 function (v) {
                   return controller.enqueue(v);
                 },
@@ -3462,11 +3483,11 @@
                   return controller.error(e);
                 }
               );
-              previousBlockedChunk = _chunk4;
+              previousBlockedChunk = _chunk5;
               chunk.then(function () {
-                previousBlockedChunk === _chunk4 &&
+                previousBlockedChunk === _chunk5 &&
                   (previousBlockedChunk = null);
-                resolveModelChunk(response, _chunk4, json);
+                resolveModelChunk(response, _chunk5, json);
               });
             }
           },
@@ -3673,6 +3694,75 @@
       response.name = name;
       response.environmentName = env;
       return response;
+    }
+    function getResponseLedgers(response) {
+      var ledgers = response._ledgers;
+      null === ledgers &&
+        (response._ledgers = ledgers =
+          { totals: new Map(), types: new Map(), units: new Map() });
+      return ledgers;
+    }
+    function resolveLedgerTotalsAtClose(response) {
+      var ledgers = response._ledgers;
+      null !== ledgers &&
+        ledgers.totals.forEach(function (record) {
+          var chunk = record.chunk;
+          if ("pending" === chunk.status) {
+            releasePendingChunk(response, chunk);
+            var resolveListeners = chunk.value,
+              rejectListeners = chunk.reason;
+            chunk.status = "resolved_ledger";
+            chunk.value = record;
+            chunk.reason = response;
+            null !== resolveListeners &&
+              (initializeLedgerChunk(chunk),
+              wakeChunkIfInitialized(
+                response,
+                chunk,
+                resolveListeners,
+                rejectListeners
+              ));
+          }
+        });
+    }
+    function initializeLedgerChunk(chunk) {
+      var response = chunk.reason,
+        total = chunk.value,
+        type = total.type,
+        JSCompiler_object_inline_state_478 = 0,
+        units = total.graph.units;
+      total = total.roots.slice();
+      for (var visited = new Set(), i = 0; i < total.length; i++) {
+        var unit = total[i];
+        if (!visited.has(unit)) {
+          visited.add(unit);
+          var cells = unit.cells;
+          cells = null === cells ? void 0 : cells.get(type);
+          void 0 !== cells &&
+            (JSCompiler_object_inline_state_478 =
+              (JSCompiler_object_inline_state_478 | cells.state) >>> 0);
+          cells = unit.references;
+          if (null !== cells)
+            for (var j = 0; j < cells.length; j++) {
+              var target = units.get(cells[j]);
+              void 0 !== target && total.push(target);
+            }
+          unit = unit.children;
+          if (null !== unit)
+            for (cells = 0; cells < unit.length; cells++)
+              (j = unit[cells]),
+                (target = j.capturedLedgers),
+                (null !== target && -1 !== target.indexOf(type)) ||
+                  total.push(j);
+        }
+      }
+      type = JSCompiler_object_inline_state_478;
+      chunk.status = "fulfilled";
+      chunk.value = type;
+      chunk.reason = null;
+      null !== response &&
+        (filterDebugInfo(response, chunk),
+        moveDebugInfoFromChunkToInnerValue(chunk, type));
     }
     function createFakeFunction(
       name,
@@ -3975,18 +4065,18 @@
                 ),
                 (response._blockedConsole = blockedChunk));
         else {
-          var _chunk5 = createPendingChunk(response);
-          _chunk5.then(
+          var _chunk6 = createPendingChunk(response);
+          _chunk6.then(
             function (v) {
               return replayConsoleWithCallStackInDEV(response, v);
             },
             function () {}
           );
-          response._blockedConsole = _chunk5;
+          response._blockedConsole = _chunk6;
           var unblock = function () {
-            response._blockedConsole === _chunk5 &&
+            response._blockedConsole === _chunk6 &&
               (response._blockedConsole = null);
-            resolveModelChunk(response, _chunk5, json);
+            resolveModelChunk(response, _chunk6, json);
           };
           blockedChunk.then(unblock, unblock);
         }
@@ -4903,6 +4993,7 @@
             "halted" !== id.status &&
             "blocked" !== id.status &&
             "resolved_module" !== id.status &&
+            "resolved_ledger" !== id.status &&
             ((streamState = id._debugChunk),
             (tag = createResolvedModelChunk(response, buffer)),
             (tag._debugChunk = streamState),
@@ -4942,6 +5033,86 @@
             (0 === --response._pendingChunks &&
               (response._weakResponse.response = null),
             id.reason.close("" === buffer ? '"$undefined"' : buffer));
+          break;
+        case 75:
+          a: {
+            switch (buffer.charCodeAt(0)) {
+              case 49:
+                streamState = 1;
+                break;
+              default:
+                break a;
+            }
+            getResponseLedgers(response).types.set(id, { kind: streamState });
+          }
+          break;
+        case 89:
+          buffer = parseInt(buffer, 16);
+          streamState = getResponseLedgers(response);
+          buffer = streamState.types.get(buffer);
+          void 0 !== buffer &&
+            streamState.totals.set(id, {
+              chunk: createPendingChunk(response),
+              type: buffer,
+              roots: [],
+              graph: streamState
+            });
+          break;
+        case 81:
+          streamState = parseModel(response, buffer);
+          buffer = getResponseLedgers(response);
+          tag = buffer.units;
+          response = {
+            children: null,
+            capturedLedgers: null,
+            cells: null,
+            references: null
+          };
+          tag.set(id, response);
+          id = streamState[0];
+          null !== id &&
+            ((id = tag.get(parseInt(id, 16))),
+            void 0 !== id &&
+              ((tag = id.children),
+              null === tag && (id.children = tag = []),
+              tag.push(response)));
+          id = streamState[1];
+          if (0 !== id.length) {
+            streamState = buffer.totals;
+            buffer = [];
+            for (tag = 0; tag < id.length; tag++)
+              (chunk = streamState.get(parseInt(id[tag], 16))),
+                void 0 !== chunk &&
+                  (buffer.push(chunk.type), chunk.roots.push(response));
+            response.capturedLedgers = buffer;
+          }
+          break;
+        case 90:
+          streamState = parseModel(response, buffer);
+          buffer = getResponseLedgers(response);
+          response = buffer.units.get(id);
+          void 0 !== response &&
+            ((id = buffer.types.get(parseInt(streamState[0], 16))),
+            void 0 !== id &&
+              ((buffer = response.cells),
+              null === buffer && (response.cells = buffer = new Map()),
+              (response = buffer.get(id)),
+              void 0 === response &&
+                buffer.set(id, (response = { kind: 1, state: 0 })),
+              (response.state = (response.state | streamState[1]) >>> 0)));
+          break;
+        case 70:
+          streamState = parseModel(response, buffer);
+          id = getResponseLedgers(response).units.get(id);
+          if (void 0 !== id)
+            for (
+              response = id.references,
+                null === response && (id.references = response = []),
+                id = 0;
+              id < streamState.length;
+              id++
+            )
+              response.push(parseInt(streamState[id], 16));
           break;
         default:
           "" === buffer
@@ -5062,10 +5233,11 @@
       return value;
     }
     function close(weakResponse) {
-      if (void 0 !== weakResponse.weak.deref()) {
+      if (!hasGCedResponse(weakResponse)) {
         var response = unwrapWeakResponse(weakResponse);
         response._allowPartialStream
           ? ((response._closed = !0),
+            resolveLedgerTotalsAtClose(response),
             response._chunks.forEach(function (chunk, id) {
               "pending" === chunk.status || "pending_weak" === chunk.status
                 ? (null !== response._missingChunks &&
@@ -5151,7 +5323,7 @@
         var value = _ref.value;
         if (_ref.done) return onDone();
         _ref = streamState;
-        if (void 0 !== response$jscomp$0.weak.deref()) {
+        if (!hasGCedResponse(response$jscomp$0)) {
           var response = unwrapWeakResponse(response$jscomp$0),
             i = 0,
             rowState = _ref._rowState,
@@ -5395,6 +5567,9 @@
             break;
           case "resolved_module":
             initializeModuleChunk(this);
+            break;
+          case "resolved_ledger":
+            initializeLedgerChunk(this);
         }
         var resolveCallback = resolve,
           rejectCallback = reject,
@@ -5555,7 +5730,16 @@
               options.debugChannel.readable,
               handleDone
             );
-            startReadingFromStream(response, r.body, handleDone, r);
+            startReadingFromStream(
+              response,
+              r.body,
+              function () {
+                hasGCedResponse(response) ||
+                  resolveLedgerTotalsAtClose(unwrapWeakResponse(response));
+                handleDone();
+              },
+              r
+            );
           } else
             startReadingFromStream(
               response,
@@ -5582,7 +5766,16 @@
           options.debugChannel.readable,
           handleDone
         );
-        startReadingFromStream(response, stream, handleDone, stream);
+        startReadingFromStream(
+          response,
+          stream,
+          function () {
+            hasGCedResponse(response) ||
+              resolveLedgerTotalsAtClose(unwrapWeakResponse(response));
+            handleDone();
+          },
+          stream
+        );
       } else
         startReadingFromStream(
           response,
