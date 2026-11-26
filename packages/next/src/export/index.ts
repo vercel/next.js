@@ -917,10 +917,10 @@ async function exportAppImpl(
     }
   }
 
-  // Export mode provide static outputs that are not compatible with PPR mode.
   if (!options.buildExport && nextConfig.cacheComponents) {
-    // TODO: add message
-    throw new Error('Invariant: PPR cannot be enabled in export mode')
+    throw new Error(
+      "`cacheComponents` is not yet supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#with-cache-components"
+    )
   }
 
   // copy prerendered routes to outDir
