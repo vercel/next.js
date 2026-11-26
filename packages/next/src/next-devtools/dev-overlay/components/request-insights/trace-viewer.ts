@@ -4,6 +4,7 @@ import {
   type RequestInsightFetch,
   type RequestInsightSpan,
 } from '../../../shared/request-insights'
+import type { StackFrame } from '../../../shared/stack-frame'
 import { getFetchUrlPresentation } from './fetch-label'
 
 export type TraceItem = {
@@ -12,6 +13,14 @@ export type TraceItem = {
   spanId?: string
   parentSpanId?: string
   spanType?: string
+  reactTiming?: {
+    kind: 'component' | 'await' | 'incomplete'
+    incompleteReason?: string
+    renderId?: string
+    environment: string
+    source?: StackFrame
+    componentPath?: string
+  }
   category: RequestInsightSpan['category']
   label: string
   attributeLabel?: string
@@ -27,6 +36,80 @@ export type TraceItem = {
 export type TraceRange = {
   startTime: number
   durationMs: number
+}
+
+export type ReactTimingGroup = {
+  id: string
+  renderId?: string
+  incompleteReason?: string
+  environment: string
+  range: TraceRange
+  components: TraceItem[]
+  awaits: TraceItem[]
+}
+
+export function getReactTimingGroups(items: TraceItem[]): ReactTimingGroup[] {
+  const groups = new Map<string, ReactTimingGroup>()
+  const incomplete: TraceItem[] = []
+  for (const item of items) {
+    if (!item.reactTiming) continue
+    const { renderId, environment, kind } = item.reactTiming
+    if (kind === 'incomplete') {
+      incomplete.push(item)
+      continue
+    }
+    // Older session records have no render ID. Keep those intervals separate
+    // rather than inferring render passes from a shared parent or timestamp.
+    const id = JSON.stringify([renderId ?? item.id, environment])
+    let group = groups.get(id)
+    const endTime = item.startTime + (item.durationMs ?? 0)
+    if (!group) {
+      group = {
+        id,
+        renderId,
+        environment,
+        range: { startTime: item.startTime, durationMs: item.durationMs ?? 0 },
+        components: [],
+        awaits: [],
+      }
+      groups.set(id, group)
+    } else {
+      const end = Math.max(
+        endTime,
+        group.range.startTime + group.range.durationMs
+      )
+      group.range.startTime = Math.min(group.range.startTime, item.startTime)
+      group.range.durationMs = end - group.range.startTime
+    }
+    // These records are intervals, not an inclusive component ownership tree.
+    const interval = { ...item, depth: 0 }
+    if (kind === 'component') group.components.push(interval)
+    else group.awaits.push(interval)
+  }
+  for (const item of incomplete) {
+    const { renderId, incompleteReason } = item.reactTiming!
+    let found = false
+    for (const group of groups.values()) {
+      if (renderId !== undefined && group.renderId === renderId) {
+        group.incompleteReason = incompleteReason
+        found = true
+      }
+    }
+    if (!found) {
+      groups.set(item.id, {
+        id: item.id,
+        renderId,
+        incompleteReason,
+        environment: '',
+        range: { startTime: item.startTime, durationMs: 0 },
+        components: [],
+        awaits: [],
+      })
+    }
+  }
+  return [...groups.values()].sort(
+    (a, b) => a.range.startTime - b.range.startTime
+  )
 }
 
 export function getTraceNavigationIndex(
@@ -58,6 +141,9 @@ export function getTraceNavigationIndex(
 type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 
 const FETCH_SPAN_TYPE = 'AppRender.fetch'
+const REACT_COMPONENT_SPAN_TYPE = 'ReactServerComponents.component'
+const REACT_AWAIT_SPAN_TYPE = 'ReactServerComponents.await'
+const REACT_INCOMPLETE_SPAN_TYPE = 'ReactServerComponents.incomplete'
 const LOAD_COMPONENTS_SPAN_TYPE = 'LoadComponents.loadComponents'
 const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
 const ATTRIBUTE_LABEL_KEYS = [
@@ -96,6 +182,9 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'AppRender.instantInsights.staticShell',
   'AppRender.instantInsights.validate',
   FETCH_SPAN_TYPE,
+  REACT_COMPONENT_SPAN_TYPE,
+  REACT_AWAIT_SPAN_TYPE,
+  REACT_INCOMPLETE_SPAN_TYPE,
   'NextNodeServer.waitForFirstResponseChunk',
   'NextNodeServer.startResponse',
   'Render.getServerSideProps',
@@ -206,6 +295,80 @@ function getSpanTraceItem(
   index: number
 ): UnnestedTraceItem {
   const type = span.attributes?.['next.span_type']
+  const owner = span.attributes?.['next.rsc.owner']
+  const label =
+    getSpanLabel(span) +
+    (type === REACT_AWAIT_SPAN_TYPE && typeof owner === 'string' && owner
+      ? ` · ${owner}`
+      : '')
+  let reactTiming: string | undefined
+  let reactTimingKind: NonNullable<TraceItem['reactTiming']>['kind'] | undefined
+  if (type === REACT_COMPONENT_SPAN_TYPE) {
+    reactTiming = 'React render interval'
+    reactTimingKind = 'component'
+  } else if (type === REACT_AWAIT_SPAN_TYPE) {
+    reactTiming = 'React await interval'
+    reactTimingKind = 'await'
+  } else if (type === REACT_INCOMPLETE_SPAN_TYPE) {
+    reactTiming = 'Incomplete React timing recording'
+    reactTimingKind = 'incomplete'
+  }
+  const environment = span.attributes?.['next.rsc.environment']
+  const renderId = span.attributes?.['next.rsc.render_id']
+  const componentPath = span.attributes?.['next.rsc.component_path']
+  const outcome = span.attributes?.['next.rsc.outcome']
+  const incompleteReason = span.attributes?.['next.rsc.incomplete_reason']
+  const file = span.attributes?.['next.rsc.source.file']
+  const line1 = span.attributes?.['next.rsc.source.line']
+  const column1 = span.attributes?.['next.rsc.source.column']
+  const methodName = span.attributes?.['next.rsc.source.name']
+  let source: StackFrame | undefined
+  if (
+    typeof file === 'string' &&
+    file.length > 0 &&
+    file.length <= 2048 &&
+    typeof line1 === 'number' &&
+    Number.isSafeInteger(line1) &&
+    line1 > 0 &&
+    typeof column1 === 'number' &&
+    Number.isSafeInteger(column1) &&
+    column1 > 0
+  ) {
+    source = {
+      file,
+      line1,
+      column1,
+      methodName: typeof methodName === 'string' ? methodName : '',
+      arguments: [],
+    }
+  }
+
+  let reactTimingDetails: TraceItem['reactTiming']
+  let fullLabel: string | undefined
+  if (reactTiming && reactTimingKind) {
+    reactTimingDetails = {
+      source,
+      componentPath:
+        typeof componentPath === 'string' ? componentPath : undefined,
+      kind: reactTimingKind,
+      incompleteReason:
+        typeof incompleteReason === 'string' ? incompleteReason : undefined,
+      renderId: typeof renderId === 'string' ? renderId : undefined,
+      environment: typeof environment === 'string' ? environment : '',
+    }
+    fullLabel = `${label} · ${reactTiming}`
+    if (typeof environment === 'string' && environment) {
+      fullLabel += ` · ${environment}`
+    }
+    if (outcome === 'errored') {
+      fullLabel += ' · Errored'
+    } else if (outcome === 'aborted') {
+      fullLabel += ' · Aborted'
+    }
+    if (environment === 'Cache') {
+      fullLabel += ' · May include replayed timings from cached output'
+    }
+  }
 
   return {
     id: `span:${span.spanId ?? index}:${span.startTime}`,
@@ -213,10 +376,12 @@ function getSpanTraceItem(
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     spanType: typeof type === 'string' ? type : undefined,
+    reactTiming: reactTimingDetails,
     category: span.category,
-    label: getSpanLabel(span),
+    label,
     attributeLabel: getSpanAttributeLabel(span),
     attributes: span.attributes,
+    fullLabel,
     startTime: span.startTime,
     durationMs: span.durationMs,
     status: span.status ?? 'pending',
@@ -424,10 +589,14 @@ function getNormalizedStringAttribute(
 
 function getSpanLabel(span: RequestInsightSpan): string {
   const explicitName = span.attributes?.['next.span_name']
+  const type = span.attributes?.['next.span_type']
   const name =
     typeof explicitName === 'string' && explicitName.trim().length > 0
       ? explicitName
       : span.name
+  if (type === REACT_COMPONENT_SPAN_TYPE || type === REACT_AWAIT_SPAN_TYPE) {
+    return name
+  }
   const displayName = name
     .replace(FIZZ_WORD, 'HTML')
     .replace(FLIGHT_WORD, 'RSC')

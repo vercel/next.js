@@ -620,6 +620,13 @@ export class LocalRecordingSpan implements Span {
   }
 }
 
+// Next.js span types that time application code.
+const APPLICATION_SPAN_TYPES = new Set<string>([
+  AppRenderSpan.fetch,
+  'ReactServerComponents.component',
+  'ReactServerComponents.await',
+])
+
 function getLocalSpanCategory(
   attributes: SpanStoreAttributes | undefined
 ): RequestInsightSpanCategory {
@@ -631,7 +638,7 @@ function getLocalSpanCategory(
   }
 
   const spanType = attributes?.['next.span_type']
-  return typeof spanType === 'string' && spanType !== AppRenderSpan.fetch
+  return typeof spanType === 'string' && !APPLICATION_SPAN_TYPES.has(spanType)
     ? 'nextjs'
     : 'application'
 }

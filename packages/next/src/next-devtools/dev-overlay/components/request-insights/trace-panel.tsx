@@ -11,6 +11,8 @@ import {
 import { ContextMenu } from '@base-ui-components/react/context-menu'
 import type { RequestInsight } from '../../../shared/request-insights'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import { openInEditor } from '../../utils/use-open-in-editor'
+import { getOriginalStackFrames } from '../../../shared/stack-frame'
 import { Tooltip } from '../tooltip/tooltip'
 import { formatDuration } from '../../../../shared/lib/format-duration'
 import { getRequestInsightSpanAgentPrompt } from './request-label'
@@ -19,6 +21,7 @@ import {
   getTracePosition,
   getTraceRange,
   type TraceItem,
+  type TraceRange,
 } from './trace-viewer'
 import {
   RequestContextMenuItem,
@@ -30,9 +33,13 @@ const TRACE_TICK_COUNT = 5
 export function Trace({
   request,
   items,
+  range: suppliedRange,
+  title = 'Trace',
 }: {
   request: RequestInsight
   items: TraceItem[]
+  range?: TraceRange
+  title?: 'Trace' | 'Rendering' | 'Waiting'
 }) {
   const { shadowRoot } = useDevOverlayContext()
   const [activeItemId, setActiveItemId] = useState<string | null>(
@@ -47,9 +54,53 @@ export function Trace({
   const [isTraceFocused, setIsTraceFocused] = useState(false)
   const [isTraceTooltipOpen, setIsTraceTooltipOpen] = useState(false)
   const traceRowsRef = useRef<HTMLDivElement>(null)
+  const openingLocationRef = useRef(false)
+  const locationGenerationRef = useRef(0)
+  const [locationMessage, setLocationMessage] = useState<string | null>(null)
+  useEffect(() => {
+    const generation = locationGenerationRef.current
+    setLocationMessage(null)
+    return () => {
+      locationGenerationRef.current = generation + 1
+    }
+  }, [request.requestId])
+  const openReactLocation = useCallback(async (item: TraceItem) => {
+    const source = item.reactTiming?.source
+    if (!source || openingLocationRef.current) return
+    openingLocationRef.current = true
+    const generation = locationGenerationRef.current
+    const kind = item.reactTiming?.kind === 'await' ? 'Await' : 'Render'
+    setLocationMessage(`Opening ${kind.toLowerCase()} location…`)
+    try {
+      const [result] = await getOriginalStackFrames([source], 'server', true)
+      if (generation !== locationGenerationRef.current) return
+      const frame = result?.originalStackFrame
+      if (
+        result?.error ||
+        result?.ignored ||
+        result?.external ||
+        !frame?.file ||
+        frame.line1 == null ||
+        frame.column1 == null
+      ) {
+        setLocationMessage(`${kind} location unavailable.`)
+        return
+      }
+      await openInEditor(frame)
+      if (generation === locationGenerationRef.current) setLocationMessage(null)
+    } catch {
+      if (generation === locationGenerationRef.current)
+        setLocationMessage(`Could not open ${kind.toLowerCase()} location.`)
+    } finally {
+      openingLocationRef.current = false
+    }
+  }, [])
   const shouldScrollActiveItemIntoViewRef = useRef(false)
   const traceId = useId()
-  const range = getTraceRange(request)
+  const itemLabel = title === 'Trace' ? 'span' : 'interval'
+  const range = suppliedRange
+    ? { ...suppliedRange, durationMs: Math.max(suppliedRange.durationMs, 0.1) }
+    : getTraceRange(request)
   const activeItemIndex = items.findIndex((item) => item.id === activeItemId)
   const safeActiveItemIndex =
     items.length === 0 ? -1 : Math.max(activeItemIndex, 0)
@@ -109,7 +160,12 @@ export function Trace({
         safeActiveItemIndex !== -1
       ) {
         event.preventDefault()
-        setInspectedItemId(items[safeActiveItemIndex].id)
+        const item = items[safeActiveItemIndex]
+        if (event.key === 'Enter' && item.reactTiming?.source) {
+          void openReactLocation(item)
+        } else {
+          setInspectedItemId(item.id)
+        }
         return
       }
 
@@ -127,7 +183,13 @@ export function Trace({
       setHoveredItemId(null)
       setActiveItemId(items[nextIndex]?.id ?? null)
     },
-    [activeItemIndex, inspectedItemId, items, safeActiveItemIndex]
+    [
+      activeItemIndex,
+      inspectedItemId,
+      items,
+      openReactLocation,
+      safeActiveItemIndex,
+    ]
   )
   const handleTracePointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -160,12 +222,17 @@ export function Trace({
   return (
     <div className="request-insights-section">
       <div className="request-insights-section-heading">
-        <div className="request-insights-section-title">Trace</div>
+        <div className="request-insights-section-title">{title}</div>
         <div className="request-insights-section-note">
-          {items.length} span{items.length === 1 ? '' : 's'} ·{' '}
-          {formatDuration(range.durationMs)}
+          {items.length} {itemLabel}
+          {items.length === 1 ? '' : 's'} · {formatDuration(range.durationMs)}
         </div>
       </div>
+      {locationMessage ? (
+        <p role="status" className="request-insights-section-note">
+          {locationMessage}
+        </p>
+      ) : null}
       <div className="request-insights-trace-viewport">
         <div
           className="request-insights-trace"
@@ -174,7 +241,7 @@ export function Trace({
           onPointerMove={handleTracePointerMove}
         >
           <div className="request-insights-trace-header">
-            <span>Span</span>
+            <span>{title === 'Trace' ? 'Span' : 'Interval'}</span>
             <span className="request-insights-trace-axis">
               {ticks.map((tick, index) => (
                 <span
@@ -212,7 +279,7 @@ export function Trace({
                   ? undefined
                   : `${traceId}-item-${safeActiveItemIndex}`
               }
-              aria-label={`Trace spans, ${items.length} item${items.length === 1 ? '' : 's'}. Use arrow keys to inspect timing.`}
+              aria-label={`${title} ${itemLabel}s, ${items.length} item${items.length === 1 ? '' : 's'}. Use arrow keys to inspect timing.`}
               className="request-insights-trace-rows"
               onBlur={() => setIsTraceFocused(false)}
               onFocus={() => setIsTraceFocused(true)}
@@ -224,10 +291,19 @@ export function Trace({
               {items.map((item, index) => {
                 const position = getTracePosition(item, range)
                 const description = getTraceItemDescription(item, range)
+                let sourceTitle: string | undefined
+                let accessibleDescription = description
+                if (item.reactTiming?.source) {
+                  const locationKind =
+                    item.reactTiming.kind === 'await' ? 'await' : 'render'
+                  sourceTitle = `Open ${locationKind} location`
+                  accessibleDescription = `${description}. Press Enter to open ${locationKind} location.`
+                }
 
                 return (
                   <TraceSpanContextMenu
                     item={item}
+                    onOpenReactLocation={openReactLocation}
                     key={item.id}
                     onOpenChange={(open) => {
                       setContextMenuItemId((openItemId) => {
@@ -242,7 +318,7 @@ export function Trace({
                     shadowRoot={shadowRoot}
                   >
                     <div
-                      aria-label={description}
+                      aria-label={accessibleDescription}
                       aria-selected={
                         isTraceFocused && index === safeActiveItemIndex
                       }
@@ -250,12 +326,20 @@ export function Trace({
                       data-active={index === displayedItemIndex || undefined}
                       data-category={item.category}
                       data-kind={item.kind}
+                      data-react-kind={item.reactTiming?.kind}
                       data-trace-item-id={item.id}
                       data-trace-index={index}
                       id={`${traceId}-item-${index}`}
-                      onClick={() => {
+                      onClick={(event) => {
                         setActiveItemId(item.id)
-                        setInspectedItemId(item.id)
+                        if (
+                          event.target instanceof Element &&
+                          event.target.closest('[data-react-source-link]')
+                        ) {
+                          void openReactLocation(item)
+                        } else {
+                          setInspectedItemId(item.id)
+                        }
                       }}
                       onContextMenu={() => setActiveItemId(item.id)}
                       ref={
@@ -267,6 +351,10 @@ export function Trace({
                     >
                       <span
                         className="request-insights-span-name"
+                        data-react-source-link={
+                          item.reactTiming?.source ? '' : undefined
+                        }
+                        title={sourceTitle}
                         style={{ paddingLeft: `${item.depth * 14 + 4}px` }}
                       >
                         <span className="request-insights-span-label">
@@ -427,6 +515,7 @@ function TraceSpanContextMenu({
   children,
   item,
   onOpenChange,
+  onOpenReactLocation,
   open,
   request,
   shadowRoot,
@@ -434,6 +523,7 @@ function TraceSpanContextMenu({
   children: ReactElement<Record<string, unknown>>
   item: TraceItem
   onOpenChange: (open: boolean) => void
+  onOpenReactLocation?: (item: TraceItem) => Promise<void>
   open: boolean
   request: RequestInsight
   shadowRoot: ShadowRoot
@@ -444,6 +534,18 @@ function TraceSpanContextMenu({
   }
 
   const label = item.fullLabel ?? item.label
+  let openLocationItem
+  if (item.reactTiming?.source && onOpenReactLocation) {
+    const locationKind = item.reactTiming.kind === 'await' ? 'await' : 'render'
+    openLocationItem = (
+      <ContextMenu.Item
+        className="request-insights-context-item"
+        onClick={() => void onOpenReactLocation(item)}
+      >
+        Open {locationKind} location
+      </ContextMenu.Item>
+    )
+  }
 
   return (
     <ContextMenu.Root onOpenChange={onOpenChange} open={open}>
@@ -478,6 +580,7 @@ function TraceSpanContextMenu({
               getValue={() => spanId}
               label="Copy span ID"
             />
+            {openLocationItem}
             <RequestContextMenuItem
               getValue={() =>
                 getRequestInsightSpanAgentPrompt(request.requestId, {
@@ -499,5 +602,7 @@ function getTraceItemDescription(
   range: ReturnType<typeof getTraceRange>
 ): string {
   const position = getTracePosition(item, range)
-  return `${item.fullLabel ?? item.label} · +${formatDuration(position.offsetMs)} · ${formatDuration(item.durationMs)}`
+  const timing = `${item.fullLabel ?? item.label} · +${formatDuration(position.offsetMs)} · ${formatDuration(item.durationMs)}`
+  const componentPath = item.reactTiming?.componentPath
+  return componentPath ? `${timing}\nOwner path: ${componentPath}` : timing
 }
