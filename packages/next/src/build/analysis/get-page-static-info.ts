@@ -334,6 +334,50 @@ function checkExports(
   return {}
 }
 
+/**
+ * Collects every binding name declared by a variable declarator's pattern,
+ * including names introduced through object and array destructuring, e.g.
+ * `export const { auth: proxy } = NextAuth(config)` declares `proxy`.
+ */
+function collectBindingNames(pattern: any, names: string[] = []): string[] {
+  if (!pattern) {
+    return names
+  }
+
+  switch (pattern.type) {
+    case 'Identifier':
+      names.push(pattern.value)
+      break
+    case 'ObjectPattern':
+      for (const property of pattern.properties) {
+        if (property.type === 'KeyValuePatternProperty') {
+          collectBindingNames(property.value, names)
+        } else if (property.type === 'AssignmentPatternProperty') {
+          // Shorthand form: `{ proxy }` or `{ proxy = fallback }`
+          collectBindingNames(property.key, names)
+        } else if (property.type === 'RestElement') {
+          collectBindingNames(property.argument, names)
+        }
+      }
+      break
+    case 'ArrayPattern':
+      for (const element of pattern.elements) {
+        collectBindingNames(element, names)
+      }
+      break
+    case 'RestElement':
+      collectBindingNames(pattern.argument, names)
+      break
+    case 'AssignmentPattern':
+      collectBindingNames(pattern.left, names)
+      break
+    default:
+      break
+  }
+
+  return names
+}
+
 function validateMiddlewareProxyExports({
   ast,
   page,
@@ -391,11 +435,11 @@ function validateMiddlewareProxyExports({
       node.type === 'ExportDeclaration' &&
       node.declaration?.type === 'VariableDeclaration'
     ) {
-      const id = node.declaration?.declarations[0]?.id.value
-      if (id === 'middleware') {
+      const names = collectBindingNames(node.declaration?.declarations[0]?.id)
+      if (names.includes('middleware')) {
         hasMiddlewareExport = true
       }
-      if (id === 'proxy') {
+      if (names.includes('proxy')) {
         hasProxyExport = true
       }
     }
