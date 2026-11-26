@@ -11,7 +11,7 @@ use next_api::{
     operation::OptionEndpoint,
     paths::AssetPath,
     route::{
-        Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
+        Endpoint, EndpointOutputPaths, WrittenEndpoint, endpoint_client_changed_operation,
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
         read_with_validated_endpoint,
     },
@@ -59,22 +59,31 @@ pub struct NapiWrittenEndpoint {
     pub config: NapiEndpointConfig,
 }
 
-impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
-    fn from(written_endpoint: Option<EndpointOutputPaths>) -> Self {
-        match written_endpoint {
-            Some(EndpointOutputPaths::Native {
-                executable_path, ..
-            }) => Self {
+impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
+    fn from(written_endpoint: Option<WrittenEndpoint>) -> Self {
+        let native_build_succeeded = written_endpoint
+            .as_ref()
+            .is_some_and(WrittenEndpoint::native_build_succeeded);
+        let Some(WrittenEndpoint { output_paths, .. }) = written_endpoint else {
+            return Self {
+                r#type: "none".to_string(),
+                ..Default::default()
+            };
+        };
+        match output_paths {
+            EndpointOutputPaths::Native { entry_path } => Self {
                 r#type: "native".to_string(),
-                entry_path: Some(executable_path.into_owned()),
+                // A failed build still has stable path metadata, but must never admit a
+                // request using a stale descriptor from a previous successful build.
+                entry_path: native_build_succeeded.then(|| entry_path.into_owned()),
                 ..Default::default()
             },
-            Some(EndpointOutputPaths::NodeJs {
+            EndpointOutputPaths::NodeJs {
                 server_entry_path,
                 server_hmr_entry_paths,
                 server_paths,
                 client_paths,
-            }) => Self {
+            } => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path.into_owned()),
                 server_hmr_entry_paths: server_hmr_entry_paths
@@ -85,20 +94,16 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            Some(EndpointOutputPaths::Edge {
+            EndpointOutputPaths::Edge {
                 server_paths,
                 client_paths,
-            }) => Self {
+            } => Self {
                 r#type: "edge".to_string(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            Some(EndpointOutputPaths::NativeFailed { .. }) => Self {
-                r#type: "native".to_string(),
-                ..Default::default()
-            },
-            Some(EndpointOutputPaths::NotFound) | None => Self {
+            EndpointOutputPaths::NotFound => Self {
                 r#type: "none".to_string(),
                 ..Default::default()
             },
@@ -145,7 +150,7 @@ async fn issue_filter_from_endpoint(
 
 #[turbo_tasks::value(serialization = "skip")]
 struct WrittenEndpointWithIssues {
-    written: Option<ReadRef<EndpointOutputPaths>>,
+    written: Option<ReadRef<WrittenEndpoint>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }

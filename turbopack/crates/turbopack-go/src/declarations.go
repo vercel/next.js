@@ -176,7 +176,7 @@ func analyze() error {
 	}
 	sort.Strings(names)
 	functions := map[string]bool{}
-	values := map[string]string{}
+	values := map[string]value{}
 	packages := map[string]bool{}
 	selectedFunctions := map[string]bool{}
 	selectedPackages := map[string]bool{}
@@ -254,28 +254,24 @@ func analyze() error {
 								declaredType = unsupportedType
 							}
 						}
-						encoded, err := json.Marshal(value{
+						values[ident.Name] = value{
 							Pos:      f.pos(ident),
 							Constant: d.Tok == token.CONST,
 							Type:     declaredType,
 							Imports:  imports,
 							Value:    described,
-						})
-						if err != nil {
-							return err
 						}
-						values[ident.Name] = string(encoded)
 					}
 				}
 			}
 		}
 	}
 	return json.NewEncoder(os.Stdout).Encode(struct {
-		Functions         []string          `json:"functions"`
-		Packages          []string          `json:"packages"`
-		SelectedFunctions []string          `json:"selected_functions"`
-		SelectedPackages  []string          `json:"selected_packages"`
-		Values            map[string]string `json:"values"`
-		SyntaxErrors      []string          `json:"syntax_errors"`
+		Functions         []string         `json:"functions"`
+		Packages          []string         `json:"packages"`
+		SelectedFunctions []string         `json:"selected_functions"`
+		SelectedPackages  []string         `json:"selected_packages"`
+		Values            map[string]value `json:"values"`
+		SyntaxErrors      []string         `json:"syntax_errors"`
 	}{sorted(functions), sorted(packages), sorted(selectedFunctions), sorted(selectedPackages), values, errors})
 }

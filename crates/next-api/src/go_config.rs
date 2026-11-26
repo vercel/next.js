@@ -2,75 +2,14 @@
 //! Only literals are accepted; nothing in the application is evaluated.
 use std::collections::BTreeMap;
 
-use serde::Deserialize;
 use serde_json::{Map, Value};
 use turbo_rcstr::RcStr;
+use turbopack_go::{GoDeclaration, GoImport, GoValue as Node, GoValueElement as Element};
 
 /// The SDK ships in the installed `next` package; go.mod maps this path there.
 const SDK_PATH: &str = "next/go/proxy";
 /// The SDK's package clause, which applies to an import without an explicit name.
 const SDK_PACKAGE: &str = "proxy";
-
-#[derive(Deserialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
-enum Node {
-    String {
-        pos: String,
-        value: String,
-    },
-    Int {
-        pos: String,
-        value: i64,
-    },
-    Bool {
-        pos: String,
-        value: bool,
-    },
-    Composite {
-        pos: String,
-        #[serde(rename = "type")]
-        type_name: Option<String>,
-        elements: Vec<Element>,
-    },
-    Unsupported {
-        pos: String,
-    },
-}
-
-impl Node {
-    fn pos(&self) -> &str {
-        match self {
-            Node::String { pos, .. }
-            | Node::Int { pos, .. }
-            | Node::Bool { pos, .. }
-            | Node::Composite { pos, .. }
-            | Node::Unsupported { pos } => pos,
-        }
-    }
-}
-
-#[derive(Deserialize)]
-struct Element {
-    key: Option<String>,
-    value: Node,
-}
-
-#[derive(Deserialize)]
-struct Import {
-    name: String,
-    path: String,
-}
-
-#[derive(Deserialize)]
-struct Declaration {
-    pos: String,
-    constant: bool,
-    /// The declared type as written, or `None` for an untyped declaration.
-    #[serde(default, rename = "type")]
-    type_name: Option<String>,
-    imports: Vec<Import>,
-    value: Node,
-}
 
 /// Go's integer types. An integer literal assigned to any of them keeps its value, unlike a
 /// named type such as `time.Duration`, where `30` means 30 nanoseconds rather than seconds.
@@ -78,13 +17,16 @@ const INTEGER_TYPES: &[&str] = &[
     "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64",
 ];
 
-type Fields<'a> = &'a [(&'a str, fn(&Reader, &Node) -> Result<Value, String>)];
+type Fields<'a, 'imports> = &'a [(
+    &'a str,
+    fn(&Reader<'imports>, &Node) -> Result<Value, String>,
+)];
 
-struct Reader {
-    imports: Vec<Import>,
+struct Reader<'a> {
+    imports: &'a [GoImport],
 }
 
-impl Reader {
+impl<'imports> Reader<'imports> {
     /// Whether a type written as `qualifier.Name` names the SDK type `name`.
     fn sdk_type(&self, written: &str, name: &str) -> bool {
         let Some((qualifier, type_name)) = written.split_once('.') else {
@@ -101,7 +43,7 @@ impl Reader {
             })
     }
 
-    fn fields(&self, elements: &[Element], allowed: Fields) -> Result<Value, String> {
+    fn fields(&self, elements: &[Element], allowed: Fields<'_, 'imports>) -> Result<Value, String> {
         let mut values = Map::new();
         for element in elements {
             let Some(key) = &element.key else {
@@ -110,7 +52,7 @@ impl Reader {
                     element.value.pos()
                 ));
             };
-            let Some((_, parse)) = allowed.iter().find(|(name, _)| name == key) else {
+            let Some((_, parse)) = allowed.iter().find(|(name, _)| *name == key.as_str()) else {
                 return Err(format!(
                     "{}: unsupported Config field {key}",
                     element.value.pos()
@@ -131,7 +73,7 @@ impl Reader {
 
     fn text(&self, node: &Node) -> Result<Value, String> {
         match node {
-            Node::String { value, .. } => Ok(Value::String(value.clone())),
+            Node::String { value, .. } => Ok(Value::String(value.to_string())),
             _ => Err(format!(
                 "{}: Config values must be static string literals",
                 node.pos()
@@ -162,7 +104,7 @@ impl Reader {
     }
 
     /// A `[]proxy.<name>` literal whose items are `proxy.<name>` (or type-elided) literals.
-    fn list(&self, node: &Node, name: &str, fields: Fields) -> Result<Value, String> {
+    fn list(&self, node: &Node, name: &str, fields: Fields<'_, 'imports>) -> Result<Value, String> {
         let error = |pos: &str, message: &str| Err(format!("{pos}: Config requires {message}"));
         let Node::Composite {
             type_name: Some(type_name),
@@ -223,10 +165,6 @@ impl Reader {
     }
 }
 
-fn parse(declaration: &str) -> Result<Declaration, String> {
-    serde_json::from_str(declaration).map_err(|error| error.to_string())
-}
-
 /// Returns the entry's static configuration as Next.js JSON, or a located error.
 ///
 /// Like `route.ts` segment config, `route.go` declares separate values; only
@@ -235,7 +173,7 @@ fn parse(declaration: &str) -> Result<Declaration, String> {
 /// Absent values are omitted from the result.
 pub fn go_entry_config(
     functions: &[RcStr],
-    values: &BTreeMap<RcStr, RcStr>,
+    values: &BTreeMap<RcStr, GoDeclaration>,
     proxy: bool,
 ) -> Result<Value, String> {
     let names: &[&str] = if proxy { &["Config"] } else { &["MaxDuration"] };
@@ -249,15 +187,15 @@ pub fn go_entry_config(
         let Some(declaration) = values.get("Config") else {
             return Ok(Value::Object(Map::new()));
         };
-        let Declaration {
+        let GoDeclaration {
             pos,
             constant,
             imports,
             value,
             ..
-        } = parse(declaration)?;
+        } = declaration;
         let reader = Reader { imports };
-        return match &value {
+        return match value {
             Node::Composite {
                 type_name: Some(written),
                 elements,
@@ -270,24 +208,25 @@ pub fn go_entry_config(
             )),
         };
     }
-    let reader = Reader { imports: vec![] };
+    let reader = Reader { imports: &[] };
     let mut config = Map::new();
     if let Some(declaration) = values.get("MaxDuration") {
-        let Declaration {
+        let GoDeclaration {
             pos,
             type_name,
             value,
             ..
-        } = parse(declaration)?;
-        if let Some(type_name) =
-            type_name.filter(|type_name| !INTEGER_TYPES.contains(&type_name.as_str()))
+        } = declaration;
+        if let Some(type_name) = type_name
+            .as_ref()
+            .filter(|type_name| !INTEGER_TYPES.contains(&type_name.as_str()))
         {
             return Err(format!(
                 "{pos}: MaxDuration is a number of seconds; declare it untyped (const MaxDuration \
                  = 30) or with an integer type, not {type_name}"
             ));
         }
-        config.insert("maxDuration".into(), reader.duration(&value)?);
+        config.insert("maxDuration".into(), reader.duration(value)?);
     }
     Ok(Value::Object(config))
 }
@@ -298,66 +237,81 @@ mod tests {
 
     use super::*;
 
-    const IMPORT: &str = r#"[{"name":"framework","path":"next/go/proxy"}]"#;
+    const IMPORT: &[(&str, &str)] = &[("framework", "next/go/proxy")];
 
-    fn string(value: &str) -> String {
-        format!(r#"{{"kind":"string","pos":"p.go:1:1","value":"{value}"}}"#)
+    fn string(value: &str) -> Node {
+        Node::String {
+            pos: "p.go:1:1".into(),
+            value: value.into(),
+        }
     }
 
-    fn int(value: i64) -> String {
-        format!(r#"{{"kind":"int","pos":"p.go:1:1","value":{value}}}"#)
+    fn int(value: i64) -> Node {
+        Node::Int {
+            pos: "p.go:1:1".into(),
+            value,
+        }
     }
 
-    fn unsupported() -> String {
-        r#"{"kind":"unsupported","pos":"p.go:9:9"}"#.to_string()
+    fn unsupported() -> Node {
+        Node::Unsupported {
+            pos: "p.go:9:9".into(),
+        }
     }
 
-    fn composite(type_name: Option<&str>, elements: &[(Option<&str>, String)]) -> String {
-        let elements = elements
-            .iter()
-            .map(|(key, value)| match key {
-                Some(key) => format!(r#"{{"key":"{key}","value":{value}}}"#),
-                None => format!(r#"{{"value":{value}}}"#),
-            })
-            .collect::<Vec<_>>()
-            .join(",");
-        let type_name = type_name.map_or("null".to_string(), |name| format!("\"{name}\""));
-        format!(
-            r#"{{"kind":"composite","pos":"p.go:1:1","type":{type_name},"elements":[{elements}]}}"#
-        )
+    fn composite(type_name: Option<&str>, elements: &[(Option<&str>, Node)]) -> Node {
+        Node::Composite {
+            pos: "p.go:1:1".into(),
+            type_name: type_name.map(Into::into),
+            elements: elements
+                .iter()
+                .map(|(key, value)| Element {
+                    key: key.map(Into::into),
+                    value: value.clone(),
+                })
+                .collect(),
+        }
     }
 
-    fn declarations(entries: &[(&str, bool, String)], imports: &str) -> BTreeMap<RcStr, RcStr> {
+    fn declarations(
+        entries: &[(&str, bool, Node)],
+        imports: &[(&str, &str)],
+    ) -> BTreeMap<RcStr, GoDeclaration> {
         entries
             .iter()
             .map(|(name, constant, value)| {
                 (
                     RcStr::from(*name),
-                    RcStr::from(format!(
-                        r#"{{"pos":"p.go:1:5","constant":{constant},"imports":{imports},"value":{value}}}"#
-                    )),
+                    GoDeclaration {
+                        pos: "p.go:1:5".into(),
+                        constant: *constant,
+                        type_name: None,
+                        imports: imports
+                            .iter()
+                            .map(|(name, path)| GoImport {
+                                name: (*name).into(),
+                                path: (*path).into(),
+                            })
+                            .collect(),
+                        value: value.clone(),
+                    },
                 )
             })
             .collect()
     }
 
-    fn route(entries: &[(&str, bool, String)]) -> Result<Value, String> {
-        go_entry_config(&[], &declarations(entries, "[]"), false)
+    fn route(entries: &[(&str, bool, Node)]) -> Result<Value, String> {
+        go_entry_config(&[], &declarations(entries, &[]), false)
     }
 
     /// A route `MaxDuration` declared with an explicit type.
-    fn typed_route(type_name: &str, value: String) -> Result<Value, String> {
-        let declaration = format!(
-            r#"{{"pos":"p.go:1:5","constant":true,"type":"{type_name}","imports":[],"value":{value}}}"#
-        );
-        go_entry_config(
-            &[],
-            &BTreeMap::from([(RcStr::from("MaxDuration"), RcStr::from(declaration))]),
-            false,
-        )
+    fn typed_route(type_name: &str, value: Node) -> Result<Value, String> {
+        let mut declarations = declarations(&[("MaxDuration", true, value)], &[]);
+        declarations.get_mut("MaxDuration").unwrap().type_name = Some(type_name.into());
+        go_entry_config(&[], &declarations, false)
     }
 
-    fn proxy(value: String, imports: &str) -> Result<Value, String> {
+    fn proxy(value: Node, imports: &[(&str, &str)]) -> Result<Value, String> {
         go_entry_config(
             &[],
             &declarations(&[("Config", false, value)], imports),
@@ -450,7 +404,10 @@ mod tests {
                         (Some("Source"), string("/account/:path*")),
                         (
                             Some("Locale"),
-                            r#"{"kind":"bool","pos":"p.go:1:1","value":false}"#.into(),
+                            Node::Bool {
+                                pos: "p.go:1:1".into(),
+                                value: false,
+                            },
                         ),
                         (Some("Has"), has),
                     ],
@@ -470,7 +427,7 @@ mod tests {
                 }],
             }))
         );
-        let unnamed = r#"[{"name":"","path":"next/go/proxy"}]"#;
+        let unnamed = &[("", "next/go/proxy")];
         assert_eq!(
             proxy(composite(Some("proxy.Config"), &[]), unnamed),
             Ok(json!({}))
@@ -480,7 +437,7 @@ mod tests {
 
     #[test]
     fn rejects_invalid_proxy_config() {
-        let config = |fields: &[(Option<&str>, String)]| {
+        let config = |fields: &[(Option<&str>, Node)]| {
             proxy(composite(Some("framework.Config"), fields), IMPORT).unwrap_err()
         };
         // Like proxy.ts, a proxy only configures matchers.
@@ -491,7 +448,7 @@ mod tests {
             );
         }
         assert!(config(&[(None, int(30))]).contains("named fields"));
-        let matcher = |source: String| {
+        let matcher = |source: Node| {
             composite(
                 Some("[]framework.Matcher"),
                 &[(None, composite(None, &[(Some("Source"), source)]))],
@@ -514,7 +471,7 @@ mod tests {
                 .contains("static proxy.Config")
         );
         for path in ["example.com/other", "next/go", "next/go/assets"] {
-            let other = format!(r#"[{{"name":"framework","path":"{path}"}}]"#);
+            let other = [("framework", path)];
             assert!(
                 proxy(composite(Some("framework.Config"), &[]), &other)
                     .unwrap_err()

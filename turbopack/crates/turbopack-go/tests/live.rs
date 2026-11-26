@@ -17,9 +17,10 @@ use turbo_tasks_fs::{
 };
 use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
-    GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
-    filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_package_bundle_from_sources, go_source_set, read_with_validated_inputs,
+    GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, GoValue,
+    filesystem, filesystem_with_poll_interval, go_bundle_from_sources,
+    go_bundle_with_generated_files, go_declarations, go_package_bundle_from_sources, go_source_set,
+    read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -1847,7 +1848,7 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     for (name, source) in [
         (
             "route.go",
-            "package route\nconst MaxDuration = 30\nfunc GET() {}\n",
+            "package route\nconst MaxDuration int64 = 30\nfunc GET() {}\n",
         ),
         (
             "gen.go",
@@ -1893,10 +1894,13 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     );
     assert_eq!(declarations.selected_packages, vec![rcstr!("route")]);
     assert_eq!(declarations.selected_functions, vec![rcstr!("GET")]);
+    assert!(matches!(
+        declarations.values["MaxDuration"].value,
+        GoValue::Int { value: 30, .. }
+    ));
     assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&declarations.values["MaxDuration"])?["value"]
-            ["value"],
-        serde_json::json!(30)
+        declarations.values["MaxDuration"].type_name.as_deref(),
+        Some("int64")
     );
     let build = |sources, package: &str| {
         let options = options.clone();
@@ -2041,12 +2045,11 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         .await?;
     assert_eq!(declarations.functions, vec![rcstr!("GET")]);
     assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&declarations.values["Version"])?["value"],
-        serde_json::json!({
-            "kind": "string",
-            "pos": format!("{directory}/handler.go:2:17"),
-            "value": "v1",
-        })
+        declarations.values["Version"].value,
+        GoValue::String {
+            pos: format!("{directory}/handler.go:2:17").into(),
+            value: rcstr!("v1"),
+        }
     );
     assert!(declarations.syntax_errors.is_empty());
     let generated = BTreeMap::from([(

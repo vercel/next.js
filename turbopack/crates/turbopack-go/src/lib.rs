@@ -39,7 +39,7 @@ use turbo_tasks_fs::{
 };
 
 pub use crate::{
-    analysis::{GoDeclarations, go_declarations},
+    analysis::{GoDeclaration, GoDeclarations, GoImport, GoValue, GoValueElement, go_declarations},
     paths::{paths_refer_to_same_file, validate_source_path},
     session::{GoSessionPool, GoTarget, GoToolchainOptions},
     sources::{

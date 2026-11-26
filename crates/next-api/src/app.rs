@@ -1497,6 +1497,21 @@ impl Issue for GoRouteIssue {
 }
 
 #[turbo_tasks::value_impl]
+impl GoEndpoint {
+    #[turbo_tasks::function]
+    fn output_paths(&self) -> Vc<EndpointOutputPaths> {
+        let output_name = match &self.kind {
+            GoEndpointKind::Route { page } => format!("app{page}"),
+            GoEndpointKind::Proxy => "middleware".to_owned(),
+        };
+        EndpointOutputPaths::Native {
+            entry_path: format!("{output_name}.native.json").into(),
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl Endpoint for GoEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
@@ -1517,7 +1532,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell());
@@ -1532,7 +1548,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell());
@@ -1582,7 +1599,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell());
@@ -1623,8 +1641,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: Some(build) }
-                    .resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: Some(build),
                 first_load_chunks: None,
             }
             .cell());
@@ -1666,10 +1684,8 @@ impl Endpoint for GoEndpoint {
                 return Ok(EndpointOutput {
                     project,
                     output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed {
-                        build: Some((*result).clone()),
-                    }
-                    .resolved_cell(),
+                    output_paths: self.output_paths().to_resolved().await?,
+                    native_build: Some((*result).clone()),
                     first_load_chunks: None,
                 }
                 .cell());
@@ -1776,10 +1792,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed {
-                    build: Some((*result).clone()),
-                }
-                .resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: Some((*result).clone()),
                 first_load_chunks: None,
             }
             .cell());
@@ -1796,10 +1810,8 @@ impl Endpoint for GoEndpoint {
                 return Ok(EndpointOutput {
                     project,
                     output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed {
-                        build: Some((*result).clone()),
-                    }
-                    .resolved_cell(),
+                    output_paths: self.output_paths().to_resolved().await?,
+                    native_build: Some((*result).clone()),
                     first_load_chunks: None,
                 }
                 .cell());
@@ -1903,11 +1915,8 @@ impl Endpoint for GoEndpoint {
         Ok(EndpointOutput {
             project,
             output_assets: Vc::<OutputAssets>::cell(assets).to_resolved().await?,
-            output_paths: EndpointOutputPaths::Native {
-                executable_path: executable.into(),
-                build: (*result).clone(),
-            }
-            .resolved_cell(),
+            output_paths: self.output_paths().to_resolved().await?,
+            native_build: Some((*result).clone()),
             first_load_chunks: None,
         }
         .cell())
@@ -3195,6 +3204,7 @@ impl Endpoint for AppEndpoint {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    native_build: None,
                     first_load_chunks,
                 }
                 .cell(),

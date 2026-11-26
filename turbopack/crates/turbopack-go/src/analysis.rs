@@ -2,11 +2,13 @@
 use std::{collections::BTreeMap, io::Read, path::Path, sync::atomic::Ordering};
 
 use anyhow::{Context, Result, ensure};
+use bincode::{Decode, Encode};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, ResolvedVc, Vc, resolve_strongly_consistent_and_take_and_apply_effects,
+    Completion, NonLocalValue, ResolvedVc, Vc,
+    resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, Permissions, to_sys_path,
@@ -33,15 +35,74 @@ pub struct GoDeclarations {
     #[serde(default)]
     pub selected_packages: Vec<RcStr>,
     /// Exported package-level `var` and `const` declarations of the analyzed files, keyed by
-    /// name. Each value is a
-    /// JSON document with the declaration's `pos`, whether it is `constant`, its file's
-    /// `imports`, and a syntax description of its initializer: composite literals (with their
-    /// type as written and keyed or positional elements), string and integer literals, and
-    /// `true`/`false`. Every other expression is `{"kind":"unsupported"}`. Nothing is evaluated.
-    pub values: BTreeMap<RcStr, RcStr>,
+    /// name. Initializers describe syntax only; nothing is evaluated.
+    pub values: BTreeMap<RcStr, GoDeclaration>,
     /// Parsing errors are retained without preventing the compiler from emitting its normal
     /// diagnostics. Callers can still generate an entrypoint from valid declarations.
     pub syntax_errors: Vec<RcStr>,
+}
+
+/// An exported package-level value and the imports in the file declaring it.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoDeclaration {
+    pub pos: RcStr,
+    pub constant: bool,
+    /// The declared type as written, or `None` for an untyped declaration.
+    #[serde(default, rename = "type")]
+    pub type_name: Option<RcStr>,
+    pub imports: Vec<GoImport>,
+    pub value: GoValue,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoImport {
+    pub name: RcStr,
+    pub path: RcStr,
+}
+
+/// A supported initializer expression. All other Go expressions remain unsupported.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum GoValue {
+    String {
+        pos: RcStr,
+        value: RcStr,
+    },
+    Int {
+        pos: RcStr,
+        value: i64,
+    },
+    Bool {
+        pos: RcStr,
+        value: bool,
+    },
+    Composite {
+        pos: RcStr,
+        #[serde(rename = "type")]
+        type_name: Option<RcStr>,
+        elements: Vec<GoValueElement>,
+    },
+    Unsupported {
+        pos: RcStr,
+    },
+}
+
+impl GoValue {
+    pub fn pos(&self) -> &str {
+        match self {
+            Self::String { pos, .. }
+            | Self::Int { pos, .. }
+            | Self::Bool { pos, .. }
+            | Self::Composite { pos, .. }
+            | Self::Unsupported { pos } => pos,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoValueElement {
+    pub key: Option<RcStr>,
+    pub value: GoValue,
 }
 
 #[turbo_tasks::function]
