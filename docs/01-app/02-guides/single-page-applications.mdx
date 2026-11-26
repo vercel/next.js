@@ -265,7 +265,7 @@ The `loading` component is included in the initial HTML as a placeholder. Withou
 
 The component appears after the browser downloads its JavaScript. React reveals suspended content in batches, so components that become ready close together appear at once instead of one at a time. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
 
-If the component is likely to be the page's [Largest Contentful Paint](https://web.dev/articles/lcp) element, provide a fallback that resembles the final content. When possible, prerender that element instead.
+If the component is likely to be the page's [Largest Contentful Paint](https://web.dev/articles/lcp) element, provide a fallback that resembles the final content. When the component can render on the server, prerender it instead by removing the `ssr` and `loading` options. The initial HTML then includes the component, and `next/dynamic` still loads its JavaScript separately.
 
 See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only). The [demo source](https://github.com/nextjs/next-spa-patterns/tree/main/app/browser-only) contains the complete examples.
 
