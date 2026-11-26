@@ -108,6 +108,7 @@ export default function Layout(props: LayoutProps<'/dashboard'>) {
 >
 > - Types are generated during `next dev`, `next build` or `next typegen`.
 > - After type generation, the `LayoutProps` helper is globally available. It doesn't need to be imported.
+> - The route literal is the URL path, so [route group](/docs/app/api-reference/file-conventions/route-groups) folders are left out. Type a layout at `app/(marketing)/layout.tsx` as `LayoutProps<'/'>`, and a layout at `app/dashboard/(details)/layout.tsx` as `LayoutProps<'/dashboard'>`.
 
 ### Root Layout
 
