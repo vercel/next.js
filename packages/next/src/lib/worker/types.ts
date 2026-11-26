@@ -34,6 +34,12 @@ export const PARENT_MESSAGE_READY = 4
 /** Loading (require) the worker module threw; the worker can't handle CALLs */
 export const PARENT_MESSAGE_LOAD_ERROR = 5
 
+/**
+ * Set by the fork server in the environment of the workers it spawns (and
+ * removed by the worker when it starts). See `worker-process-child.ts`.
+ */
+export const FORK_SERVER_WORKER_ENV = '__NEXT_PRIVATE_FORK_SERVER_WORKER'
+
 // Parent → Child message types
 export type ChildMessageInitialize = [
   type: typeof CHILD_MESSAGE_INITIALIZE,
