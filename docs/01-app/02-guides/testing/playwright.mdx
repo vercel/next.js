@@ -302,11 +302,12 @@ The returned promise resolves with the callback's result or rejects with its err
 
 ### Request interception in development
 
-To test a loading state, wrap the page load or link click in [`instant()`](#testing-instant-navigations) and assert on the UI inside the callback. This pauses dynamic server content without intercepting requests. The [Instant Navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) shows both cases.
+Playwright lets you intercept network requests with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route). For example, a test can delay a response to inspect a loading state or return an error to see how the page handles a failed request.
 
-Registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) disables the browser's HTTP cache, even if no request matches the handler. Chromium then sends `Cache-Control: no-cache` on every request, including the initial page load. As with a hard refresh, `next dev` [bypasses server caches](/docs/messages/cache-bypass-in-dev) and skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request.
+Registering either handler disables the browser's HTTP cache, even if no request matches. Chromium then sends `Cache-Control: no-cache` on requests, including the initial page load. When `next dev` receives that header, it [bypasses server caches](/docs/messages/cache-bypass-in-dev) and skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request. A test can pass without reporting that the navigation blocks.
 
-If your test needs to intercept requests, for example to simulate an API failure, also open the page in a separate browser context without request interception. Check the browser or the `next dev` terminal for navigation errors and insights. If the route blocks, use the [validation message to find the cause](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
+- **To check a loading state during navigation**, wrap the page load or link click in [`instant()`](#testing-instant-navigations) instead of delaying a request. Assert on the loading UI inside the callback, then check the finished page after the callback returns. The [Instant Navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) shows both kinds of navigation.
+- **To simulate a failed request**, keep the route handler. To validate navigation to the same page, open it in a fresh browser context without interception. If the route blocks, the browser or the `next dev` terminal shows [what blocked it](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
 
 ### Limitations
 
