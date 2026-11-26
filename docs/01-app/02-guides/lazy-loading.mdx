@@ -71,7 +71,7 @@ If you want to disable prerendering for a Client Component, you can use the `ssr
 const ComponentC = dynamic(() => import('../components/C'), { ssr: false })
 ```
 
-The `ssr: false` option still loads the component's code in a separate bundle, which suits code that isn't needed when the page loads. To render a component only in the browser without splitting its code, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+To render a component only in the browser without lazy loading its code, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ### Importing Server Components
 

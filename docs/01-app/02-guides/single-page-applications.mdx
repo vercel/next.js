@@ -204,9 +204,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/use-context) and i
 
 ### Rendering components only in the browser
 
-Client Components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. Some components can't be prerendered because their first render depends on browser APIs like `window`, `document`, or `localStorage`. You can render those components only in the browser.
-
-A browser-only component is missing from the initial HTML, so it appears after the page's JavaScript loads and React hydrates. When that component is the main content of the page, the wait counts toward [Largest Contentful Paint](https://web.dev/articles/lcp). Prerender the content users see first when you can, and render in the browser only the parts that depend on browser APIs.
+Client Components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and render it only in the browser, call `use(browser())` in the component and wrap the component in a `<Suspense>` boundary.
 
 React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
 
@@ -250,20 +248,21 @@ export default function Page() {
 }
 ```
 
-In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft as soon as React hydrates the boundary. Until then, users see the fallback. Give the fallback the same dimensions as the component so the page doesn't shift when the component replaces it.
+In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft in place of the fallback.
 
-A large component that isn't needed when the page loads, such as a chart further down the page or an editor that opens on click, can also be split into its own bundle. Use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic) with `ssr: false` to skip prerendering and load the component's code separately:
+If you also want to load the component's JavaScript only when the component renders in the browser, use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic) with `ssr: false`:
 
 ```jsx
 import dynamic from 'next/dynamic'
 
 const ClientOnlyComponent = dynamic(() => import('./component'), {
   ssr: false,
-  loading: () => <p>Loading…</p>,
 })
 ```
 
-The browser requests the bundle after React hydrates, and the `loading` fallback stays visible until the bundle loads and React reveals the component. React also limits how often it reveals suspended content, so the component can appear later than its bundle arrives. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats). For content that is visible when the page loads, `use(browser())` shows the component sooner.
+By default, `next/dynamic` renders nothing in place of the component until it loads. To render a placeholder in the initial HTML, pass a [`loading` component](/docs/app/guides/lazy-loading#adding-a-custom-loading-component).
+
+The component appears after the browser downloads its JavaScript, and React can delay the reveal further. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats). Prerender the element that determines your page's [Largest Contentful Paint](https://web.dev/articles/lcp) instead of loading it with `next/dynamic`.
 
 See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only). The [demo source](https://github.com/nextjs/next-spa-patterns/tree/main/app/browser-only) contains the complete examples.
 
