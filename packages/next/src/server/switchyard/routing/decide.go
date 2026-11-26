@@ -139,9 +139,6 @@ func (t *Table) checkRequest(r Request) string {
 		// alike. Sending such requests to Node wouldn't change what the worker
 		// gets, so they aren't.
 	}
-	if r.ContentLength != 0 {
-		return "request body"
-	}
 	return ""
 }
 

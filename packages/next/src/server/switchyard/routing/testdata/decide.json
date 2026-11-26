@@ -322,6 +322,19 @@
       "contentLength": 5,
       "node": "body on GET"
     },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "method": "POST",
+      "contentLength": -1,
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Accept-Encoding": ["gzip;q=1.0, identity; q=0.5, *;q=0"] },
+      "route": "/api/echo/route"
+    },
 
     { "table": "base", "target": "/shop/api/echo", "route": "/api/echo/route" },
     {
@@ -356,19 +369,6 @@
       "node": "node prefix /_next/"
     },
 
-    { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" },
-    {
-      "table": "app",
-      "target": "/api/echo",
-      "method": "POST",
-      "contentLength": -1,
-      "node": "request body"
-    },
-    {
-      "table": "app",
-      "target": "/api/echo",
-      "header": { "Accept-Encoding": ["gzip;q=1.0, identity; q=0.5, *;q=0"] },
-      "route": "/api/echo/route"
-    }
+    { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" }
   ]
 }
