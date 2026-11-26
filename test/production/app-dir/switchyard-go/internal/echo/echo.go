@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime"
 )
 
 type Received struct {
@@ -23,6 +24,10 @@ type Received struct {
 	RemoteAddr string `json:"remoteAddr"`
 	Pid        int    `json:"pid"`
 	ParentPid  int    `json:"parentPid"`
+	// How many threads the worker runs Go code on at once.
+	GoMaxProcs int `json:"goMaxProcs"`
+	// The cores Go sees (runtime.NumCPU), its default GOMAXPROCS.
+	NumCPU int `json:"numCPU"`
 }
 
 // Serve writes the request as JSON. params names the route's path values.
@@ -46,5 +51,7 @@ func Serve(w http.ResponseWriter, r *http.Request, params ...string) {
 		RemoteAddr:    r.RemoteAddr,
 		Pid:           os.Getpid(),
 		ParentPid:     os.Getppid(),
+		GoMaxProcs:    runtime.GOMAXPROCS(0),
+		NumCPU:        runtime.NumCPU(),
 	})
 }
