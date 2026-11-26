@@ -49,7 +49,6 @@ import {
 } from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
-const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const originalOtelVerbose = process.env.NEXT_OTEL_VERBOSE
 const spanRecords: SpanStoreRecord[] = []
@@ -290,18 +289,12 @@ describe('trace context with the W3C propagator', () => {
 describe('local span recording', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
-    delete process.env.__NEXT_REQUEST_INSIGHTS
     delete process.env.NEXT_OTEL_VERBOSE
     setSpanRecorderForTest((span) => spanRecords.push(span))
     registerLocalSpanRecorder()
   })
 
   afterEach(() => {
-    if (originalRequestInsights === undefined) {
-      delete process.env.__NEXT_REQUEST_INSIGHTS
-    } else {
-      process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
-    }
     if (originalDevServer === undefined) {
       delete process.env.__NEXT_DEV_SERVER
     } else {
@@ -366,7 +359,7 @@ describe('local span recording', () => {
   })
 
   it('records non-vanilla trace and wrapped spans for request insights', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
 
     getTracer().trace(BaseServerSpan.render, () => undefined)
     const wrappedLoadComponents = getTracer().wrap(
@@ -392,7 +385,7 @@ describe('local span recording', () => {
   })
 
   it('only exports non-vanilla spans when verbose tracing is enabled', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     const exportedSpans: string[] = []
     const delegateSpan = trace.wrapSpanContext({
       traceId: '0123456789abcdef0123456789abcdef',
@@ -461,7 +454,7 @@ describe('local span recording', () => {
   })
 
   it('does not record or export hidden spans', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     let receivedSpan: unknown = 'not-called'
     const startSpan = jest.fn()
     const startActiveSpan = jest.fn()
@@ -577,7 +570,7 @@ describe('local span recording', () => {
   })
 
   it('keeps OTel-isolated spans out of the active OTel context', async () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     process.env.NEXT_OTEL_VERBOSE = '1'
     context.disable()
     context.setGlobalContextManager(new TestContextManager())

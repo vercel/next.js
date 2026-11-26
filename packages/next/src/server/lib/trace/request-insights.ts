@@ -1,6 +1,5 @@
 import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import {
-  getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
   isSameRequestInsightFetch,
@@ -11,6 +10,7 @@ import {
   type RequestInsightFetch,
   type RequestInsightKind,
   type RequestInsightProxyStatus,
+  type RequestInsightRelation,
   type RequestInsightSource,
   type RequestInsightSpan,
   type RequestInsightsSnapshot,
@@ -33,6 +33,7 @@ const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
 type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = Readonly<{
   requestId?: string
+  parentRequestId?: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -75,12 +76,9 @@ class InMemoryRequestInsightsStore {
     if (!identity.requestId) {
       return
     }
-    const insightKey = getRequestInsightKey({
-      requestId: identity.requestId,
-      kind: identity.kind,
-    })
-    if (this.requests.get(insightKey)?.completedAt === undefined) {
-      this.activeRequests.add(insightKey)
+    const requestId = identity.requestId
+    if (this.requests.get(requestId)?.completedAt === undefined) {
+      this.activeRequests.add(requestId)
     }
   }
 
@@ -97,6 +95,7 @@ class InMemoryRequestInsightsStore {
     const insight = this.getOrCreateRequest(
       {
         requestId: span.requestId,
+        parentRequestId: span.parentRequestId,
         kind: span.requestInsightKind,
         source: span.requestInsightSource,
         proxyStatus: span.requestInsightProxyStatus,
@@ -125,6 +124,9 @@ class InMemoryRequestInsightsStore {
     insight.url = insight.url ?? sanitizeUrl(span.url)
     const spanType = span.attributes?.['next.span_type']
     const isRequestSpan = spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+    if (isRequestSpan && insight.route) {
+      nameRequestSpan(recordedSpan, insight.route)
+    }
     if (insight.completedAt === undefined) {
       this.updateTiming(insight, spanStartTime, span.durationMs, isRequestSpan)
     }
@@ -187,12 +189,7 @@ class InMemoryRequestInsightsStore {
       return
     }
 
-    const insight = this.requests.get(
-      getRequestInsightKey({
-        requestId: identity.requestId,
-        kind: identity.kind,
-      })
-    )
+    const insight = this.requests.get(identity.requestId)
     if (!insight) {
       return
     }
@@ -206,12 +203,9 @@ class InMemoryRequestInsightsStore {
       return
     }
 
-    const insightKey = getRequestInsightKey({
-      requestId: identity.requestId,
-      kind: identity.kind,
-    })
-    this.activeRequests.delete(insightKey)
-    const insight = this.requests.get(insightKey)
+    const requestId = identity.requestId
+    this.activeRequests.delete(requestId)
+    const insight = this.requests.get(requestId)
     if (!insight || insight.completedAt !== undefined) {
       return
     }
@@ -223,7 +217,7 @@ class InMemoryRequestInsightsStore {
   getSnapshot(): RequestInsightsSnapshot {
     return {
       requests: this.requestOrder
-        .map((insightKey) => this.requests.get(insightKey))
+        .map((requestId) => this.requests.get(requestId))
         .filter((request): request is RequestInsight => request !== undefined),
     }
   }
@@ -249,9 +243,9 @@ class InMemoryRequestInsightsStore {
     durationMs: number | undefined,
     isRequestSpan: boolean
   ): void {
-    const insightKey = getRequestInsightKey(insight)
+    const requestId = insight.requestId
     if (isRequestSpan && durationMs !== undefined) {
-      const previousTiming = this.requestTimings.get(insightKey) ?? {
+      const previousTiming = this.requestTimings.get(requestId) ?? {
         startTime,
         durationMs,
       }
@@ -264,13 +258,13 @@ class InMemoryRequestInsightsStore {
             startTime + durationMs
           ) - requestStart,
       }
-      this.requestTimings.set(insightKey, requestTiming)
+      this.requestTimings.set(requestId, requestTiming)
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
       return
     }
 
-    const requestTiming = this.requestTimings.get(insightKey)
+    const requestTiming = this.requestTimings.get(requestId)
     if (requestTiming) {
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
@@ -294,21 +288,21 @@ class InMemoryRequestInsightsStore {
     startTime: number
   ): RequestInsight | undefined {
     const requestId = identity.requestId!
-    const insightKey = getRequestInsightKey({
-      requestId,
-      kind: identity.kind,
-    })
-    let insight = this.requests.get(insightKey)
+    let insight = this.requests.get(requestId)
 
     if (!insight) {
       // Only request start can authorize a new row. Missing history may have
       // been discarded, even when a late span still carries its request ID.
-      if (!this.activeRequests.has(insightKey)) {
+      if (!this.activeRequests.has(requestId)) {
+        return
+      }
+      const relation = getRequestInsightRelation(identity)
+      if (!relation) {
         return
       }
       insight = {
+        ...relation,
         requestId,
-        kind: getRequestInsightKind(identity),
         source: getRequestInsightSource(identity),
         proxyStatus: identity.proxyStatus,
         htmlRequestId: identity.htmlRequestId ?? requestId,
@@ -319,8 +313,8 @@ class InMemoryRequestInsightsStore {
         spans: [],
         fetches: [],
       }
-      this.requests.set(insightKey, insight)
-      this.requestOrder.push(insightKey)
+      this.requests.set(requestId, insight)
+      this.requestOrder.push(requestId)
     }
 
     insight.htmlRequestId = identity.htmlRequestId ?? insight.htmlRequestId
@@ -348,11 +342,12 @@ class InMemoryRequestInsightsStore {
     insight: RequestInsight,
     sanitizedFetch: RequestInsightFetch
   ): void {
-    if (
-      !insight.fetches.some((existingFetch) =>
-        isSameRequestInsightFetch(existingFetch, sanitizedFetch)
-      )
-    ) {
+    const existingFetch = insight.fetches.find((candidate) =>
+      isSameRequestInsightFetch(candidate, sanitizedFetch)
+    )
+    if (existingFetch) {
+      existingFetch.parentSpanId ??= sanitizedFetch.parentSpanId
+    } else {
       insight.fetches.push(sanitizedFetch)
     }
   }
@@ -362,15 +357,15 @@ class InMemoryRequestInsightsStore {
       return
     }
 
-    const insightKey = getRequestInsightKey(insight)
-    this.activeRequests.delete(insightKey)
+    const requestId = insight.requestId
+    this.activeRequests.delete(requestId)
     insight.completedAt = completedAt
-    this.completedRequestOrder.push(insightKey)
+    this.completedRequestOrder.push(requestId)
 
-    const requestIndex = this.requestOrder.indexOf(insightKey)
+    const requestIndex = this.requestOrder.indexOf(requestId)
     if (requestIndex !== -1) {
       this.requestOrder.splice(requestIndex, 1)
-      this.requestOrder.push(insightKey)
+      this.requestOrder.push(requestId)
     }
 
     if (
@@ -416,6 +411,32 @@ export function registerRequestInsightsExporter(): void {
       )
     },
   })
+}
+
+function getRequestInsightRelation(
+  identity: RequestInsightIdentity
+): RequestInsightRelation | undefined {
+  const kind = getRequestInsightKind(identity)
+  if (kind !== 'instant-insights') {
+    return { kind }
+  }
+  // An Instant Insights span without its validated request is unattributable.
+  return identity.parentRequestId
+    ? { kind: 'instant-insights', parentRequestId: identity.parentRequestId }
+    : undefined
+}
+
+function nameRequestSpan(span: RequestInsightSpan, route: string): void {
+  const method = span.attributes?.['http.method']
+  // Already named by the tracer.
+  if (typeof method !== 'string' || span.attributes?.['next.route']) return
+  const name = `${span.attributes?.['next.rsc'] ? 'RSC ' : ''}${method} ${route}`
+  span.name = name
+  span.attributes = {
+    ...span.attributes,
+    'next.route': route,
+    'next.span_name': name,
+  }
 }
 
 function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
@@ -525,6 +546,7 @@ function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {
   }
 
   return {
+    parentSpanId: span.parentSpanId,
     url: sanitizeUrl(getStringAttribute(attributes['http.url']) ?? span.url),
     method: getStringAttribute(attributes['http.method']),
     statusCode: getNumberAttribute(attributes['http.status_code']),

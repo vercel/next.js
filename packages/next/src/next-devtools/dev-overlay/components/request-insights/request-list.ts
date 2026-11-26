@@ -1,9 +1,9 @@
 import {
-  getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
+  type RequestInsightRelation,
   type RequestInsightSpan,
 } from '../../../shared/request-insights'
 import {
@@ -24,21 +24,19 @@ export function getActiveRequestKey(
 ): string | null {
   if (
     selectedRequestKey !== null &&
-    requests.some(
-      (request) => getRequestInsightKey(request) === selectedRequestKey
-    )
+    requests.some((request) => request.requestId === selectedRequestKey)
   ) {
     return selectedRequestKey
   }
 
   const request = requests[0]
-  return request ? getRequestInsightKey(request) : null
+  return request ? request.requestId : null
 }
 
-export function isInternalRequestInsight(
-  request: Pick<RequestInsight, 'kind'>
-): boolean {
-  return getRequestInsightKind(request) !== 'request'
+export function isInternalRequestInsight<T extends RequestInsightRelation>(
+  request: T
+): request is Extract<T, { kind: 'instant-insights' }> {
+  return request.kind === 'instant-insights'
 }
 
 export type RequestListEntry = {
@@ -60,11 +58,11 @@ export function getRequestListEntries(
   const parentRequestIds = new Set<string>()
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
-      const internal = internalByRequestId.get(request.requestId)
+      const internal = internalByRequestId.get(request.parentRequestId)
       if (internal) {
         internal.push(request)
       } else {
-        internalByRequestId.set(request.requestId, [request])
+        internalByRequestId.set(request.parentRequestId, [request])
       }
     } else {
       parentRequestIds.add(request.requestId)
@@ -74,7 +72,7 @@ export function getRequestListEntries(
   const entries: RequestListEntry[] = []
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
-      if (!parentRequestIds.has(request.requestId)) {
+      if (!parentRequestIds.has(request.parentRequestId)) {
         entries.push({ request, nested: false })
       }
       continue

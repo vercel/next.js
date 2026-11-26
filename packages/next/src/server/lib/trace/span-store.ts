@@ -37,6 +37,7 @@ export type SpanStoreRecord = {
   spanId?: string
   parentSpanId?: string
   requestId?: string
+  parentRequestId?: string
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus

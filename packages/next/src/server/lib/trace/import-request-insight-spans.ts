@@ -25,6 +25,7 @@ export function importRequestInsightSpans(
     ).map((span) => ({
       ...span,
       requestId: identity.requestId,
+      parentRequestId: identity.parentRequestId,
       requestInsightKind: identity.kind,
       requestInsightSource: identity.source,
       requestInsightProxyStatus: identity.proxyStatus,

@@ -30,7 +30,7 @@ function restoreEnv(name: string, value: string | undefined) {
 describe('span recording', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
-    delete process.env.__NEXT_REQUEST_INSIGHTS
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
   })
 
   afterEach(() => {
@@ -69,7 +69,7 @@ describe('span recording', () => {
   })
 
   it('forwards request spans directly to request insights', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     registerRequestInsightsExporter()
     startRequestInsight({ requestId: 'req_1' })
 
@@ -100,7 +100,7 @@ describe('span recording', () => {
   })
 
   it('scopes forwarded span recording without retaining it locally', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_DEV_SERVER = 'true'
     const records: SpanStoreRecord[] = []
 
     runWithLocalSpanSink(
@@ -184,7 +184,6 @@ describe('span recording', () => {
   it('does not record spans outside the dev server', () => {
     const recorder = jest.fn()
     delete process.env.__NEXT_DEV_SERVER
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     setSpanRecorderForTest(recorder)
 
     expect(isRequestInsightsEnabled()).toBe(false)

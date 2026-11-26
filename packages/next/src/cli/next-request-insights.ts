@@ -197,6 +197,9 @@ function printRequestSummary(
   console.log(
     `  kind ${kind} id ${displayId} page ${shortId(request.htmlRequestId)}`
   )
+  if (request.parentRequestId) {
+    console.log(`  parent ${request.parentRequestId}`)
+  }
   if (timelineOrigin !== undefined) {
     const start = request.startTime - timelineOrigin
     const end =
@@ -226,6 +229,9 @@ function printRequestDetails(
   )
   console.log(`  request ${request.requestId}`)
   console.log(`  page ${request.htmlRequestId}`)
+  if (request.parentRequestId) {
+    console.log(`  parent ${request.parentRequestId}`)
+  }
 
   const overlaps = getOverlappingRequests(request, retainedRequests)
   if (overlaps.length > 0) {
@@ -312,25 +318,28 @@ function findRequest(
   id: string,
   kind?: RequestInsightKind
 ): RequestInsight {
-  const candidates = kind
-    ? requests.filter((request) => getRequestInsightKind(request) === kind)
-    : requests
-  const requestId = resolveRequestId(
-    candidates.map((request) => request.requestId),
-    id
-  )
-  const related = candidates.filter((request) =>
+  const requestId = resolveRequestId(requests, id)
+  const related = requests.filter((request) =>
     isRequestInsightFor(request, requestId)
   )
   // `get` shows one entry; the request wins over its Instant Insights entry
   // unless --kind asks for the latter.
-  return (
-    related.find((request) => getRequestInsightKind(request) === 'request') ??
-    related[0]
-  )
+  const match = kind
+    ? related.find((request) => getRequestInsightKind(request) === kind)
+    : (related.find(
+        (request) => getRequestInsightKind(request) === 'request'
+      ) ?? related[0])
+  return match ?? printAndExit(`No retained ${kind} entry matches "${id}".`)
 }
 
-function resolveRequestId(requestIds: string[], id: string): string {
+function resolveRequestId(requests: RequestInsight[], id: string): string {
+  // A validated request's ID still finds its Instant Insights entry after the
+  // request itself is evicted.
+  const requestIds = requests.flatMap((request) =>
+    request.parentRequestId
+      ? [request.requestId, request.parentRequestId]
+      : [request.requestId]
+  )
   if (requestIds.includes(id)) return id
   const matches = new Set(
     requestIds.filter((requestId) => requestId.startsWith(id))
@@ -340,7 +349,15 @@ function resolveRequestId(requestIds: string[], id: string): string {
   }
   if (matches.size > 1) {
     return printAndExit(
-      `Request ID prefix "${id}" is ambiguous (${matches.size} matches).`
+      `Request ID prefix "${id}" is ambiguous (${matches.size} matches).\nCandidates:\n${requests
+        .filter((request) =>
+          [...matches].some((match) => isRequestInsightFor(request, match))
+        )
+        .map(
+          (request) =>
+            `  ${request.requestId} ${getRequestInsightKind(request)} ${request.route ?? request.url ?? '-'}`
+        )
+        .join('\n')}`
     )
   }
   return [...matches][0]

@@ -67,6 +67,8 @@ In this example, `ResolveMetadata.generateMetadata` contains a 3.53-second `/met
   height="880"
 />
 
+The `request` kind is browser or server request work. The `instant-insights` kind is a development validation render started for a parent request. Validation renders execute in the same development server and can overlap with, and add contention to, page or API requests. The CLI's `get` output lists overlapping work and the amount of shared time.
+
 ### Step 4: Inspect requests from the command line
 
 Request Insights also provides a CLI for terminal workflows and automation. List requests for a route:
