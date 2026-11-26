@@ -29,7 +29,7 @@ describe('Cache Components Errors', () => {
 
         expect(stripGetLines(next.cliOutput.slice(from)))
           .toMatchInlineSnapshot(`
-         "Route / is rendering with server caches disabled. For this request, Next.js skips Cache Components and instant navigation validation, so errors for this route may not be reported, including ones that are only reported in development. Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+         "Route / is rendering with server caches disabled. For this request, Instant Navigation validation does not run, so its errors and insights are not reported, and Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
          "
         `)
       })
@@ -45,7 +45,7 @@ describe('Cache Components Errors', () => {
 
         expect(stripGetLines(next.cliOutput.slice(from)))
           .toMatchInlineSnapshot(`
-         "Route /other is rendering with server caches disabled. For this request, Next.js skips Cache Components and instant navigation validation, so errors for this route may not be reported, including ones that are only reported in development. Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+         "Route /other is rendering with server caches disabled. For this request, Instant Navigation validation does not run, so its errors and insights are not reported, and Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
          "
         `)
       })
@@ -88,7 +88,7 @@ describe('Cache Components Errors', () => {
 
         expect(stripGetLines(next.cliOutput.slice(from)))
           .toMatchInlineSnapshot(`
-         "Route /draft is rendering with server caches disabled. For this request, Next.js skips Cache Components and instant navigation validation, so errors for this route may not be reported, including ones that are only reported in development. Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+         "Route /draft is rendering with server caches disabled. For this request, Instant Navigation validation does not run, so its errors and insights are not reported, and Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
          "
         `)
       })

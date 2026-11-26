@@ -304,10 +304,10 @@ The returned promise resolves with the callback's result or rejects with its err
 
 Registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) turns off the browser's HTTP cache, even when the handler's URL pattern never matches a request. Chromium then sends `cache-control: no-cache` with every request, including the request for the page.
 
-`next dev` cannot tell that request from a hard refresh. It [bypasses server caches](/docs/messages/cache-bypass-in-dev) for it and skips its validation, so the route renders in the test without the errors it would normally report.
+`next dev` cannot tell that request from a hard refresh. It [bypasses server caches](/docs/messages/cache-bypass-in-dev) for it and does not run [Instant Navigation validation](/docs/messages/instant-navigation-validation), so the route renders in the test without the errors and insights that validation reports.
 
 - To check what is visible before dynamic content arrives, use `instant()`. It does not intercept requests.
-- If a test needs request interception, for example to simulate a failed request, also load the route in a browser context that registers no route handler. Validation errors then appear in the `next dev` terminal and in the browser console.
+- If a test needs request interception, for example to simulate a failed request, also load the route in a browser context that registers no route handler. Validation then runs, and reports in the `next dev` terminal and in the browser.
 
 ### Limitations
 
