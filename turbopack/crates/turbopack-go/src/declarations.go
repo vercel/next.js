@@ -234,6 +234,7 @@ func analyze() error {
 			// Exported package-level values only. Multiple names, missing initializers and
 			// computed initializers are reported as unsupported rather than omitted.
 			case *ast.GenDecl:
+				// Leave configuration in a partial AST for the compiler to diagnose.
 				if !syntaxValid || (d.Tok != token.VAR && d.Tok != token.CONST) {
 					continue
 				}

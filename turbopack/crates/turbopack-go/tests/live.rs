@@ -1845,7 +1845,10 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     let session = Session::new().await?;
     let directory = "app/[id]";
     for (name, source) in [
-        ("route.go", "package route\nfunc GET() {}\n"),
+        (
+            "route.go",
+            "package route\nconst MaxDuration = 30\nfunc GET() {}\n",
+        ),
         (
             "gen.go",
             "//go:build ignore\n\npackage main\nfunc main() {}\n",
@@ -1875,7 +1878,8 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
             .resolve()
             .strongly_consistent()
             .await?;
-            let declarations = selected_declarations(sources, options)
+            let files = sources.await?.files.keys().cloned().collect();
+            let declarations = selected_declarations(sources, options, files)
                 .read_strongly_consistent()
                 .await?;
             Ok((sources, declarations))
@@ -1889,6 +1893,11 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     );
     assert_eq!(declarations.selected_packages, vec![rcstr!("route")]);
     assert_eq!(declarations.selected_functions, vec![rcstr!("GET")]);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&declarations.values["MaxDuration"])?["value"]
+            ["value"],
+        serde_json::json!(30)
+    );
     let build = |sources, package: &str| {
         let options = options.clone();
         let generated = BTreeMap::from([

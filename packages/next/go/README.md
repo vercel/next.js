@@ -95,7 +95,7 @@ Like `route.ts` segment config exports, a route declares separate package-level
 values. No SDK import is needed:
 
 ```go
-package main
+package route
 
 const MaxDuration = 30
 ```
@@ -112,7 +112,7 @@ module's `proxy.Config`, `proxy.Matcher` and `proxy.Condition` types. Only
 `Matcher` is supported; an omitted matcher matches all paths.
 
 ```go
-package main
+package proxy
 
 import "next/go/proxy"
 
