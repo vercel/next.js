@@ -35,7 +35,9 @@ const nextGoTrustInternalHeaders = false
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-url", r.RequestURI)
 	w.Header().Set("x-path", r.URL.Path)
-	Next(w)
+	// What proxy.Next(w) from next/go/proxy sets; the harness builds without
+	// a Go module, so it cannot import the SDK.
+	w.Header().Set("x-middleware-next", "1")
 }
 
 type testCase struct {
@@ -409,6 +411,11 @@ describe('proxy.go request URLs', () => {
         ['/a/x%2Ersc/b', null],
         ['/a/x.rsc%3Fy', null],
         ['/page.segments/_tree.segment.rsc.rsc', null],
+        // Rejected: Go handlers parse query fields after a literal #, which
+        // proxy.ts drops as a fragment, so Proxy would not see them.
+        ['/page?resource=public#&resource=private', null],
+        ['/page#?resource=private', null],
+        ['/page#frag', null],
       ]
       const results = runHarness(
         binary,

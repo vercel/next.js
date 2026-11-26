@@ -124,6 +124,21 @@ describe('native-proxy-go', () => {
   const coldGoBuildTimeout = 180_000
 
   it(
+    'maps next/go to the SDK in the installed next package',
+    async () => {
+      // proxy.go imports next/go. The fixture's go.mod has neither the
+      // requirement nor the replacement: Next.js adds the replacement, and the
+      // requirement because the SDK is imported, once the dev server or build
+      // has set up the bundler, which happens no later than the first request.
+      await next.fetch('/')
+      const goMod = await next.readFile('go.mod')
+      expect(goMod).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(goMod).toMatch(/^replace next\/go => \.\/\S+\/next\/go$/m)
+    },
+    coldGoBuildTimeout
+  )
+
+  it(
     'continues to a JS handler and matches all paths',
     async () => {
       const response = await next.fetch('/native-proxy/inspect')
@@ -336,7 +351,7 @@ describe('native-proxy-go', () => {
     { helper: 'Rewrite', mode: 'replace' },
     { helper: 'Rewrite', mode: 'empty' },
   ])(
-    '$helper applies ProxyOptions with $mode request headers',
+    '$helper applies WithRequestHeaders with $mode request headers',
     async ({ helper, mode }) => {
       const query = new URLSearchParams({
         headers: mode,
@@ -399,14 +414,14 @@ describe('native-proxy-go', () => {
   )
 
   it.each(['next', 'rewrite'])(
-    'rejects multiple options for %s without stopping the worker',
+    '%s uses the last WithRequestHeaders option',
     async (helper) => {
-      expect(
-        (await next.fetch(`/native-proxy/invalid-${helper}-options`)).status
-      ).toBe(500)
-      const following = await next.fetch('/native-proxy/inspect')
-      expect(following.status).toBe(200)
-      expect(following.headers.get('x-go-proxy')).toBe('yes')
+      const response = await next.fetch(
+        `/native-proxy/options?headers=multiple&rewrite=${helper === 'rewrite' ? '1' : '0'}`
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({ fromGo: 'last' })
+      expect(response.headers.get('x-go-proxy')).toBe('yes')
     }
   )
 

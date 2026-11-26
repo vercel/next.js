@@ -1721,10 +1721,28 @@ impl Endpoint for GoEndpoint {
         ]);
         let result =
             go_package_bundle_from_sources(*sources, session, alias.into(), generated).await?;
-        ensure!(
-            result.is_current().await?,
-            "Go route inputs changed during compilation; retry the request"
-        );
+        // Inputs that changed while compiling invalidate this task, which recomputes. Until
+        // then, publish nothing and leave the retry to request-side validation, instead of
+        // failing change subscriptions with an internal error. Editing files next to a Go
+        // entry, such as `next.config.ts` or `pages/` beside `proxy.go`, can race a compile.
+        if matches!(result.outcome, GoBuildOutcome::Retry) || !result.is_current().await? {
+            // Without a watcher, as in `next build`, nothing recomputes this task and build
+            // output is not validated per request, so fail instead of omitting the executable.
+            ensure!(
+                watch,
+                "Go route inputs changed during compilation; run the build again"
+            );
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed {
+                    build: Some((*result).clone()),
+                }
+                .resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
         let content = match &result.outcome {
             GoBuildOutcome::Success(content) => *content,
             GoBuildOutcome::Failed(message) => {
@@ -1745,6 +1763,7 @@ impl Endpoint for GoEndpoint {
                 }
                 .cell());
             }
+            // Handled above.
             GoBuildOutcome::Retry => {
                 bail!("Go inputs changed during compilation; retry the request")
             }
