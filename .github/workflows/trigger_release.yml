@@ -46,10 +46,12 @@ permissions: {}
 jobs:
   start:
     runs-on: ubuntu-latest
-    # Prerelease channels (and the scheduled nightly, where inputs are empty)
-    # run autonomously; only stable requires approval before the tag exists.
+    # The scheduled nightly (where inputs are empty) and prereleases dispatched
+    # from canary run autonomously. Everything else requires approval before
+    # the tag exists: stable releases, and any release dispatched from a
+    # releases/** branch (bot-autonomous only allows canary and v* tags).
     # Prerelease publishes are still gated by their release-* environments.
-    environment: ${{ (github.event_name == 'schedule' || inputs.releaseType != 'stable') && 'bot-autonomous' || 'bot-approved' }}
+    environment: ${{ (github.event_name == 'schedule' || (github.ref_name == 'canary' && inputs.releaseType != 'stable')) && 'bot-autonomous' || 'bot-approved' }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
 
