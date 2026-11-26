@@ -1390,6 +1390,16 @@ func GET(w http.ResponseWriter, r *http.Request) {
       ).rejects.toThrow(
         'requires __NEXT_GO_ROUTE to be the output.id of a Go output'
       )
+      for (const [routeId, legacyHeader] of [
+        [null, 'X-Authorized-Go-Output'],
+        [nativeOutput.id, ''],
+      ] as const) {
+        await expect(
+          withStandaloneRoute(nativeOutput, async () => {}, routeId, {
+            __NEXT_GO_ROUTE_HEADER: legacyHeader,
+          })
+        ).rejects.toThrow('does not support __NEXT_GO_ROUTE_HEADER')
+      }
 
       // Without configuration, one process serves every Go output and selects
       // each request's output from x-matched-path, which the platform sets

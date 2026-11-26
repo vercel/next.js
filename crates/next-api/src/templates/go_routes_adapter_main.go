@@ -57,6 +57,11 @@ const nextGoRouteRequirement = "route.go adapter server requires __NEXT_GO_ROUTE
 // Next.js server reads it in minimal mode (see nextGoSelectMatchedPath). A
 // request that selects no output gets a 404. The pathname never selects one.
 func nextGoSelectHandler(routes map[string]http.HandlerFunc) http.HandlerFunc {
+	// A custom-header adapter must migrate explicitly instead of silently
+	// trusting x-matched-path values that its ingress may forward from clients.
+	if _, ok := os.LookupEnv("__NEXT_GO_ROUTE_HEADER"); ok {
+		panic("route.go adapter server does not support __NEXT_GO_ROUTE_HEADER; use __NEXT_GO_ROUTE or trusted x-matched-path routing")
+	}
 	if selected, ok := os.LookupEnv("__NEXT_GO_ROUTE"); ok {
 		handler, ok := routes[selected]
 		if !ok {
