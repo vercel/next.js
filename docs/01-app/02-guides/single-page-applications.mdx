@@ -204,17 +204,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/use-context) and i
 
 ### Rendering components only in the browser
 
-Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic):
-
-```jsx
-import dynamic from 'next/dynamic'
-
-const ClientOnlyComponent = dynamic(() => import('./component'), {
-  ssr: false,
-})
-```
-
-This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
+Client Components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and render it only in the browser, call `use(browser())` in the component and wrap the component in a `<Suspense>` boundary.
 
 React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
 
@@ -258,7 +248,26 @@ export default function Page() {
 }
 ```
 
-In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft.
+In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft in place of the fallback.
+
+Calling `use(browser())` guards the component's render. The component's module is still imported during prerendering, so code that reads `window` or `document` at the top level of a module, as some third-party libraries do, throws before the component renders.
+
+To keep a module out of prerendering, or to lazy load the component's JavaScript, use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic) with `ssr: false`. It uses `React.lazy` with the dynamic `import()` you pass, so the browser downloads the JavaScript only when the component renders. With `ssr: false`, the server skips both rendering the component and importing its module:
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const ClientOnlyComponent = dynamic(() => import('./component'), {
+  ssr: false,
+  loading: () => <p>Loading…</p>,
+})
+```
+
+The `loading` component is included in the initial HTML as a placeholder. Without it, `next/dynamic` renders nothing until the component loads.
+
+The component appears after the browser downloads its JavaScript. React reveals suspended content in batches, so components that become ready close together appear at once instead of one at a time. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+
+If the component is likely to be the page's [Largest Contentful Paint](https://web.dev/articles/lcp) element, prerender it when possible. Remove the `ssr: false` and `loading` options so the initial HTML includes the component. If you still want to render the component only in the browser, provide a `loading` component that resembles the final content.
 
 See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only). The [demo source](https://github.com/nextjs/next-spa-patterns/tree/main/app/browser-only) contains the complete examples.
 
