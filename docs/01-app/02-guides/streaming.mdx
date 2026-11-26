@@ -479,6 +479,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 See [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider) for the full pattern.
 
+The same pattern applies to session promises from `use cache: private` functions with Cache Components. See [Sharing the user across components](/docs/app/guides/authentication-with-cache-components#step-3-share-the-user-across-components) for a layout example with boundaries around the consumers that keeps public chrome in the static shell.
+
 ## Streaming in Route Handlers
 
 The patterns above rely on React and Suspense to stream UI. Outside of React rendering, [Route Handlers](/docs/app/api-reference/file-conventions/route) can stream raw responses using the Web Streams API. This is useful for Server-Sent Events, large file generation, or any response where you want data to arrive progressively:
