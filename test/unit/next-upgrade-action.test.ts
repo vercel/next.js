@@ -12,6 +12,7 @@ import {
 import { pathToFileURL } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { load } from 'js-yaml'
 
 const sourceRoot = resolve(__dirname, '../..')
 const actionRoot = join(sourceRoot, '.github/actions/next-upgrade')
@@ -26,6 +27,29 @@ const credential = 'dummy-test-key'
 // Each preparation runs a real `npm ci` for the fixture app.
 const prepareTimeout = 600_000
 
+type Workflow = {
+  on: { workflow_call: { secrets: Record<string, unknown> } }
+  jobs: Record<
+    string,
+    {
+      with?: Record<string, unknown>
+      needs?: string | string[]
+      if?: string
+      outputs?: Record<string, string>
+      permissions?: Record<string, string>
+      steps?: { name?: string; env?: Record<string, string>; run?: string }[]
+    }
+  >
+}
+
+function readYaml(path: string) {
+  return load(readFileSync(path, 'utf8')) as Workflow
+}
+
+function workflowExpression(expression: string) {
+  return ['${', '{ ', expression, ' }}'].join('')
+}
+
 function git(cwd: string, ...args: string[]) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
@@ -39,6 +63,107 @@ function runScript<T>(script: string, input: unknown, cwd: string): T {
   return JSON.parse(output.trimEnd().split('\n').pop()!) as T
 }
 
+describe('scheduled Next.js upgrade workflow', () => {
+  const workflow = () =>
+    readYaml(join(sourceRoot, '.github/workflows/next-upgrade.yml'))
+  const checkout = expect.objectContaining({
+    with: expect.objectContaining({
+      repository: workflowExpression('job.workflow_repository'),
+      ref: workflowExpression('job.workflow_sha'),
+      'persist-credentials': false,
+      'sparse-checkout': expect.stringContaining(
+        '.github/actions/next-upgrade/'
+      ),
+    }),
+  })
+  const approvedApp = {
+    NEXT_UPGRADE_APP_PATH: workflowExpression('inputs.app-path'),
+    NEXT_UPGRADE_POLICY: workflowExpression('inputs.policy'),
+  }
+
+  const pinnedNext = expect.objectContaining({
+    run: 'node install-next.mjs',
+    env: expect.objectContaining({
+      WORKFLOW_SHA: workflowExpression('job.workflow_sha'),
+      PREVIEW_PACKAGE: workflowExpression('inputs.preview-package'),
+    }),
+  })
+
+  it('decides whether to upgrade before the agent or its credential are set up', () => {
+    const { jobs } = workflow()
+    expect(jobs.prepare).toMatchObject({
+      permissions: { contents: 'read' },
+      outputs: {
+        status: workflowExpression('steps.assess.outputs.status'),
+        'base-sha': workflowExpression('steps.assess.outputs.base-sha'),
+      },
+      steps: expect.arrayContaining([
+        checkout,
+        pinnedNext,
+        expect.objectContaining({
+          name: 'Check whether an upgrade is needed',
+          env: expect.objectContaining({
+            ...approvedApp,
+            NEXT_UPGRADE_STAGE: 'assess',
+          }),
+        }),
+      ]),
+    })
+    const prepare = JSON.stringify(jobs.prepare)
+    expect(prepare).not.toContain('agent-credential')
+    expect(prepare).not.toContain('Install the selected agent')
+    expect(prepare).not.toContain('useradd')
+  })
+
+  it('runs the agent only for a ready upgrade and isolates its credential', () => {
+    const { jobs } = workflow()
+    expect(jobs.upgrade).toMatchObject({
+      needs: 'prepare',
+      if: workflowExpression("needs.prepare.outputs.status == 'ready'"),
+      permissions: { contents: 'read' },
+      steps: expect.arrayContaining([
+        // The agent works on the commit the prepare job assessed.
+        expect.objectContaining({
+          with: expect.objectContaining({
+            path: 'consumer',
+            ref: workflowExpression('needs.prepare.outputs.base-sha'),
+          }),
+        }),
+        checkout,
+        pinnedNext,
+        expect.objectContaining({
+          name: 'Upgrade Next.js with the agent',
+          env: expect.objectContaining({
+            ...approvedApp,
+            NEXT_UPGRADE_AGENT_CREDENTIAL: workflowExpression(
+              'secrets.agent-credential'
+            ),
+            NEXT_UPGRADE_MODEL: workflowExpression('inputs.model'),
+            NEXT_UPGRADE_EFFORT: workflowExpression('inputs.effort'),
+            NEXT_UPGRADE_AGENT_USER: 'next-upgrade-agent',
+          }),
+        }),
+        // The agent runs as a user without sudo or access to the runner.
+        expect.objectContaining({
+          run: expect.stringMatching(
+            /^sudo useradd .*--no-create-home .*next-upgrade-agent$/
+          ),
+        }),
+      ]),
+    })
+    const upgradeStep = jobs.upgrade.steps!.find(
+      ({ name }) => name === 'Upgrade Next.js with the agent'
+    )!
+    expect(upgradeStep.env).not.toHaveProperty('NEXT_UPGRADE_STAGE')
+    const serialized = JSON.stringify(jobs)
+    expect(serialized.match(/secrets\.agent-credential/g)).toHaveLength(1)
+    // Consumer runs use the published package and never build the monorepo.
+    expect(serialized).not.toMatch(/pnpm|corepack|turbo|taskr/)
+  })
+})
+
+// A stand-in sudo that records each call, runs commands as the agent user
+// without switching users, and refuses the agent user's own sudo.
 function writeFakeSudo(directory: string, { allowAgentSudo = false } = {}) {
   const log = join(directory, 'sudo.log')
   writeFileSync(

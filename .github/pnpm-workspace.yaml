@@ -1,5 +1,7 @@
 packages:
   - 'actions/*'
+  # Consumer runs install this action's scripts with npm, outside this workspace.
+  - '!actions/next-upgrade'
 injectWorkspacePackages: true
 blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs

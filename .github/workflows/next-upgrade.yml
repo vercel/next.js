@@ -1,0 +1,207 @@
+name: Scheduled Next.js upgrade
+
+on:
+  workflow_call:
+    inputs:
+      app-path:
+        description: Repository-relative path of the app to upgrade
+        default: '.'
+        type: string
+      policy:
+        description: Upgrade policy, security or latest
+        required: true
+        type: string
+      agent-auth:
+        description: 'Hosted agent and credential: codex-openai-api-key or claude-anthropic-api-key'
+        required: true
+        type: string
+      telemetry-disabled:
+        description: Disable Next.js telemetry for this workflow and its child processes
+        default: false
+        type: boolean
+      model:
+        description: Agent model; empty uses the agent CLI default
+        default: ''
+        type: string
+      effort:
+        description: Agent reasoning effort; empty uses the model default
+        default: ''
+        type: string
+      # Test-only input for the external end-to-end repository and preview
+      # packages. Setup writes it only when
+      # __NEXT_UPGRADE_CI_WORKFLOW_SHA_FOR_TESTING pins an unreleased commit.
+      preview-package:
+        default: false
+        type: boolean
+    secrets:
+      agent-credential:
+        required: true
+
+permissions: {}
+
+env:
+  NEXT_TELEMETRY_DISABLED: ${{ inputs.telemetry-disabled && '1' || '' }}
+
+concurrency:
+  group: next-upgrade-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  # Decides whether the app needs an upgrade before the agent or its
+  # credential are set up, so a run with nothing to do stops here.
+  prepare:
+    name: Prepare
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.assess.outputs.status }}
+      base-sha: ${{ steps.assess.outputs.base-sha }}
+      default-branch: ${{ steps.branch.outputs.name }}
+    steps:
+      # Scheduled events carry no repository payload, so ask the API.
+      - name: Look up the default branch
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="$(gh api "repos/$GITHUB_REPOSITORY" --jq .default_branch)"
+          test -n "$branch"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+      - name: Check out the consumer
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: consumer
+          ref: ${{ steps.branch.outputs.name }}
+          persist-credentials: false
+      - name: Check out the pinned workflow scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: next-source
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/actions/next-upgrade/
+            packages/next/package.json
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # npm 11 honors --ignore-scripts for Git dependencies as well.
+          node-version: 24
+          package-manager-cache: false
+      # Consumer repositories run this workflow without the Next.js monorepo,
+      # so it installs the Next.js package and the agent CLI with npm, not
+      # the monorepo's pnpm.
+      - name: Install the pinned Next.js package
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          PREVIEW_PACKAGE: ${{ inputs.preview-package }}
+          GH_TOKEN: ${{ inputs.preview-package && github.token || '' }}
+        run: node install-next.mjs
+      # The pinned CLI assesses the installed app, as `next upgrade --agent`
+      # does locally. It fails the step when assessment fails.
+      - name: Check whether an upgrade is needed
+        id: assess
+        env:
+          NEXT_UPGRADE_STAGE: assess
+          NEXT_UPGRADE_ROOT: ${{ github.workspace }}/consumer
+          NEXT_UPGRADE_CLI_PATH: ${{ github.workspace }}/next-source/.github/actions/next-upgrade/node_modules/next/dist/bin/next
+          NEXT_UPGRADE_APP_PATH: ${{ inputs.app-path }}
+          NEXT_UPGRADE_POLICY: ${{ inputs.policy }}
+        run: node next-source/.github/actions/next-upgrade/prepare-upgrade.mjs
+
+  # Only this job receives the agent credential.
+  upgrade:
+    name: Run upgrade
+    needs: prepare
+    if: ${{ needs.prepare.outputs.status == 'ready' }}
+    runs-on: ubuntu-latest
+    # The agent run is limited to 90 minutes (see hosted-agent.mjs).
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the assessed consumer base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: consumer
+          ref: ${{ needs.prepare.outputs.base-sha }}
+          persist-credentials: false
+      - name: Check out the pinned workflow scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: next-source
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/actions/next-upgrade/
+            packages/next/package.json
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # npm 11 honors --ignore-scripts for Git dependencies as well.
+          node-version: 24
+          package-manager-cache: false
+      # Consumer repositories run this workflow without the Next.js monorepo,
+      # so it installs the Next.js package and the agent CLI with npm, not
+      # the monorepo's pnpm.
+      - name: Install the pinned Next.js package
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          PREVIEW_PACKAGE: ${{ inputs.preview-package }}
+          GH_TOKEN: ${{ inputs.preview-package && github.token || '' }}
+        run: node install-next.mjs
+      - name: Install the selected agent
+        env:
+          NEXT_UPGRADE_AUTH_MODE: ${{ inputs.agent-auth }}
+        run: |
+          set -euo pipefail
+          case "$NEXT_UPGRADE_AUTH_MODE" in
+            codex-openai-api-key)
+              npm install --global --ignore-scripts @openai/codex@0.161.0
+              ;;
+            claude-anthropic-api-key)
+              npm install --global --ignore-scripts @anthropic-ai/claude-code@2.1.293
+              # Its postinstall only copies the platform binary npm already
+              # downloaded over the bin placeholder; without it claude cannot start.
+              node "$(npm root --global)/@anthropic-ai/claude-code/install.cjs"
+              ;;
+            *)
+              echo 'Use codex-openai-api-key or claude-anthropic-api-key for agent-auth.' >&2
+              exit 1
+              ;;
+          esac
+      - name: Create the agent user
+        # The agent and the scripts it starts run as this user, which cannot
+        # read the runner's processes or use sudo.
+        run: sudo useradd --system --no-create-home --shell /usr/sbin/nologin next-upgrade-agent
+      # It fails the step when the agent run or its result fails.
+      - name: Upgrade Next.js with the agent
+        env:
+          NEXT_UPGRADE_ROOT: ${{ github.workspace }}/consumer
+          NEXT_UPGRADE_ARTIFACT_DIR: ${{ runner.temp }}/next-upgrade-candidates
+          NEXT_UPGRADE_CLI_PATH: ${{ github.workspace }}/next-source/.github/actions/next-upgrade/node_modules/next/dist/bin/next
+          NEXT_UPGRADE_APP_PATH: ${{ inputs.app-path }}
+          NEXT_UPGRADE_POLICY: ${{ inputs.policy }}
+          NEXT_UPGRADE_AUTH_MODE: ${{ inputs.agent-auth }}
+          NEXT_UPGRADE_MODEL: ${{ inputs.model }}
+          NEXT_UPGRADE_EFFORT: ${{ inputs.effort }}
+          NEXT_UPGRADE_AGENT_CREDENTIAL: ${{ secrets.agent-credential }}
+          NEXT_UPGRADE_AGENT_USER: next-upgrade-agent
+        run: node next-source/.github/actions/next-upgrade/prepare-upgrade.mjs
+      - name: Upload the upgrade candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-upgrade-candidates
+          path: ${{ runner.temp }}/next-upgrade-candidates/
+          if-no-files-found: error
+          retention-days: 1
