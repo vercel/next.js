@@ -1,8 +1,21 @@
 import { readFile } from 'fs/promises'
 import { z } from 'next/dist/compiled/zod'
 import type { NextConfig } from '../../server/config-shared'
-import { MiddlewareConfigInputSchema } from '../segment-config/middleware/middleware-config'
-import { getMiddlewareMatchers } from './get-page-static-info'
+import {
+  RSC_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
+} from '../../lib/constants'
+import { tryToParsePath } from '../../lib/try-to-parse-path'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
+import { formatZodError } from '../../shared/lib/zod'
+import {
+  MiddlewareConfigInputSchema,
+  SourceSchema,
+  type MiddlewareConfigMatcherInput,
+} from '../segment-config/middleware/middleware-config'
+
+const appRouteTransportSuffix = `${escapeStringRegexp(RSC_SUFFIX)}|${escapeStringRegexp(RSC_SEGMENTS_DIR_SUFFIX)}/.+${escapeStringRegexp(RSC_SEGMENT_SUFFIX)}`
 
 const routeSchema = z
   .object({
@@ -20,6 +33,45 @@ function invalid(sourcePath: string, error: unknown): Error {
   return new Error(
     `Invalid static Go config in ${sourcePath}: ${error instanceof Error ? error.message : String(error)}`
   )
+}
+
+function createGoProxyMatchers(
+  matcherOrMatchers: MiddlewareConfigMatcherInput,
+  { basePath, i18n }: Pick<NextConfig, 'basePath' | 'i18n'>
+) {
+  const matchers = Array.isArray(matcherOrMatchers)
+    ? matcherOrMatchers
+    : [matcherOrMatchers]
+
+  return matchers.map((matcher) => {
+    const { source: originalSource, ...conditions } =
+      typeof matcher === 'string' ? { source: matcher } : matcher
+    const isRoot = originalSource === '/'
+    let source = originalSource
+
+    if (i18n?.locales && conditions.locale !== false) {
+      source = `/:nextInternalLocale((?!_next/)[^/.]{1,})${isRoot ? '' : source}`
+    }
+
+    // Match the same page through data, RSC, and segment-prefetch requests.
+    const suffix = isRoot
+      ? `(${i18n ? '|\\.json|' : ''}/?index|/?index\\.json|/?index(?:${appRouteTransportSuffix}))?`
+      : `{(\\.json|${appRouteTransportSuffix})}?`
+    source = `${basePath || ''}/:nextData(_next/data/[^/]{1,})?${source}${suffix}`
+
+    // Expansion can make an otherwise valid literal invalid. Throw so dev can
+    // fail closed and recover after an edit without terminating the server.
+    const result = SourceSchema.safeParse(source)
+    if (!result.success) {
+      throw formatZodError('Failed to parse Go proxy matcher', result.error)
+    }
+
+    return {
+      ...conditions,
+      regexp: tryToParsePath(result.data).regexStr!,
+      originalSource,
+    }
+  })
 }
 
 // Turbopack reads `var Config` from the same Go syntax analysis that discovers
@@ -55,9 +107,7 @@ export async function readGoProxyConfig(
   try {
     return {
       // An omitted matcher matches every path.
-      matchers: getMiddlewareMatchers(matcher ?? '/:path*', nextConfig, {
-        throwOnInvalidSource: true,
-      }),
+      matchers: createGoProxyMatchers(matcher ?? '/:path*', nextConfig),
     }
   } catch (error) {
     throw invalid(sourcePath, error)
