@@ -1153,6 +1153,32 @@ impl ResolveResult {
         }
         .cell()
     }
+
+    /// Returns a new [ResolveResult] where all [RequestKey]s without a request are set to the
+    /// passed `request`. Keys that already have a request are kept.
+    #[turbo_tasks::function]
+    fn with_default_request(&self, request: RcStr) -> Vc<Self> {
+        let new_primary = self
+            .primary
+            .iter()
+            .map(|(k, v)| {
+                let key = if k.request.is_some() {
+                    k.clone()
+                } else {
+                    RequestKey {
+                        request: Some(request.clone()),
+                        conditions: k.conditions.clone(),
+                    }
+                };
+                (key, v.clone())
+            })
+            .collect();
+        ResolveResult {
+            primary: new_primary,
+            affecting_sources: self.affecting_sources.clone(),
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -1974,40 +2000,38 @@ async fn resolve_internal_inline(
 
         let request_value = request.await?;
 
-        // Apply import mappings if provided
+        // Apply import mappings if provided. Each alternative of a `Request::Alternatives` looks
+        // at the import map in its own recursive `resolve_internal_inline` call below, so that
+        // every alternative is resolved, not only the first one with an import mapping.
         let mut has_alias = false;
-        if let Some(import_map) = &options_value.import_map {
-            let request_parts = match &*request_value {
-                Request::Alternatives { requests } => requests.as_slice(),
-                _ => &[request.to_resolved().await?],
-            };
-            for &request in request_parts {
-                let result = import_map
-                    .await?
-                    .lookup(lookup_path.clone(), *request)
-                    .await?;
-                if !matches!(result, ImportMapResult::NoEntry) {
-                    has_alias = true;
-                    let resolved_result = resolve_import_map_result(
-                        &result,
-                        lookup_path.clone(),
-                        lookup_path.clone(),
-                        *request,
-                        options,
-                        request.query().owned().await?,
-                    )
-                    .await?;
-                    // We might have matched an alias in the import map, but there is no guarantee
-                    // the alias actually resolves to something. For instance, a tsconfig.json
-                    // `compilerOptions.paths` option might alias "@*" to "./*", which
-                    // would also match a request to "@emotion/core". Here, we follow what the
-                    // Typescript resolution algorithm does in case an alias match
-                    // doesn't resolve to anything: fall back to resolving the request normally.
-                    if let Some(resolved_result) = resolved_result {
-                        let resolved_result = resolved_result.into_cell_if_resolvable().await?;
-                        if let Some(result) = resolved_result {
-                            return Ok(result);
-                        }
+        if let Some(import_map) = &options_value.import_map
+            && !matches!(*request_value, Request::Alternatives { .. })
+        {
+            let result = import_map
+                .await?
+                .lookup(lookup_path.clone(), request)
+                .await?;
+            if !matches!(result, ImportMapResult::NoEntry) {
+                has_alias = true;
+                let resolved_result = resolve_import_map_result(
+                    &result,
+                    lookup_path.clone(),
+                    lookup_path.clone(),
+                    request,
+                    options,
+                    request.query().owned().await?,
+                )
+                .await?;
+                // We might have matched an alias in the import map, but there is no guarantee
+                // the alias actually resolves to something. For instance, a tsconfig.json
+                // `compilerOptions.paths` option might alias "@*" to "./*", which
+                // would also match a request to "@emotion/core". Here, we follow what the
+                // Typescript resolution algorithm does in case an alias match
+                // doesn't resolve to anything: fall back to resolving the request normally.
+                if let Some(resolved_result) = resolved_result {
+                    let resolved_result = resolved_result.into_cell_if_resolvable().await?;
+                    if let Some(result) = resolved_result {
+                        return Ok(result);
                     }
                 }
             }
@@ -2018,7 +2042,18 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| resolve_internal_inline(lookup_path.clone(), **req, options))
+                    .map(async |req| {
+                        let result =
+                            Box::pin(resolve_internal_inline(lookup_path.clone(), **req, options))
+                                .await?;
+                        // Results that don't carry a request of their own, like externals from
+                        // the import map, would otherwise be indistinguishable between the
+                        // alternatives, so they are keyed by the alternative they resolve.
+                        Ok(match req.await?.request() {
+                            Some(request) => result.with_default_request(request),
+                            None => result,
+                        })
+                    })
                     .try_join()
                     .await?;
 
