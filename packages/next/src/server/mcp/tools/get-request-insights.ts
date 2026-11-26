@@ -1,5 +1,6 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import z from 'next/dist/compiled/zod'
+import { isRequestInsightFor } from '../../../shared/lib/request-insights'
 import { summarizeRequestInsight } from '../../../shared/lib/request-insights-summary'
 import {
   getRequestInsightsSnapshot,
@@ -43,7 +44,7 @@ export function registerGetRequestInsightsTool(server: McpServer) {
       const memoryRequests = snapshot.requests.filter((insight) => {
         return (
           (request.requestId === undefined ||
-            insight.requestId === request.requestId) &&
+            isRequestInsightFor(insight, request.requestId)) &&
           (request.htmlRequestId === undefined ||
             insight.htmlRequestId === request.htmlRequestId)
         )
