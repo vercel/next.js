@@ -63,16 +63,38 @@ function spawnWorker(
 
   send({ type: 'spawned', id, pid: child.pid })
   // All three are `net.Socket`s backed by pipes (`stdio: 'pipe'`).
-  const channels: Array<[WorkerChannelName, unknown]> = [
-    ['message', child.stdio[3]],
-    ['stdout', child.stdout],
-    ['stderr', child.stderr],
+  const channels: Array<[WorkerChannelName, Socket | null]> = [
+    ['message', child.stdio[3] as Socket | null],
+    ['stdout', child.stdout as Socket | null],
+    ['stderr', child.stderr as Socket | null],
   ]
   for (const [channel, socket] of channels) {
     if (socket) {
+      // `spawn()` starts reading from the pipes right away. Anything this
+      // process read would be lost: sending a handle only passes the pipe, not
+      // data already read from it, and handles are sent one at a time, so
+      // workers can write (their first IPC message, startup logs) before their
+      // pipes arrive in the main process. Stop reading in the same tick as
+      // `spawn()`, before any data could be read, so everything stays in the
+      // pipe for the main process.
+      stopReading(socket)
       // Sending a handle closes this process's copy of it once it was sent.
-      send({ type: 'channel', id, channel }, socket as Socket)
+      send({ type: 'channel', id, channel }, socket)
     }
+  }
+}
+
+function stopReading(socket: Socket): void {
+  // There is no public API for this: `pause()` only stops reading once the
+  // stream's buffer is full. This is what Node does for `pauseOnConnect`.
+  const handle = (
+    socket as Socket & {
+      _handle?: { reading?: boolean; readStop?: () => number }
+    }
+  )._handle
+  if (handle?.readStop) {
+    handle.reading = false
+    handle.readStop()
   }
 }
 
