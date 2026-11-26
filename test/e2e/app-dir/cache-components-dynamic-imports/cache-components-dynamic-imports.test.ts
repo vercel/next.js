@@ -58,7 +58,10 @@ describe('async imports in cacheComponents', () => {
 
   const testPage = async (href: string) => {
     const browser = await next.browser(href)
-    expect(await browser.elementByCss('body').text()).toBe('hello')
+    // A dev reload can replace the document while the first body read is pending.
+    await retry(async () => {
+      expect(await browser.elementByCss('body').text()).toBe('hello')
+    })
     if (isNextDev) {
       await retry(async () => {
         // we shouldn't get any errors from `spawnDynamicValidationInDev`
