@@ -16266,7 +16266,7 @@
                 "Expected finished root and lanes to be set. This is a bug in React."
               );
           var retry = resolveRetryWakeable.bind(null, finishedWork, wakeable);
-          attachContextPreservingListener(wakeable, retry);
+          wakeable.then(retry, retry);
         }
       });
     }
@@ -21995,25 +21995,7 @@
         threadIDs.add(lanes),
         (pingCache = pingSuspendedRoot.bind(null, root, wakeable, lanes)),
         isDevToolsPresent && restorePendingUpdaters(root, lanes),
-        attachContextPreservingListener(wakeable, pingCache));
-    }
-    function attachContextPreservingListener(wakeable, listener) {
-      if (
-        "function" !== typeof Promise ||
-        null !== ReactSharedInternals.actQueue ||
-        isConcurrentActEnvironment()
-      )
-        wakeable.then(listener, listener);
-      else {
-        var resolve = noop$1;
-        new Promise(function (r) {
-          resolve = r;
-        }).then(listener);
-        listener = function () {
-          return resolve();
-        };
-        wakeable.then(listener, listener);
-      }
+        wakeable.then(pingCache, pingCache));
     }
     function pingSuspendedRoot(root, wakeable, pingedLanes) {
       var pingCache = root.pingCache;
@@ -32430,7 +32412,6 @@
         cacheSignal: function () {
           return readContext(CacheContext).controller.signal;
         },
-        units: null,
         getOwner: function () {
           return current;
         }
@@ -33548,11 +33529,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-89d7b2b4-20261123" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-a8342585-20261117" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-89d7b2b4-20261123\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-a8342585-20261117\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33589,10 +33570,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-89d7b2b4-20261123",
+          version: "19.3.0-experimental-a8342585-20261117",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-89d7b2b4-20261123"
+          reconcilerVersion: "19.3.0-experimental-a8342585-20261117"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33740,7 +33721,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.3.0-experimental-89d7b2b4-20261123";
+    exports.version = "19.3.0-experimental-a8342585-20261117";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

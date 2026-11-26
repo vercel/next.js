@@ -23,8 +23,6 @@ var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
-  REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
-  REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -717,8 +715,7 @@ var DefaultAsyncDispatcher = {
     cacheSignal: function () {
       var request = resolveRequest();
       return request ? request.cacheController.signal : null;
-    },
-    units: null
+    }
   },
   ReactSharedInternalsServer =
     React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
@@ -742,10 +739,6 @@ function describeValueForErrorMessage(value) {
       if (isArrayImpl(value)) return "[...]";
       if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
         return "client";
-      if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
-        return "LedgerData";
-      if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
-        return "LedgerTotal";
       value = objectName(value);
       return "Object" === value ? "{...}" : value;
     case "function":
@@ -810,9 +803,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
     str = "<" + describeElementType(objectOrArray.type) + "/>";
   else {
     if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
-    if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE) return "LedgerData";
-    if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
-      return "LedgerTotal";
     str = "{";
     i = Object.keys(objectOrArray);
     for (value = 0; value < i.length; value++) {
@@ -893,7 +883,6 @@ function RequestInstance(
   this.identifierPrefix = identifierPrefix || "";
   this.identifierCount = 1;
   this.taintCleanupQueue = [];
-  this.rootUnit = this.ledgers = null;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
@@ -1384,7 +1373,7 @@ function createTaskWithID(
     null === model ||
     null !== keyPath ||
     implicitSlot ||
-    writeToDedupeMap(request, model, id, serializeByValueID(id));
+    request.writtenObjects.set(model, serializeByValueID(id));
   var task = {
     id: id,
     status: 0,
@@ -1395,8 +1384,7 @@ function createTaskWithID(
     ping: function () {
       return pingTask(request, task);
     },
-    thenableState: null,
-    unit: null
+    thenableState: null
   };
   abortSet.add(task);
   return task;
@@ -1514,11 +1502,6 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
           })
         : (prevImplicitSlot[resolved$16] = parent));
   return prevImplicitSlot;
-}
-function writeToDedupeMap(request, value, id, reference) {
-  id = { id: id, reference: reference };
-  request.writtenObjects.set(value, id);
-  return id;
 }
 function serializeByValueID(id) {
   return "$" + id.toString(16);
@@ -1706,23 +1689,19 @@ function renderModelDestructive(
   if ("object" === typeof value) {
     switch (value.$$typeof) {
       case REACT_ELEMENT_TYPE:
-        var elementEntry = null,
+        var elementReference = null,
           writtenObjects = request.writtenObjects;
         if (null === task.keyPath && !task.implicitSlot) {
-          var existingEntry = writtenObjects.get(value);
-          if (void 0 !== existingEntry)
+          var existingReference = writtenObjects.get(value);
+          if (void 0 !== existingReference)
             if (modelRoot === value) modelRoot = null;
-            else return existingEntry.reference;
+            else return existingReference;
           else
             -1 === parentPropertyName.indexOf(":") &&
               ((parent = writtenObjects.get(parent)),
               void 0 !== parent &&
-                (elementEntry = writeToDedupeMap(
-                  request,
-                  value,
-                  parent.id,
-                  parent.reference + ":" + parentPropertyName
-                )));
+                ((elementReference = parent + ":" + parentPropertyName),
+                writtenObjects.set(value, elementReference)));
         }
         if (3200 < serializedSize) return deferTask(request, task);
         parentPropertyName = value.props;
@@ -1737,15 +1716,15 @@ function renderModelDestructive(
         );
         "object" === typeof request &&
           null !== request &&
-          null !== elementEntry &&
+          null !== elementReference &&
           (writtenObjects.has(request) ||
-            writtenObjects.set(request, elementEntry));
+            writtenObjects.set(request, elementReference));
         return request;
       case REACT_LAZY_TYPE:
         if (3200 < serializedSize) return deferTask(request, task);
         task.thenableState = null;
-        elementEntry = value._init;
-        value = elementEntry(value._payload);
+        elementReference = value._init;
+        value = elementReference(value._payload);
         if (12 === request.status) throw null;
         return renderModelDestructive(
           request,
@@ -1768,55 +1747,50 @@ function renderModelDestructive(
       );
     if (
       void 0 !== request.temporaryReferences &&
-      ((elementEntry = request.temporaryReferences.get(value)),
-      void 0 !== elementEntry)
+      ((elementReference = request.temporaryReferences.get(value)),
+      void 0 !== elementReference)
     )
-      return "$T" + elementEntry;
-    elementEntry = request.writtenObjects;
-    writtenObjects = elementEntry.get(value);
+      return "$T" + elementReference;
+    elementReference = request.writtenObjects;
+    writtenObjects = elementReference.get(value);
     if ("function" === typeof value.then) {
       if (void 0 !== writtenObjects) {
         if (null !== task.keyPath || task.implicitSlot)
           return "$@" + serializeThenable(request, task, value).toString(16);
         if (modelRoot === value) modelRoot = null;
-        else return writtenObjects.reference;
+        else return writtenObjects;
       }
-      task = serializeThenable(request, task, value);
-      parentPropertyName = "$@" + task.toString(16);
-      writeToDedupeMap(request, value, task, parentPropertyName);
-      return parentPropertyName;
+      request = "$@" + serializeThenable(request, task, value).toString(16);
+      elementReference.set(value, request);
+      return request;
     }
     if (void 0 !== writtenObjects)
       if (modelRoot === value) {
-        if (writtenObjects.reference !== serializeByValueID(task.id))
-          return writtenObjects.reference;
+        if (writtenObjects !== serializeByValueID(task.id))
+          return writtenObjects;
         modelRoot = null;
-      } else return writtenObjects.reference;
+      } else return writtenObjects;
     else if (
       -1 === parentPropertyName.indexOf(":") &&
-      ((elementEntry = elementEntry.get(parent)), void 0 !== elementEntry)
+      ((writtenObjects = elementReference.get(parent)),
+      void 0 !== writtenObjects)
     ) {
-      writtenObjects = parentPropertyName;
+      existingReference = parentPropertyName;
       if (isArrayImpl(parent) && parent[0] === REACT_ELEMENT_TYPE)
         switch (parentPropertyName) {
           case "1":
-            writtenObjects = "type";
+            existingReference = "type";
             break;
           case "2":
-            writtenObjects = "key";
+            existingReference = "key";
             break;
           case "3":
-            writtenObjects = "props";
+            existingReference = "props";
             break;
           case "4":
-            writtenObjects = "_owner";
+            existingReference = "_owner";
         }
-      writeToDedupeMap(
-        request,
-        value,
-        elementEntry.id,
-        elementEntry.reference + ":" + writtenObjects
-      );
+      elementReference.set(value, writtenObjects + ":" + existingReference);
     }
     if (isArrayImpl(value)) return renderFragment(request, task, value);
     if (value instanceof Map)
@@ -1863,9 +1837,9 @@ function renderModelDestructive(
       return serializeTypedArray(request, "V", value);
     if ("function" === typeof Blob && value instanceof Blob)
       return serializeBlob(request, value);
-    if ((elementEntry = getIteratorFn(value)))
+    if ((elementReference = getIteratorFn(value)))
       return (
-        (parentPropertyName = elementEntry.call(value)),
+        (parentPropertyName = elementReference.call(value)),
         parentPropertyName === value
           ? ((value = Array.from(parentPropertyName)),
             "$i" +
@@ -1874,8 +1848,8 @@ function renderModelDestructive(
       );
     if ("function" === typeof ReadableStream && value instanceof ReadableStream)
       return serializeReadableStream(request, task, value);
-    elementEntry = value[ASYNC_ITERATOR];
-    if ("function" === typeof elementEntry)
+    elementReference = value[ASYNC_ITERATOR];
+    if ("function" === typeof elementReference)
       return (
         null !== task.keyPath
           ? ((request = [
@@ -1885,7 +1859,7 @@ function renderModelDestructive(
               { children: value }
             ]),
             (request = task.implicitSlot ? [request] : request))
-          : ((parentPropertyName = elementEntry.call(value)),
+          : ((parentPropertyName = elementReference.call(value)),
             (request = serializeAsyncIterable(
               request,
               task,
@@ -1979,10 +1953,11 @@ function renderModelDestructive(
   }
   if ("symbol" === typeof value) {
     task = request.writtenSymbols;
-    elementEntry = task.get(value);
-    if (void 0 !== elementEntry) return serializeByValueID(elementEntry);
-    elementEntry = value.description;
-    if (Symbol.for(elementEntry) !== value)
+    elementReference = task.get(value);
+    if (void 0 !== elementReference)
+      return serializeByValueID(elementReference);
+    elementReference = value.description;
+    if (Symbol.for(elementReference) !== value)
       throw Error(
         "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
           (value.description + ") cannot be found among global symbols.") +
@@ -1993,7 +1968,7 @@ function renderModelDestructive(
     parent = encodeReferenceChunk(
       request,
       parentPropertyName,
-      "$S" + elementEntry
+      "$S" + elementReference
     );
     request.completedImportChunks.push(parent);
     task.set(value, parentPropertyName);
@@ -2219,12 +2194,7 @@ function retryTaskWithRequest(request, task) {
     task.keyPath = null;
     task.implicitSlot = !1;
     if ("object" === typeof resolvedModel && null !== resolvedModel)
-      writeToDedupeMap(
-        request,
-        resolvedModel,
-        task.id,
-        serializeByValueID(task.id)
-      ),
+      request.writtenObjects.set(resolvedModel, serializeByValueID(task.id)),
         emitChunk(request, task, resolvedModel);
     else {
       var json = stringify(resolvedModel);
@@ -2375,10 +2345,7 @@ function startWork(request) {
   request.flushScheduled = null !== request.destination;
   supportsRequestStorage
     ? scheduleMicrotask(function () {
-        var rootUnit = request.rootUnit;
-        null !== rootUnit
-          ? requestStorage.run(rootUnit, performWork, request)
-          : requestStorage.run(request, performWork, request);
+        requestStorage.run(request, performWork, request);
       })
     : scheduleMicrotask(function () {
         return performWork(request);
