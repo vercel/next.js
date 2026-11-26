@@ -159,52 +159,9 @@ If a layout awaits the session before returning its children, the whole segment 
 
 ## Step 3: Share the user across components
 
-Server Components can call `getCurrentUser()` directly and reuse the result within a request. To share the user with Client Components, pass the promise through [context](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). `UserProvider` forwards the promise, and `useUser()` reads it with React's [`use()`](https://react.dev/reference/react/use).
+Server Components can call `getCurrentUser()` directly. If several Client Components need the user, share the promise through [context](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). The layout can call `getCurrentUser()` without awaiting it, even with `use cache: private`:
 
-```tsx filename="app/user-provider.tsx"
-'use client'
-
-import { createContext, use } from 'react'
-import type { ReactNode } from 'react'
-import type { User } from '@/lib/auth'
-
-const UserContext = createContext<Promise<User> | null>(null)
-
-export function UserProvider({
-  userPromise,
-  children,
-}: {
-  userPromise: Promise<User>
-  children: ReactNode
-}) {
-  return <UserContext value={userPromise}>{children}</UserContext>
-}
-
-export function useUser() {
-  const userPromise = use(UserContext)
-  if (!userPromise) {
-    throw new Error('useUser must be used within a UserProvider')
-  }
-  return use(userPromise)
-}
-```
-
-A Client Component can now read the user from context:
-
-```tsx filename="app/user-badge.tsx"
-'use client'
-
-import { useUser } from './user-provider'
-
-export function UserBadge() {
-  const user = useUser()
-  return <span>Signed in as {user.name}</span>
-}
-```
-
-In the dashboard layout, call `getCurrentUser()` without awaiting it. Even with `use cache: private`, passing the promise to the provider doesn't suspend the layout. Wrap the part of the UI that should show a fallback while it waits for the user:
-
-```tsx filename="app/dashboard/layout.tsx" switcher
+```tsx filename="app/dashboard/layout.tsx"
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth'
@@ -230,35 +187,9 @@ export default function DashboardLayout({
 }
 ```
 
-```jsx filename="app/dashboard/layout.js" switcher
-import { Suspense } from 'react'
-import Link from 'next/link'
-import { getCurrentUser } from '@/lib/auth'
-import { UserProvider } from '@/app/user-provider'
-import { UserBadge } from '@/app/user-badge'
+The [provider](https://github.com/vercel/next.js/blob/canary/examples/with-iron-session-cache-components/app/user-provider.tsx) passes the promise through unchanged. The [badge](https://github.com/vercel/next.js/blob/canary/examples/with-iron-session-cache-components/app/user-badge.tsx) calls `useUser()`, which reads the promise with React's [`use()`](https://react.dev/reference/react/use). Placing `<Suspense>` around the badge keeps the Home link in the static shell while the badge loads.
 
-export default function DashboardLayout({ children }) {
-  const userPromise = getCurrentUser()
-
-  return (
-    <UserProvider userPromise={userPromise}>
-      <header>
-        <Link href="/">Home</Link>
-        <Suspense fallback={<span>Loading user…</span>}>
-          <UserBadge />
-        </Suspense>
-      </header>
-      {children}
-    </UserProvider>
-  )
-}
-```
-
-The Home link renders in the static shell while the badge shows its fallback.
-
-The provider shares data for rendering. It does not protect child routes or Server Actions. Keep authorization checks close to the data access, as described in [Layouts and auth checks](/docs/app/guides/authentication#layouts-and-auth-checks).
-
-> **Good to know:** Expose only what the client needs. The `getCurrentUser` helper returns a narrow `{ id, name }` rather than the raw session. To keep sensitive fields from reaching the client, see [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue).
+Share only the fields the client needs (here, `id` and `name`). Keep the raw session on the server and [check authorization](/docs/app/guides/authentication#layouts-and-auth-checks) when reading protected data or running a Server Action. See [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) for an additional safeguard against exposing sensitive values.
 
 ## Step 4: Cache session-derived data
 
