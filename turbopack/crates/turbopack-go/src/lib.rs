@@ -1652,7 +1652,15 @@ async fn bundle(
     );
     files.sort();
     files.dedup();
-    let discovery = discover(root.clone(), boundary, files, *go_session, generated, aliases).await?;
+    let discovery = discover(
+        root.clone(),
+        boundary,
+        files,
+        *go_session,
+        generated,
+        aliases,
+    )
+    .await?;
     let outcome = match &discovery.outcome {
         DiscoveryOutcome::Ready(plan) => {
             let project = to_sys_path(root.clone())
@@ -1742,7 +1750,14 @@ pub fn go_bundle_with_session(
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
-    bundle(root.clone(), root, files, *session, generated, BTreeMap::new())
+    bundle(
+        root.clone(),
+        root,
+        files,
+        *session,
+        generated,
+        BTreeMap::new(),
+    )
 }
 
 #[cfg(test)]

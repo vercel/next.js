@@ -318,7 +318,15 @@ async fn bundle_sources(
                 (vec![], BTreeMap::from([(alias, RcStr::from(directory))]))
             }
         };
-        let result = bundle(sources.root.clone(), sources.boundary.clone(), files, *session, generated, aliases).await?;
+        let result = bundle(
+            sources.root.clone(),
+            sources.boundary.clone(),
+            files,
+            *session,
+            generated,
+            aliases,
+        )
+        .await?;
         stale = !result.is_current().await? || !sources.inputs.is_current().await?;
         (*result).clone()
     };
