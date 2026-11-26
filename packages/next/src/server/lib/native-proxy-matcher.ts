@@ -7,6 +7,7 @@ import type {
 } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { matchHas } from '../../shared/lib/router/utils/prepare-destination'
 import { DecodeError } from '../../shared/lib/utils'
+import { getCookieConditionDuplicatePattern } from '../../shared/lib/router/utils/cookie-condition'
 import { prepareNativeRequestHeaders } from './native-headers'
 
 export class InvalidGoProxyRequestError extends DecodeError {
@@ -18,6 +19,20 @@ export class InvalidGoProxyRequestError extends DecodeError {
 export function getGoProxyMatcher(
   matchers: Parameters<typeof getMiddlewareRouteMatcher>[0]
 ): MiddlewareRouteMatch {
+  const cookiePatterns = new Map<string, RegExp>()
+  for (const matcher of matchers) {
+    for (const condition of [
+      ...(matcher.has || []),
+      ...(matcher.missing || []),
+    ]) {
+      if (condition.type === 'cookie' && !cookiePatterns.has(condition.key)) {
+        cookiePatterns.set(
+          condition.key,
+          new RegExp(`^${getCookieConditionDuplicatePattern(condition.key)}$`)
+        )
+      }
+    }
+  }
   return (pathname, req, query) => {
     let request: Pick<NodeNextRequest, 'headers' | 'cookies'> | undefined
     let originalCookies: NodeNextRequest['cookies'] | undefined
@@ -48,6 +63,11 @@ export function getGoProxyMatcher(
             let originalValue
             let forwardedValue
             if (condition.type === 'cookie') {
+              const value = req.headers.cookie
+              const cookie = Array.isArray(value) ? value.join('; ') : value
+              if (cookie && cookiePatterns.get(condition.key)!.test(cookie)) {
+                throw new InvalidGoProxyRequestError()
+              }
               originalCookies ||= getCookieParser(req.headers)()
               originalValue = originalCookies[condition.key]
               forwardedValue = request.cookies[condition.key]

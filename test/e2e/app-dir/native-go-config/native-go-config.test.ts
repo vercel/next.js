@@ -124,6 +124,19 @@ describe('static Go config', () => {
     )
   })
 
+  it('rejects repeated condition cookie names before JavaScript routes', async () => {
+    for (const pathname of ['/headers/javascript', '/headers/cookie-missing']) {
+      for (const cookie of [
+        'resource=public; resource=private',
+        'resource=private; resource=public',
+      ]) {
+        const response = await next.fetch(pathname, { headers: { cookie } })
+        expect(response.status).toBe(400)
+        expect(await response.text()).not.toContain('secret')
+      }
+    }
+  })
+
   if (isNextDev) {
     it.each([
       {
@@ -263,16 +276,9 @@ describe('static Go config', () => {
       )
       expect(manifest.functions['/_middleware']).not.toHaveProperty('regions')
       expect(manifest.functions['/_middleware']).toMatchObject({
-        matchers: [
+        matchers: expect.arrayContaining([
           expect.objectContaining({ originalSource: '/configured' }),
-          expect.anything(),
-          expect.anything(),
-          expect.anything(),
-          expect.anything(),
-          expect.anything(),
-          expect.anything(),
-          expect.anything(),
-        ],
+        ]),
       })
       await next.stop()
       const config = await next.readFile('next.config.ts')
@@ -289,16 +295,9 @@ describe('static Go config', () => {
         expect(output.middleware).toMatchObject({
           runtime: 'go',
           config: {
-            matchers: [
+            matchers: expect.arrayContaining([
               expect.objectContaining({ source: '/configured' }),
-              expect.anything(),
-              expect.anything(),
-              expect.anything(),
-              expect.anything(),
-              expect.anything(),
-              expect.anything(),
-              expect.anything(),
-            ],
+            ]),
           },
         })
         expect(
@@ -386,6 +385,27 @@ describe('static Go config', () => {
             await fetchViaRawHttp(origin, '/unmatched-readiness')
           })
         }
+        const javascriptPort = await findPort()
+        const javascriptOrigin = `http://127.0.0.1:${javascriptPort}`
+        children.push(
+          spawn(process.execPath, [join(next.testDir, 'adapter-server.mjs')], {
+            cwd: next.testDir,
+            env: { ...process.env, PORT: String(javascriptPort) },
+            stdio: 'inherit',
+          })
+        )
+        await retry(async () => {
+          expect(
+            (await fetchViaRawHttp(javascriptOrigin, '/unmatched-readiness'))
+              .status
+          ).toBe(404)
+        })
+        for (const pathname of [
+          '/headers/javascript',
+          '/headers/cookie-missing',
+        ]) {
+          origins.set(pathname, javascriptOrigin)
+        }
         // Released deployment builders cannot host Go middleware yet. Dispatch
         // the real adapter executables using the ordinary JavaScript matcher,
         // without Next's Node-only Go header guard. Preserve repeated headers
@@ -432,6 +452,10 @@ describe('static Go config', () => {
           ['/missing', { cookie: 'skip=yes' }, false],
           ['/headers/javascript', { cookie: 'resource=private' }, true],
           ['/headers/javascript', { cookie: 'resource=public' }, false],
+          ['/headers/javascript', { cookie: 'resource=%70rivate' }, true],
+          ['/headers/cookie-missing', { cookie: 'resource=private' }, true],
+          ['/headers/cookie-missing', { cookie: 'resource=public' }, false],
+          ['/headers/cookie-missing', { cookie: 'resource=%70ublic' }, false],
           ['/headers/missing', {}, true],
           ['/headers/missing', { 'x-resource': 'public' }, false],
         ] as const) {
@@ -455,6 +479,22 @@ describe('static Go config', () => {
           expect(response.status).toBe(400)
           expect(await response.text()).not.toContain('secret')
           expect(proxyCalls).toBe(before)
+        }
+        for (const pathname of [
+          '/headers/javascript',
+          '/headers/cookie-missing',
+        ]) {
+          for (const cookie of [
+            'resource=public; resource=private',
+            'resource=private; resource=public',
+            'other=one; resource=public; next=two; resource=private',
+          ]) {
+            const response = await fetchViaRawHttp(origin, pathname, {
+              headers: { cookie },
+            })
+            expect(response.status).toBe(400)
+            expect(await response.text()).not.toContain('secret')
+          }
         }
         // An array-valued Cookie option is already joined by Node's client.
         // Use raw field lines to exercise the Go entrypoint's normalization.
@@ -486,6 +526,16 @@ describe('static Go config', () => {
         })
         expect(unrelated.status).toBe(200)
         expect(unrelated.headers.get('x-unrelated-values')).toBe('one|two')
+        const unrelatedCookies = await fetchViaRawHttp(origin, '/conditional', {
+          headers: {
+            'x-config-match': 'yes',
+            cookie: 'unrelated=one; unrelated=two',
+          },
+        })
+        expect(unrelatedCookies.status).toBe(200)
+        expect(unrelatedCookies.headers.get('x-static-go-config')).toBe(
+          'matched'
+        )
       } finally {
         if (server.listening) {
           server.closeAllConnections()

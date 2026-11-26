@@ -14,6 +14,10 @@ var nextGoProxyConditionHeaders = []string{
 	// __NEXT_GO_PROXY_CONDITION_HEADERS__
 }
 
+var nextGoProxyConditionCookies = []string{
+	// __NEXT_GO_PROXY_CONDITION_COOKIES__
+}
+
 // The platform evaluates Has/Missing before invoking the proxy. Validate the
 // same fields in routes too, so skipping the proxy cannot expose a different
 // interpretation of the request to Go's Header.Get or Cookie methods.
@@ -41,6 +45,25 @@ func nextGoValidConditionHeaders(r *http.Request) bool {
 			for _, field := range strings.Split(connection, ",") {
 				if strings.EqualFold(strings.TrimSpace(field), name) {
 					return false
+				}
+			}
+		}
+	}
+	if len(nextGoProxyConditionCookies) > 0 {
+		seen := make(map[string]bool, len(nextGoProxyConditionCookies))
+		for _, line := range r.Header.Values("Cookie") {
+			for _, field := range strings.Split(line, ";") {
+				name, _, _ := strings.Cut(field, "=")
+				name = strings.TrimSpace(name)
+				for _, key := range nextGoProxyConditionCookies {
+					if name != key {
+						continue
+					}
+					if seen[name] {
+						return false
+					}
+					seen[name] = true
+					break
 				}
 			}
 		}

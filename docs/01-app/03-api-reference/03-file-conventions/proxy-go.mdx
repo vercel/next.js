@@ -62,6 +62,8 @@ Use `Has` or `Missing` to test headers, cookies, query parameters, or the host. 
 
 Header and cookie conditions are supported when self-hosting and with adapters. Requests whose condition headers have ambiguous values, such as repeated header fields that JavaScript joins but Go reads separately, receive a `400` response. Adapter-built Go routes validate these headers even when a condition causes the platform to skip the proxy.
 
+Cookie conditions also emit a matcher that sends repeated cookie names to validation before routing continues. These requests receive a `400` response even when the original condition would skip the proxy and the destination runs JavaScript.
+
 ## Examples
 
 ### Rewriting a request

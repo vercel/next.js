@@ -8,6 +8,7 @@ import {
 } from '../../lib/constants'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
+import { getCookieConditionDuplicatePattern } from '../../shared/lib/router/utils/cookie-condition'
 import { formatZodError } from '../../shared/lib/zod'
 import {
   MiddlewareConfigInputSchema,
@@ -43,7 +44,7 @@ function createGoProxyMatchers(
     ? matcherOrMatchers
     : [matcherOrMatchers]
 
-  return matchers.map((matcher) => {
+  return matchers.flatMap((matcher) => {
     const { source: originalSource, ...conditions } =
       typeof matcher === 'string' ? { source: matcher } : matcher
     const isRoot = originalSource === '/'
@@ -60,11 +61,34 @@ function createGoProxyMatchers(
       throw formatZodError('Failed to parse Go proxy matcher', result.error)
     }
 
-    return {
+    const compiled = {
       ...conditions,
       regexp: tryToParsePath(result.data).regexStr!,
       originalSource,
     }
+    const cookieNames = new Set(
+      [...(conditions.has || []), ...(conditions.missing || [])].flatMap(
+        (condition) => (condition.type === 'cookie' ? [condition.key] : [])
+      )
+    )
+    // The platform can otherwise skip the Go executable and dispatch directly
+    // to JavaScript, whose cookie parser keeps the last duplicate. These extra
+    // matches only invoke the validator: it rejects the request before Proxy.
+    return [
+      compiled,
+      ...Array.from(cookieNames, (name) => ({
+        regexp: compiled.regexp,
+        originalSource,
+        locale: conditions.locale,
+        has: [
+          {
+            type: 'header' as const,
+            key: 'cookie',
+            value: getCookieConditionDuplicatePattern(name),
+          },
+        ],
+      })),
+    ]
   })
 }
 

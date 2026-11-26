@@ -6,6 +6,7 @@ import { Socket } from 'net'
 import { readGoProxyConfig } from 'next/dist/build/analysis/go-config'
 import { getGoProxyMatcher } from 'next/dist/server/lib/native-proxy-matcher'
 import { NodeNextRequest } from 'next/dist/server/base-http/node'
+import { getMiddlewareRouteMatcher } from 'next/dist/shared/lib/router/utils/middleware-route-matcher'
 
 describe('go-config', () => {
   let directory: string
@@ -117,15 +118,13 @@ describe('go-config', () => {
       missing: [{ type: 'cookie', key: 'skip' }],
     }
     const { matchers } = await readConfig([matcher])
-    expect(matchers).toEqual([
-      {
-        originalSource: matcher.source,
-        regexp: expect.any(String),
-        locale: false,
-        has: matcher.has,
-        missing: matcher.missing,
-      },
-    ])
+    expect(matchers[0]).toEqual({
+      originalSource: matcher.source,
+      regexp: expect.any(String),
+      locale: false,
+      has: matcher.has,
+      missing: matcher.missing,
+    })
   })
 
   it('rejects i18n configuration because Go proxies only support App Router', async () => {
@@ -135,6 +134,59 @@ describe('go-config', () => {
       })
     ).rejects.toThrow('proxy.go does not support the i18n configuration')
   })
+
+  it.each(['has', 'missing'] as const)(
+    'keeps %s cookie conditions and routes repeated names to validation',
+    async (kind) => {
+      for (const name of ['resource', 'a.b', 'a+b', 'Session']) {
+        const { matchers } = await readConfig([
+          {
+            source: '/secure',
+            [kind]: [
+              {
+                type: 'cookie',
+                key: name,
+                value: kind === 'has' ? 'private' : 'public',
+              },
+            ],
+          },
+        ])
+        const platformMatch = getMiddlewareRouteMatcher(matchers)
+        const goMatch = getGoProxyMatcher(matchers)
+        const req = new IncomingMessage(new Socket())
+        req.method = 'GET'
+        req.url = '/secure'
+        try {
+          for (const [cookie, expected] of [
+            [`${name}=private`, true],
+            [`${name}=public`, false],
+            [`other=${name}=public; ${name}=private`, true],
+            [`${name}=public; other=${name}=private`, false],
+            [`prefix${name}=public; ${name}=private`, true],
+          ] as const) {
+            req.headers = { cookie }
+            const request = new NodeNextRequest(req)
+            expect(platformMatch('/secure', request, {})).toBe(expected)
+            expect(goMatch('/secure', request, {})).toBe(expected)
+          }
+          for (const cookie of [
+            `${name}=public; ${name}=private`,
+            `${name}=private; ${name}=public`,
+            `other=one; ${name}=public; next=two; ${name}=private`,
+          ]) {
+            req.headers = { cookie }
+            const request = new NodeNextRequest(req)
+            expect(platformMatch('/secure', request, {})).toBe(true)
+            expect(() => goMatch('/secure', request, {})).toThrow(
+              'unambiguous request headers'
+            )
+          }
+        } finally {
+          req.destroy()
+        }
+      }
+    }
+  )
 
   it('rejects ambiguous repeated headers while respecting request-header overrides', async () => {
     const { matchers } = await readConfig([

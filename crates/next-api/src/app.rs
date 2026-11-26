@@ -1217,9 +1217,10 @@ fn go_proxy_handler_source(skip_proxy_url_normalize: bool, base_path: &str) -> R
 /// the header fields its proxy conditions depend on, before Go can interpret a different value.
 /// Keep this separate from code generation so a proxy body edit does not rebuild every route.
 #[turbo_tasks::function]
-async fn go_proxy_condition_headers(
+async fn go_proxy_condition_keys(
     project: Vc<Project>,
     session: Vc<GoBuildSession>,
+    cookies: bool,
 ) -> Result<Vc<RcStr>> {
     let middleware = project.find_middleware().await?;
     let mut names = BTreeSet::new();
@@ -1243,14 +1244,19 @@ async fn go_proxy_condition_headers(
         for matcher in config["matcher"].as_array().into_iter().flatten() {
             for kind in ["has", "missing"] {
                 for condition in matcher[kind].as_array().into_iter().flatten() {
-                    match condition["type"].as_str() {
-                        Some("header") => {
+                    match (condition["type"].as_str(), cookies) {
+                        (Some("header"), false) => {
                             if let Some(key) = condition["key"].as_str() {
                                 names.insert(key.to_ascii_lowercase());
                             }
                         }
-                        Some("cookie") => {
+                        (Some("cookie"), false) => {
                             names.insert("cookie".to_owned());
+                        }
+                        (Some("cookie"), true) => {
+                            if let Some(key) = condition["key"].as_str() {
+                                names.insert(key.to_owned());
+                            }
                         }
                         _ => {}
                     }
@@ -1812,12 +1818,19 @@ impl Endpoint for GoEndpoint {
         // All executables extract parameters from the selected destination URL.
         // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
-            include_str!("templates/go_route_adapter_main.go").replace(
-                "// __NEXT_GO_PROXY_CONDITION_HEADERS__",
-                go_proxy_condition_headers(*project, session)
-                    .await?
-                    .as_str(),
-            )
+            include_str!("templates/go_route_adapter_main.go")
+                .replace(
+                    "// __NEXT_GO_PROXY_CONDITION_HEADERS__",
+                    go_proxy_condition_keys(*project, session, false)
+                        .await?
+                        .as_str(),
+                )
+                .replace(
+                    "// __NEXT_GO_PROXY_CONDITION_COOKIES__",
+                    go_proxy_condition_keys(*project, session, true)
+                        .await?
+                        .as_str(),
+                )
         } else {
             include_str!("templates/go_route_main.go").to_owned()
         }
