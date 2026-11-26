@@ -8,12 +8,14 @@ import { getFetchUrlPresentation } from './fetch-label'
 
 export type TraceItem = {
   id: string
+  traceId?: string
   spanId?: string
   parentSpanId?: string
   spanType?: string
   category: RequestInsightSpan['category']
   label: string
   attributeLabel?: string
+  attributes?: RequestInsightSpan['attributes']
   fullLabel?: string
   startTime: number
   durationMs?: number
@@ -207,12 +209,14 @@ function getSpanTraceItem(
 
   return {
     id: `span:${span.spanId ?? index}:${span.startTime}`,
+    traceId: span.traceId,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     spanType: typeof type === 'string' ? type : undefined,
     category: span.category,
     label: getSpanLabel(span),
     attributeLabel: getSpanAttributeLabel(span),
+    attributes: span.attributes,
     startTime: span.startTime,
     durationMs: span.durationMs,
     status: span.status ?? 'pending',
@@ -236,11 +240,13 @@ function getFetchTraceItem(
 
   return {
     id: `fetch:${matchingSpan?.spanId ?? fetch.index ?? index}:${startTime}`,
+    traceId: matchingSpan?.traceId,
     spanId: matchingSpan?.spanId,
     parentSpanId: matchingSpan?.parentSpanId,
     spanType: FETCH_SPAN_TYPE,
     category: matchingSpan?.category ?? 'application',
     label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
+    attributes: matchingSpan?.attributes,
     fullLabel: `${method} ${url.fullUrl}`,
     startTime,
     durationMs: fetch.durationMs ?? matchingSpan?.durationMs,

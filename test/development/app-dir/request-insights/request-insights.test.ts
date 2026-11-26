@@ -1734,6 +1734,54 @@ describe('request insights', () => {
     expect(switchedState.activeDescendant).toBe(switchedState.firstRowId)
   })
 
+  it('opens and closes span details from the keyboard', async () => {
+    const browser = await next.browser('/products/blue?tab=details')
+    await openRequestInsightsPanel(browser)
+    await retry(async () => {
+      const selected = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find((candidate) =>
+          candidate.textContent?.includes('/products/blue?query=redacted')
+        )
+        row?.click()
+        return row !== undefined
+      })
+      expect(selected).toBe(true)
+    })
+
+    const traceRows = browser.locator(
+      'nextjs-portal .request-insights-trace-rows'
+    )
+    await traceRows.focus()
+    await traceRows.press('Enter')
+    await retry(async () => {
+      const text = await browser.eval(
+        () =>
+          document
+            .querySelector('nextjs-portal')
+            ?.shadowRoot?.querySelector('.request-insights-trace-inspector')
+            ?.textContent ?? ''
+      )
+      expect(text).toContain('Span ID')
+    })
+
+    await traceRows.press('Escape')
+    await retry(async () => {
+      expect(
+        await browser.hasElementByCssSelector(
+          '.request-insights-trace-inspector'
+        )
+      ).toBe(false)
+    })
+
+    // The panel stays open, so the details can be reopened.
+    await traceRows.press('Enter')
+    await browser.waitForElementByCss('.request-insights-trace-inspector')
+  })
+
   it('classifies an App Route before its handler completes', async () => {
     const existingRequestIds = new Set(
       (
