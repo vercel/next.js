@@ -250,7 +250,9 @@ export default function Page() {
 
 In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft in place of the fallback.
 
-If you also want to lazy load the component's JavaScript, use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic). It uses `React.lazy` with the dynamic `import()` you pass, so the browser downloads the JavaScript only when the component renders. Set `ssr: false` to skip prerendering:
+Calling `use(browser())` guards the component's render. The component's module is still imported during prerendering, so code that reads `window` or `document` at the top level of a module, as some third-party libraries do, throws before the component renders.
+
+To keep a module out of prerendering, or to lazy load the component's JavaScript, use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic) with `ssr: false`. It uses `React.lazy` with the dynamic `import()` you pass, so the browser downloads the JavaScript only when the component renders, and `ssr: false` skips the import on the server:
 
 ```jsx
 import dynamic from 'next/dynamic'
