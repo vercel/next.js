@@ -183,7 +183,8 @@ pnpm eval <configured-eval> --effort-gate \
 ```
 
 The gate runs five sequential samples each for baseline, bundled-docs discovery
-through `agents-md`, and the configured skill. With a pre-stack tarball, it runs
+through `agents-md`, and the configured skill. Fixtures that don't depend on
+Next.js skip `agents-md`, which would match baseline. With a pre-stack tarball, it runs
 that package first against the same fixture and grader. It reports pass rate
 and median input tokens for every variant, plus how many samples set each
 boolean or list field the configured collector returns. A pre-stack tarball

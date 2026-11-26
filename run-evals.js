@@ -474,7 +474,6 @@ function main() {
     .describe('model', 'Override the coding model for every selected variant')
     .string('pricing')
     .describe('pricing', 'Gateway model pricing JSON for estimated model cost')
-    .implies('pricing', 'metrics')
     .number('runs')
     .describe('runs', 'Run each selected eval this many times (default: 1)')
     .array('variant')
@@ -493,6 +492,9 @@ function main() {
     .implies('effort-samples', 'effort-gate')
     .implies('effort-pre-stack-tarball', 'effort-gate')
     .check((argv) => {
+      if (argv.pricing && !argv.metrics && !argv.effortGate) {
+        throw new Error('--pricing requires --metrics or --effort-gate')
+      }
       if (!argv.all && !argv.evalName && !argv.suite) {
         throw new Error(
           `Missing <eval-name>.\n\nAvailable evals:\n${listEvals()
@@ -576,13 +578,23 @@ function main() {
           requestedVariants.includes(variant.suffix)
         )
       : availableVariants
-  if (argv.effortGate) {
-    variants = variants.filter(({ suffix }) =>
-      ['baseline', 'agents-md', 'skills'].includes(suffix)
+  // Fixtures that install their own pinned app (such as Pokédex) do not use
+  // the local package. Match installNextJs's root-package check before packing.
+  const needsLocalNext = (selectedEvals ?? listEvals()).some((name) => {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(FIXTURES_DIR, name, 'package.json'), 'utf8')
     )
-    if (variants.length !== 3) {
+    return Boolean(pkg.dependencies?.next ?? pkg.devDependencies?.next)
+  })
+  if (argv.effortGate) {
+    // writeAgentsMd skips non-Next fixtures, so agents-md would rerun baseline.
+    const gateVariants = needsLocalNext
+      ? ['baseline', 'agents-md', 'skills']
+      : ['baseline', 'skills']
+    variants = variants.filter(({ suffix }) => gateVariants.includes(suffix))
+    if (variants.length !== gateVariants.length) {
       throw new Error(
-        '--effort-gate requires baseline, agents-md, and skills variants'
+        `--effort-gate requires ${gateVariants.join(', ')} variants`
       )
     }
     if (argv.effortPreStackTarball) {
@@ -597,14 +609,6 @@ function main() {
     ? ['status']
     : ['run', ...variants.map((v) => v.suffix), '--force']
 
-  // Fixtures that install their own pinned app (such as Pokédex) do not use
-  // the local package. Match installNextJs's root-package check before packing.
-  const needsLocalNext = (selectedEvals ?? listEvals()).some((name) => {
-    const pkg = JSON.parse(
-      fs.readFileSync(path.join(FIXTURES_DIR, name, 'package.json'), 'utf8')
-    )
-    return Boolean(pkg.dependencies?.next ?? pkg.devDependencies?.next)
-  })
   // installNextJs skips non-Next fixtures, so pre-stack would silently rerun baseline.
   if (argv.effortPreStackTarball && !needsLocalNext) {
     throw new Error(

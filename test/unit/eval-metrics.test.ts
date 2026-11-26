@@ -244,7 +244,9 @@ describe('effort gate', () => {
   })
 
   it('compares five sequential baseline, agents-md, and skill samples', () => {
-    const { root, calls, exitCode } = run(['--effort-gate'])
+    const { root, calls, exitCode } = run(['--effort-gate'], {
+      dependsOnNext: true,
+    })
     try {
       expect(calls.filter((call) => call.args[0] === 'run')).toHaveLength(5)
       expect(
@@ -286,6 +288,8 @@ describe('effort gate', () => {
       )
       expect(samples.skills).toHaveLength(5)
       expect(samples.skills[0]).toMatchObject({ collectorFailed: true })
+      // Non-Next fixtures skip agents-md, which would match baseline.
+      expect(samples).not.toHaveProperty('agents-md')
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }
@@ -342,7 +346,7 @@ describe('effort gate', () => {
 
   it.each([
     ['token reduction', 80, 'passed'],
-    ['pass rate', 70, 'failed'],
+    ['pass rate', 30, 'failed'],
     ['token count', null, 'failed'],
   ])('fails when the skill misses the %s gate', (_, tokens, status) => {
     const { root, exitCode } = run(['--effort-gate'], {
