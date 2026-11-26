@@ -218,7 +218,10 @@ describe('adapter Go proxy authorization', () => {
     await copyFile(goRoute.filePath, goRouteBinary)
     await chmod(goRouteBinary, 0o755)
     const goRoutePort = await findPort()
-    const goRouteEnv = { ...process.env, PORT: String(goRoutePort) }
+    const goRouteEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      PORT: String(goRoutePort),
+    }
     delete goRouteEnv.__NEXT_GO_TOKEN
     goRouteChild = spawn(goRouteBinary, [], {
       cwd: binaryDirectory,
