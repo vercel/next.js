@@ -160,6 +160,71 @@ describe('scheduled Next.js upgrade workflow', () => {
     // Consumer runs use the published package and never build the monorepo.
     expect(serialized).not.toMatch(/pnpm|corepack|turbo|taskr/)
   })
+
+  it('publishes with its own token in a job that never installs Next.js', () => {
+    const { on, jobs } = workflow()
+    expect(jobs.publish).toMatchObject({
+      needs: ['prepare', 'upgrade'],
+      permissions: { contents: 'read' },
+      steps: expect.arrayContaining([
+        checkout,
+        expect.objectContaining({
+          run: 'node install-next.mjs',
+          env: expect.objectContaining({ NEXT_UPGRADE_DEPS_ONLY: 'true' }),
+        }),
+        // Publication checks the index against the same approved inputs.
+        expect.objectContaining({
+          env: expect.objectContaining({
+            ...approvedApp,
+            GH_TOKEN: workflowExpression('secrets.publish-token'),
+          }),
+        }),
+      ]),
+    })
+    expect(JSON.stringify(jobs.publish)).not.toContain('PREVIEW_PACKAGE')
+    // The token check, the early pull request check and publication.
+    expect(JSON.stringify(jobs).match(/secrets\.publish-token/g)).toHaveLength(
+      3
+    )
+    expect(JSON.stringify(jobs.prepare)).not.toContain('publish-token')
+    expect(JSON.stringify(jobs.upgrade)).not.toContain('publish-token')
+    expect(on.workflow_call.secrets['publish-token']).toEqual({
+      required: true,
+    })
+  })
+
+  it('stops in preflight without the token or with an open upgrade pull request', () => {
+    const { jobs } = workflow()
+    const { preflight } = jobs
+    expect(preflight.permissions).toEqual({ contents: 'read' })
+    expect(preflight.outputs).toEqual({
+      'pull-request': workflowExpression('steps.existing.outputs.pull-request'),
+    })
+    // The token check comes first and runs nothing else.
+    expect(preflight.steps![0].env).toEqual({
+      PUBLISH_TOKEN_PROVIDED: workflowExpression("secrets.publish-token != ''"),
+    })
+    expect(preflight.steps![0].run).toMatch(
+      /if \[ "\$PUBLISH_TOKEN_PROVIDED" != true \]; then\n[^\n]+\n\s+exit 1\n/
+    )
+    expect(preflight.steps).toContainEqual(
+      expect.objectContaining({
+        name: 'Check for an open upgrade pull request',
+        env: expect.objectContaining({
+          ...approvedApp,
+          NEXT_UPGRADE_STAGE: 'check',
+          GH_TOKEN: workflowExpression('secrets.publish-token'),
+        }),
+      })
+    )
+    // Preflight never installs Next.js or touches the consumer.
+    expect(JSON.stringify(preflight)).not.toContain('PREVIEW_PACKAGE')
+    expect(JSON.stringify(preflight)).not.toContain('path":"consumer')
+    expect(jobs.prepare).toMatchObject({
+      needs: 'preflight',
+      if: workflowExpression("needs.preflight.outputs.pull-request == ''"),
+    })
+  })
 })
 
 // A stand-in sudo that records each call, runs commands as the agent user
@@ -769,8 +834,33 @@ describe('scheduled upgrade candidates', () => {
   )
 
   describe('a ready assessment', () => {
+    const url = 'https://github.com/example/consumer/pull/2'
+    const runUrl = 'https://github.com/example/consumer/actions/runs/123'
     let directory: string
     let prepared: ReturnType<typeof prepare>
+    let remote: string
+    let publication: {
+      rejectedPath: { outcomes: unknown[] }
+      checks: { paths: string[]; status: string; url?: string }[]
+      otherPolicy: { outcomes: { status: string; failureStage?: string }[] }
+      attempts: {
+        outcomes: {
+          paths: string[]
+          status: string
+          url?: string
+          failureStage?: string
+        }[]
+      }[]
+      pulls: {
+        title: string
+        body: string
+        base: { ref: string }
+        head: { ref: string; sha: string }
+        draft?: boolean
+      }[]
+      requests: { method: string; endpoint: string; paginate: boolean }[]
+    }
+
     beforeAll(() => {
       directory = scratchDirectory()
       prepared = prepare({
@@ -778,6 +868,62 @@ describe('scheduled upgrade candidates', () => {
         agent: 'upgrade',
         agentUser: 'next-upgrade-agent',
       })
+      remote = join(directory, 'remote.git')
+      git(directory, 'init', '--bare', '--initial-branch=main', remote)
+      git(prepared.root, 'push', remote, 'HEAD:refs/heads/main')
+      const publisher = `
+import { execFileSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+const { modulePath, url, ...input } = JSON.parse(process.argv[1])
+const { checkExistingUpgrade, publishUpgradeCandidate } = await import(pathToFileURL(modulePath).href)
+const pulls = []
+const requests = []
+const github = async (method, endpoint, body, options) => {
+  requests.push({ method, endpoint: endpoint.split('?')[0], paginate: options?.paginate ?? false })
+  if (method === 'GET' && endpoint === '/repos/example/consumer') {
+    return { default_branch: 'main' }
+  }
+  if (method === 'GET' && endpoint.startsWith('/repos/example/consumer/pulls?')) {
+    return pulls
+  }
+  if (method === 'POST' && endpoint === '/repos/example/consumer/pulls') {
+    const sha = execFileSync('git', ['rev-parse', 'refs/heads/' + body.head], { cwd: input.gitRemote, encoding: 'utf8' }).trim()
+    const pull = { ...body, html_url: url, head: { ref: body.head, sha, repo: { full_name: 'example/consumer' } }, base: { ref: body.base } }
+    pulls.push(pull)
+    return pull
+  }
+  throw new Error('Unexpected GitHub request ' + method + ' ' + endpoint)
+}
+// The index must match the inputs the workflow approved.
+const rejectedPath = await publishUpgradeCandidate({ ...input, appPath: 'apps/other', github })
+const otherPolicy = await publishUpgradeCandidate({ ...input, policy: 'security', github })
+const check = () => checkExistingUpgrade({ appPath: input.appPath, policy: input.policy, repository: input.repository, github })
+const checks = [await check()]
+const attempts = []
+for (let run = 0; run < 2; run++) {
+  attempts.push(await publishUpgradeCandidate({ ...input, github }))
+}
+// The next run's preflight finds the open pull request before preparation.
+checks.push(await check())
+checks.push(await checkExistingUpgrade({ appPath: 'apps/other', policy: input.policy, repository: input.repository, github }))
+console.log(JSON.stringify({ rejectedPath, otherPolicy, attempts, checks, pulls, requests }))
+`
+      publication = runScript(
+        publisher,
+        {
+          modulePath: join(actionRoot, 'publish-upgrade.mjs'),
+          root: prepared.root,
+          artifactDirectory: prepared.artifactDirectory,
+          appPath,
+          policy: 'latest',
+          repository: 'example/consumer',
+          baseBranch: 'main',
+          gitRemote: remote,
+          url,
+          runUrl,
+        },
+        prepared.root
+      )
     }, prepareTimeout)
 
     it('assesses the installed app with the pinned CLI', () => {
@@ -851,6 +997,104 @@ describe('scheduled upgrade candidates', () => {
       }
       // Preparation never touches the consumer checkout.
       expect(git(prepared.root, 'status', '--porcelain')).toBe('')
+    })
+
+    it('rejects an index for another app or policy', () => {
+      // The outcome names the approved app, which has no matching candidate.
+      expect(publication.rejectedPath.outcomes).toEqual([
+        { paths: ['apps/other'], status: 'failed', failureStage: 'publishing' },
+      ])
+      expect(publication.otherPolicy.outcomes).toEqual([
+        { paths: [appPath], status: 'failed', failureStage: 'publishing' },
+      ])
+    })
+
+    it('finds the open pull request before the next run prepares anything', () => {
+      expect(publication.checks).toEqual([
+        { paths: [appPath], status: 'no_pull_request' },
+        { paths: [appPath], status: 'existing_pull_request', url },
+        // Another app has its own upgrade pull request.
+        { paths: ['apps/other'], status: 'no_pull_request' },
+      ])
+    })
+
+    it('opens one pull request and reuses it on the next run', () => {
+      const [{ id }] = prepared.index.candidates
+      const marker = `<!-- next-upgrade-candidate:${id} -->`
+      expect(publication.attempts.map(({ outcomes }) => outcomes)).toEqual([
+        [{ paths: [appPath], status: 'new_pull_request', url }],
+        [{ paths: [appPath], status: 'existing_pull_request', url }],
+      ])
+      expect(publication.pulls).toHaveLength(1)
+      const [pull] = publication.pulls
+      expect(pull).toMatchObject({
+        title: `Upgrade Next.js to ${targetVersion}`,
+        base: { ref: 'main' },
+        head: {
+          ref: expect.stringMatching(
+            new RegExp(`^next-upgrade/${id}-[0-9a-f]{12}$`)
+          ),
+        },
+      })
+      // The upgrade opens as a regular pull request, not a draft.
+      expect(pull).not.toHaveProperty('draft')
+      // The candidate marker, then the one a local `next upgrade --agent`
+      // checks for duplicates, then a description from checked values only.
+      expect(pull.body).toBe(
+        [
+          marker,
+          `<!-- next-upgrade: latest; path=${JSON.stringify(appPath)} -->`,
+          '',
+          `### Next.js ${sourceVersion} → ${targetVersion}`,
+          '',
+          `A scheduled upgrade of \`${appPath}\` with the \`latest\` policy.`,
+          '',
+          `- Release notes: https://github.com/vercel/next.js/releases/tag/v${targetVersion}`,
+          '',
+          '### Changed files',
+          '',
+          '- `apps/site/package-lock.json`',
+          '- `apps/site/package.json`',
+          '- `apps/site/pages/index.js`',
+          '',
+          '### Verification',
+          '',
+          `The hosted agent followed the Next.js upgrade guides, installed the dependencies with the app's package manager, and confirmed that the installed Next.js version is ${targetVersion}. The workflow then checked that the change touches no workflow files, submodules, symlinks, or file modes and contains no agent credential.`,
+          '',
+          'Review the changes and run your own checks before merging.',
+          '',
+          `Prepared by [this workflow run](${runUrl}).`,
+        ].join('\n')
+      )
+      // Pull requests are listed across every page.
+      expect(publication.requests).toContainEqual({
+        method: 'GET',
+        endpoint: '/repos/example/consumer/pulls',
+        paginate: true,
+      })
+      expect(
+        publication.requests.filter(({ method }) => method === 'POST')
+      ).toHaveLength(1)
+
+      // The branch holds one commit on the base with the app's changes.
+      const branch = pull.head.ref
+      expect(
+        git(remote, 'for-each-ref', '--format=%(refname)', 'refs/heads/')
+          .split('\n')
+          .sort()
+      ).toEqual(['refs/heads/main', `refs/heads/${branch}`])
+      expect(git(remote, 'rev-parse', branch)).toBe(pull.head.sha)
+      expect(git(remote, 'rev-list', '--count', `main..${branch}`)).toBe('1')
+      expect(git(remote, 'log', '-1', '--format=%an%n%B', branch)).toBe(
+        `github-actions[bot]\nUpgrade Next.js to ${targetVersion}\n\n${marker}`
+      )
+      expect(
+        git(remote, 'diff', '--name-only', 'main', branch).split('\n')
+      ).toEqual([
+        'apps/site/package-lock.json',
+        'apps/site/package.json',
+        'apps/site/pages/index.js',
+      ])
     })
   })
 
@@ -1091,5 +1335,50 @@ console.log(JSON.stringify(message))
         'A supported agent authentication mode and its credential are required.'
       )
     }
+  })
+})
+
+describe('scheduled upgrade pull request description', () => {
+  const describePull = (input: unknown) =>
+    runScript<string>(
+      `
+import { pathToFileURL } from 'node:url'
+const { modulePath, ...input } = JSON.parse(process.argv[1])
+const { pullRequestBody } = await import(pathToFileURL(modulePath).href)
+console.log(JSON.stringify(pullRequestBody(input)))
+`,
+      {
+        modulePath: join(actionRoot, 'publish-upgrade.mjs'),
+        ...(input as object),
+      },
+      sourceRoot
+    )
+
+  it('links the upgrade guide only for a new major and caps the file list', () => {
+    const body = describePull({
+      marker: '<!-- next-upgrade-candidate:0 -->',
+      targets: [
+        {
+          path: '.',
+          policy: 'latest',
+          fromVersion: '15.5.0',
+          targetVersion: '16.4.6',
+        },
+      ],
+      changes: [
+        { path: 'a-old.js' },
+        ...Array.from({ length: 52 }, (_, i) => ({
+          path: `file-${String(i).padStart(2, '0')}.js`,
+          entry: { mode: '100644' },
+        })),
+      ],
+    })
+    expect(body).toContain(
+      '- Upgrade guide: https://nextjs.org/docs/app/guides/upgrading/version-16'
+    )
+    expect(body).toContain('- `a-old.js` (removed)')
+    expect(body).toContain('- and 3 more files')
+    // Without a run URL, the description leaves the link out.
+    expect(body).not.toContain('Prepared by')
   })
 })

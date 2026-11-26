@@ -36,6 +36,8 @@ on:
     secrets:
       agent-credential:
         required: true
+      publish-token:
+        required: true
 
 permissions: {}
 
@@ -47,11 +49,68 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A missing token or an open upgrade pull request stops the run before
+  # anything else is installed.
+  preflight:
+    name: Preflight
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # It reads only the pinned scripts and, with the publication token, pull requests.
+    permissions:
+      contents: read
+    outputs:
+      pull-request: ${{ steps.existing.outputs.pull-request }}
+    steps:
+      - name: Check the publication token
+        env:
+          PUBLISH_TOKEN_PROVIDED: ${{ secrets.publish-token != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$PUBLISH_TOKEN_PROVIDED" != true ]; then
+            echo 'Register a fine-grained personal access token with contents and pull-requests write access as the NEXT_UPGRADE_PUBLISH_TOKEN secret.' >&2
+            exit 1
+          fi
+      - name: Check out the pinned workflow scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: next-source
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/actions/next-upgrade/
+            packages/next/package.json
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # npm 11 honors --ignore-scripts for Git dependencies as well.
+          node-version: 24
+          package-manager-cache: false
+      # The jobs with the publication token run only the locked script dependencies.
+      - name: Install the publisher dependencies
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          NEXT_UPGRADE_DEPS_ONLY: 'true'
+        run: node install-next.mjs
+      # One open upgrade pull request per app and policy, whatever its version.
+      - name: Check for an open upgrade pull request
+        id: existing
+        env:
+          NEXT_UPGRADE_STAGE: check
+          NEXT_UPGRADE_APP_PATH: ${{ inputs.app-path }}
+          NEXT_UPGRADE_POLICY: ${{ inputs.policy }}
+          GH_TOKEN: ${{ secrets.publish-token }}
+        run: node next-source/.github/actions/next-upgrade/publish-upgrade.mjs
+
   # Decides whether the app needs an upgrade before the agent or its
   # credential are set up, so a run with nothing to do stops here.
   prepare:
     name: Prepare
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    needs: preflight
+    if: ${{ needs.preflight.outputs.pull-request == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -205,3 +264,58 @@ jobs:
           path: ${{ runner.temp }}/next-upgrade-candidates/
           if-no-files-found: error
           retention-days: 1
+
+  publish:
+    name: Open pull request
+    needs: [prepare, upgrade]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The publication token opens the pull request, so the job token only reads.
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the assessed consumer base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: consumer
+          ref: ${{ needs.prepare.outputs.base-sha }}
+          persist-credentials: false
+      - name: Check out the pinned workflow scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: next-source
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/actions/next-upgrade/
+            packages/next/package.json
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # npm 11 honors --ignore-scripts for Git dependencies as well.
+          node-version: 24
+          package-manager-cache: false
+      # The jobs with the publication token run only the locked script dependencies.
+      - name: Install the publisher dependencies
+        working-directory: next-source/.github/actions/next-upgrade
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          NEXT_UPGRADE_DEPS_ONLY: 'true'
+        run: node install-next.mjs
+      - name: Download candidates
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: next-upgrade-candidates
+          path: ${{ runner.temp }}/next-upgrade-candidates
+      - name: Publish the upgrade pull request
+        env:
+          NEXT_UPGRADE_ROOT: ${{ github.workspace }}/consumer
+          NEXT_UPGRADE_ARTIFACT_DIR: ${{ runner.temp }}/next-upgrade-candidates
+          NEXT_UPGRADE_BASE_BRANCH: ${{ needs.prepare.outputs.default-branch }}
+          NEXT_UPGRADE_APP_PATH: ${{ inputs.app-path }}
+          NEXT_UPGRADE_POLICY: ${{ inputs.policy }}
+          NEXT_UPGRADE_PUBLISH_RESULT: ${{ runner.temp }}/next-upgrade-publish-result.json
+          GH_TOKEN: ${{ secrets.publish-token }}
+        run: node next-source/.github/actions/next-upgrade/publish-upgrade.mjs
