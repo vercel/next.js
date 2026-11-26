@@ -1,5 +1,5 @@
 {
-  "name": "dep-a",
+  "name": "externals-transitive-dep-a",
   "version": "1.0.0",
   "dependencies": {
     "lodash": "3.10.1"
