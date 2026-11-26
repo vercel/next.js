@@ -302,7 +302,7 @@ The returned promise resolves with the callback's result or rejects with its err
 
 ### Request interception in development
 
-Use `instant()` to check what appears before dynamic content arrives. It pauses dynamic server content without intercepting requests.
+To test a loading state, wrap the page load or link click in [`instant()`](#testing-instant-navigations) and assert on the UI inside the callback. This pauses dynamic server content without intercepting requests. The [Instant Navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) shows both cases.
 
 Registering a handler with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) disables the browser's HTTP cache, even if no request matches the handler. Chromium then sends `Cache-Control: no-cache` on every request, including the initial page load. As with a hard refresh, `next dev` [bypasses server caches](/docs/messages/cache-bypass-in-dev) and skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request.
 

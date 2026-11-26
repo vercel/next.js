@@ -8,7 +8,7 @@ While running Next.js in development mode with `next dev`, an initial page load 
 
 This can also happen when [`draftMode`](/docs/app/api-reference/functions/draft-mode) is enabled. Draft Mode is designed to bypass caches so you can preview live or unpublished content before it is published to the cached or prerendered version of your site.
 
-A [Playwright test that intercepts requests](/docs/app/guides/testing/playwright#request-interception-in-development) can also trigger this warning, even if no request matches the handler.
+A [Playwright test that intercepts requests](/docs/app/guides/testing/playwright#request-interception-in-development) can also trigger this warning, even if no request matches the handler. If you're intercepting requests to test a loading state, use [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) instead. If you need interception to mock a response, open the route in a separate browser context without interception to [diagnose a blocking navigation](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
 
 Bypassing caches while in development mode affects the debugging experience of Cache Components and Instant Insights. Next.js skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request, so you won't see the errors or insights it would normally report.
 
