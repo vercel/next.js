@@ -644,7 +644,9 @@ export default abstract class Server<
           this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         durableUseCacheEntries: Boolean(
-          this.nextConfig.experimental.durableUseCacheEntries
+          this.dev
+            ? this.nextConfig.experimental.durableUseCacheEntriesInDev
+            : this.nextConfig.experimental.durableUseCacheEntries
         ),
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,

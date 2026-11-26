@@ -210,7 +210,9 @@ async function requestHandler(
         serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         durableUseCacheEntries: Boolean(
-          nextConfig.experimental.durableUseCacheEntries
+          pageRouteModule.isDev
+            ? nextConfig.experimental.durableUseCacheEntriesInDev
+            : nextConfig.experimental.durableUseCacheEntries
         ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         clientTraceMetadata: nextConfig.experimental.clientTraceMetadata || [],

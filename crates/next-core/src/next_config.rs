@@ -1130,6 +1130,7 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
+    durable_use_cache_entries_in_dev: Option<bool>,
     use_cache_static_root_param_tracking: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
@@ -2468,11 +2469,14 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_durable_use_cache_entries(&self) -> Vc<bool> {
-        // In development, the resolved config sets this from `durableUseCacheEntriesInDev`. It keys
-        // `"use cache"` entries by their code hash instead of the HMR refresh hash, so an edit only
-        // invalidates entries whose code changed.
-        Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
+    pub async fn enable_durable_use_cache_entries(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        // In development this keys `"use cache"` entries by their code hash instead of the HMR
+        // refresh hash, so an edit only invalidates entries whose code changed.
+        let enabled = match *mode.await? {
+            NextMode::Development => self.experimental.durable_use_cache_entries_in_dev,
+            NextMode::Build => self.experimental.durable_use_cache_entries,
+        };
+        Ok(Vc::cell(enabled.unwrap_or(false)))
     }
 
     #[turbo_tasks::function]
