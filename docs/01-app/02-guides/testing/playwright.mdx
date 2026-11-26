@@ -171,7 +171,7 @@ If you're using [Cache Components](/docs/app/api-reference/config/next-config-js
 
 ### Installing the helper
 
-After setting up Playwright above, install `@next/playwright`:
+Add the helper to the package that runs your Playwright checks:
 
 ```bash package="pnpm"
 pnpm add -D @next/playwright
@@ -190,6 +190,8 @@ bun add -D @next/playwright
 ```
 
 With Cache Components enabled, you can use the helper in `next dev` without additional configuration. For `next build` and `next start`, enable the testing API as shown in [Production builds](#production-builds).
+
+You can also pass a `Page` from `playwright` or `playwright-core` to `instant()` in a standalone script. The `@playwright/test` runner is optional.
 
 ### Initial page loads
 

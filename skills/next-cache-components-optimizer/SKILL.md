@@ -189,8 +189,7 @@ of this step; the loop does not assume a pre-existing suite.
 Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
 every platform:
 
-1. **Run the RED and GREEN checks on a production build.** For a quick look
-   while editing, [inspect the prefetched UI on the dev server](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
+1. **Use the dev server while iterating.** Open the source page and [click the destination link inside `instant()`](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation) to check the prefetched UI. Confirm the failing baseline and the final fix on the production test build before shipping the regression test.
 2. **The measured build must expose the testing API.** Otherwise `instant()`
    silently no-ops and the test passes vacuously (see
    `reference/red-test-robustness.md`). The lock-engagement proof is the phase-C
