@@ -3303,7 +3303,7 @@ export async function cache(
     // not be registered for other requests to join. And a draft mode request
     // must not join a pending public fill, because it would be served the
     // published content instead of the draft.
-    const skipCrossRequestDedupe =
+    let skipCrossRequestDedupe =
       (isPrivate && !process.env.__NEXT_DEV_SERVER) || workStore.isDraftMode
 
     try {
@@ -3381,6 +3381,28 @@ export async function cache(
                 cacheHandlerKey = newCacheHandlerKey
                 continue // stream is not used → retry with new key
               }
+            }
+
+            // A consumer that will persist the result in a server cache must
+            // not take over a stale entry from another request's leader. The
+            // leader may have been a request render that served the stale
+            // entry while it revalidates in the background. A direct handler
+            // read would treat it as a miss and regenerate, so do the same
+            // here. Skip cross-request dedupe on the retry so this invocation
+            // becomes the leader without joining or replacing the pending one.
+            if (
+              willConsumerServerCache(workUnitStore) &&
+              performance.timeOrigin + performance.now() >
+                metadata.timestamp + metadata.revalidate * 1000
+            ) {
+              debug?.(
+                logPrefix,
+                'cross-request invocation is stale, regenerating',
+                cacheHandlerKey
+              )
+              cacheSignal?.endRead()
+              skipCrossRequestDedupe = true
+              continue
             }
 
             // Key matches — safe to fork.
