@@ -128,17 +128,12 @@ describe('go-config', () => {
     ])
   })
 
-  it('honors locale prefixes and locale: false', async () => {
-    const { matchers } = await readConfig(
-      ['/dashboard', { source: '/settings', locale: false }],
-      { i18n: { locales: ['en', 'fr'], defaultLocale: 'en' } }
-    )
-    const localized = new RegExp(matchers[0].regexp)
-    expect(localized.test('/fr/dashboard')).toBe(true)
-    expect(localized.test('/dashboard')).toBe(false)
-    const unlocalized = new RegExp(matchers[1].regexp)
-    expect(unlocalized.test('/settings')).toBe(true)
-    expect(unlocalized.test('/fr/settings')).toBe(false)
+  it('rejects i18n configuration because Go proxies only support App Router', async () => {
+    await expect(
+      readConfig('/dashboard', {
+        i18n: { locales: ['en', 'fr'], defaultLocale: 'en' },
+      })
+    ).rejects.toThrow('proxy.go does not support the i18n configuration')
   })
 
   it('rejects ambiguous repeated headers while respecting request-header overrides', async () => {

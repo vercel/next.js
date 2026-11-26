@@ -37,7 +37,7 @@ function invalid(sourcePath: string, error: unknown): Error {
 
 function createGoProxyMatchers(
   matcherOrMatchers: MiddlewareConfigMatcherInput,
-  { basePath, i18n }: Pick<NextConfig, 'basePath' | 'i18n'>
+  { basePath }: Pick<NextConfig, 'basePath'>
 ) {
   const matchers = Array.isArray(matcherOrMatchers)
     ? matcherOrMatchers
@@ -47,17 +47,11 @@ function createGoProxyMatchers(
     const { source: originalSource, ...conditions } =
       typeof matcher === 'string' ? { source: matcher } : matcher
     const isRoot = originalSource === '/'
-    let source = originalSource
-
-    if (i18n?.locales && conditions.locale !== false) {
-      source = `/:nextInternalLocale((?!_next/)[^/.]{1,})${isRoot ? '' : source}`
-    }
-
     // Match the same page through data, RSC, and segment-prefetch requests.
     const suffix = isRoot
-      ? `(${i18n ? '|\\.json|' : ''}/?index|/?index\\.json|/?index(?:${appRouteTransportSuffix}))?`
+      ? `(/?index|/?index\\.json|/?index(?:${appRouteTransportSuffix}))?`
       : `{(\\.json|${appRouteTransportSuffix})}?`
-    source = `${basePath || ''}/:nextData(_next/data/[^/]{1,})?${source}${suffix}`
+    const source = `${basePath || ''}/:nextData(_next/data/[^/]{1,})?${originalSource}${suffix}`
 
     // Expansion can make an otherwise valid literal invalid. Throw so dev can
     // fail closed and recover after an edit without terminating the server.
@@ -106,6 +100,9 @@ export async function readGoProxyConfig(
     proxySchema
   )
   try {
+    if (nextConfig.i18n) {
+      throw new Error('proxy.go does not support the i18n configuration')
+    }
     const matchers = createGoProxyMatchers(matcher ?? '/:path*', nextConfig)
     if (
       isAdapterBuild &&
