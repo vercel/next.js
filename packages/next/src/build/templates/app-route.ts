@@ -63,6 +63,7 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
+  cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
   // The lazy require factory ensures that:
   // - In dev: devRequestTimingInternalsEnd is set before userland executes,
   //   correctly attributing module load time to application-code rather than

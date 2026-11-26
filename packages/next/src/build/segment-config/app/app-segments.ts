@@ -24,6 +24,12 @@ import { isPlainObject } from '../../../shared/lib/is-plain-object'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
+type AppSegmentConfigOptions = {
+  cacheComponents: boolean
+  partialPrefetching: boolean
+  output?: 'standalone' | 'export'
+}
+
 export const PARAM_MATCHING_MODES = [
   'not-found',
   'blocking',
@@ -182,7 +188,7 @@ export type AppSegmentTree = [
  */
 async function collectAppPageSegments(
   routeModule: AppPageRouteModule,
-  config: { cacheComponents: boolean; partialPrefetching: boolean } | undefined
+  config: AppSegmentConfigOptions | undefined
 ) {
   // We keep track of unique segments, since with parallel routes, it's possible
   // to see the same segment multiple times.
@@ -201,7 +207,8 @@ async function collectAppPageSegments(
 
   const ensureStatic = await resolveEnsureStaticConfig(
     rootLoaderTree,
-    routeHasPartialPrefetching
+    routeHasPartialPrefetching,
+    config?.cacheComponents === true && config.output === 'export'
   )
 
   // Queue will store loader trees.
@@ -249,7 +256,11 @@ async function collectAppPageSegments(
         currentVisibleParamNames
       )
 
-      if (segment.config) {
+      if (
+        segment.config ||
+        (config?.cacheComponents && config.output === 'export')
+      ) {
+        segment.config ??= {}
         segment.config.prefetch = prefetchConfig
         segment.config.ensureStatic = ensureStatic
       }
@@ -341,7 +352,7 @@ async function collectAppRouteSegments(routeModule: AppRouteRouteModule) {
  */
 export function collectSegments(
   routeModule: AppRouteRouteModule | AppPageRouteModule,
-  config: { cacheComponents: boolean; partialPrefetching: boolean } | undefined
+  config: AppSegmentConfigOptions | undefined
 ) {
   if (isAppRouteRouteModule(routeModule)) {
     return collectAppRouteSegments(routeModule)
