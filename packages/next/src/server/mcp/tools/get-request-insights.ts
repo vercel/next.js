@@ -1,11 +1,9 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import z from 'next/dist/compiled/zod'
-import type { RequestInsight } from '../../../shared/lib/request-insights'
 import { summarizeRequestInsight } from '../../../shared/lib/request-insights-summary'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
-  readRequestInsightsHistory,
 } from '../../lib/trace/request-insights'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
@@ -18,7 +16,7 @@ export function registerGetRequestInsightsTool(server: McpServer) {
     'get_request_insights',
     {
       description:
-        'List recent Request Insights or inspect a request by ID, including completed requests that have left the in-memory window. Useful for debugging slow renders, server fetches, cache behavior, and request timelines without an external OTEL collector. Requires experimental.requestInsights.',
+        'List recent Request Insights or inspect a request by ID, using the in-memory request window. Useful for debugging slow renders, server fetches, cache behavior, and request timelines without an external OTEL collector. Requires experimental.requestInsights.',
       inputSchema: {
         requestId: z.string().optional(),
         htmlRequestId: z.string().optional(),
@@ -64,7 +62,6 @@ export function registerGetRequestInsightsTool(server: McpServer) {
                   requests: snapshot.requests
                     .slice(-DEFAULT_REQUEST_LIMIT)
                     .map(summarizeRequestInsight),
-                  source: 'memory',
                   hint: 'Pass requestId for a full trace or htmlRequestId for related requests.',
                 },
                 null,
@@ -75,25 +72,10 @@ export function registerGetRequestInsightsTool(server: McpServer) {
         }
       }
 
-      const journalRequests = await readRequestInsightsHistory({
-        requestId: request.requestId,
-        htmlRequestId: request.htmlRequestId,
-        limit:
-          request.htmlRequestId !== undefined
-            ? RELATED_REQUEST_LIMIT + 1
-            : undefined,
-      })
-      const requestsByKey = new Map(
-        journalRequests.map((insight) => [getRequestKey(insight), insight])
-      )
-      for (const insight of memoryRequests) {
-        requestsByKey.set(getRequestKey(insight), insight)
-      }
-      const allRequests = Array.from(requestsByKey.values())
-      let truncated = allRequests.length > RELATED_REQUEST_LIMIT
+      let truncated = memoryRequests.length > RELATED_REQUEST_LIMIT
       const requests = request.htmlRequestId
-        ? allRequests.slice(-RELATED_REQUEST_LIMIT)
-        : allRequests
+        ? memoryRequests.slice(-RELATED_REQUEST_LIMIT)
+        : memoryRequests
       if (request.htmlRequestId) {
         while (
           requests.length > 1 &&
@@ -112,14 +94,6 @@ export function registerGetRequestInsightsTool(server: McpServer) {
             text: JSON.stringify(
               {
                 requests,
-                source:
-                  requests.length === 0
-                    ? 'none'
-                    : memoryRequests.length > 0 && journalRequests.length > 0
-                      ? 'memory-and-journal'
-                      : memoryRequests.length > 0
-                        ? 'memory'
-                        : 'journal',
                 truncated,
               },
               null,
@@ -130,8 +104,4 @@ export function registerGetRequestInsightsTool(server: McpServer) {
       }
     }
   )
-}
-
-function getRequestKey(request: Pick<RequestInsight, 'requestId' | 'kind'>) {
-  return `${request.kind ?? 'request'}:${request.requestId}`
 }

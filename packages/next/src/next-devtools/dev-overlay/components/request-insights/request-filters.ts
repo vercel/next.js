@@ -1,10 +1,12 @@
-import { getRequestInsightKind } from '../../../shared/request-insights'
+import {
+  getRequestInsightKind,
+  type RequestInsight,
+} from '../../../shared/request-insights'
 import {
   getRequestInsightTags,
   matchesRequestInsightFilters,
   REQUEST_INSIGHT_FILTERS,
   type RequestInsightFilter,
-  type RequestInsightListItem,
 } from '../../../shared/request-insights-summary'
 
 export type { RequestInsightFilter } from '../../../shared/request-insights-summary'
@@ -71,14 +73,14 @@ export const REQUEST_INSIGHT_FILTER_GROUPS: readonly RequestInsightFilterGroup[]
   ]
 
 type RequestInsightFilterResult = Readonly<{
-  requests: RequestInsightListItem[]
+  requests: RequestInsight[]
   matchingRequestCount: number
   totalRequestCount: number
   optionCounts: Readonly<Record<RequestInsightFilter, number>>
 }>
 
 export function getRequestInsightFilterResult(
-  requests: readonly RequestInsightListItem[],
+  requests: readonly RequestInsight[],
   activeFilters: readonly RequestInsightFilter[],
   showInternal = false
 ): RequestInsightFilterResult {

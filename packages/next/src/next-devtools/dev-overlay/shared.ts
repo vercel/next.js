@@ -19,6 +19,7 @@ import {
   type RequestInsightDelta,
   type RequestInsightsSnapshot,
 } from '../shared/request-insights'
+import { getLatestPageRequestInsightKeys } from '../shared/request-insights-summary'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -183,22 +184,19 @@ export function updateRequestInsights(
     requests[index] = insight
   }
 
-  let completedCount = requests.reduce(
-    (count, request) => count + (request.completedAt === undefined ? 0 : 1),
-    0
+  const completed = requests.filter(
+    (request) => request.completedAt !== undefined
   )
-  if (completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
+  let excess = completed.length - MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+  if (excess <= 0) {
     return requests
   }
 
+  const retained = getLatestPageRequestInsightKeys(completed)
   return requests.filter((request) => {
-    if (
-      request.completedAt === undefined ||
-      completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
-    ) {
-      return true
-    }
-    completedCount--
+    if (request.completedAt === undefined || excess <= 0) return true
+    if (retained.has(getRequestInsightKey(request))) return true
+    excess--
     return false
   })
 }

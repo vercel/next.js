@@ -1,4 +1,5 @@
 import {
+  getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
   REQUEST_INSIGHT_PROXY_SPAN_TYPE,
@@ -63,40 +64,9 @@ export type RequestInsightSummary = Omit<
   cacheStatuses: Array<'hit' | 'miss' | 'skip'>
 }
 
-export type RequestInsightListItem = RequestInsight | RequestInsightSummary
-
-export type RequestInsightsHistoryPage = {
-  sessionId: string
-  generation: number
-  requests: RequestInsightSummary[]
-  matchingRequestCount: number
-  totalRequestCount: number
-  optionCounts: Record<RequestInsightFilter, number>
-  liveRequestOverlaps?: RequestInsightSummary[]
-  nextCursor?: string
-  truncated: boolean
-}
-
-export function isRequestInsightSummary(
-  request: RequestInsightListItem
-): request is RequestInsightSummary {
-  return 'spanCount' in request
-}
-
 export function summarizeRequestInsight(
   request: RequestInsight
 ): RequestInsightSummary {
-  const cacheStatuses = new Set<'hit' | 'miss' | 'skip'>()
-  for (const fetch of request.fetches) {
-    if (
-      fetch.cacheStatus === 'hit' ||
-      fetch.cacheStatus === 'miss' ||
-      fetch.cacheStatus === 'skip'
-    ) {
-      cacheStatuses.add(fetch.cacheStatus)
-    }
-  }
-
   return {
     requestId: request.requestId,
     kind: request.kind,
@@ -111,90 +81,88 @@ export function summarizeRequestInsight(
     status: request.status,
     spanCount: request.spans.length,
     fetchCount: request.fetches.length,
-    statusCode: getRequestStatusCode(request),
-    isRsc: getRequestIsRsc(request),
-    hasError:
-      request.status === 'error' ||
-      request.spans.some((span) => span.status === 'error' || span.error),
-    hasProxyActivity:
-      getRequestInsightSource(request) === 'proxy' ||
-      request.proxyStatus === 'matched' ||
-      request.spans.some(
-        (span) =>
-          span.attributes?.['next.span_type'] ===
-          REQUEST_INSIGHT_PROXY_SPAN_TYPE
+    statusCode: getRequestInsightStatusCode(request),
+    isRsc: getRequestInsightIsRsc(request),
+    hasError: hasRequestInsightError(request),
+    hasProxyActivity: hasRequestInsightProxyActivity(request),
+    cacheStatuses: [
+      ...new Set(
+        getRequestInsightCacheStatuses(request).filter(
+          (status): status is 'hit' | 'miss' | 'skip' =>
+            status === 'hit' || status === 'miss' || status === 'skip'
+        )
       ),
-    cacheStatuses: [...cacheStatuses],
+    ],
   }
 }
 
-export function getRequestInsightFetchCount(
-  request: RequestInsightListItem
-): number {
-  return isRequestInsightSummary(request)
-    ? request.fetchCount
-    : request.fetches.length
-}
-
-export function getRequestInsightSpanCount(
-  request: RequestInsightListItem
-): number {
-  return isRequestInsightSummary(request)
-    ? request.spanCount
-    : request.spans.length
-}
-
 export function getRequestInsightStatusCode(
-  request: RequestInsightListItem
+  request: RequestInsight
 ): number | undefined {
-  return isRequestInsightSummary(request)
-    ? request.statusCode
-    : getRequestStatusCode(request)
+  return getCanonicalThenAnySpanAttribute(
+    request,
+    'http.status_code',
+    (value): value is number => typeof value === 'number'
+  )
 }
 
 export function getRequestInsightIsRsc(
-  request: RequestInsightListItem
+  request: RequestInsight
 ): boolean | undefined {
-  return isRequestInsightSummary(request)
-    ? request.isRsc
-    : getRequestIsRsc(request)
+  return getCanonicalThenAnySpanAttribute(
+    request,
+    'next.rsc',
+    (value): value is boolean => typeof value === 'boolean'
+  )
 }
 
-export function hasRequestInsightError(
-  request: RequestInsightListItem
-): boolean {
-  return isRequestInsightSummary(request)
-    ? request.hasError
-    : request.status === 'error' ||
-        request.spans.some((span) => span.status === 'error' || span.error)
+/** Keys of the newest RSC and HTML page requests, exempt from window eviction. */
+export function getLatestPageRequestInsightKeys(
+  completedRequests: readonly RequestInsight[]
+): Set<string> {
+  let rsc: string | undefined
+  let html: string | undefined
+  for (let i = completedRequests.length - 1; i >= 0 && !(rsc && html); i--) {
+    const request = completedRequests[i]
+    if (request.source !== 'page') continue
+    const isRsc = getRequestInsightIsRsc(request)
+    if (isRsc === true) rsc ??= getRequestInsightKey(request)
+    else if (isRsc === false) html ??= getRequestInsightKey(request)
+  }
+  const keys = new Set<string>()
+  if (rsc) keys.add(rsc)
+  if (html) keys.add(html)
+  return keys
+}
+
+export function hasRequestInsightError(request: RequestInsight): boolean {
+  return (
+    request.status === 'error' ||
+    request.spans.some((span) => span.status === 'error' || span.error)
+  )
 }
 
 export function hasRequestInsightProxyActivity(
-  request: RequestInsightListItem
+  request: RequestInsight
 ): boolean {
-  return isRequestInsightSummary(request)
-    ? request.hasProxyActivity
-    : getRequestInsightSource(request) === 'proxy' ||
-        request.proxyStatus === 'matched' ||
-        request.spans.some(
-          (span) =>
-            span.attributes?.['next.span_type'] ===
-            REQUEST_INSIGHT_PROXY_SPAN_TYPE
-        )
+  return (
+    getRequestInsightSource(request) === 'proxy' ||
+    request.proxyStatus === 'matched' ||
+    request.spans.some(
+      (span) =>
+        span.attributes?.['next.span_type'] === REQUEST_INSIGHT_PROXY_SPAN_TYPE
+    )
+  )
 }
 
-export function getRequestInsightCacheStatuses(
-  request: RequestInsightListItem
-): readonly string[] {
-  return isRequestInsightSummary(request)
-    ? request.cacheStatuses
-    : request.fetches.flatMap((fetch) =>
-        fetch.cacheStatus ? [fetch.cacheStatus] : []
-      )
+function getRequestInsightCacheStatuses(request: RequestInsight): string[] {
+  return request.fetches.flatMap((fetch) =>
+    fetch.cacheStatus ? [fetch.cacheStatus] : []
+  )
 }
 
 export function getRequestInsightTags(
-  request: RequestInsightListItem
+  request: RequestInsight
 ): Set<RequestInsightFilter> {
   const tags = new Set<RequestInsightFilter>()
   const source = getRequestInsightSource(request)
@@ -254,8 +222,7 @@ export function getRequestInsightTags(
     tags.add('status:http-5xx')
   }
 
-  const fetchCount = getRequestInsightFetchCount(request)
-  if (fetchCount === 0) {
+  if (request.fetches.length === 0) {
     tags.add('fetches:none')
     tags.add('cache:none')
   } else {
@@ -275,7 +242,7 @@ export function getRequestInsightTags(
 }
 
 export function matchesRequestInsightFilters(
-  request: RequestInsightListItem,
+  request: RequestInsight,
   filters: readonly RequestInsightFilter[]
 ): boolean {
   const tags = getRequestInsightTags(request)
@@ -297,22 +264,6 @@ export function matchesRequestInsightFilters(
     }
   }
   return true
-}
-
-function getRequestStatusCode(request: RequestInsight): number | undefined {
-  return getCanonicalThenAnySpanAttribute(
-    request,
-    'http.status_code',
-    (value): value is number => typeof value === 'number'
-  )
-}
-
-function getRequestIsRsc(request: RequestInsight): boolean | undefined {
-  return getCanonicalThenAnySpanAttribute(
-    request,
-    'next.rsc',
-    (value): value is boolean => typeof value === 'boolean'
-  )
 }
 
 function getCanonicalThenAnySpanAttribute<T>(

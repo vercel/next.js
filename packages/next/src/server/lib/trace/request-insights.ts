@@ -20,19 +20,13 @@ import {
   setLocalSpanExporter,
   type SpanStoreRecord,
 } from './span-store'
-import type {
-  RequestInsightFilter,
-  RequestInsightsHistoryPage,
-} from '../../../shared/lib/request-insights-summary'
+import { getLatestPageRequestInsightKeys } from '../../../shared/lib/request-insights-summary'
 import { AppRenderSpan } from './constants'
 export { isRequestInsightsEnabled }
 
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
 const REQUEST_INSIGHTS_STORE_KEY = Symbol.for('@next/request-insights-store')
-const REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY = Symbol.for(
-  `@next/request-insights-history-provider@${process.env.__NEXT_VERSION}`
-)
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
@@ -46,40 +40,6 @@ type RequestInsightIdentity = Readonly<{
   route?: string
   url?: string
 }>
-
-export type RequestInsightsHistoryQuery = {
-  cursor?: string
-  filters?: readonly RequestInsightFilter[]
-  liveRequestKeys?: readonly string[]
-  limit?: number
-  showInternal?: boolean
-}
-
-export type RequestInsightsJournalQuery = {
-  requestId?: string
-  htmlRequestId?: string
-  kind?: RequestInsight['kind']
-  limit?: number
-  indexedOnly?: boolean
-}
-
-export type RequestInsightsHistoryProvider = {
-  append(request: RequestInsight): void
-  appendUpdate?(request: RequestInsight, update: RequestInsightUpdate): void
-  appendArchivedUpdate?(
-    identity: Pick<RequestInsight, 'requestId' | 'kind'>,
-    update: RequestInsightUpdate
-  ): boolean
-  getHistory(
-    query?: RequestInsightsHistoryQuery
-  ): Promise<RequestInsightsHistoryPage>
-  read(query?: RequestInsightsJournalQuery): Promise<RequestInsight[]>
-}
-
-export type RequestInsightUpdate = {
-  span?: RequestInsightSpan
-  fetch?: RequestInsightFetch
-}
 
 const REDACTED_VALUE = 'redacted'
 const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
@@ -134,20 +94,6 @@ class InMemoryRequestInsightsStore {
 
     const recordedSpan = sanitizeRecordedSpan(span)
     const fetch = getFetchInsight(span) ?? undefined
-    const identity = {
-      requestId: span.requestId,
-      kind: span.requestInsightKind,
-    }
-    if (
-      !this.requests.has(getRequestInsightKey(identity)) &&
-      getRequestInsightsHistoryProvider()?.appendArchivedUpdate?.(identity, {
-        span: recordedSpan,
-        fetch,
-      })
-    ) {
-      return
-    }
-
     const insight = this.getOrCreateRequest(
       {
         requestId: span.requestId,
@@ -190,13 +136,7 @@ class InMemoryRequestInsightsStore {
           : insight.status
 
     insight.spans.push(recordedSpan)
-    const addedFetch = fetch && this.recordFetchForInsight(insight, fetch)
-    if (insight.completedAt !== undefined) {
-      getRequestInsightsHistoryProvider()?.appendUpdate?.(insight, {
-        span: recordedSpan,
-        fetch: addedFetch ? fetch : undefined,
-      })
-    }
+    if (fetch) this.recordFetchForInsight(insight, fetch)
 
     if (
       span.durationMs !== undefined &&
@@ -230,19 +170,6 @@ class InMemoryRequestInsightsStore {
     }
 
     const sanitizedFetch = sanitizeFetchInsight(fetch)
-    const requestIdentity = {
-      requestId: identity.requestId,
-      kind: identity.kind,
-    }
-    if (
-      !this.requests.has(getRequestInsightKey(requestIdentity)) &&
-      getRequestInsightsHistoryProvider()?.appendArchivedUpdate?.(
-        requestIdentity,
-        { fetch: sanitizedFetch }
-      )
-    ) {
-      return
-    }
     const fetchStartTime = fetch.startTime ?? getCurrentTimestamp()
     const insight = this.getOrCreateRequest(identity, fetchStartTime)
     if (!insight) {
@@ -251,12 +178,7 @@ class InMemoryRequestInsightsStore {
     if (insight.completedAt === undefined) {
       this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
     }
-    const addedFetch = this.recordFetchForInsight(insight, sanitizedFetch)
-    if (addedFetch && insight.completedAt !== undefined) {
-      getRequestInsightsHistoryProvider()?.appendUpdate?.(insight, {
-        fetch: sanitizedFetch,
-      })
-    }
+    this.recordFetchForInsight(insight, sanitizedFetch)
     this.notify(insight)
   }
 
@@ -424,18 +346,15 @@ class InMemoryRequestInsightsStore {
 
   private recordFetchForInsight(
     insight: RequestInsight,
-    fetch: RequestInsightFetch
-  ): boolean {
+    sanitizedFetch: RequestInsightFetch
+  ): void {
     if (
-      insight.fetches.some((existingFetch) =>
-        isSameRequestInsightFetch(existingFetch, fetch)
+      !insight.fetches.some((existingFetch) =>
+        isSameRequestInsightFetch(existingFetch, sanitizedFetch)
       )
     ) {
-      return false
+      insight.fetches.push(sanitizedFetch)
     }
-
-    insight.fetches.push(sanitizeFetchInsight(fetch))
-    return true
   }
 
   private complete(insight: RequestInsight, completedAt: number): void {
@@ -447,7 +366,6 @@ class InMemoryRequestInsightsStore {
     this.activeRequests.delete(insightKey)
     insight.completedAt = completedAt
     this.completedRequestOrder.push(insightKey)
-    appendCompletedRequestInsight(insight)
 
     const requestIndex = this.requestOrder.indexOf(insightKey)
     if (requestIndex !== -1) {
@@ -455,10 +373,24 @@ class InMemoryRequestInsightsStore {
       this.requestOrder.push(insightKey)
     }
 
+    if (
+      this.completedRequestOrder.length <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+    ) {
+      return
+    }
+    const retained = getLatestPageRequestInsightKeys(
+      this.completedRequestOrder.flatMap((key) => this.requests.get(key) ?? [])
+    )
     while (
       this.completedRequestOrder.length > MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
     ) {
-      const completedInsightKey = this.completedRequestOrder.shift()
+      const evictIndex = this.completedRequestOrder.findIndex(
+        (key) => !retained.has(key)
+      )
+      const [completedInsightKey] = this.completedRequestOrder.splice(
+        evictIndex,
+        1
+      )
       if (completedInsightKey) {
         this.requests.delete(completedInsightKey)
         this.requestTimings.delete(completedInsightKey)
@@ -500,53 +432,6 @@ function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
     events: sanitizeSpanEvents(span.events),
     error: span.error,
   }
-}
-
-function appendCompletedRequestInsight(insight: RequestInsight): void {
-  if (process.env.__NEXT_DEV_SERVER) {
-    if (process.env.__NEXT_REQUEST_INSIGHTS) {
-      getRequestInsightsHistoryProvider()?.append(insight)
-    }
-  } else {
-    return
-  }
-}
-
-export function configureRequestInsightsHistoryProvider(
-  provider: RequestInsightsHistoryProvider
-): void {
-  const globalStore = globalThis as typeof globalThis & {
-    [REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]?: RequestInsightsHistoryProvider
-  }
-  globalStore[REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY] = provider
-}
-
-export function clearRequestInsightsHistoryProvider(): void {
-  const globalStore = globalThis as typeof globalThis & {
-    [REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]?: RequestInsightsHistoryProvider
-  }
-  delete globalStore[REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]
-}
-
-export async function getRequestInsightsHistory(
-  query: RequestInsightsHistoryQuery = {}
-): Promise<RequestInsightsHistoryPage | undefined> {
-  return getRequestInsightsHistoryProvider()?.getHistory(query)
-}
-
-export async function readRequestInsightsHistory(
-  query: RequestInsightsJournalQuery = {}
-): Promise<RequestInsight[]> {
-  return (await getRequestInsightsHistoryProvider()?.read(query)) ?? []
-}
-
-function getRequestInsightsHistoryProvider():
-  | RequestInsightsHistoryProvider
-  | undefined {
-  const globalStore = globalThis as typeof globalThis & {
-    [REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]?: RequestInsightsHistoryProvider
-  }
-  return globalStore[REQUEST_INSIGHTS_HISTORY_PROVIDER_KEY]
 }
 
 function refineSource(

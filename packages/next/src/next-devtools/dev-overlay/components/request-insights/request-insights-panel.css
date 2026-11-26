@@ -429,19 +429,11 @@
   min-width: 0;
 }
 
-.request-insights-list-virtual-row,
-.request-insights-history-status {
+.request-insights-list-virtual-row {
   position: absolute;
   top: 0;
   right: 0;
   left: 0;
-}
-
-.request-insights-history-status,
-.request-insights-details-loading {
-  padding: 8px 10px;
-  color: var(--color-gray-800);
-  font-size: var(--size-11);
 }
 
 .request-insights-row:hover,
