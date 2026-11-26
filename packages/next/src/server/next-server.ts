@@ -1941,10 +1941,38 @@ export default class NextNodeServer extends BaseServer<
       /* non-fatal we can't decode so can't match it */
     }
 
+    // `parsed.pathname` may carry a trailing slash (e.g. `/ja/` when
+    // `i18n` infers the default locale and `trailingSlash` is enabled),
+    // while `normalizedPathname` strips it. Matchers like `/(.*)` compile
+    // to a required `/(.*)` segment after the locale prefix, so they only
+    // match the trailing-slash form, whereas `/:path*` compiles to an
+    // optional segment and matches both. The earlier `resolve-routes`
+    // check matches the trailing-slash form, so try both here to stay
+    // consistent instead of returning an empty 200 via `handleFinished()`.
+    const trailingSlashPathname =
+      normalizedPathname.endsWith('/') || normalizedPathname === ''
+        ? normalizedPathname
+        : `${normalizedPathname}/`
+    let maybeDecodedTrailingSlashPathname = trailingSlashPathname
+
+    try {
+      maybeDecodedTrailingSlashPathname = decodeURIComponent(
+        trailingSlashPathname
+      )
+    } catch {
+      /* non-fatal we can't decode so can't match it */
+    }
+
     if (
       !(
         middleware.match(normalizedPathname, req, parsedUrl.query) ||
-        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+        middleware.match(maybeDecodedPathname, req, parsedUrl.query) ||
+        middleware.match(trailingSlashPathname, req, parsedUrl.query) ||
+        middleware.match(
+          maybeDecodedTrailingSlashPathname,
+          req,
+          parsedUrl.query
+        )
       )
     ) {
       return handleFinished()
