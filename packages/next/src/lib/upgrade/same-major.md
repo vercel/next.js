@@ -17,3 +17,6 @@ follow a major-version migration guide for this same-major update.
 
 - [ ] After verifying the version update and any requested Future Defaults
       adoption, return to `shared.md` and complete its delivery checklist.
+
+- [ ] For a scheduled upgrade, skip delivery and leave the changes in the
+      checkout for the workflow.

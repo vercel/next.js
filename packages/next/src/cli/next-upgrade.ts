@@ -2,7 +2,7 @@ import { spawn } from 'child_process'
 import { randomUUID } from 'crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { dirname, join, resolve as resolvePath } from 'path'
+import { dirname, isAbsolute, join, resolve as resolvePath } from 'path'
 import { major, prerelease, valid } from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
@@ -158,6 +158,11 @@ export async function spawnNextUpgrade(
   let baseDir = resolvePath(directory || '.')
 
   if (options.agent) {
+    const scheduledHandoff = process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
+    const scheduledGuides = process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_HANDOFF
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_GUIDES
+
     // Match dev/build's telemetry storage, including custom output directories in CI.
     // Retain config errors until after recording the invocation so failed runs still count.
     let distDir = '.next'
@@ -170,9 +175,13 @@ export async function spawnNextUpgrade(
       baseDir = getProjectDir(directory, false)
       warnMissingReactDependencies(baseDir)
 
-      const config = await loadAgentUpgradeConfig(baseDir)
-      distDir = config.distDir || '.next'
-      configuredPolicy = config.experimental?.agentUpgrade
+      // Scheduled runs take the policy from the workflow, so they never load
+      // the app config, which can run app code and require local .env files.
+      if (scheduledHandoff === undefined) {
+        const config = await loadAgentUpgradeConfig(baseDir)
+        distDir = config.distDir || '.next'
+        configuredPolicy = config.experimental?.agentUpgrade
+      }
 
       // Capture the app and runtime before delegation or an agent changes dependencies.
       packageManager = getPkgManager(baseDir)
@@ -285,6 +294,17 @@ export async function spawnNextUpgrade(
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
+      if (
+        scheduledHandoff !== undefined &&
+        (!expectedVersion ||
+          !isAbsolute(scheduledHandoff) ||
+          !scheduledGuides ||
+          !isAbsolute(scheduledGuides))
+      ) {
+        throw new Error(
+          'A scheduled upgrade requires an exact CLI version and absolute handoff and guide paths.'
+        )
+      }
 
       if (expectedVersion !== undefined) {
         // Delegated upgrades and evals use their pinned CLI without another lookup.
@@ -368,6 +388,16 @@ export async function spawnNextUpgrade(
       }
       resolvedPolicy = upgradeType
 
+      if (
+        scheduledHandoff !== undefined &&
+        options.agent !== 'security' &&
+        options.agent !== 'latest'
+      ) {
+        throw new Error(
+          'Scheduled upgrades require the explicit security or latest policy.'
+        )
+      }
+
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
         require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
@@ -375,6 +405,49 @@ export async function spawnNextUpgrade(
       const result = await prepareUpgrade(baseDir, upgradeType).finally(() =>
         assessmentSpinner?.stop()
       )
+
+      // The pinned CLI bundles guides only up to its own major version.
+      const pinnedMajor = major(process.env.__NEXT_VERSION ?? '0.0.0')
+      const scheduledResult =
+        scheduledHandoff !== undefined &&
+        result.status === 'ready' &&
+        major(result.targetVersion) > pinnedMajor
+          ? {
+              status: 'blocked' as const,
+              reason: `Next.js ${result.targetVersion} needs the scheduled upgrade workflow from a Next.js ${major(result.targetVersion)} release. Update the pinned commit in the workflow file.`,
+            }
+          : result
+
+      // Scheduled runs report the assessment to the workflow, which decides
+      // whether an agent starts.
+      if (
+        scheduledHandoff !== undefined &&
+        scheduledResult.status !== 'ready'
+      ) {
+        failureStage = 'handoff'
+        await writeFile(
+          scheduledHandoff,
+          JSON.stringify({
+            status:
+              scheduledResult.status === 'blocked' ||
+              scheduledResult.status === 'unknown'
+                ? scheduledResult.status
+                : 'unaffected',
+            reason: scheduledResult.reason,
+          }),
+          { flag: 'wx' }
+        )
+        recordCLIResult(
+          scheduledResult.status === 'blocked'
+            ? 'no_safe_target'
+            : scheduledResult.status === 'unknown'
+              ? 'metadata_failure'
+              : 'no_update_needed',
+          null,
+          null
+        )
+        return
+      }
 
       // Expected assessment failures retain their status and stop before handoff.
       if (result.status === 'blocked' || result.status === 'unknown') {
@@ -414,7 +487,13 @@ export async function spawnNextUpgrade(
       failureStage = 'guide'
       const bundledDocs = join(__dirname, '../docs')
       const bundledGuides = join(__dirname, '../lib/upgrade')
-      const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
+      // Scheduled runs write the guides where the workflow's agent user can
+      // read them, and the workflow removes them.
+      const runDirectory =
+        scheduledHandoff !== undefined
+          ? scheduledGuides!
+          : await mkdtemp(join(tmpdir(), 'next-upgrade-'))
+      await mkdir(runDirectory, { recursive: true })
       const guideName = crossesMajor
         ? 'different-major'
         : needsVersionUpdate
@@ -491,7 +570,14 @@ export async function spawnNextUpgrade(
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
-          const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
+          // A scheduled run assesses an npm app before the agent user takes
+          // over, so it never probes a package manager, which can run
+          // repository code such as Yarn's `yarnPath`.
+          const runner =
+            scheduledHandoff === undefined
+              ? getNpxCommand(baseDir)
+              : 'npx --yes'
+          const codemodCommand = `${runner} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
           const guide = await readFile(guidePath, 'utf8')
           if (!guide.includes(CODEMOD_COMMAND_PLACEHOLDER)) {
             throw new Error('Could not prepare the upgrade guide.')
@@ -502,7 +588,10 @@ export async function spawnNextUpgrade(
           )
         }
       } catch (error) {
-        await rm(runDirectory, { recursive: true, force: true })
+        // The workflow owns a scheduled run's guide directory and removes it.
+        if (scheduledHandoff === undefined) {
+          await rm(runDirectory, { recursive: true, force: true })
+        }
         throw error
       } finally {
         guidesSpinner?.stop()
@@ -578,6 +667,30 @@ export async function spawnNextUpgrade(
       const taskSummary = needsVersionUpdate
         ? `We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because ${reason}.`
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
+
+      if (scheduledHandoff !== undefined) {
+        const prompt = `Read ${JSON.stringify(sharedGuidePath)} and ${JSON.stringify(guidePath)}. This is a scheduled upgrade. Follow the scheduled-upgrade instructions in these guides.
+
+${taskSummary}
+
+Use the current checkout and leave the verified changes there. The workflow handles GitHub operations. Do not create a worktree, commit, push, open a pull request, or set experimental.agentUpgrade. The workflow discards the whole result if it changes anything under .github or .gitmodules, adds a symlink or submodule, or changes a file mode, so leave those as they are.
+
+References:
+${references}`
+        failureStage = 'handoff'
+        await writeFile(
+          scheduledHandoff,
+          JSON.stringify({
+            status: 'ready',
+            installedVersion: result.installedVersion,
+            targetVersion: result.targetVersion,
+            prompt,
+          }),
+          { flag: 'wx' }
+        )
+        recordCLIResult('handoff_issued', null, null)
+        return
+      }
 
       // Use the invoking CLI's reporter even after the app's Next.js package changes.
       const reportCommand = `${getNpxCommand(baseDir)} next@${process.env.__NEXT_VERSION} internal report-agent-upgrade ${runId}`

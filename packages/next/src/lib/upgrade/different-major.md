@@ -37,9 +37,11 @@ Canary installations support `latest` and `experimental-future` without advisory
 - [ ] Complete the codemod's manual steps, resolve its review markers, and
       complete every applicable migration item. Keep only changes required by
       the final target.
-- [ ] Set `experimental.agentUpgrade` to the policy specified in the
-      prompt, preserving unrelated configuration. If the target Next.js version
-      does not support this option, skip the setting and report why.
+- [ ] For interactive upgrades, set `experimental.agentUpgrade` to the policy
+      specified in the prompt, preserving unrelated configuration. If the target
+      Next.js version does not support this option, skip the setting and report
+      why. For scheduled upgrades, keep the policy in the workflow and leave
+      this setting unchanged.
 
 ## 3. Verify
 
@@ -56,3 +58,6 @@ Canary installations support `latest` and `experimental-future` without advisory
 
 - [ ] After verifying the migration and any requested Future Defaults adoption,
       return to `shared.md` and complete its delivery checklist.
+
+- [ ] For a scheduled upgrade, skip delivery and leave the changes in the
+      checkout for the workflow.

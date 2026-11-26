@@ -18,3 +18,6 @@ installed and target Next.js versions differ, complete the version guide first.
 
 - [ ] After verifying the adoption, return to `shared.md` and complete its
       delivery checklist.
+
+- [ ] For a scheduled upgrade, skip delivery and leave the changes in the
+      checkout for the workflow.

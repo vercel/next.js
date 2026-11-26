@@ -53,6 +53,7 @@ export function getCodexModels(
   path: string,
   cwd: string,
   signal?: AbortSignal,
+  onFailure?: () => void,
   env?: NodeJS.ProcessEnv
 ) {
   return discoverModels(
@@ -61,6 +62,7 @@ export function getCodexModels(
     ['app-server'],
     cwd,
     signal,
+    onFailure,
     (send, complete) => {
       const initializeId = randomUUID()
       let listId: string | undefined
@@ -137,6 +139,7 @@ export function getClaudeModels(
   path: string,
   cwd: string,
   signal?: AbortSignal,
+  onFailure?: () => void,
   env?: NodeJS.ProcessEnv
 ) {
   return discoverModels(
@@ -153,6 +156,7 @@ export function getClaudeModels(
     ],
     cwd,
     signal,
+    onFailure,
     (send, complete) => {
       const initializeId = randomUUID()
       return {
@@ -202,8 +206,29 @@ export function getHarnessModels(
   env?: NodeJS.ProcessEnv
 ): Promise<UpgradeModel[] | null> {
   return name === 'codex'
-    ? getCodexModels(path, cwd, signal, env)
-    : getClaudeModels(path, cwd, signal, env)
+    ? getCodexModels(path, cwd, signal, undefined, env)
+    : getClaudeModels(path, cwd, signal, undefined, env)
+}
+
+// Scheduled upgrades pick the entry next upgrade --agent highlights by default.
+// An empty catalog means no --model. A failed discovery throws instead.
+export async function getDefaultHarnessModel(
+  name: 'codex' | 'claude',
+  path: string,
+  cwd: string
+): Promise<string | null> {
+  let failed = false
+  const onFailure = () => {
+    failed = true
+  }
+  const models =
+    name === 'codex'
+      ? await getCodexModels(path, cwd, undefined, onFailure)
+      : await getClaudeModels(path, cwd, undefined, onFailure)
+  if (failed || models === null) {
+    throw new Error(`${name} model discovery failed`)
+  }
+  return (models.find(({ isDefault }) => isDefault) ?? models[0])?.id ?? null
 }
 
 // null means discovery was cancelled, rather than an unavailable catalog.
@@ -213,6 +238,7 @@ async function discoverModels(
   args: string[],
   cwd: string,
   signal: AbortSignal | undefined,
+  onFailure: (() => void) | undefined,
   createProtocol: (
     send: (message: unknown) => void,
     complete: (models: UpgradeModel[]) => void
@@ -232,6 +258,7 @@ async function discoverModels(
     })
   } catch {
     debug('%s model discovery failed: could not start CLI', name)
+    onFailure?.()
     return []
   }
 
@@ -259,7 +286,15 @@ async function discoverModels(
       stopping = true
       result = value
       clearTimeout(timeout)
-      if (reason) debug('%s model discovery failed: %s', name, reason)
+      if (reason) {
+        debug('%s model discovery failed: %s', name, reason)
+        if (
+          value !== null &&
+          value.length === 0 &&
+          reason !== 'no usable models'
+        )
+          onFailure?.()
+      }
       child.stdin?.end()
       killGroup('SIGTERM')
       killTimer = setTimeout(() => killGroup('SIGKILL'), 250)
@@ -315,7 +350,10 @@ async function discoverModels(
       process.removeListener('SIGTERM', interrupt)
       process.removeListener('SIGHUP', interrupt)
       signal?.removeEventListener('abort', interrupt)
-      if (!stopping) debug('%s model discovery failed: CLI exited early', name)
+      if (!stopping) {
+        debug('%s model discovery failed: CLI exited early', name)
+        onFailure?.()
+      }
       resolve(result)
     })
     child.once('spawn', protocol.initialize)
