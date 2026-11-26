@@ -157,6 +157,20 @@ function hasRSCSegment(url: string) {
     })
 }
 
+// proxy.ts reparses suffix-exposed dot segments before Proxy runs. proxy.go
+// rejects them because downstream Go routing receives the original URL.
+function hasRSCExposedDotSegment(path: string) {
+  const pathname = new URL('http://example.test' + path).pathname
+  const segmentIndex = pathname.lastIndexOf('.segments/')
+  const withoutSuffix =
+    pathname.endsWith('.segment.rsc') && segmentIndex > 0
+      ? pathname.slice(0, segmentIndex)
+      : pathname.replace(/\.rsc$/, '')
+  return (
+    new URL('http://example.test' + withoutSuffix).pathname !== withoutSuffix
+  )
+}
+
 // proxy.go keeps query values ending in .rsc, does not promote client nxtP and
 // nxtI names, and authorizes segment prefetches as their page. proxy.ts does
 // none of these. These cases are asserted separately.
@@ -277,6 +291,7 @@ describe('proxy.go request URLs', () => {
       for (const [i, path] of cases.entries()) {
         const go = goResults[i]
         if (!go) continue
+        const exposesDotSegment = hasRSCExposedDotSegment(path)
         for (const nextConfig of configs) {
           compared++
           const expected = await proxyTsURL(
@@ -285,7 +300,9 @@ describe('proxy.go request URLs', () => {
             skipProxyUrlNormalize
           )
           const rejected = go[2] === '404'
-          if (rejected !== hasRSCSegment(expected ?? '')) {
+          if (
+            rejected !== (exposesDotSegment || hasRSCSegment(expected ?? ''))
+          ) {
             mismatches.push({ path, nextConfig, expected, go })
           } else if (
             !rejected &&
@@ -365,6 +382,23 @@ describe('proxy.go request URLs', () => {
         ['/page.segments/_tree.segment.rsc', '/page'],
         ['/page.segments/$c$children/__PAGE__.segment.rsc', '/page'],
         ['/a/private.rsc', '/a/private'],
+        ['/a/private/page...rsc', '/a/private/page..'],
+        ['/a/private/....rsc', '/a/private/...'],
+        // Rejected: suffix removal must not expose a dot segment that reparsing
+        // resolves before Proxy authorizes the request.
+        ['/a/private/...rsc', null],
+        ['/a/private/..rsc', null],
+        ['/a/private/.%2e.rsc', null],
+        ['/a/private/%2e..rsc', null],
+        ['/a/private/%2e%2e.rsc', null],
+        ['/a/private/%2E%2E.rsc', null],
+        ['/a/private/..segments/_tree.segment.rsc', null],
+        ['/a/private/...segments/_tree.segment.rsc', null],
+        ['/a/private/.%2e.segments/_tree.segment.rsc', null],
+        ['/a/private/%2e.segments/_tree.segment.rsc', null],
+        ['/a/private/%2e..segments/_tree.segment.rsc', null],
+        ['/a/private/%2e%2e.segments/_tree.segment.rsc', null],
+        ['/a/private/%2E%2E.segments/_tree.segment.rsc', null],
         // Rejected: the handler would receive private or private.rsc.
         ['/a/private%2Ersc', null],
         ['/a/private%2ersc', null],
@@ -398,6 +432,9 @@ describe('proxy.go request URLs', () => {
       '/page?' + '&'.repeat(4096),
       '/docs/a/private%2Ersc',
       '/docs/a/private.rsc.rsc',
+      '/docs/a/private/...rsc',
+      '/docs/a/private/%2e%2e.rsc',
+      '/docs/a/private/...segments/_tree.segment.rsc',
       '/docs/a/private.rsc',
     ]
     expect(
@@ -407,6 +444,9 @@ describe('proxy.go request URLs', () => {
       ['404', ''],
       ['404', ''],
       ['414', ''],
+      ['404', ''],
+      ['404', ''],
+      ['404', ''],
       ['404', ''],
       ['404', ''],
       ['200', '/docs/a/private'],

@@ -199,9 +199,16 @@ func nextGoNormalizeURL(r *http.Request) bool {
 	target, _, _ = strings.Cut(target, "#")
 	rawPath, rawQuery, hasQuery := strings.Cut(target, "?")
 	path := nextGoParsePath(rawPath)
-	// Assigning URL.pathname reparses dot segments, including ones exposed by
-	// removing a transport suffix, such as /a/...rsc becoming /a/.. and then /.
-	path = nextGoParsePath(nextGoNormalizeRSCPath(path))
+	path = nextGoNormalizeRSCPath(path)
+	// Assigning URL.pathname reparses dot segments. If removing a transport
+	// suffix exposes one, such as /a/...rsc becoming /a/.. and then /, the proxy
+	// could authorize the parent while an adapter routes the original path to a
+	// protected handler. Reject literal and percent-encoded forms instead.
+	reparsedPath := nextGoParsePath(path)
+	if reparsedPath != path {
+		return false
+	}
+	path = reparsedPath
 	if nextGoIsDataPath(path) || nextGoHasRSCSegment(path) {
 		return false
 	}
