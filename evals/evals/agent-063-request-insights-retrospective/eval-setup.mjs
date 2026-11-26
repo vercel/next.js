@@ -1,10 +1,13 @@
 import {
   closeSync,
+  mkdtempSync,
   openSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 
 const collector = spawn(process.execPath, ['-'], {
@@ -41,23 +44,21 @@ await retry(async () => {
 
 // Not startNextServer: its readiness probe of `/` 404s here and would become
 // the first request, absorbing compilation and instrumentation cost.
-const logPath = '/tmp/agent-063-next-dev.log'
-const log = openSync(logPath, 'w')
-const next = spawn(
-  process.execPath,
-  ['node_modules/next/dist/bin/next', 'dev', '--port', '3100'],
-  {
-    detached: true,
-    stdio: ['ignore', log, log],
-    env: {
-      ...process.env,
-      NEXT_TELEMETRY_DISABLED: '1',
-      EVAL_REQUEST_INSIGHTS: '1',
-      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:4318',
-      REPORT_SERVICE_URL: 'http://127.0.0.1:4318',
-    },
-  }
-)
+const nextBin = 'node_modules/next/dist/bin/next'
+const logDirectory = mkdtempSync(join(tmpdir(), 'agent-063-'))
+const logPath = join(logDirectory, 'next-dev.log')
+const log = openSync(logPath, 'wx', 0o600)
+const next = spawn(process.execPath, [nextBin, 'dev', '--port', '3100'], {
+  detached: true,
+  stdio: ['ignore', log, log],
+  env: {
+    ...process.env,
+    NEXT_TELEMETRY_DISABLED: '1',
+    EVAL_REQUEST_INSIGHTS: '1',
+    OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:4318',
+    REPORT_SERVICE_URL: 'http://127.0.0.1:4318',
+  },
+})
 next.unref()
 closeSync(log)
 
@@ -65,6 +66,7 @@ await retry(async () => {
   const output = readFileSync(logPath, 'utf8')
   if (!output.includes('Ready in')) throw new Error('dev server is not ready')
 }, 60_000)
+rmSync(logDirectory, { recursive: true, force: true })
 
 const response = await fetch('http://127.0.0.1:3100/reports')
 await response.text()
