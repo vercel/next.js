@@ -161,7 +161,7 @@ export default async function sitemap() {
 }
 ```
 
-The date is captured when the sitemap is prerendered and is reused until the sitemap is regenerated. With the `max` profile, Next.js regenerates the sitemap in the background on the first request after 30 days. Choose a shorter [preset profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) if your URLs change more often.
+With the `max` profile, Next.js reuses the date for 30 days, then regenerates the sitemap in the background on the next request. Choose a shorter [preset profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) if your URLs change more often.
 
 The current date is one of the [random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps) that are not prerendered, along with `Date.now()`, `Math.random()`, and `crypto.randomUUID()`. A sitemap is also generated on every request when it fetches data without caching it, such as a list of posts from a CMS. The `use cache` directive covers all of these cases.
 
