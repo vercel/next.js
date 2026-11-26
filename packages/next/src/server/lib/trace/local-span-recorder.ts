@@ -536,9 +536,15 @@ export class LocalRecordingSpan implements Span {
   }
 
   recordError(error: unknown): void {
-    if (this.onError) this.onError(this, error)
-    else {
-      this.recordException(error as Error)
+    try {
+      if (this.onError) this.onError(this, error)
+      else {
+        this.recordException(error as Error)
+        this.setStatus({ code: SPAN_STATUS_ERROR })
+      }
+    } catch {
+      // A throwing getter on the error must not replace the error the caller
+      // rethrows.
       this.setStatus({ code: SPAN_STATUS_ERROR })
     }
   }

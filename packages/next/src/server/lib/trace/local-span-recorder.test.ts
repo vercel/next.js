@@ -277,6 +277,26 @@ describe('local recording span', () => {
     ])
   })
 
+  it('rethrows the original error when reading it throws', async () => {
+    const error = Object.defineProperty(new Error(), 'message', {
+      get() {
+        throw new Error('diagnostic')
+      },
+    })
+
+    await expect(
+      traceLocalSpan({ name: 'test.local-span.hostile-error' }, async () => {
+        throw error
+      })
+    ).rejects.toBe(error)
+    expect(spanRecords).toEqual([
+      expect.objectContaining({
+        name: 'test.local-span.hostile-error',
+        status: 'error',
+      }),
+    ])
+  })
+
   it('can start a detached trace inside an active local span', async () => {
     await traceLocalSpan({ name: 'foreground' }, async () => {
       await traceLocalSpan(
