@@ -634,13 +634,6 @@ export default function LinkComponent(
         }, [prefetchStage])
       : undefined
 
-  // With `legacyBehavior`, `download` is set on the child instead of `<Link>`.
-  // React omits the attribute when the value is `false`, `null`, or `undefined`.
-  const download: unknown = legacyBehavior
-    ? child?.props?.download
-    : (restProps as React.AnchorHTMLAttributes<HTMLAnchorElement>).download
-  const hasDownloadProp = download != null && download !== false
-
   // Use a callback ref to attach an IntersectionObserver to the anchor tag on
   // mount. In the future we will also use this to keep track of all the
   // currently mounted <Link> instances, e.g. so we can re-prefetch them after
@@ -653,14 +646,7 @@ export default function LinkComponent(
           formattedHref,
           router,
           prefetchStage,
-          // A click on a link with a `download` attribute is left to the
-          // browser (see `linkClicked`), so it never becomes a client-side
-          // navigation and there is nothing to prefetch. Its target is usually
-          // a Route Handler, which a prefetch request would run. The element
-          // check also covers a custom `legacyBehavior` child that sets it.
-          prefetchEnabled &&
-            !hasDownloadProp &&
-            !element.hasAttribute('download'),
+          prefetchEnabled,
           setOptimisticLinkStatus,
           ownerStack
         )
@@ -681,7 +667,6 @@ export default function LinkComponent(
       prefetchStage,
       setOptimisticLinkStatus,
       ownerStack,
-      hasDownloadProp,
     ]
   )
 
