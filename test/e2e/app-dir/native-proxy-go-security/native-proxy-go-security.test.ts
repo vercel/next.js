@@ -136,6 +136,11 @@ describe('native proxy authorization', () => {
 
 type CapturedOutputs = {
   middleware: { filePath: string }
+  appRoutes: Array<{
+    pathname: string
+    runtime: string
+    filePath: string
+  }>
   prerenders: Array<{
     pathname: string
     fallback?: { filePath?: string }
@@ -158,8 +163,10 @@ describe('adapter Go proxy authorization', () => {
     serverReadyPattern: /Adapter server ready/,
   })
   let child: ChildProcess | undefined
+  let goRouteChild: ChildProcess | undefined
   let binaryDirectory: string | undefined
   let origin: string
+  let goRouteOrigin: string
   let outputs: CapturedOutputs
 
   beforeAll(async () => {
@@ -197,13 +204,45 @@ describe('adapter Go proxy authorization', () => {
         (await fetch(`${origin}/docs/`)).headers.get('x-middleware-next')
       ).toBe('1')
     })
+
+    const goRoute = outputs.appRoutes.find(
+      (output) => output.pathname === '/docs/native-security/go/[...name]'
+    )
+    if (!goRoute || goRoute.runtime !== 'go') {
+      throw new Error('Missing adapter-built Go route')
+    }
+    const goRouteBinary = join(
+      binaryDirectory,
+      process.platform === 'win32' ? 'route.exe' : 'route'
+    )
+    await copyFile(goRoute.filePath, goRouteBinary)
+    await chmod(goRouteBinary, 0o755)
+    const goRoutePort = await findPort()
+    const goRouteEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      PORT: String(goRoutePort),
+    }
+    delete goRouteEnv.__NEXT_GO_TOKEN
+    goRouteChild = spawn(goRouteBinary, [], {
+      cwd: binaryDirectory,
+      env: goRouteEnv,
+      stdio: 'inherit',
+    })
+    goRouteOrigin = `http://127.0.0.1:${goRoutePort}`
+    await retry(async () => {
+      expect(
+        (await fetchViaRawHttp(goRouteOrigin, '/unmatched-readiness')).status
+      ).toBe(404)
+    })
   }, coldGoBuildTimeout)
 
   afterAll(async () => {
-    if (child && child.exitCode === null) {
-      const exited = once(child, 'exit')
-      child.kill()
-      await exited
+    for (const childProcess of [child, goRouteChild]) {
+      if (childProcess && childProcess.exitCode === null) {
+        const exited = once(childProcess, 'exit')
+        childProcess.kill()
+        await exited
+      }
     }
     if (binaryDirectory) {
       await rm(binaryDirectory, { recursive: true, force: true })
@@ -222,8 +261,36 @@ describe('adapter Go proxy authorization', () => {
     if (filePath) {
       return new Response(new Uint8Array(await readFile(filePath)))
     }
+    if (rawPath.startsWith('/docs/native-security/go/')) {
+      // Adapters dispatch the original URL to the emitted Go route after Proxy
+      // continues, rather than the pathname Proxy normalized for authorization.
+      return fetchViaRawHttp(goRouteOrigin, rawPath)
+    }
     return fetchViaRawHttp(next.url, rawPath)
   }
+
+  it('rejects RSC suffixes that expose dot segments before Go routing', async () => {
+    for (const path of [
+      '/native-security/go/private/...rsc',
+      '/native-security/go/private/.%2e.rsc',
+      '/native-security/go/private/%2e..rsc',
+      '/native-security/go/private/%2e%2e.rsc',
+      '/native-security/go/private/...segments/_tree.segment.rsc',
+      '/native-security/go/private/%2e%2e.segments/_tree.segment.rsc',
+    ]) {
+      await expectRejected(await requestAdapter(path), path)
+    }
+    const protectedResponse = await requestAdapter(
+      '/native-security/go/private/value'
+    )
+    expect(protectedResponse.status).toBe(403)
+    const response = await requestAdapter('/native-security/go/public/value')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      name: ['public', 'value'],
+      secret: false,
+    })
+  })
 
   it('preserves query authorization through downstream handler invocation', async () => {
     await expectQueryAuthorization(requestAdapter)
