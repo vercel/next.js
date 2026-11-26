@@ -945,6 +945,35 @@ describe('request insights', () => {
     expect(JSON.stringify(getRequestInsightsSnapshot())).not.toContain(secret)
   })
 
+  it('drops URL credentials and query strings from OpenTelemetry spans', () => {
+    process.env.__NEXT_DEV_SERVER = 'true'
+    startRequestInsight({ requestId: 'req_otel_urls' })
+
+    recordStoreSpan({
+      category: 'opentelemetry',
+      name: 'fetch GET https://user:pass@api.example.com/v1?api_key=secret',
+      requestId: 'req_otel_urls',
+      startTime: 100,
+      durationMs: 5,
+      attributes: {
+        'url.full': 'https://user:pass@api.example.com/v1?api_key=secret',
+        'url.query': 'api_key=secret',
+        'http.target': '/v1?api_key=secret',
+        'db.statement': 'SELECT * FROM users WHERE id = ?',
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests[0].spans[0]).toMatchObject({
+      name: 'fetch GET https://api.example.com/v1?query=redacted',
+      attributes: {
+        'url.full': 'https://api.example.com/v1?query=redacted',
+        'url.query': 'redacted',
+        'http.target': '/v1?query=redacted',
+        'db.statement': 'SELECT * FROM users WHERE id = ?',
+      },
+    })
+  })
+
   it('only exposes bounded URLs without query payloads', () => {
     process.env.__NEXT_DEV_SERVER = 'true'
 

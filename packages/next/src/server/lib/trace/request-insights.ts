@@ -43,6 +43,10 @@ type RequestInsightIdentity = Readonly<{
 }>
 
 const REDACTED_VALUE = 'redacted'
+// The scheme can only start a run of scheme characters, so long runs like
+// `a-a-a…` are scanned once instead of once per position.
+const ABSOLUTE_URL_IN_TEXT =
+  /(?<![a-z\d+.-])[a-z][a-z\d+.-]{0,31}:\/\/[^\s"'<>]+/gi
 const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'http.method',
   'http.route',
@@ -441,8 +445,7 @@ function nameRequestSpan(span: RequestInsightSpan, route: string): void {
 
 function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
   // Spans from the user's own OpenTelemetry SDK are opted in by registering
-  // the processor, and Request Insights is in-memory and loopback-only, so they
-  // keep every attribute.
+  // the processor, so they keep every attribute apart from URL secrets.
   const isUserOpenTelemetrySpan = span.category === 'opentelemetry'
   return {
     name: sanitizeSpanName(span),
@@ -454,7 +457,11 @@ function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     ...(isUserOpenTelemetrySpan
-      ? { attributes: span.attributes, links: span.links, events: span.events }
+      ? {
+          attributes: redactOpenTelemetryUrls(span.attributes),
+          links: span.links,
+          events: span.events,
+        }
       : {
           attributes: sanitizeSpanAttributes(span.attributes),
           links: sanitizeSpanLinks(span.links),
@@ -633,11 +640,39 @@ function sanitizeSpanAttributes(
 }
 
 function sanitizeSpanName(span: SpanStoreRecord): string {
-  if (span.attributes?.['next.span_type'] !== 'AppRender.fetch') {
-    return span.name
+  if (span.attributes?.['next.span_type'] === 'AppRender.fetch') {
+    return getSanitizedFetchSpanName(span.attributes, span.url)
   }
+  return span.category === 'opentelemetry' ? redactUrls(span.name) : span.name
+}
 
-  return getSanitizedFetchSpanName(span.attributes, span.url)
+// The dev endpoint and MCP are reachable from the network, so drop URL
+// credentials and query strings from SDK spans.
+function redactUrls(text: string): string {
+  return text.replace(
+    ABSOLUTE_URL_IN_TEXT,
+    (url) => sanitizeUrl(url) ?? REDACTED_VALUE
+  )
+}
+
+function redactOpenTelemetryUrls(
+  attributes: SpanStoreRecord['attributes']
+): SpanStoreRecord['attributes'] {
+  return (
+    attributes &&
+    Object.fromEntries(
+      Object.entries(attributes).map(([key, value]) => [
+        key,
+        key === 'url.query'
+          ? REDACTED_VALUE
+          : key === 'http.target'
+            ? sanitizeUrlAttribute(value)
+            : typeof value === 'string'
+              ? redactUrls(value)
+              : value,
+      ])
+    )
+  )
 }
 
 function getSanitizedFetchSpanName(
