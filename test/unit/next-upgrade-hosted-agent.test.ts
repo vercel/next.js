@@ -51,6 +51,22 @@ exit 2
   return () => readFileSync(log, 'utf8').split('\n').filter(Boolean)
 }
 
+// A stand-in for bubblewrap. A real PID namespace hides the preparation
+// process; the stand-in reports that it works, or that it cannot start, without
+// running the check on this machine's /proc.
+function writeFakeBwrap(directory: string, { works = true } = {}) {
+  const log = join(directory, 'bwrap.log')
+  writeFileSync(
+    join(directory, 'bwrap'),
+    `#!/bin/sh
+{ printf '%s' "$*" | tr '\\n' ' '; echo; } >> "${log}"
+${works ? 'exit 0' : "echo 'bwrap: setting up uid map: Permission denied' >&2; exit 1"}
+`,
+    { mode: 0o700 }
+  )
+  return () => readFileSync(log, 'utf8').split('\n').filter(Boolean)
+}
+
 const builtNext = require.resolve('next/dist/bin/next')
 
 // A stand-in agent CLI that answers model discovery and records each run.
@@ -102,10 +118,14 @@ const config = env.CODEX_HOME
   ? fs.readFileSync(path.join(env.CODEX_HOME, 'config.toml'), 'utf8')
   : null
 const keys = ['NEXT_UPGRADE_PROXY_TOKEN', 'AI_GATEWAY_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN']
-const token = env.NEXT_UPGRADE_PROXY_TOKEN || env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY
+const token = env.NEXT_UPGRADE_PROXY_TOKEN || env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY || env.CLAUDE_CODE_OAUTH_TOKEN
+// Claude Code with a subscription token talks to Anthropic itself.
+const direct = !config && !env.ANTHROPIC_BASE_URL
 const endpoint = config
   ? config.match(/base_url = "([^"]+)"/)[1] + '/responses'
-  : env.ANTHROPIC_BASE_URL + '/v1/messages'
+  : direct
+    ? null
+    : env.ANTHROPIC_BASE_URL + '/v1/messages'
 // Like the CLIs: Codex and a Claude token send a bearer, a Claude API key
 // sends x-api-key, and Claude Code names its own beta features.
 const headers = config
@@ -117,19 +137,19 @@ const headers = config
       'anthropic-beta': 'claude-code-20250219',
     }
 // Call the API the way the agent CLI would, then without the token.
-const reply = await fetch(endpoint, { method: 'POST', headers, body: '{}' }).then(
+const reply = direct ? null : await fetch(endpoint, { method: 'POST', headers, body: '{}' }).then(
   (response) => response.text()
 )
-const unauthorized = await fetch(endpoint, { method: 'POST', body: '{}' }).then(
+const unauthorized = direct ? null : await fetch(endpoint, { method: 'POST', body: '{}' }).then(
   (response) => response.status
 )
 // A provider API that is not inference, such as files, with the token.
-const files = await fetch(new URL('/v1/files', endpoint), { headers }).then(
+const files = direct ? null : await fetch(new URL('/v1/files', endpoint), { headers }).then(
   (response) => response.status
 )
 // A path that leaves /v1 once its .. segment is resolved. fetch would resolve
 // it before sending, so send the raw path.
-const escaped = await new Promise((resolve, reject) => {
+const escaped = direct ? null : await new Promise((resolve, reject) => {
   const url = new URL(endpoint)
   require('node:http')
     .request(
@@ -156,6 +176,8 @@ fs.appendFileSync(${JSON.stringify(report)}, JSON.stringify({
   escaped,
   anthropicBase: env.ANTHROPIC_BASE_URL ?? null,
   nonessentialTraffic: env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC ?? null,
+  oauthToken: env.CLAUDE_CODE_OAUTH_TOKEN ?? null,
+  subprocessScrub: env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB ?? null,
   leakedHeader: env.ANTHROPIC_CUSTOM_HEADERS ?? null,
   environment: JSON.stringify(env),
 }) + '\\n')
@@ -381,6 +403,42 @@ describe('scheduled upgrade agent authentication', () => {
     }
   )
 
+  it('passes a subscription token to Claude Code itself without a proxy', () => {
+    const runs = writeFakeAgent(directory, 'claude', { models: [] })
+    const result = runHostedAgent(
+      directory,
+      'claude-subscription',
+      'fixture/model'
+    )
+    // Like Anthropic's GitHub Action: Claude Code reads the token itself, and
+    // nothing reaches a proxy or checks the token first.
+    expect(result.upstream).toEqual([])
+    const [report] = runs()
+    expect(report).toMatchObject({
+      oauthToken: 'fixture-key',
+      subprocessScrub: '1',
+      nonessentialTraffic: '1',
+      anthropicBase: null,
+      keys: [],
+      conflictingKeys: [],
+      leakedHeader: null,
+    })
+    expect(report.args).toEqual(
+      expect.arrayContaining(['--model', 'fixture/model'])
+    )
+    // The scrub makes Claude Code ignore the permission mode, so the tools are
+    // allowed by name, and the guides are readable next to the checkout.
+    const args: string[] = report.args
+    expect(args[args.indexOf('--allowedTools') + 1]).toBe(
+      'Bash,Read,Edit,Write,Glob,Grep'
+    )
+    expect(
+      args.flatMap((arg, index) =>
+        args[index - 1] === '--add-dir' ? [arg] : []
+      )
+    ).toEqual([directory, join(directory, 'guides')])
+  })
+
   it.each([
     ['codex', 'codex-openai-api-key', 'OpenAI'],
     ['claude', 'claude-anthropic-api-key', 'Anthropic'],
@@ -452,11 +510,13 @@ describe('scheduled upgrade agent authentication', () => {
   it.each([
     ['codex', 'codex-openai-api-key'],
     ['claude', 'claude-anthropic-api-key'],
+    ['claude', 'claude-subscription'],
   ] as const)(
     'runs %s (%s) as the agent user and takes the checkout back',
     (name, authMode) => {
       const runs = writeFakeAgent(directory, name, { models: [] })
       const calls = writeFakeSudo(directory)
+      const isolation = writeFakeBwrap(directory)
       const result = runHostedAgent(
         directory,
         authMode,
@@ -464,7 +524,8 @@ describe('scheduled upgrade agent authentication', () => {
         undefined,
         'next-upgrade-agent'
       )
-      expect(result.upstream).toHaveLength(2)
+      const subscription = authMode === 'claude-subscription'
+      expect(result.upstream).toHaveLength(subscription ? 0 : 2)
       const [report] = runs()
       const log = calls()
       const agent = log.findIndex((call) =>
@@ -473,7 +534,22 @@ describe('scheduled upgrade agent authentication', () => {
       expect(agent).toBeGreaterThan(-1)
       // No credential is ever part of a command line.
       expect(log.join('\n')).not.toContain('fixture-key')
-      expect(report.environment).not.toContain('fixture-key')
+      if (subscription) {
+        // Only Claude Code itself receives a subscription token, through
+        // stdin, after bubblewrap showed it can hide this process.
+        expect(report.oauthToken).toBe('fixture-key')
+        expect(log[agent]).toContain(
+          ' /bin/sh -c IFS= read -r CLAUDE_CODE_OAUTH_TOKEN'
+        )
+        expect(isolation()).toEqual([
+          expect.stringMatching(
+            /--unshare-pid --die-with-parent -- \/bin\/sh -c test ! -d \/proc\/\d+$/
+          ),
+        ])
+      } else {
+        expect(report.environment).not.toContain('fixture-key')
+        expect(() => isolation()).toThrow()
+      }
       // The probe ran first and found no access.
       expect(log.slice(0, agent).join('\n')).toContain(
         '-n -u next-upgrade-agent -- env -i'
@@ -495,6 +571,31 @@ describe('scheduled upgrade agent authentication', () => {
       ).toBe(true)
     }
   )
+
+  it('stops before the subscription token reaches Claude Code without bubblewrap', () => {
+    writeFakeAgent(directory, 'claude', { models: [] })
+    writeFakeSudo(directory)
+    // Bubblewrap is installed but cannot create the namespace, as on Ubuntu
+    // with unprivileged user namespaces restricted.
+    writeFakeBwrap(directory, { works: false })
+    let stderr = ''
+    try {
+      runHostedAgent(
+        directory,
+        'claude-subscription',
+        'fixture/model',
+        undefined,
+        'next-upgrade-agent'
+      )
+    } catch (error) {
+      stderr = String((error as { stderr?: unknown }).stderr)
+    }
+    expect(stderr).toContain(
+      'A Claude subscription token needs bubblewrap process isolation for the agent user, which is not available on this runner.'
+    )
+    expect(stderr).not.toContain('fixture-key')
+    expect(existsSync(join(directory, 'claude-runs.jsonl'))).toBe(false)
+  })
 
   it('gives each Codex run its own reply file in the agent home', () => {
     // The agent user owns the home after the first run, so the runner cannot
@@ -587,6 +688,7 @@ describe('scheduled upgrade agent authentication', () => {
   it.each([
     ['codex', 'codex-openai-api-key'],
     ['claude', 'claude-anthropic-api-key'],
+    ['claude', 'claude-subscription'],
   ] as const)(
     'shows an unverified %s (%s) result without the key',
     (name, authMode) => {
@@ -597,7 +699,11 @@ describe('scheduled upgrade agent authentication', () => {
       } catch (error) {
         stderr = String((error as { stderr?: unknown }).stderr)
       }
-      expect(stderr).toContain('The build failed while using next-upgrade-')
+      expect(stderr).toContain(
+        authMode === 'claude-subscription'
+          ? 'The build failed while using [redacted]'
+          : 'The build failed while using next-upgrade-'
+      )
       expect(stderr).not.toContain('fixture-key')
     }
   )

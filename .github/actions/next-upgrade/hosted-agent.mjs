@@ -27,7 +27,8 @@ import {
 
 // Each authentication mode, the agent CLI it runs, and, for an API key, where
 // its proxy sends requests. The proxy adds the key, so the agent never holds
-// it.
+// it. A subscription token goes to Claude Code itself, the way Anthropic's own
+// GitHub Action passes it, because only Claude Code may use it.
 const providers = {
   'codex-openai-api-key': {
     command: 'codex',
@@ -58,6 +59,9 @@ const providers = {
       headers['x-api-key'] = credential
       headers['anthropic-version'] ??= '2023-06-01'
     },
+  },
+  'claude-subscription': {
+    command: 'claude',
   },
 }
 
@@ -92,6 +96,9 @@ export function isAuthMode(authMode) {
 }
 
 const verifiedMessage = 'NEXT_UPGRADE_VERIFIED'
+// The Claude Code tools an upgrade uses: reading the guides, editing the app
+// and running its install, build and checks.
+const claudeTools = 'Bash,Read,Edit,Write,Glob,Grep'
 // Upgrading, installing and verifying an app can take a while.
 const agentTimeout = 90 * 60_000
 // Forwards the agent's inference requests and adds the credential, so the
@@ -172,12 +179,26 @@ async function startAgentProxy({ origin, prefix, endpoints, authorize }) {
   }
 }
 
+// Reads one secret variable from stdin, then starts the command with stdin
+// closed, so the value is never part of a command line.
+const readSecret = (name) =>
+  `IFS= read -r ${name} && export ${name} && exec "$@" </dev/null`
+
 // Runs a command as the agent user, which cannot read this process's
 // environment or memory, or use sudo. Without a user, runs it directly.
-function agentCommand(user, file, args, env) {
+// `secret` is one variable the command needs that must stay off every
+// command line; it reaches the command through stdin.
+function agentCommand(user, file, args, env, secret) {
   if (user === undefined) {
-    return { file, args, env }
+    return {
+      file,
+      args,
+      env: secret ? { ...env, [secret.name]: secret.value } : env,
+    }
   }
+  const command = secret
+    ? ['/bin/sh', '-c', readSecret(secret.name), 'sh', file, ...args]
+    : [file, ...args]
   return {
     file: systemCommand('sudo'),
     args: [
@@ -188,10 +209,10 @@ function agentCommand(user, file, args, env) {
       'env',
       '-i',
       ...Object.entries(env).map(([name, value]) => `${name}=${value}`),
-      file,
-      ...args,
+      ...command,
     ],
     env: commandEnv(),
+    input: secret ? `${secret.value}\n` : undefined,
   }
 }
 
@@ -241,14 +262,16 @@ export async function createHostedAgent({
       XDG_CONFIG_HOME: join(home, '.config'),
       GIT_TERMINAL_PROMPT: '0',
     }
-    const upstream = origin ?? provider.origin
-    await checkApiKey(provider, upstream, credential)
-    proxy = await startAgentProxy({
-      origin: upstream,
-      prefix: '/v1',
-      endpoints: provider.endpoints,
-      authorize: (headers) => provider.authorize(headers, credential),
-    })
+    if (provider.origin !== undefined) {
+      const upstream = origin ?? provider.origin
+      await checkApiKey(provider, upstream, credential)
+      proxy = await startAgentProxy({
+        origin: upstream,
+        prefix: '/v1',
+        endpoints: provider.endpoints,
+        authorize: (headers) => provider.authorize(headers, credential),
+      })
+    }
     if (codex) {
       env.CODEX_HOME = join(home, '.codex')
       env.NEXT_UPGRADE_PROXY_TOKEN = proxy.token
@@ -271,12 +294,36 @@ exclude = ["NEXT_UPGRADE_PROXY_TOKEN"]
     } else {
       env.CLAUDE_CONFIG_DIR = join(home, '.claude')
       env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-      env.ANTHROPIC_BASE_URL = proxy.origin
-      env.ANTHROPIC_API_KEY = proxy.token
+      if (proxy === undefined) {
+        // The scrub keeps the subscription token out of the commands Claude
+        // Code runs, such as the app's install scripts, and with bubblewrap
+        // runs them in their own PID namespace, where they cannot read Claude
+        // Code's environment.
+        env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB = '1'
+      } else {
+        env.ANTHROPIC_BASE_URL = proxy.origin
+        env.ANTHROPIC_API_KEY = proxy.token
+      }
     }
-    const asAgent = (file, args, options) => {
-      const wrapped = agentCommand(agentUser, file, args, env)
-      return run(wrapped.file, wrapped.args, { ...options, env: wrapped.env })
+    // The subscription token, read by Claude Code as its documented CI
+    // credential. Only the agent run itself receives it.
+    const secret =
+      proxy === undefined
+        ? { name: 'CLAUDE_CODE_OAUTH_TOKEN', value: credential }
+        : undefined
+    const asAgent = (file, args, options, withSecret) => {
+      const wrapped = agentCommand(
+        agentUser,
+        file,
+        args,
+        env,
+        withSecret ? secret : undefined
+      )
+      return run(wrapped.file, wrapped.args, {
+        ...options,
+        env: wrapped.env,
+        input: wrapped.input,
+      })
     }
 
     // Match next upgrade --agent: the CLI's default model with its default effort.
@@ -316,6 +363,34 @@ exclude = ["NEXT_UPGRADE_PROXY_TOKEN"]
           'The agent user can read the preparation process or use sudo.'
         )
       }
+      if (secret !== undefined) {
+        // Claude Code holds the subscription token itself, so the app's
+        // scripts must not see its process. Check that bubblewrap can give
+        // the agent user a PID namespace that hides this process.
+        await asAgent(
+          systemCommand('bwrap'),
+          [
+            '--ro-bind',
+            '/',
+            '/',
+            '--dev',
+            '/dev',
+            '--proc',
+            '/proc',
+            '--unshare-pid',
+            '--die-with-parent',
+            '--',
+            '/bin/sh',
+            '-c',
+            `test ! -d /proc/${process.pid}`,
+          ],
+          { cwd: home, description: 'Agent process isolation check' }
+        ).catch(() => {
+          throw new Error(
+            'A Claude subscription token needs bubblewrap process isolation for the agent user, which is not available on this runner.'
+          )
+        })
+      }
     }
 
     const modelArgs = selected === null ? [] : ['--model', selected]
@@ -333,7 +408,7 @@ exclude = ["NEXT_UPGRADE_PROXY_TOKEN"]
     const handed = new Set()
     const runAsAgent = async (paths, file, args, options) => {
       if (agentUser === undefined) {
-        return asAgent(file, args, options)
+        return asAgent(file, args, options, true)
       }
       for (const path of paths) {
         if (handed.has(path)) {
@@ -349,7 +424,7 @@ exclude = ["NEXT_UPGRADE_PROXY_TOKEN"]
         handed.add(path)
       }
       try {
-        return await asAgent(file, args, options)
+        return await asAgent(file, args, options, true)
       } finally {
         await sudo(
           ['pkill', '-KILL', '-u', agentUser],
@@ -413,6 +488,10 @@ exclude = ["NEXT_UPGRADE_PROXY_TOKEN"]
             '--setting-sources',
             '',
             '--strict-mcp-config',
+            // With the subprocess scrub on, Claude Code ignores the permission
+            // mode, so the tools the upgrade needs are allowed by name.
+            '--allowedTools',
+            claudeTools,
             ...paths.flatMap((path) => ['--add-dir', path]),
             '--',
             instructions,
