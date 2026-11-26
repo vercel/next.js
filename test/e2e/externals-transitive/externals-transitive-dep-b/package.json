@@ -1,5 +1,5 @@
 {
-  "name": "dep-b",
+  "name": "externals-transitive-dep-b",
   "version": "1.0.0",
   "dependencies": {
     "@storybook/global": "5.0.0",
