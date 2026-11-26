@@ -11,6 +11,8 @@ A route group can be created by wrapping a folder's name in parenthesis: `(folde
 
 This convention indicates the folder is for organizational purposes and should **not be included** in the route's URL path.
 
+Route group folders are also excluded from the route literals used by [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper), [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), and [`RouteContext`](/docs/app/api-reference/file-conventions/route#route-context-helper). For example, use `PageProps<'/about'>` for `app/(marketing)/about/page.tsx`.
+
 <Image
   alt="An example folder structure using route groups"
   srcLight="/docs/light/project-organization-route-groups.png"

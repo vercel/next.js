@@ -202,3 +202,4 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
 > **Good to know**
 >
 > - Types are generated during `next dev`, `next build` or `next typegen`.
+> - The route literal excludes [route group](/docs/app/api-reference/file-conventions/route-groups) folders. For example, use `RouteContext<'/users/[id]'>` for `app/(api)/users/[id]/route.ts`.
