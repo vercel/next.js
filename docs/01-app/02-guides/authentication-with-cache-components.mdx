@@ -153,43 +153,74 @@ async function Dashboard() {
 }
 ```
 
-If a layout awaits the session before returning its children, the whole segment waits. Move the `await` into the component that needs the user. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+A top-level `await` on the session in a layout holds the whole segment, including `{children}`, behind that request, so push it into a component inside a boundary. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
 
 > **Good to know:** `getCurrentUser` reads the session, checks it, and returns a narrow user. Centralizing those reads in one function is the [Data Access Layer](/docs/app/guides/authentication#creating-a-data-access-layer-dal) pattern.
 
 ## Step 3: Share the user across components
 
-Server Components can call `getCurrentUser()` directly. If several Client Components need the user, share the promise through [context](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). The layout can call `getCurrentUser()` without awaiting it, even with `use cache: private`:
+You don't have to read the session again in every component that needs the user. Read it once, then hand it to as many Server and Client Components as you like.
 
-```tsx filename="app/dashboard/layout.tsx"
-import { Suspense } from 'react'
-import Link from 'next/link'
-import { getCurrentUser } from '@/lib/auth'
-import { UserProvider } from '@/app/user-provider'
-import { UserBadge } from '@/app/user-badge'
+Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once, pass it through context, and unwrap it with [`use()`](https://react.dev/reference/react/use). For the general pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). Even with `use cache: private`, a layout can call `getCurrentUser()` and pass the promise to the provider without awaiting it. Place `<Suspense>` around the UI that waits for the user.
 
-export default function DashboardLayout({
+```tsx filename="app/user-provider.tsx"
+'use client'
+
+import { createContext, use } from 'react'
+import type { ReactNode } from 'react'
+import type { User } from '@/lib/auth'
+
+const UserContext = createContext<Promise<User> | null>(null)
+
+export function UserProvider({
+  userPromise,
   children,
-}: LayoutProps<'/dashboard'>) {
+}: {
+  userPromise: Promise<User>
+  children: ReactNode
+}) {
+  return <UserContext value={userPromise}>{children}</UserContext>
+}
+
+export function useUser() {
+  const userPromise = use(UserContext)
+  if (!userPromise) {
+    throw new Error('useUser must be used within a UserProvider')
+  }
+  return use(userPromise)
+}
+```
+
+In this example, `Dashboard` passes the promise to the provider without awaiting it. Only `UserBadge` waits for the session:
+
+```tsx filename="app/page.tsx"
+function Dashboard() {
   const userPromise = getCurrentUser()
 
   return (
     <UserProvider userPromise={userPromise}>
-      <header>
-        <Link href="/">Home</Link>
-        <Suspense fallback={<span>Loading user…</span>}>
-          <UserBadge />
-        </Suspense>
-      </header>
-      {children}
+      <Suspense fallback={<span>Loading…</span>}>
+        <UserBadge />
+      </Suspense>
     </UserProvider>
   )
 }
 ```
 
-The [provider](https://github.com/vercel/next.js/blob/canary/examples/with-iron-session-cache-components/app/user-provider.tsx) passes the promise through unchanged. The [badge](https://github.com/vercel/next.js/blob/canary/examples/with-iron-session-cache-components/app/user-badge.tsx) calls `useUser()`, which reads the promise with React's [`use()`](https://react.dev/reference/react/use). Placing `<Suspense>` around the badge keeps the Home link in the static shell while the badge loads.
+Client Components call `useUser()` to get the current user. Because `use()` suspends until the promise resolves, keep the component behind a `<Suspense>` boundary:
 
-Share only the fields the client needs (here, `id` and `name`). Keep the raw session on the server and [check authorization](/docs/app/guides/authentication#layouts-and-auth-checks) when reading protected data or running a Server Action. See [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) for an additional safeguard against exposing sensitive values.
+```tsx filename="app/user-badge.tsx"
+'use client'
+
+import { useUser } from './user-provider'
+
+export function UserBadge() {
+  const user = useUser()
+  return <span>Signed in as {user.name}</span>
+}
+```
+
+> **Good to know:** Expose only what the client needs. The `getCurrentUser` helper returns a narrow `{ id, name }` rather than the raw session. To keep sensitive fields from reaching the client, see [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue).
 
 ## Step 4: Cache session-derived data
 
