@@ -7,6 +7,8 @@ import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { INTERNAL_HEADERS } from './server-ipc/utils'
 import { SWITCHYARD_DIRECT_ENV } from './switchyard-env'
 import { RouteKind } from '../route-kind'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
 
 /**
  * The route table Node sends Switchyard (src/server/switchyard/routing). It
@@ -28,6 +30,7 @@ export type SwitchyardRouteTable =
       nodeRequestHeaders: readonly string[]
       nodeExact: readonly string[]
       goExact: Readonly<Record<string, string>>
+      dynamic: ReadonlyArray<{ path: readonly PatternEntry[]; go?: string }>
       /**
        * How Switchyard sends a direct request and its response, for the
        * host's HTTP code. The routing package reads only the fields above.
@@ -37,6 +40,12 @@ export type SwitchyardRouteTable =
         stripRequestHeaderPrefixes: readonly string[]
       }>
     }>
+
+/** One segment of a route pattern, as in the router contract spec (9.1). */
+export type PatternEntry =
+  | string
+  | Readonly<{ param: string }>
+  | Readonly<{ rest: string; min: 0 | 1 }>
 
 export type SwitchyardRouteTableInput = Readonly<{
   goRoutes: boolean
@@ -63,6 +72,8 @@ export type SwitchyardRouteTableInput = Readonly<{
   publicFiles: Iterable<string>
   appFiles: Iterable<string>
   pageFiles: Iterable<string>
+  /** Dynamic routes in the router's order. */
+  dynamicRoutes: ReadonlyArray<{ page: string; dataRouteRegex?: string }>
   /** The app route registered for a pathname, as the router knows it. */
   appRoute: (pathname: string) => { kind: RouteKind; page: string } | undefined
   internalHeaders: readonly string[]
@@ -101,7 +112,29 @@ export function buildSwitchyardRouteTable(
     else nodeExact.add(pathname)
   }
 
-  if (Object.keys(goExact).length === 0) {
+  const dynamic: Array<{ path: readonly PatternEntry[]; go?: string }> = []
+  for (const route of input.dynamicRoutes) {
+    // Pages data routes only match /_next/data/..., which always goes to Node.
+    if (route.dataRouteRegex) continue
+    const pattern = patternOf(route.page)
+    // Leaving one route out would change which route matches first, so a
+    // pattern Switchyard can't match sends the whole app to Node, static
+    // route.go routes included.
+    if (!pattern) {
+      return {
+        contract: { version: VERSION },
+        reason: `unsupported route pattern ${route.page}`,
+      }
+    }
+    const app = input.appRoute(route.page)
+    dynamic.push(
+      app?.kind === RouteKind.APP_ROUTE_GO
+        ? { path: pattern, go: app.page }
+        : { path: pattern }
+    )
+  }
+
+  if (Object.keys(goExact).length === 0 && !dynamic.some((route) => route.go)) {
     return { contract: { version: VERSION }, reason: 'no route.go routes' }
   }
 
@@ -114,6 +147,7 @@ export function buildSwitchyardRouteTable(
     nodeRequestHeaders: [...nodeRequestHeaders],
     nodeExact: [...nodeExact].sort(),
     goExact,
+    dynamic,
     direct: {
       stripRequestHeaders: [...input.internalHeaders],
       stripRequestHeaderPrefixes: ['x-next-internal-'],
@@ -148,6 +182,56 @@ function ineligibleReason(
   return undefined
 }
 
+/**
+ * Turns a route's page path into a segment list, or undefined when a segment
+ * isn't one of the forms Switchyard can match exactly as Node does. Segments
+ * are read with getSegmentParam, the parser the router itself uses.
+ */
+export function patternOf(page: string): PatternEntry[] | undefined {
+  if (page === '/') return []
+  const segments = page.split('/').slice(1)
+  const pattern: PatternEntry[] = []
+  for (const [i, segment] of segments.entries()) {
+    // Interception markers ("(..)photo", "(.)[id]") come with rewrites of
+    // their own. getSegmentParam strips the marker before reading the
+    // parameter, and loses it for "(.)[[...x]]", so check first.
+    if (
+      INTERCEPTION_ROUTE_MARKERS.some((marker) => segment.startsWith(marker))
+    ) {
+      return undefined
+    }
+    const param = getSegmentParam(segment)
+    if (!param) {
+      // A literal segment. Brackets getSegmentParam didn't read as a
+      // parameter ("a[b]") are a form Switchyard doesn't match.
+      if (segment === '' || /[[\]]/.test(segment)) return undefined
+      pattern.push(segment)
+      continue
+    }
+    // getSegmentParam reads "[a][b]" as one parameter named "a][b", and "[]"
+    // as a parameter with an empty name; the router reads the first as
+    // parameter a followed by the literal "[b]", and the second as the
+    // literal "[]".
+    if (!param.paramName || /[[\]]/.test(param.paramName)) return undefined
+    if (param.paramType === 'dynamic') {
+      pattern.push({ param: param.paramName })
+    } else if (
+      param.paramType === 'catchall' ||
+      param.paramType === 'optional-catchall'
+    ) {
+      // A catch-all can only end a pattern.
+      if (i !== segments.length - 1) return undefined
+      pattern.push({
+        rest: param.paramName,
+        min: param.paramType === 'catchall' ? 1 : 0,
+      })
+    } else {
+      return undefined
+    }
+  }
+  return pattern
+}
+
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 
 /** What collectSwitchyardRouteTable reads from the router's file lookup. */
@@ -161,6 +245,7 @@ export type SwitchyardFsChecker = Pick<
   | 'publicFolderItems'
   | 'appFiles'
   | 'pageFiles'
+  | 'getDynamicRoutes'
   | 'getRouteDefinition'
 >
 
@@ -215,6 +300,7 @@ export function collectSwitchyardRouteTable(
     publicFiles: fsChecker.publicFolderItems,
     appFiles: fsChecker.appFiles,
     pageFiles: fsChecker.pageFiles,
+    dynamicRoutes: fsChecker.getDynamicRoutes(),
     appRoute: (pathname) =>
       fsChecker.getRouteDefinition('appFile', pathname, undefined),
     internalHeaders: INTERNAL_HEADERS,

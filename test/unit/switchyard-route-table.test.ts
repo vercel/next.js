@@ -4,6 +4,7 @@ import path from 'path'
 import {
   buildSwitchyardRouteTable,
   collectSwitchyardRouteTable,
+  patternOf,
   type SwitchyardConfig,
   type SwitchyardFsChecker,
   type SwitchyardRouteTableInput,
@@ -11,13 +12,47 @@ import {
 import { RouteKind } from 'next/dist/server/route-kind'
 import { getMiddlewareRouteMatcher } from 'next/dist/shared/lib/router/utils/middleware-route-matcher'
 
-// The route table Node sends Switchyard: which exact paths are route.go
-// routes, and no direct routes at all when a rule Node runs before routing
-// could apply.
+// The route table Node sends Switchyard: page paths
+// become the segment lists Switchyard matches, and an app gets no direct
+// routes when a rule Node runs before routing could apply.
 describe('switchyard-route-table', () => {
+  describe('patternOf', () => {
+    it.each([
+      ['/', []],
+      ['/api/users', ['api', 'users']],
+      ['/api/users/[id]', ['api', 'users', { param: 'id' }]],
+      ['/docs/[...path]', ['docs', { rest: 'path', min: 1 }]],
+      ['/docs/[[...path]]', ['docs', { rest: 'path', min: 0 }]],
+      ['/[lang]/[...path]', [{ param: 'lang' }, { rest: 'path', min: 1 }]],
+      ['/[[...slug]]', [{ rest: 'slug', min: 0 }]],
+    ])('reads %s', (page, pattern) => {
+      expect(patternOf(page)).toEqual(pattern)
+    })
+
+    it.each([
+      // A catch-all can only end a pattern.
+      '/docs/[...path]/edit',
+      '/docs/[[...path]]/edit',
+      // Interception routes.
+      '/feed/(.)[id]',
+      '/feed/(..)photo/[id]',
+      '/feed/(.)[[...rest]]',
+      // Brackets that aren't a whole-segment parameter.
+      '/a[b]',
+      '/[id]x',
+      // The router reads parameter a, then the literal "[b]".
+      '/x/[a][b]',
+      // The router reads "[]" as a literal, not a parameter.
+      '/[]/[id]',
+    ])('refuses %s', (page) => {
+      expect(patternOf(page)).toBeUndefined()
+    })
+  })
+
   describe('buildSwitchyardRouteTable', () => {
     const goPages: Record<string, string> = {
       '/api/health': '/api/health/route',
+      '/api/users/[id]': '/api/users/[id]/route',
     }
     const input = (
       overrides: Partial<SwitchyardRouteTableInput> = {}
@@ -40,6 +75,11 @@ describe('switchyard-route-table', () => {
       publicFiles: ['/favicon.ico'],
       appFiles: ['/', '/api/health', '/api/users/new'],
       pageFiles: ['/legacy'],
+      dynamicRoutes: [
+        { page: '/_next/data/[...path]', dataRouteRegex: '^/_next/data' },
+        { page: '/api/users/[id]' },
+        { page: '/blog/[slug]' },
+      ],
       appRoute: (pathname) =>
         goPages[pathname]
           ? { kind: RouteKind.APP_ROUTE_GO, page: goPages[pathname] }
@@ -49,12 +89,19 @@ describe('switchyard-route-table', () => {
       ...overrides,
     })
 
-    it("splits Node's routes into Node's and route.go's", () => {
+    it("splits Node's routes into Node's and route.go's, in Node's order", () => {
       const table = buildSwitchyardRouteTable(input())
       expect(table).toMatchObject({
         contract: { version: 1 },
         nodeExact: ['/', '/api/users/new', '/favicon.ico', '/legacy'],
         goExact: { '/api/health': '/api/health/route' },
+        dynamic: [
+          {
+            path: ['api', 'users', { param: 'id' }],
+            go: '/api/users/[id]/route',
+          },
+          { path: ['blog', { param: 'slug' }] },
+        ],
       })
     })
 
@@ -73,6 +120,10 @@ describe('switchyard-route-table', () => {
       ['compress', { compress: true }],
       ['useFileSystemPublicRoutes', { useFileSystemPublicRoutes: false }],
       ['NEXT_PRIVATE_TEST_HEADERS', { keepsInternalHeaders: true }],
+      [
+        'unsupported route pattern /feed/(.)[id]',
+        { dynamicRoutes: [{ page: '/feed/(.)[id]' }] },
+      ],
       ['no route.go routes', { appRoute: () => undefined }],
     ])('gives no direct routes because of %s', (reason, overrides) => {
       expect(buildSwitchyardRouteTable(input(overrides))).toEqual({
@@ -134,6 +185,7 @@ describe('switchyard-route-table', () => {
       publicFolderItems: new Set(),
       appFiles: new Set(['/api/health']),
       pageFiles: new Set(),
+      getDynamicRoutes: () => [],
       getRouteDefinition: (_type, pathname) => ({
         kind: RouteKind.APP_ROUTE_GO,
         bundlePath: '',

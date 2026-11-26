@@ -309,15 +309,22 @@ func (t *Table) logicalPath(path string) (string, []string, string) {
 	return path, segments, ""
 }
 
-// match repeats Node's choice of route: exact paths first. Dynamic routes
-// aren't in the table yet, so a path without an exact route goes to Node,
-// which matches them.
+// match repeats Node's choice of route: exact paths first, then dynamic
+// routes in Node's order.
 func (t *Table) match(path string, segments []string) Decision {
 	if _, ok := t.nodeExact[path]; ok {
 		return node("exact Node route")
 	}
 	if route, ok := t.goExact[path]; ok {
 		return Decision{Route: route}
+	}
+	for _, d := range t.dynamic {
+		if matches(d.path, segments) {
+			if d.route == "" {
+				return node("dynamic Node route")
+			}
+			return Decision{Route: d.route}
+		}
 	}
 	return node("no route")
 }
