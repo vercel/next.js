@@ -134,6 +134,7 @@ describe('native route runtime', () => {
       JSON.stringify({
         version: 1,
         executable: 'worker',
+        route: '/route',
         goos: process.platform === 'win32' ? 'windows' : process.platform,
         goarch:
           process.arch === 'x64'
