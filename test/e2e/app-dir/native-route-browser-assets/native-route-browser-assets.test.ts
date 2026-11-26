@@ -36,9 +36,11 @@ describe('native-route-browser-assets', () => {
   })
 
   it('maps an assets-only import for ordinary Go tooling', async () => {
-    const goMod = await next.readFile('go.mod')
-    expect(goMod).toMatch(/^require next\/go v0\.0\.0$/m)
-    expect(goMod).toMatch(/^replace next\/go => /m)
+    await retry(async () => {
+      const goMod = await next.readFile('go.mod')
+      expect(goMod).toMatch(/^require next\/go v0\.0\.0$/m)
+      expect(goMod).toMatch(/^replace next\/go => /m)
+    })
     const { stdout } = await runGo(
       go,
       ['list', '-mod=readonly', '-f', '{{.ImportPath}}', 'next/go/assets'],
