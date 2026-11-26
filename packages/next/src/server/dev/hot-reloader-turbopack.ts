@@ -2332,10 +2332,7 @@ export async function createHotReloaderTurbopack(
 
   async function handleProjectUpdates() {
     const BUILDING_MESSAGE_DEFER_MS = 100
-    const UPDATE_AGGREGATION_MS = 5
-    for await (const updateMessage of project.updateInfoSubscribe(
-      UPDATE_AGGREGATION_MS
-    )) {
+    for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
           updateInProgress = true
