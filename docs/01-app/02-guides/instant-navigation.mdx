@@ -422,7 +422,7 @@ async function getFeatured() {
 }
 ```
 
-Two `fetch()` calls block at the top level: an uncached featured-list fetch and a per-slug product fetch (which also awaits `params`). Both will surface as Instant validation errors, one at a time.
+Two `fetch()` calls block at the top level: an uncached featured-list fetch and a per-slug product fetch (which also awaits `params`). Both will surface as Instant validation errors, one at a time. If neither error appears in Playwright, [check the route without request interception](/docs/app/guides/testing/playwright#request-interception-in-development).
 
 ### Step 1: Move the slug-dependent work into Suspense
 
@@ -516,8 +516,6 @@ The result is cached at the fetch level. The featured list ships with the App Sh
 > **Good to know:** In serverless deployments, in-memory caching with `"use cache"` will not persist across instances. Consider using [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for persistent caching.
 
 Validation passes. Open the DevTools and try a client navigation. The featured section appears immediately, and **"Loading product..."** shows where the product details will stream in.
-
-> If you don’t see the [validation errors](/docs/messages/instant-navigation-validation) for the original route, open it in `next dev` with **Pause on navigations** turned off and check the terminal or browser. In Playwright, open the route outside `instant()` in a fresh browser context without [request interception](/docs/app/guides/testing/playwright#request-interception-in-development).
 
 ### Iterate on loading states
 
