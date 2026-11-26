@@ -23,20 +23,21 @@ describe('use-cache-default-handler-expire-zero', () => {
         await browser.elementById('short-lived-value').text()
       ).toBeDateString()
 
+      // Durable cache handler keys have an environment-state hash suffix.
       // The default handler skips storing the `expire: 0` entry (it would never
       // be served back in production)...
       expect(next.cliOutput).toMatch(
-        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\] skipped dynamic entry/
+        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\](?:[0-9a-f]{64})? skipped dynamic entry/
       )
 
       // ...and never reports it as stored.
       expect(next.cliOutput).not.toMatch(
-        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\] done/
+        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"expire-zero"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\](?:[0-9a-f]{64})? done/
       )
 
       // The short-lived (`expire: 60`) cache is still stored.
       expect(next.cliOutput).toMatch(
-        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"short-lived"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\] done/
+        /DefaultCacheHandler: set \["([0-9a-f]{2})+",\[{"id":"short-lived"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\](?:[0-9a-f]{64})? done/
       )
     })
   } else {

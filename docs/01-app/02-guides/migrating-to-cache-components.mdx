@@ -878,6 +878,14 @@ async function getProducts() {
 
 > **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. If the `catch` block logs the error, it adds noise to the build output. Set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
 
+### Sitemaps that read the current time or random values
+
+**Add `use cache` and `cacheLife` to a `sitemap` function that sets `lastModified` with `new Date()`.**
+
+Unlike a `GET` export, the `sitemap` function in a [`sitemap.js`](/docs/app/api-reference/file-conventions/metadata/sitemap) file accepts the `use cache` directive directly, so make the function `async` and add the directive to it. See [prerendering a sitemap with Cache Components](/docs/app/api-reference/file-conventions/metadata/sitemap#prerendering-with-cache-components) for an example.
+
+Before Cache Components, a sitemap that reads the current time was prerendered at build time. With Cache Components and without the directive, the sitemap is generated on every request, and the build does not report an error. The same happens with other [random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps), such as `Math.random()` and `crypto.randomUUID()`. To confirm the result, check the route table that `next build` prints, where a prerendered sitemap is marked `○` (Static).
+
 ## `generateMetadata` and `generateViewport`
 
 **Cache external data with `use cache`, or mark intentionally dynamic pages.** Under Cache Components, [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport) follow the same rules as components. If they read runtime data (`cookies()`, `headers()`, `params`, `searchParams`) or fetch uncached data while the rest of the page is otherwise prerenderable, Next.js raises an error so the choice is explicit. If the metadata depends on external but not runtime data, add `use cache`.

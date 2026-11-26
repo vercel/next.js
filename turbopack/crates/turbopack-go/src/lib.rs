@@ -42,10 +42,13 @@ pub use crate::{
     analysis::{GoDeclarations, go_declarations},
     paths::{paths_refer_to_same_file, validate_source_path},
     session::{GoSessionPool, GoTarget, GoToolchainOptions},
-    sources::{GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_source_set},
+    sources::{
+        GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_package_bundle_from_sources,
+        go_source_failure, go_source_set,
+    },
 };
 use crate::{
-    inputs::{CompilerInputs, FileInput, Inputs, Tracker},
+    inputs::{CompilerInputs, FileInput, Inputs, Tracker, embed_matcher},
     process::Command,
 };
 
@@ -494,14 +497,16 @@ struct Module {
     main: bool,
     #[serde(default)]
     go_mod: String,
-    replace: Option<serde_json::Value>,
+    #[serde(default)]
+    version: String,
+    replace: Option<Box<Module>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 struct ModuleConfig {
     module: Option<Module>,
-    replace: Option<Vec<serde_json::Value>>,
+    replace: Option<Vec<ModuleReplacement>>,
     #[serde(default)]
     // Go 1.24 emits null for an empty requirement slice.
     require: Option<Vec<Requirement>>,
@@ -511,7 +516,52 @@ struct ModuleConfig {
 #[serde(rename_all = "PascalCase")]
 struct Requirement {
     path: String,
+    #[serde(default)]
     version: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct ModuleReplacement {
+    old: Requirement,
+    new: Requirement,
+}
+
+/// Resolves a directory replacement's target, relative to the main module, inside the source
+/// boundary. In a monorepo the boundary is the workspace root, so a module in an application
+/// directory can map a package installed in the workspace's `node_modules`. Only directory
+/// replacements are supported: they are tracked like module sources and need no download.
+fn replacement_directory(
+    boundary: &Path,
+    project: &Path,
+    replacement: &ModuleReplacement,
+) -> Result<PathBuf> {
+    ensure!(
+        replacement.new.version.is_empty(),
+        "versioned Go module replacements are not supported in this release: {}",
+        replacement.old.path
+    );
+    // Normalize lexically; source path validation rejects symlinks when inputs are tracked.
+    let mut directory = PathBuf::new();
+    for part in project.join(&replacement.new.path).components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                directory.pop();
+            }
+            part => directory.push(part),
+        }
+    }
+    // An application can depend on a module at a workspace ancestor. Contain
+    // it within the source boundary, but do not map another module onto the
+    // main module's own directory.
+    ensure!(
+        directory.starts_with(boundary) && directory != project,
+        "Go module replacements must point to a directory inside the project root: {} => {}",
+        replacement.old.path,
+        replacement.new.path
+    );
+    Ok(directory)
 }
 
 // Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
@@ -535,6 +585,10 @@ struct BuildPlan {
     inputs: CompilerInputs,
     assembly_flags: BTreeMap<RcStr, RcStr>,
     generated: BTreeMap<RcStr, RcStr>,
+    aliases: BTreeMap<RcStr, RcStr>,
+    /// Overlay entries for aliased package directories, from virtual to source paths. Both are
+    /// module-relative. Discovery selects them; compilation reuses the same view.
+    mirrored: BTreeMap<RcStr, RcStr>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -593,19 +647,9 @@ async fn module_configuration(
     Ok(Vc::cell(String::from_utf8(report.stdout)?.into()))
 }
 
+/// Named-file arguments relative to the module root, where Go commands run.
 fn arguments(files: &[RcStr]) -> Vec<String> {
-    files
-        .iter()
-        .map(|file| {
-            format!(
-                "./{}",
-                Path::new(file.as_str())
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-            )
-        })
-        .collect()
+    files.iter().map(|file| format!("./{file}")).collect()
 }
 
 fn entry_directory(project: &Path, files: &[RcStr]) -> Result<PathBuf> {
@@ -631,9 +675,225 @@ fn entry_directory(project: &Path, files: &[RcStr]) -> Result<PathBuf> {
     Ok(project.join(directory).components().collect())
 }
 
+/// Join a `/`-separated module-relative path using native separators, without producing a
+/// trailing separator for the module root.
+fn module_path(project: &Path, relative: &str) -> PathBuf {
+    relative
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .fold(project.to_owned(), |path, part| path.join(part))
+}
+
+fn join_relative(directory: &str, name: &str) -> RcStr {
+    if directory.is_empty() {
+        name.into()
+    } else {
+        format!("{directory}/{name}").into()
+    }
+}
+
+/// Map a path inside an aliased package directory back to its source directory.
+fn source_path(project: &Path, aliases: &BTreeMap<RcStr, RcStr>, path: &Path) -> PathBuf {
+    for (virtual_directory, source_directory) in aliases {
+        if let Ok(rest) = path.strip_prefix(module_path(project, virtual_directory)) {
+            let source = module_path(project, source_directory);
+            return if rest.as_os_str().is_empty() {
+                source
+            } else {
+                source.join(rest)
+            };
+        }
+    }
+    path.to_owned()
+}
+
+/// Report diagnostics against source files rather than their virtual package paths.
+fn source_diagnostic(message: &str, project: &Path, aliases: &BTreeMap<RcStr, RcStr>) -> String {
+    let mut message = message.to_owned();
+    for (virtual_directory, source_directory) in aliases {
+        message = message.replace(
+            &module_path(project, virtual_directory)
+                .to_string_lossy()
+                .into_owned(),
+            &module_path(project, source_directory).to_string_lossy(),
+        );
+        let source = if source_directory.is_empty() {
+            String::new()
+        } else {
+            format!("{source_directory}/")
+        };
+        message = message.replace(&format!("{virtual_directory}/"), &source);
+        // Go reports relative paths with native separators.
+        if std::path::MAIN_SEPARATOR != '/' {
+            let native = |path: &str| path.replace('/', std::path::MAIN_SEPARATOR_STR);
+            message = message.replace(&native(&format!("{virtual_directory}/")), &native(&source));
+        }
+        // Package headers name the virtual import path, such as `# example.com/m/<alias>`.
+        let source = if source_directory.is_empty() {
+            String::new()
+        } else {
+            format!("/{source_directory}")
+        };
+        message = message.replace(&format!("/{virtual_directory}"), &source);
+    }
+    message
+        .lines()
+        .map(|line| {
+            if let Some(end) = line.find(".go:") {
+                let name = &line[..end + 3];
+                // Line directives already name the source directory. Unlike `diagnostic`,
+                // this can recognize paths containing spaces without treating prose as a path.
+                if aliases.values().any(|directory| {
+                    !directory.is_empty()
+                        && Path::new(name).starts_with(module_path(Path::new(""), directory))
+                }) {
+                    return format!("{}{}", project.join(name).display(), &line[end + 3..]);
+                }
+            }
+            line.to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// List and track the directory at `/`-separated `relative` below `root`. Entries map names to
+/// the kinds recorded by [`Tracker::dir`]; a missing directory has no entries.
+async fn tracked_entries(
+    tracker: &mut Tracker<'_>,
+    root: &Path,
+    relative: &str,
+) -> Result<BTreeMap<String, u8>> {
+    let path = module_path(root, relative);
+    tracker.dir(&path).await?;
+    Ok(
+        tracker.inputs.directories[path.to_str().context("non-UTF8 Go path")?]
+            .1
+            .names
+            .clone()
+            .unwrap_or_default(),
+    )
+}
+
+/// Mirror the regular files of a source directory into its virtual package directory. Go
+/// applies its normal file selection to the overlay view.
+///
+/// A go.mod in the package directory itself is not mirrored: the package directory is then the
+/// module root, and a copy would make the virtual directory a separate nested module.
+async fn mirror_directory(
+    tracker: &mut Tracker<'_>,
+    project: &Path,
+    virtual_directory: &str,
+    source_directory: &str,
+    mirrored: &mut BTreeMap<RcStr, RcStr>,
+) -> Result<()> {
+    for (name, kind) in tracked_entries(tracker, project, source_directory).await? {
+        // Symlinks are unsupported Go inputs and other entries cannot be compiled.
+        if kind == 0 && name != "go.mod" {
+            mirrored.insert(
+                join_relative(virtual_directory, &name),
+                join_relative(source_directory, &name),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Names Go skips while walking a directory an embed pattern names. This mirrors
+/// `isBadEmbedName` and the hidden-file rule in cmd/go; `all:` only keeps `.` and `_` names.
+fn skipped_embed_name(name: &str, all: bool) -> bool {
+    matches!(name, ".bzr" | ".git" | ".hg" | ".svn") || (!all && name.starts_with(['.', '_']))
+}
+
+/// Files an embed pattern can select below the package directory `root`, relative to it with
+/// `/` separators. Only directories along the pattern and the subtrees of matched directories
+/// are listed. Each listing is tracked, so new matches invalidate discovery without observing
+/// unrelated subtrees, such as `node_modules` beside a package at the project root.
+///
+/// This follows Go's `//go:embed` resolution: each path element is matched against one
+/// directory listing, a matched file is selected by itself, and a matched directory selects its
+/// subtree except names Go skips, stopping at nested modules. The go.mod files of nested
+/// modules are selected too, so an overlay shows Go the same module boundaries. Go validates
+/// the pattern itself; invalid patterns select nothing here.
+async fn embed_pattern_files(
+    tracker: &mut Tracker<'_>,
+    root: &Path,
+    pattern: &str,
+) -> Result<Vec<RcStr>> {
+    let (all, pattern) = match pattern.strip_prefix("all:") {
+        Some(pattern) => (true, pattern),
+        None => (false, pattern),
+    };
+    let parts = pattern.split('/').collect::<Vec<_>>();
+    if parts
+        .iter()
+        .any(|part| part.is_empty() || matches!(*part, "." | ".."))
+    {
+        return Ok(vec![]);
+    }
+    let Ok(matchers) = parts
+        .iter()
+        .map(|part| embed_matcher(part))
+        .collect::<Result<Vec<_>>>()
+    else {
+        return Ok(vec![]);
+    };
+    let mut files = vec![];
+    let mut trees = vec![];
+    let mut pending = vec![(rcstr!(""), 0)];
+    while let Some((directory, index)) = pending.pop() {
+        let entries = tracked_entries(tracker, root, &directory).await?;
+        if index > 0 && entries.get("go.mod") == Some(&0) {
+            files.push(join_relative(&directory, "go.mod"));
+        }
+        let last = index + 1 == matchers.len();
+        for (name, kind) in entries {
+            if !matchers[index].is_match(&name) {
+                continue;
+            }
+            let path = join_relative(&directory, &name);
+            match kind {
+                // The package directory's own go.mod is never embedded into its module.
+                0 if last && !(index == 0 && name == "go.mod") => files.push(path),
+                1 if last => trees.push(path),
+                1 => pending.push((path, index + 1)),
+                // Symlinks and irregular files are rejected by Go itself.
+                _ => {}
+            }
+        }
+    }
+    while let Some(directory) = trees.pop() {
+        let entries = tracked_entries(tracker, root, &directory).await?;
+        if entries.get("go.mod") == Some(&0) {
+            files.push(join_relative(&directory, "go.mod"));
+            continue;
+        }
+        for (name, kind) in entries {
+            if skipped_embed_name(&name, all) {
+                continue;
+            }
+            let path = join_relative(&directory, &name);
+            match kind {
+                0 => files.push(path),
+                1 => trees.push(path),
+                _ => {}
+            }
+        }
+    }
+    Ok(files)
+}
+
 /// Materialize generated source bytes outside the project. The virtual paths remain in the
 /// original package directory; neither source files nor module metadata are modified.
-fn overlay(project: &Path, generated: &BTreeMap<RcStr, RcStr>) -> Result<tempfile::TempDir> {
+///
+/// Mirrored Go files directly in an aliased package directory start with a line directive, so
+/// compiler diagnostics and stack traces name the source file instead of its virtual package
+/// path. Other mirrored files, such as `.go` files below an embed pattern, keep their bytes.
+fn overlay(
+    project: &Path,
+    generated: &BTreeMap<RcStr, RcStr>,
+    mirrored: &BTreeMap<RcStr, RcStr>,
+    aliases: &BTreeMap<RcStr, RcStr>,
+) -> Result<tempfile::TempDir> {
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-overlay-")
         .tempdir()?;
@@ -649,6 +909,35 @@ fn overlay(project: &Path, generated: &BTreeMap<RcStr, RcStr>) -> Result<tempfil
         std::fs::write(&source, content.as_str())?;
         replacements.insert(virtual_path, source);
     }
+    for (index, (path, source)) in mirrored.iter().enumerate() {
+        let virtual_path = project.join(path.as_str());
+        ensure!(
+            !virtual_path.exists(),
+            "generated Go input already exists: {}",
+            virtual_path.display()
+        );
+        let source_path = project.join(source.as_str());
+        ensure!(
+            !replacements.contains_key(&virtual_path),
+            "{} is reserved for generated code",
+            source_path.display()
+        );
+        let in_package_directory = path.ends_with(".go")
+            && aliases.contains_key(path.rsplit_once('/').map_or("", |(directory, _)| directory));
+        if !in_package_directory {
+            replacements.insert(virtual_path, source_path);
+            continue;
+        }
+        let content = std::fs::read(&source_path)
+            .with_context(|| format!("reading Go source: {}", source_path.display()))?;
+        // Go accepts a byte order mark only at the start of a file.
+        let content = content.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&content);
+        let mut bytes = format!("//line {source}:1:1\n").into_bytes();
+        bytes.extend_from_slice(content);
+        let replacement = temp.path().join(format!("mirrored-{index}.go"));
+        std::fs::write(&replacement, bytes)?;
+        replacements.insert(virtual_path, replacement);
+    }
     std::fs::write(
         temp.path().join("overlay.json"),
         serde_json::to_vec(&serde_json::json!({ "Replace": replacements }))?,
@@ -657,18 +946,20 @@ fn overlay(project: &Path, generated: &BTreeMap<RcStr, RcStr>) -> Result<tempfil
 }
 
 async fn list(
-    directory: &Path,
     files: &[RcStr],
     go_context: &GoBuildContext,
     project: &Path,
     generated: &BTreeMap<RcStr, RcStr>,
+    mirrored: &BTreeMap<RcStr, RcStr>,
+    aliases: &BTreeMap<RcStr, RcStr>,
 ) -> Result<Vec<Package>> {
     go_context
         .cancellation
         .lists
         .fetch_add(1, Ordering::Relaxed);
-    let overlay = overlay(project, generated)?;
-    let mut command = go_context.command(directory);
+    let overlay = overlay(project, generated, mirrored, aliases)?;
+    // Run from the module root: named files may live in a virtual directory.
+    let mut command = go_context.command(project);
     command
         .arg("list")
         .arg(format!(
@@ -691,7 +982,7 @@ async fn list(
     ensure!(
         report.status.success(),
         "{}",
-        diagnostic(&report.stderr, directory)
+        diagnostic(&report.stderr, project)
     );
     Ok(serde_json::Deserializer::from_slice(&report.stdout)
         .into_iter::<Package>()
@@ -786,12 +1077,14 @@ async fn observe_assembly_includes(
         .collect())
 }
 
+/// `roots` maps the main module and each directory-replaced module to its directory.
 async fn observe_packages(
     tracker: &mut Tracker<'_>,
     packages: &[Package],
     project: &Path,
-    module: &str,
+    roots: &[(&str, PathBuf)],
     goroot: &Path,
+    aliases: &BTreeMap<RcStr, RcStr>,
 ) -> Result<BTreeMap<RcStr, RcStr>> {
     let mut assembly_flags = BTreeMap::new();
     for pkg in packages {
@@ -801,33 +1094,44 @@ async fn observe_packages(
         // Track unresolved local imports and their nearest existing ancestors, so creation of a
         // previously missing package invalidates discovery without walking unrelated subtrees.
         for import in pkg.imports.iter().chain(std::iter::once(&pkg.import_path)) {
-            if let Some(relative) = import
-                .strip_prefix(module)
-                .and_then(|path| {
-                    // An import equal to the module path refers to its root package.
-                    // Missing packages have no Dir in go list's output, so this is also
-                    // needed to watch for the first source file appearing there.
-                    if path.is_empty() {
-                        Some(path)
-                    } else {
-                        path.strip_prefix('/')
-                    }
-                })
-                .filter(|_| !module.is_empty())
-            {
-                tracker.parents(&project.join(relative)).await?;
+            for (module, root) in roots {
+                if let Some(relative) = import
+                    .strip_prefix(module)
+                    .and_then(|path| {
+                        // An import equal to the module path refers to its root package.
+                        // Missing packages have no Dir in go list's output, so this is also
+                        // needed to watch for the first source file appearing there.
+                        if path.is_empty() {
+                            Some(path)
+                        } else {
+                            path.strip_prefix('/')
+                        }
+                    })
+                    .filter(|_| !module.is_empty())
+                {
+                    tracker
+                        .parents(&source_path(project, aliases, &root.join(relative)))
+                        .await?;
+                }
             }
         }
         if pkg.dir.is_empty() {
             continue;
         }
-        let dir = Path::new(&pkg.dir);
+        // Aliased packages report their virtual directory. Observe the source files instead.
+        let dir: &Path = &source_path(project, aliases, Path::new(&pkg.dir));
         tracker.dir(dir).await?;
         if let Some(module) = &pkg.module {
-            ensure!(
-                module.replace.is_none(),
-                "Go module replacements are not supported in this release"
-            );
+            if let Some(replacement) = &module.replace {
+                // The module configuration already admitted only directory replacements.
+                ensure!(
+                    replacement.version.is_empty(),
+                    "versioned Go module replacements are not supported in this release"
+                );
+                if !replacement.go_mod.is_empty() {
+                    tracker.file(Path::new(&replacement.go_mod)).await?;
+                }
+            }
             if !module.go_mod.is_empty() {
                 tracker.file(Path::new(&module.go_mod)).await?;
             }
@@ -867,11 +1171,11 @@ async fn observe_packages(
             );
         }
         // Go embed patterns may gain matches in directories not yet containing a selected file.
-        // Observe directory inventories only underneath each pattern's fixed prefix.
+        // Observe only the directory inventories each pattern is matched against.
         tracker
             .inputs
             .embed_patterns
-            .entry(pkg.dir.as_str().into())
+            .entry(dir.to_str().context("non-UTF8 Go path")?.into())
             .or_default()
             .extend(
                 pkg.embed_patterns
@@ -879,24 +1183,7 @@ async fn observe_packages(
                     .map(|pattern| pattern.as_str().into()),
             );
         for pattern in &pkg.embed_patterns {
-            let pattern = pattern.strip_prefix("all:").unwrap_or(pattern);
-            let mut prefix = PathBuf::new();
-            for part in pattern.split('/') {
-                if part.contains(['*', '?', '[']) {
-                    break;
-                }
-                prefix.push(part);
-            }
-            let base = dir.join(prefix);
-            if base.is_dir() {
-                tracker.tree(&base).await?;
-            } else {
-                if pattern.contains(['*', '?', '[']) {
-                    tracker.tree(base.parent().unwrap_or(dir)).await?;
-                } else {
-                    tracker.parents(base.parent().unwrap_or(dir)).await?;
-                }
-            }
+            embed_pattern_files(tracker, dir, pattern).await?;
         }
     }
     Ok(assembly_flags)
@@ -907,9 +1194,11 @@ async fn observe_packages(
 #[turbo_tasks::function(session_dependent)]
 async fn discover(
     root: FileSystemPath,
+    boundary: FileSystemPath,
     files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
+    aliases: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<Discovery>> {
     let go_context = go_session.await?.go_context.clone();
     let _permit = tokio::select! {
@@ -919,7 +1208,17 @@ async fn discover(
     let project = to_sys_path(root.clone())
         .await?
         .context("Go inputs require a disk filesystem")?;
-    let mut tracker = Tracker::new(&root, &project, &go_context);
+    // Directory replacements may live outside the module but inside the boundary, so inputs
+    // are tracked relative to the boundary. The module itself is always inside it.
+    let boundary_path = to_sys_path(boundary.clone())
+        .await?
+        .context("Go inputs require a disk filesystem")?;
+    ensure!(
+        project.starts_with(&boundary_path),
+        "Go module is outside its boundary: {}",
+        project.display()
+    );
+    let mut tracker = Tracker::new(&boundary, &boundary_path, &go_context);
     let run = async {
         validate_build_cache(&project, &go_context)?;
         let directory = entry_directory(&project, &files)?;
@@ -946,14 +1245,36 @@ async fn discover(
         )
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
-        ensure!(
-            config.replace.as_ref().is_none_or(Vec::is_empty),
-            "Go module replacements are not supported in this release"
-        );
+        let replacements = config.replace.as_deref().unwrap_or_default();
+        let module = config.module.as_ref().map_or("", |m| m.path.as_str());
+        let mut roots = vec![(module, project.clone())];
         // Even an unresolved dependency needs cache dependencies. Downloading a module can
         // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
         let cache = Path::new(go_context.module_cache.as_str());
         for requirement in config.require.iter().flatten() {
+            // Go applies a version-specific replacement before a path-wide one, and ignores
+            // replacements of modules that are not required.
+            let replacement = replacements
+                .iter()
+                .find(|replacement| {
+                    replacement.old.path == requirement.path
+                        && replacement.old.version == requirement.version
+                })
+                .or_else(|| {
+                    replacements.iter().find(|replacement| {
+                        replacement.old.path == requirement.path
+                            && replacement.old.version.is_empty()
+                    })
+                });
+            if let Some(replacement) = replacement {
+                // A directory replacement resolves from its own go.mod and sources, never the
+                // module cache. Observe its go.mod so creating or editing it invalidates
+                // discovery; its packages are tracked like module sources below.
+                let directory = replacement_directory(&boundary_path, &project, replacement)?;
+                tracker.file(&directory.join("go.mod")).await?;
+                roots.push((requirement.path.as_str(), directory));
+                continue;
+            }
             ensure!(
                 Path::new(&requirement.path)
                     .components()
@@ -974,15 +1295,70 @@ async fn discover(
                 .file(&download.join(format!("{version}.ziphash")))
                 .await?;
         }
-        let module = config.module.as_ref().map_or("", |m| m.path.as_str());
+        let mut mirrored = BTreeMap::new();
+        for (virtual_directory, source_directory) in &aliases {
+            mirror_directory(
+                &mut tracker,
+                &project,
+                virtual_directory,
+                source_directory,
+                &mut mirrored,
+            )
+            .await?;
+        }
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
-        let packages = list(&directory, &files, &go_context, &project, &generated).await?;
+        let mut packages = list(
+            &files,
+            &go_context,
+            &project,
+            &generated,
+            &mirrored,
+            &aliases,
+        )
+        .await?;
+        // Embed patterns are relative to the package directory, which is virtual for aliased
+        // packages. Go reports the patterns even when they match nothing, so mirror the source
+        // entries each pattern can match and let Go match again.
+        for _ in 0..4 {
+            let mirrored_before = mirrored.len();
+            for pkg in &packages {
+                let Some((virtual_directory, source_directory)) =
+                    aliases.iter().find(|(virtual_directory, _)| {
+                        Path::new(&pkg.dir) == module_path(&project, virtual_directory)
+                    })
+                else {
+                    continue;
+                };
+                let source_root = module_path(&project, source_directory);
+                for pattern in &pkg.embed_patterns {
+                    for file in embed_pattern_files(&mut tracker, &source_root, pattern).await? {
+                        mirrored.insert(
+                            join_relative(virtual_directory, &file),
+                            join_relative(source_directory, &file),
+                        );
+                    }
+                }
+            }
+            if mirrored.len() == mirrored_before {
+                break;
+            }
+            packages = list(
+                &files,
+                &go_context,
+                &project,
+                &generated,
+                &mirrored,
+                &aliases,
+            )
+            .await?;
+        }
         let assembly_flags = observe_packages(
             &mut tracker,
             &packages,
             &project,
-            module,
+            &roots,
             Path::new(go_context.goroot.as_str()),
+            &aliases,
         )
         .await?;
         // Newly discovered files/directories were not guarded during the first command.
@@ -992,7 +1368,16 @@ async fn discover(
             registered != (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let structure_changed = !tracker.dirty
             && added_inputs
-            && packages != list(&directory, &files, &go_context, &project, &generated).await?;
+            && packages
+                != list(
+                    &files,
+                    &go_context,
+                    &project,
+                    &generated,
+                    &mirrored,
+                    &aliases,
+                )
+                .await?;
         if tracker.dirty || structure_changed || !tracker.inputs.is_current().await? {
             return Ok(None);
         }
@@ -1036,6 +1421,8 @@ async fn discover(
             generated,
             inputs: tracker.inputs.compiler_inputs(),
             assembly_flags,
+            aliases: aliases.clone(),
+            mirrored,
         }))
     }
     .await;
@@ -1049,7 +1436,9 @@ async fn discover(
         }
         Ok(Some(plan)) => DiscoveryOutcome::Ready(plan),
         Err(_) if go_context.is_cancelled() => DiscoveryOutcome::Cancelled,
-        Err(error) => DiscoveryOutcome::Failed(format!("{error:#}").into()),
+        Err(error) => DiscoveryOutcome::Failed(
+            source_diagnostic(&format!("{error:#}"), &project, &aliases).into(),
+        ),
     };
     Ok(Discovery {
         outcome,
@@ -1087,7 +1476,7 @@ async fn compile(
         },
     };
     let project_path = Path::new(project.as_str());
-    let directory = entry_directory(project_path, &plan.files)?;
+    entry_directory(project_path, &plan.files)?;
     // Capture live metadata only when compilation runs, after verifying that the current bytes
     // match the persistent plan. These stamps guard this command without becoming its cache key.
     let Some(before) = plan.inputs.snapshot().await? else {
@@ -1103,8 +1492,9 @@ async fn compile(
         .cancellation
         .builds
         .fetch_add(1, Ordering::Relaxed);
-    let overlay = overlay(Path::new(project.as_str()), &plan.generated)?;
-    let mut command = go_context.command(&directory);
+    let overlay = overlay(project_path, &plan.generated, &plan.mirrored, &plan.aliases)?;
+    // Run from the module root: named files may live in a virtual directory.
+    let mut command = go_context.command(project_path);
     command
         .arg("build")
         .arg(format!(
@@ -1145,7 +1535,14 @@ async fn compile(
         // A nonzero exit may reflect transient host/cache failures as well as source errors.
         // Keep failure memoization within this process, and retry after a restart.
         session_failure.await?;
-        Compilation::Failed(diagnostic(&report.stderr, &directory).into())
+        Compilation::Failed(
+            source_diagnostic(
+                &diagnostic(&report.stderr, project_path),
+                project_path,
+                &plan.aliases,
+            )
+            .into(),
+        )
     };
     Ok(outcome.cell())
 }
@@ -1233,15 +1630,37 @@ impl GoBundleResult {
 #[turbo_tasks::function]
 async fn bundle(
     root: FileSystemPath,
+    boundary: FileSystemPath,
     mut files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
+    aliases: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
     let go_context = go_session.await?.go_context.clone();
-    files.extend(generated.keys().cloned());
+    // Generated files inside an aliased package belong to that package. Other generated
+    // non-Go files, such as a go.mod, only participate through the overlay.
+    files.extend(
+        generated
+            .keys()
+            .filter(|path| {
+                path.ends_with(".go")
+                    && !aliases
+                        .keys()
+                        .any(|alias| Path::new(path.as_str()).starts_with(alias.as_str()))
+            })
+            .cloned(),
+    );
     files.sort();
     files.dedup();
-    let discovery = discover(root.clone(), files, *go_session, generated).await?;
+    let discovery = discover(
+        root.clone(),
+        boundary,
+        files,
+        *go_session,
+        generated,
+        aliases,
+    )
+    .await?;
     let outcome = match &discovery.outcome {
         DiscoveryOutcome::Ready(plan) => {
             let project = to_sys_path(root.clone())
@@ -1293,7 +1712,14 @@ pub fn go_bundle(
     files: Vec<RcStr>,
     go_context: GoBuildContext,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, shared_session(go_context), BTreeMap::new())
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    )
 }
 
 /// Compile named sources with additional generated files in the same directory. Generated
@@ -1305,7 +1731,14 @@ pub fn go_bundle_with_generated_files(
     go_context: GoBuildContext,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, shared_session(go_context), generated)
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        generated,
+        BTreeMap::new(),
+    )
 }
 
 /// Session-valued entrypoint for persistent compiler consumers. Generated source
@@ -1317,7 +1750,14 @@ pub fn go_bundle_with_session(
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, *session, generated)
+    bundle(
+        root.clone(),
+        root,
+        files,
+        *session,
+        generated,
+        BTreeMap::new(),
+    )
 }
 
 #[cfg(test)]
@@ -1384,6 +1824,131 @@ mod tests {
             assert_eq!(fingerprint, restored_fingerprint()?);
         }
         Ok(())
+    }
+
+    #[test]
+    fn overlay_adds_line_directives_only_to_package_files() -> Result<()> {
+        let project = tempfile::tempdir()?;
+        let source = project.path().join("app/[id]");
+        std::fs::create_dir_all(source.join("templates"))?;
+        std::fs::write(source.join("route.go"), "\u{feff}package route\n")?;
+        std::fs::write(source.join("templates/page.go"), "\u{feff}package tmpl\n")?;
+        std::fs::write(source.join("data.txt"), "data")?;
+        let alias = "app/_next_go_route_id";
+        let mirrored = BTreeMap::from([
+            (
+                rcstr!("app/_next_go_route_id/route.go"),
+                rcstr!("app/[id]/route.go"),
+            ),
+            (
+                rcstr!("app/_next_go_route_id/templates/page.go"),
+                rcstr!("app/[id]/templates/page.go"),
+            ),
+            (
+                rcstr!("app/_next_go_route_id/data.txt"),
+                rcstr!("app/[id]/data.txt"),
+            ),
+        ]);
+        let aliases = BTreeMap::from([(RcStr::from(alias), rcstr!("app/[id]"))]);
+        let temp = overlay(project.path(), &BTreeMap::new(), &mirrored, &aliases)?;
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(temp.path().join("overlay.json"))?)?;
+        let replacement = |path: &str| {
+            PathBuf::from(
+                manifest["Replace"][project.path().join(path).to_str().unwrap()]
+                    .as_str()
+                    .unwrap(),
+            )
+        };
+        assert_eq!(
+            std::fs::read_to_string(replacement("app/_next_go_route_id/route.go"))?,
+            "//line app/[id]/route.go:1:1\npackage route\n"
+        );
+        // Files below embed patterns are mirrored byte for byte from their source.
+        assert_eq!(
+            replacement("app/_next_go_route_id/templates/page.go"),
+            source.join("templates/page.go")
+        );
+        assert_eq!(
+            replacement("app/_next_go_route_id/data.txt"),
+            source.join("data.txt")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn aliased_paths_and_diagnostics_map_to_sources() {
+        let project = Path::new("/project");
+        let aliases = BTreeMap::from([
+            (rcstr!("_next_go/app_id"), rcstr!("app/[id]")),
+            (rcstr!("_next_go/proxy"), rcstr!("")),
+        ]);
+        assert_eq!(
+            source_path(project, &aliases, Path::new("/project/_next_go/app_id")),
+            Path::new("/project/app/[id]")
+        );
+        assert_eq!(
+            source_path(
+                project,
+                &aliases,
+                Path::new("/project/_next_go/app_id/assets/a")
+            ),
+            Path::new("/project/app/[id]/assets/a")
+        );
+        assert_eq!(
+            source_path(
+                project,
+                &aliases,
+                Path::new("/project/_next_go/proxy/proxy.go")
+            ),
+            Path::new("/project/proxy.go")
+        );
+        assert_eq!(
+            source_path(project, &aliases, Path::new("/project/internal")),
+            Path::new("/project/internal")
+        );
+        assert_eq!(
+            source_diagnostic(
+                "/project/_next_go/app_id/route.go:3: x\n_next_go/proxy/proxy.go:1: y",
+                project,
+                &aliases
+            ),
+            "/project/app/[id]/route.go:3: x\nproxy.go:1: y"
+        );
+        assert_eq!(
+            source_diagnostic(
+                "# example.com/m/_next_go/app_id\n# example.com/m/_next_go/proxy",
+                project,
+                &aliases
+            ),
+            "# example.com/m/app/[id]\n# example.com/m"
+        );
+        let directory = "app/café a 100%";
+        let aliases = BTreeMap::from([(rcstr!("app/_next_go_route"), RcStr::from(directory))]);
+        let expected = format!(
+            "{}:2:14: undefined: missing",
+            project.join(directory).join("route.go").display()
+        );
+        for name in [
+            format!("{directory}/route.go"),
+            module_path(Path::new(""), directory)
+                .join("route.go")
+                .display()
+                .to_string(),
+            "app/_next_go_route/route.go".to_owned(),
+        ] {
+            assert_eq!(
+                source_diagnostic(
+                    &format!("{name}:2:14: undefined: missing"),
+                    project,
+                    &aliases
+                )
+                .replace('\\', "/"),
+                expected.replace('\\', "/")
+            );
+        }
+        let message = format!("cannot compile {directory}/route.go: invalid input");
+        assert_eq!(source_diagnostic(&message, project, &aliases), message);
     }
 
     #[test]

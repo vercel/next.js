@@ -29,7 +29,7 @@ const {
 const repoOwner = 'vercel'
 const repoName = 'next.js'
 const pullRequestLabels = ['type: react-sync']
-const pullRequestReviewers = ['eps1lon']
+const pullRequestReviewers = ['acdlite']
 /**
  * Set to `null` to automatically sync the React version of Pages Router with App Router React version.
  * Set to a specific version to override the Pages Router React version e.g. `^19.0.0`.
