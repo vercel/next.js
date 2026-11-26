@@ -2084,6 +2084,8 @@ describe('upgrade model discovery protocol', () => {
     expect(crossSpawn).toHaveBeenCalledWith('/agents/codex', ['app-server'], {
       cwd: '/project',
       stdio: 'pipe',
+      // In its own process group, so it cannot reset the shared terminal.
+      detached: process.platform !== 'win32',
     })
     expect(child.stdin.end).toHaveBeenCalled()
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
@@ -2157,9 +2159,42 @@ describe('upgrade model discovery protocol', () => {
         '--verbose',
         '--no-session-persistence',
       ],
-      { cwd: '/project', stdio: 'pipe' }
+      {
+        cwd: '/project',
+        stdio: 'pipe',
+        detached: process.platform !== 'win32',
+      }
     )
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+  })
+
+  it('stops the process group of the CLI', async () => {
+    const child = Object.assign(
+      probe((message, respond) => {
+        if (message.method === 'initialize') {
+          respond({ id: message.id, result: {} })
+        } else if (message.method === 'model/list') {
+          respond({ id: message.id, result: { data: [], nextCursor: null } })
+        }
+      }),
+      { pid: 4321 }
+    )
+    const kill = jest.spyOn(process, 'kill').mockImplementation(() => {
+      process.nextTick(() => child.emit('close', null, 'SIGTERM'))
+      return true
+    })
+    try {
+      await discover('codex', '/agents/codex', '/project')
+      if (process.platform === 'win32') {
+        expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+      } else {
+        // Every helper the CLI started is signalled, not only the CLI.
+        expect(kill).toHaveBeenCalledWith(-4321, 'SIGTERM')
+        expect(child.kill).not.toHaveBeenCalled()
+      }
+    } finally {
+      kill.mockRestore()
+    }
   })
 
   it.each(['codex', 'claude'] as const)(

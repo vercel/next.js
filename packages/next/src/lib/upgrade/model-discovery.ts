@@ -214,10 +214,28 @@ async function discoverModels(
   if (signal?.aborted) return null
   let child: ReturnType<typeof spawn>
   try {
-    child = spawn(path, args, { cwd, stdio: 'pipe' })
+    child = spawn(path, args, {
+      cwd,
+      stdio: 'pipe',
+      // Without its own session the CLI shares the controlling terminal and
+      // can reset its mode while a menu is open, so Enter stops working.
+      detached: process.platform !== 'win32',
+    })
   } catch {
     debug('%s model discovery failed: could not start CLI', name)
     return []
+  }
+
+  // The CLI runs in its own process group; signal the whole group so no
+  // helper process it started outlives discovery and touches the terminal.
+  const killGroup = (killSignal: NodeJS.Signals) => {
+    try {
+      if (process.platform !== 'win32' && child.pid) {
+        process.kill(-child.pid, killSignal)
+      } else {
+        child.kill(killSignal)
+      }
+    } catch {}
   }
 
   return new Promise((resolve) => {
@@ -234,8 +252,8 @@ async function discoverModels(
       clearTimeout(timeout)
       if (reason) debug('%s model discovery failed: %s', name, reason)
       child.stdin?.end()
-      child.kill('SIGTERM')
-      killTimer = setTimeout(() => child.kill('SIGKILL'), 250)
+      killGroup('SIGTERM')
+      killTimer = setTimeout(() => killGroup('SIGKILL'), 250)
     }
     const timeout = setTimeout(() => stop([], 'timed out'), 5000)
     const interrupt = () => stop(null)
@@ -283,6 +301,7 @@ async function discoverModels(
     child.once('close', () => {
       clearTimeout(timeout)
       clearTimeout(killTimer)
+      killGroup('SIGKILL')
       process.removeListener('SIGINT', interrupt)
       process.removeListener('SIGTERM', interrupt)
       process.removeListener('SIGHUP', interrupt)
