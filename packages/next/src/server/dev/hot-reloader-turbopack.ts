@@ -1165,12 +1165,21 @@ export async function createHotReloaderTurbopack(
     try {
       const initial = await subscription.next()
       if (!initial.done && initial.value.value.type !== 'issues') {
-        processIssues(state.clientIssues, key, initial.value, false, true)
+        // Per-client issues: only well-known errors are printed, so other errors
+        // aren't printed once per connected client.
+        processIssues(
+          state.clientIssues,
+          key,
+          initial.value,
+          false,
+          true,
+          false
+        )
         sendTurbopackMessage(initial.value.value)
       }
 
       for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data, false, true)
+        processIssues(state.clientIssues, key, data, false, true, false)
         if (data.value.type !== 'issues') {
           sendTurbopackMessage(data.value)
         }
