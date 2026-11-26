@@ -42,11 +42,9 @@ You can use React's [`use` API](https://react.dev/reference/react/use) to stream
 
 Starting the request on the server, before the rest of the app renders, lets the response stream immediately and avoids client-side request waterfalls.
 
-You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook.
+You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook. For an example with `use cache: private`, see [Sharing the user across components](/docs/app/guides/authentication-with-cache-components#step-3-share-the-user-across-components).
 
 When a Client Component needs focus revalidation, polling, mutations, or request deduplication, use a library such as SWR or TanStack Query. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for direct browser fetching, providing initial data from a Server Component, and coordinating the library cache with the Next.js server and client caches.
-
-For session data with Cache Components, see [Sharing the user across components](/docs/app/guides/authentication-with-cache-components#step-3-share-the-user-across-components) for a `use cache: private` helper and a layout with boundaries around the consumers.
 
 Start the request in a Server Component (here, the root layout) without awaiting it, and pass the Promise to the provider:
 

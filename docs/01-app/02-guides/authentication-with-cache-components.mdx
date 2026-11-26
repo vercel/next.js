@@ -153,15 +153,13 @@ async function Dashboard() {
 }
 ```
 
-Avoid awaiting the session at a layout's top level, too. A top-level `await` on the session in a layout holds the whole segment, including `{children}`, behind that request, so push it into a component inside a boundary. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+If a layout awaits the session before returning its children, the whole segment waits. Move the `await` into the component that needs the user. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
 
 > **Good to know:** `getCurrentUser` reads the session, checks it, and returns a narrow user. Centralizing those reads in one function is the [Data Access Layer](/docs/app/guides/authentication#creating-a-data-access-layer-dal) pattern.
 
 ## Step 3: Share the user across components
 
-Server Components can call `getCurrentUser()` directly. Matching calls within one request reuse the result. To share the user with Client Components without prop drilling, pass the promise through context and unwrap it with [`use()`](https://react.dev/reference/react/use). For the general pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider).
-
-Creating a promise without awaiting it does not suspend the component. You can call `getCurrentUser()` in a layout and pass its promise to a provider, as long as the provider forwards it without reading the result. Place `<Suspense>` around the components that read it with `await` or `use()`. Using `use cache: private` keeps the result out of the shared static shell, but does not require a boundary around promise creation.
+Server Components can call `getCurrentUser()` directly and reuse the result within a request. To share the user with Client Components, pass the promise through [context](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). `UserProvider` forwards the promise, and `useUser()` reads it with React's [`use()`](https://react.dev/reference/react/use).
 
 ```tsx filename="app/user-provider.tsx"
 'use client'
@@ -191,7 +189,20 @@ export function useUser() {
 }
 ```
 
-In a shared layout, start the promise without awaiting it and wrap each consumer in its own boundary:
+A Client Component can now read the user from context:
+
+```tsx filename="app/user-badge.tsx"
+'use client'
+
+import { useUser } from './user-provider'
+
+export function UserBadge() {
+  const user = useUser()
+  return <span>Signed in as {user.name}</span>
+}
+```
+
+In the dashboard layout, call `getCurrentUser()` without awaiting it. Even with `use cache: private`, passing the promise to the provider doesn't suspend the layout. Wrap the part of the UI that should show a fallback while it waits for the user:
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
 import { Suspense } from 'react'
@@ -202,22 +213,18 @@ import { UserBadge } from '@/app/user-badge'
 
 export default function DashboardLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: LayoutProps<'/dashboard'>) {
   const userPromise = getCurrentUser()
 
   return (
     <UserProvider userPromise={userPromise}>
       <header>
-        <nav>
-          <Link href="/">Home</Link>
-        </nav>
+        <Link href="/">Home</Link>
         <Suspense fallback={<span>Loading user…</span>}>
           <UserBadge />
         </Suspense>
       </header>
-      <main>{children}</main>
+      {children}
     </UserProvider>
   )
 }
@@ -236,33 +243,18 @@ export default function DashboardLayout({ children }) {
   return (
     <UserProvider userPromise={userPromise}>
       <header>
-        <nav>
-          <Link href="/">Home</Link>
-        </nav>
+        <Link href="/">Home</Link>
         <Suspense fallback={<span>Loading user…</span>}>
           <UserBadge />
         </Suspense>
       </header>
-      <main>{children}</main>
+      {children}
     </UserProvider>
   )
 }
 ```
 
-The Home link and user fallback can prerender into the static shell, and `{children}` renders without waiting for the user promise. Any components in `{children}` that read runtime data still need their own boundaries. If you instead wrap the entire layout in a boundary, any suspension it handles can replace all of that UI with its fallback. Keep public chrome outside boundaries that wait on the session. See [Streaming and LCP](/docs/app/guides/streaming#lcp-largest-contentful-paint) for other ways a broad boundary can delay visible content.
-
-Client Components call `useUser()` to get the current user. Because `use()` suspends until the promise resolves, keep the component behind a `<Suspense>` boundary:
-
-```tsx filename="app/user-badge.tsx"
-'use client'
-
-import { useUser } from './user-provider'
-
-export function UserBadge() {
-  const user = useUser()
-  return <span>Signed in as {user.name}</span>
-}
-```
+The Home link renders in the static shell while the badge shows its fallback.
 
 The provider shares data for rendering. It does not protect child routes or Server Actions. Keep authorization checks close to the data access, as described in [Layouts and auth checks](/docs/app/guides/authentication#layouts-and-auth-checks).
 
