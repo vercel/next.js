@@ -8,13 +8,17 @@ import {
   isLocalSpanRecordingEnabled,
   captureLocalSpanRecorder,
   isRequestInsightsEnabled,
-  recordSpan,
+  recordSpan as recordStoreSpan,
   recordSpans,
   setLocalSpanExporter,
   runWithLocalSpanSink,
   setSpanRecorderForTest,
   type SpanStoreRecord,
 } from './span-store'
+
+function recordSpan(span: Omit<SpanStoreRecord, 'timestamp' | 'category'>) {
+  recordStoreSpan({ category: 'application', ...span })
+}
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -125,9 +129,9 @@ describe('span recording', () => {
     const sink = jest.fn(() => {
       throw new Error('failed scoped sink')
     })
-    const spans = [
-      { name: 'first', timestamp: 1 },
-      { name: 'second', timestamp: 2 },
+    const spans: SpanStoreRecord[] = [
+      { name: 'first', category: 'application', timestamp: 1 },
+      { name: 'second', category: 'application', timestamp: 2 },
     ]
 
     const record = runWithLocalSpanSink(sink, captureLocalSpanRecorder)
@@ -201,7 +205,11 @@ describe('span recording', () => {
       (span) => first.push(span),
       captureLocalSpanRecorder
     )
-    const span = { name: 'React render interval', timestamp: 1 }
+    const span: SpanStoreRecord = {
+      name: 'React render interval',
+      category: 'application',
+      timestamp: 1,
+    }
     runWithLocalSpanSink(
       (recorded) => second.push(recorded),
       () => record([span])
@@ -217,9 +225,9 @@ describe('span recording', () => {
   it('exports a completed batch once without requiring Request Insights', () => {
     const exportSpans = jest.fn()
     setLocalSpanExporter({ isEnabled: () => true, export: exportSpans })
-    const spans = [
-      { name: 'first', timestamp: 1 },
-      { name: 'second', timestamp: 2 },
+    const spans: SpanStoreRecord[] = [
+      { name: 'first', category: 'application', timestamp: 1 },
+      { name: 'second', category: 'application', timestamp: 2 },
     ]
 
     recordSpans(spans)

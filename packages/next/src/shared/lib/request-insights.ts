@@ -25,8 +25,14 @@ type RequestInsightAttributeValue =
   | Array<null | undefined | number>
   | Array<null | undefined | boolean>
 
+export type RequestInsightSpanCategory =
+  | 'nextjs'
+  | 'application'
+  | 'opentelemetry'
+
 export type RequestInsightSpan = {
   name: string
+  category: RequestInsightSpanCategory
   startTime: number
   durationMs?: number
   status?: 'ok' | 'error'

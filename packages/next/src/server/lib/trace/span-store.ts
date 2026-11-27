@@ -3,6 +3,7 @@ import type {
   RequestInsightKind,
   RequestInsightProxyStatus,
   RequestInsightSource,
+  RequestInsightSpanCategory,
 } from '../../../shared/lib/request-insights'
 
 export type SpanStoreAttributeValue =
@@ -29,6 +30,7 @@ export type SpanStoreEvent = {
 
 export type SpanStoreRecord = {
   name: string
+  category: RequestInsightSpanCategory
   timestamp: number
   startTime?: number
   durationMs?: number

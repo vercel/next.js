@@ -10,8 +10,9 @@ export type TraceItem = {
   spanId?: string
   parentSpanId?: string
   spanType?: string
-  category: 'nextjs' | 'application'
+  category: RequestInsightSpan['category']
   label: string
+  attributeLabel?: string
   fullLabel?: string
   startTime: number
   durationMs?: number
@@ -56,6 +57,16 @@ type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 const FETCH_SPAN_TYPE = 'AppRender.fetch'
 const LOAD_COMPONENTS_SPAN_TYPE = 'LoadComponents.loadComponents'
 const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
+const ATTRIBUTE_LABEL_KEYS = [
+  'db.query.summary',
+  'http.route',
+  'db.operation.name',
+  'rpc.method',
+  'messaging.destination.name',
+  'gen_ai.request.model',
+  'code.function.name',
+  'graphql.operation.name',
+] as const
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   MIDDLEWARE_SPAN_TYPE,
@@ -194,8 +205,9 @@ function getSpanTraceItem(
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     spanType: typeof type === 'string' ? type : undefined,
-    category: getSpanCategory(span),
+    category: span.category,
     label: getSpanLabel(span),
+    attributeLabel: getSpanAttributeLabel(span),
     startTime: span.startTime,
     durationMs: span.durationMs,
     status: span.status ?? 'pending',
@@ -222,7 +234,7 @@ function getFetchTraceItem(
     spanId: matchingSpan?.spanId,
     parentSpanId: matchingSpan?.parentSpanId,
     spanType: FETCH_SPAN_TYPE,
-    category: matchingSpan ? getSpanCategory(matchingSpan) : 'application',
+    category: matchingSpan?.category ?? 'application',
     label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
     fullLabel: `${method} ${url.fullUrl}`,
     startTime,
@@ -366,19 +378,37 @@ function getFetchIndex(span: RequestInsightSpan): number | undefined {
   return typeof index === 'number' ? index : undefined
 }
 
-function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
-  const category = span.attributes?.['next.span_category']
-  if (category === 'nextjs' || category === 'application') {
-    return category
+function getSpanAttributeLabel(span: RequestInsightSpan): string | undefined {
+  if (span.category !== 'opentelemetry') {
+    return undefined
   }
 
-  if (span.attributes?.['next.span_type'] === FETCH_SPAN_TYPE) {
-    return 'application'
+  const flag = getNormalizedStringAttribute(span, 'feature_flag.key')
+  if (flag) {
+    const variant = getNormalizedStringAttribute(
+      span,
+      'feature_flag.result.variant'
+    )
+    return variant ? `${flag} = ${variant}` : flag
   }
 
-  return typeof span.attributes?.['next.span_type'] === 'string'
-    ? 'nextjs'
-    : 'application'
+  for (const key of ATTRIBUTE_LABEL_KEYS) {
+    const value = getNormalizedStringAttribute(span, key)
+    if (value) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function getNormalizedStringAttribute(
+  span: RequestInsightSpan,
+  key: string
+): string | undefined {
+  const value = span.attributes?.[key]
+  return typeof value === 'string'
+    ? value.replace(/\s+/g, ' ').trim() || undefined
+    : undefined
 }
 
 function getSpanLabel(span: RequestInsightSpan): string {
