@@ -790,7 +790,7 @@ impl CodeComposition {
             self.should_generate_debug_id,
             self.source_map_generation_options,
         );
-        for segment in body.segments() {
+        for segment in body.parts() {
             match segment {
                 CellRopeSegment::Inline(bytes) => {
                     code.push_source(bytes, SourceMaps::<SectionMap>::None)?
@@ -887,7 +887,7 @@ impl CodeComposition {
             .await?;
         let mut pieces = pieces.iter();
         let mut offset = 0;
-        for segment in body.segments() {
+        for segment in body.parts() {
             match segment {
                 CellRopeSegment::Inline(bytes) => offset += bytes.len(),
                 CellRopeSegment::Skippable { skip, .. } => {
@@ -1208,7 +1208,7 @@ mod tests {
 /// The number of cells `rope` references directly (not counting nested ropes' cells).
 #[cfg(test)]
 fn cell_count(rope: &CellRope) -> usize {
-    rope.segments()
+    rope.parts()
         .iter()
         .filter(|segment| {
             matches!(
