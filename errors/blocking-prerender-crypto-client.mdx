@@ -31,8 +31,8 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 <FixCardGrid>
   <FixCard
     group="stream"
-    title="Wrap in or move into Suspense"
-    href="#wrap-in-or-move-into-suspense"
+    title="Wrap in Suspense"
+    href="#wrap-in-suspense"
     snippets={[
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <TokenId />' },
@@ -51,7 +51,9 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
   />
 </FixCardGrid>
 
-## Wrap in or move into Suspense
+<span id="wrap-in-or-move-into-suspense" />
+
+## Wrap in Suspense
 
 Choose this fix when a Client Component reads a random value from a crypto API during render and a fallback can appear first. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) where its parent renders it. The read already interrupts prerendering, so you don't need to add `use(io())`.
 
@@ -69,7 +71,7 @@ import { CorrelationId } from './correlation-id'
 
 export default function Page() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<span>Request ID: …</span>}>
       <CorrelationId />
     </Suspense>
   )
@@ -95,7 +97,7 @@ export async function RequestCorrelationId() {
 'use client'
 
 export function CorrelationId({ id }) {
-  return <input type="hidden" name="trace" value={id} />
+  return <span>Request ID: {id}</span>
 }
 ```
 
@@ -215,25 +217,11 @@ The user sees the placeholder briefly before the real value. For interactions th
 
 ### Suspend with `use(io())`
 
-To wait for a request before rendering a Client Component, call [`io()`](/docs/app/api-reference/functions/io) with React's [`use`](https://react.dev/reference/react/use) hook. For example, this wrapper defers its Client Component children even if they don't suspend on their own:
-
-```jsx filename="app/components/request-only.js"
-'use client'
-
-import { use } from 'react'
-import { io } from 'next/cache'
-
-export function RequestOnly({ children }) {
-  use(io())
-  return children
-}
-```
-
-Wrap `RequestOnly` in a [parent `<Suspense>` boundary](#wrap-in-or-move-into-suspense) so the surrounding shell can prerender. The children can still render on the server at request time. If the HTML includes an ID, the browser must [reuse that value during hydration](#if-the-initial-html-needs-the-id).
+To defer prerendering explicitly, call [`use(io())`](/docs/app/api-reference/functions/io#usage) inside the Client Component. It can still render on the server at request time.
 
 ## When the read comes from an external library
 
-If a library reads a random value from a crypto API during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-or-move-into-suspense). To defer the component explicitly, see [Suspend with `use(io())`](#suspend-with-useio). If the library accepts an initial value, you can [pass the ID from the server](#if-the-initial-html-needs-the-id) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler). A library that uses Node-only crypto APIs must [run on the server](/docs/messages/blocking-prerender-crypto#when-the-read-comes-from-an-external-library).
+If a library reads a random value from a crypto API during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-suspense). If the library accepts an initial value, you can [pass the ID from the server](#if-the-initial-html-needs-the-id) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler). A library that uses Node-only crypto APIs must [run on the server](/docs/messages/blocking-prerender-crypto#when-the-read-comes-from-an-external-library).
 
 ## Verifying the fix
 

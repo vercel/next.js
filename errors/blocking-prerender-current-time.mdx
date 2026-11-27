@@ -270,7 +270,7 @@ The timestamp appears only after the component renders in the browser. Until the
 
 ### Gotchas
 
-- If a Client Component calls `Date.now()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the timestamp, [pass it to the client as a prop](/docs/messages/blocking-prerender-current-time-client#if-the-initial-html-needs-the-timestamp) so hydration uses the same value.
+- If a Client Component calls `Date.now()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-current-time-client#wrap-in-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the timestamp, [pass it to the client as a prop](/docs/messages/blocking-prerender-current-time-client#if-the-initial-html-needs-the-timestamp) so hydration uses the same value.
 
 ## For telemetry, use a timing API
 
