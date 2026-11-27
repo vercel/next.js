@@ -1253,10 +1253,20 @@ jobs:
         export __NEXT_EXPERIMENTAL_SWITCHYARD_BINARY="$RUNNER_TEMP/switchyard"
         export __NEXT_EXPERIMENTAL_SWITCHYARD=1
 
-        # Switchyard's own unit tests (request targets and headers byte for
-        # byte, timeouts, shutdown): about 2 s, so first, in one group.
+        # Switchyard's own checks, first and in one group. The tests take
+        # about 2 s; building the linter takes about 20 s.
         if [ "${{ matrix.group }}" = "1/2" ]; then
+          # Unit tests (request targets and headers byte for byte, timeouts,
+          # shutdown).
           go -C packages/next/src/server/switchyard test ./...
+
+          # Lint rules from packages/next/src/server/switchyard/.golangci.yml.
+          # This golangci-lint needs a newer Go than the one this job
+          # installs, and setup-go sets GOTOOLCHAIN=local, which stops Go
+          # from fetching one. Naming the toolchain lets Go fetch it for
+          # this command only.
+          GOTOOLCHAIN=go1.26.11 go -C packages/next/src/server/switchyard run \
+            github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run
         fi
 
         node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}
