@@ -22,7 +22,12 @@ import { Telemetry } from '../../telemetry/storage'
 import { chooseOption } from './choose-option'
 import { getHarnessDisplayName } from './harness'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
-import { remainingSteps, setupSecrets, type AgentAuth } from './setup-secrets'
+import {
+  registerSecrets,
+  remainingSteps,
+  setupSecrets,
+  type AgentAuth,
+} from './setup-secrets'
 
 const WORKFLOW = '.github/workflows/next-upgrade.yml'
 const TEMPLATE = 'templates/next-upgrade.yml'
@@ -1180,6 +1185,13 @@ export async function setupUpgradeCI({
       )
     }
 
+    const secrets = setupSecrets({
+      repo,
+      auth,
+      agentSecret: SECRET,
+      publishSecret: PUBLISH_SECRET,
+    })
+
     // GitHub signs this commit and checks the branch head atomically.
     let headSha: string | undefined
     let pull: Pull | null = null
@@ -1222,11 +1234,29 @@ export async function setupUpgradeCI({
         )
       }
 
+      // Reviewers who did not run setup learn from the pull request what the
+      // workflow does and what it needs before it can run.
       pull = api<Pull>({
         endpoint: `repos/${repo}/pulls`,
         description: 'GitHub could not create the setup pull request.',
         method: 'POST',
-        body: { title: TITLE, head: SETUP_BRANCH, base },
+        body: {
+          title: TITLE,
+          head: SETUP_BRANCH,
+          base,
+          body: [
+            `\`next upgrade --ci\` opened this pull request. It adds a workflow that keeps this app's Next.js up to date: every day it checks for ${selectedPolicy === 'security' ? 'a Next.js release that fixes a security advisory' : 'a new stable Next.js release'}, runs ${getHarnessDisplayName(auth === 'codex-openai-api-key' ? 'codex' : 'claude')} to upgrade the app, and opens a pull request with the result.`,
+            '',
+            `Before you merge, add these secrets in [Settings > Secrets and variables > Actions](https://github.com/${repo}/settings/secrets/actions/new):`,
+            '',
+            ...secrets.map(
+              (secret) =>
+                `- \`${secret.name}\`: ${secret.description.join(' ')} [Create one](${secret.createUrl}).`
+            ),
+            '',
+            'After you merge, run it once from Actions > Next.js upgrade > Run workflow.',
+          ].join('\n'),
+        },
       })
     } catch (error) {
       // Remove the branch setup just created, so a failure leaves nothing to
@@ -1263,13 +1293,95 @@ export async function setupUpgradeCI({
         '\n'
       )
     )
-    const secrets = setupSecrets({
-      repo,
-      auth,
-      agentSecret: SECRET,
-      publishSecret: PUBLISH_SECRET,
-    })
-    Log.bootstrap(remainingSteps({ secrets, repo, url }))
+    let results: Awaited<ReturnType<typeof registerSecrets>>
+    try {
+      results = await registerSecrets({
+        secrets,
+        repo,
+        isRegistered(name) {
+          try {
+            return Boolean(
+              api({
+                endpoint: `repos/${repo}/actions/secrets/${name}`,
+                description: 'Could not look up the secret.',
+                missing: true,
+              })
+            )
+          } catch (error) {
+            // A failed lookup still offers registration, and says why.
+            Log.warn(
+              `Could not check whether ${name} is registered. ${String(error)}`
+            )
+            return null
+          }
+        },
+        register({ name, value }) {
+          // The value travels on standard input only, never in an argument.
+          const result = run({
+            command: 'gh',
+            args: ['secret', 'set', name, '--repo', `github.com/${repo}`],
+            cwd: root,
+            env,
+            input: value,
+          })
+          if (result.status === 0) {
+            return null
+          }
+
+          if (result.error !== undefined) {
+            return String(result.error)
+          }
+
+          // gh reads the value from standard input and never writes it to
+          // stderr, so its error line is safe to show. Many gh secret set
+          // errors carry no `gh:` prefix, so the first line is the fallback.
+          const stderr = result.stderr ?? ''
+          const reason = stderr.match(/^gh: .*$/m) ?? stderr.match(/^.*\S.*$/m)
+          return reason !== null
+            ? reason[0].trim()
+            : `gh exited with status ${result.status}.`
+        },
+        openUrl(page) {
+          const [command, ...args] =
+            process.platform === 'darwin'
+              ? ['open']
+              : process.platform === 'win32'
+                ? ['rundll32', 'url.dll,FileProtocolHandler']
+                : ['xdg-open']
+          // Do not wait for the browser, and ignore a machine without one: the
+          // URL is printed as well.
+          // The opener and the browser it starts search PATH.
+          const pathKey = Object.keys(env).find(
+            (key) => key.toUpperCase() === 'PATH'
+          )
+          const openerEnv = pathKey
+            ? { ...env, [pathKey]: trustedPath({ root, env }) }
+            : env
+          const file = findCommand({ name: command, cwd: root, env: openerEnv })
+          if (!file) {
+            return
+          }
+
+          spawn(file, [...args, page], {
+            cwd: tmpdir(),
+            env: openerEnv,
+            stdio: 'ignore',
+            detached: true,
+          })
+            .on('error', (error) => {
+              Log.warn(`Could not open a browser. ${error.message}`)
+            })
+            .unref()
+        },
+      })
+    } catch (error) {
+      // The setup pull request is open, so the closing list still shows what
+      // is left.
+      Log.warn(`Could not register the secrets. ${String(error)}`)
+      results = secrets.map((secret) => ({ secret, registered: false }))
+    }
+
+    Log.bootstrap(remainingSteps({ results, repo, url }))
     return { status: 'pull_request_opened' }
   } catch (error) {
     if (error instanceof SetupError) {
