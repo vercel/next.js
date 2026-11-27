@@ -52,6 +52,21 @@ function resolveInline(line, router, state) {
   return out
 }
 
+/** The website's tick and cross icons as characters, wherever they sit in a line (mostly table cells). */
+function resolveIcons(line) {
+  if (!/<(?:Check|Cross)\b/.test(line)) return line
+  return line
+    .split(/(`+[^`]*`+)/)
+    .map((part) =>
+      /^`/.test(part)
+        ? part
+        : part
+            .replace(/<Check\b[^>]*\/>/g, '✓')
+            .replace(/<Cross\b[^>]*\/>/g, '✗')
+    )
+    .join('')
+}
+
 /** The router a bundled file belongs to, from its path under the docs root. */
 function routerOf(relativePath) {
   const top = relativePath.split(/[/\\]/)[0]
@@ -201,7 +216,7 @@ function convertBody(body, router) {
           .replace(/ {2,}/g, ' ')
           .replace(/ +([.,;:])/g, '$1')
     }
-    const line = lines[i]
+    const line = resolveIcons(lines[i])
     if (line.trim() !== '') afterTypeScriptSample = false
 
     const indent = line.match(/^\s*/)[0]
@@ -228,15 +243,6 @@ function convertBody(body, router) {
       out.push(...image(block, indent))
       continue
     }
-    if (/^<Check\b[^>]*\/>$/.test(trimmed)) {
-      out.push(`${indent}✓`)
-      continue
-    }
-    if (/^<Cross\b[^>]*\/>$/.test(trimmed)) {
-      out.push(`${indent}✗`)
-      continue
-    }
-
     // A callout box drawn with an inline style: keep what is inside it.
     if (/^<div\b/.test(trimmed)) {
       const { block, to } = tagBlock(lines, i, />\s*$/)

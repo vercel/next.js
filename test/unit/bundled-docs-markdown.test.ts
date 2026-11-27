@@ -3,7 +3,7 @@ import { join, relative } from 'path'
 import glob from 'glob'
 
 // The converter is plain CommonJS so the build's taskfile can require it.
-const { toMarkdown, docsPath } = require('next/taskfile-docs')
+const { toMarkdown, docsPath, routerOf } = require('next/taskfile-docs')
 
 const repoRoot = join(__dirname, '../..')
 const docsRoot = join(repoRoot, 'docs')
@@ -219,6 +219,25 @@ describe('bundled docs as Markdown', () => {
     )
   })
 
+  it('turns the tick and cross icons into characters, in table cells too', () => {
+    const source = [
+      '| Option | App | Pages |',
+      '| --- | --- | --- |',
+      '| `a` | <Check size={18} /> | <Cross size={18} /> |',
+      '',
+      'Name them as `<Check />` in prose.',
+    ].join('\n')
+    expect(toMarkdown(source, { relativePath: '01-app/page.mdx' })).toBe(
+      [
+        '| Option | App | Pages |',
+        '| --- | --- | --- |',
+        '| `a` | ✓ | ✗ |',
+        '',
+        'Name them as `<Check />` in prose.',
+      ].join('\n')
+    )
+  })
+
   it('names a docs file the way pages refer to it', () => {
     expect(docsPath('01-app/02-guides/forms.mdx')).toBe('app/guides/forms')
   })
@@ -241,7 +260,9 @@ describe('bundled docs as Markdown', () => {
     ].map(({ root, file }) => {
       const source = readFileSync(join(root, file), 'utf8')
       return {
-        name: relative(repoRoot, join(root, file)),
+        // Forward slashes on every platform, as glob returns them.
+        name: relative(repoRoot, join(root, file)).split('\\').join('/'),
+        file: root === docsRoot ? file : `messages/${file}`,
         source,
         output: toMarkdown(source, {
           relativePath: file,
@@ -256,10 +277,11 @@ describe('bundled docs as Markdown', () => {
         const { lines, fences } = prose(page.output)
         for (const line of lines) {
           if (
-            /^\s*<\/?(FixCardGrid|FixCard|Image|Check|Cross)\b/.test(line) ||
             /^\s*\{\/\*/.test(line) ||
-            // Router tags anywhere in a sentence, except where a page names them in inline code.
-            /<\/?(AppOnly|PagesOnly)>/.test(line.replace(/`+[^`]*`+/g, ''))
+            // Anywhere in a line, except where a page names a tag in inline code.
+            /<\/?(AppOnly|PagesOnly|FixCardGrid|FixCard|Image|Check|Cross)\b/.test(
+              line.replace(/`+[^`]*`+/g, '')
+            )
           ) {
             left.push(`${page.name}: ${line.trim()}`)
           }
@@ -288,11 +310,13 @@ describe('bundled docs as Markdown', () => {
         for (const line of prose(page.source).lines) {
           const open = line.match(/^\s*<(AppOnly|PagesOnly)>\s*$/)
           if (open) {
-            const mine = page.name.includes('/01-app/')
-              ? 'AppOnly'
-              : page.name.includes('/02-pages/')
-                ? 'PagesOnly'
-                : null
+            const router = routerOf(page.file)
+            const mine =
+              router === 'app'
+                ? 'AppOnly'
+                : router === 'pages'
+                  ? 'PagesOnly'
+                  : null
             if (other > 0 || (mine && open[1] !== mine)) other++
             continue
           }
