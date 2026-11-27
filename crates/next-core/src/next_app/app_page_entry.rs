@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
@@ -24,7 +24,7 @@ use crate::{
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{NextRuntime, app_function_name, file_content_rope, load_next_js_template},
+    util::{NextRuntime, app_function_name, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -89,7 +89,9 @@ pub async fn get_app_page_entry(
     )
     .await?;
 
-    let source_content = &*file_content_rope(source.content().file_content()).await?;
+    let Some(source_content) = &*source.content().as_rope().await? else {
+        bail!("Expected file content for file");
+    };
 
     result.concat(source_content);
 

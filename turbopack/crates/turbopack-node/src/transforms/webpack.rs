@@ -218,8 +218,8 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>, _ty: SourceMapType) -> Result<Vc<FileContent>> {
-        Ok(*self.process().await?.source_map)
+    async fn generate_source_map(self: Vc<Self>, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        Ok(AssetContent::file(*self.process().await?.source_map))
     }
 }
 
@@ -1046,8 +1046,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     if rel_path.ends_with(".map") {
                         continue;
                     }
-                    let content = asset.content().await?;
-                    let AssetContent::File(file_vc) = *content else {
+                    let Some(file_vc) = asset.content().await?.as_file_content() else {
                         continue;
                     };
                     let file_content = file_vc.await?;

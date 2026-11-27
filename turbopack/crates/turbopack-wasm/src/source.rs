@@ -67,13 +67,11 @@ impl Asset for WebAssemblySource {
             WebAssemblySourceType::Text => self.source.content(),
         };
 
-        let content = content.file_content().await?;
-
-        let FileContent::Content(file) = &*content else {
+        let Some(content) = &*content.as_rope().await? else {
             return Ok(AssetContent::file(FileContent::NotFound.cell()));
         };
 
-        let bytes = file.content().to_bytes();
+        let bytes = content.to_bytes();
         let parsed = wat::parse_bytes(&bytes)?;
 
         Ok(AssetContent::file(

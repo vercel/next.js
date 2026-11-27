@@ -2,7 +2,8 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
-    FileContent, FileJsonContent, FileLinesContent, FileSystemPath, WriteLinkContent,
+    ComposedFile, FileContent, FileJsonContent, FileLinesContent, FileSystemPath, WriteLinkContent,
+    rope::Rope,
 };
 use turbo_tasks_hash::HashAlgorithm;
 
@@ -54,12 +55,36 @@ pub trait Asset {
     }
 }
 
+/// The bytes of an [`AssetContent`], see [`AssetContent::as_rope`]. `None` for a redirect or a
+/// missing file.
+///
+/// Only hashed in the persistent cache, like [`FileContent`]: the bytes are already persisted (or
+/// re-read) by whatever produced the content, so storing another copy would only grow the cache.
+/// After a restore, the bytes are recomputed when the cell is read.
+#[turbo_tasks::value(transparent, serialization = "hash")]
+pub struct OptionRope(Option<Rope>);
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum AssetContent {
     File(ResolvedVc<FileContent>),
+    /// A file composed from other tasks' cells. It behaves like a [`AssetContent::File`] with the
+    /// same bytes, but creating it doesn't read them, and writing it persists only references to
+    /// the cells (see [`FileSystemPath::write_composed`]).
+    Composed(ResolvedVc<ComposedFile>),
     /// A symbolic link. See [`WriteLinkContent`] for how it is written.
     Redirect(WriteLinkContent),
+}
+
+impl AssetContent {
+    /// The content of a file (flat or composed), without reading it. `None` for a redirect.
+    pub fn as_file_content(&self) -> Option<Vc<FileContent>> {
+        match self {
+            AssetContent::File(content) => Some(**content),
+            AssetContent::Composed(composed) => Some(composed.content()),
+            AssetContent::Redirect(..) => None,
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -73,24 +98,36 @@ impl AssetContent {
     pub fn parse_json(&self) -> Vc<FileJsonContent> {
         match self {
             AssetContent::File(content) => content.parse_json(),
+            AssetContent::Composed(composed) => composed.content().parse_json(),
             AssetContent::Redirect(..) => {
                 FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
             }
         }
     }
 
+    /// The content's bytes (of a flat or composed file), or `None` for a redirect or a missing
+    /// file. Use [`AssetContent::as_file_content`] when the file's [`FileMeta`] is needed.
+    ///
+    /// [`FileMeta`]: turbo_tasks_fs::FileMeta
     #[turbo_tasks::function]
-    pub fn file_content(&self) -> Vc<FileContent> {
-        match self {
-            AssetContent::File(content) => **content,
-            AssetContent::Redirect(..) => FileContent::NotFound.cell(),
-        }
+    pub async fn as_rope(&self) -> Result<Vc<OptionRope>> {
+        Ok(Vc::cell(match self {
+            AssetContent::File(content) => match &*content.await? {
+                FileContent::Content(file) => Some(file.content().clone()),
+                FileContent::NotFound => None,
+            },
+            // Reads the rope directly (tracked, like `ComposedFile::content`), without a
+            // `FileContent` holding the same bytes.
+            AssetContent::Composed(composed) => Some(composed.await?.rope().await?.read().await?),
+            AssetContent::Redirect(..) => None,
+        }))
     }
 
     #[turbo_tasks::function]
     pub fn lines(&self) -> Vc<FileLinesContent> {
         match self {
             AssetContent::File(content) => content.lines(),
+            AssetContent::Composed(composed) => composed.content().lines(),
             AssetContent::Redirect(..) => FileLinesContent::Unparsable.cell(),
         }
     }
@@ -99,6 +136,7 @@ impl AssetContent {
     pub fn len(&self) -> Vc<Option<u64>> {
         match self {
             AssetContent::File(content) => content.len(),
+            AssetContent::Composed(composed) => composed.content().len(),
             AssetContent::Redirect(..) => Vc::cell(None),
         }
     }
@@ -107,6 +145,7 @@ impl AssetContent {
     pub fn parse_json_with_comments(&self) -> Vc<FileJsonContent> {
         match self {
             AssetContent::File(content) => content.parse_json_with_comments(),
+            AssetContent::Composed(composed) => composed.content().parse_json_with_comments(),
             AssetContent::Redirect(..) => {
                 FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
             }
@@ -118,6 +157,9 @@ impl AssetContent {
         match self {
             AssetContent::File(file) => {
                 path.write(**file).as_side_effect().await?;
+            }
+            AssetContent::Composed(composed) => {
+                path.write_composed(**composed).as_side_effect().await?;
             }
             AssetContent::Redirect(content) => {
                 path.write_link(content.clone().cell())
@@ -132,6 +174,7 @@ impl AssetContent {
     pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
         Ok(match self {
             AssetContent::File(content) => content.hash(salt, algorithm),
+            AssetContent::Composed(composed) => composed.content().hash(salt, algorithm),
             AssetContent::Redirect(content) => {
                 Vc::cell(content.hash(&*salt.await?, algorithm).await?)
             }
@@ -151,7 +194,76 @@ impl AssetContent {
     ) -> Result<Vc<Option<RcStr>>> {
         match self {
             AssetContent::File(content) => Ok(content.content_hash(salt, algorithm)),
+            AssetContent::Composed(composed) => {
+                Ok(composed.content().content_hash(salt, algorithm))
+            }
             AssetContent::Redirect(..) => Ok(Vc::cell(None)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use turbo_tasks::{ValueTypePersistence, Vc, VcValueType, registry};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{CellRopeBuilder, ComposedFile, File, FileContent, FileMeta};
+
+    use super::{AssetContent, OptionRope};
+
+    #[turbo_tasks::value(transparent)]
+    struct Bytes(Vec<Option<String>>);
+
+    /// The bytes of a flat file, a missing file and a composed file.
+    #[turbo_tasks::function(operation, root)]
+    async fn as_rope_operation() -> Result<Vc<Bytes>> {
+        let flat = AssetContent::file(FileContent::Content(File::from("flat")).cell());
+        let missing = AssetContent::file(FileContent::NotFound.cell());
+        let mut builder = CellRopeBuilder::default();
+        builder += "composed";
+        let composed = AssetContent::Composed(
+            ComposedFile::new(builder.build_resolved_cell(), FileMeta::default()).resolved_cell(),
+        )
+        .cell();
+        let mut bytes = Vec::new();
+        for content in [flat, missing, composed] {
+            bytes.push(
+                content
+                    .as_rope()
+                    .await?
+                    .as_ref()
+                    .map(|rope| rope.to_str().map(|s| s.into_owned()))
+                    .transpose()?,
+            );
+        }
+        Ok(Vc::cell(bytes))
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn as_rope_reads_flat_and_composed_bytes() {
+        turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ))
+        .run_once(async {
+            let bytes = as_rope_operation().read_strongly_consistent().await?;
+            assert_eq!(
+                *bytes,
+                [Some("flat".to_string()), None, Some("composed".to_string())]
+            );
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// The bytes are persisted by whatever produced the content; `OptionRope` keeps only a hash.
+    #[test]
+    fn option_rope_is_only_hashed_in_the_persistent_cache() {
+        let value_type = registry::get_value_type(OptionRope::get_value_type_id());
+        assert!(matches!(
+            value_type.persistence,
+            ValueTypePersistence::HashOnly
+        ));
     }
 }

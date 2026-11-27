@@ -7,6 +7,7 @@ use turbopack::module_options::{
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
+    asset::AssetContent,
     file_source::FileSource,
     resolve::{FindContextFileResult, find_context_file, node::node_cjs_resolve_options},
     source::Source,
@@ -22,7 +23,7 @@ async fn get_typescript_options(
 ) -> Result<Option<Vec<(Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>)>>> {
     if let Some(tsconfig_path) = tsconfig_path {
         let tsconfigs = read_tsconfigs(
-            tsconfig_path.read(),
+            AssetContent::file(tsconfig_path.read()),
             ResolvedVc::upcast(FileSource::new(tsconfig_path.clone()).to_resolved().await?),
             node_cjs_resolve_options(),
         )
@@ -34,7 +35,7 @@ async fn get_typescript_options(
         let tsconfig = find_context_file(project_path, tsconfig(), false);
         Ok(match tsconfig.await.ok().as_deref() {
             Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
-                path.read(),
+                AssetContent::file(path.read()),
                 ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
                 node_cjs_resolve_options(),
             )

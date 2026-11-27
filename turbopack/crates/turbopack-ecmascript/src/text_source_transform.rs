@@ -35,14 +35,11 @@ impl SourceTransform for TextSourceTransform {
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
         let ident = source.ident().owned().await?;
-        let content = source.content().file_content().await?;
-        let text = match &*content {
-            FileContent::Content(data) => data.content().to_str()?,
-            FileContent::NotFound => {
-                // This shouldn't happen because the import was already resolved
-                bail!("File not found: {:?}", ident.path);
-            }
+        let Some(content) = &*source.content().as_rope().await? else {
+            // This shouldn't happen because the import was already resolved
+            bail!("File not found: {:?}", ident.path);
         };
+        let text = content.to_str()?;
 
         // Generate ES module with inline source map pointing back to the original file.
         let code = format!(

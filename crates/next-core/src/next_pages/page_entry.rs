@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use serde::Serialize;
 use turbo_rcstr::{RcStr, rcstr};
@@ -20,7 +20,7 @@ use crate::{
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
-    util::{NextRuntime, file_content_rope, load_next_js_template, pages_function_name},
+    util::{NextRuntime, load_next_js_template, pages_function_name},
 };
 
 /// The kind of entry a pages router route is compiled to.
@@ -240,7 +240,9 @@ pub async fn create_page_ssr_entry_module(
     if is_page
         && (definition_page == "/instrumentation" || definition_page == "/src/instrumentation")
     {
-        let file = &*file_content_rope(source.content().file_content()).await?;
+        let Some(file) = &*source.content().as_rope().await? else {
+            bail!("Expected file content for file");
+        };
 
         let mut result = RopeBuilder::default();
         result += file;

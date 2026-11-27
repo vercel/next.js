@@ -9,7 +9,7 @@ use either::Either;
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc};
-use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::Asset,
     reference_type::{ReferenceType, ReferenceTypeCondition},
@@ -277,12 +277,12 @@ impl RuleCondition {
                         return Ok(regex.is_match(&path.path));
                     }
                     RuleCondition::ResourceContentEsRegex(regex) => {
-                        let content = source.content().file_content().await?;
+                        let content = source.content().as_rope().await?;
                         match &*content {
-                            FileContent::Content(file_content) => {
-                                return Ok(regex.is_match(&file_content.content().to_str()?));
+                            Some(content) => {
+                                return Ok(regex.is_match(&content.to_str()?));
                             }
-                            FileContent::NotFound => return Ok(false),
+                            None => return Ok(false),
                         }
                     }
                     RuleCondition::ResourceQueryContains(query) => {

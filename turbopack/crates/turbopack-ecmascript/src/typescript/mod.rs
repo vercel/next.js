@@ -54,7 +54,7 @@ impl Module for TsConfigModuleAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
-            self.source.content().file_content(),
+            self.source.content(),
             self.source,
             apply_cjs_specific_options(self.origin.into_trait_ref().await?.resolve_options()),
         )

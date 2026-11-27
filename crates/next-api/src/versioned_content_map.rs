@@ -10,7 +10,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::{GenerateSourceMap, SourceMapType},
     version::OptionVersionedContent,
@@ -138,7 +138,7 @@ impl VersionedContentMap {
                 let Some(asset) = *self.get_asset(path).await? else {
                     return Ok::<_, anyhow::Error>(None);
                 };
-                if !matches!(*asset.content().await?, AssetContent::File(_)) {
+                if asset.content().await?.as_file_content().is_none() {
                     return Ok(None);
                 }
                 let content = asset.versioned_content().to_resolved().await?;
@@ -292,7 +292,12 @@ impl VersionedContentMap {
             Ok(if let Some(section) = section {
                 generate_source_map.by_section(section, ty)
             } else {
-                generate_source_map.generate_source_map(ty)
+                // Callers serve the map's bytes, so a composed map is read into a file here.
+                generate_source_map
+                    .generate_source_map(ty)
+                    .await?
+                    .as_file_content()
+                    .unwrap_or_else(|| FileContent::NotFound.cell())
             })
         } else {
             turbobail!("no source map for path {path}");

@@ -885,9 +885,11 @@ impl Asset for ImportMetaGlobSource {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for ImportMetaGlobSource {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>, _ty: SourceMapType) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(self: Vc<Self>, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
         let issue_source = self.await?.issue_source;
-        call_site_source_map(issue_source, &code(self).await?).await
+        Ok(AssetContent::file(
+            call_site_source_map(issue_source, &code(self).await?).await?,
+        ))
     }
 }
 

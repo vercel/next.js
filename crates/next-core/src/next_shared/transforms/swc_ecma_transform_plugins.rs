@@ -146,7 +146,6 @@ pub async fn get_swc_ecma_transform_rule_impl(
 ) -> Result<Option<ModuleRule>> {
     use anyhow::bail;
     use turbo_tasks::TryFlatJoinIterExt;
-    use turbo_tasks_fs::FileContent;
     use turbopack_core::{
         asset::Asset,
         module::Module,
@@ -218,14 +217,12 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     );
                 };
 
-                let content = &*plugin_source.content().file_content().await?;
-                let FileContent::Content(file) = content else {
+                let Some(content) = &*plugin_source.content().as_rope().await? else {
                     bail!("Expected file content for plugin module");
                 };
 
                 Ok(Some((
-                    SwcPluginModule::new(name.clone(), file.content().to_bytes().to_vec())
-                        .resolved_cell(),
+                    SwcPluginModule::new(name.clone(), content.to_bytes().to_vec()).resolved_cell(),
                     JsonValue(config.clone().into()),
                 )))
             }

@@ -26,7 +26,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     condition::ContextCondition,
     generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
@@ -684,7 +684,7 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let srcmap = generator.generate_source_map(SourceMapType::Full);
+    let srcmap = generator.generate_source_map(SourceMapType::Full).as_rope();
     let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };
@@ -1071,7 +1071,7 @@ impl PlainSource {
         // formatting.  Best practice is for `content` to return `NotFound` instead of
         // an error.
         let content = if let Ok(asset_content) = asset.content().await
-            && let AssetContent::File(file_content) = &*asset_content
+            && let Some(file_content) = asset_content.as_file_content()
             && let Ok(file_content) = file_content.await
         {
             file_content

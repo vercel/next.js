@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, turbofmt};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
@@ -128,10 +128,9 @@ impl ProcessCss for CssModule {
         let origin_source_map =
             match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
                 Some(gsm) if this.source_map_generation_options.full => {
-                    gsm.generate_source_map(SourceMapType::Full)
+                    gsm.generate_source_map(SourceMapType::Full).as_rope()
                 }
-                Some(_) => FileContent::NotFound.cell(),
-                None => FileContent::NotFound.cell(),
+                Some(_) | None => Vc::cell(None),
             };
         Ok(finalize_css(
             process_result,

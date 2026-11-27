@@ -236,7 +236,7 @@ async fn resolve_source_mapping(
     let Some((generate_source_map, ty)) = map.get(file.as_ref()) else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let sm = generate_source_map.generate_source_map(*ty);
+    let sm = generate_source_map.generate_source_map(*ty).as_rope();
     let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };

@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use tokio::io::AsyncReadExt;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToStringRef, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
@@ -77,16 +76,12 @@ impl SingleFileEcmascriptOutput {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
-        let FileContent::Content(file) = &*self.source.content().file_content().await? else {
-            return Ok(FileContent::NotFound.cell());
+    pub async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        let Some(content) = &*self.source.content().as_rope().await? else {
+            return Ok(AssetContent::file(FileContent::NotFound.cell()));
         };
 
-        let file_source = {
-            let mut s = String::new();
-            file.read().read_to_string(&mut s).await?;
-            s
-        };
+        let file_source = content.to_str()?.into_owned();
 
         let mut mappings = vec![];
         // Start from 1 because 0 is reserved for dummy spans in SWC.
@@ -122,7 +117,9 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
             true,
             &Default::default(),
         )?;
-        Ok(FileContent::Content(File::from(map.to_rope())).cell())
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(map.to_rope())).cell(),
+        ))
     }
 }
 

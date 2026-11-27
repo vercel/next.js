@@ -26,8 +26,11 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
-    SOURCE_URL_PROTOCOL, asset::AssetContent, source::Source,
-    source_map::utils::add_default_ignore_list, source_pos::SourcePos,
+    SOURCE_URL_PROTOCOL,
+    asset::{AssetContent, OptionRope},
+    source::Source,
+    source_map::utils::add_default_ignore_list,
+    source_pos::SourcePos,
     virtual_source::VirtualSource,
 };
 
@@ -104,8 +107,13 @@ pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
     /// `ty` selects whether to trace through input source maps. Leaf implementations
     /// may ignore this hint when the same map serves both variants.
+    ///
+    /// The map is asset content, as emitted by [`SourceMapAsset`]: usually a file, but
+    /// implementations whose maps are composed from other tasks' cells return
+    /// [`AssetContent::Composed`], so writing the map persists only references to those cells.
+    /// Consumers that need the bytes read them with [`AssetContent::as_rope`].
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent>;
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<AssetContent>;
 
     /// Returns an individual section of the larger source map, if found.
     /// `ty` selects the map variant, as in [`GenerateSourceMap::generate_source_map`].
@@ -318,12 +326,11 @@ impl SourceMap {
     /// This function should be used sparingly to reduce memory usage, only in cold code paths
     /// (issue resolving, etc).
     #[turbo_tasks::function]
-    pub async fn new_from_rope_cached(content: Vc<FileContent>) -> Result<Vc<OptionSourceMap>> {
-        let content = content.await?;
-        let Some(content) = content.as_content() else {
+    pub async fn new_from_rope_cached(content: Vc<OptionRope>) -> Result<Vc<OptionSourceMap>> {
+        let Some(content) = &*content.await? else {
             return Ok(OptionSourceMap::none());
         };
-        Ok(Vc::cell(SourceMap::new_from_rope(content.content())?))
+        Ok(Vc::cell(SourceMap::new_from_rope(content)?))
     }
 }
 
@@ -371,45 +378,63 @@ impl SourceMap {
             return std::mem::take(map);
         }
 
+        let mut rope = RopeBuilder::default();
+        Self::write_sections(
+            &mut rope,
+            first.into_iter().chain(sections),
+            debug_id,
+            |rope, section_map| *rope += &section_map,
+        );
+        rope.build()
+    }
+
+    /// Writes a sectioned source map: `sections` are the maps with the positions they start at,
+    /// and `push_map` writes one of them. Callers that may have a single section starting at the
+    /// beginning should return that map directly instead (see [`SourceMap::sections_to_rope`]).
+    pub fn write_sections<W: Write, M>(
+        out: &mut W,
+        sections: impl IntoIterator<Item = (SourcePos, M)>,
+        debug_id: Option<RcStr>,
+        mut push_map: impl FnMut(&mut W, M),
+    ) {
         // My kingdom for a decent dedent macro with interpolation!
         // NOTE: The empty `sources` array is technically incorrect, but there is a bug
         // in Node.js that requires sectioned source maps to have a `sources` array.
-        let mut rope = RopeBuilder::from(
-            r#"{
+        out.write_all(
+            br#"{
   "version": 3,
   "sources": [],
 "#,
-        );
+        )
+        .unwrap();
         if let Some(debug_id) = debug_id {
-            writeln!(rope, r#"  "debugId": "{debug_id}","#).unwrap();
+            writeln!(out, r#"  "debugId": "{debug_id}","#).unwrap();
         }
-        rope += "  \"sections\": [";
+        out.write_all(b"  \"sections\": [").unwrap();
 
         let mut first_section = true;
-        for (offset, section_map) in first.into_iter().chain(sections) {
+        for (offset, section_map) in sections {
             if !first_section {
-                rope += ",";
+                out.write_all(b",").unwrap();
             }
             first_section = false;
 
             write!(
-                rope,
+                out,
                 r#"
     {{"offset": {{"line": {}, "column": {}}}, "map": "#,
                 offset.line, offset.column,
             )
             .unwrap();
 
-            rope += &section_map;
+            push_map(out, section_map);
 
-            rope += "}";
+            out.write_all(b"}").unwrap();
         }
 
-        rope += "]";
+        out.write_all(b"]").unwrap();
 
-        rope += "\n}";
-
-        rope.build()
+        out.write_all(b"\n}").unwrap();
     }
 
     /// Stringifies the source map into JSON bytes.
@@ -734,8 +759,10 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
-        Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
+    fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(self.to_rope()?)).cell(),
+        ))
     }
 }
 

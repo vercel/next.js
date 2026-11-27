@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use anyhow::{Result, bail};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent};
@@ -37,15 +35,10 @@ impl SourceTransform for BytesSourceTransform {
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
         let ident = source.ident().owned().await?;
-        let content = source.content().file_content().await?;
-        let bytes = match &*content {
-            FileContent::Content(data) => {
-                data.read().bytes().collect::<std::io::Result<Vec<u8>>>()?
-            }
-            FileContent::NotFound => {
-                bail!("File not found: {:?}", ident.path);
-            }
+        let Some(content) = &*source.content().as_rope().await? else {
+            bail!("File not found: {:?}", ident.path);
         };
+        let bytes = content.to_bytes();
 
         let encoded = data_encoding::BASE64_NOPAD.encode(&bytes);
 

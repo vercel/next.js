@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::FileContent;
 use turbopack_core::asset::Asset;
 use wasmparser::{Chunk, Parser, Payload};
 
@@ -21,15 +20,15 @@ pub(crate) struct WebAssemblyAnalysis {
 /// Extracts imports and exports.
 #[turbo_tasks::function]
 pub(crate) async fn analyze(source: Vc<WebAssemblySource>) -> Result<Vc<WebAssemblyAnalysis>> {
-    let content = source.content().file_content().await?;
+    let content = source.content().as_rope().await?;
 
     let mut analysis = WebAssemblyAnalysis::default();
 
-    let FileContent::Content(file) = &*content else {
+    let Some(content) = &*content else {
         return Ok(analysis.cell());
     };
 
-    let mut bytes = &*file.content().to_bytes();
+    let mut bytes = &*content.to_bytes();
 
     let mut parser = Parser::new(0);
     loop {

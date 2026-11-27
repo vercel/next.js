@@ -25,6 +25,18 @@ impl Mappings {
         }
     }
 
+    /// Restores mappings that were built (and validated) with `available`, see
+    /// [`CodeCells::to_code`](super::CodeCells).
+    pub(super) fn from_parts(
+        mappings: Vec<Mapping>,
+        available: SourceMapGenerationOptions,
+    ) -> Self {
+        Self {
+            mappings: Arc::new(mappings),
+            available,
+        }
+    }
+
     pub(super) fn push(&mut self, offset: usize, maps: SourceMaps<SectionMap>) -> Result<()> {
         if matches!(maps, SourceMaps::None) {
             self.push_synthetic(offset);
@@ -71,6 +83,11 @@ impl Mappings {
                 .map(|(index, map)| (index + offset, map.clone())),
         );
         Ok(())
+    }
+
+    /// The variants these mappings were built with.
+    pub(super) fn available(&self) -> SourceMapGenerationOptions {
+        self.available
     }
 
     pub(super) fn has_source_map(&self) -> bool {

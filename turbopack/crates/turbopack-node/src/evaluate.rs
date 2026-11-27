@@ -85,7 +85,7 @@ impl EvaluateArg {
         Ok(Some(match self {
             Self::Vc(value) => value.owned().await?,
             Self::SourceContent { source, encoding } => {
-                let AssetContent::File(file) = *source.content().await? else {
+                let Some(file) = source.content().await?.as_file_content() else {
                     bail!("Only the content of file sources can be passed to an evaluation");
                 };
                 let FileContent::Content(file_content) = &*file.await? else {
