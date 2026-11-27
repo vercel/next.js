@@ -43,6 +43,28 @@ function createRequest({
 }
 
 describe('request insights trace viewer', () => {
+  it('shows background activities by default and filters them independently', () => {
+    const request = createRequest({ requestId: 'page', source: 'page' })
+    const background = createRequest({
+      requestId: 'compile',
+      kind: 'background',
+      source: 'background',
+    })
+    expect(getRequestListEntries([background, request], false)).toEqual([
+      { request: background, nested: false },
+      { request, nested: false },
+    ])
+    const filtered = getRequestInsightFilterResult(
+      [background, request],
+      ['activity:background']
+    )
+    expect(filtered.requests).toEqual([background])
+    expect(filtered.optionCounts['activity:background']).toBe(1)
+    expect(getRequestInsightRowType(background)).toMatchObject({
+      type: 'background',
+    })
+  })
+
   it('moves the active trace row without leaving the listbox', () => {
     expect(getTraceNavigationIndex(0, 3, 'ArrowDown')).toBe(1)
     expect(getTraceNavigationIndex(2, 3, 'ArrowDown')).toBe(2)

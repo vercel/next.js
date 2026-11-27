@@ -1327,13 +1327,12 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
 }
 
 function getRequestOverview(request: RequestInsight) {
-  const isInstantInsights =
-    getRequestInsightKind(request) === 'instant-insights'
-  const method = isInstantInsights
-    ? undefined
-    : (getFirstStringAttribute(request, 'http.method') ??
-      getMethodFromName(request.spans[0]?.name) ??
-      'GET')
+  const method =
+    getRequestInsightKind(request) !== 'request'
+      ? undefined
+      : (getFirstStringAttribute(request, 'http.method') ??
+        getMethodFromName(request.spans[0]?.name) ??
+        'GET')
   const statusCode = getRequestInsightStatusCode(request)
   const erroredSpan = request.spans.find(
     (span) => span.status === 'error' || span.error

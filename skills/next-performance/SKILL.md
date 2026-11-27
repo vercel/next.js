@@ -23,6 +23,7 @@ Default: diagnose. Edit only on explicit request.
   agrees, restart the same development command, wait until it is ready, and
   reproduce the affected request once. State that an unrecorded original
   request cannot be recovered.
+  Read the result with **Reading a dev timeline** below.
 
 - **Browser:** For slow startup or navigation, or excess client JavaScript, use
   `next-bundle-optimizer` in audit mode. If unavailable, ask before installing it:
@@ -35,3 +36,33 @@ Default: diagnose. Edit only on explicit request.
   main-thread timing. Follow the dominant side or report the gap.
 
 Report the measured bottleneck, evidence, and next action.
+
+## Reading a dev timeline
+
+The bundled Request Insights guide explains request kinds and gap attribution.
+These dev-server effects distort a single request; weigh them before naming a
+bottleneck:
+
+- **Compilation is a `compile-path` span.** A cold route compile appears as
+  `compile-path` inside the request that triggered it. It lasts until every
+  compile running alongside it finishes, so when another route compiles at the
+  same time, its time lands in the first request's `compile-path` and the
+  other request has none.
+- **With webpack, `compile route` spans under the proxy compile the proxy.**
+  Their duration says nothing about compiling the page.
+- **Static params generation has no span.** On a dynamic route, a gap at the
+  start of `BaseServer.renderToResponseWithComponents` is usually static params
+  generation, which loads and evaluates the route's modules in a worker. Confirm
+  by repeating the request: time that disappears on the warm request was
+  compilation or module evaluation.
+- **Concurrent first requests share one compile.** Only the request that
+  started the compile has the `compile-path` span; a request that starts while
+  the same route is compiling waits in an untraced gap. Compare start times
+  before blaming the later request.
+- **Nested wrappers with the same duration are one interval.** Read the
+  innermost span of the chain.
+- **Repeated parallel spans overlap.** Measure the batch by its first start and
+  last end.
+
+Report compilation, static params generation, and Instant Insights as dev
+overhead, separate from the request time a warm or production server would see.
