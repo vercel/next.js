@@ -70,6 +70,31 @@ describe('config-testing-utils', () => {
       )
     })
 
+    it('preserves external ports, fragments, and repeated query values', async () => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: 'https://nextjs.org/test/foo?item=one&item=two',
+        nextConfig: {
+          async redirects() {
+            return [
+              {
+                source: '/test/:slug',
+                destination:
+                  'https://other.example:8443/result/:slug?encoded=a%2Fb#section',
+                permanent: false,
+              },
+            ]
+          },
+        },
+      })
+      expect(response.status).toBe(307)
+      const destination = new URL(response.headers.get('location')!)
+      expect(destination.origin).toBe('https://other.example:8443')
+      expect(destination.pathname).toBe('/result/foo')
+      expect(destination.hash).toBe('#section')
+      expect(destination.searchParams.getAll('item')).toEqual(['one', 'two'])
+      expect(destination.searchParams.get('encoded')).toBe('a/b')
+    })
+
     it("ignores redirect that doesn't match has", async () => {
       const response = await unstable_getResponseFromNextConfig({
         url: 'https://nextjs.org/test/foo',

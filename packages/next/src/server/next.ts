@@ -1,3 +1,9 @@
+import {
+  formatRouteURL,
+  normalizeRouteURL,
+  parseRouteURL,
+  type RouteURL,
+} from '../shared/lib/router/utils/route-url'
 import type { Options as DevServerOptions } from './dev/next-dev-server'
 import type {
   NodeRequestHandler,
@@ -22,7 +28,6 @@ import {
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
-import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
 import { AsyncCallbackSet } from './lib/async-callback-set'
@@ -59,7 +64,7 @@ export type NextBundlerOptions = {
 export type RequestHandler = (
   req: IncomingMessage,
   res: ServerResponse,
-  parsedUrl?: NextUrlWithParsedQuery | undefined
+  parsedUrl?: RouteURL | NextUrlWithParsedQuery | undefined
 ) => Promise<void>
 
 export type UpgradeHandler = (
@@ -201,7 +206,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: NextUrlWithParsedQuery
+      parsedUrl?: RouteURL | NextUrlWithParsedQuery
     ) => {
       const tracer = getTracer()
       return tracer.withPropagatedContext(req.headers, () =>
@@ -221,7 +226,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: NextUrlWithParsedQuery
+      parsedUrl?: RouteURL | NextUrlWithParsedQuery
     ) => {
       const tracer = getTracer()
       return tracer.withPropagatedContext(req.headers, () =>
@@ -524,12 +529,12 @@ class NextCustomServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: NextUrlWithParsedQuery
+      parsedUrl?: RouteURL | NextUrlWithParsedQuery
     ) => {
       this.setupWebSocketHandler(this.options.httpServer, req)
 
       if (parsedUrl) {
-        req.url = formatUrl(parsedUrl)
+        req.url = formatRouteURL(normalizeRouteURL(parsedUrl))
       }
 
       return this.requestHandler(req, res)
@@ -547,11 +552,12 @@ class NextCustomServer implements NextWrapperServer {
     }
     pathname = pathname === '/index' ? '/' : pathname
 
-    req.url = formatUrl({
-      ...parsedUrl,
-      pathname,
-      query,
-    })
+    const route = parsedUrl
+      ? normalizeRouteURL(parsedUrl)
+      : parseRouteURL(pathname)
+    route.url.pathname = pathname
+    route.query = query || {}
+    req.url = formatRouteURL(route)
 
     await this.requestHandler(req as IncomingMessage, res as ServerResponse)
     return

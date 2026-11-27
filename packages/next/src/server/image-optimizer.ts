@@ -15,7 +15,7 @@ import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete, NextConfigRuntime } from './config-shared'
 import { MockedRequest, MockedResponse } from './lib/mock-request'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { ParsedUrlQuery } from 'querystring'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -28,7 +28,11 @@ import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import { isPrivateIp } from './is-private-ip'
 import { getOrInitDiskLRU } from './lib/disk-lru-cache.external'
-import { parseUrl, parseReqUrl } from '../lib/url'
+import { parseUrl } from '../lib/url'
+import {
+  tryParseRequestRouteURL,
+  type RouteURL,
+} from '../shared/lib/router/utils/route-url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { lookup } from 'dns/promises'
@@ -259,7 +263,7 @@ export class ImageOptimizerCache {
 
   static validateParams(
     req: IncomingMessage,
-    query: NextUrlWithParsedQuery['query'],
+    query: ParsedUrlQuery,
     nextConfig: NextConfigRuntime,
     isDev: boolean
   ): ImageParamsResult | { errorMessage: string } {
@@ -981,7 +985,7 @@ export async function fetchInternalImage(
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
-    newParsedUrl?: NextUrlWithParsedQuery
+    newParsedUrl?: RouteURL
   ) => Promise<void>,
   imagesConfig: ImageConfigComplete,
   count = imagesConfig.maximumRedirects
@@ -1011,7 +1015,7 @@ export async function fetchInternalImage(
       }),
     }
 
-    await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
+    await handleRequest(mocked.req, mocked.res, tryParseRequestRouteURL(href))
     await mocked.res.hasStreamed
 
     const locationHeader = mocked.res.getHeader('Location')

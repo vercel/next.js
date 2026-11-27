@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlObject } from 'url'
+import type { RouteURL } from '../../shared/lib/router/utils/route-url'
 import type { Duplex } from 'stream'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
@@ -339,7 +339,7 @@ export interface NextJsHotReloaderInterface {
   run(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: UrlObject
+    parsedUrl: RouteURL
   ): Promise<{ finished?: true }>
 
   setHmrServerError(error: Error | null): void

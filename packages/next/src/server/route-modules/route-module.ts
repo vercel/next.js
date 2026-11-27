@@ -1,3 +1,4 @@
+import type { RouteURL } from '../../shared/lib/router/utils/route-url'
 import '../../build/adapter/setup-node-env.external'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
@@ -5,7 +6,6 @@ import type {
   RequestErrorContext,
 } from '../instrumentation/types'
 import type { ParsedUrlQuery } from 'node:querystring'
-import type { UrlWithParsedQuery } from 'node:url'
 import type {
   PrerenderManifest,
   PreviewPropsManifest,
@@ -29,7 +29,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../../shared/lib/constants'
-import { parseReqUrl } from '../../lib/url'
+import { tryParseRequestRouteURL } from '../../shared/lib/router/utils/route-url'
 import {
   normalizeLocalePath,
   type PathLocale,
@@ -216,7 +216,7 @@ export abstract class RouteModule<
 
   public normalizeUrl(
     _req: IncomingMessage | BaseNextRequest,
-    _parsedUrl: UrlWithParsedQuery
+    _parsedUrl: RouteURL
   ) {}
 
   public async instrumentationOnRequestError(
@@ -848,7 +848,7 @@ export abstract class RouteModule<
         originalQuery: ParsedUrlQuery
         originalPathname: string
         params?: ParsedUrlQuery
-        parsedUrl: UrlWithParsedQuery
+        parsedUrl: RouteURL
         previewData: PreviewData
         pageIsDynamic: boolean
         isDraftMode: boolean
@@ -916,7 +916,7 @@ export abstract class RouteModule<
       req.url = removePathPrefix(req.url || '/', basePath)
     }
 
-    const parsedUrl = parseReqUrl(req.url || '/')
+    const parsedUrl = tryParseRequestRouteURL(req.url || '/')
     addRequestMeta(req, 'initQuery', { ...parsedUrl?.query })
     // if we couldn't parse the URL we can't continue
     if (!parsedUrl) {
@@ -924,12 +924,12 @@ export abstract class RouteModule<
     }
     let isNextDataRequest = false
 
-    if (pathHasPrefix(parsedUrl.pathname || '/', '/_next/data')) {
+    if (pathHasPrefix(parsedUrl.url.pathname || '/', '/_next/data')) {
       isNextDataRequest = true
-      parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
+      parsedUrl.url.pathname = normalizeDataPath(parsedUrl.url.pathname || '/')
     }
     this.normalizeUrl(req, parsedUrl)
-    let originalPathname = parsedUrl.pathname || '/'
+    let originalPathname = parsedUrl.url.pathname || '/'
     const originalQuery = { ...parsedUrl.query }
     const pageIsDynamic = isDynamicRoute(srcPage)
 
@@ -943,12 +943,12 @@ export abstract class RouteModule<
     // so their pathname must remain intact for dynamic param matching.
     if (i18n && isPagesRoute) {
       localeResult = normalizeLocalePath(
-        parsedUrl.pathname || '/',
+        parsedUrl.url.pathname || '/',
         i18n.locales
       )
 
       if (localeResult.detectedLocale) {
-        req.url = `${localeResult.pathname}${parsedUrl.search}`
+        req.url = `${localeResult.pathname}${parsedUrl.url.search}`
         originalPathname = localeResult.pathname
 
         if (!detectedLocale) {
@@ -976,7 +976,10 @@ export abstract class RouteModule<
 
     const domainLocale = detectDomainLocale(
       i18n?.domains,
-      getHostname(parsedUrl, req.headers),
+      getHostname(
+        parsedUrl.kind === 'absolute' ? parsedUrl.url : {},
+        req.headers
+      ),
       detectedLocale
     )
 
@@ -989,17 +992,17 @@ export abstract class RouteModule<
       domainLocale?.defaultLocale ||
       i18n?.defaultLocale
 
-    // Ensure parsedUrl.pathname includes locale before processing
+    // Ensure parsedUrl.url.pathname includes locale before processing
     // rewrites or they won't match correctly.
     if (defaultLocale && !detectedLocale && isPagesRoute) {
-      parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}`
+      parsedUrl.url.pathname = `/${defaultLocale}${parsedUrl.url.pathname === '/' ? '' : parsedUrl.url.pathname}`
     }
     const locale =
       getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
 
     // we apply rewrites against cloned URL so that we don't
     // modify the original with the rewrite destination
-    const { rewriteParams, rewrittenParsedUrl } = serverUtils.handleRewrites(
+    const { rewriteParams, rewrittenParsedUrl } = serverUtils.handleRewritesURL(
       req,
       parsedUrl
     )
@@ -1009,13 +1012,13 @@ export abstract class RouteModule<
     // after processing rewrites we want to remove locale
     // from parsedUrl pathname
     if (i18n && isPagesRoute) {
-      parsedUrl.pathname = normalizeLocalePath(
-        parsedUrl.pathname || '/',
+      parsedUrl.url.pathname = normalizeLocalePath(
+        parsedUrl.url.pathname || '/',
         i18n.locales
       ).pathname
 
-      rewrittenParsedUrl.pathname = normalizeLocalePath(
-        rewrittenParsedUrl.pathname || '/',
+      rewrittenParsedUrl.url.pathname = normalizeLocalePath(
+        rewrittenParsedUrl.url.pathname || '/',
         i18n.locales
       ).pathname
     }
@@ -1027,7 +1030,7 @@ export abstract class RouteModule<
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
         normalizeDataPath(
-          rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
+          rewrittenParsedUrl?.url.pathname || parsedUrl.url.pathname || '/'
         )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
@@ -1132,8 +1135,8 @@ export abstract class RouteModule<
         req.url || '/',
         paramsToInterpolate
       )
-      parsedUrl.pathname = serverUtils.interpolateDynamicPath(
-        parsedUrl.pathname || '/',
+      parsedUrl.url.pathname = serverUtils.interpolateDynamicPath(
+        parsedUrl.url.pathname || '/',
         paramsToInterpolate
       )
       originalPathname = serverUtils.interpolateDynamicPath(
@@ -1155,7 +1158,7 @@ export abstract class RouteModule<
           // use final params from URL matching
           const paramsMatch = serverUtils.dynamicRouteMatcher?.(
             normalizeDataPath(
-              localeResult?.pathname || parsedUrl.pathname || '/'
+              localeResult?.pathname || parsedUrl.url.pathname || '/'
             )
           )
           // we don't normalize these as they are allowed to be

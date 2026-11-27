@@ -1,13 +1,12 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
-import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
+import type { RequestMeta } from '../request-meta'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
 import '../require-hook'
 
-import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
@@ -32,7 +31,11 @@ import setupCompression from 'next/dist/compiled/compression'
 import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
-import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
+import {
+  parseRouteURL,
+  formatRouteURL,
+  type RouteURL,
+} from '../../shared/lib/router/utils/route-url'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -581,7 +584,11 @@ export async function initialize(opts: {
       const { getLocaleRedirect } =
         require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
 
-      const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
+      const parsedUrl = parseRouteURL((req.url || '/').replace(/^\/+/, '/'))
+
+      parsedUrl.url.pathname = pathnameInfo.locale
+        ? `/${pathnameInfo.locale}${urlNoQuery}`
+        : urlNoQuery
 
       const redirect = getLocaleRedirect({
         defaultLocale,
@@ -589,12 +596,7 @@ export async function initialize(opts: {
         headers: req.headers,
         nextConfig: config,
         pathLocale: pathnameInfo.locale,
-        urlParsed: {
-          ...parsedUrl,
-          pathname: pathnameInfo.locale
-            ? `/${pathnameInfo.locale}${urlNoQuery}`
-            : urlNoQuery,
-        },
+        urlParsed: parsedUrl,
       })
 
       if (redirect) {
@@ -627,7 +629,7 @@ export async function initialize(opts: {
     const invokedOutputs = new Set<string>()
 
     async function invokeRender(
-      parsedUrl: NextUrlWithParsedQuery,
+      parsedUrl: RouteURL,
       invokePath: string,
       handleIndex: number,
       additionalRequestMeta?: RequestMeta
@@ -650,7 +652,7 @@ export async function initialize(opts: {
         fsChecker.getMiddlewareMatchers()?.length &&
         removePathPrefix(invokePath, config.basePath) === '/404'
       ) {
-        res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
+        res.setHeader('x-nextjs-matched-path', parsedUrl.url.pathname || '')
         res.statusCode = 404
         res.setHeader('content-type', 'application/json')
         res.end('{}')
@@ -727,7 +729,7 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, assetPrefix)
         }
 
-        const parsedUrl = parseUrlUtil(req.url || '/')
+        const parsedUrl = parseRouteURL(req.url || '/')
 
         const hotReloaderResult = await development.bundler.hotReloader.run(
           req,
@@ -790,7 +792,7 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream: !!bodyStream,
         parsedUrl: {
-          pathname: parsedUrl.pathname,
+          pathname: parsedUrl.url.pathname,
           query: parsedUrl.query,
         },
         finished,
@@ -805,7 +807,7 @@ export async function initialize(opts: {
 
       // handle redirect
       if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
-        const destination = url.format(parsedUrl)
+        const destination = formatRouteURL(parsedUrl)
         res.statusCode = statusCode
         res.setHeader('location', destination)
 
@@ -821,7 +823,7 @@ export async function initialize(opts: {
         return await pipeToNodeResponse(bodyStream, res)
       }
 
-      if (finished && parsedUrl.protocol) {
+      if (finished && parsedUrl.kind === 'absolute') {
         return await proxyRequest(
           req,
           res,
@@ -855,7 +857,7 @@ export async function initialize(opts: {
           if (matchedOutput.itemPath.startsWith('/service-worker/')) {
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
             res.setHeader('Service-Worker-Allowed', config.basePath || '/')
-          } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+          } else if (opts.dev && !isNextFont(parsedUrl.url.pathname)) {
             // Development assets stay revalidatable. `serveStatic` adds an
             // `ETag`, so the browser sends a conditional request and reuses the
             // stored body when the server answers `304`. This keeps the browser
@@ -871,9 +873,14 @@ export async function initialize(opts: {
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405
-          return await invokeRender(parseUrlUtil('/405'), '/405', handleIndex, {
-            invokeStatus: 405,
-          })
+          return await invokeRender(
+            parseRouteURL('/405'),
+            '/405',
+            handleIndex,
+            {
+              invokeStatus: 405,
+            }
+          )
         }
 
         try {
@@ -941,7 +948,7 @@ export async function initialize(opts: {
             const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
-              parseUrlUtil(invokePath),
+              parseRouteURL(invokePath),
               invokePath,
               handleIndex,
               {
@@ -968,7 +975,7 @@ export async function initialize(opts: {
 
         return await invokeRender(
           parsedUrl,
-          parsedUrl.pathname || '/',
+          parsedUrl.url.pathname || '/',
           handleIndex,
           {
             invokeOutput: matchedOutput.itemPath,
@@ -1007,7 +1014,7 @@ export async function initialize(opts: {
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
-      let realRequestPathname = parsedUrl.pathname ?? ''
+      let realRequestPathname = parsedUrl.url.pathname ?? ''
       if (realRequestPathname) {
         if (config.basePath) {
           realRequestPathname = removePathPrefix(
@@ -1050,7 +1057,11 @@ export async function initialize(opts: {
       }
 
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
-      if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
+      if (
+        opts.dev &&
+        !matchedOutput &&
+        parsedUrl.url.pathname === '/favicon.ico'
+      ) {
         res.statusCode = 404
         res.end('')
         return null
@@ -1096,7 +1107,7 @@ export async function initialize(opts: {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
-        return await invokeRender(parseUrlUtil(invokePath), invokePath, 0, {
+        return await invokeRender(parseRouteURL(invokePath), invokePath, 0, {
           invokeStatus: res.statusCode,
         })
       } catch (err2) {
@@ -1310,7 +1321,7 @@ export async function initialize(opts: {
         return socket.end()
       }
 
-      if (finished && parsedUrl.protocol) {
+      if (finished && parsedUrl.kind === 'absolute') {
         if (!statusCode) {
           return await proxyRequest(req, socket, parsedUrl, head)
         }

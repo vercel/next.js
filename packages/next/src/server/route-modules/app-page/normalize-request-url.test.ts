@@ -3,7 +3,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
-import { parseReqUrl } from '../../../lib/url'
+import { tryParseRequestURL } from '../../../shared/lib/router/utils/relative-url'
 import { getRequestMeta } from '../../request-meta'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
@@ -23,14 +23,14 @@ describe('normalizeAppPageRequestUrl', () => {
       headers: {},
       url: '/docs/frameworks/frontend.rsc?foo=bar',
     }
-    const parsedUrl = parseReqUrl(req.url)!
+    const parsedUrl = tryParseRequestURL(req.url)!
 
     parsedUrl.pathname = new RSCPathnameNormalizer().normalize(
-      parsedUrl.pathname!
+      parsedUrl.pathname
     )
     req.headers[RSC_HEADER] = '1'
 
-    normalizeAppPageRequestUrl(req, parsedUrl.pathname!)
+    normalizeAppPageRequestUrl(req, parsedUrl.pathname)
 
     expect(parsedUrl.pathname).toBe('/docs/frameworks/frontend')
     expect(req.url).toBe('/docs/frameworks/frontend?foo=bar')
@@ -42,9 +42,9 @@ describe('normalizeAppPageRequestUrl', () => {
       headers: {},
       url: '/docs/frameworks/frontend.segments/_tree.segment.rsc?foo=bar',
     }
-    const parsedUrl = parseReqUrl(req.url)!
+    const parsedUrl = tryParseRequestURL(req.url)!
     const result = new SegmentPrefixRSCPathnameNormalizer().extract(
-      parsedUrl.pathname!
+      parsedUrl.pathname
     )!
 
     parsedUrl.pathname = result.originalPathname
@@ -66,9 +66,9 @@ describe('normalizeAppPageRequestUrl', () => {
       headers: {},
       url: '/docs/frameworks/frontend.segments/docs/frameworks/frontend/__PAGE__.segment.rsc?foo=bar',
     }
-    const parsedUrl = parseReqUrl(req.url)!
+    const parsedUrl = tryParseRequestURL(req.url)!
     const result = new SegmentPrefixRSCPathnameNormalizer().extract(
-      parsedUrl.pathname!
+      parsedUrl.pathname
     )!
 
     parsedUrl.pathname = result.originalPathname

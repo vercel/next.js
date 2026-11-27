@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { NextConfigRuntime } from '../../config-shared'
-import type { UrlWithParsedQuery } from 'node:url'
+import type { RouteURL } from '../../../shared/lib/router/utils/route-url'
 import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache-indicator'
 import type { AnyStream } from '../../app-render/stream-ops'
 
@@ -25,7 +25,7 @@ export type RouterServerContext = Record<
     render404?: (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery,
+      parsedUrl?: RouteURL,
       setHeaders?: boolean
     ) => Promise<void>
     // exposing nextConfig for dev mode specifically

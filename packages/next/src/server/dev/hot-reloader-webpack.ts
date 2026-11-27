@@ -3,7 +3,7 @@ import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlObject } from 'url'
+import type { RouteURL } from '../../shared/lib/router/utils/route-url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { AnyStream } from '../app-render/stream-ops'
 
@@ -357,7 +357,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   public async run(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: UrlObject
+    parsedUrl: RouteURL
   ): Promise<{ finished?: true }> {
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
@@ -374,7 +374,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // and then the bundle will be served like usual by the actual route in server/index.js
     const handlePageBundleRequest = async (
       pageBundleRes: ServerResponse,
-      parsedPageBundleUrl: UrlObject
+      parsedPageBundleUrl: Pick<URL, 'pathname'>
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
       if (!pathname) return {}
@@ -412,7 +412,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       return {}
     }
 
-    const { finished } = await handlePageBundleRequest(res, parsedUrl)
+    const { finished } = await handlePageBundleRequest(res, parsedUrl.url)
 
     for (const middleware of this.middlewares) {
       let calledNext = false

@@ -130,6 +130,18 @@ describe.each([
       expect(html).toMatch(/made it to dashboard/)
     })
 
+    it('honors custom pathname and query overrides with a stale href', async () => {
+      const html = await renderViaRawHTTP(
+        next.url,
+        '/custom-url-overrides',
+        tlsOpts
+      )
+      const $ = cheerio.load(html)
+      const data = JSON.parse($('#__NEXT_DATA__').text())
+      expect(data.page).toBe('/dynamic-dashboard')
+      expect(data.query).toEqual({ q: 'hello world', item: ['one', 'two'] })
+    })
+
     it.skip('should contain customServer in NEXT_DATA', async () => {
       const html = await renderViaRawHTTP(next.url, '/', tlsOpts)
       const $ = cheerio.load(html)

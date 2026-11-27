@@ -2,7 +2,6 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
 import type { BaseNextRequest } from './base-http'
-import type { NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -11,7 +10,7 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import {
   matchHas,
-  prepareDestination,
+  prepareDestinationURL,
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
@@ -26,8 +25,14 @@ import { normalizeNextQueryParam } from './web/utils'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { parseReqUrl } from '../lib/url'
-import { formatUrl } from '../shared/lib/router/utils/format-url'
+import {
+  tryParseRequestURL,
+  formatRelativeURL,
+} from '../shared/lib/router/utils/relative-url'
+import {
+  cloneRouteURL,
+  type RouteURL,
+} from '../shared/lib/router/utils/route-url'
 
 function filterInternalQuery(
   query: Record<string, undefined | string | string[]>,
@@ -61,18 +66,24 @@ export function normalizeCdnUrl(
 ) {
   // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
-  const _parsedUrl = parseReqUrl(req.url!)
+  const url = tryParseRequestURL(req.url!)
+  if (!url) return req.url
 
-  // we can't normalize if we can't parse
-  if (!_parsedUrl) {
-    return req.url
+  // Snapshot keys before deleting: URLSearchParams iterators are live.
+  for (const key of Array.from(url.searchParams.keys())) {
+    if (
+      key === 'nextInternalLocale' ||
+      (key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)) ||
+      (key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)) ||
+      paramKeys.includes(key)
+    ) {
+      url.searchParams.delete(key)
+    }
   }
-  // TODO(as-any): pre-existing cast, not yet reviewed
-  // eslint-disable-next-line @next/internal/no-as-any
-  delete (_parsedUrl as any).search
-  filterInternalQuery(_parsedUrl.query, paramKeys)
-
-  req.url = formatUrl(_parsedUrl)
+  url.search = url.searchParams.toString()
+  req.url = formatRelativeURL(url)
 }
 
 export function interpolateDynamicPath(
@@ -249,17 +260,14 @@ export function getServerUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(
+  function handleRewritesURL(
     req: BaseNextRequest | IncomingMessage,
-    parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
+    parsedUrl: RouteURL
   ) {
-    // Here we deep clone the parsedUrl to avoid mutating the original. We also
-    // cast this to a mutable type so we can mutate it within this scope.
-    const rewrittenParsedUrl = structuredClone(
-      parsedUrl
-    ) as NextUrlWithParsedQuery
+    // Clone the native URL and routing data independently.
+    let rewrittenParsedUrl = cloneRouteURL(parsedUrl)
     const rewriteParams: Record<string, string> = {}
-    let fsPathname = rewrittenParsedUrl.pathname
+    let fsPathname = rewrittenParsedUrl.url.pathname
 
     const matchesPage = () => {
       const fsPathnameNoSlash = removeTrailingSlash(fsPathname || '')
@@ -279,9 +287,9 @@ export function getServerUtils({
         }
       )
 
-      if (!rewrittenParsedUrl.pathname) return false
+      if (!rewrittenParsedUrl.url.pathname) return false
 
-      let params = matcher(rewrittenParsedUrl.pathname)
+      let params = matcher(rewrittenParsedUrl.url.pathname)
 
       if ((rewrite.has || rewrite.missing) && params) {
         const hasParams = matchHas(
@@ -299,7 +307,7 @@ export function getServerUtils({
       }
 
       if (params) {
-        const { parsedDestination, destQuery } = prepareDestination({
+        const { parsedDestination, destQuery } = prepareDestinationURL({
           appendParamsToQuery: true,
           destination: rewrite.destination,
           params: params,
@@ -307,19 +315,17 @@ export function getServerUtils({
         })
 
         // if the rewrite destination is external break rewrite chain
-        if (parsedDestination.protocol) {
+        if (parsedDestination.kind === 'absolute') {
           return true
         }
 
         Object.assign(rewriteParams, destQuery, params)
-        Object.assign(rewrittenParsedUrl.query, parsedDestination.query)
-        // TODO(as-any): pre-existing cast, not yet reviewed
-        // eslint-disable-next-line @next/internal/no-as-any
-        delete (parsedDestination as any).query
+        rewrittenParsedUrl = {
+          ...parsedDestination,
+          query: { ...rewrittenParsedUrl.query, ...parsedDestination.query },
+        }
 
-        Object.assign(rewrittenParsedUrl, parsedDestination)
-
-        fsPathname = rewrittenParsedUrl.pathname
+        fsPathname = rewrittenParsedUrl.url.pathname
         if (!fsPathname) return false
 
         if (basePath) {
@@ -453,7 +459,7 @@ export function getServerUtils({
   }
 
   return {
-    handleRewrites,
+    handleRewritesURL,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,

@@ -6,7 +6,7 @@ import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { Redirect } from '../../../types'
 import type { Header } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { NextUrlWithParsedQuery } from '../../request-meta'
+import type { RouteURL } from '../../../shared/lib/router/utils/route-url'
 
 import path from 'node:path'
 import setupDebug from 'next/dist/compiled/debug'
@@ -25,7 +25,7 @@ import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
-import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
+import { parseRouteURL } from '../../../shared/lib/router/utils/route-url'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
@@ -38,7 +38,7 @@ import { isRSCRequestHeader } from '../is-rsc-request'
 import {
   compileNonPath,
   matchHas,
-  prepareDestination,
+  prepareDestinationURL,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
 import {
@@ -133,14 +133,14 @@ export function getResolveRoutes(
     statusCode?: number
     bodyStream?: ReadableStream | null
     resHeaders: Record<string, string | string[]> | null
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: RouteURL
     matchedOutput?: FsOutput | null
   }> {
     const assetPrefix = getAssetPrefix()
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
-    let parsedUrl = parseUrl(req.url || '') as NextUrlWithParsedQuery
+    let parsedUrl = parseRouteURL(req.url || '/')
     let didRewrite = false
 
     const urlParts = (req.url || '').split('?', 1)
@@ -158,7 +158,7 @@ export function getResolveRoutes(
     // handle trailing slash as that is handled the same as a next.config.js
     // redirect
     if (urlNoQuery?.match(/(\\|\/\/)/)) {
-      parsedUrl = parseUrl(normalizeRepeatedSlashes(req.url!))
+      parsedUrl = parseRouteURL(normalizeRepeatedSlashes(req.url!))
       return {
         parsedUrl,
         resHeaders,
@@ -220,12 +220,12 @@ export function getResolveRoutes(
       | undefined = undefined
 
     if (config.i18n) {
-      const hadTrailingSlash = parsedUrl.pathname?.endsWith('/')
+      const hadTrailingSlash = parsedUrl.url.pathname?.endsWith('/')
       const hadBasePath = pathHasPrefix(
-        parsedUrl.pathname || '',
+        parsedUrl.url.pathname || '',
         config.basePath
       )
-      let normalizedPath = parsedUrl.pathname || '/'
+      let normalizedPath = parsedUrl.url.pathname || '/'
 
       if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
         normalizedPath = removePathPrefix(normalizedPath, config.basePath)
@@ -240,7 +240,10 @@ export function getResolveRoutes(
 
       domainLocale = detectDomainLocale(
         config.i18n.domains,
-        getHostname(parsedUrl, req.headers)
+        getHostname(
+          parsedUrl.kind === 'absolute' ? parsedUrl.url : {},
+          req.headers
+        )
       )
       defaultLocale = domainLocale?.defaultLocale || config.i18n.defaultLocale
 
@@ -257,7 +260,7 @@ export function getResolveRoutes(
         !initialLocaleResult.pathname.startsWith('/_next/')
       ) {
         localePathWasInferred = true
-        parsedUrl.pathname = addPathPrefix(
+        parsedUrl.url.pathname = addPathPrefix(
           initialLocaleResult.pathname === '/'
             ? `/${defaultLocale}`
             : addPathPrefix(
@@ -268,7 +271,7 @@ export function getResolveRoutes(
         )
 
         if (hadTrailingSlash) {
-          parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
+          parsedUrl.url.pathname = maybeAddTrailingSlash(parsedUrl.url.pathname)
         }
       }
     }
@@ -285,7 +288,7 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      const pathname = parsedUrl.pathname || '/'
+      const pathname = parsedUrl.url.pathname || '/'
 
       if (checkLocaleApi(pathname)) {
         return
@@ -308,7 +311,7 @@ export function getResolveRoutes(
         }
       }
       const dynamicRoutes = fsChecker.getDynamicRoutes()
-      let curPathname = parsedUrl.pathname
+      let curPathname = parsedUrl.url.pathname
 
       if (config.basePath) {
         if (!pathHasPrefix(curPathname || '', config.basePath)) {
@@ -376,7 +379,7 @@ export function getResolveRoutes(
     async function handleRoute(
       route: Route
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
-      let curPathname = parsedUrl.pathname || '/'
+      let curPathname = parsedUrl.url.pathname || '/'
 
       if (config.i18n && route.internal) {
         const hadTrailingSlash = curPathname.endsWith('/')
@@ -384,7 +387,7 @@ export function getResolveRoutes(
         if (config.basePath) {
           curPathname = removePathPrefix(curPathname, config.basePath)
         }
-        const hadBasePath = curPathname !== parsedUrl.pathname
+        const hadBasePath = curPathname !== parsedUrl.url.pathname
 
         const localeResult = normalizeLocalePath(
           curPathname,
@@ -441,12 +444,14 @@ export function getResolveRoutes(
           }
         }
 
-        if (route.name === 'middleware_next_data' && parsedUrl.pathname) {
+        if (route.name === 'middleware_next_data' && parsedUrl.url.pathname) {
           if (fsChecker.getMiddlewareMatchers()?.length) {
-            let normalized = parsedUrl.pathname
+            let normalized = parsedUrl.url.pathname
 
             // Remove the base path if it exists.
-            const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+            const hadBasePath = normalizers.basePath?.match(
+              parsedUrl.url.pathname
+            )
             if (hadBasePath && normalizers.basePath) {
               normalized = normalizers.basePath.normalize(normalized, true)
             }
@@ -504,13 +509,13 @@ export function getResolveRoutes(
               // Re-add the trailing slash (if required).
               normalized = maybeAddTrailingSlash(normalized)
 
-              parsedUrl.pathname = normalized
+              parsedUrl.url.pathname = normalized
             }
           }
         }
 
         if (route.name === 'check_fs') {
-          const pathname = parsedUrl.pathname || '/'
+          const pathname = parsedUrl.url.pathname || '/'
 
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
@@ -582,7 +587,7 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
-          let maybeDecodedPathname = parsedUrl.pathname || '/'
+          let maybeDecodedPathname = parsedUrl.url.pathname || '/'
 
           try {
             maybeDecodedPathname = decodeURIComponent(maybeDecodedPathname)
@@ -592,7 +597,7 @@ export function getResolveRoutes(
 
           const matchesMiddleware =
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) ||
+            match?.(parsedUrl.url.pathname, req, parsedUrl.query) ||
             match?.(
               maybeDecodedPathname,
               // @ts-expect-error BaseNextRequest stuff
@@ -784,10 +789,10 @@ export function getResolveRoutes(
               const destination = getRelativeURL(value, initUrl)
               resHeaders['x-middleware-rewrite'] = destination
 
-              parsedUrl = parseUrl(destination)
+              parsedUrl = parseRouteURL(destination)
               localePathWasInferred = rewriteLocaleWasInferred
 
-              if (parsedUrl.protocol) {
+              if (parsedUrl.kind === 'absolute') {
                 return {
                   parsedUrl,
                   resHeaders,
@@ -797,7 +802,7 @@ export function getResolveRoutes(
 
               if (config.i18n) {
                 const curLocaleResult = normalizeLocalePath(
-                  parsedUrl.pathname || '',
+                  parsedUrl.url.pathname || '',
                   config.i18n.locales
                 )
 
@@ -820,7 +825,7 @@ export function getResolveRoutes(
                 // Process as redirect: update parsedUrl and convert to relative URL
                 const rel = getRelativeURL(value, initUrl)
                 resHeaders['location'] = rel
-                parsedUrl = parseUrl(rel)
+                parsedUrl = parseRouteURL(rel)
 
                 return {
                   parsedUrl,
@@ -859,7 +864,7 @@ export function getResolveRoutes(
           ('statusCode' in route || 'permanent' in route) &&
           route.destination
         ) {
-          const { parsedDestination } = prepareDestination({
+          const { parsedDestination } = prepareDestinationURL({
             appendParamsToQuery: false,
             destination: route.destination,
             params: params,
@@ -867,16 +872,10 @@ export function getResolveRoutes(
           })
 
           const { query } = parsedDestination
-          // TODO(as-any): pre-existing cast, not yet reviewed
-          // eslint-disable-next-line @next/internal/no-as-any
-          delete (parsedDestination as any).query
+          parsedDestination.url.search = stringifyQuery(req, query)
 
-          // TODO(as-any): pre-existing cast, not yet reviewed
-          // eslint-disable-next-line @next/internal/no-as-any
-          parsedDestination.search = stringifyQuery(req as any, query)
-
-          parsedDestination.pathname = normalizeRepeatedSlashes(
-            parsedDestination.pathname
+          parsedDestination.url.pathname = normalizeRepeatedSlashes(
+            parsedDestination.url.pathname
           )
 
           return {
@@ -913,7 +912,7 @@ export function getResolveRoutes(
         if (route.destination) {
           let rewriteParams = params
 
-          const { parsedDestination } = prepareDestination({
+          const { parsedDestination } = prepareDestinationURL({
             appendParamsToQuery: true,
             destination: route.destination,
             params: rewriteParams,
@@ -923,7 +922,10 @@ export function getResolveRoutes(
           // Check to see if this is a non-relative rewrite. If it is, we need
           // to check to see if it's an allowed origin to receive the rewritten
           // headers.
-          const parsedDestinationOrigin = parsedDestination.origin
+          const parsedDestinationOrigin =
+            parsedDestination.kind === 'absolute'
+              ? parsedDestination.url.origin
+              : undefined
           const isAllowedOrigin = parsedDestinationOrigin
             ? config.experimental.clientParamParsingOrigins?.some((origin) =>
                 new RegExp(origin).test(parsedDestinationOrigin)
@@ -933,31 +935,31 @@ export function getResolveRoutes(
           // Set the rewrite headers only if this is a RSC request.
           if (
             isRSCRequestHeader(req.headers[RSC_HEADER]) &&
-            (!parsedDestination.origin || isAllowedOrigin)
+            (!parsedDestinationOrigin || isAllowedOrigin)
           ) {
             // We set the rewritten path and query headers on the response now
             // that we know that the it's not an external rewrite. Mirror the
             // path in resHeaders because those are applied after route
             // resolution; otherwise, an earlier Proxy rewrite would overwrite
             // the final route destination.
-            if (parsedUrl.pathname !== parsedDestination.pathname) {
+            if (parsedUrl.url.pathname !== parsedDestination.url.pathname) {
               res.setHeader(
                 NEXT_REWRITTEN_PATH_HEADER,
-                parsedDestination.pathname
+                parsedDestination.url.pathname
               )
               resHeaders[NEXT_REWRITTEN_PATH_HEADER] =
-                parsedDestination.pathname
+                parsedDestination.url.pathname
             }
-            if (parsedUrl.search !== parsedDestination.search) {
+            if (parsedUrl.url.search !== parsedDestination.url.search) {
               res.setHeader(
                 NEXT_REWRITTEN_QUERY_HEADER,
                 // remove the leading ? from the search
-                parsedDestination.search.slice(1)
+                parsedDestination.url.search.slice(1)
               )
             }
           }
 
-          if (parsedDestination.protocol) {
+          if (parsedDestination.kind === 'absolute') {
             return {
               parsedUrl: parsedDestination,
               resHeaders: null,
@@ -967,7 +969,7 @@ export function getResolveRoutes(
 
           if (config.i18n) {
             const curLocaleResult = normalizeLocalePath(
-              removePathPrefix(parsedDestination.pathname, config.basePath),
+              removePathPrefix(parsedDestination.url.pathname, config.basePath),
               config.i18n.locales
             )
 
@@ -988,7 +990,7 @@ export function getResolveRoutes(
             )
           }
           didRewrite = true
-          parsedUrl.pathname = parsedDestination.pathname
+          parsedUrl.url.pathname = parsedDestination.url.pathname
           Object.assign(parsedUrl.query, parsedDestination.query)
         }
 

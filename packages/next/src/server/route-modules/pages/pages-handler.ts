@@ -301,7 +301,7 @@ export const getHandler = ({
 
     const resolvedUrl = formatUrl({
       pathname: nextConfig.trailingSlash
-        ? `${encodedResolvedPathname}${!encodedResolvedPathname.endsWith('/') && parsedUrl.pathname?.endsWith('/') ? '/' : ''}`
+        ? `${encodedResolvedPathname}${!encodedResolvedPathname.endsWith('/') && parsedUrl.url.pathname?.endsWith('/') ? '/' : ''}`
         : removeTrailingSlash(encodedResolvedPathname || '/'),
       // make sure to only add query values from original URL
       query: hasStaticProps ? {} : originalQuery,
