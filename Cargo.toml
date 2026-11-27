@@ -227,6 +227,9 @@ swc_core = { version = "84.1.1", default-features = false, features = [
   "parallel_rayon",
 ] }
 
+# Keep in sync with the version used by `swc_core`
+swc_compiler_base = { version = "67.0.0", default-features = false }
+
 swc_plugin_backend_wasmtime = "18.0.1"
 testing = "28.0.1"
 
@@ -386,3 +389,84 @@ virtue = { git = "https://github.com/vercel-labs/virtue-fork.git", branch = "tru
 mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }
 # Doesn't compile on recent nightly versions because of https://github.com/Michael-F-Bryan/include_dir/pull/117
 include_dir = { git = "https://github.com/vercel-labs/include_dir", branch = "turbopack" }
+# TEMPORARY: ECMA-426 source map `scopes` support in SWC
+# (public `swc_compiler_base::source_map_scopes`), until it is released.
+ast_node = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+better_scoped_tls = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+binding_macros = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+from_variant = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+hstr = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+preset_env_base = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+string_enum = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_allocator = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_atoms = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_common = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_compiler_base = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_config = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_config_macro = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_core = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_ast = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_codegen = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_codegen_macros = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_compat = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_minifier = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_parser = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_prefixer = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_utils = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_css_visit = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_ast = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_codegen = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_codegen_macros = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_bugfixes = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_common = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2015 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2016 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2017 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2018 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2019 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2020 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2021 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_es2022 = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_compat_regexp = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_ext_transforms = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_hooks = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_lints = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_loader = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_minifier = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_parser = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_preset_env = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_quote_macros = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_react_compiler = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_regexp = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_regexp_ast = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_regexp_common = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_regexp_visit = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_testing = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transformer = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_base = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_classes = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_compat = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_macros = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_module = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_optimization = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_proposal = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_react = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_testing = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_transforms_typescript = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_utils = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_ecma_visit = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_eq_ignore_macros = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_error_reporters = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_macros_common = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_node_comments = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_plugin_backend_wasmtime = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_plugin_macro = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_plugin_proxy = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_plugin_runner = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_sourcemap = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_transform_common = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+swc_visit = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+testing = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }
+testing_macros = { git = "https://github.com/mischnic/swc.git", branch = "fleet/turbopack-sourcemap-scopes" }

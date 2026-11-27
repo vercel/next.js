@@ -4,10 +4,11 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
+use swc_compiler_base::source_map_scopes;
 use swc_core::{
     atoms::Atom,
     common::{
-        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
+        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SourceMapper, SyntaxContext,
         errors::{HANDLER, Handler},
         input::StringInput,
         source_map::{Files, SourceMapGenConfig, build_source_map},
@@ -17,6 +18,7 @@ use swc_core::{
             EsVersion, Id, Ident, IdentName, ObjectPatProp, Pat, Program, TsModuleDecl,
             TsModuleName, VarDecl,
         },
+        codegen::text_writer::ScopeRecord,
         lints::{self, config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::{
@@ -186,6 +188,34 @@ pub fn generate_js_source_map<'a>(
     inline_sources_content: bool,
     names: &FxHashMap<BytePos, Atom>,
 ) -> Result<StructuredSourceMap> {
+    generate_js_source_map_with_scopes(
+        files_map,
+        mappings,
+        original_source_maps,
+        original_source_maps_complete,
+        inline_sources_content,
+        names,
+        None,
+    )
+}
+
+/// Like [`generate_js_source_map`], but additionally emits the ECMA-426 `scopes` field
+/// (<https://github.com/tc39/ecma426/blob/main/proposals/scopes.md>) from the `scopes` collected
+/// by the code generator (see `JsWriter::new_with_scopes`). The [`SourceMapper`] resolves the
+/// original spans of the scopes and has to correspond to `files_map`.
+///
+/// `scopes` are only emitted when there are no `original_source_maps`, i.e. when the map points
+/// to the original sources directly: composing scopes with an input source map is not supported.
+#[instrument(level = "info", name = "generate source map", skip_all)]
+pub fn generate_js_source_map_with_scopes<'a>(
+    files_map: &impl Files,
+    mappings: &[(BytePos, LineCol)],
+    original_source_maps: impl IntoIterator<Item = &'a Rope>,
+    original_source_maps_complete: bool,
+    inline_sources_content: bool,
+    names: &FxHashMap<BytePos, Atom>,
+    scopes: Option<(&[ScopeRecord], &dyn SourceMapper)>,
+) -> Result<StructuredSourceMap> {
     let original_source_maps = original_source_maps
         .into_iter()
         .map(|map| map.to_bytes())
@@ -198,23 +228,35 @@ pub fn generate_js_source_map<'a>(
     let fast_path_single_original_source_map =
         original_source_maps.len() == 1 && original_source_maps_complete;
 
-    let mut new_mappings = build_source_map(
-        files_map,
-        mappings,
-        None,
-        &InlineSourcesContentConfig {
-            // If we are going to adjust the source map, we are going to throw the source contents
-            // of this source map away regardless.
-            //
-            // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
-            // We only need the source content of `A`, and a way to map the content of `B` back to
-            // `A`, while constructing the final source map, `C`.
-            inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
-            names,
-        },
-    );
+    let scopes = scopes.filter(|(scopes, _)| !scopes.is_empty() && original_source_maps.is_empty());
+    let additional_names = scopes
+        .map(|(scopes, _)| source_map_scopes::collect_additional_names(scopes))
+        .unwrap_or_default();
+    let config = InlineSourcesContentConfig {
+        // If we are going to adjust the source map, we are going to throw the source contents
+        // of this source map away regardless.
+        //
+        // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
+        // We only need the source content of `A`, and a way to map the content of `B` back to
+        // `A`, while constructing the final source map, `C`.
+        inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+        names,
+        additional_names: &additional_names,
+    };
+
+    let mut new_mappings = build_source_map(files_map, mappings, None, &config);
 
     if original_source_maps.is_empty() {
+        if let Some((scopes, source_mapper)) = scopes
+            && let Some(encoded) = source_map_scopes::encode_scopes(
+                scopes,
+                source_mapper,
+                &new_mappings,
+                |file_name| config.file_name_to_source(file_name),
+            )
+        {
+            new_mappings.set_scopes(Some(encoded));
+        }
         // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
         // need to adjust mappings
         add_default_ignore_list(&mut new_mappings);
@@ -245,6 +287,8 @@ pub fn generate_js_source_map<'a>(
 pub struct InlineSourcesContentConfig<'a> {
     inline_sources_content: bool,
     names: &'a FxHashMap<BytePos, Atom>,
+    /// Names referenced by the source map `scopes`, which are added to `names`.
+    additional_names: &'a [String],
 }
 
 impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
@@ -270,6 +314,12 @@ impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
 
     fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
         self.names.get(&pos).map(|v| &**v)
+    }
+
+    fn for_each_additional_name(&self, op: &mut dyn FnMut(&str)) {
+        for name in self.additional_names {
+            op(name);
+        }
     }
 }
 

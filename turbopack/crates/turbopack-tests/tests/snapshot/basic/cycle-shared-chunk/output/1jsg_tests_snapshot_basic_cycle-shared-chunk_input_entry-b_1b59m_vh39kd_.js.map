@@ -2,5 +2,5 @@
   "version": 3,
   "sources": [],
   "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/cycle-shared-chunk/input/entry-b.js"],"sourcesContent":["import { ringC } from './ring-c'\n\nexport function b() {\n  return ringC(0)\n}\n"],"names":["b"],"mappings":";;;;AAAA;;AAEO,SAASA;IACd,OAAO,IAAA,4NAAK,EAAC;AACf"}}]
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/cycle-shared-chunk/input/entry-b.js"],"sourcesContent":["import { ringC } from './ring-c'\n\nexport function b() {\n  return ringC(0)\n}\n"],"names":["module","ringC","__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$cycle$2d$shared$2d$chunk$2f$input$2f$ring$2d$c$2e$js__$5b$test$5d$__$28$ecmascript$29$__[\"ringC\"]","b","function"],"scopes":"BCAAA,DCE,BHCHGI,CCB,CAA,ECAA,GDE,EFCA,FJ,EHEAC,FCB,FBA","mappings":";;;;AAAA;;AAEO,SAASG;IACd,OAAO,IAAA,4NAAK,EAAC;AACf"}}]
 }

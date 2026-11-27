@@ -12,7 +12,7 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::{
     ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie},
-    code_gen::CodeGeneration,
+    code_gen::{CodeGeneration, ScopeBindingsCollector},
     create_visitor,
     references::esm::{
         EsmAssetReference,
@@ -95,6 +95,7 @@ impl EsmBindings {
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
+        let scope_bindings = ScopeBindingsCollector::default();
 
         let unused_references = chunking_context.unused_references();
 
@@ -168,6 +169,7 @@ impl EsmBindings {
                         // them to normal key-value pairs.
                         Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
                             ast_path = trie.parent_or_root(ast_path);
+                            let scope_bindings = scope_bindings.clone();
                             visitors.push(create_visitor!(
                                 exact,
                                 trie,
@@ -177,6 +179,7 @@ impl EsmBindings {
                                     if let Prop::Shorthand(ident) = prop {
                                         match &imported_ident {
                                             ImportedIdent::Module(imported_ident) => {
+                                                scope_bindings.record(ident);
                                                 *prop = Prop::KeyValue(KeyValueProp {
                                                     key: PropName::Ident(ident.clone().into()),
                                                     value: Box::new(
@@ -217,6 +220,7 @@ impl EsmBindings {
                                     ))
                                 );
 
+                            let scope_bindings = scope_bindings.clone();
                             visitors.push(create_visitor!(
                                 exact,
                                 trie,
@@ -226,6 +230,12 @@ impl EsmBindings {
                                     use swc_core::common::Spanned;
                                     match &imported_ident {
                                         ImportedIdent::Module(imported_ident) => {
+                                            // Only a plain identifier is a reference to the
+                                            // local import binding (and not e.g. a member of a
+                                            // namespace import).
+                                            if let Expr::Ident(ident) = &*expr {
+                                                scope_bindings.record(ident);
+                                            }
                                             *expr = imported_ident.as_expr(expr.span(), in_call);
                                         }
                                         ImportedIdent::None => {
@@ -285,6 +295,10 @@ impl EsmBindings {
             }
         }
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration {
+            visitors,
+            scope_bindings: Some(scope_bindings),
+            ..Default::default()
+        })
     }
 }
