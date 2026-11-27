@@ -1,0 +1,22 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css [test] (css) */
+@supports (container-type: inline-size scroll-state) {
+  @container scroll-content   {
+    .named-only {
+      max-width: 100cqw;
+    }
+  }
+}
+
+@container sidebar (min-width: 400px) {
+  .named-with-condition {
+    color: red;
+  }
+}
+
+@container scroll-state(scrollable: top) {
+  .scroll-state {
+    color: #00f;
+  }
+}
+
+/*# sourceMappingURL=1jsg_tests_snapshot_css_named-container-query_input_style_1i4y8ac_sk8d1.css.map*/
