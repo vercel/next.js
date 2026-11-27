@@ -53,32 +53,38 @@ The Server Component case is handled at [`Math.random()` during prerendering](/d
 
 ## Wrap in or move into Suspense
 
-Choose this fix when a Client Component reads a random value during render and a fallback can appear first. A parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary handles the interruption during prerendering. It does not preserve the value for hydration. The pattern below moves generation to a Server Component and [passes the result as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so the browser uses the same value.
+Choose this fix when a Client Component reads a random value during render and a fallback can appear first. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) where its parent renders it. The read already interrupts prerendering, so you don't need to add `use(io())`.
 
 ### Patterns
 
 <span id="wrap-from-a-server-component-parent" />
 
-#### Generate on the server and pass as a prop
+#### Place Suspense above the Client Component
 
-The `getAvatarColor()` helper awaits [`io()`](/docs/app/api-reference/functions/io) before generating the avatar color. `RequestAvatar` renders the returned value.
+If `Avatar` calls `Math.random()` during render, put the boundary around `<Avatar />`. A boundary returned by `Avatar` after the call is too late.
 
 ```jsx filename="app/page.js"
-import { io } from 'next/cache'
 import { Suspense } from 'react'
 import { Avatar } from './avatar'
 
 export default function Page() {
   return (
-    <Profile>
-      <Suspense fallback={<div className="avatar-skeleton" />}>
-        <RequestAvatar />
-      </Suspense>
-    </Profile>
+    <Suspense fallback={<div className="avatar-skeleton" />}>
+      <Avatar />
+    </Suspense>
   )
 }
+```
 
-async function RequestAvatar() {
+#### If the initial HTML needs the avatar color
+
+Choose the color once on the server and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration. In the boundary above, replace `<Avatar />` with `<RequestAvatar />`, which calls [`await io()`](/docs/app/api-reference/functions/io) before choosing the color.
+
+```jsx filename="app/request-avatar.js"
+import { io } from 'next/cache'
+import { Avatar } from './avatar'
+
+export async function RequestAvatar() {
   const color = await getAvatarColor()
   return <Avatar color={color} />
 }
@@ -101,7 +107,7 @@ Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The prerendered HTML can show the fallback before the component appears. Use [`loading.js`](/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 

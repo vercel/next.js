@@ -63,32 +63,38 @@ The Server Component case is handled at [`Date.now()` during prerendering](/docs
 
 ## Wrap in or move into Suspense
 
-Choose this fix when a Client Component reads the current time during render and a fallback can appear first. A parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary handles the interruption during prerendering. It does not preserve the timestamp for hydration. The pattern below moves the clock read to a Server Component and [passes the result as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so the browser uses the same value.
+Choose this fix when a Client Component reads the current time during render and a fallback can appear first. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) where its parent renders it. The read already interrupts prerendering, so you don't need to add `use(io())`.
 
 ### Patterns
 
 <span id="wrap-from-a-server-component-parent" />
 
-<span id="place-suspense-above-the-client-component" />
+#### Place Suspense above the Client Component
 
-#### Generate on the server and pass as a prop
-
-The `getTimestamp()` helper awaits [`io()`](/docs/app/api-reference/functions/io) before reading the current time. Put the Server Component that calls it under a parent `<Suspense>` boundary. The Client Component receives a timestamp it can reuse during hydration.
+If `TimeDisplay` calls `Date.now()` during render, put the boundary around `<TimeDisplay />`. A boundary returned by `TimeDisplay` after the call is too late.
 
 ```jsx filename="app/page.js"
-import { io } from 'next/cache'
 import { Suspense } from 'react'
 import { TimeDisplay } from './time-display'
 
 export default function Page() {
   return (
-    <Suspense fallback={<time>Loading time…</time>}>
-      <RequestTime />
+    <Suspense fallback={<span>Loading time…</span>}>
+      <TimeDisplay />
     </Suspense>
   )
 }
+```
 
-async function RequestTime() {
+#### If the initial HTML needs the timestamp
+
+Read the clock once on the server and [pass the timestamp as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration. In the boundary above, replace `<TimeDisplay />` with `<RequestTime />`, which calls [`await io()`](/docs/app/api-reference/functions/io) before reading the clock.
+
+```jsx filename="app/request-time.js"
+import { io } from 'next/cache'
+import { TimeDisplay } from './time-display'
+
+export async function RequestTime() {
   const timestamp = await getTimestamp()
   return <TimeDisplay timestamp={timestamp} />
 }
@@ -112,7 +118,7 @@ Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The prerendered HTML can show the fallback before the component appears. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 

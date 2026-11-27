@@ -53,32 +53,38 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 
 ## Wrap in or move into Suspense
 
-Choose this fix when a Client Component reads a generated value during render and a fallback can appear first. A parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary handles the interruption during prerendering. It does not preserve the value for hydration. The pattern below moves generation to a Server Component and [passes the result as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so the browser uses the same value.
+Choose this fix when a Client Component reads a random value from a crypto API during render and a fallback can appear first. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) where its parent renders it. The read already interrupts prerendering, so you don't need to add `use(io())`.
 
 ### Patterns
 
 <span id="wrap-from-a-server-component-parent" />
 
-#### Generate on the server and pass as a prop
+#### Place Suspense above the Client Component
 
-Await [`io()`](/docs/app/api-reference/functions/io) inside `RequestCorrelationId` before generating the correlation ID.
+If `CorrelationId` calls `crypto.randomUUID()` during render, put the boundary around `<CorrelationId />`. A boundary returned by `CorrelationId` after the call is too late.
 
 ```jsx filename="app/page.js"
-import { io } from 'next/cache'
 import { Suspense } from 'react'
 import { CorrelationId } from './correlation-id'
 
 export default function Page() {
   return (
-    <PageShell>
-      <Suspense fallback={null}>
-        <RequestCorrelationId />
-      </Suspense>
-    </PageShell>
+    <Suspense fallback={null}>
+      <CorrelationId />
+    </Suspense>
   )
 }
+```
 
-async function RequestCorrelationId() {
+#### If the initial HTML needs the ID
+
+Generate the correlation ID once on the server and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration. In the boundary above, replace `<CorrelationId />` with `<RequestCorrelationId />`, which calls [`await io()`](/docs/app/api-reference/functions/io) before generating the ID.
+
+```jsx filename="app/request-correlation-id.js"
+import { io } from 'next/cache'
+import { CorrelationId } from './correlation-id'
+
+export async function RequestCorrelationId() {
   await io()
   const id = crypto.randomUUID()
   return <CorrelationId id={id} />
@@ -97,7 +103,7 @@ Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The prerendered HTML can show the fallback before the component appears. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
