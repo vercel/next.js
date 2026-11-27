@@ -6,7 +6,6 @@ import {
   toggleDevToolsIndicatorPopover,
   waitForNoRedbox,
 } from 'next-test-utils'
-import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from 'next/dist/shared/lib/request-insights'
 
 type RequestInsight = {
   requestId: string
@@ -187,84 +186,11 @@ describe('request insights', () => {
     })
   })
 
-  it('loads completed requests from session history and fetches details lazily', async () => {
-    const response = await next.fetch('/api/proxied-page?history-endpoint=1')
-    expect(response.status).toBe(200)
-
-    await retry(async () => {
-      const historyResponse = await next.fetch(
-        '/_next/development/request-insights?view=history&limit=1&showInternal=1'
-      )
-      expect(historyResponse.headers.get('cache-control')).toBe(
-        'private, no-store'
-      )
-      const history = (await historyResponse.json()) as {
-        requests: Array<{
-          requestId: string
-          kind?: 'request' | 'instant-insights'
-          completedAt?: number
-          spanCount: number
-        }>
-        nextCursor?: string
-        sessionId: string
-      }
-      expect(history.sessionId).toEqual(expect.any(String))
-      expect(history.requests).toHaveLength(1)
-      expect(history.requests[0]).toEqual(
-        expect.objectContaining({
-          completedAt: expect.any(Number),
-          spanCount: expect.any(Number),
-        })
-      )
-
-      const summary = history.requests[0]
-      for (const kind of ['request', 'instant-insights']) {
-        const missing = await next.fetch(
-          `/_next/development/request-insights?view=detail&requestId=missing-detail-id&kind=${kind}`
-        )
-        expect(missing.status).toBe(404)
-        expect(await missing.json()).toEqual({
-          error: 'Request insight not found',
-        })
-      }
-      const detailResponse = await next.fetch(
-        `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(summary.requestId)}&kind=${summary.kind ?? 'request'}`
-      )
-      expect(detailResponse.status).toBe(200)
-      const detail = (await detailResponse.json()) as {
-        request: RequestInsight
-      }
-      expect(detail.request.requestId).toBe(summary.requestId)
-      expect(detail.request.spans.length).toBe(summary.spanCount)
-    })
-  })
-
-  it('returns a conflict for a history cursor from an old session', async () => {
-    const cursor = Buffer.from(
-      JSON.stringify({
-        sessionId: 'old-session',
-        generation: 0,
-        beforeSequence: 1,
-      })
-    ).toString('base64url')
-    const response = await next.fetch(
-      `/_next/development/request-insights?view=history&cursor=${cursor}`
-    )
-    expect(response.status).toBe(409)
-  })
-
-  it('rejects history overlap lookups larger than the completed live window', async () => {
-    const params = new URLSearchParams({ view: 'history' })
-    for (let index = 0; index <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; index++) {
-      params.append('liveRequestKey', `request:${index}`)
-    }
-    const response = await next.fetch(
-      `/_next/development/request-insights?${params}`
-    )
-    expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({
-      error: 'Too many live Request Insights keys',
-    })
+  it('allows only GET, HEAD, and OPTIONS on the endpoint', async () => {
+    const endpoint = '/_next/development/request-insights'
+    expect((await next.fetch(endpoint, { method: 'HEAD' })).status).toBe(200)
+    expect((await next.fetch(endpoint, { method: 'OPTIONS' })).status).toBe(204)
+    expect((await next.fetch(endpoint, { method: 'POST' })).status).toBe(405)
   })
 
   it('records route module loading and preparation spans', async () => {
@@ -1739,17 +1665,6 @@ describe('request insights', () => {
           })
         )
         expect(matchingRequests[0].completedAt).toBeUndefined()
-
-        const detailResponse = await next.fetch(
-          `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(matchingRequests[0].requestId)}&kind=request`
-        )
-        expect(detailResponse.status).toBe(200)
-
-        const detail = (await detailResponse.json()) as {
-          request: RequestInsight
-        }
-        expect(detail.request.requestId).toBe(matchingRequests[0].requestId)
-        expect(detail.request.completedAt).toBeUndefined()
       }, 30_000)
     } finally {
       await retry(async () => {

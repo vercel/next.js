@@ -15,6 +15,7 @@ import {
 } from './shared'
 import {
   createRequestInsightDelta,
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
   type RequestInsight,
 } from '../shared/request-insights'
 import type { RuntimeErrorEvent } from './container/runtime-error/render-error'
@@ -280,22 +281,60 @@ describe('updateRequestInsights', () => {
       requestId: 'active',
       completedAt: undefined,
     }
-    const completed = Array.from({ length: 101 }, (_, index) => ({
-      ...createRequestInsight('request', 25),
-      requestId: `completed-${index}`,
-      completedAt: index + 1,
-    }))
+    const completed = Array.from(
+      { length: MAX_LIVE_COMPLETED_REQUEST_INSIGHTS + 1 },
+      (_, index) => ({
+        ...createRequestInsight('request', 25),
+        requestId: `completed-${index}`,
+        completedAt: index + 1,
+      })
+    )
 
     const requests = completed.reduce<RequestInsight[]>(
       (current, request) => updateRequestInsights(current, request),
       [active]
     )
 
-    expect(requests).toHaveLength(101)
+    expect(requests).toHaveLength(MAX_LIVE_COMPLETED_REQUEST_INSIGHTS + 1)
     expect(requests[0]).toBe(active)
     expect(
       requests.some((request) => request.requestId === 'completed-0')
     ).toBe(false)
+  })
+
+  it('keeps the newest RSC and HTML page requests when trimming updates', () => {
+    const page = {
+      ...createRequestInsight('request', 25),
+      requestId: 'page',
+      completedAt: 1,
+      spans: [
+        { name: 'page', startTime: 1, attributes: { 'next.rsc': false } },
+      ],
+    }
+    const rsc = {
+      ...createRequestInsight('request', 25),
+      requestId: 'rsc',
+      completedAt: 2,
+      spans: [{ name: 'rsc', startTime: 2, attributes: { 'next.rsc': true } }],
+    }
+    const api = Array.from(
+      { length: MAX_LIVE_COMPLETED_REQUEST_INSIGHTS },
+      (_, index) => ({
+        ...createRequestInsight('request', 25),
+        requestId: `api-${index}`,
+        source: 'app-route' as const,
+        completedAt: index + 3,
+      })
+    )
+    const requests = [page, rsc, ...api].reduce<RequestInsight[]>(
+      updateRequestInsights,
+      []
+    )
+    expect(requests).toHaveLength(MAX_LIVE_COMPLETED_REQUEST_INSIGHTS)
+    expect(requests.map(({ requestId }) => requestId)).toEqual(
+      expect.arrayContaining(['page', 'rsc', 'api-499'])
+    )
+    expect(requests.some(({ requestId }) => requestId === 'api-0')).toBe(false)
   })
 })
 
