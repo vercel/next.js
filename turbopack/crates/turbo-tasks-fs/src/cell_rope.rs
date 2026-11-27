@@ -32,7 +32,7 @@ pub struct CellRope {
     segments: Vec<CellRopeSegment>,
 }
 
-/// A segment of a [`CellRope`], see [`CellRope::segments`].
+/// A segment of a [`CellRope`], see [`CellRope::parts`].
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum CellRopeSegment {
     /// Bytes owned by the `CellRope` itself (scaffolding between cells). Never empty.
@@ -176,7 +176,7 @@ impl CellRope {
     }
 
     /// The rope's segments, in order, without reading any cells.
-    pub fn segments(&self) -> &[CellRopeSegment] {
+    pub fn parts(&self) -> &[CellRopeSegment] {
         &self.segments
     }
 }
@@ -333,7 +333,7 @@ mod tests {
 
     /// The number of cells `rope` references directly (not counting nested ropes' cells).
     fn cell_count(rope: &CellRope) -> usize {
-        rope.segments()
+        rope.parts()
             .iter()
             .filter(|segment| {
                 matches!(
@@ -524,7 +524,7 @@ mod tests {
                 assert_eq!(text.as_str(), "abcxyef|bcefd");
                 assert_eq!(cell_count(&rope), 2);
                 let cells: Vec<_> = rope
-                    .segments()
+                    .parts()
                     .iter()
                     .filter_map(|segment| match segment {
                         CellRopeSegment::Skippable { cell, .. } => Some(*cell),
