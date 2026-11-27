@@ -82,6 +82,28 @@ snapshots:
     async fn example() {
         // INVALIDATION: This explains a different statement.
         other();
+        let bytes = rope
+            .read_untracked()
+            .await?;
+    }
+  : labels:
+    - source: |-
+        rope
+                .read_untracked()
+      style: primary
+      start: 108
+      end: 138
+    - source: |-
+        rope
+                .read_untracked()
+                .await
+      style: secondary
+      start: 108
+      end: 153
+  ? |
+    async fn example() {
+        // INVALIDATION: This explains a different statement.
+        other();
         value.untracked().await?;
     }
   : labels:
@@ -93,6 +115,20 @@ snapshots:
       style: secondary
       start: 96
       end: 119
+  ? |
+    async fn example() {
+        // This is intentionally untracked.
+        rope.read_untracked().await?;
+    }
+  : labels:
+    - source: rope.read_untracked()
+      style: primary
+      start: 65
+      end: 86
+    - source: rope.read_untracked().await
+      style: secondary
+      start: 65
+      end: 92
   ? |
     async fn example() {
         // This is intentionally untracked.
@@ -261,6 +297,16 @@ snapshots:
       style: primary
       start: 19
       end: 36
+  rope.read_untracked().await?;:
+    labels:
+    - source: rope.read_untracked()
+      style: primary
+      start: 0
+      end: 21
+    - source: rope.read_untracked().await
+      style: secondary
+      start: 0
+      end: 27
   value.untracked().await.unwrap();:
     labels:
     - source: value.untracked()
