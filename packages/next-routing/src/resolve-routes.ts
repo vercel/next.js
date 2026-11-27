@@ -337,6 +337,50 @@ function withResolvedInvocationTarget({
   }
 }
 
+const RSC_SUFFIX_REGEX = /^((.*?)(?:\.rsc|\.segments\/.+\.segment\.rsc))\/?$/
+
+/**
+ * Returns the request pathname when a rewrite took the request for a page's
+ * RSC payload (`X.rsc`) or for one of its segments (`X.segments/...`) to the
+ * page `X` itself, and undefined for any other rewrite. A trailing slash after
+ * the suffix is dropped, so the returned pathname ends with the suffix.
+ *
+ * The page function needs that suffix to tell an RSC request from a document
+ * request, so it must be invoked with the request pathname, not with `X`.
+ *
+ * The RSC form of a page path follows `normalizePagePath`: the root page `/` is
+ * `/index.rsc`, and a page `/index/...` is `/index/index/....rsc`.
+ */
+function getRscInvocationPathname(
+  requestPathname: string,
+  rewrittenPathname: string,
+  basePath: string
+): string | undefined {
+  const match = RSC_SUFFIX_REGEX.exec(requestPathname)
+  if (!match) {
+    return undefined
+  }
+
+  const [, rscPathname, normalizedPagePathname] = match
+  let pagePathname = normalizedPagePathname
+  if (basePath && !pagePathname.startsWith(`${basePath}/`)) {
+    return undefined
+  }
+  const pagePath = pagePathname.slice(basePath.length)
+  if (pagePath === '/index') {
+    pagePathname = basePath || '/'
+  } else if (pagePath.startsWith('/index/')) {
+    pagePathname = basePath + pagePath.slice('/index'.length)
+  }
+
+  const normalizedRewrittenPathname =
+    rewrittenPathname.length > 1 && rewrittenPathname.endsWith('/')
+      ? rewrittenPathname.slice(0, -1)
+      : rewrittenPathname
+
+  return pagePathname === normalizedRewrittenPathname ? rscPathname : undefined
+}
+
 /**
  * Matches dynamic routes and extracts route parameters
  */
@@ -522,6 +566,7 @@ function resolveRewrittenPathname({
   isDataUrl,
   caseSensitive,
   status,
+  rscInvocationPathname,
 }: {
   url: URL
   routes: ResolveRoutesParams['routes']
@@ -535,6 +580,11 @@ function resolveRewrittenPathname({
   isDataUrl: boolean
   caseSensitive: boolean
   status: number | undefined
+  /**
+   * The request pathname, when the rewrite only removed its RSC suffix. The
+   * selected page is invoked with it. See `getRscInvocationPathname`.
+   */
+  rscInvocationPathname?: string
 }): ResolveRoutesResult | undefined {
   // Denormalize before checking if this was originally a data URL
   let pathnameCheckUrl = url
@@ -564,7 +614,15 @@ function resolveRewrittenPathname({
     preferExactMatch ? exactMatch : undefined
   )
   if (dynamicResult.matched && dynamicResult.result) {
-    return { ...dynamicResult.result, status }
+    const { result } = dynamicResult
+    return {
+      ...result,
+      status,
+      invocationTarget:
+        rscInvocationPathname && result.invocationTarget
+          ? { ...result.invocationTarget, pathname: rscInvocationPathname }
+          : result.invocationTarget,
+    }
   }
 
   if (exactMatch) {
@@ -582,7 +640,7 @@ function resolveRewrittenPathname({
       },
       url: pathnameCheckUrl,
       resolvedPathname: exactMatch,
-      invocationPathname: pathnameCheckUrl.pathname,
+      invocationPathname: rscInvocationPathname ?? pathnameCheckUrl.pathname,
     })
   }
 
@@ -1150,6 +1208,7 @@ export async function resolveRoutes(
         }
 
         // Apply destination
+        const requestPathname = currentUrl.pathname
         currentUrl = applyDestination(currentUrl, match.destination)
 
         // Check if origin changed
@@ -1174,6 +1233,13 @@ export async function resolveRoutes(
           isDataUrl,
           caseSensitive,
           status: currentStatus,
+          rscInvocationPathname: isDataUrl
+            ? undefined
+            : getRscInvocationPathname(
+                requestPathname,
+                currentUrl.pathname,
+                basePath
+              ),
         })
         if (rewrittenResult) {
           return rewrittenResult

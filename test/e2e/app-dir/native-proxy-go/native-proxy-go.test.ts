@@ -556,11 +556,17 @@ describe('native-proxy-go', () => {
         const appPages = JSON.parse(
           await next.readFile('go-app-pages-output.json')
         )
+        // App pages are emitted once. Routing rules serve their `.rsc` form.
         expect(appPages).toEqual(
           expect.arrayContaining([
-            expect.objectContaining({ pathname: '/native-proxy/secure.rsc' }),
+            expect.objectContaining({ pathname: '/native-proxy/secure' }),
           ])
         )
+        expect(
+          appPages.filter((page: { pathname: string }) =>
+            page.pathname.endsWith('.rsc')
+          )
+        ).toEqual([])
         const rewrite = await fetch(`${origin}/native-proxy/rewrite`)
         expect(rewrite.headers.get('x-middleware-rewrite')).toBe(
           `${origin}/api/proxy-query?rewritten=1`

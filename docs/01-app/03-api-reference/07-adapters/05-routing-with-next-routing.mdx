@@ -51,3 +51,5 @@ if (result.resolvedPathname) {
 - `routeMatches`: A record of named matches extracted from dynamic route segments.
 
 For example, if `/blog/post-1?draft=1` matches `/blog/[slug]?slug=post-1`, `resolvedPathname` is `/blog/[slug]` while `invocationTarget.pathname` is `/blog/post-1`.
+
+An `afterFiles` rewrite can send a page's RSC request (`/about.rsc`) or per-segment prefetch (`/about.segments/...`) to the page `/about`. `invocationTarget.pathname` then keeps the request pathname, such as `/about.rsc`, so the function still responds with the RSC payload. `resolvedPathname` is `/about`.

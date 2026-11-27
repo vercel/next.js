@@ -119,55 +119,14 @@ const myAdapter = {
       }
     }
 
-    // Validate that all appPages have matching .rsc and non .rsc pathnames
-    const appPagePathnames = new Map()
-
-    // Helper function to normalize /index to / for matching
-    const normalizePathname = (pathname) => {
-      if (pathname.endsWith('/index')) {
-        return pathname.slice(0, -6) || '/'
-      }
-      return pathname
-    }
-
-    for (const appPage of ctx.outputs.appPages) {
-      const pathname = appPage.pathname
-      if (pathname.endsWith('.rsc')) {
-        const basePathname = normalizePathname(pathname.slice(0, -4)) // Remove .rsc extension and normalize
-        if (!appPagePathnames.has(basePathname)) {
-          appPagePathnames.set(basePathname, { rsc: false, nonRsc: false })
-        }
-        appPagePathnames.get(basePathname).rsc = true
-      } else {
-        const normalizedPathname = normalizePathname(pathname)
-        if (!appPagePathnames.has(normalizedPathname)) {
-          appPagePathnames.set(normalizedPathname, {
-            rsc: false,
-            nonRsc: false,
-          })
-        }
-        appPagePathnames.get(normalizedPathname).nonRsc = true
-      }
-    }
-
-    // Check that each pathname has both .rsc and non .rsc versions
-    for (const [pathname, versions] of appPagePathnames.entries()) {
-      if (!versions.rsc) {
+    // App functions are emitted once. Routing rules route `.rsc` requests to
+    // the function, so no function output has an `.rsc` pathname.
+    for (const output of [...ctx.outputs.appPages, ...ctx.outputs.appRoutes]) {
+      if (output.pathname.endsWith('.rsc')) {
         validationErrors.push(
-          `App page ${pathname} is missing corresponding .rsc pathname`
+          `App function ${output.pathname} must not have an .rsc pathname`
         )
       }
-      if (!versions.nonRsc) {
-        validationErrors.push(
-          `App page ${pathname}.rsc is missing corresponding non .rsc pathname`
-        )
-      }
-    }
-
-    if (appPagePathnames.size > 0) {
-      console.log(
-        `Validated ${appPagePathnames.size} app page pathname(s) have matching .rsc and non .rsc versions`
-      )
     }
 
     if (validationErrors.length > 0) {
