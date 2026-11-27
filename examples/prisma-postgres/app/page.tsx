@@ -1,22 +1,13 @@
 export const dynamic = "force-dynamic"; // This disables SSG and ISR
 
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function Home() {
-  const posts = await prisma.post.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 6,
-    include: {
-      author: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
+  const posts = await db.orm.public.Post.include("author")
+    .orderBy((post) => post.createdAt.desc())
+    .limit(6)
+    .all();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center -mt-16 p-8">

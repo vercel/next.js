@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"; // This disables SSG and ISR
 
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 
 export default async function Post({
@@ -11,11 +11,8 @@ export default async function Post({
   const { id } = await params;
   const postId = parseInt(id);
 
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    include: {
-      author: true,
-    },
+  const post = await db.orm.public.Post.include("author").first({
+    id: postId,
   });
 
   if (!post) {
@@ -26,11 +23,7 @@ export default async function Post({
   async function deletePost() {
     "use server";
 
-    await prisma.post.delete({
-      where: {
-        id: postId,
-      },
-    });
+    await db.orm.public.Post.where({ id: postId }).delete();
 
     redirect("/posts");
   }
