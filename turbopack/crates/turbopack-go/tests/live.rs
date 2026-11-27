@@ -125,7 +125,7 @@ impl Session {
         let fs = self.fs;
         self.tt
             .run_once(async move {
-                fs.await?.invalidate();
+                fs.await?.invalidate().await?;
                 Ok(())
             })
             .await
@@ -445,7 +445,7 @@ async fn module_root_package_creation_and_replacement_invalidate_discovery() -> 
     session
         .tt
         .run_once(async move {
-            fs.await?.stop_watching().await;
+            fs.await?.stop_watching().await?;
             Ok(())
         })
         .await?;
@@ -1080,7 +1080,7 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
     session
         .tt
         .run_once(async move {
-            cache_fs.await?.stop_watching().await;
+            cache_fs.await?.stop_watching().await?;
             Ok(())
         })
         .await?;

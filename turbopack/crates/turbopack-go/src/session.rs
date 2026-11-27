@@ -78,7 +78,7 @@ impl GoBuildContext {
                     .await?
                     .await?
                     .stop_watching()
-                    .await;
+                    .await?;
             }
         }
         Ok(())
@@ -100,7 +100,7 @@ impl GoBuildContext {
                 .await?
                 .await?
                 .stop_watching()
-                .await;
+                .await?;
         }
         Ok(())
     }

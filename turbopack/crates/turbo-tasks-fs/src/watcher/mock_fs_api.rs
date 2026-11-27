@@ -15,7 +15,7 @@ use crate::{
     watcher::{DiskFileSystemWatcherApi, DiskWatcher, DiskWatcherConfig},
 };
 
-/// A stand-in for [`DiskFileSystemInner`], carrying only the state [`DiskWatcher`] touches.
+/// A stand-in for [`DiskFileSystemState`], carrying only the state [`DiskWatcher`] touches.
 pub struct MockFileSystem {
     pub name: RcStr,
     pub root_path: PathBuf,

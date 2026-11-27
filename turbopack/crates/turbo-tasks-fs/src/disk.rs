@@ -250,7 +250,7 @@ fn create_write_semaphore() -> tokio::sync::Semaphore {
 }
 
 #[derive(ValueDebugFormat, NonLocalValue, Encode, Decode)]
-pub(crate) struct DiskFileSystemInner {
+pub(crate) struct DiskFileSystemState {
     pub name: RcStr,
     /// A system path in utf-8 representation. This simplifies serialization/deserialization.
     ///
@@ -315,7 +315,7 @@ pub(crate) struct DiskFileSystemInner {
     map: OperationVc<DiskFileSystemMap>,
 }
 
-impl DiskFileSystemInner {
+impl DiskFileSystemState {
     pub(crate) fn root_path(&self) -> &Path {
         Path::new(&*self.root)
     }
@@ -518,23 +518,176 @@ impl DiskFileSystemInner {
     }
 }
 
-/// `DiskFileSystem` carries serializable fields (`name`, `root`,
-/// `denied_paths`) inside `DiskFileSystemInner` alongside session-scoped
-/// state (the `notify` watcher, invalidator maps, weak `TurboTasksApi`,
-/// etc.) This is important to maintain invariants in a session and ensure invalidations work, so we
-/// never evict this data.
+/// A filesystem backed by a directory on disk.
+///
+/// The cell only contains the name and a reference to a separate cell with the root and the
+/// session state. [`DiskFileSystem::new`] doesn't read the root, so the task creating this cell is
+/// immutable, and tasks that only use the filesystem's identity or name (e.g. to format a
+/// [`FileSystemPath`]) don't depend on the root. The methods that need the root or the session
+/// state (e.g. [`DiskFileSystem::to_sys_path`]) read that cell, so they are async and make the
+/// calling task depend on the root.
 #[derive(Clone, ValueToString)]
-#[value_to_string(self.inner.name)]
-#[turbo_tasks::value(cell = "new", eq = "manual", evict = "never")]
+#[value_to_string(self.name)]
+#[turbo_tasks::value]
 pub struct DiskFileSystem {
-    inner: Arc<DiskFileSystemInner>,
+    name: RcStr,
+    inner: ResolvedVc<DiskFileSystemInner>,
 }
 
 impl DiskFileSystem {
     pub fn name(&self) -> &RcStr {
-        &self.inner.name
+        &self.name
     }
 
+    /// Reads the cell with the root and the session state of the filesystem.
+    pub(crate) async fn inner(&self) -> Result<ReadRef<DiskFileSystemInner>> {
+        self.inner.await
+    }
+
+    pub async fn root(&self) -> Result<RcStr> {
+        Ok(self.inner().await?.root().clone())
+    }
+
+    /// Track a file consumed by an external reader (for example a compiler subprocess).
+    /// Unlike depending on `read()`, this invalidates the calling task for every file event,
+    /// including an edit that restores identical bytes. Call before accessing the OS path.
+    pub async fn track_file(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner().await?.track_file(path).await
+    }
+
+    /// Track directory membership consumed by an external reader. Missing directories are
+    /// watched through their nearest existing parent, just like ordinary filesystem reads.
+    pub async fn track_directory(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner().await?.track_directory(path).await
+    }
+
+    pub async fn invalidate(&self) -> Result<()> {
+        self.inner().await?.invalidate();
+        Ok(())
+    }
+
+    pub async fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) -> Result<()> {
+        self.inner().await?.invalidate_with_reason(reason);
+        Ok(())
+    }
+
+    pub async fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) -> Result<()> {
+        self.inner()
+            .await?
+            .invalidate_path_and_children_with_reason(paths, reason);
+        Ok(())
+    }
+
+    pub async fn start_watching(&self) -> Result<()> {
+        self.inner().await?.start_watching().await
+    }
+
+    pub async fn stop_watching(&self) -> Result<()> {
+        self.inner().await?.stop_watching().await;
+        Ok(())
+    }
+
+    /// Whether this filesystem treats a path as nonexistent under its read policy.
+    pub async fn is_path_denied(&self, path: &FileSystemPath) -> Result<bool> {
+        Ok(self.inner().await?.is_path_denied(path))
+    }
+
+    /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
+    /// filesystem root. If no `relative_to` argument is given, it is assumed that the `sys_path` is
+    /// relative to the [`DiskFileSystem`] root.
+    ///
+    /// Attempts to convert absolute paths to paths relative to the filesystem root, though we only
+    /// attempt to do so lexically.
+    ///
+    /// Assumes `self` is the `DiskFileSystem` contained in `vc_self`. [`Path`]/[`PathBuf`] should
+    /// not be stored in the filesystem cache, so this function cannot be a
+    /// [`turbo_tasks::function`].
+    pub async fn try_from_sys_path(
+        &self,
+        vc_self: ResolvedVc<DiskFileSystem>,
+        sys_path: &Path,
+        relative_to: Option<&FileSystemPath>,
+    ) -> Result<Option<FileSystemPath>> {
+        Ok(self
+            .inner()
+            .await?
+            .try_from_sys_path(vc_self, sys_path, relative_to))
+    }
+
+    /// Similar to [`DiskFileSystem::try_from_sys_path`], but allows resolving paths that cross
+    /// roots and may be in a different [`DiskFileSystem`] linked via the [`DiskFileSystemMap`].
+    ///
+    /// Unlike [`DiskFileSystem::try_from_sys_path`], this conversion is not entirely lexical, and
+    /// we may attempt to canonicalize some segments of an absolute path.
+    ///
+    /// Crossing roots should generally only happen at symlink boundaries. If you are not
+    /// handling a path that was potentially formed by crossing a symlink boundary, you should
+    /// prefer [`DiskFileSystem::try_from_sys_path`].
+    pub async fn try_from_sys_path_across_roots(
+        &self,
+        vc_self: ResolvedVc<DiskFileSystem>,
+        sys_path: &Path,
+        relative_to: &FileSystemPath,
+    ) -> Result<Option<FileSystemPath>> {
+        self.inner()
+            .await?
+            .try_from_sys_path_across_roots(vc_self, sys_path, relative_to)
+            .await
+    }
+
+    /// Returns the path as a system [`PathBuf`]. Similar to [`DiskFileSystem::to_sys_path`], but
+    /// keeps the internal representation as-is.
+    ///
+    /// On Windows this returns the verbatim/extended (`\\?\`-prefixed) path format used internally,
+    /// which supports paths exceeding the 260 character path limit. Use this for internal
+    /// filesystem operations and for comparisons against other internal paths, such as the keys of
+    /// the invalidator maps used by [`Self::invalidate_path_and_children_with_reason`]. For a path
+    /// handed to external consumers, prefer [`Self::to_sys_path`].
+    ///
+    /// On non-Windows platforms this is identical to [`Self::to_sys_path`].
+    pub async fn to_sys_path_raw(&self, fs_path: &FileSystemPath) -> Result<PathBuf> {
+        Ok(self.inner().await?.to_sys_path_raw(fs_path))
+    }
+
+    /// Returns the path as a system [`PathBuf`].
+    ///
+    /// As a general rule, system paths should not be stored inside turbo-task cells, or passed
+    /// inside [`turbo_tasks::TaskInput`]s as they are not valid after serialization.
+    ///
+    /// On Windows, this will attempt to convert the internal verbatim/extended path representation
+    /// to a more-compatible win32 path, but may return a verbatim path if that conversion fails.
+    pub async fn to_sys_path(&self, fs_path: &FileSystemPath) -> Result<PathBuf> {
+        Ok(self.inner().await?.to_sys_path(fs_path))
+    }
+}
+
+impl Debug for DiskFileSystem {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "name: {}", self.name)
+    }
+}
+
+/// The root and the session state of a [`DiskFileSystem`]. Not exposed publicly, use the methods
+/// on [`DiskFileSystem`] instead.
+///
+/// `DiskFileSystemInner` carries serializable fields (`name`, `root`, `denied_paths`) inside
+/// `DiskFileSystemState` alongside session-scoped state (the `notify` watcher, invalidator maps,
+/// weak `TurboTasksApi`, etc.) This is important to maintain invariants in a session and ensure
+/// invalidations work, so we never evict this data.
+#[derive(Clone)]
+#[turbo_tasks::value(cell = "new", eq = "manual", evict = "never")]
+pub(crate) struct DiskFileSystemInner {
+    inner: Arc<DiskFileSystemState>,
+}
+
+impl DiskFileSystemInner {
     pub fn root(&self) -> &RcStr {
         &self.inner.root
     }
@@ -612,8 +765,8 @@ impl DiskFileSystem {
     /// Attempts to convert absolute paths to paths relative to the filesystem root, though we only
     /// attempt to do so lexically.
     ///
-    /// Assumes `self` is the `DiskFileSystem` contained in `vc_self`. This API is a bit awkward
-    /// because:
+    /// Assumes `self` is the `DiskFileSystemInner` of the `DiskFileSystem` `vc_self`. This API is a
+    /// bit awkward because:
     /// - [`Path`]/[`PathBuf`] should not be stored in the filesystem cache, so the function cannot
     ///   be a [`turbo_tasks::function`].
     /// - It's a little convenient for this function to be sync.
@@ -684,7 +837,7 @@ impl DiskFileSystem {
     /// handling a path that was potentially formed by crossing a symlink boundary, you should
     /// prefer [`try_from_sys_path`].
     ///
-    /// [`try_from_sys_path`]: DiskFileSystem::try_from_sys_path
+    /// [`try_from_sys_path`]: DiskFileSystemInner::try_from_sys_path
     pub async fn try_from_sys_path_across_roots(
         &self,
         vc_self: ResolvedVc<DiskFileSystem>,
@@ -700,7 +853,7 @@ impl DiskFileSystem {
             vc_self: ResolvedVc<DiskFileSystem>,
             absolute_path: RcStr,
         ) -> Result<Vc<FileSystemPathOption>> {
-            let this = vc_self.await?;
+            let this = vc_self.await?.inner.await?;
             let absolute_path = Path::new(&*absolute_path);
             let path = this
                 .resolve_path_ancestry_slow_path(vc_self, absolute_path)
@@ -730,8 +883,8 @@ impl DiskFileSystem {
             .await
     }
 
-    /// Returns the path as a system [`PathBuf`]. Similar to [`DiskFileSystem::to_sys_path`], but
-    /// keeps the internal representation as-is.
+    /// Returns the path as a system [`PathBuf`]. Similar to [`DiskFileSystemInner::to_sys_path`],
+    /// but keeps the internal representation as-is.
     ///
     ///
     /// On Windows this returns the verbatim/extended (`\\?\`-prefixed) path format used internally,
@@ -783,7 +936,7 @@ impl DiskFileSystem {
     /// untracked IO. Only an exact root match is valid; leave the remaining path untouched.
     async fn resolve_path_ancestry_slow_path(
         &self,
-        vc_self: ResolvedVc<Self>,
+        vc_self: ResolvedVc<DiskFileSystem>,
         target_sys_path: &Path,
     ) -> Result<Option<FileSystemPath>> {
         // Assumption: The map only changes across process restarts, and the map is updated upon
@@ -878,12 +1031,16 @@ impl DiskFileSystem {
     /// `name` is a display name for the filesystem. This should be unique.
     ///
     /// `root` is the [canonicalized][std::fs::canonicalize] root of the filesystem. It should have
-    /// a stable [cell identity][`ResolvedVc`] to avoid invalidating every path if the root changes.
+    /// a stable [cell identity][`ResolvedVc`]: the returned filesystem (and every
+    /// [`FileSystemPath`] on it) is keyed by that identity, not by the value of `root`. When the
+    /// value changes (e.g. when a project with a persistent cache is moved), only the internal
+    /// cell with the root and the session state is recomputed, and only tasks that read the root
+    /// (e.g. through [`DiskFileSystem::to_sys_path`]) are invalidated.
     ///
     /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
     /// resolution) which should (ideally) not be cached.
     pub fn new(name: RcStr, root: Vc<RcStr>) -> Vc<Self> {
-        Self::new_internal(
+        Self::new_with_options(
             name,
             root,
             Vec::new(),
@@ -917,12 +1074,30 @@ impl DiskFileSystem {
                 "denied_path must be normalized: {denied_path:?}"
             );
         }
-        Self::new_internal(name, root, denied_paths, watcher_config, map)
+        Self::new_internal(
+            name.clone(),
+            DiskFileSystemInner::new_internal(name, root, denied_paths, watcher_config, map),
+        )
     }
 }
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
+    /// Creates the filesystem cell. It doesn't read anything (`inner` is a task argument, so it is
+    /// already resolved by the caller), so this task is immutable.
+    #[turbo_tasks::function]
+    async fn new_internal(name: RcStr, inner: Vc<DiskFileSystemInner>) -> Result<Vc<Self>> {
+        Ok(DiskFileSystem {
+            name,
+            inner: inner.to_resolved().await?,
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl DiskFileSystemInner {
+    /// Reads `root` and creates the cell with the root and the session state.
     #[turbo_tasks::function]
     async fn new_internal(
         name: RcStr,
@@ -932,8 +1107,8 @@ impl DiskFileSystem {
         map: OperationVc<DiskFileSystemMap>,
     ) -> Result<Vc<Self>> {
         let root = root.owned().await?;
-        let instance = DiskFileSystem {
-            inner: Arc::new(DiskFileSystemInner {
+        let instance = DiskFileSystemInner {
+            inner: Arc::new(DiskFileSystemState {
                 name,
                 root,
                 root_prefixes: Default::default(),
@@ -958,7 +1133,7 @@ impl DiskFileSystem {
     }
 }
 
-impl Debug for DiskFileSystem {
+impl Debug for DiskFileSystemInner {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "name: {}, root: {}", self.inner.name, self.inner.root)
     }
@@ -974,12 +1149,13 @@ impl DiskFileSystem {
     /// The caller must resolve symlinks, including parent directories, before calling this.
     #[turbo_tasks::function(fs, session_dependent)]
     pub async fn full_metadata(&self, fs_path: FileSystemPath) -> Result<Vc<Completion>> {
-        if self.inner.is_path_denied(&fs_path) {
+        let this = self.inner.await?;
+        if this.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot track metadata from denied path: {fs_path}");
         }
-        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
+        let full_path = Arc::new(this.to_sys_path_raw(&fs_path));
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
-            self.inner
+            this.inner
                 .metadata_invalidator_map
                 .insert(full_path.clone(), invalidator);
             let entry_type = *fs_path.get_type().await?;
@@ -988,15 +1164,15 @@ impl DiskFileSystem {
                 "full_metadata requires a path with symlinks already resolved"
             );
             if !fs_path.is_root() {
-                self.inner
+                this.inner
                     .watcher
-                    .ensure_watched_file(&full_path, self.inner.root_path())
+                    .ensure_watched_file(&full_path, this.inner.root_path())
                     .await?;
             }
             if matches!(entry_type, FileSystemEntryType::Directory) {
-                self.inner
+                this.inner
                     .watcher
-                    .ensure_watched_dir(&full_path, self.inner.root_path())
+                    .ensure_watched_dir(&full_path, this.inner.root_path())
                     .await?;
             }
         }
@@ -1008,23 +1184,24 @@ impl DiskFileSystem {
 impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs, session_dependent)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
+        let this = self.inner.await?;
         // Check if path is denied - if so, treat as NotFound
-        if self.inner.is_path_denied(&fs_path) {
+        if this.inner.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
         }
-        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
+        let full_path = Arc::new(this.to_sys_path_raw(&fs_path));
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        this.inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(full_path.clone()).await;
+        let _lock = this.inner.lock_path(full_path.clone()).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
             .instrument(tracing::info_span!("read file", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
+            .concurrency_limited(&this.inner.read_semaphore)
             .await
         {
             Ok(file) => {
                 #[cfg(debug_assertions)]
-                self.ensure_path_is_realpath("read_file", &full_path)
+                this.ensure_path_is_realpath("read_file", &full_path)
                     .await?;
                 FileContent::new(file)
             }
@@ -1039,23 +1216,24 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs, session_dependent)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
+        let this = self.inner.await?;
         // Check if directory itself is denied - if so, treat as NotFound
-        if self.inner.is_path_denied(&fs_path) {
+        if this.inner.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
         }
-        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
+        let full_path = Arc::new(this.to_sys_path_raw(&fs_path));
 
-        self.inner.register_dir_invalidator(&full_path).await?;
+        this.inner.register_dir_invalidator(&full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&*full_path))
             .instrument(tracing::info_span!("read directory", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
+            .concurrency_limited(&this.inner.read_semaphore)
             .await
         {
             Ok(dir) => {
                 #[cfg(debug_assertions)]
-                self.ensure_path_is_realpath("read_dir", &full_path).await?;
+                this.ensure_path_is_realpath("read_dir", &full_path).await?;
                 dir
             }
             Err(e)
@@ -1071,7 +1249,7 @@ impl FileSystem for DiskFileSystem {
             }
         };
         let dir_path = fs_path.path.as_str();
-        let denied_entries: FxHashSet<&str> = self
+        let denied_entries: FxHashSet<&str> = this
             .inner
             .denied_paths
             .iter()
@@ -1131,7 +1309,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs, session_dependent)]
     async fn read_link(self: ResolvedVc<Self>, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
-        let this = self.await?;
+        let this = self.await?.inner.await?;
         let inner = &this.inner;
         if inner.is_path_denied(&fs_path) {
             return Ok(LinkContent::Invalid {
@@ -1277,16 +1455,17 @@ impl FileSystem for DiskFileSystem {
     async fn is_junction_point(&self, fs_path: FileSystemPath) -> Result<Vc<bool>> {
         #[cfg(windows)]
         {
-            if self.inner.is_path_denied(&fs_path) {
+            let this = self.inner.await?;
+            if this.inner.is_path_denied(&fs_path) {
                 return Ok(Vc::cell(false));
             }
-            let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
-            self.inner.register_read_invalidator(&full_path).await?;
+            let full_path = Arc::new(this.to_sys_path_raw(&fs_path));
+            this.inner.register_read_invalidator(&full_path).await?;
 
-            let _lock = self.inner.lock_path(full_path.clone()).await;
+            let _lock = this.inner.lock_path(full_path.clone()).await;
             let is_junction_point = retry_blocking(|| is_link_junction_point(&full_path))
                 .instrument(tracing::info_span!("read junction point", name = ?full_path))
-                .concurrency_limited(&self.inner.read_semaphore)
+                .concurrency_limited(&this.inner.read_semaphore)
                 .await
                 .with_context(|| format!("checking junction point {full_path:?}"))?;
             Ok(Vc::cell(is_junction_point))
@@ -1304,7 +1483,8 @@ impl FileSystem for DiskFileSystem {
         fs_path: FileSystemPath,
         content: ResolvedVc<FileContent>,
     ) -> Result<()> {
-        let this = self.await?;
+        let fs = self.await?.inner;
+        let this = fs.await?;
         // You might be tempted to use `session_dependent` here, but `write` purely declares a side
         // effect and does not need to be reexecuted in the next session. All side effects are
         // reexecuted in general.
@@ -1330,7 +1510,7 @@ impl FileSystem for DiskFileSystem {
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteEffect {
             full_path: Arc<PathBuf>,
-            fs: ResolvedVc<DiskFileSystem>,
+            fs: ResolvedVc<DiskFileSystemInner>,
             content: ResolvedVc<PersistedFileContent>,
             #[bincode(fixint)]
             content_hash: u128,
@@ -1374,7 +1554,7 @@ impl FileSystem for DiskFileSystem {
         #[derive(NonLocalValue, Clone)]
         struct CapturedWriteEffect {
             full_path: Arc<PathBuf>,
-            inner: Arc<DiskFileSystemInner>,
+            inner: Arc<DiskFileSystemState>,
             content: Option<ReadRef<PersistedFileContent>>,
             content_hash: u128,
         }
@@ -1540,7 +1720,7 @@ impl FileSystem for DiskFileSystem {
 
         WriteEffect {
             full_path: Arc::new(full_path),
-            fs: self,
+            fs,
             content,
             content_hash,
         }
@@ -1560,7 +1740,8 @@ impl FileSystem for DiskFileSystem {
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
-        let this = self.await?;
+        let fs = self.await?.inner;
+        let this = fs.await?;
         // Check if path is denied - if so, return an error
         if this.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot write link to denied path: {fs_path}");
@@ -1573,6 +1754,8 @@ impl FileSystem for DiskFileSystem {
 
         let target_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(content.target.fs)
             .context("link target must use a disk filesystem")?
+            .await?
+            .inner()
             .await?;
         let target_abs_sys_path = target_fs.to_sys_path_raw(&content.target);
         let target_type = content.target_type.clone();
@@ -1599,7 +1782,7 @@ impl FileSystem for DiskFileSystem {
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteLinkEffect {
-            fs: ResolvedVc<DiskFileSystem>,
+            fs: ResolvedVc<DiskFileSystemInner>,
             full_path: Arc<PathBuf>,
             target_sys_path: Arc<PathBuf>,
             target_type: WriteLinkTargetType,
@@ -1639,7 +1822,7 @@ impl FileSystem for DiskFileSystem {
         #[derive(NonLocalValue, Clone)]
         struct CapturedWriteLinkEffect {
             full_path: Arc<PathBuf>,
-            inner: Arc<DiskFileSystemInner>,
+            inner: Arc<DiskFileSystemState>,
             content: Option<(Arc<PathBuf>, WriteLinkTargetType)>,
             content_hash: u128,
         }
@@ -1798,7 +1981,7 @@ impl FileSystem for DiskFileSystem {
         }
 
         WriteLinkEffect {
-            fs: self,
+            fs,
             full_path,
             target_sys_path,
             target_type,
@@ -1811,19 +1994,20 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs, session_dependent)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
-        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
+        let this = self.inner.await?;
+        let full_path = Arc::new(this.to_sys_path_raw(&fs_path));
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
-        if self.inner.is_path_denied(&fs_path) {
+        if this.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        this.inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(full_path.clone()).await;
+        let _lock = this.inner.lock_path(full_path.clone()).await;
         let meta = retry_blocking(|| std::fs::metadata(&**full_path))
             .instrument(tracing::info_span!("read metadata", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
+            .concurrency_limited(&this.inner.read_semaphore)
             .await
             .with_context(|| format!("reading metadata for {:?}", full_path))?;
 
@@ -1912,7 +2096,7 @@ mod tests {
                 fs: ResolvedVc::upcast(fs),
                 path: rcstr!(""),
             };
-            let fs = fs.await?;
+            let fs = fs.await?.inner().await?;
             fs.start_watching().await?;
             let file = root_path.join("nested/input.txt")?;
             let directory = root_path.join("nested")?;
@@ -1972,7 +2156,7 @@ mod tests {
         )
         .to_resolved()
         .await?;
-        let fs = fs_vc.await?;
+        let fs = fs_vc.await?.inner().await?;
         let fs_root_path = fs_vc.root().await?;
 
         assert_eq!(
@@ -2157,7 +2341,7 @@ mod tests {
             run!(async |fs, root| {
                 write(fs, "out/a/file.txt", "one").await?;
                 assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "one");
-                let inner = fs.await?.inner.clone();
+                let inner = fs.await?.inner().await?.inner.clone();
                 assert!(inner.created_dirs.contains(&root.join("out")));
                 assert!(inner.created_dirs.contains(&root.join("out/a")));
                 assert!(!inner.created_dirs.contains(root));
@@ -2183,6 +2367,8 @@ mod tests {
                 assert_eq!(mtime(&root.join("existing/file.txt")), old);
                 assert!(
                     !fs.await?
+                        .inner()
+                        .await?
                         .inner
                         .created_dirs
                         .contains(&root.join("existing"))
@@ -2206,7 +2392,7 @@ mod tests {
                 assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "two");
                 write(fs, "out/a/other.txt", "three").await?;
                 assert_eq!(read_to_string(root.join("out/a/other.txt"))?, "three");
-                let inner = fs.await?.inner.clone();
+                let inner = fs.await?.inner().await?.inner.clone();
                 // The directories were created by this filesystem again.
                 assert!(inner.created_dirs.contains(&root.join("out")));
                 assert!(inner.created_dirs.contains(&root.join("out/a")));
@@ -2219,7 +2405,7 @@ mod tests {
         async fn invalidate_forgets_created_directories() {
             run!(async |fs, root| {
                 write(fs, "out/file.txt", "one").await?;
-                let fs = fs.await?;
+                let fs = fs.await?.inner().await?;
                 assert!(fs.inner.created_dirs.contains(&root.join("out")));
                 fs.invalidate();
                 assert!(!fs.inner.created_dirs.contains(&root.join("out")));

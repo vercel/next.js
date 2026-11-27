@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     iter,
     sync::{LazyLock, OnceLock},
 };
@@ -87,8 +87,8 @@ struct SourceMapJson {
 /// `sourceContent`s from disk.
 ///
 /// The filesystem is only read when needed, and as narrowly as possible: its name only when a
-/// source is rewritten, and the whole [`DiskFileSystem`] (which contains its absolute root) only
-/// when a `file://` source has to be mapped into it. This avoids invalidating the caller when the
+/// source is rewritten, and its absolute root only when a `file://` source has to be mapped into
+/// it. This avoids invalidating the caller when the
 /// filesystem root changes but the map does not depend on it.
 pub async fn resolve_source_map_sources(
     map: Option<&Rope>,
@@ -128,7 +128,9 @@ pub async fn resolve_source_map_sources(
                     if let Some(disk_fs_vc) = disk_fs_vc {
                         let disk_fs =
                             get_or_try_init(&disk_fs, async || Ok(disk_fs_vc.await?)).await?;
-                        disk_fs.try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
+                        disk_fs
+                            .try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
+                            .await?
                     } else {
                         None
                     }
@@ -305,21 +307,39 @@ pub async fn absolute_fileify_source_map(
     let Some(prefix) = relative_files_prefix(map, &context_path).await? else {
         return Ok(map.clone());
     };
-    // The absolute root of the filesystem is needed here, so read the whole filesystem.
+    // The absolute root of the filesystem is needed here, which can only be read asynchronously,
+    // so convert the sources first and then rewrite them.
     let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_path.fs)
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
-    transform_relative_files(map, &prefix, |src_rest| {
-        let path = context_path.join(src_rest)?;
+    let mut sources_rest = Vec::new();
+    map.any_source(|src| {
+        if let Some(src_rest) = src.strip_prefix(&prefix) {
+            sources_rest.push(src_rest.to_string());
+        }
+        false
+    });
+    let mut urls = HashMap::with_capacity(sources_rest.len());
+    for src_rest in sources_rest {
+        if urls.contains_key(&src_rest) {
+            continue;
+        }
+        let path = context_path.join(&src_rest)?;
 
         // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
         // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
-        let sys_path = context_fs.to_sys_path(&path);
-        Ok(Url::from_file_path(&sys_path)
+        let sys_path = context_fs.to_sys_path(&path).await?;
+        let url: String = Url::from_file_path(&sys_path)
             .map_err(|()| {
                 anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
             })?
-            .into())
+            .into();
+        urls.insert(src_rest, url);
+    }
+    transform_relative_files(map, &prefix, |src_rest| {
+        urls.get(src_rest)
+            .cloned()
+            .with_context(|| format!("source {src_rest:?} was not converted"))
     })
 }
 
@@ -488,6 +508,81 @@ mod tests {
             assert_eq!(
                 resolved_source_maps.rooted_sources,
                 vec![Some(format!("{prefix}/source root page.js"))]
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_absolute_fileify_source_map() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let sys_root = if cfg!(windows) {
+                Path::new(r"C:\fake\root")
+            } else {
+                Path::new(r"/fake/root")
+            };
+
+            #[turbo_tasks::function(operation, root)]
+            async fn fileify_operation(root: RcStr) -> anyhow::Result<Vc<RcStr>> {
+                let context_path = DiskFileSystem::new(rcstr!("mock"), Vc::cell(root))
+                    .root()
+                    .owned()
+                    .await?;
+                let map = StructuredSourceMap::from_json(&Rope::from(
+                    serde_json::json!({
+                        "version": 3,
+                        "mappings": "AAAA",
+                        "names": ["x"],
+                        "sources": [
+                            format!("{SOURCE_URL_PROTOCOL_STR}///[mock]/a.js"),
+                            format!("{SOURCE_URL_PROTOCOL_STR}///[mock]/dir/b.js"),
+                            // duplicates are converted the same way
+                            format!("{SOURCE_URL_PROTOCOL_STR}///[mock]/a.js"),
+                            // null sources, sources on other filesystems and non-file URLs
+                            // are preserved
+                            null,
+                            format!("{SOURCE_URL_PROTOCOL_STR}///[other]/c.js"),
+                            "https://example.com/d.js",
+                        ],
+                        "sourcesContent": ["a", "b", "a", null, "c", "d"],
+                    })
+                    .to_string(),
+                ))?;
+                let absolute = absolute_fileify_source_map(&map, context_path.clone()).await?;
+                // converting an already-rewritten map again leaves it unchanged
+                let absolute = absolute_fileify_source_map(&absolute, context_path).await?;
+                Ok(Vc::cell(absolute.to_rope().to_str()?.into()))
+            }
+
+            let output = fileify_operation(RcStr::from(sys_root.to_str().unwrap()))
+                .read_strongly_consistent()
+                .await?;
+            let output: serde_json::Value = serde_json::from_str(&output)?;
+            let file_url =
+                |path: &Path| String::from(Url::from_file_path(sys_root.join(path)).unwrap());
+            assert_eq!(
+                output,
+                serde_json::json!({
+                    "version": 3,
+                    "mappings": "AAAA",
+                    "names": ["x"],
+                    "sources": [
+                        file_url(Path::new("a.js")),
+                        file_url(&Path::new("dir").join("b.js")),
+                        file_url(Path::new("a.js")),
+                        null,
+                        format!("{SOURCE_URL_PROTOCOL_STR}///[other]/c.js"),
+                        "https://example.com/d.js",
+                    ],
+                    "sourcesContent": ["a", "b", "a", null, "c", "d"],
+                })
             );
 
             anyhow::Ok(())

@@ -1389,7 +1389,7 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     // Use `to_sys_path_raw` (not `to_sys_path`): these paths are compared against the invalidator
     // map keys inside `invalidate_path_and_children_with_reason`, which use the internal (verbatim
     // on Windows) representation.
-    let app_dir_sys_path = project_fs.to_sys_path_raw(app_dir);
+    let app_dir_sys_path = project_fs.to_sys_path_raw(app_dir).await?;
     let paths_to_invalidate = deferred_invalidation_dirs
         .into_iter()
         .map(|dir| {
@@ -1407,15 +1407,19 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
 
     if paths_to_invalidate.is_empty() {
         // Fallback to full invalidation when app dir paths are unavailable.
-        project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-            path: RcStr::from(path.to_string_lossy()),
-        });
-    } else {
-        project_fs.invalidate_path_and_children_with_reason(paths_to_invalidate, |path| {
-            invalidation::Initialize {
+        project_fs
+            .invalidate_with_reason(|path| invalidation::Initialize {
                 path: RcStr::from(path.to_string_lossy()),
-            }
-        });
+            })
+            .await?;
+    } else {
+        project_fs
+            .invalidate_path_and_children_with_reason(paths_to_invalidate, |path| {
+                invalidation::Initialize {
+                    path: RcStr::from(path.to_string_lossy()),
+                }
+            })
+            .await?;
     }
 
     Ok(())
@@ -2675,6 +2679,7 @@ async fn get_source_map_rope(
     let Some(fs_path) = output_fs
         .await?
         .try_from_sys_path(output_fs, sys_path, None)
+        .await?
     else {
         // The path is outside of the filesystem root
         return Ok(FileContent::NotFound.cell());

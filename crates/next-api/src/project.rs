@@ -656,11 +656,14 @@ async fn prepare_project_container_state(
             fs.start_watching().await?;
         }
     } else {
-        project_fs.invalidate_with_reason(invalidation_reason);
+        project_fs
+            .invalidate_with_reason(invalidation_reason)
+            .await?;
         for op in &additional_file_systems {
             op.read_strongly_consistent()
                 .await?
-                .invalidate_with_reason(invalidation_reason);
+                .invalidate_with_reason(invalidation_reason)
+                .await?;
         }
     }
 
@@ -669,7 +672,8 @@ async fn prepare_project_container_state(
     output_fs_op
         .read_strongly_consistent()
         .await?
-        .invalidate_with_reason(invalidation_reason);
+        .invalidate_with_reason(invalidation_reason)
+        .await?;
 
     Ok(additional_roots.issues)
 }
@@ -757,7 +761,7 @@ async fn disk_file_system_map_operation(
         .chain(additional_file_systems)
         .map(async |operation| {
             let fs = operation.connect().to_resolved().await?;
-            Ok((PathBuf::from(fs.await?.root()), fs))
+            Ok((PathBuf::from(fs.await?.root().await?), fs))
         })
         .try_join()
         .await?;

@@ -92,7 +92,6 @@ describe('turbopack-portable-build-cache', () => {
        [
          "<next_api::next_server_nft::ServerNftJsonAsset as dyn turbopack_core::asset::Asset>::content",
          "<next_api::nft_json::NftJsonAsset as dyn turbopack_core::asset::Asset>::content",
-         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks::display::ValueToString>::to_string",
          "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::raw_read_dir",
          "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read",
          "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::write",
@@ -104,7 +103,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
          "next_napi_bindings::next_api::project::write_dist_dir_files_operation",
          "turbo_tasks_env::uppercase_env_map",
-         "turbo_tasks_fs::disk::DiskFileSystem::new_internal",
+         "turbo_tasks_fs::disk::DiskFileSystemInner::new_internal",
        ]
       `)
     }, 600_000)
@@ -230,7 +229,6 @@ describe('turbopack-portable-build-cache', () => {
          "<next_api::next_server_nft::ServerNftJsonAsset as dyn turbopack_core::asset::Asset>::content",
          "<next_api::nft_json::NftJsonAsset as dyn turbopack_core::asset::Asset>::content",
          "<turbo_tasks_env::EnvMap as dyn turbo_tasks_env::ProcessEnv>::read_all",
-         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks::display::ValueToString>::to_string",
          "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::raw_read_dir",
          "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read",
          "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read_link",
@@ -243,7 +241,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
          "next_napi_bindings::next_api::project::write_dist_dir_files_operation",
          "turbo_tasks_env::uppercase_env_map",
-         "turbo_tasks_fs::disk::DiskFileSystem::new_internal",
+         "turbo_tasks_fs::disk::DiskFileSystemInner::new_internal",
          "turbopack_node::evaluate::common_node_env",
          "turbopack_node::evaluate::create_evaluate_pool_assets_operation",
          "turbopack_node::evaluate::evaluated_args_operation",
