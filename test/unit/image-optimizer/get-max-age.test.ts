@@ -20,6 +20,14 @@ describe('getMaxAge', () => {
   it('should return cache-control max-age lowercase', () => {
     expect(getMaxAge('max-age=9999')).toBe(9999)
   })
+  it('should cap max-age at 2^31 seconds', () => {
+    expect(getMaxAge('max-age=2147483647')).toBe(2_147_483_647)
+    expect(getMaxAge('max-age=2147483648')).toBe(2_147_483_648)
+    expect(getMaxAge('max-age=2147483649')).toBe(2_147_483_648)
+  })
+  it('should cap an overflowing max-age at 2^31 seconds', () => {
+    expect(getMaxAge(`max-age=${'9'.repeat(400)}`)).toBe(2_147_483_648)
+  })
   it('should return cache-control MAX-AGE uppercase', () => {
     expect(getMaxAge('MAX-AGE=9999')).toBe(9999)
   })
