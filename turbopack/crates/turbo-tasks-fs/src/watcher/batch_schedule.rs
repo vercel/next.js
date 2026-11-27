@@ -65,6 +65,14 @@ impl BatchSchedule {
         }
     }
 
+    /// Opens a new batch that closes after `delay` if there isn't one pending. Unlike
+    /// [`Self::extend`], this never pushes back the deadline of a pending batch.
+    pub fn ensure_pending(&mut self, delay: Duration) {
+        if self.pending.is_none() {
+            self.extend(delay);
+        }
+    }
+
     /// Waits for the next watcher event, emitting [`FilesystemSettlingEvent`]s while the pending
     /// batch keeps growing. If no batch is pending, this blocks until an event arrives.
     ///
