@@ -935,6 +935,9 @@ async function writeStandaloneDirectory(
         )
       }
 
+      const excludeNftFilter = (filePath: string) =>
+        !filePath.endsWith('.nft.json')
+
       const originalPagesDir = path.join(distDir, SERVER_DIRECTORY, 'pages')
 
       if (existsSync(originalPagesDir)) {
@@ -947,7 +950,7 @@ async function writeStandaloneDirectory(
             SERVER_DIRECTORY,
             'pages'
           ),
-          { overwrite: true }
+          { overwrite: true, filter: excludeNftFilter }
         )
       }
 
@@ -982,7 +985,7 @@ async function writeStandaloneDirectory(
               SERVER_DIRECTORY,
               'app'
             ),
-            { overwrite: true }
+            { overwrite: true, filter: excludeNftFilter }
           )
         }
       }

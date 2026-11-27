@@ -1,3 +1,5 @@
+import path from 'path'
+import glob from 'glob'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('standalone mode - metadata routes', () => {
@@ -38,5 +40,19 @@ describe('standalone mode - metadata routes', () => {
   it('should handle pages rendering correctly', async () => {
     const browser = await next.browser('/hello')
     expect(await browser.elementByCss('#content').text()).toBe('hello-bar')
+  })
+
+  it('should not copy *.nft.json trace files into standalone output', async () => {
+    const serverTraceFiles = glob.sync('**/*.nft.json', {
+      cwd: path.join(next.testDir, '.next/server'),
+      dot: true,
+    })
+    expect(serverTraceFiles.length).toBeGreaterThan(0)
+
+    const standaloneTraceFiles = glob.sync('**/*.nft.json', {
+      cwd: path.join(next.testDir, '.next/standalone'),
+      dot: true,
+    })
+    expect(standaloneTraceFiles).toEqual([])
   })
 })
