@@ -270,7 +270,7 @@ The timestamp appears only after the component renders in the browser. Until the
 
 ### Gotchas
 
-- If a Client Component calls `Date.now()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the timestamp, [pass it to the client as a prop](/docs/messages/blocking-prerender-current-time-client#if-the-initial-html-needs-the-timestamp) so hydration uses the same value.
+- If a Client Component calls `Date.now()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
 
 ## For telemetry, use a timing API
 
@@ -311,7 +311,7 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 
 ## When the read comes from an external library
 
-If a library reads the clock internally, [defer the library call to request time](#generate-on-every-request) when you need a fresh result, or [cache the function that calls it](#cache-the-timestamp) when the result can be shared. For browser-only work, see [Render on the client](#render-on-the-client). If the read is only for instrumentation, check whether the library can [use a timing API](#for-telemetry-use-a-timing-api).
+If the timestamp records when shared data was prepared, [cache the server function that calls the library](#cache-the-timestamp) so the timestamp and data are reused together. If it should reflect each visit, [call the library at request time](#generate-on-every-request). For browser-only work, see [Render on the client](#render-on-the-client). If the read is only for instrumentation, check whether the library can [use a timing API](#for-telemetry-use-a-timing-api).
 
 For example, TanStack Query's `dehydrate()` reads the clock on the server. See how to [cache the hydration timestamp](/docs/app/guides/client-side-data-fetching/tanstack-query#build-a-prerenderable-hydration-state).
 

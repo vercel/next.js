@@ -247,12 +247,12 @@ The ID appears only after the component renders in the browser. Until then, the 
 
 ### Gotchas
 
-- If a Client Component calls a synchronous crypto API during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the ID, [pass it to the client as a prop](/docs/messages/blocking-prerender-crypto-client#if-the-initial-html-needs-the-id) so hydration uses the same value.
+- If a Client Component calls a synchronous crypto API during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
 
 ## When the read comes from an external library
 
-If a library reads a random value from a crypto API internally, [defer the library call to request time](#generate-on-every-request) when you need a fresh result, or [cache the function that calls it](#cache-the-generated-value) when the result can be shared. For browser-only work, see [Render on the client](#render-on-the-client).
+If the library generates an ID for a shared resource, [cache the server function that creates it](#cache-the-generated-value) so callers reuse the same ID. For a request ID or a single-use nonce, [run the library at request time](#generate-on-every-request). For browser-only work, see [Render on the client](#render-on-the-client).
 
 ## Verifying the fix
 

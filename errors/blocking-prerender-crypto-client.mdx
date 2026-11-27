@@ -79,28 +79,7 @@ export default function Page() {
 }
 ```
 
-#### If the initial HTML needs the ID
-
-Generate the correlation ID once on the server and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration. In the boundary above, replace `<CorrelationId />` with `<RequestCorrelationId />`, which calls [`await io()`](/docs/app/api-reference/functions/io) before generating the ID.
-
-```jsx filename="app/request-correlation-id.js"
-import { io } from 'next/cache'
-import { CorrelationId } from './correlation-id'
-
-export async function RequestCorrelationId() {
-  await io()
-  const id = crypto.randomUUID()
-  return <CorrelationId id={id} />
-}
-```
-
-```jsx filename="app/correlation-id.js"
-'use client'
-
-export function CorrelationId({ id }) {
-  return id
-}
-```
+If the ID is only for display, [generate and render it in a Server Component](/docs/messages/blocking-prerender-crypto#generate-on-every-request). If client code also needs that ID, pass it as a prop so hydration reuses it.
 
 Learn more: [Streaming](/docs/app/guides/streaming).
 
@@ -210,19 +189,14 @@ The user sees the placeholder briefly before the real value. For interactions th
 ### Gotchas
 
 - A lazy initializer such as `useState(() => crypto.randomUUID())` runs during render, including on the server. To wait until after mount, read the value inside the effect.
-- If the generated value needs to appear in the server-rendered HTML, generate it in a Server Component and [pass it as a prop](#if-the-initial-html-needs-the-id).
 - Only [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) ships to the browser. Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client. If you're seeing this error for one of those, the call lives on the server: see [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
-## Other options
-
-### Suspend with `use(io())`
-
-To defer prerendering explicitly, call [`use(io())`](/docs/app/api-reference/functions/io#usage) inside the Client Component. It can still render on the server at request time.
-
 ## When the read comes from an external library
 
-If a library reads a random value from a crypto API during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-or-move-into-suspense). If the library accepts an initial value, you can [pass the ID from the server](#if-the-initial-html-needs-the-id) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler). A library that uses Node-only crypto APIs must [run on the server](/docs/messages/blocking-prerender-crypto#when-the-read-comes-from-an-external-library).
+If the library accepts an ID as input and the same ID should be reused, [generate and cache it on the server](/docs/messages/blocking-prerender-crypto#cache-the-generated-value), then pass it to the library. Generate request IDs and single-use nonces separately for each request.
+
+If the library calls a crypto API when a Client Component renders, [wrap the component that calls it in Suspense](#wrap-in-or-move-into-suspense). If it only needs to run after mount or on interaction, [use an effect or event handler](#move-into-effect-or-event-handler). Libraries that use Node-only crypto APIs must [run on the server](/docs/messages/blocking-prerender-crypto#when-the-read-comes-from-an-external-library).
 
 ## Verifying the fix
 

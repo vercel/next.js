@@ -231,11 +231,11 @@ When you read the value in an effect, the first paint shows the initial state un
 
 ### Gotchas
 
-- If a Client Component calls `Math.random()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the random value, [pass it to the client as a prop](/docs/messages/blocking-prerender-random-client#if-the-initial-html-needs-the-avatar-color) so hydration uses the same value.
+- If a Client Component calls `Math.random()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
 
 ## When the read comes from an external library
 
-If a library reads a random value internally, [defer the library call to request time](#generate-on-every-request) when you need a fresh result, or [cache the function that calls it](#cache-the-random-value) when the result can be shared. For browser-only work, see [Render on the client](#render-on-the-client).
+If everyone should see the same result, such as a daily shuffle, [cache the server function that calls the library](#cache-the-random-value). If each request needs a new result, [defer the library call to request time](#generate-on-every-request). For browser-only work, see [Render on the client](#render-on-the-client).
 
 ## Verifying the fix
 

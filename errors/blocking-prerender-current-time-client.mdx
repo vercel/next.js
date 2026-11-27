@@ -86,33 +86,7 @@ export default function Page() {
 }
 ```
 
-#### If the initial HTML needs the timestamp
-
-Read the clock once on the server and [pass the timestamp as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration. In the boundary above, replace `<TimeDisplay />` with `<RequestTime />`, which calls [`await io()`](/docs/app/api-reference/functions/io) before reading the clock.
-
-```jsx filename="app/request-time.js"
-import { io } from 'next/cache'
-import { TimeDisplay } from './time-display'
-
-export async function RequestTime() {
-  const timestamp = await getTimestamp()
-  return <TimeDisplay timestamp={timestamp} />
-}
-
-async function getTimestamp() {
-  await io()
-  return Date.now()
-}
-```
-
-```jsx filename="app/time-display.js"
-'use client'
-
-export function TimeDisplay({ timestamp }) {
-  const time = new Date(timestamp).toISOString()
-  return <time dateTime={time}>{time}</time>
-}
-```
+If both the server and the browser display the timestamp, [read it once on the server](/docs/messages/blocking-prerender-current-time#generate-on-every-request) and pass it as a prop so hydration shows the same time.
 
 Learn more: [Streaming](/docs/app/guides/streaming).
 
@@ -189,7 +163,6 @@ The user sees the placeholder briefly before the real timestamp. For interaction
 ### Gotchas
 
 - A lazy initializer such as `useState(() => Date.now())` runs during render, including on the server. To wait until after mount, read the value inside the effect.
-- If the timestamp needs to appear in the server-rendered HTML, generate it in a Server Component and [pass it as a prop](#if-the-initial-html-needs-the-timestamp).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
 ## For telemetry, use a timing API
@@ -257,15 +230,13 @@ export default async function Layout({ children }) {
 
 Learn more: [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time).
 
-### Suspend with `use(io())`
-
-To defer prerendering explicitly, call [`use(io())`](/docs/app/api-reference/functions/io#usage) inside the Client Component. It can still render on the server at request time.
-
 ## When the read comes from an external library
 
-If a library reads the clock during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-or-move-into-suspense). If the library accepts an initial value, you can [pass the timestamp from the server](#if-the-initial-html-needs-the-timestamp) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler).
+If the library accepts a timestamp or hydration state from the server, you can [cache it with the data it describes](/docs/messages/blocking-prerender-current-time#cache-the-timestamp) and pass it to the library. This works when the timestamp should change with the data rather than on every visit.
 
-For example, TanStack Query can read the clock when a query first renders. See how to [wrap the query component in Suspense](/docs/app/guides/client-side-data-fetching/tanstack-query#use-suspense-for-client-data).
+If the library reads the clock when a Client Component renders, [wrap the component that calls it in Suspense](#wrap-in-or-move-into-suspense). If it only needs to run after mount or on interaction, [use an effect or event handler](#move-into-effect-or-event-handler).
+
+For TanStack Query, see how to [cache the hydration timestamp](/docs/app/guides/client-side-data-fetching/tanstack-query#build-a-prerenderable-hydration-state) for server-provided data or [wrap a client query in Suspense](/docs/app/guides/client-side-data-fetching/tanstack-query#use-suspense-for-client-data).
 
 ## Verifying the fix
 

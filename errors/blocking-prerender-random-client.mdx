@@ -76,32 +76,7 @@ export default function Page() {
 }
 ```
 
-#### If the initial HTML needs the avatar color
-
-Choose the color once on the server and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the browser uses the same value during hydration. In the boundary above, replace `<Avatar />` with `<RequestAvatar />`, which calls [`await io()`](/docs/app/api-reference/functions/io) before choosing the color.
-
-```jsx filename="app/request-avatar.js"
-import { io } from 'next/cache'
-import { Avatar } from './avatar'
-
-export async function RequestAvatar() {
-  const color = await getAvatarColor()
-  return <Avatar color={color} />
-}
-
-async function getAvatarColor() {
-  await io()
-  return Math.random() < 0.5 ? 'teal' : 'coral'
-}
-```
-
-```jsx filename="app/avatar.js"
-'use client'
-
-export function Avatar({ color }) {
-  return <div style={{ background: color }} />
-}
-```
+If both the server and the browser show the avatar, [choose the color on the server](/docs/messages/blocking-prerender-random#generate-on-every-request) and pass it to the avatar so the color stays the same during hydration.
 
 Learn more: [Streaming](/docs/app/guides/streaming).
 
@@ -204,18 +179,13 @@ The user sees the placeholder briefly before the real value. For interactions th
 
 - A lazy initializer such as `useState(() => Math.random())` runs during render, including on the server. To wait until after mount, read the value inside the effect.
 - Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render in a server-rendered Client Component also causes a hydration mismatch (the SSR HTML uses one value, the browser uses another). The `useEffect` and event handler patterns above avoid both the error and the mismatch.
-- If the random value needs to appear in the server-rendered HTML, generate it in a Server Component and [pass it as a prop](#if-the-initial-html-needs-the-avatar-color).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
-
-## Other options
-
-### Suspend with `use(io())`
-
-To defer prerendering explicitly, call [`use(io())`](/docs/app/api-reference/functions/io#usage) inside the Client Component. It can still render on the server at request time.
 
 ## When the read comes from an external library
 
-If a library reads a random value during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-or-move-into-suspense). If the library accepts an initial value, you can [pass the random value from the server](#if-the-initial-html-needs-the-avatar-color) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler).
+If the library accepts its input from the server, you can [cache a shared result](/docs/messages/blocking-prerender-random#cache-the-random-value), such as a daily shuffle, and pass it to the library.
+
+If the library reads a random value when a Client Component renders, [wrap the component that calls it in Suspense](#wrap-in-or-move-into-suspense). If it only needs to run after mount or on interaction, [use an effect or event handler](#move-into-effect-or-event-handler).
 
 ## Verifying the fix
 
