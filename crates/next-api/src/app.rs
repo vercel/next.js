@@ -1876,19 +1876,13 @@ impl Endpoint for GoEndpoint {
             }
             .cell());
         }
-        // Static configuration is read only from the entrypoint. Handler functions can live
-        // in any of the compiled source files.
+        // The entrypoint declares both handlers and static configuration. Siblings compile
+        // with it as helpers, but do not contribute handlers or configuration.
         let entry = prepared.declarations.await?;
-        let analysis = go_declarations(
-            *sources,
-            source_set.files.keys().cloned().collect(),
-            *session,
-        )
-        .await?;
         // Next.js owns the program entrypoint. It imports the route directory as an ordinary
-        // package, so that directory cannot be a program itself. Only files Go selects for the
-        // package count: `//go:build ignore` generators commonly use `package main`.
-        if analysis.selected_packages.iter().any(|name| name == "main") {
+        // package, so the entrypoint cannot be a program itself. The compiler checks sibling
+        // package clauses using Go's file selection, including build constraints.
+        if entry.selected_packages.iter().any(|name| name == "main") {
             let (file, suggestion) = if is_proxy {
                 ("proxy.go", "proxy")
             } else {
@@ -1919,22 +1913,18 @@ impl Endpoint for GoEndpoint {
             .cell());
         }
         // Files that disagree are reported by the compiler.
-        let package = analysis
+        let package = entry
             .selected_packages
             .first()
             .map_or("route", |name| name.as_str());
-        if is_proxy {
-            ensure!(
-                analysis
-                    .selected_functions
-                    .iter()
-                    .any(|name| name == "Proxy"),
-                "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
-            );
-        }
         // Static `var Config` is read from the same syntax analysis and published in the
         // descriptor, so Next.js never parses Go entrypoints separately.
-        let config = match go_entry_config(&entry.functions, &entry.values, is_proxy) {
+        let config = if is_proxy && !entry.selected_functions.iter().any(|name| name == "Proxy") {
+            Err("proxy.go must declare func Proxy(http.ResponseWriter, *http.Request)".to_owned())
+        } else {
+            go_entry_config(&entry.functions, &entry.values, is_proxy)
+        };
+        let config = match config {
             Ok(config) => config,
             Err(message) => {
                 // The failure depends on the entry's source, so keep the selection's inputs
@@ -1989,7 +1979,7 @@ impl Endpoint for GoEndpoint {
                 .eq(entry.browser_entries.iter()),
             "Go browser declarations changed during compilation; retry the request"
         );
-        let methods = analysis.selected_functions.iter().filter(|name| {
+        let methods = entry.selected_functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
                 "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS"

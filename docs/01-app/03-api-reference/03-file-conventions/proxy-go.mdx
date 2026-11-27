@@ -20,7 +20,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-To use it, enable `experimental.goRoutes`, follow the [Go setup](/docs/app/api-reference/file-conventions/route-go#setup), and create `proxy.go` next to `app` (or inside `src`). Export a `Proxy` function with the signature above from `proxy.go` or a compiled sibling `.go` file. A project can have only one Proxy file, so `proxy.go` cannot be combined with `proxy.ts` or `proxy.js`.
+To use it, enable `experimental.goRoutes`, follow the [Go setup](/docs/app/api-reference/file-conventions/route-go#setup), and create `proxy.go` next to `app` (or inside `src`). Declare the `Proxy` function with the signature above in `proxy.go`. It can call helpers in compiled sibling `.go` files. A project can have only one Proxy file, so `proxy.go` cannot be combined with `proxy.ts` or `proxy.js`.
 
 ## Reference
 
