@@ -619,7 +619,7 @@ export default function Page() {
 
 The fallback uses the same `serverLabel` prop on the server and during hydration, so it doesn't need `suppressHydrationWarning`. The browser formats the date only inside `BrowserDate`, after `use(browser())` allows rendering to continue.
 
-With a static import, `BrowserDate` can render in the pass that hydrates the page because `use(browser())` does not suspend in the browser. If the component also suspends for data or lazy-loaded code, its reveal follows the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+With a static import, `BrowserDate` can render in the pass that hydrates the page because `use(browser())` does not suspend in the browser. If the component also suspends for data or lazy-loaded code, its reveal follows the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats). A component that is [dynamically imported and first rendered after a click](/docs/app/guides/lazy-loading#loading-on-interaction) has no server-rendered HTML to hydrate.
 
 This avoids a hydration mismatch, but the displayed date can still change. If browser formatting must be visible before React loads, use the [inline script approach](#fixing-it-with-an-inline-script).
 
