@@ -16,6 +16,7 @@ import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { injectNodeEnv } from '../lib/upgrade/child-env'
 import {
   getParsedDebugAddress,
   parseValidPositiveInteger,
@@ -115,9 +116,9 @@ class NextRootCommand extends Command {
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
       if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
-        // TODO(as-any): pre-existing cast, not yet reviewed
-        // eslint-disable-next-line @next/internal/no-as-any
-        ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+        // Remember that this value was not the user's, so an upgrade launched
+        // from here can hand its child processes the original environment.
+        injectNodeEnv(defaultEnv)
         process.env.NEXT_RUNTIME = 'nodejs'
       }
 
