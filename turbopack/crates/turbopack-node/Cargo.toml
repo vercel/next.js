@@ -14,7 +14,15 @@ default = ["process_pool"]
 # enable "HMR" for embedded assets
 dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
 process_pool = ["tokio/full"]
-worker_pool = ["tokio/sync", "napi", "napi-derive", "turbo-rcstr/napi"]
+worker_pool = [
+  "tokio/macros",
+  "tokio/rt",
+  "tokio/sync",
+  "tokio/time",
+  "napi",
+  "napi-derive",
+  "turbo-rcstr/napi",
+]
 
 [lints]
 workspace = true
