@@ -218,6 +218,7 @@ import { startTransition, useEffect, useState } from 'react'
 export function Avatar() {
   const [color, setColor] = useState('#888')
   useEffect(() => {
+    // Keep the current UI visible if this update suspends.
     startTransition(() => {
       setColor(`#${Math.random().toString(16).slice(2, 8).padEnd(6, '0')}`)
     })

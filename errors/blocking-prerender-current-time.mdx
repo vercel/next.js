@@ -255,6 +255,7 @@ import { startTransition, useEffect, useState } from 'react'
 export function Now() {
   const [now, setNow] = useState(null)
   useEffect(() => {
+    // Keep the current UI visible if this update suspends.
     const tick = () => startTransition(() => setNow(Date.now()))
     tick()
     const id = setInterval(tick, 1000)
