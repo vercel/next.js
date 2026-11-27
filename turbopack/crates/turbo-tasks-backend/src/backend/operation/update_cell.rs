@@ -132,32 +132,44 @@ pub fn update_cell(
                         .push(None);
                 }
             }
+            // Provisional `keyed_reader()` / `lazy_reader()` read dependents: always
+            // invalidate, like keyless dependents.
             for (
                 CellRef {
                     task: dependent_task,
                     cell: dependent_cell,
                 },
                 key,
-            ) in task.iter_keyed_cell_dependents()
+            ) in task.iter_cell_dependents_provisional()
             {
-                if dependent_cell != cell {
-                    continue;
-                }
-                let affected = match key.kind() {
-                    // Hashed dependents: invalidate only when the changed sub-value (key)
-                    // matches.
-                    CellKeyKind::Hash(_) => updated_key_hashes_set
-                        .as_ref()
-                        .is_none_or(|set| set.contains(&key)),
-                    // Provisional `keyed_reader()` / `lazy_reader()` read dependents: always
-                    // invalidate, like keyless dependents.
-                    CellKeyKind::Provisional(_) => true,
-                };
-                if affected {
+                if dependent_cell == cell {
+                    debug_assert!(matches!(key.kind(), CellKeyKind::Provisional(_)));
                     dependent_tasks
                         .entry(dependent_task)
                         .or_default()
                         .push(Some(key));
+                }
+            }
+            // Hashed dependents: invalidate only when the changed sub-value (key) matches. They
+            // are indexed by key, so only the dependents of the changed keys are visited.
+            match updated_key_hashes_set.as_ref() {
+                Some(keys) => {
+                    for &key in keys.iter() {
+                        for dependent_task in task.cell_dependents_of_key(cell, key) {
+                            dependent_tasks
+                                .entry(dependent_task)
+                                .or_default()
+                                .push(Some(key));
+                        }
+                    }
+                }
+                None => {
+                    for (dependent_task, key) in task.iter_hashed_cell_dependents_of_cell(cell) {
+                        dependent_tasks
+                            .entry(dependent_task)
+                            .or_default()
+                            .push(Some(key));
+                    }
                 }
             }
         }
