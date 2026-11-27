@@ -16,6 +16,7 @@
 #![allow(clippy::mutable_key_type)]
 
 mod canonicalized_path_cache;
+mod cell_rope;
 mod content;
 mod created_dirs;
 mod disk;
@@ -49,12 +50,8 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 
-pub(crate) use crate::{
-    content::FileComparison,
-    disk::{DiskFileSystemInner, format_absolute_fs_path},
-    error::AnyhowWrapper,
-};
 pub use crate::{
+    cell_rope::{CellRope, CellRopeBuilder, CellRopeSegment, ComposedFile, SkippableRope},
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
         LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
@@ -69,6 +66,11 @@ pub use crate::{
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
+};
+pub(crate) use crate::{
+    content::FileComparison,
+    disk::{DiskFileSystemInner, format_absolute_fs_path},
+    error::AnyhowWrapper,
 };
 
 #[turbo_tasks::value_trait]
@@ -91,6 +93,13 @@ pub trait FileSystem: ValueToString {
     fn raw_read_dir(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<RawDirectoryContent>;
     #[turbo_tasks::function]
     fn write(self: Vc<Self>, fs_path: FileSystemPath, content: Vc<FileContent>) -> Vc<()>;
+    /// Writes a file composed from other tasks' cells. See [`FileSystemPath::write_composed`].
+    ///
+    /// File systems that persist writes can persist only the [`CellRope`] instead of the file's
+    /// bytes.
+    #[turbo_tasks::function]
+    fn write_composed(self: Vc<Self>, fs_path: FileSystemPath, content: Vc<ComposedFile>)
+    -> Vc<()>;
     /// Creates a symbolic link. See [`WriteLinkContent`] and [`FileSystemPath::write_link`].
     #[turbo_tasks::function]
     fn write_link(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<WriteLinkContent>) -> Vc<()>;

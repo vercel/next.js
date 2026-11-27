@@ -432,6 +432,12 @@ impl File {
         &self.meta
     }
 
+    /// Replaces this file's [FileMeta].
+    pub fn with_meta(mut self, meta: FileMeta) -> Self {
+        self.meta = meta;
+        self
+    }
+
     /// Returns the immutable contents of this file.
     pub fn content(&self) -> &Rope {
         &self.content

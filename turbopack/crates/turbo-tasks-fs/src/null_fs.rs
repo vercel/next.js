@@ -4,8 +4,8 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
-    FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
-    WriteLinkContent,
+    ComposedFile, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
+    RawDirectoryContent, WriteLinkContent,
 };
 
 #[derive(ValueToString)]
@@ -40,6 +40,9 @@ impl FileSystem for NullFileSystem {
 
     #[turbo_tasks::function]
     fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) {}
+
+    #[turbo_tasks::function]
+    fn write_composed(&self, _fs_path: FileSystemPath, _content: Vc<ComposedFile>) {}
 
     #[turbo_tasks::function]
     fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<WriteLinkContent>) {}

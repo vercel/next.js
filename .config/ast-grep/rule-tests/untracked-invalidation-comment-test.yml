@@ -46,7 +46,33 @@ valid:
         // INVALIDATION: Changes to this value must not invalidate this task.
         value.untracked().await;
     }
+  - |
+    async fn example() {
+        // INVALIDATION: The bytes are checked against a tracked hash.
+        rope.read_untracked().await?;
+    }
+  - |
+    async fn example() {
+        // INVALIDATION: Neither the rope nor its cells invalidate this task.
+        rope.untracked().await?.read_untracked().await
+    }
+  - 'rope.read_untracked();'
+  - 'rope.read();'
 invalid:
+  - 'rope.read_untracked().await?;'
+  - |
+    async fn example() {
+        // This is intentionally untracked.
+        rope.read_untracked().await?;
+    }
+  - |
+    async fn example() {
+        // INVALIDATION: This explains a different statement.
+        other();
+        let bytes = rope
+            .read_untracked()
+            .await?;
+    }
   - 'value.untracked().await;'
   - 'value.untracked().await.unwrap();'
   - '(value.untracked().await, other())?;'
