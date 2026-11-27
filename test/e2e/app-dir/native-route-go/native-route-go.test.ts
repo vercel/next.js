@@ -1350,6 +1350,7 @@ describe('native-route-go in src/app', () => {
   })
 })
 
+// @force-gate turbopack
 describe('native route diagnostics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
