@@ -37,6 +37,12 @@ Next.js already splits Client Component code by route, so a route loads the code
 
 Whether to preload depends on how often visitors open the component. Use your analytics to decide.
 
+> **Good to know**:
+>
+> - A component that renders only after an interaction, or from state that exists only in the browser, is not part of prerendering. It stays out of the server render without `use(browser())` or `ssr: false`.
+> - To guarantee that a component renders only in the browser, however it is gated, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+> - Setting `loading` or `ssr: false` wraps the component in a `<Suspense>` boundary. React reveals content behind a fallback with its next batch of suspended content, so set them when you want a placeholder.
+
 ## Examples
 
 ### Importing Client Components
@@ -172,7 +178,7 @@ export default function Page() {
 
 A component that renders conditionally loads its code the first time it renders, for example when a user opens a chat box. With a `loading` component or `ssr: false`, `next/dynamic` wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
 
-A component that first renders after an interaction is not part of the server render, so it does not need `ssr: false`, even when it depends on a module that reads `window` or `document` when imported. If the state that gates the component can be set during prerendering, the component renders on the server like any other.
+A component that first renders after an interaction is not part of the server render, so it does not need `ssr: false`, even when it depends on a module that reads `window` or `document` when imported. If the gate can be open during prerendering, the component renders on the server like any other. To keep it out of the server render regardless of the gate, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 To show the component as soon as its code loads, use `next/dynamic` without those options and update state in a [transition](https://react.dev/reference/react/useTransition). React keeps the current UI on screen until the component is ready, and `isPending` lets you show that the click registered:
 

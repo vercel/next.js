@@ -214,6 +214,8 @@ Which API to use depends on what else the component needs:
 | a module it imports reads `window` or `document` when imported | `next/dynamic` with `ssr: false`     |
 | its code should load separately, when the component renders    | `next/dynamic` with `ssr: false`     |
 
+A component that renders only after an interaction is already left out of prerendering. Use these APIs when the component would otherwise be prerendered, or when it must render only in the browser however it is gated.
+
 To decide whether a component's code should load separately, see [Choosing what to lazy load](/docs/app/guides/lazy-loading#choosing-what-to-lazy-load).
 
 React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
