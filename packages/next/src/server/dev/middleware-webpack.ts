@@ -69,6 +69,18 @@ function getModuleById(
   id: string | undefined,
   compilation: webpack.Compilation
 ) {
+  // Rspack reuses its native Compilation allocation between rebuilds, so a
+  // Stats object retained from the previous build aliases the build in
+  // progress. Reading its module graph while Rspack has stolen the graph
+  // artifact aborts the process instead of throwing a JavaScript error. A
+  // failed compilation can likewise have no code generation results to read.
+  if (
+    process.env.NEXT_RSPACK &&
+    (compilation.compiler.watching?.running || compilation.errors.length > 0)
+  ) {
+    return undefined
+  }
+
   const { chunkGraph, modules } = compilation
 
   return [...modules].find((module) => chunkGraph.getModuleId(module) === id)
