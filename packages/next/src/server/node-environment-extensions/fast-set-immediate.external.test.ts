@@ -12,6 +12,7 @@ import {
 
 import * as TimerScheduler from '../app-render/app-render-scheduling/timer-scheduler'
 import * as ImmediateScheduler from '../app-render/app-render-scheduling/immediate-scheduler'
+import * as MessagePortScheduler from '../app-render/app-render-scheduling/message-port-scheduler'
 
 function createLogger() {
   const logs: string[] = []
@@ -35,6 +36,7 @@ function createLogger() {
 describe.each([
   { description: 'Timer scheduler', scheduler: TimerScheduler },
   { description: 'Immediate scheduler', scheduler: ImmediateScheduler },
+  { description: 'MessagePort scheduler', scheduler: MessagePortScheduler },
 ])('$description', ({ scheduler }) => {
   const { scheduleSequentialTasks } = scheduler
 
@@ -1650,10 +1652,13 @@ describe.each([
       const error = new Error('native nextTick error')
       const triggeredErrors: TriggeredUncaught[] = []
 
-      using _ = trackUncaughtErrors((receivedError, kind) => {
+      using _u = trackUncaughtErrors((receivedError, kind) => {
         log(kind)
         triggeredErrors.push({ error: receivedError, kind })
       })
+
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation()
+      using _s = deferSync(() => consoleWarnSpy.mockRestore())
 
       scheduleSequentialTasks([
         () => {
@@ -1691,23 +1696,60 @@ describe.each([
       expectNoPendingImmediates()
       expect(triggeredErrors[0]?.error).toBe(error)
       expect(triggeredErrors).toEqual([{ error, kind: 'uncaughtException' }])
-      expect(logs).toEqual([
-        'task 1',
-        'task 1 -> nextTick 1 (error)',
-        // if a nextTick errors, the rest of the tick queue will be executed
-        // the next time that nextTicks can run...
-        'uncaughtException',
-        // ===================================
-        'task 2',
-        // ...so the second tick from task 1 runs in task 2.
-        // (this is confusing, but that's the default behavior in Node)
-        // NOTE: This is not a problem in practice, because we instrument all sequential tasks,
-        // so `nextTick` is always patched.
-        'task 1 -> nextTick 2 (no error)',
-        'task 2 -> nextTick 1',
-        // ===================================
-        'task 1 -> native immediate',
-      ])
+      if (scheduler === TimerScheduler || scheduler === ImmediateScheduler) {
+        expect(logs).toEqual([
+          'task 1',
+          'task 1 -> nextTick 1 (error)',
+          // if a nextTick errors, the rest of the tick queue will be executed
+          // the next time that nextTicks can run...
+          'uncaughtException',
+          // ===================================
+          'task 2',
+          // ...so the second tick from task 1 runs in task 2.
+          // (this is confusing, but that's the default behavior in Node)
+          // NOTE: This is not a problem in practice, because we instrument all sequential tasks,
+          // so `nextTick` is always patched.
+          'task 1 -> nextTick 2 (no error)',
+          'task 2 -> nextTick 1',
+          // ===================================
+          'task 1 -> native immediate',
+        ])
+        // Uncaught errors in nextTick do not interrupt the execution of timers,
+        // and the native immediate still runs after the second sequential task,
+        // so the scheduler doesn't warn.
+        expect(consoleWarnSpy).not.toHaveBeenCalled()
+      } else {
+        expect(logs).toEqual([
+          'task 1',
+          'task 1 -> nextTick 1 (error)',
+          'uncaughtException',
+
+          // An error in a nextTick spawned from a MessagePort task
+          // interrupts the execution and reschedules the rest of the messages
+          // to be processed later.
+          // This means that the native immediate will run before 'task 2'.
+          // (the leftover nextTicks from task 1 will be executed before it)
+          'task 1 -> nextTick 2 (no error)',
+          // ===================================
+          'task 1 -> native immediate',
+
+          // ===================================
+          // The next time messages are processed happens after the native immediate,
+          // so task 2 runs here instead.
+          // NOTE: This is not a problem in practice, because we instrument all sequential tasks,
+          // so `nextTick` is always patched.
+          'task 2',
+          'task 2 -> nextTick 1',
+        ])
+        // The scheduler notices that its sentinel immediate ran before the
+        // second sequential tasks, and warns.
+        expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining(
+            'Next.js cannot guarantee that Cache Components will run as expected'
+          )
+        )
+      }
     })
 
     it('recovers from native callback and nextTick errors while tracking', async () => {
@@ -2334,3 +2376,11 @@ describe('module re-evaluation', () => {
     }
   })
 })
+
+function deferSync(callback: () => void): Disposable {
+  return {
+    [Symbol.dispose]: async () => {
+      return callback()
+    },
+  }
+}

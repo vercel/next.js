@@ -8,6 +8,7 @@ import * as fsPromises from 'node:fs/promises'
 
 import * as TimerScheduler from './timer-scheduler'
 import * as ImmediateScheduler from './immediate-scheduler'
+import * as MessagePortScheduler from './message-port-scheduler'
 
 function createLogger() {
   const logs: string[] = []
@@ -38,6 +39,7 @@ function runInNewTask(callback: () => void) {
 describe.each([
   { description: 'Timer scheduler', scheduler: TimerScheduler },
   { description: 'Immediate scheduler', scheduler: ImmediateScheduler },
+  { description: 'MessagePort scheduler', scheduler: MessagePortScheduler },
 ])('$description', ({ scheduler }) => {
   const { scheduleSequentialTasks } = scheduler
 
@@ -252,50 +254,6 @@ describe.each([
       ])
     })
   })
-
-  type TriggeredUncaught = {
-    error: unknown
-    kind: 'uncaughtException' | 'unhandledRejection'
-  }
-
-  const trackUncaughtErrors = (
-    handler: (
-      error: unknown,
-      kind: 'uncaughtException' | 'unhandledRejection'
-    ) => void
-  ) => {
-    // We have to use this instead of `process.on("uncaughtException")`,
-    // because if an actual "uncaughtException" event fires, Jest will fail the test.
-    const onUncaughtException = (err: unknown) => {
-      handler(err, 'uncaughtException')
-    }
-    process.setUncaughtExceptionCaptureCallback(onUncaughtException)
-
-    // If an unhandled rejection occurs, Jest will fail the test.
-    // Here, we're triggering one deliberately, so we need to work around Jest's behavior.
-    // This seems to be the best we can do, and there's no official solution:
-    // https://github.com/jestjs/jest/issues/5620
-    const prevListeners = process.rawListeners('unhandledRejection')
-    process.removeAllListeners('unhandledRejection')
-    const onUnhandledRejection = (err: unknown) => {
-      handler(err, 'unhandledRejection')
-    }
-    process.on('unhandledRejection', onUnhandledRejection)
-
-    return {
-      [Symbol.dispose]() {
-        process.setUncaughtExceptionCaptureCallback(null)
-
-        process.off('unhandledRejection', onUnhandledRejection)
-        for (const listener of prevListeners) {
-          process.on(
-            'unhandledRejection',
-            listener as NodeJS.UnhandledRejectionListener
-          )
-        }
-      },
-    }
-  }
 
   it('runs all queued tasks regardless of errors', async () => {
     const { log, logs } = createLogger()
@@ -536,10 +494,205 @@ describe('Immediate scheduler', () => {
   })
 })
 
+describe('MessagePort scheduler', () => {
+  // After each test we reset the module-level flag we set when we detect
+  // unexpected scheduling behavior.
+  const getScheduler = () => import('./message-port-scheduler')
+  afterEach(() => {
+    jest.resetModules()
+  })
+
+  it('warns if message queue execution is interrupted by an error thrown from process.nexTick ', async () => {
+    const { scheduleSequentialTasks } = await getScheduler()
+
+    const { log, logs } = createLogger()
+    const done = createPromiseWithResolvers<void>()
+
+    let triggeredError: TriggeredUncaught | undefined = undefined
+    using _uncaught = trackUncaughtErrors((error, kind) => {
+      triggeredError = { error, kind }
+    })
+
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation()
+    using _s = deferSync(() => consoleWarnSpy.mockRestore())
+
+    const error = new Error('kaboom')
+
+    runInNewTask(() => {
+      scheduleSequentialTasks([
+        () => {
+          log('task 1')
+          // An error thrown from process.nextTick interrupts the processing
+          // of the message queue, which will let the scheduler's sentinel immediate
+          // run and trigger the warning.
+          //
+          // NOTE: when we use the scheduler via `runInSequentialTasks`, fast-set-immediate
+          // patches process.nextTick to avoid this behavior (errors are rethrown in microtasks).
+          // But here we're deliberately using the native behavior to exercise the warning mechanism.
+          process.nextTick(() => {
+            log('task 1 -> nextTick (error)')
+            throw error
+          })
+        },
+        () => {
+          log('task 2')
+        },
+        () => {
+          log('task 3')
+          done.resolve()
+        },
+      ])
+    })
+
+    await done.promise
+
+    expect(logs).toEqual([
+      'task 1',
+      'task 1 -> nextTick (error)',
+      'task 2',
+      'task 3',
+    ])
+
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Next.js cannot guarantee that Cache Components will run as expected'
+      )
+    )
+
+    expect(triggeredError).toEqual({ error, kind: 'uncaughtException' })
+  })
+
+  // NOTE: One of the things the following tests check is if the message channel doesn't block shutdown.
+  // In case we don't clean up properly, the test will pass, but Jest will hang when exiting.
+
+  const DEADLINE_MS = 1_000
+
+  /**
+   * Races a promise against a timeout, and rejects if it didn't settle within
+   * the specified duration.
+   */
+  function withDeadline<T>(promise: Promise<T>, duration: number): Promise<T> {
+    const timeoutPromise = createPromiseWithResolvers<never>()
+    const deadlineTimer = setTimeout(
+      () =>
+        timeoutPromise.reject(
+          new Error(`Promise did not settle within ${duration}ms`)
+        ),
+      duration
+    )
+
+    const onSettled = () => clearTimeout(deadlineTimer)
+    promise.then(onSettled, onSettled)
+    return Promise.race([promise, timeoutPromise.promise]) as Promise<T>
+  }
+
+  it('does not hang if a task is scheduled and immediately cancelled', async () => {
+    const { scheduleSequentialTasks } = await getScheduler()
+    const { log, logs } = createLogger()
+    const done = createPromiseWithResolvers<void>()
+
+    const controller = new AbortController()
+
+    runInNewTask(() => {
+      scheduleSequentialTasks(
+        [
+          () => {
+            log('never')
+          },
+        ],
+        controller.signal
+      )
+      controller.abort()
+      setTimeout(() => {
+        done.resolve()
+      })
+    })
+
+    await withDeadline(done.promise, DEADLINE_MS)
+
+    expect(logs).toEqual([])
+  })
+
+  it('does not hang if a task is cancelled during execution', async () => {
+    const { scheduleSequentialTasks } = await getScheduler()
+    const { log, logs } = createLogger()
+    const done = createPromiseWithResolvers<void>()
+
+    const controller = new AbortController()
+
+    runInNewTask(() => {
+      scheduleSequentialTasks(
+        [
+          () => {
+            log('task 1')
+            controller.abort()
+            setTimeout(() => {
+              done.resolve()
+            })
+          },
+          () => {
+            log('never')
+          },
+        ],
+        controller.signal
+      )
+    })
+
+    await withDeadline(done.promise, DEADLINE_MS)
+
+    expect(logs).toEqual(['task 1'])
+  })
+})
+
 function deferSync(callback: () => void): Disposable {
   return {
     [Symbol.dispose]: async () => {
       return callback()
+    },
+  }
+}
+
+type TriggeredUncaught = {
+  error: unknown
+  kind: 'uncaughtException' | 'unhandledRejection'
+}
+
+function trackUncaughtErrors(
+  handler: (
+    error: unknown,
+    kind: 'uncaughtException' | 'unhandledRejection'
+  ) => void
+) {
+  // We have to use this instead of `process.on("uncaughtException")`,
+  // because if an actual "uncaughtException" event fires, Jest will fail the test.
+  const onUncaughtException = (err: unknown) => {
+    handler(err, 'uncaughtException')
+  }
+  process.setUncaughtExceptionCaptureCallback(onUncaughtException)
+
+  // If an unhandled rejection occurs, Jest will fail the test.
+  // Here, we're triggering one deliberately, so we need to work around Jest's behavior.
+  // This seems to be the best we can do, and there's no official solution:
+  // https://github.com/jestjs/jest/issues/5620
+  const prevListeners = process.rawListeners('unhandledRejection')
+  process.removeAllListeners('unhandledRejection')
+  const onUnhandledRejection = (err: unknown) => {
+    handler(err, 'unhandledRejection')
+  }
+  process.on('unhandledRejection', onUnhandledRejection)
+
+  return {
+    [Symbol.dispose]() {
+      process.setUncaughtExceptionCaptureCallback(null)
+
+      process.off('unhandledRejection', onUnhandledRejection)
+      for (const listener of prevListeners) {
+        process.on(
+          'unhandledRejection',
+          listener as NodeJS.UnhandledRejectionListener
+        )
+      }
     },
   }
 }
