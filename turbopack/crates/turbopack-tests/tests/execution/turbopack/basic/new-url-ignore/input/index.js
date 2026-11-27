@@ -52,3 +52,38 @@ it('keeps a partially dynamic new URL() working at runtime', () => {
     'runtime.txt'
   )
 })
+
+function ignoredGlobalThisUrl() {
+  return new globalThis.URL(
+    /* turbopackIgnore: true */ './missing-global-this.txt',
+    import.meta.url
+  )
+}
+
+it('leaves an ignored new globalThis.URL() to runtime', () => {
+  expectUnbundledUrl(ignoredGlobalThisUrl(), 'missing-global-this.txt')
+})
+
+function ignoredAliasedUrl() {
+  const URL = globalThis.URL
+  return new URL(
+    /* turbopackIgnore: true */ './missing-aliased.txt',
+    import.meta.url
+  )
+}
+
+it('leaves an ignored new URL() of an aliased constructor to runtime', () => {
+  expectUnbundledUrl(ignoredAliasedUrl(), 'missing-aliased.txt')
+})
+
+function ignoredShadowedGlobalThisUrl() {
+  const globalThis = { URL: global.URL }
+  return new globalThis.URL(
+    /* turbopackIgnore: true */ './missing-shadowed.txt',
+    import.meta.url
+  )
+}
+
+it('leaves an ignored new URL() through a shadowed globalThis to runtime', () => {
+  expectUnbundledUrl(ignoredShadowedGlobalThisUrl(), 'missing-shadowed.txt')
+})

@@ -34,6 +34,9 @@ pub enum WellKnownObjectKind {
     OsModuleDefault,
     NodeProcessModule,
     NodeProcessModuleDefault,
+    /// The global `process` variable. Unlike the imported `process` module
+    /// ([`Self::NodeProcessModuleDefault`]), it might not exist at runtime.
+    NodeProcessGlobal,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -54,6 +57,28 @@ pub enum WellKnownObjectKind {
 }
 
 impl WellKnownObjectKind {
+    /// Whether this is a global variable (or a property of one) that might not exist at runtime,
+    /// or might have been overwritten. Its truthiness and nullishness are unknown, so that feature
+    /// detection like `if (process)` or `globalThis.Buffer ? a : b` isn't folded at compile time.
+    ///
+    /// Globals can be missing in older browsers (e.g. `globalThis`), in insecure contexts (e.g.
+    /// `navigator.serviceWorker`), or depending on the runtime (e.g. `process` in a browser). See
+    /// [`WellKnownFunctionKind::is_optional_global`] for the global functions.
+    ///
+    /// `global` ([`Self::NodeGlobal`]) is not optional, as it's always rewritten to the
+    /// Turbopack runtime's global object.
+    pub fn is_optional_global(&self) -> bool {
+        matches!(
+            self,
+            Self::ObjectConstructor
+                | Self::GlobalThis
+                | Self::NodeProcessGlobal
+                | Self::NodeBuffer
+                | Self::Navigator
+                | Self::NavigatorServiceWorker
+        )
+    }
+
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::ObjectConstructor => Some(&["Object"]),
@@ -65,7 +90,9 @@ impl WellKnownObjectKind {
             Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
             Self::WorkerThreadsModule => Some(&["worker_threads"]),
-            Self::NodeProcessModule | Self::NodeProcessModuleDefault => Some(&["process"]),
+            Self::NodeProcessModule | Self::NodeProcessModuleDefault | Self::NodeProcessGlobal => {
+                Some(&["process"])
+            }
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -136,6 +163,10 @@ impl WellKnownObjectKind {
             Self::NodeProcessModule | Self::NodeProcessModuleDefault => (
                 "process",
                 "The Node.js process module: https://nodejs.org/api/process.html",
+            ),
+            Self::NodeProcessGlobal => (
+                "process",
+                "The Node.js process global: https://nodejs.org/api/process.html",
             ),
             Self::NodeProcessArgv => (
                 "process.argv",
@@ -257,6 +288,26 @@ pub enum WellKnownFunctionKind<'a> {
 }
 
 impl WellKnownFunctionKind<'_> {
+    /// Whether this is a global function (or a property of a global) that might not exist at
+    /// runtime, or might have been overwritten. Its truthiness and nullishness are unknown, so that
+    /// feature detection like `typeof SharedWorker` or `Object.assign ? a : b` isn't folded at
+    /// compile time.
+    ///
+    /// Older browsers lack some of these (e.g. no `URL` constructor or `Object.assign` in IE11, no
+    /// `Object.hasOwn` before ES2022, no `SharedWorker` in older Safari), and Node.js lacks the
+    /// browser ones (`Worker`, `SharedWorker`). See [`WellKnownObjectKind::is_optional_global`]
+    /// for the global objects.
+    pub fn is_optional_global(&self) -> bool {
+        matches!(
+            self,
+            Self::ObjectAssign
+                | Self::ObjectHasOwn
+                | Self::URLConstructor
+                | Self::WorkerConstructor
+                | Self::SharedWorkerConstructor
+        )
+    }
+
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::Import { .. } => Some(&["import"]),

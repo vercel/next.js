@@ -93,14 +93,16 @@ pub async fn replace_well_known<'a>(
 ///
 /// This only covers actual globals, i.e. values that are also reachable as a property of the
 /// global object (`globalThis.process`). Module-scoped free variables like `require` or
-/// `__dirname` are not included.
+/// `__dirname` are not included. `globalThis` and `global` themselves are handled by
+/// [`replace_well_known_global`].
+///
+/// Globals that might not exist at runtime have unknown truthiness (see
+/// [`WellKnownObjectKind::is_optional_global`]), so feature detection isn't folded.
 ///
 /// `ignore` is set when the expression is annotated with `turbopackIgnore`.
 fn well_known_global<'a>(name: &str, ignore: bool) -> Option<JsValue<'a>> {
     Some(match name {
-        "globalThis" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis),
-        "global" => JsValue::WellKnownObject(WellKnownObjectKind::NodeGlobal),
-        "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault),
+        "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessGlobal),
         "Object" => JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
         "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
         "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
@@ -126,63 +128,41 @@ fn well_known_global<'a>(name: &str, ignore: bool) -> Option<JsValue<'a>> {
     })
 }
 
-/// Returns the well-known value of a property of the global object, i.e. `globalThis.process` or
-/// `global.process`.
-///
-/// TODO: Do this for the other globals from `well_known_global` as well (e.g.
-/// `new globalThis.Worker()`, `new globalThis.URL()`, `globalThis.Buffer.from()`).
-fn well_known_global_object_member<'a>(value: &JsValue<'a>) -> Option<JsValue<'a>> {
-    let JsValue::Member(_, obj, prop) = value else {
-        return None;
-    };
-    if !matches!(
-        &**obj,
-        JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis | WellKnownObjectKind::NodeGlobal)
-    ) {
-        return None;
-    }
-    match prop.as_str()? {
-        "process" => Some(JsValue::WellKnownObject(
-            WellKnownObjectKind::NodeProcessModuleDefault,
-        )),
-        _ => None,
-    }
-}
-
 /// Replaces a reference to a global with its well-known value, both as a free variable
 /// (`process`) and as a property of the global object (`globalThis.process`, `global.process`).
 ///
-/// A property of the global object is only replaced when it is used: as the object of a member
-/// access or member call (`globalThis.process.env`, `globalThis.process.cwd()`), or as a callee.
-/// Using the value would throw if it doesn't exist, so it's safe to assume it's the global.
-/// The property itself (`globalThis.process`) is left as is, since it's commonly used for feature
-/// detection (`if (globalThis.process)`) and the global might not exist at runtime. Folding it to
-/// a well-known (always truthy) value would remove the fallback branch.
+/// `globalThis` and `global` are replaced with the global object itself. Properties of the
+/// global object that are aliases of it (e.g. `globalThis.global`) are not replaced, as they
+/// might not exist at runtime (`global` in a browser), while `global` itself is always truthy.
 ///
 /// Unknown properties of the global object (e.g. `globalThis.foo`) are left as is too, so that
 /// they keep their definable name and can still be replaced by compile-time defines.
 ///
 /// Returns `true` when the value was modified.
 pub fn replace_well_known_global<'a>(value: &mut JsValue<'a>, ignore: bool) -> bool {
-    let used = match value {
-        JsValue::FreeVar(name) => {
-            return if let Some(replacement) = well_known_global(name, ignore) {
-                *value = replacement;
-                true
-            } else {
-                false
-            };
+    let replacement = match value {
+        JsValue::FreeVar(name) => match &**name {
+            "globalThis" => Some(JsValue::WellKnownObject(WellKnownObjectKind::GlobalThis)),
+            "global" => Some(JsValue::WellKnownObject(WellKnownObjectKind::NodeGlobal)),
+            name => well_known_global(name, ignore),
+        },
+        JsValue::Member(_, obj, prop)
+            if matches!(
+                &**obj,
+                JsValue::WellKnownObject(
+                    WellKnownObjectKind::GlobalThis | WellKnownObjectKind::NodeGlobal
+                )
+            ) =>
+        {
+            prop.as_str()
+                .and_then(|name| well_known_global(name, ignore))
         }
-        JsValue::Member(_, obj, _) => &mut **obj,
-        JsValue::MemberCall(_, list) => list.obj_mut(),
-        JsValue::Call(_, list) | JsValue::New(_, list) => list.callee_mut(),
-        _ => return false,
+        _ => None,
     };
-    let Some(replacement) = well_known_global_object_member(used) else {
+    let Some(replacement) = replacement else {
         return false;
     };
-    *used = replacement;
-    value.update_total_nodes();
+    *value = replacement;
     true
 }
 
@@ -811,7 +791,9 @@ async fn well_known_object_member<'a>(
         WellKnownObjectKind::OsModule | WellKnownObjectKind::OsModuleDefault => {
             os_module_member(arena.get_or_default(), kind, prop)
         }
-        WellKnownObjectKind::NodeProcessModule | WellKnownObjectKind::NodeProcessModuleDefault => {
+        WellKnownObjectKind::NodeProcessModule
+        | WellKnownObjectKind::NodeProcessModuleDefault
+        | WellKnownObjectKind::NodeProcessGlobal => {
             node_process_member(arena, kind, prop, compile_time_info).await?
         }
         WellKnownObjectKind::NodeProcessEnv => {
@@ -962,23 +944,7 @@ async fn well_known_object_member<'a>(
 fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
     match prop.as_str() {
         Some("assign") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
-        Some("hasOwn") => JsValue::alternatives(BumpVec::from_iter_in(
-            arena,
-            [
-                JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectHasOwn),
-                // `Object.hasOwn` is missing in older runtimes, so feature checks like
-                // `Object.hasOwn || fallback` must not be folded
-                JsValue::unknown(
-                    JsValue::member(
-                        arena,
-                        JsValue::WellKnownObject(WellKnownObjectKind::ObjectConstructor),
-                        prop,
-                    ),
-                    true,
-                    rcstr!("might not be supported by the runtime"),
-                ),
-            ],
-        )),
+        Some("hasOwn") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectHasOwn),
         Some("prototype") => JsValue::WellKnownObject(WellKnownObjectKind::ObjectPrototype),
         _ => JsValue::unknown(
             JsValue::member(

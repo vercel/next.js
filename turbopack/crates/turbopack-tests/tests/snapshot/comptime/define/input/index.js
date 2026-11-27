@@ -79,3 +79,10 @@ if (foo === 'production') {
 }
 // TODO ideally this would also be inlined
 console.log(foo)
+
+// Value positions through the global object are inlined like the bare form
+console.log(
+  process.turbopack,
+  globalThis.process.turbopack,
+  global.process.turbopack
+)

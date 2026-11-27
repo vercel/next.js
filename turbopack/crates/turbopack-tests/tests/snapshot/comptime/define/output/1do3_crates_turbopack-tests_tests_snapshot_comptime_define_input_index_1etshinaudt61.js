@@ -70,6 +70,8 @@ if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ;
 // TODO ideally this would also be inlined
 console.log(foo);
+// Value positions through the global object are inlined like the bare form
+console.log(("TURBOPACK compile-time value", true), ("TURBOPACK compile-time value", true), ("TURBOPACK compile-time value", true));
 })]);
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_1etshinaudt61.js.map
