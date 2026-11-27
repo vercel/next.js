@@ -24,6 +24,7 @@ type RequestInsight = {
   route: string
   url?: string
   startTime: number
+  durationMs?: number
   completedAt?: number
   status: 'ok'
   spans: Array<{
@@ -31,14 +32,17 @@ type RequestInsight = {
     traceId?: string
     spanId?: string
     parentSpanId?: string
+    startTime?: number
     durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
+    startTime?: number
     durationMs: number
     statusCode: number
     cacheStatus: string
+    cacheReason?: string
     method: string
     url: string
   }>
@@ -111,7 +115,7 @@ describe('request insights', () => {
     shouldResetRequestInsightsConfig = false
   })
 
-  async function runWithResponse(body: unknown, args: string[] = []) {
+  async function runWithResponse(body: unknown, args: string[]) {
     const requestedPaths: string[] = []
     const server = createServer((req, res) => {
       requestedPaths.push(req.url ?? '')
@@ -127,9 +131,9 @@ describe('request insights', () => {
       const address = server.address() as AddressInfo
       const result = await next.runCommand([
         'experimental-request-insights',
+        ...args,
         '--url',
         `http://127.0.0.1:${address.port}`,
-        ...args,
       ])
       return { result, requestedPaths }
     } finally {
@@ -140,7 +144,21 @@ describe('request insights', () => {
   }
 
   it('discovers the running dev server from the project lockfile', async () => {
-    const result = await next.runCommand(['experimental-request-insights'])
+    // A stale default lock from an earlier run must not shadow `build/dev/lock`.
+    await next.patchFile(
+      '.next/dev/lock',
+      JSON.stringify({
+        pid: 999999,
+        port: 1,
+        hostname: 'localhost',
+        appUrl: 'http://localhost:1',
+        startedAt: 0,
+      })
+    )
+    const result = await next.runCommand([
+      'experimental-request-insights',
+      'list',
+    ])
 
     if (result.code !== 0) {
       throw new Error(result.cliOutput)
@@ -148,6 +166,14 @@ describe('request insights', () => {
     expect(result.cliOutput).toMatch(
       /No request insights captured yet|retained requests \(newest first\)/
     )
+
+    const json = await next.runCommand([
+      'experimental-request-insights',
+      'list',
+      '--json',
+    ])
+    expect(json.code).toBe(0)
+    expect(JSON.parse(json.cliOutput)).toHaveProperty('requests')
   })
 
   it('keeps outer server and app render spans on the same request', async () => {
@@ -1771,7 +1797,7 @@ describe('request insights', () => {
           { ...createRequest(3, 7), kind: 'instant-insights' },
         ],
       },
-      ['--limit', '1']
+      ['list', '--limit', '1']
     )
 
     expect(result.code).toBe(0)
@@ -1788,11 +1814,178 @@ describe('request insights', () => {
     expect(result.stdout).not.toContain('https://example.com/fetch-5')
   })
 
+  it('inspects one request by ID or prefix', async () => {
+    const request = {
+      ...createRequest(1),
+      requestId: 'request-12345678',
+      durationMs: 3500,
+      spans: [
+        {
+          name: 'slow metadata fetch',
+          startTime: 101,
+          durationMs: 3400,
+          spanId: 'span-2',
+          parentSpanId: 'span-1',
+        },
+      ],
+      fetches: [
+        {
+          startTime: 101,
+          durationMs: 3400,
+          statusCode: 200,
+          cacheStatus: 'skip',
+          cacheReason: 'cache: no-store',
+          method: 'GET',
+          url: 'https://example.com/metadata',
+        },
+      ],
+    } satisfies RequestInsight
+
+    const { result } = await runWithResponse({ requests: [request] }, [
+      'get',
+      'request-',
+    ])
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('request request-12345678')
+    expect(result.stdout).toContain('+100 ms 3.40 s slow metadata fetch')
+    expect(result.stdout).toContain('span span-2 parent span-1')
+    expect(result.stdout).toContain(
+      '+100 ms 3.40 s 200 skip (cache: no-store) GET https://example.com/metadata'
+    )
+
+    const json = await runWithResponse(
+      { requests: [createRequest(1), request] },
+      ['get', 'request-12345678', '--json']
+    )
+    expect(JSON.parse(json.result.stdout)).toEqual({ request })
+  })
+
+  it('lists bounded summaries matching a route template or URL pathname', async () => {
+    const templateMatch = {
+      ...createRequest(1),
+      route: '/products/[slug]',
+      url: '/products/red?query=redacted',
+    }
+    const urlMatch = {
+      ...createRequest(2),
+      route: '/rewritten/[slug]',
+      url: '/products/blue?query=redacted',
+    }
+
+    // Also matches the template, so `--limit 1` has to drop it.
+    const olderTemplateMatch = {
+      ...createRequest(4),
+      route: '/products/[slug]',
+      url: '/products/green?query=redacted',
+    }
+
+    const byTemplate = await runWithResponse(
+      {
+        requests: [
+          olderTemplateMatch,
+          templateMatch,
+          urlMatch,
+          createRequest(3),
+        ],
+      },
+      ['list', '--route', '/products/[slug]', '--limit', '1', '--json']
+    )
+    const templateRequests = JSON.parse(byTemplate.result.stdout).requests
+    expect(templateRequests).toEqual([
+      expect.objectContaining({ requestId: templateMatch.requestId }),
+    ])
+    expect(templateRequests[0]).not.toHaveProperty('htmlRequestId')
+    expect(templateRequests[0]).not.toHaveProperty('completedAt')
+    expect(templateRequests[0]).not.toHaveProperty('hasProxyActivity')
+
+    const byUrl = await runWithResponse(
+      { requests: [templateMatch, urlMatch, createRequest(3)] },
+      ['list', '--route', '/products/blue', '--json']
+    )
+    expect(JSON.parse(byUrl.result.stdout).requests).toEqual([
+      expect.objectContaining({
+        requestId: urlMatch.requestId,
+        url: '/products/blue?query=redacted',
+      }),
+    ])
+  })
+
+  it('lists the most recent requests in start order with --sort start', async () => {
+    const requests = [1, 2, 3].map((index) => ({
+      ...createRequest(index),
+      startTime: index * 100,
+      durationMs: 10,
+    }))
+
+    const { result } = await runWithResponse({ requests }, [
+      'list',
+      '--sort',
+      'start',
+      '--limit',
+      '2',
+    ])
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain(
+      'Showing 2 of 3 retained requests (most recent, by start time).'
+    )
+    expect(result.stdout).not.toContain('/route-1 ')
+    expect(result.stdout.indexOf('/route-2')).toBeLessThan(
+      result.stdout.indexOf('/route-3')
+    )
+  })
+
+  it.each([
+    {
+      id: 'missing',
+      message: 'No retained request matches "missing".',
+    },
+    {
+      id: 'request-',
+      message: 'Request ID prefix "request-" is ambiguous (2 matches).',
+    },
+  ])('rejects an unavailable request ID: $id', async ({ id, message }) => {
+    const { result } = await runWithResponse(
+      { requests: [createRequest(1), createRequest(2)] },
+      ['get', id]
+    )
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(message)
+  })
+
+  it('resolves a request ID shared with its Instant Insights entry', async () => {
+    const request = createRequest(1)
+    const instantInsights = {
+      ...createRequest(1),
+      kind: 'instant-insights',
+      route: '/instant',
+    } satisfies RequestInsight
+    const body = { requests: [instantInsights, request] }
+
+    const byPrefix = await runWithResponse(body, ['get', 'request-1', '--json'])
+    expect(byPrefix.result.code).toBe(0)
+    expect(JSON.parse(byPrefix.result.stdout)).toEqual({ request })
+
+    const byKind = await runWithResponse(body, [
+      'get',
+      'request-1',
+      '--kind',
+      'instant-insights',
+      '--json',
+    ])
+    expect(JSON.parse(byKind.result.stdout)).toEqual({
+      request: instantInsights,
+    })
+  })
+
   it.each(['localhost:3000', 'https://[', 'ftp://localhost:3000'])(
     'rejects invalid dev server URL %s',
     async (url) => {
       const result = await next.runCommand([
         'experimental-request-insights',
+        'list',
         '--url',
         url,
       ])
@@ -1805,8 +1998,8 @@ describe('request insights', () => {
   )
 
   it.each([
-    { body: { requests: null }, args: ['--json'] },
-    { body: { requests: [{ fetches: null }] }, args: [] },
+    { body: { requests: null }, args: ['list', '--json'] },
+    { body: { requests: [{ fetches: null }] }, args: ['list'] },
   ])('rejects malformed responses', async ({ body, args }) => {
     const { result } = await runWithResponse(body, args)
 

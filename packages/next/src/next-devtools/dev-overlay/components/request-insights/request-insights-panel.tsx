@@ -26,7 +26,7 @@ import { CopyButton } from '../copy-button'
 import { Tooltip } from '../tooltip/tooltip'
 import GearIcon from '../../icons/gear-icon'
 import { getFetchUrlPresentation } from './fetch-label'
-import { formatDuration } from './format-duration'
+import { formatDuration } from '../../../../shared/lib/format-duration'
 import {
   getRequestInsightFilterResult,
   REQUEST_INSIGHT_FILTER_GROUPS,

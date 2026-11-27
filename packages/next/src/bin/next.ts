@@ -37,7 +37,10 @@ import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
-import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
+import type {
+  GetRequestInsightOptions,
+  ListRequestInsightsOptions,
+} from '../cli/next-request-insights.js'
 import { captureOriginalEnv } from '../lib/upgrade/original-env'
 
 // Before anything below changes process.env, so agent upgrades can hand the
@@ -752,34 +755,70 @@ program
   )
   .usage('[directory] [options]')
 
-program
+const requestInsights = program
   .command('experimental-request-insights')
   .description(
-    'Inspect experimental Request Insights from a running Next.js dev server.'
+    'Diagnose slow or intermittent App Router requests in a running Next.js dev server.'
   )
+  .addHelpText(
+    'after',
+    `
+Workflow:
+  1. Keep the current dev server running so retained request evidence is preserved.
+  2. List completed requests: next experimental-request-insights list --route <route> --json
+  3. Inspect the matching request: next experimental-request-insights get <request-id> --json
+  4. Compare span start times, durations, parents, and attributes.`
+  )
+
+requestInsights
+  .command('list')
+  .alias('ls')
+  .description('List recent Request Insights.')
   .argument(
     '[directory]',
-    `A directory containing the Next.js application. ${italic(
-      'If no directory is provided, the current directory will be used.'
-    )}`
+    'A directory containing the Next.js application. Defaults to the current directory.'
   )
-  .option(
-    '--url <url>',
-    'Override automatic discovery with the complete HTTP(S) URL of the running Next.js dev server.'
+  .option('--url <url>', 'Override automatic dev server discovery.')
+  .option('--json', 'Output request summaries as JSON.')
+  .option('--route <route>', 'Match a route template or request URL pathname.')
+  .addOption(
+    new Option('--sort <order>', 'Sort requests by newest or start time.')
+      .choices(['newest', 'start'])
+      .default('newest')
   )
-  .option('--json', 'Print raw request insight JSON.')
+  .addOption(
+    new Option('--limit <count>', 'Maximum number of requests to return.')
+      .argParser(parseValidPositiveInteger)
+      .default(10)
+  )
+  .action((directory: string, options: ListRequestInsightsOptions) =>
+    import('../cli/next-request-insights.js').then((mod) =>
+      mod.listRequestInsights(options, directory)
+    )
+  )
+
+requestInsights
+  .command('get')
+  .description('Inspect one request by ID.')
+  .argument('<request-id>', 'A full request ID or unambiguous prefix.')
+  .argument(
+    '[directory]',
+    'A directory containing the Next.js application. Defaults to the current directory.'
+  )
+  .option('--url <url>', 'Override automatic dev server discovery.')
+  .option('--json', 'Output the complete request as JSON.')
   .addOption(
     new Option(
-      '--limit <count>',
-      'Maximum number of recent request summaries to print.'
-    ).argParser(parseValidPositiveInteger)
+      '--kind <kind>',
+      'Select the request or its Instant Insights entry when both share an ID.'
+    ).choices(['request', 'instant-insights'])
   )
-  .action((directory: string, options: NextRequestInsightsOptions) => {
-    return import('../cli/next-request-insights.js').then((mod) =>
-      mod.nextRequestInsights(options, directory)
-    )
-  })
-  .usage('[directory] [options]')
+  .action(
+    (requestId: string, directory: string, options: GetRequestInsightOptions) =>
+      import('../cli/next-request-insights.js').then((mod) =>
+        mod.getRequestInsight(requestId, options, directory)
+      )
+  )
 
 const internal = program
   .command('internal')
