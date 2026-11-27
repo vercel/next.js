@@ -64,7 +64,7 @@ function SettingsDropdown() {
 }
 ```
 
-The cleanup resets `isOpen` before Activity hides the component, so the dropdown is closed when the user returns. Resetting `isOpen` to `false` repeatedly is safe.
+The cleanup resets `isOpen` before Activity hides the component, so the dropdown is closed when the user returns.
 
 You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close dropdowns immediately when a navigation link is clicked.
 
@@ -97,8 +97,6 @@ function SettingsPopover() {
   )
 }
 ```
-
-Calling `hidePopover()` repeatedly is safe.
 
 Because hidden pages remain in the DOM, reusing a hard-coded ID across pages can associate a button with the wrong popover. [`useId`](https://react.dev/reference/react/useId) gives each component instance a unique ID, keeping the button associated with its own popover. The same applies to IDs used by labels, `aria-describedby`, and the `form` attribute. For radio groups without separate forms, give each instance its own group name.
 
@@ -294,7 +292,7 @@ React runs the previous [ref callback’s cleanup](https://react.dev/reference/r
 
 ### State updated while hidden
 
-State can change while Activity keeps a page hidden. An unconditional reset in Effect cleanup can discard those updates if cleanup runs again on reveal. See [Tracking whether an Effect has run before](#tracking-whether-an-effect-has-run-before) for the lifecycle and development behavior.
+State can change while Activity keeps a page hidden. In development, Strict Mode can run Effect cleanup again when a hidden page becomes visible. An unconditional reset in that cleanup can discard updates received while hidden. See [Tracking whether an Effect has run before](#tracking-whether-an-effect-has-run-before) for more on the Effect lifecycle.
 
 For example, an inbox uses Effect cleanup to clear its notification when the user leaves. A new notification arrives while the inbox is hidden. If cleanup runs again on return, it clears the new notification before the user sees it.
 
