@@ -44,7 +44,7 @@ Hop-by-hop headers, such as `Connection`, `Keep-Alive`, `Upgrade`, `Transfer-Enc
 
 ### Config
 
-Declare `Config` in `proxy.go` to choose which requests run the proxy. Without a matcher, it runs on every request.
+Declare `Config` in `proxy.go` to choose which requests run the proxy. Without a matcher, it runs on every request. Static configuration is read only from `proxy.go`; a `Config` declared in a sibling file is ignored, even though sibling functions compile with the proxy.
 
 ```go
 var Config = proxy.Config{
@@ -60,9 +60,13 @@ var Config = proxy.Config{
 
 Use `Has` or `Missing` to test headers, cookies, query parameters, or the host. Values must be literals; calls and computed values are not supported.
 
-Header and cookie conditions are supported when self-hosting and with adapters. Requests whose condition headers have ambiguous values, such as repeated header fields that JavaScript joins but Go reads separately, receive a `400` response. Adapter-built Go routes validate these headers even when a condition causes the platform to skip the proxy.
+Query conditions follow `proxy.ts` semantics: when a key is repeated, a condition with a `Value` tests its last value. Go's `r.URL.Query().Get` and JavaScript's `URLSearchParams.get` return the first value instead. For example, with `?resource=private&resource=public`, a `Has` condition with `Key: "resource", Value: "private"` skips the proxy, while `r.URL.Query().Get("resource")` returns `"private"`. The header and cookie ambiguity checks described below do not cover query parameters. Do not use query conditions to skip authorization based on a single-value query getter; validate repeated values in a proxy that runs for the path.
+
+Header and cookie conditions are supported when self-hosting and with adapters. Requests whose condition headers have ambiguous values, such as repeated header fields that JavaScript joins but Go reads separately, receive a `400` response. Self-hosted requests validate every condition whose source matches the path, even if another matcher already selects the proxy. Reordering matchers does not change this validation. Adapter-built Go routes validate condition headers even when a condition causes the platform to skip the proxy.
 
 Cookie conditions also emit a matcher that sends repeated cookie names to validation before routing continues. These requests receive a `400` response even when the original condition would skip the proxy and the destination runs JavaScript.
+
+Repeated `Cookie` header fields are combined into one field with `; ` between values before forwarding to Go. Standard Go cookie methods support this format; code reading `r.Header["Cookie"]` directly receives one element.
 
 ## Examples
 

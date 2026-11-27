@@ -51,6 +51,17 @@ describe('static Go config', () => {
     ).toBeNull()
   })
 
+  it('validates conditional alternatives after an unconditional match', async () => {
+    const response = await fetchViaRawHttp(next.url, '/configured', {
+      headers: { 'x-resource': ['private', 'public'] },
+    })
+    expect(response.status).toBe(400)
+    const valid = await next.fetch('/configured', {
+      headers: { 'x-resource': 'public' },
+    })
+    expect(valid.headers.get('x-static-go-config')).toBe('matched')
+  })
+
   it('keeps header conditions aligned with repeated Go request fields', async () => {
     const protectedResponse = await fetchViaRawHttp(next.url, '/headers/has', {
       headers: { 'x-resource': 'private' },
@@ -235,6 +246,14 @@ describe('static Go config', () => {
       } finally {
         await next.patchFile('proxy.go', source)
       }
+      await retry(async () => {
+        expect(
+          (await next.fetch('/configured')).headers.get('x-static-go-config')
+        ).toBe('matched')
+        expect(
+          (await next.fetch('/')).headers.get('x-static-go-config')
+        ).toBeNull()
+      }, 60_000)
     }, 180_000)
 
     it('fails requests instead of skipping the proxy while its Config is invalid', async () => {
