@@ -46,7 +46,7 @@ use crate::{
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
-    priority_runner::{Claimable, Executor, PriorityRunner},
+    priority_runner::{Claimable, Executor, PriorityRunner, QueuePriority},
     registry,
     serialization_invalidation::SerializationInvalidator,
     spawn::JoinHandle,
@@ -558,7 +558,7 @@ impl Display for ReadTracking {
     }
 }
 
-#[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum TaskPriority {
     #[default]
     Initial,
@@ -602,6 +602,20 @@ impl TaskPriority {
                 }
             }
             TaskPriority::Recomputation => TaskPriority::Recomputation,
+        }
+    }
+}
+
+impl QueuePriority for TaskPriority {
+    /// `Initial` is 0 and `Recomputation` is `u32::MAX`. Invalidation priorities map in between,
+    /// higher `priority.0` (lower priority) to lower ranks. The `2^32` invalidation priorities
+    /// don't fit between them, so those with `priority.0 >= u32::MAX - 2` share the rank 1. The
+    /// queue only orders such priorities within one shard.
+    fn rank(&self) -> u32 {
+        match self {
+            TaskPriority::Initial => 0,
+            TaskPriority::Invalidation { priority } => u32::MAX - 1 - priority.0.min(u32::MAX - 2),
+            TaskPriority::Recomputation => u32::MAX,
         }
     }
 }
@@ -1880,8 +1894,6 @@ fn abort_on_panic_message(payload: &(dyn std::any::Any + Send)) -> Cow<'static, 
 }
 
 impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
-    const LOWEST_PRIORITY: TaskPriority = TaskPriority::Initial;
-
     type Future = impl Future<Output = ()> + Send + 'static;
 
     fn execute(
