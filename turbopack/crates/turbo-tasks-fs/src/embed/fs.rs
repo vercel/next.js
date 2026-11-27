@@ -5,8 +5,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
-    File, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
-    RawDirectoryEntry, WriteLinkContent,
+    ComposedFile, File, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
+    RawDirectoryContent, RawDirectoryEntry, WriteLinkContent,
 };
 
 #[derive(ValueToString)]
@@ -81,6 +81,11 @@ impl FileSystem for EmbeddedFileSystem {
 
     #[turbo_tasks::function]
     fn write(&self, _path: FileSystemPath, _content: Vc<FileContent>) -> Result<Vc<()>> {
+        bail!("Writing is not possible to the embedded filesystem")
+    }
+
+    #[turbo_tasks::function]
+    fn write_composed(&self, _path: FileSystemPath, _content: Vc<ComposedFile>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 

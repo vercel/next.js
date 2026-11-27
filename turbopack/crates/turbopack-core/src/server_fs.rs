@@ -1,8 +1,8 @@
 use anyhow::{Result, bail};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{
-    FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
-    WriteLinkContent,
+    ComposedFile, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
+    RawDirectoryContent, WriteLinkContent,
 };
 
 #[turbo_tasks::value]
@@ -42,6 +42,15 @@ impl FileSystem for ServerFileSystem {
 
     #[turbo_tasks::function]
     fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) -> Result<Vc<()>> {
+        bail!("Writing is not possible to the marker filesystem for the server")
+    }
+
+    #[turbo_tasks::function]
+    fn write_composed(
+        &self,
+        _fs_path: FileSystemPath,
+        _content: Vc<ComposedFile>,
+    ) -> Result<Vc<()>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 

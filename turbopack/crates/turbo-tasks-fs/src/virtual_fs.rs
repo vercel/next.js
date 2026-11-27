@@ -3,8 +3,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
-    FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
-    WriteLinkContent,
+    ComposedFile, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
+    RawDirectoryContent, WriteLinkContent,
 };
 
 #[derive(ValueToString)]
@@ -66,6 +66,15 @@ impl FileSystem for VirtualFileSystem {
 
     #[turbo_tasks::function]
     fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) -> Result<Vc<()>> {
+        bail!("Writing is not possible on the virtual file system")
+    }
+
+    #[turbo_tasks::function]
+    fn write_composed(
+        &self,
+        _fs_path: FileSystemPath,
+        _content: Vc<ComposedFile>,
+    ) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 
