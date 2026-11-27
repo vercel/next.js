@@ -1,4 +1,4 @@
-import { registerServerReference, bindServerReference } from "private-next-rsc-server-reference";
+import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 /* __next_internal_action_entry_do_not_use__ {"401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":{"name":"$$RSC_SERVER_ACTION_2"},"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"},"4090b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"},"409ed0cc47abc4e1c64320cf42b74ae60b58c40f00":{"name":"$$RSC_SERVER_ACTION_3"}} */ import { Button } from 'components';
 import deleteFromDb from 'db';
@@ -27,7 +27,7 @@ export function Item1(product, foo, bar) {
     return <Button action={a}>Delete</Button>;
 }
 export function Item2(product, foo, bar) {
-    var deleteItem2 = /*#__PURE__*/ bindServerReference($$RSC_SERVER_ACTION_1, ()=>encryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", product, foo, bar));
+    var deleteItem2 = $$RSC_SERVER_ACTION_1.bind(null, encryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", product, foo, bar));
     return <Button action={deleteItem2}>Delete</Button>;
 }
 export function Item3(product, foo, bar) {

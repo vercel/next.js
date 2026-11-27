@@ -26,6 +26,9 @@
   "include": ["./**/*/input.*", "./**/*/output.*"],
   "exclude": [
     // FIXME: buggy renaming of anonymous functions
-    "./server-graph/51/output.js"
+    "./server-graph/51/output.js",
+    // Excluded because of weird TS behavior around `action.bind(...)` making args optional
+    // (but only if no JSDoc type annotations are present)
+    "./server-graph/24/output.js"
   ]
 }

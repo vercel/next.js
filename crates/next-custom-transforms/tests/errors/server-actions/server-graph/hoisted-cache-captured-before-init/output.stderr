@@ -1,0 +1,9 @@
+  x "use cache" function `formatGreeting` cannot be referenced before its captured variable `greeting` is declared. Move `greeting` above this reference, or move `formatGreeting` after `greeting` is
+  | initialized.
+  | 
+   ,-[input.js:2:1]
+ 1 | export function CacheBeforeCapturedInit({ name }) {
+ 2 |   const greet = formatGreeting
+   :                 ^^^^^^^^^^^^^^
+ 3 |   const greeting = `Hello, ${name}!`
+   `----

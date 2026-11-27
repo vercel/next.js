@@ -28,7 +28,10 @@ use swc_core::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
         utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        visit::{
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
+        },
     },
     quote,
 };
@@ -158,6 +161,12 @@ enum ServerActionsErrorKind {
         expr: String,
         directive: Directive,
     },
+    HoistedServerReferenceCapturedBeforeInit {
+        span: Span,
+        fn_name: Atom,
+        captured_name: Atom,
+        directive: Directive,
+    },
     InlineSyncFunction {
         span: Span,
         directive: Directive,
@@ -240,7 +249,6 @@ pub fn server_actions<C: Comments>(
         in_module_level: true,
         should_track_names: false,
         has_server_reference_with_bound_args: false,
-        has_bound_server_reference_decl: false,
 
         names: Default::default(),
         declared_idents: Default::default(),
@@ -248,6 +256,7 @@ pub fn server_actions<C: Comments>(
         // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
         rewrite_fn_decl_to_proxy_decl: None,
         hoist_fn_decl: false,
+        rewritten_fn_decl: None,
         rewrite_default_fn_expr_to_proxy_expr: None,
         rewrite_expr_to_proxy_expr: None,
 
@@ -299,6 +308,12 @@ enum StmtListScope {
     SwitchCase,
 }
 
+struct RewrittenFnDecl {
+    ident: Ident,
+    directive: Directive,
+    captured_ids: Vec<Id>,
+}
+
 struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
@@ -323,7 +338,6 @@ struct ServerActions<C: Comments> {
     in_module_level: bool,
     should_track_names: bool,
     has_server_reference_with_bound_args: bool,
-    has_bound_server_reference_decl: bool,
 
     names: Vec<Name>,
     declared_idents: Vec<Ident>,
@@ -332,6 +346,7 @@ struct ServerActions<C: Comments> {
     rewrite_fn_decl_to_proxy_decl: Option<VarDecl>,
     // Set when visiting a function declaration rewritten to a server/cache binding.
     hoist_fn_decl: bool,
+    rewritten_fn_decl: Option<RewrittenFnDecl>,
     rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
     rewrite_expr_to_proxy_expr: Option<Box<Expr>>,
 
@@ -719,7 +734,6 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         function: &mut Function,
         fn_name: Option<Ident>,
-        lazy_bind: bool,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
@@ -842,25 +856,15 @@ impl<C: Comments> ServerActions<C> {
             Box::new(action_ident.clone().into())
         } else {
             self.has_server_reference_with_bound_args = true;
-            let bound = ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect();
-            if lazy_bind {
-                self.has_bound_server_reference_decl = true;
-                Box::new(bind_args_lazily_to_ident(
-                    action_ident.clone(),
-                    bound,
-                    action_id.clone(),
-                ))
-            } else {
-                Box::new(bind_args_to_ident(
-                    action_ident.clone(),
-                    bound,
-                    action_id.clone(),
-                ))
-            }
+            Box::new(bind_args_to_ident(
+                action_ident.clone(),
+                ids_from_closure
+                    .iter()
+                    .cloned()
+                    .map(|id| Some(id.as_arg()))
+                    .collect(),
+                action_id.clone(),
+            ))
         }
     }
 
@@ -969,7 +973,6 @@ impl<C: Comments> ServerActions<C> {
         fn_name: Option<Ident>,
         cache_kind: RcStr,
         function: &mut Function,
-        lazy_bind: bool,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
@@ -1045,20 +1048,11 @@ impl<C: Comments> ServerActions<C> {
             Box::new(cache_ident.clone().into())
         } else {
             self.has_server_reference_with_bound_args = true;
-            if lazy_bind {
-                self.has_bound_server_reference_decl = true;
-                Box::new(bind_args_lazily_to_ident(
-                    cache_ident.clone(),
-                    bound_args,
-                    reference_id.clone(),
-                ))
-            } else {
-                Box::new(bind_args_to_ident(
-                    cache_ident.clone(),
-                    bound_args,
-                    reference_id.clone(),
-                ))
-            }
+            Box::new(bind_args_to_ident(
+                cache_ident.clone(),
+                bound_args,
+                reference_id.clone(),
+            ))
         }
     }
 
@@ -1153,49 +1147,202 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
+        struct VisitedStmt {
+            stmt: Stmt,
+            annotations: Vec<Stmt>,
+            rewritten: Option<RewrittenFnDecl>,
+            is_terminator: bool,
+        }
+
         let old_annotations = self.annotations.take();
-        let mut new = Vec::with_capacity(stmts.len());
-        let mut hoisted_fn_decls = Vec::new();
+        let mut visited = Vec::with_capacity(stmts.len());
 
         for mut stmt in stmts.take() {
             let is_fn_decl = matches!(&stmt, Stmt::Decl(Decl::Fn(_)));
+            let is_terminator = matches!(
+                &stmt,
+                Stmt::Return(_) | Stmt::Throw(_) | Stmt::Break(_) | Stmt::Continue(_)
+            );
             let old_hoist_fn_decl = replace(&mut self.hoist_fn_decl, false);
+            let old_rewritten_fn_decl = self.rewritten_fn_decl.take();
             stmt.visit_mut_with(self);
-            let should_hoist = is_fn_decl && self.hoist_fn_decl;
-            self.hoist_fn_decl = old_hoist_fn_decl;
-
-            if should_hoist {
-                if scope != StmtListScope::FunctionBody
-                    && let Stmt::Decl(Decl::Var(var_decl)) = &mut stmt
-                {
-                    var_decl.kind = VarDeclKind::Let;
-                }
-                hoisted_fn_decls.push(stmt);
+            let rewritten = if is_fn_decl && self.hoist_fn_decl {
+                self.rewritten_fn_decl.take()
             } else {
-                new.push(stmt);
-            }
-            new.append(&mut self.annotations);
+                None
+            };
+            self.hoist_fn_decl = old_hoist_fn_decl;
+            self.rewritten_fn_decl = old_rewritten_fn_decl;
+
+            visited.push(VisitedStmt {
+                stmt,
+                annotations: take(&mut self.annotations),
+                rewritten,
+                is_terminator,
+            });
         }
 
-        let returned_hoisted = match scope {
+        // Determine where each rewritten function declaration should be placed:
+        // - No closures: hoist to the top of the enclosing scope (or wrapping block for `switch`).
+        // - With closures: if referenced before its declaration (or declared after an unconditional
+        //   terminator with an earlier reference), hoist right before its first use / terminator.
+        //   Otherwise keep it at its original declaration site.
+        let mut top_hoisted = Vec::new();
+        let mut insert_before: Vec<Vec<(Stmt, RewrittenFnDecl, Span)>> =
+            (0..visited.len()).map(|_| Vec::new()).collect();
+        let mut moved = vec![false; visited.len()];
+        let mut first_terminator: Option<usize> = None;
+
+        for i in 0..visited.len() {
+            if let Some(ref rewritten) = visited[i].rewritten {
+                if rewritten.captured_ids.is_empty() {
+                    moved[i] = true;
+                    continue;
+                }
+
+                let target_id = rewritten.ident.to_id();
+                let mut first_direct_use: Option<(usize, Span)> = None;
+                let mut first_any_use: Option<(usize, Span)> = None;
+
+                for (j, item) in visited.iter().enumerate().take(i) {
+                    if first_direct_use.is_none()
+                        && let Some(span) = find_ident_ref_in_stmt(&item.stmt, &target_id, true)
+                    {
+                        first_direct_use = Some((j, span));
+                    }
+                    if first_any_use.is_none()
+                        && let Some(span) = find_ident_ref_in_stmt(&item.stmt, &target_id, false)
+                    {
+                        first_any_use = Some((j, span));
+                    }
+                }
+
+                let hoist_target = if let Some((use_idx, use_span)) = first_direct_use {
+                    Some((use_idx, use_span))
+                } else if let (Some(term_idx), Some((_, use_span))) =
+                    (first_terminator, first_any_use)
+                {
+                    Some((term_idx, use_span))
+                } else {
+                    None
+                };
+
+                if let Some((target_idx, err_span)) = hoist_target
+                    && target_idx < i
+                {
+                    moved[i] = true;
+                    let mut stmt = visited[i].stmt.take();
+                    if scope != StmtListScope::FunctionBody
+                        && let Stmt::Decl(Decl::Var(var_decl)) = &mut stmt
+                    {
+                        var_decl.kind = VarDeclKind::Let;
+                    }
+                    let rewritten = visited[i].rewritten.take().unwrap();
+                    insert_before[target_idx].push((stmt, rewritten, err_span));
+                }
+            }
+
+            if first_terminator.is_none() && visited[i].is_terminator {
+                first_terminator = Some(i);
+            }
+        }
+
+        // Assemble final statement list and track each placed closure declaration's final position.
+        let mut new = Vec::with_capacity(visited.len());
+        let mut placed_closure_decls: Vec<(usize, RewrittenFnDecl, Span)> = Vec::new();
+
+        for (i, mut item) in visited.into_iter().enumerate() {
+            for (stmt, rewritten, err_span) in insert_before[i].drain(..) {
+                let pos = new.len();
+                placed_closure_decls.push((pos, rewritten, err_span));
+                new.push(stmt);
+            }
+
+            if moved[i] {
+                if let Some(rewritten) = item.rewritten
+                    && rewritten.captured_ids.is_empty()
+                {
+                    if scope != StmtListScope::FunctionBody
+                        && let Stmt::Decl(Decl::Var(var_decl)) = &mut item.stmt
+                    {
+                        var_decl.kind = VarDeclKind::Let;
+                    }
+                    top_hoisted.push(item.stmt);
+                }
+            } else {
+                if let Some(rewritten) = item.rewritten {
+                    let pos = new.len();
+                    let err_span = rewritten.ident.span;
+                    placed_closure_decls.push((pos, rewritten, err_span));
+                }
+                new.push(item.stmt);
+            }
+
+            new.extend(item.annotations);
+        }
+
+        let (returned_hoisted, top_offset) = match scope {
             StmtListScope::FunctionBody => {
-                if !hoisted_fn_decls.is_empty() {
+                if !top_hoisted.is_empty() {
+                    let count = top_hoisted.len();
                     let prologue_end = new
                         .iter()
                         .take_while(|stmt| stmt.can_precede_directive())
                         .count();
-                    new.splice(prologue_end..prologue_end, hoisted_fn_decls);
+                    new.splice(prologue_end..prologue_end, top_hoisted);
+                    (Vec::new(), Some((prologue_end, count)))
+                } else {
+                    (Vec::new(), None)
                 }
-                Vec::new()
             }
             StmtListScope::Block => {
-                if !hoisted_fn_decls.is_empty() {
-                    new.splice(0..0, hoisted_fn_decls);
+                if !top_hoisted.is_empty() {
+                    let count = top_hoisted.len();
+                    new.splice(0..0, top_hoisted);
+                    (Vec::new(), Some((0, count)))
+                } else {
+                    (Vec::new(), None)
                 }
-                Vec::new()
             }
-            StmtListScope::SwitchCase => hoisted_fn_decls,
+            StmtListScope::SwitchCase => (top_hoisted, None),
         };
+
+        // Validate that every closure-capturing server/cache declaration is placed after all
+        // non-hoisted local declarations it captures.
+        if !placed_closure_decls.is_empty() {
+            let mut decl_pos: FxHashMap<Id, usize> = FxHashMap::default();
+            for (idx, stmt) in new.iter().enumerate() {
+                collect_non_hoisted_decl_ids_in_stmt(
+                    stmt,
+                    scope == StmtListScope::FunctionBody,
+                    idx,
+                    &mut decl_pos,
+                );
+            }
+
+            for (mut pos, rewritten, err_span) in placed_closure_decls {
+                if let Some((splice_at, count)) = top_offset
+                    && pos >= splice_at
+                {
+                    pos += count;
+                }
+                for cap_id in &rewritten.captured_ids {
+                    if let Some(&cap_pos) = decl_pos.get(cap_id)
+                        && cap_pos >= pos
+                    {
+                        emit_error(
+                            ServerActionsErrorKind::HoistedServerReferenceCapturedBeforeInit {
+                                span: err_span,
+                                fn_name: rewritten.ident.sym.clone(),
+                                captured_name: cap_id.0.clone(),
+                                directive: rewritten.directive.clone(),
+                            },
+                        );
+                        break;
+                    }
+                }
+            }
+        }
 
         *stmts = new;
         self.annotations = old_annotations;
@@ -1441,7 +1588,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 return;
             }
 
-            let is_fn_decl = !self.is_default_export() && self.fn_decl_ident.is_some();
             let excluded_ident = self.fn_decl_ident.as_ref().map(Ident::to_id);
 
             if let Directive::UseCache { cache_kind } = directive {
@@ -1456,9 +1602,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                     child_names.clone(),
                     fn_name,
-                    cache_kind,
+                    cache_kind.clone(),
                     f,
-                    is_fn_decl,
                 );
 
                 if self.is_default_export() {
@@ -1471,6 +1616,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 } else if let Some(ident) = &self.fn_decl_ident {
                     // Replace the original function declaration with a cache decl.
                     self.hoist_fn_decl = true;
+                    self.rewritten_fn_decl = Some(RewrittenFnDecl {
+                        ident: ident.clone(),
+                        directive: Directive::UseCache { cache_kind },
+                        captured_ids: child_names.iter().map(|n| n.0.clone()).collect(),
+                    });
                     self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
@@ -1495,10 +1645,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 );
 
                 let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
-                    child_names,
+                    child_names.clone(),
                     f,
                     fn_name,
-                    is_fn_decl,
                 );
 
                 if self.is_default_export() {
@@ -1512,6 +1661,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     // Replace the original function declaration with an action proxy
                     // declaration expr.
                     self.hoist_fn_decl = true;
+                    self.rewritten_fn_decl = Some(RewrittenFnDecl {
+                        ident: ident.clone(),
+                        directive: Directive::UseServer,
+                        captured_ids: child_names.iter().map(|n| n.0.clone()).collect(),
+                    });
                     self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
@@ -2913,25 +3067,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
             // Inlined actions are only allowed on the server layer.
             // import { registerServerReference } from 'private-next-rsc-server-reference'
-            let mut server_reference_specifiers =
-                vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("registerServerReference").into(),
-                    imported: None,
-                    is_type_only: false,
-                })];
-            if self.has_bound_server_reference_decl {
-                server_reference_specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("bindServerReference").into(),
-                    imported: None,
-                    is_type_only: false,
-                }));
-            }
             let mut server_reference_imports =
                 vec![ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: server_reference_specifiers,
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("registerServerReference").into(),
+                        imported: None,
+                        is_type_only: false,
+                    })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
                         value: atom!("private-next-rsc-server-reference").into(),
@@ -3516,39 +3660,128 @@ fn bind_args_to_ident(ident: Ident, bound: Vec<Option<ExprOrSpread>>, action_id:
     })
 }
 
-fn bind_args_lazily_to_ident(
-    ident: Ident,
-    bound: Vec<Option<ExprOrSpread>>,
-    action_id: Atom,
-) -> Expr {
-    // /*#__PURE__*/ bindServerReference(ident, () => encryptActionBoundArgs("id", arg1, arg2, ...))
-    let encrypt_call = Expr::Call(CallExpr {
-        span: DUMMY_SP,
-        callee: quote_ident!("encryptActionBoundArgs").as_callee(),
-        args: std::iter::once(ExprOrSpread {
-            spread: None,
-            expr: Box::new(action_id.into()),
-        })
-        .chain(bound.into_iter().flatten())
-        .collect(),
-        ..Default::default()
-    });
+struct IdentRefFinder<'a> {
+    target_id: &'a Id,
+    only_direct: bool,
+    found: Option<Span>,
+}
 
-    let getter = Expr::Arrow(ArrowExpr {
-        span: DUMMY_SP,
-        params: vec![],
-        body: Box::new(ArrowFunctionBody::Expr(Box::new(encrypt_call))),
-        is_async: false,
-        is_generator: false,
-        ..Default::default()
-    });
+impl Visit for IdentRefFinder<'_> {
+    fn visit_ident(&mut self, ident: &Ident) {
+        if self.found.is_none() && ident.to_id() == *self.target_id {
+            self.found = Some(ident.span);
+        }
+    }
 
-    Expr::Call(CallExpr {
-        span: PURE_SP,
-        callee: quote_ident!("bindServerReference").as_callee(),
-        args: vec![ident.as_arg(), getter.as_arg()],
-        ..Default::default()
-    })
+    fn visit_binding_ident(&mut self, _: &BindingIdent) {}
+
+    fn visit_fn_decl(&mut self, f: &FnDecl) {
+        if !self.only_direct {
+            f.function.visit_with(self);
+        }
+    }
+
+    fn visit_member_prop(&mut self, prop: &MemberProp) {
+        if let MemberProp::Computed(computed) = prop {
+            computed.visit_with(self);
+        }
+    }
+
+    fn visit_prop_name(&mut self, name: &PropName) {
+        if let PropName::Computed(computed) = name {
+            computed.visit_with(self);
+        }
+    }
+
+    fn visit_key_value_pat_prop(&mut self, prop: &KeyValuePatProp) {
+        if let PropName::Computed(computed) = &prop.key {
+            computed.visit_with(self);
+        }
+        prop.value.visit_with(self);
+    }
+
+    fn visit_labeled_stmt(&mut self, stmt: &LabeledStmt) {
+        stmt.body.visit_with(self);
+    }
+
+    fn visit_break_stmt(&mut self, _: &BreakStmt) {}
+
+    fn visit_continue_stmt(&mut self, _: &ContinueStmt) {}
+
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        if self.only_direct
+            && let Callee::Expr(callee_expr) = &call.callee
+        {
+            let mut inner = callee_expr.as_ref();
+            while let Expr::Paren(paren) = inner {
+                inner = paren.expr.as_ref();
+            }
+            match inner {
+                Expr::Fn(fn_expr) => {
+                    fn_expr.function.params.visit_with(self);
+                    fn_expr.function.body.visit_with(self);
+                    call.args.visit_with(self);
+                    return;
+                }
+                Expr::Arrow(arrow) => {
+                    arrow.params.visit_with(self);
+                    arrow.body.visit_with(self);
+                    call.args.visit_with(self);
+                    return;
+                }
+                _ => {}
+            }
+        }
+        call.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, f: &Function) {
+        if !self.only_direct {
+            f.visit_children_with(self);
+        }
+    }
+
+    fn visit_arrow_expr(&mut self, a: &ArrowExpr) {
+        if !self.only_direct {
+            a.visit_children_with(self);
+        }
+    }
+
+    noop_visit_type!();
+}
+
+fn find_ident_ref_in_stmt(stmt: &Stmt, target_id: &Id, only_direct: bool) -> Option<Span> {
+    let mut finder = IdentRefFinder {
+        target_id,
+        only_direct,
+        found: None,
+    };
+    stmt.visit_with(&mut finder);
+    finder.found
+}
+
+fn collect_non_hoisted_decl_ids_in_stmt(
+    stmt: &Stmt,
+    collect_nested_vars: bool,
+    stmt_idx: usize,
+    decl_pos: &mut FxHashMap<Id, usize>,
+) {
+    let mut idents = Vec::new();
+    match stmt {
+        Stmt::Decl(Decl::Var(var)) => {
+            collect_idents_in_var_decls(&var.decls, &mut idents);
+        }
+        Stmt::Decl(Decl::Class(class)) => {
+            idents.push(class.ident.clone());
+        }
+        _ if collect_nested_vars => {
+            collect_hoisted_var_idents_in_stmt(stmt, &mut idents);
+        }
+        _ => {}
+    }
+    for ident in idents {
+        decl_pos.entry(ident.to_id()).or_insert(stmt_idx);
+    }
 }
 
 // Detects if two strings are similar (but not the same).
@@ -4260,6 +4493,24 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
 
                     Read more: https://nextjs.org/docs/app/api-reference/directives/use-server#using-server-functions-in-a-client-component
                 "#
+            },
+        ),
+        ServerActionsErrorKind::HoistedServerReferenceCapturedBeforeInit {
+            span,
+            fn_name,
+            captured_name,
+            directive,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    {subject} `{fn_name}` cannot be referenced before its captured variable `{captured_name}` is declared. Move `{captured_name}` above this reference, or move `{fn_name}` after `{captured_name}` is initialized.
+                "#,
+                subject = if let Directive::UseServer = directive {
+                    "Server Action"
+                } else {
+                    "\"use cache\" function"
+                }
             },
         ),
         ServerActionsErrorKind::InlineSyncFunction { span, directive } => (

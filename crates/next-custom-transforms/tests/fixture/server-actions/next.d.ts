@@ -16,13 +16,6 @@ declare module 'private-next-rsc-server-reference' {
     id: string,
     exportName: string | null
   ): T
-
-  export function bindServerReference<T extends (...args: any[]) => any>(
-    target: T,
-    getBoundArg: () => Promise<string>
-  ): Parameters<T> extends [any, ...infer TArgs]
-    ? (...args: TArgs) => ReturnType<T>
-    : (...args: any[]) => ReturnType<T>
 }
 
 declare module 'private-next-rsc-action-client-wrapper' {

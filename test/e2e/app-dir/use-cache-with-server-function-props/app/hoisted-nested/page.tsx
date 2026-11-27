@@ -2,12 +2,10 @@ import { ActionTrigger } from './client-controls'
 
 export default async function Page() {
   const noClosureResult = await callNestedNoClosure()
-  const mutatedCacheResults = await callNestedMutatedCache()
 
   return (
     <main>
       <p id="no-closure">{noClosureResult}</p>
-      <p id="mutated-cache">{mutatedCacheResults.join(',')}</p>
       <HoistedServerActions />
       <LoopScopedActions items={['item-0', 'item-1']} />
     </main>
@@ -24,35 +22,18 @@ function callNestedNoClosure() {
   }
 }
 
-async function callNestedMutatedCache() {
-  let step = 'first'
-  const r1 = await readStep()
-  step = 'second'
-  const r2 = await readStep()
-  return [r1, r2]
-
-  async function readStep() {
-    'use cache'
-
-    return step
-  }
-}
-
 function HoistedServerActions() {
-  const boundBeforeInit = readBound.bind(null, 'extra')
-  const triggers = (
+  const label = 'updated'
+  const boundAction = readBound.bind(null, 'extra')
+
+  return (
     <>
-      <ActionTrigger id="mutated-action" action={readMutated} />
-      <ActionTrigger id="bound-action" action={boundBeforeInit} />
+      <ActionTrigger id="label-action" action={readLabel} />
+      <ActionTrigger id="bound-action" action={boundAction} />
     </>
   )
 
-  let label = 'initial'
-  label = 'updated'
-
-  return triggers
-
-  async function readMutated() {
+  async function readLabel() {
     'use server'
 
     return label

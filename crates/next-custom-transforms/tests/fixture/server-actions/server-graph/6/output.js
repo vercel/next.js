@@ -1,4 +1,4 @@
-import { registerServerReference, bindServerReference } from "private-next-rsc-server-reference";
+import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 /* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"}} */ import ANYTHING from 'anything';
 import f, { f1, f2 } from 'foo';
@@ -26,12 +26,12 @@ function x() {
     const g201 = 1;
 }
 export function y(p, [p1, { p2 }], ...p3) {
-    var action = /*#__PURE__*/ bindServerReference($$RSC_SERVER_ACTION_0, ()=>encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", f2, f11, p, p1, p2, p3));
     /** @type {any} */ const f2 = 1;
     const f11 = 1;
     const f19 = 1;
     if (true) {
         const f8 = 1;
     }
+    var action = $$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", f2, f11, p, p1, p2, p3));
     return <Button action={action}>Delete</Button>;
 }

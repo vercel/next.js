@@ -52,13 +52,10 @@ describe('use-cache-with-server-function-props', () => {
     const browser = await next.browser('/hoisted-nested')
 
     expect(await browser.elementById('no-closure').text()).toBe('1234')
-    expect(await browser.elementById('mutated-cache').text()).toBe(
-      'first,second'
-    )
 
-    await browser.elementById('btn-mutated-action').click()
+    await browser.elementById('btn-label-action').click()
     await retry(async () => {
-      expect(await browser.elementById('res-mutated-action').text()).toBe(
+      expect(await browser.elementById('res-label-action').text()).toBe(
         'updated'
       )
     })

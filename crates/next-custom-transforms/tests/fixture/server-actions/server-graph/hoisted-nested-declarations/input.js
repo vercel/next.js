@@ -3,7 +3,7 @@
 export const runServer = inlineAction
 export const runDefault = defaultCached
 
-async function inlineAction(value: string) {
+async function inlineAction(value) {
   'use server'
 
   return value
@@ -25,14 +25,13 @@ export function nestedNoClosure() {
   }
 }
 
-export function nestedWithClosure(name: string) {
+export function nestedWithClosure(name) {
+  const greeting = `Hello, ${name}!`
   const ref = formatGreeting
   const bound = formatGreeting.bind(null, '!')
-  let greeting = `Hello, ${name}`
-  greeting += '!'
   return [ref, bound, formatAction]
 
-  async function formatGreeting(suffix: string) {
+  async function formatGreeting(suffix) {
     'use cache'
 
     return greeting + suffix
@@ -45,12 +44,12 @@ export function nestedWithClosure(name: string) {
   }
 }
 
-export function blockAndLoopScoped(items: string[], cond: boolean) {
-  const results: Array<() => Promise<string>> = []
+export function blockAndLoopScoped(items, cond) {
+  const results = []
 
   if (cond) {
-    results.push(inIf)
     const tag = 'if'
+    results.push(inIf)
     async function inIf() {
       'use cache'
 

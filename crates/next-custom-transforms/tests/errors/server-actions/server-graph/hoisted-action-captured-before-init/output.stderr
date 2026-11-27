@@ -1,0 +1,8 @@
+  x Server Action `runAction` cannot be referenced before its captured variable `a` is declared. Move `a` above this reference, or move `runAction` after `a` is initialized.
+  | 
+   ,-[input.js:2:1]
+ 1 | export function ActionBeforeCapturedInit() {
+ 2 |   const ref = runAction
+   :               ^^^^^^^^^
+ 3 |   let a = 2
+   `----

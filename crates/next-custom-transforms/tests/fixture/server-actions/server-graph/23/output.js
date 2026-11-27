@@ -1,4 +1,4 @@
-import { registerServerReference, bindServerReference } from "private-next-rsc-server-reference";
+import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async function action($$ACTION_CLOSURE_BOUND, a, b, c, d) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
@@ -9,7 +9,7 @@ export const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ registerServerReference(async
     console.log(a, b, $$ACTION_ARG_0, c, d);
 }, "7c90b5db271335765a4b0eab01f044b381b5ebd5cd", null);
 /* __next_internal_action_entry_do_not_use__ {"7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"},"7c90b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"}} */ export default function Page({ foo, x, y }) {
-    var action = /*#__PURE__*/ bindServerReference($$RSC_SERVER_ACTION_0, ()=>encryptActionBoundArgs("7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", x));
+    var action = $$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", x));
     action.bind(null, foo[0], foo[1], foo.x, foo[y]);
     const action2 = $$RSC_SERVER_ACTION_1.bind(null, encryptActionBoundArgs("7c90b5db271335765a4b0eab01f044b381b5ebd5cd", x));
     action2.bind(null, foo[0], foo[1], foo.x, foo[y]);

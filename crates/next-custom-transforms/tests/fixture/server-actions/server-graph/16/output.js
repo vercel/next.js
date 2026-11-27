@@ -1,4 +1,4 @@
-import { registerServerReference, bindServerReference } from "private-next-rsc-server-reference";
+import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 /* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"},"7f1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":{"name":"$$RSC_SERVER_ACTION_2"},"7f90b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"}} */ import { Button } from 'components';
 import deleteFromDb from 'db';
@@ -19,7 +19,7 @@ export const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ registerServerReference(async
     return $$ACTION_ARG_0 + y + z[0];
 }, "7f90b5db271335765a4b0eab01f044b381b5ebd5cd", null);
 let f = (x)=>{
-    var g = /*#__PURE__*/ bindServerReference($$RSC_SERVER_ACTION_1, ()=>encryptActionBoundArgs("7f90b5db271335765a4b0eab01f044b381b5ebd5cd", x));
+    var g = $$RSC_SERVER_ACTION_1.bind(null, encryptActionBoundArgs("7f90b5db271335765a4b0eab01f044b381b5ebd5cd", x));
 };
 export const $$RSC_SERVER_ACTION_2 = /*#__PURE__*/ registerServerReference(async function f($$ACTION_CLOSURE_BOUND, y, ...z) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("7f1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);

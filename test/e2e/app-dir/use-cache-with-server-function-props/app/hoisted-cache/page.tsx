@@ -5,8 +5,8 @@ export default function Page() {
 }
 
 function Greeting({ name }: { name: string }) {
-  const greet = formatGreeting
   const greeting = `Hello, ${name}!`
+  const greet = formatGreeting
 
   // Keep the fixture buildable even when the compiler loses the hoisted binding.
   if (typeof greet !== 'function') {
