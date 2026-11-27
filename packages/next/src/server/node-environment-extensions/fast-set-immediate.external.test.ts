@@ -31,6 +31,36 @@ function createLogger() {
   return { logs, log }
 }
 
+/**
+ * Whether `AsyncLocalStorage` is backed by `AsyncContextFrame`, which makes the
+ * async context visible in `uncaughtException` handlers. It is enabled by
+ * default in Node.js 24+ and opt-in via `--experimental-async-context-frame`
+ * in earlier versions. Node.js 24 also accepts `--async-context-frame`. Flags
+ * in `NODE_OPTIONS` are applied before CLI flags, and the last matching flag
+ * wins.
+ */
+function isAsyncContextFrameEnabled(): boolean {
+  let enabled = Number(process.versions.node.split('.')[0]) >= 24
+  const flags = [
+    ...(process.env.NODE_OPTIONS ?? '').split(/\s+/),
+    ...process.execArgv,
+  ]
+  for (const flag of flags) {
+    if (
+      flag === '--async-context-frame' ||
+      flag === '--experimental-async-context-frame'
+    ) {
+      enabled = true
+    } else if (
+      flag === '--no-async-context-frame' ||
+      flag === '--no-experimental-async-context-frame'
+    ) {
+      enabled = false
+    }
+  }
+  return enabled
+}
+
 describe.each([
   { description: 'Timer scheduler', scheduler: TimerScheduler },
   // (more coming soon)
@@ -1835,9 +1865,8 @@ describe.each([
         'task 1 -> immediate 1',
         'task 1 -> immediate 1 -> nextTick', // undesirable (too early) but acceptable
 
-        // FIXME: no async context in uncaughtException
-        // `uncaughtException - ${contextValue}`,
-        `uncaughtException - undefined`,
+        // FIXME: without AsyncContextFrame, there's no async context in uncaughtException
+        `uncaughtException - ${isAsyncContextFrameEnabled() ? contextValue : undefined}`,
 
         // ======================
         'task 1 -> immediate 2',
@@ -1902,9 +1931,8 @@ describe.each([
         'task 1 -> immediate 1',
         `task 1 -> immediate 1 -> nextTick - ${contextValue}`,
 
-        // FIXME: no async context in uncaughtException
-        // `uncaughtException - ${contextValue}`,
-        `uncaughtException - undefined`,
+        // FIXME: without AsyncContextFrame, there's no async context in uncaughtException
+        `uncaughtException - ${isAsyncContextFrameEnabled() ? contextValue : undefined}`,
 
         // ======================
         'task 1 -> immediate 2',
