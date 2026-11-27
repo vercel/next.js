@@ -176,7 +176,7 @@ export default function Page() {
 
 ### Loading on interaction
 
-A component that renders conditionally loads its code the first time it renders, for example when a user opens a chat box. With a `loading` component or `ssr: false`, `next/dynamic` wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+A component that renders conditionally loads its code the first time it renders, for example when a user opens a chat box. With a `loading` component or `ssr: false`, `next/dynamic` wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. React spaces these reveals apart so content doesn't appear piece by piece, which means the component can show up later than its code loads. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats) for the timing.
 
 A component that first renders after an interaction is not part of the server render, so it does not need `ssr: false`, even when it depends on a module that reads `window` or `document` when imported. If the gate can be open during prerendering, the component renders on the server like any other. To keep it out of the server render regardless of the gate, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
