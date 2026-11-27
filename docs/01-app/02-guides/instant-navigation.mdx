@@ -106,7 +106,7 @@ With Partial Prefetching enabled, `prefetch={true}` also opts the link into [per
 
 By **default** (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. Validation surfaces what would keep navigations into a segment from being instant — which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
 
-To read a finding for a specific path, an agent can [query the running dev server with `check_route`](/docs/app/guides/ai-agents#debugging-a-running-app).
+To read a finding for a specific path, an agent can [query the running dev server with `check_route`](/docs/app/guides/ai-agents/debugging#2-observe-what-happens).
 
 To opt out of automatic validation and only validate segments that explicitly export `instant`, set [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
 
@@ -263,7 +263,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** With the toggle on, the next refresh or link click freezes the page so you can inspect the shell.
+Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Waiting for navigation...** With the toggle on, the next refresh or link click freezes the page so you can inspect the shell.
 
 Refresh the product page. The Inspector shows **Loading shell** labeled **Page load** with the target URL. Both fallbacks appear: "Loading product..." and "Checking availability...". This route has no `generateStaticParams`, so the static shell doesn't include the product details, even on a repeat visit.
 
@@ -289,7 +289,7 @@ Refresh the product page. The Inspector shows **Loading shell** labeled **Page l
 
 Click **Resume** to see the product details and inventory.
 
-Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. The Inspector shows **Loading shell** labeled **Client nav** with both source and target URLs. With Partial Prefetching enabled, the link has already fetched the product name and price. Inventory still shows "Checking availability...".
+Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. The product name and price are visible while inventory still shows "Checking availability...". The Inspector labels a captured client navigation **Client nav** and lists its source and target routes.
 
 <div
   style={{
@@ -300,7 +300,7 @@ Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. Th
   }}
 >
   <Image
-    alt="Navigation Inspector panel showing 'Loading shell' labeled 'Client nav' with source and target URLs"
+    alt="Navigation Inspector panel showing 'Loading shell' labeled 'Client nav' with source and target routes"
     srcLight="/docs/light/inspector-client.png"
     srcDark="/docs/dark/inspector-client.png"
     width="481"
@@ -311,40 +311,30 @@ Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. Th
   </span>
 </div>
 
-Toggle **Pause on navigations** off when you're done inspecting loading states. Each navigation pauses as long as the toggle is on.
+If clicking the link closes the panel, reopen **Navigation Inspector**. Turn off **Pause on navigations** to load the inventory and stop pausing subsequent navigations. This also works if the panel shows **Waiting for navigation...** instead of **Resume**.
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
 
 ### Inspect loading states with browser automation
 
-With Cache Components enabled, a browser tool can pause navigation on your running `next dev` server. Open `/store/shoes` and set this cookie in the browser:
+With Cache Components enabled, you can use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) on the running `next dev` server. It pauses the same navigation as the Inspector and resumes it when the callback finishes.
 
-```js filename="Browser"
-document.cookie = 'next-instant-navigation-testing=1; path=/'
-```
+To inspect a client navigation, open the source page first, then click its link inside `instant()`. Next.js waits for that link’s prefetch to finish. In the store example, the Hats link uses `prefetch={true}` with Partial Prefetching enabled, so the product name and price are visible while inventory is still loading. A default `<Link>` to the same route shows both fallbacks. Calling `page.goto('/store/hats')` inside the callback instead checks the static shell on a page load.
 
-Click the link to `/store/hats` and wait for the destination URL. Next.js waits for the link's prefetch to finish. In this example, a default `<Link>` shows both fallbacks. With `prefetch={true}` and Partial Prefetching enabled, the product name and price appear alongside "Checking availability...".
-
-To inspect the static shell for the same URL, reload with the cookie set.
-
-Clear the cookie to resume, even if the inspection fails:
-
-```js filename="Browser"
-document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
-```
+This shows what the link can display with a completed prefetch. To measure whether prefetching actually finished before a user clicked, observe the link in a production test build without pausing navigation.
 
 ## Prevent regressions with e2e tests
 
-Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, catching regressions before they ship.
+Validation can tell you that a route has a shell. An end-to-end test can also check which content appears in that shell and which content streams in afterward.
 
-Use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) to test the product route above.
+Use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) to test the product route above. In this example, the Hats link opens the page for a $25 baseball cap.
 
 A route can be reached two ways, and a `<Suspense>` boundary can cover one without covering the other:
 
 - **Initial page load**: Use `page.goto()` to test the static UI from the document response.
 - **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
 
-```typescript filename="e2e/navigation.test.ts" highlight={6-18,29-41}
+```typescript filename="e2e/navigation.test.ts" highlight={6-18,29-47}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
 
@@ -382,6 +372,12 @@ test.describe('Product page (/store/[slug])', () => {
       await expect(page.getByRole('heading', { level: 1 })).toContainText(
         'Baseball Cap'
       )
+      await expect(
+        page.getByText('$25', { exact: true }).filter({ visible: true })
+      ).toBeVisible()
+      await expect(
+        page.getByText('Checking availability...').filter({ visible: true })
+      ).toBeVisible()
       await expect(
         page.getByText('In stock').filter({ visible: true })
       ).toHaveCount(0)
@@ -533,28 +529,15 @@ Use the [DevTools](#visualize-loading-states-with-the-nextjs-devtools) to see wh
 
 ## AI workflow
 
-At a high level, an agent optimizes a single navigation like this:
+Give your agent a specific link and describe what you expect before and after the remaining data arrives. For the store example:
 
-- **Observe**: read validation insights and choose the exact navigation and UI that should appear immediately.
-- **Test**: confirm the target UI renders normally, then write an `instant()` test and verify that it fails before changing the route.
-- **Fix**: validation errors name a specific component and suggest a fix (`use cache` or `<Suspense>`). The agent applies the fix and re-runs validation.
-- **Verify**: run the test against a production-like build and keep the passing test as a regression guard.
+> Open `/store/shoes` and click Hats. I want to see the hat's name and price immediately. Show “Checking availability...” until the current stock count arrives.
 
-The agent doesn't need to understand the full caching model, only to follow the insights and errors until they're gone. It does need your app-specific intent, though. Tell it what should appear immediately, what can stream in, and what must stay fresh. When a caching decision is unclear, keep the data fresh behind `<Suspense>` rather than guessing a cache lifetime.
+1. **Inspect the click in development.** On the running dev server, use the [Navigation Inspector](#visualize-loading-states-with-the-nextjs-devtools) or [Playwright’s `instant()`](#inspect-loading-states-with-browser-automation). While navigation is paused, check that the destination shows the product name, price, and inventory fallback. Resume, then check the stock count. In Playwright, the first set of assertions belongs **inside** the callback; the stock count assertion belongs **after** it returns.
+2. **Find out why the expected content is missing.** If the navigation blocks, [check what the dev server reports for the destination with `check_route`](/docs/app/guides/ai-agents/debugging#2-observe-what-happens). If validation passes but the product name is missing, inspect the link's [prefetch configuration](/docs/app/guides/optimizing-prefetching). The [`next-dev-loop` skill](/docs/app/guides/ai-agents#next-dev-loop) can also show which Suspense boundary is still pending in Agent Browser. Keep data that must be fresh, such as inventory, behind its own fallback.
+3. **Repeat the same click after the change.** If you want a [regression test](#prevent-regressions-with-e2e-tests), run those assertions against a production build. The [`next-cache-components-optimizer` skill](/docs/app/guides/ai-agents#next-cache-components-optimizer) does this by showing the test failing before the fix and passing afterward.
 
-For [iterating on loading states](#iterate-on-loading-states), a prompt like "maximize my content, and reduce the amount that needs to be behind a spinner" works well for pushing boundaries down.
-
-Agents working on a Cache Components route typically reach for three levers:
-
-- **Push down**: extract I/O into a Suspense-wrapped child so the parent stays static and static siblings lift into the shell.
-- **Cache**: pair `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to assign a freshness profile.
-- **Per-link prefetching** (nav-only): when a route reads URL data (`searchParams` or `params`), opt it into [per-link prefetching](/docs/app/guides/optimizing-prefetching) so the framework resolves that data at link-prefetch time. Session data from `cookies()` or `headers()` already lands in the App Shell without it.
-
-Each refactor should pair with a before/after capture to verify the change actually landed. Identical-looking captures mean the refactor didn't take effect.
-
-For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See the [`next-dev-loop` skill](/docs/app/guides/ai-agents#next-dev-loop) for setup.
-
-The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) Skill packages this loop. It confirms the target UI renders normally, writes an `instant()` test that fails before the fix, then works it to green against a production-like build and ships it as a regression guard. Use it for the initial load (hard navigation), client-side navigation (soft navigation), or both.
+`instant()` waits for the link's prefetch. If your question is whether the prefetch **finishes before a user clicks**, observe that click in a production build without pausing navigation.
 
 ## Opting out
 

@@ -171,7 +171,7 @@ If you're using [Cache Components](/docs/app/api-reference/config/next-config-js
 
 ### Installing the helper
 
-After setting up Playwright above, install `@next/playwright`:
+Add the helper to the package that runs your Playwright checks:
 
 ```bash package="pnpm"
 pnpm add -D @next/playwright
@@ -190,6 +190,8 @@ bun add -D @next/playwright
 ```
 
 With Cache Components enabled, you can use the helper in `next dev` without additional configuration. For `next build` and `next start`, enable the testing API as shown in [Production builds](#production-builds).
+
+You can also pass a `Page` from `playwright` or `playwright-core` to `instant()` in a standalone script. The `@playwright/test` runner is optional.
 
 ### Initial page loads
 
@@ -307,7 +309,7 @@ Playwright lets you intercept network requests with [`page.route()`](https://pla
 Registering either handler disables the browser's HTTP cache, even if no request matches. Chromium then sends `Cache-Control: no-cache` on requests, including the initial page load. When `next dev` receives that header, it [bypasses server caches](/docs/messages/cache-bypass-in-dev) and skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request. A test can pass without reporting that the navigation blocks.
 
 - **To check a loading state during navigation**, wrap the page load or link click in [`instant()`](#testing-instant-navigations) instead of delaying a request. Assert on the loading UI inside the callback, then check the finished page after the callback returns. The [Instant Navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) shows both kinds of navigation.
-- **To simulate a failed request**, keep the route handler. To validate navigation to the same page, open it in a fresh browser context without interception. If the route blocks, the browser or the `next dev` terminal shows [what blocked it](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks). An agent can also [check the route without a browser](/docs/app/guides/ai-agents#debugging-a-running-app).
+- **To simulate a failed request**, keep the route handler. To validate navigation to the same page, open it in a fresh browser context without interception. If the route blocks, the browser or the `next dev` terminal shows [what blocked it](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks). An agent can also [check the route without a browser](/docs/app/guides/ai-agents/debugging#2-observe-what-happens).
 
 ### Limitations
 

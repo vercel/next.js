@@ -16,7 +16,7 @@ related:
 
 To prefetch more than the App Shell, a link can opt into [per-link prefetching](/docs/app/guides/optimizing-prefetching) with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The prefetch can then resolve cached URL-specific content that depends on `params`, `searchParams`, or the full URL.
 
-Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-navigation) insights in development, naming the link or route to change. To check a specific route without opening a browser, pass its path to the dev server’s [`check_route` tool](/docs/app/guides/ai-agents#debugging-a-running-app).
+Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-navigation) insights in development, naming the link or route to change. To check a specific route without opening a browser, pass its path to the dev server’s [`check_route` tool](/docs/app/guides/ai-agents/debugging#2-observe-what-happens).
 
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
