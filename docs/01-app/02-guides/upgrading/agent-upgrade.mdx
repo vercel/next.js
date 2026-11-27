@@ -114,6 +114,59 @@ Open the upgrade in a separate Git worktree?
 
 When you run the command from an existing coding agent, it provides the prepared task to that agent instead. The agent keeps the model, reasoning effort, and permissions already configured for its session.
 
+## Run scheduled upgrades on GitHub
+
+`next upgrade --ci` adds a GitHub Actions workflow that runs the agent upgrade every day and opens a pull request with the result. Setup uses the [GitHub CLI](https://cli.github.com).
+
+```bash filename="Terminal"
+npx next upgrade --ci
+```
+
+**1. Answer the prompts.** Setup asks for the policy and the agent:
+
+```txt filename="Terminal"
+Choose the upgrade policy:
+❯ Security updates (only for security advisories)
+  Latest stable release (every new stable release)
+
+Choose the hosted agent for the scheduled GitHub workflow:
+❯ Codex with an OpenAI API key
+  Claude Code with an Anthropic API key
+
+Open a setup pull request against acme/web (main)?
+❯ Open pull request
+  Cancel
+```
+
+**2. Add the secrets.** At the end, setup prints a command to register each one:
+
+| Secret                          | Value                                                             |
+| ------------------------------- | ----------------------------------------------------------------- |
+| `NEXT_UPGRADE_AGENT_CREDENTIAL` | Your OpenAI or Anthropic API key                                  |
+| `NEXT_UPGRADE_PUBLISH_TOKEN`    | A fine-grained token with Contents and Pull requests write access |
+
+**3. Merge the setup pull request.** It adds this workflow:
+
+```yaml filename=".github/workflows/next-upgrade.yml"
+on:
+  schedule:
+    - cron: '0 0 * * *' # every day at 00:00 UTC; change it to run less often
+  workflow_dispatch:
+
+jobs:
+  upgrade:
+    uses: vercel/next-upgrade-action/.github/workflows/next-upgrade.yml@<commit>
+    with:
+      policy: security
+      agent: codex
+      # ...
+    secrets:
+      agent-credential: ${{ secrets.NEXT_UPGRADE_AGENT_CREDENTIAL }}
+      publish-token: ${{ secrets.NEXT_UPGRADE_PUBLISH_TOKEN }}
+```
+
+Each run checks for an upgrade first. It stops when the app is up to date, or when the upgrade pull request from an earlier run is still open. Otherwise the agent upgrades and verifies the app, and the workflow opens a new pull request.
+
 ## Configure upgrade reminders
 
 Upgrade reminders are enabled by default with the `security` policy. Set [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade) to choose another policy or disable reminders:

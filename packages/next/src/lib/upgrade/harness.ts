@@ -1,15 +1,13 @@
 import { constants } from 'fs'
 import { access, stat } from 'fs/promises'
 import { delimiter, resolve } from 'path'
-import type { Key } from 'readline'
-
-import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
 import { getAgentName } from '../../telemetry/agent-name'
 import type { AgentUpgradeHandoffMethod } from '../../telemetry/events/agent-upgrade'
 import { bold, cyan, dim } from '../picocolors'
+import { chooseOption } from './choose-option'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
 import { runChildProcess } from './run-child-process'
 
@@ -34,56 +32,13 @@ function resolvePrompt(
   return typeof prompt === 'string' ? prompt : prompt(useWorktree)
 }
 
-async function chooseOption(
-  question: string,
-  values: Record<string, string>,
-  defaultValue: number,
-  firstPrompt = false
-): Promise<string | null | undefined> {
-  Log.bootstrap('')
-  Log.bootstrap(`  ${question}`)
-  Log.bootstrap(
-    `  ${dim(`Use ↑/↓ to choose, Enter to confirm, or Esc to ${firstPrompt ? 'cancel' : 'go back'}.`)}\n`
-  )
-
-  let interrupted = false
-  const onKeypress = (_text: string, key: Key) => {
-    if (key.ctrl && key.name === 'c') {
-      interrupted = true
-    }
-  }
-  process.stdin.on('keypress', onKeypress)
-  try {
-    const { id } = await cliSelect({
-      values,
-      defaultValue,
-      selected: cyan('❯'),
-      unselected: ' ',
-      indentation: 2,
-      valueRenderer: (value: string, selected: boolean) =>
-        selected ? cyan(bold(value)) : value,
-    })
-    if (typeof id === 'string') {
-      Log.bootstrap(`  ${cyan('❯')} ${cyan(bold(values[id]))}`)
-      return id
-    }
-    return undefined
-  } catch (error) {
-    if (error !== undefined) {
-      throw error
-    }
-    return interrupted ? null : undefined
-  } finally {
-    process.stdin.removeListener('keypress', onKeypress)
-  }
-}
-
 async function chooseWorktree(): Promise<boolean | null | undefined> {
-  const choice = await chooseOption(
-    'Open the upgrade in a separate Git worktree?',
-    { yes: 'Yes', no: 'No' },
-    0
-  )
+  const choice = await chooseOption({
+    question: 'Open the upgrade in a separate Git worktree?',
+    values: { yes: 'Yes', no: 'No' },
+    defaultValue: 0,
+    firstPrompt: false,
+  })
   if (choice === null || choice === undefined) {
     return choice
   }
@@ -193,9 +148,9 @@ async function chooseHarness(
       ? `${getHarnessDisplayName(harnesses[0].name)} detected. Would you like to proceed?`
       : 'Multiple coding agents detected. Which one would you like to use?'
 
-  const id = await chooseOption(
+  const id = await chooseOption({
     question,
-    {
+    values: {
       ...Object.fromEntries(
         harnesses.map(({ name }) => [
           name,
@@ -204,12 +159,12 @@ async function chooseHarness(
       ),
       copy: 'Copy prompt for another coding agent',
     },
-    Math.max(
+    defaultValue: Math.max(
       0,
       harnesses.findIndex(({ name }) => name === previousName)
     ),
-    true
-  )
+    firstPrompt: true,
+  })
   return id === 'copy' ? 'copy' : harnesses.find(({ name }) => name === id)
 }
 
@@ -389,21 +344,22 @@ export async function handoffUpgrade(
         const previousModelId = models.some(({ id }) => id === selectedModelId)
           ? selectedModelId
           : undefined
-        const modelId = await chooseOption(
-          `Which ${getHarnessDisplayName(harness!.name)} model should run the upgrade?`,
-          Object.fromEntries(
+        const modelId = await chooseOption({
+          question: `Which ${getHarnessDisplayName(harness!.name)} model should run the upgrade?`,
+          values: Object.fromEntries(
             models.map(({ id, label, description }) => [
               id,
               description ? `${label} — ${description}` : label,
             ])
           ),
-          Math.max(
+          defaultValue: Math.max(
             0,
             models.findIndex(({ id, isDefault }) =>
               previousModelId ? id === previousModelId : isDefault
             )
-          )
-        )
+          ),
+          firstPrompt: false,
+        })
         if (modelId === null) {
           break
         }
@@ -423,16 +379,17 @@ export async function handoffUpgrade(
         if (model && model.efforts.length > 0) {
           const efforts = ['default', ...model.efforts]
           const previousEffortIndex = efforts.indexOf(effort ?? 'default')
-          const selectedEffort = await chooseOption(
-            'Which reasoning effort should the upgrade use?',
-            Object.fromEntries(
+          const selectedEffort = await chooseOption({
+            question: 'Which reasoning effort should the upgrade use?',
+            values: Object.fromEntries(
               efforts.map((value) => [
                 value,
                 value === 'default' ? 'Model default' : value,
               ])
             ),
-            Math.max(0, previousEffortIndex)
-          )
+            defaultValue: Math.max(0, previousEffortIndex),
+            firstPrompt: false,
+          })
           if (selectedEffort === null) {
             break
           }
@@ -470,11 +427,12 @@ export async function handoffUpgrade(
           stage = 'worktree'
         }
       } else if (stage === 'permission') {
-        const permissionChoice = await chooseOption(
-          `Use Auto permission mode for ${getHarnessDisplayName(harness!.name)}?`,
-          { yes: 'Yes', no: 'No, ask for approval' },
-          useAuto ? 0 : 1
-        )
+        const permissionChoice = await chooseOption({
+          question: `Use Auto permission mode for ${getHarnessDisplayName(harness!.name)}?`,
+          values: { yes: 'Yes', no: 'No, ask for approval' },
+          defaultValue: useAuto ? 0 : 1,
+          firstPrompt: false,
+        })
         if (permissionChoice === null) {
           break
         }
