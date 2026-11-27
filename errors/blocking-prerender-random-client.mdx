@@ -31,8 +31,8 @@ The Server Component case is handled at [`Math.random()` during prerendering](/d
 <FixCardGrid>
   <FixCard
     group="stream"
-    title="Wrap in Suspense"
-    href="#wrap-in-suspense"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
     snippets={[
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <RandomId />' },
@@ -51,9 +51,7 @@ The Server Component case is handled at [`Math.random()` during prerendering](/d
   />
 </FixCardGrid>
 
-<span id="wrap-in-or-move-into-suspense" />
-
-## Wrap in Suspense
+## Wrap in or move into Suspense
 
 Choose this fix when a Client Component reads a random value during render and a fallback can appear first. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) where its parent renders it. The read already interrupts prerendering, so you don't need to add `use(io())`.
 
@@ -217,7 +215,7 @@ To defer prerendering explicitly, call [`use(io())`](/docs/app/api-reference/fun
 
 ## When the read comes from an external library
 
-If a library reads a random value during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-suspense). If the library accepts an initial value, you can [pass the random value from the server](#if-the-initial-html-needs-the-avatar-color) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler).
+If a library reads a random value during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-or-move-into-suspense). If the library accepts an initial value, you can [pass the random value from the server](#if-the-initial-html-needs-the-avatar-color) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler).
 
 ## Verifying the fix
 

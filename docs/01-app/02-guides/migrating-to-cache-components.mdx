@@ -98,9 +98,7 @@ You don't have to migrate every route at once. `instant = false` lets you get th
 
    The app keeps building and serving, now with validation deferred for the opted-out routes.
 
-3. **Fix synchronous IO errors.** Setting `instant = false` does not clear prerender errors for [`Date.now()` or `new Date()`](/docs/messages/blocking-prerender-current-time), [`Math.random()`](/docs/messages/blocking-prerender-random), or [crypto APIs](/docs/messages/blocking-prerender-crypto). For a fresh value in a Server Component, wrap the component in `<Suspense>` and [await `io()`](/docs/app/api-reference/functions/io) before the read. Cache the value instead if it can be shared.
-
-   In a Client Component, the read already interrupts prerendering: [wrap the component in a parent `<Suspense>` boundary](/docs/messages/blocking-prerender-current-time-client#wrap-in-suspense). For a browser-only value, read it after mount or in an event handler. Adding `'use client'` alone still allows [server rendering](/docs/app/getting-started/server-and-client-components#on-the-server).
+3. **Fix synchronous IO errors.** Setting `instant = false` does not clear prerender errors for [`Date.now()` or `new Date()`](/docs/messages/blocking-prerender-current-time), [`Math.random()`](/docs/messages/blocking-prerender-random), or [crypto APIs](/docs/messages/blocking-prerender-crypto). For a fresh value in a Server Component, wrap the component in `<Suspense>` and [await `io()`](/docs/app/api-reference/functions/io) before the read. Cache the value instead if it can be shared. If a Client Component reads the value during render, [wrap it in Suspense](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense).
 
 4. **Convert one route at a time.** Remove `instant = false` from a route, then resolve its insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Repeat until no routes opt out.
 

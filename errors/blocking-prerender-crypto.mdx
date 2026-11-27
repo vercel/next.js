@@ -244,7 +244,7 @@ The ID appears only after the component renders in the browser. Until then, the 
 
 ### Gotchas
 
-- If a Client Component calls a synchronous crypto API during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-crypto-client#wrap-in-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the ID, [pass it to the client as a prop](/docs/messages/blocking-prerender-crypto-client#if-the-initial-html-needs-the-id) so hydration uses the same value.
+- If a Client Component calls a synchronous crypto API during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the ID, [pass it to the client as a prop](/docs/messages/blocking-prerender-crypto-client#if-the-initial-html-needs-the-id) so hydration uses the same value.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
 
 ## When the read comes from an external library

@@ -231,7 +231,7 @@ When you read the value in an effect, the first paint shows the initial state un
 
 ### Gotchas
 
-- If a Client Component calls `Math.random()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-random-client#wrap-in-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the random value, [pass it to the client as a prop](/docs/messages/blocking-prerender-random-client#if-the-initial-html-needs-the-avatar-color) so hydration uses the same value.
+- If a Client Component calls `Math.random()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the random value, [pass it to the client as a prop](/docs/messages/blocking-prerender-random-client#if-the-initial-html-needs-the-avatar-color) so hydration uses the same value.
 
 ## When the read comes from an external library
 
