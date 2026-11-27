@@ -240,11 +240,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-The first paint shows the SSR fallback (often `null`), and the value appears only after the browser hydrates the component. That's fine for client-only state but wrong for tokens that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The ID appears only after the component renders in the browser. Until then, the user sees the fallback or placeholder. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- If a Client Component calls a synchronous crypto API during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the ID, [pass it to the client as a prop](/docs/messages/blocking-prerender-crypto-client#if-the-initial-html-needs-the-id) so hydration uses the same value.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
 
 ## When the read comes from an external library

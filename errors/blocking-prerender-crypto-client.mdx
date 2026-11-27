@@ -108,7 +108,7 @@ The prerendered HTML can show the fallback before the component appears. Pick a 
 ### Gotchas
 
 - Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error. Use stable placeholder content.
-- The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the value only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
+- A parent `<Suspense>` boundary still allows server rendering. For a browser-only read, [use an effect or event handler](#move-into-effect-or-event-handler), or [call `use(browser())` before the read](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 - React [state](https://react.dev/reference/react/useState) and [refs](https://react.dev/reference/react/useRef) can preserve a value across browser re-renders, but they do not carry it from the server to the browser.
 
 ## Move into effect or event handler
@@ -163,7 +163,7 @@ export function NewDraft() {
 
 #### Lazy-initialize a stable ID with `useRef`
 
-When a component needs a stable secure ID for the lifetime of its mount (a tracking ID, a session correlation key), produce it lazily inside a [`useRef`](https://react.dev/reference/react/useRef) getter. The ref initializer runs after mount, so SSR sees `null` and the browser fills in the value. Subsequent renders read the same ref so the ID stays stable.
+When a component needs a stable secure ID for the lifetime of its mount (a tracking ID, a session correlation key), generate it in the event handler on the first click. Store it in a [ref](https://react.dev/reference/react/useRef) so later clicks use the same ID.
 
 ```jsx filename="app/workflow.js"
 'use client'
@@ -206,8 +206,8 @@ The user sees the placeholder briefly before the real value. For interactions th
 
 ### Gotchas
 
-- Don't compute the value inline during render with a lazy initializer like `useState(() => crypto.randomUUID())`. The initializer still runs during SSR and triggers the error.
-- If the generated value needs to appear in the server-rendered HTML, generate it in a Server Component and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components).
+- A lazy initializer such as `useState(() => crypto.randomUUID())` runs during render, including on the server. To wait until after mount, read the value inside the effect.
+- If the generated value needs to appear in the server-rendered HTML, generate it in a Server Component and [pass it as a prop](#if-the-initial-html-needs-the-id).
 - Only [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) ships to the browser. Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client. If you're seeing this error for one of those, the call lives on the server: see [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 

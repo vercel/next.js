@@ -266,11 +266,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-The first paint shows the SSR fallback (often `null` or an em-dash), and the timestamp appears only after the browser hydrates the component. That's fine for time-of-day displays but wrong for timestamps that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The timestamp appears only after the component renders in the browser. Until then, the user sees the fallback or placeholder. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- If a Client Component calls `Date.now()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback. If the server-rendered HTML needs the timestamp, [pass it to the client as a prop](/docs/messages/blocking-prerender-current-time-client#if-the-initial-html-needs-the-timestamp) so hydration uses the same value.
 
 ## For telemetry, use a timing API
 
