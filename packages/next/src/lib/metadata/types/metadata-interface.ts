@@ -187,6 +187,10 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The referrer setting for the document.
    *
+   * @remarks
+   * `"no-referrer"` can prevent native Server Action form submissions.
+   * @see https://nextjs.org/docs/app/guides/data-security#referrer-policies-and-native-form-submissions
+   *
    * @example
    * ```tsx
    * referrer: "origin"
