@@ -287,4 +287,9 @@ impl Endpoint for InstrumentationEndpoint {
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
         self.trace_result().all_files()
     }
+    /// Instrumentation runs for every request, so it is always part of the graph.
+    #[turbo_tasks::function]
+    fn activation_keys(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        Vc::cell(vec![])
+    }
 }

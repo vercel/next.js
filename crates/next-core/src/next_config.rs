@@ -1235,6 +1235,8 @@ pub struct ExperimentalConfig {
     /// Development only.
     #[serde(rename = "turbopackLazyDynamicImportsSSR")]
     turbopack_lazy_dynamic_imports_ssr: Option<bool>,
+    /// Use a single module graph for all activated routes in development.
+    turbopack_single_dev_module_graph: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
@@ -2811,6 +2813,19 @@ impl NextConfig {
                 && self
                     .experimental
                     .turbopack_lazy_dynamic_imports_ssr
+                    .unwrap_or(false),
+        )
+    }
+
+    /// Whether development uses one module graph for all activated routes instead of one graph
+    /// per route. Always `false` outside of development.
+    #[turbo_tasks::function]
+    pub async fn turbopack_single_dev_module_graph(&self, next_mode: NextMode) -> Vc<bool> {
+        Vc::cell(
+            next_mode.is_development()
+                && self
+                    .experimental
+                    .turbopack_single_dev_module_graph
                     .unwrap_or(false),
         )
     }

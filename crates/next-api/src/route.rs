@@ -126,6 +126,15 @@ pub trait Endpoint {
     /// Turbopack.
     #[turbo_tasks::function]
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec>;
+
+    /// The keys of the route activations (see [`crate::route_activation`]) that gate this
+    /// endpoint's entries in the single development module graph. Using the endpoint activates
+    /// all of them, and the endpoint is part of the graph once all of them are active. Endpoints
+    /// that share a key (e.g. the HTML and HMR endpoints of a page) are activated together, and an
+    /// endpoint can activate the endpoints it depends on by including their key. An empty list
+    /// means the endpoint is always part of the graph.
+    #[turbo_tasks::function]
+    fn activation_keys(self: Vc<Self>) -> Vc<Vec<RcStr>>;
 }
 
 #[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
