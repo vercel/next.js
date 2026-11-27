@@ -29,6 +29,74 @@ let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
+// The trace running on the shared `context`, if any. It belongs to the
+// context rather than to a `Playwright` instance: tests create many instances
+// that all share one context, and Playwright allows one trace per context.
+// The browser holds the trace in memory until it is stopped.
+let activeTrace: string | undefined
+let stoppingTrace: Promise<void> | undefined
+
+async function startTracing(url: string) {
+  if (!tracePlaywright || !context) {
+    return
+  }
+
+  // Stop and save the previous page's trace first, so its data is released.
+  await stopTracing()
+
+  try {
+    await context.tracing.start({
+      screenshots: true,
+      snapshots: true,
+      sources: true,
+    })
+    activeTrace = encodeURIComponent(url)
+  } catch (e) {
+    require('console').warn('Failed to start playwright tracing', e)
+  }
+}
+
+async function stopTracing() {
+  if (stoppingTrace) {
+    return stoppingTrace
+  }
+  const trace = activeTrace
+  const tracedContext = context
+  if (!trace || !tracedContext) {
+    return
+  }
+  // Clear it before awaiting, so concurrent callers share one stop.
+  activeTrace = undefined
+
+  stoppingTrace = (async () => {
+    try {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH!)
+          .replace(/\//g, '-')}`,
+        ...(process.env.NEXT_TEST_RUN_NUMBER
+          ? [`run-${process.env.NEXT_TEST_RUN_NUMBER}`]
+          : []),
+        `playwright-${trace}-${Date.now()}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await tracedContext.tracing.stop({
+        path: traceOutputPath,
+      })
+    } catch (e) {
+      require('console').warn('Failed to teardown playwright tracing', e)
+    }
+  })()
+
+  try {
+    await stoppingTrace
+  } finally {
+    stoppingTrace = undefined
+  }
+}
 
 const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
   ? parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
@@ -43,6 +111,7 @@ const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
 const pendingTeardown: Array<() => Promise<void>> = []
 export async function quit() {
   await Promise.all(pendingTeardown.map((fn) => fn()))
+  await stopTracing()
   await context?.close()
   await browser?.close()
   context = undefined
@@ -81,58 +150,9 @@ export type PlaywrightNavigationWaitUntil =
   | 'commit'
 
 export class Playwright<TCurrent = undefined> {
-  private activeTrace?: string
   private eventCallbacks: Record<EventType, Set<(...args: any[]) => void>> = {
     request: new Set(),
     response: new Set(),
-  }
-  private async initContextTracing(url: string, context: BrowserContext) {
-    if (!tracePlaywright) {
-      return
-    }
-
-    try {
-      // Clean up if any previous traces are still active
-      await teardown(this.teardownTracing.bind(this))
-
-      await context.tracing.start({
-        screenshots: true,
-        snapshots: true,
-        sources: true,
-      })
-      this.activeTrace = encodeURIComponent(url)
-    } catch (e) {
-      this.activeTrace = undefined
-    }
-  }
-
-  private async teardownTracing() {
-    if (!this.activeTrace) {
-      return
-    }
-
-    try {
-      const traceDir = path.join(__dirname, '../../traces')
-      const traceOutputPath = path.join(
-        traceDir,
-        `${path
-          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH!)
-          .replace(/\//g, '-')}`,
-        ...(process.env.NEXT_TEST_RUN_NUMBER
-          ? [`run-${process.env.NEXT_TEST_RUN_NUMBER}`]
-          : []),
-        `playwright-${this.activeTrace}-${Date.now()}.zip`
-      )
-
-      await fs.remove(traceOutputPath)
-      await context!.tracing.stop({
-        path: traceOutputPath,
-      })
-    } catch (e) {
-      require('console').warn('Failed to teardown playwright tracing', e)
-    } finally {
-      this.activeTrace = undefined
-    }
   }
 
   on(
@@ -195,7 +215,7 @@ export class Playwright<TCurrent = undefined> {
         contextPermissions !== permissions
       ) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
-        await teardown(this.teardownTracing.bind(this))
+        await teardown(stopTracing)
         await context?.close()
         context = await browser.newContext({
           locale,
@@ -224,7 +244,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   async close(): Promise<void> {
-    await teardown(this.teardownTracing.bind(this))
+    await teardown(stopTracing)
     await page?.close()
   }
 
@@ -308,7 +328,7 @@ export class Playwright<TCurrent = undefined> {
       await oldPage.close()
     }
 
-    await this.initContextTracing(url, context!)
+    await startTracing(url)
     page = await context!.newPage()
 
     page.setDefaultTimeout(defaultTimeout)
