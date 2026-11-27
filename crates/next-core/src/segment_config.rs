@@ -9,9 +9,9 @@ use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::{
         ast::{
-            ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
+            Bool, ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
             ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsConstAssertion,
-            TsSatisfiesExpr, TsTypeAssertion,
+            TsSatisfiesExpr, TsTypeAssertion, VarDeclKind,
         },
         utils::IsDirective,
     },
@@ -109,6 +109,9 @@ pub struct NextSegmentConfig {
     pub max_duration: Option<u64>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
+    /// `experimental_nativeRscRuntime`: the page renders on the native RSC runtime. Only `true`
+    /// so far; a page without it renders on App Router.
+    pub native_rsc_runtime: Option<bool>,
     pub preferred_region: Option<NextSegmentRegion>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
     pub unstable_allow_dynamic: Option<Vec<RcStr>>,
@@ -158,6 +161,7 @@ impl NextSegmentConfig {
             max_duration,
             fetch_cache,
             runtime,
+            native_rsc_runtime,
             preferred_region,
             // TODO what about these?
             instant: _,
@@ -176,6 +180,7 @@ impl NextSegmentConfig {
         *max_duration = max_duration.or(parent.max_duration);
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
+        *native_rsc_runtime = native_rsc_runtime.or(parent.native_rsc_runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
     }
 
@@ -209,6 +214,7 @@ impl NextSegmentConfig {
             max_duration,
             fetch_cache,
             runtime,
+            native_rsc_runtime,
             preferred_region,
             // TODO what about these?
             instant: _,
@@ -234,6 +240,11 @@ impl NextSegmentConfig {
         merge_parallel(max_duration, &parallel_config.max_duration, "maxDuration")?;
         merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
         merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
+        merge_parallel(
+            native_rsc_runtime,
+            &parallel_config.native_rsc_runtime,
+            "experimental_nativeRscRuntime",
+        )?;
         match (preferred_region.as_ref(), &parallel_config.preferred_region) {
             (Some(a), Some(b)) if a.to_vec() != b.to_vec() => {
                 bail!("Sibling segment configs have conflicting values for preferredRegion")
@@ -529,7 +540,7 @@ pub async fn parse_segment_config_from_source(
             let mut config = NextSegmentConfig::default();
             let mut legacy_config = LegacySegmentConfig::default();
 
-            let mut parse = async |ident, init, span| {
+            let mut parse = async |ident, init, is_const, span| {
                 parse_config_value(
                     source,
                     mode,
@@ -539,6 +550,7 @@ pub async fn parse_segment_config_from_source(
                     &arena,
                     ident,
                     init,
+                    is_const,
                     span,
                 )
                 .await
@@ -554,6 +566,7 @@ pub async fn parse_segment_config_from_source(
                                     ident: None,
                                     class: decl.class.clone(),
                                 }))),
+                                false,
                                 decl.span(),
                             )
                             .await?
@@ -565,12 +578,13 @@ pub async fn parse_segment_config_from_source(
                                     ident: None,
                                     function: decl.function.clone(),
                                 }))),
+                                false,
                                 decl.span(),
                             )
                             .await?
                         }
-                        Decl::Var(decl) => {
-                            for decl in &decl.decls {
+                        Decl::Var(var) => {
+                            for decl in &var.decls {
                                 let Some(ident) = decl.name.as_ident() else {
                                     continue;
                                 };
@@ -584,6 +598,7 @@ pub async fn parse_segment_config_from_source(
                                             || Cow::Owned(*Expr::undefined(DUMMY_SP)),
                                         ),
                                     ),
+                                    var.kind == VarDeclKind::Const,
                                     // The config object can span hundreds of lines. Don't
                                     // highlight the whole thing
                                     if key == "config" {
@@ -608,6 +623,7 @@ pub async fn parse_segment_config_from_source(
                                         ModuleExportName::Str(s) => s.value.to_string_lossy(),
                                     },
                                     None,
+                                    false,
                                     specifier.span(),
                                 )
                                 .await?;
@@ -734,20 +750,22 @@ async fn parse_config_value(
     arena: &ThreadLocal<Bump>,
     key: Cow<'_, str>,
     init: Option<Cow<'_, Expr>>,
+    // The export is a `const` declaration.
+    is_const: bool,
     span: Span,
 ) -> Result<()> {
+    // Unwrap typecasts such as `export const config = { .. } satisfies ProxyConfig`, usually
+    // this is already transpiled away, but we are looking at the original source here.
+    let unwrapped_init = match init.as_deref() {
+        Some(Expr::TsAs(TsAsExpr { expr, .. }))
+        | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
+        | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
+        | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
+        init => init,
+    };
     let get_value = || {
-        let init = init.as_deref();
-        // Unwrap typecasts such as `export const config = { .. } satisfies ProxyConfig`, usually
-        // this is already transpiled away, but we are looking at the original source here.
-        let init = match init {
-            Some(Expr::TsAs(TsAsExpr { expr, .. }))
-            | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
-            | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
-            | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
-            _ => init,
-        };
-        init.map(|init| eval_context.eval(arena.get_or_default(), init))
+        unwrapped_init
+            .map(|init| eval_context.eval(arena.get_or_default(), init))
             .map(|v| {
                 // Special case, as we don't call `link` here: assume that `undefined` is a free
                 // variable.
@@ -1129,6 +1147,52 @@ async fn parse_config_value(
                     .await;
                 }
             };
+        }
+        "experimental_nativeRscRuntime" => {
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "experimental_nativeRscRuntime",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
+            if mode != ParseSegmentMode::App {
+                return invalid_config(
+                    source,
+                    "experimental_nativeRscRuntime",
+                    span,
+                    rcstr!("It's only supported in the App Router."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            }
+            // Only a literal on a `const` declaration, the one form the build's static info
+            // (`extractExportedConstValue`) reads too, so both agree on which pages opt in.
+            if !is_const
+                || !matches!(
+                    unwrapped_init,
+                    Some(Expr::Lit(Lit::Bool(Bool { value: true, .. })))
+                )
+            {
+                return invalid_config(
+                    source,
+                    "experimental_nativeRscRuntime",
+                    span,
+                    rcstr!("It needs to be `export const experimental_nativeRscRuntime = true`."),
+                    Some(&value),
+                    IssueSeverity::Error,
+                )
+                .await;
+            }
+            config.native_rsc_runtime = Some(true);
         }
         "preferredRegion" => {
             let Some(value) = get_value() else {

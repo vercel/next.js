@@ -14,6 +14,7 @@ use next_core::{
         AppEntry, AppPage, AppPath, get_app_client_references_chunks,
         get_app_client_shared_chunk_group, get_app_page_entry, get_app_route_entry,
         get_client_references_chunks_for_hmr, metadata::route::get_app_metadata_route_entry,
+        report_app_builtin_page_native_rsc_runtime, report_app_page_native_rsc_runtime,
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -36,6 +37,7 @@ use next_core::{
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     pages_structure::PagesDirectoryStructure,
+    parse_segment_config_from_loader_tree,
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use smallvec::smallvec;
@@ -1930,6 +1932,24 @@ struct AppEndpoint {
 impl AppEndpoint {
     #[turbo_tasks::function]
     async fn app_page_entry(&self, loader_tree: Vc<AppPageLoaderTree>) -> Result<Vc<AppEntry>> {
+        let config = parse_segment_config_from_loader_tree(loader_tree).await?;
+        // The built-in not-found and global-error pages stay on App Router, even when the root
+        // layout opts in: like other not-found and error renders, they aren't on the native RSC
+        // runtime yet. A file of theirs that sets the export itself is a build error instead.
+        let is_builtin_page = matches!(
+            AppPath::from(self.page.clone()).to_string().as_str(),
+            "/_not-found" | "/_global-error"
+        );
+        if is_builtin_page {
+            report_app_builtin_page_native_rsc_runtime(loader_tree, self.page.clone()).await?;
+        } else if config.native_rsc_runtime == Some(true) {
+            report_app_page_native_rsc_runtime(
+                loader_tree,
+                self.page.clone(),
+                self.app_project.project().next_config(),
+            )
+            .await?;
+        }
         Ok(get_app_page_entry(
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),

@@ -21,6 +21,7 @@ export const ALLOWED_EXPORTS = [
   'generateMetadata',
   'viewport',
   'generateViewport',
+  'experimental_nativeRscRuntime',
 ]
 
 export const LEGACY_CONFIG_EXPORT = 'config'
