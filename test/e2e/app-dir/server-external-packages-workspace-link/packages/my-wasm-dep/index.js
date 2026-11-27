@@ -1,0 +1,1 @@
+exports.answer = 42

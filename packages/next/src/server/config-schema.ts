@@ -488,6 +488,7 @@ export const experimentalSchema = {
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
+  serverExternalPackagesMonorepo: z.boolean().optional(),
   useWasmBinary: z.boolean().optional(),
   useLightningcss: z.boolean().optional(),
   lightningCssFeatures: z

@@ -1510,6 +1510,15 @@ export interface ExperimentalConfig {
   serverSourceMaps?: boolean
 
   /**
+   * Also externalize packages listed in `serverExternalPackages` that are
+   * symlinked into `node_modules`, but resolve to a path outside of it, e.g.
+   * workspace packages in a monorepo. When `false`, such packages are bundled.
+   *
+   * @default false
+   */
+  serverExternalPackagesMonorepo?: boolean
+
+  /**
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
@@ -2656,6 +2665,7 @@ export const defaultConfig = Object.freeze({
     // builds, off in development) — see `NextConfig::turbopack_mangle_export_names`. An explicit
     // value always wins either way.
     turbopackMangleExportNames: undefined,
+    serverExternalPackagesMonorepo: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
