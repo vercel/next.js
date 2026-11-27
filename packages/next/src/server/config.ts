@@ -663,6 +663,13 @@ function assignDefaultsAndValidate(
       )
     }
 
+    if (result.experimental.nativeRscRuntime && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.nativeRscRuntime\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
     if (
       result.experimental.turbopackRustReactCompiler &&
       !process.env.TURBOPACK
@@ -702,6 +709,15 @@ function assignDefaultsAndValidate(
   if (result.partialPrefetching && !result.cacheComponents) {
     throw new Error(
       `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  if (
+    result.experimental.nativeRscRuntime &&
+    !(result.cacheComponents && result.partialPrefetching)
+  ) {
+    throw new Error(
+      `\`experimental.nativeRscRuntime\` requires \`cacheComponents\` and \`partialPrefetching\` to be enabled. Please update your ${configFileName} accordingly.`
     )
   }
 

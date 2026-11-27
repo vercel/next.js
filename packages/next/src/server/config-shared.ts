@@ -602,6 +602,13 @@ export interface ExperimentalConfig {
    * Cache Components.
    */
   cachedNavigations?: boolean
+  /**
+   * Highly experimental and not for production use. Opts the app into the
+   * native RSC runtime, an alternative server-side runtime for rendering
+   * React Server Components. Requires Cache Components, Partial
+   * Prefetching, and Turbopack.
+   */
+  nativeRscRuntime?: boolean
   dynamicOnHover?: boolean
   /**
    * Uses ReactDOM's browser rendering primitive for supported client-rendering
@@ -2557,6 +2564,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
+    nativeRscRuntime: false,
     dynamicOnHover: false,
     reactBrowserBailout: true,
     useOffline: false,
