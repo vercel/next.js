@@ -84,6 +84,8 @@ export function CorrelationId() {
 }
 ```
 
+The hidden correlation ID input needs no loading UI. See [Choosing a fallback](/docs/app/guides/streaming#choosing-a-fallback).
+
 Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
@@ -221,7 +223,7 @@ import { RequestId } from './components/request-id'
 
 export default function Page() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<span>Loading request ID...</span>}>
       <RequestId />
     </Suspense>
   )

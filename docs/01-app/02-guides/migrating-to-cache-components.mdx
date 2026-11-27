@@ -920,7 +920,7 @@ export async function generateMetadata() {
 
 async function DynamicMarker() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <Connection />
     </Suspense>
   )
@@ -940,6 +940,8 @@ export default function Page() {
   )
 }
 ```
+
+The marker renders no UI, so it uses an [empty fallback](/docs/app/guides/streaming#choosing-a-fallback).
 
 See [`generateMetadata` with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport` with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for the full set of fix options and trade-offs.
 
