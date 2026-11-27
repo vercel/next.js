@@ -924,8 +924,8 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 ///
-/// The default sizes and request cost are scaled down when chunk items are minified before
-/// chunking, see `ChunkSizeDefaults`.
+/// The default sizes and request cost are measured in minified chunk items: chunk items are
+/// minified one by one before chunking.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -958,14 +958,14 @@ pub struct TurbopackChunkingConfig {
     /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
     max_merge_chunk_size: Option<usize>,
     /// Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
-    /// (default `1000000`, or `400000` when minifying before chunking). Chunks are never merged
-    /// into bigger chunks, and chunks that are bigger on their own are split deterministically
-    /// into smaller chunks, which may be smaller than `min_chunk_size` or exceed
-    /// `max_chunk_count_per_group`. Inconsistent values (smaller than 3 times `min_chunk_size`, or
-    /// than `max_merge_chunk_size`) are adjusted with a warning. `0` disables the limit.
+    /// (default `400000`). Chunks are never merged into bigger chunks, and chunks that are bigger
+    /// on their own are split deterministically into smaller chunks, which may be smaller than
+    /// `min_chunk_size` or exceed `max_chunk_count_per_group`. Inconsistent values (smaller than 3
+    /// times `min_chunk_size`, or than `max_merge_chunk_size`) are adjusted with a warning. `0`
+    /// disables the limit.
     max_chunk_size: Option<usize>,
     /// Like `max_chunk_size`, but for Node.js server and edge JavaScript chunks (default
-    /// `10000000`, or `4000000` when minifying before chunking). `0` disables the limit.
+    /// `4000000`). `0` disables the limit.
     max_server_chunk_size: Option<usize>,
     /// Emit each merged production chunk's constituent component chunks alongside it, so the
     /// browser runtime can load only the chunks it doesn't already have (default `false`).
@@ -1000,10 +1000,9 @@ pub struct TurbopackChunking {
     pub max_chunk_count_per_group: Option<usize>,
     /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
     pub max_merge_chunk_size: Option<usize>,
-    /// Override for the maximum client JS chunk size, or `None` to use the scaled default.
+    /// Override for the maximum client JS chunk size, or `None` to use the default.
     pub max_chunk_size: Option<usize>,
-    /// Override for the maximum Node.js server and edge JS chunk size, or `None` for the scaled
-    /// default.
+    /// Override for the maximum Node.js server and edge JS chunk size, or `None` for the default.
     pub max_server_chunk_size: Option<usize>,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
@@ -1213,7 +1212,6 @@ pub struct ExperimentalConfig {
     turbopack_file_tracing_for_dev: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
-    turbopack_minify_before_chunking: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
@@ -2736,17 +2734,6 @@ impl NextConfig {
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
         }))
-    }
-
-    /// Whether to minify each module factory as it is generated rather than minifying each
-    /// finished chunk in one pass. Only takes effect when minification is enabled.
-    #[turbo_tasks::function]
-    pub fn turbopack_minify_before_chunking(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_minify_before_chunking
-                .unwrap_or(false),
-        )
     }
 
     #[turbo_tasks::function]

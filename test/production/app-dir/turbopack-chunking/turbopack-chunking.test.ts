@@ -13,11 +13,8 @@ import { join, relative } from 'path'
       skipStart: true,
     })
 
-    async function build(
-      turbopackChunking: object | undefined,
-      turbopackMinifyBeforeChunking = false
-    ) {
-      const experimental = { turbopackChunking, turbopackMinifyBeforeChunking }
+    async function build(turbopackChunking: object | undefined) {
+      const experimental = { turbopackChunking }
       await next.patchFile(
         'next.config.js',
         `module.exports = ${JSON.stringify({ experimental }, null, 2)}`
@@ -258,18 +255,15 @@ import { join, relative } from 'path'
       ['explicit original defaults', 1_000_000, 10_000_000],
       ['disabled', 0, 0],
     ])(
-      'scales only unset maxima when minifying before chunking (%s)',
+      'scales only unset maxima for minified builds (%s)',
       async (_, maxChunkSize, maxServerChunkSize) => {
-        const cliOutput = await build(
-          {
-            minChunkSize: 0,
-            maxMergeChunkSize: 1_000_000,
-            maxMergeServerChunkSize: 10_000_000,
-            maxChunkSize,
-            maxServerChunkSize,
-          },
-          true
-        )
+        const cliOutput = await build({
+          minChunkSize: 0,
+          maxMergeChunkSize: 1_000_000,
+          maxMergeServerChunkSize: 10_000_000,
+          maxChunkSize,
+          maxServerChunkSize,
+        })
         if (maxChunkSize === undefined) {
           expect(cliOutput).toContain(
             '`experimental.turbopackChunking.maxMergeChunkSize` (1000000) was decreased to 400000'
@@ -284,10 +278,10 @@ import { join, relative } from 'path'
     )
 
     it('normalizes explicit maxima against minified default minimums', async () => {
-      const cliOutput = await build(
-        { maxChunkSize: 50_000, maxServerChunkSize: 4_000 },
-        true
-      )
+      const cliOutput = await build({
+        maxChunkSize: 50_000,
+        maxServerChunkSize: 4_000,
+      })
       expect(cliOutput).toContain(
         '`experimental.turbopackChunking.maxChunkSize` (50000) was increased to 60000'
       )
