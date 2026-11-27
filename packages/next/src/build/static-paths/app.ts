@@ -736,7 +736,11 @@ export async function generateRouteStaticParams(
   store: Pick<WorkStore, 'fetchCache' | 'page' | 'route'>,
   isRoutePPREnabled: boolean,
   rootParamKeys: readonly string[],
-  isStaticExport: boolean
+  isStaticExport: boolean,
+  // When provided, a generator that returns no params is recorded here
+  // instead of throwing, so the caller can decide once it knows which
+  // parameters are left without a value.
+  emptyResults?: Array<(() => Error) | undefined>
 ): Promise<Params[]> {
   // Early return if no segments to process
   if (segments.length === 0) return []
@@ -794,9 +798,12 @@ export async function generateRouteStaticParams(
           for (const item of result) {
             nextParams.push({ ...parentParams, ...item })
           }
-        } else if (isRoutePPREnabled) {
+        } else if (isRoutePPREnabled && !emptyResults) {
           throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
         } else {
+          if (isRoutePPREnabled) {
+            emptyResults!.push(current.createEmptyParamsError)
+          }
           // No results, just pass through parent params
           nextParams.push(parentParams)
         }
@@ -812,7 +819,10 @@ export async function generateRouteStaticParams(
         isStaticExport
       )
       if (result.length === 0 && isRoutePPREnabled) {
-        throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
+        if (!emptyResults) {
+          throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
+        }
+        emptyResults.push(current.createEmptyParamsError)
       }
 
       nextParams.push(...result)
@@ -1025,6 +1035,8 @@ export async function buildAppStaticPaths({
     }
   }
 
+  const emptyStaticParamsResults: Array<(() => Error) | undefined> | undefined =
+    paramMatching ? [] : undefined
   const routeParams = await workAsyncStorage.run(
     store,
     generateRouteStaticParams,
@@ -1032,7 +1044,8 @@ export async function buildAppStaticPaths({
     store,
     isRoutePPREnabled,
     rootParamKeys,
-    nextConfigOutput === 'export'
+    nextConfigOutput === 'export',
+    emptyStaticParamsResults
   )
   const generatedParamNames = new Set<string>()
   const missingParamNames = new Set<string>()
@@ -1047,6 +1060,25 @@ export async function buildAppStaticPaths({
       }
     }
   }
+  // A generator may return no params when every parameter it leaves without
+  // a value says what happens to values that were not generated. A closed
+  // parameter would match nothing, and an unconfigured one would be inferred
+  // without a build-time example.
+  if (emptyStaticParamsResults && emptyStaticParamsResults.length > 0) {
+    for (const { paramName } of pathnameRouteParamSegments) {
+      if (
+        generatedParamNames.has(paramName) &&
+        !missingParamNames.has(paramName)
+      ) {
+        continue
+      }
+      const mode = paramMatching![paramName]
+      if (mode === undefined || mode === 'not-found') {
+        throwEmptyGenerateStaticParamsError(emptyStaticParamsResults[0])
+      }
+    }
+  }
+
   // An explicitly prerenderable parameter also makes its unconfigured prefix
   // prerenderable, even without build-time examples. Only the unconfigured
   // suffix after this boundary can remain permanently dynamic.
