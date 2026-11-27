@@ -1,0 +1,4 @@
+{
+  "minifyMode": "Deterministic",
+  "scopeHoisting": true
+}

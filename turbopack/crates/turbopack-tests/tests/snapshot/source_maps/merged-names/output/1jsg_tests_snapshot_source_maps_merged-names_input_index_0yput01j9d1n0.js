@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_source_maps_merged-names_input_index_0yput01j9d1n0.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-names/input/index.js [test] (ecmascript)",a=>{"use strict";a.s([],"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-names/input/index.js [test] (ecmascript)"),console.log(2)}]);
+
+//# sourceMappingURL=1jsg_tests_snapshot_source_maps_merged-names_input_index_0yput01j9d1n0.js.map
