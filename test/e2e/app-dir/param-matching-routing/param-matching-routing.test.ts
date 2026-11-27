@@ -137,6 +137,40 @@ describe('param-matching-routing', () => {
     }
   )
 
+  // @force-gate prod
+  describe('route tree prefetch below a blocking parameter', () => {
+    it.each([
+      '/en/catalog/tree-top/items/tree-bottom',
+      '/en/dynamic/tree-top/tree-bottom',
+    ])('is answered without the page payload: %s', async (pathname) => {
+      const res = await next.fetch(pathname, {
+        headers: {
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-Segment-Prefetch': '/_tree',
+        },
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toContain('text/x-component')
+      expect(await res.text()).not.toContain('Catalog')
+    })
+  })
+
+  // A deployment serves route tree prefetches from these files.
+  // @force-gate start
+  describe('route tree data for a blocking parameter', () => {
+    it.each(['en/catalog/[top]/items/[bottom]', 'en/dynamic/[top]/[bottom]'])(
+      'is emitted for %s',
+      async (pathname) => {
+        expect(
+          await next.hasFile(
+            `.next/server/app/${pathname}.segments/_tree.segment.rsc`
+          )
+        ).toBe(true)
+      }
+    )
+  })
+
   // @force-gate start
   it('handles an expected matcher miss without a cache-generation invariant error', async () => {
     const outputStart = next.cliOutput.length
