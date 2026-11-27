@@ -226,6 +226,50 @@ export function createPrerenderResumeDataCache(
 }
 
 /**
+ * A store that reads from `source` and keeps only the entries that were read.
+ */
+class ReadEntriesStore<T> extends Map<string, T> {
+  constructor(private readonly source: Pick<Map<string, T>, 'get' | 'has'>) {
+    super()
+  }
+
+  get(key: string): T | undefined {
+    if (super.has(key)) {
+      return super.get(key)
+    }
+
+    const value = this.source.get(key)
+    if (value !== undefined) {
+      super.set(key, value)
+    }
+    return value
+  }
+
+  has(key: string): boolean {
+    return super.has(key) || this.source.has(key)
+  }
+}
+
+/**
+ * Creates an immutable resume data cache that serves the entries of `source`,
+ * and only contains the 'use cache' and fetch entries that were read from it.
+ *
+ * A prerender that is seeded with the cache of another prerender persists its
+ * resume data cache in its postponed state. Only the entries it read
+ * contributed their tags and cache life to its own cache entry. The other
+ * entries would outlive their invalidation in the postponed state.
+ */
+export function createReadEntriesResumeDataCache(
+  source: RenderResumeDataCache
+): RenderResumeDataCache {
+  return {
+    ...source,
+    cache: new ReadEntriesStore(source.cache),
+    fetch: new ReadEntriesStore(source.fetch),
+  }
+}
+
+/**
  * Creates an immutable render resume data cache from either:
  * 1. An existing prerender cache instance
  * 2. A serialized cache string
