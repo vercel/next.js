@@ -3,6 +3,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     ComposedFile, FileContent, FileJsonContent, FileLinesContent, FileSystemPath, WriteLinkContent,
+    rope::Rope,
 };
 use turbo_tasks_hash::HashAlgorithm;
 
@@ -54,6 +55,11 @@ pub trait Asset {
     }
 }
 
+/// The bytes of an [`AssetContent`], see [`AssetContent::as_rope`]. `None` for a redirect or a
+/// missing file.
+#[turbo_tasks::value(transparent)]
+pub struct OptionRope(Option<Rope>);
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum AssetContent {
@@ -95,10 +101,19 @@ impl AssetContent {
         }
     }
 
+    /// The content's bytes (of a flat or composed file), or `None` for a redirect or a missing
+    /// file. Use [`AssetContent::as_file_content`] when the file's [`FileMeta`] is needed.
+    ///
+    /// [`FileMeta`]: turbo_tasks_fs::FileMeta
     #[turbo_tasks::function]
-    pub fn file_content(&self) -> Vc<FileContent> {
-        self.as_file_content()
-            .unwrap_or_else(|| FileContent::NotFound.cell())
+    pub async fn as_rope(&self) -> Result<Vc<OptionRope>> {
+        let Some(content) = self.as_file_content() else {
+            return Ok(Vc::cell(None));
+        };
+        Ok(Vc::cell(match &*content.await? {
+            FileContent::Content(file) => Some(file.content().clone()),
+            FileContent::NotFound => None,
+        }))
     }
 
     #[turbo_tasks::function]

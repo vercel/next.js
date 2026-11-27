@@ -169,7 +169,7 @@ async fn source_map(
 ) -> Result<Vc<AssetContent>> {
     composed(*input, debug_id)
         .await?
-        .source_map_content(ty)
+        .generate_source_map(ty)
         .await
 }
 

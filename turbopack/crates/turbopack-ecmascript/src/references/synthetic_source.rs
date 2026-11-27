@@ -62,8 +62,10 @@ impl Asset for SyntheticSource {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SyntheticSource {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
-        call_site_source_map(self.call_site, &self.code).await
+    async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        Ok(AssetContent::file(
+            call_site_source_map(self.call_site, &self.code).await?,
+        ))
     }
 }
 
@@ -75,15 +77,14 @@ pub async fn call_site_source_map(call_site: IssueSource, code: &str) -> Result<
         return Ok(FileContent::NotFound.cell());
     };
     let source = call_site.source();
-    let content = source.content().file_content().await?;
-    let FileContent::Content(file) = &*content else {
+    let Some(content) = &*source.content().as_rope().await? else {
         return Ok(FileContent::NotFound.cell());
     };
     let path = source.ident().await?.path.to_string_ref().await?;
 
     let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
     let src = builder.add_source(format!("{SOURCE_URL_PROTOCOL}///{path}").into());
-    builder.set_source_contents(src, Some(file.content().to_str()?.into_owned().into()));
+    builder.set_source_contents(src, Some(content.to_str()?.into_owned().into()));
     for line in 0..code.lines().count() {
         builder.add_raw(line as u32, 0, pos.line, pos.column, Some(src), None, false);
     }

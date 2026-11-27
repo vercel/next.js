@@ -44,7 +44,7 @@ pub async fn any_source_content_changed_of_module(
 #[turbo_tasks::function]
 pub async fn content_changed(asset: Vc<Box<dyn Asset>>) -> Result<Vc<Completion>> {
     // Reading the file content is enough to add as dependency
-    asset.content().file_content().await?;
+    asset.content().as_rope().await?;
     Ok(Completion::new())
 }
 
@@ -54,7 +54,7 @@ pub async fn content_changed(asset: Vc<Box<dyn Asset>>) -> Result<Vc<Completion>
 pub async fn source_changed(asset: Vc<Box<dyn Module>>) -> Result<Vc<Completion>> {
     if let Some(source) = *asset.source().await? {
         // Reading the file content is enough to add as dependency
-        source.content().file_content().await?;
+        source.content().as_rope().await?;
     }
     Ok(Completion::new())
 }

@@ -1,6 +1,5 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::AssetContent,
     chunk::ChunkingContext,
@@ -123,13 +122,8 @@ impl EcmascriptNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
-        self.source_map_content(ty).file_content()
-    }
-
-    #[turbo_tasks::function]
-    async fn source_map_content(self: Vc<Self>, ty: SourceMapType) -> Result<Vc<AssetContent>> {
-        self.composed_code().await?.source_map_content(ty).await
+    async fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        self.composed_code().await?.generate_source_map(ty).await
     }
 }
 

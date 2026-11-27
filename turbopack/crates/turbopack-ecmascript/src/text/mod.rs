@@ -50,11 +50,10 @@ impl Source for TextContentFileSource {
 impl Asset for TextContentFileSource {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let source = self.source.content().file_content();
-        let FileContent::Content(content) = &*source.await? else {
+        let Some(content) = &*self.source.content().as_rope().await? else {
             return Ok(AssetContent::file(FileContent::NotFound.cell()));
         };
-        let text = content.content().to_str()?;
+        let text = content.to_str()?;
         let code: RcStr = format!("export default {};", StringifyJs(&text)).into();
         let content = FileContent::Content(code.into()).cell();
         Ok(AssetContent::file(content))

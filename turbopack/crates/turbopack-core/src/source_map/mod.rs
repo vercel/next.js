@@ -26,8 +26,11 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
-    SOURCE_URL_PROTOCOL, asset::AssetContent, source::Source,
-    source_map::utils::add_default_ignore_list, source_pos::SourcePos,
+    SOURCE_URL_PROTOCOL,
+    asset::{AssetContent, OptionRope},
+    source::Source,
+    source_map::utils::add_default_ignore_list,
+    source_pos::SourcePos,
     virtual_source::VirtualSource,
 };
 
@@ -104,17 +107,13 @@ pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
     /// `ty` selects whether to trace through input source maps. Leaf implementations
     /// may ignore this hint when the same map serves both variants.
+    ///
+    /// The map is asset content, as emitted by [`SourceMapAsset`]: usually a file, but
+    /// implementations whose maps are composed from other tasks' cells return
+    /// [`AssetContent::Composed`], so writing the map persists only references to those cells.
+    /// Consumers that need the bytes read them with [`AssetContent::as_rope`].
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent>;
-
-    /// The source map as asset content, as emitted by [`SourceMapAsset`]: a file with the bytes of
-    /// [`GenerateSourceMap::generate_source_map`]. Implementations whose maps are composed from
-    /// other tasks' cells return [`AssetContent::Composed`] instead, so writing the map persists
-    /// only references to those cells.
-    #[turbo_tasks::function]
-    fn source_map_content(self: Vc<Self>, ty: SourceMapType) -> Vc<AssetContent> {
-        AssetContent::file(self.generate_source_map(ty))
-    }
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<AssetContent>;
 
     /// Returns an individual section of the larger source map, if found.
     /// `ty` selects the map variant, as in [`GenerateSourceMap::generate_source_map`].
@@ -327,12 +326,11 @@ impl SourceMap {
     /// This function should be used sparingly to reduce memory usage, only in cold code paths
     /// (issue resolving, etc).
     #[turbo_tasks::function]
-    pub async fn new_from_rope_cached(content: Vc<FileContent>) -> Result<Vc<OptionSourceMap>> {
-        let content = content.await?;
-        let Some(content) = content.as_content() else {
+    pub async fn new_from_rope_cached(content: Vc<OptionRope>) -> Result<Vc<OptionSourceMap>> {
+        let Some(content) = &*content.await? else {
             return Ok(OptionSourceMap::none());
         };
-        Ok(Vc::cell(SourceMap::new_from_rope(content.content())?))
+        Ok(Vc::cell(SourceMap::new_from_rope(content)?))
     }
 }
 
@@ -761,8 +759,10 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
-        Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
+    fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(self.to_rope()?)).cell(),
+        ))
     }
 }
 

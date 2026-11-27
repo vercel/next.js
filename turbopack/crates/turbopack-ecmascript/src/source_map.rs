@@ -7,6 +7,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
+    asset::AssetContent,
     reference::{ModuleReference, SourceMapReference},
     source::Source,
     source_map::{GenerateSourceMap, SourceMapType, utils::resolve_source_map_sources},
@@ -24,15 +25,17 @@ pub struct InlineSourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for InlineSourceMap {
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
+    pub async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
         let source_map = maybe_decode_data_url(&self.source_map);
-        if let Some(source_map) =
-            resolve_source_map_sources(source_map.as_ref(), &self.origin_path).await?
-        {
-            Ok(FileContent::Content(File::from(source_map)).cell())
-        } else {
-            Ok(FileContent::NotFound.cell())
-        }
+        Ok(AssetContent::file(
+            if let Some(source_map) =
+                resolve_source_map_sources(source_map.as_ref(), &self.origin_path).await?
+            {
+                FileContent::Content(File::from(source_map)).cell()
+            } else {
+                FileContent::NotFound.cell()
+            },
+        ))
     }
 }
 

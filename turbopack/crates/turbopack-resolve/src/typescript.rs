@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, FileSystemPathOption};
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     context::AssetContext,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
@@ -48,7 +48,7 @@ type TsConfig = (Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>);
 
 #[tracing::instrument(skip_all)]
 pub async fn read_tsconfigs(
-    mut data: Vc<FileContent>,
+    mut data: Vc<AssetContent>,
     mut tsconfig: ResolvedVc<Box<dyn Source>>,
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vec<TsConfig>> {
@@ -56,8 +56,8 @@ pub async fn read_tsconfigs(
     let resolve_options = json_only(resolve_options);
     loop {
         // tsc ignores empty config files.
-        if let FileContent::Content(file) = &*data.await?
-            && file.content().is_empty()
+        if let Some(content) = &*data.as_rope().await?
+            && content.is_empty()
         {
             break;
         }
@@ -89,7 +89,7 @@ pub async fn read_tsconfigs(
                 if let Some(extends) = json["extends"].as_str() {
                     let resolved = resolve_extends(*tsconfig, extends, resolve_options).await?;
                     if let Some(source) = resolved {
-                        data = source.content().file_content();
+                        data = source.content();
                         tsconfig = source;
                         continue;
                     } else {
@@ -244,7 +244,7 @@ pub async fn tsconfig_resolve_options(
     tsconfig: FileSystemPath,
 ) -> Result<Vc<TsConfigResolveOptions>> {
     let configs = read_tsconfigs(
-        tsconfig.read(),
+        AssetContent::file(tsconfig.read()),
         ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
         node_cjs_resolve_options(),
     )

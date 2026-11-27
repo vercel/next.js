@@ -100,8 +100,7 @@ impl EcmascriptModuleEntry {
         } else {
             SourceMapType::Shallow
         };
-        let map = &*code.generate_source_map(ty).await?;
-        let map = map.as_content().map(|f| f.content().clone());
+        let map = (*code.generate_source_map(ty).as_rope().await?).clone();
 
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].
         #[derive(Serialize)]

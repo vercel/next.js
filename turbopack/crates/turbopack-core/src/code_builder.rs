@@ -627,12 +627,14 @@ impl GenerateSourceMap for Code {
     pub async fn generate_source_map(
         self: ResolvedVc<Self>,
         ty: SourceMapType,
-    ) -> Result<Vc<FileContent>> {
+    ) -> Result<Vc<AssetContent>> {
         let debug_id = self.debug_id().owned().await?;
-        Ok(FileContent::Content(File::from(
-            self.await?.generate_source_map_ref(debug_id, ty)?,
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(
+                self.await?.generate_source_map_ref(debug_id, ty)?,
+            ))
+            .cell(),
         ))
-        .cell())
     }
 }
 
@@ -992,10 +994,8 @@ impl ComposedCode {
     }
 
     /// The `ty` source map file. Same bytes as [`Code::generate_source_map`]. Composed code
-    /// yields [`AssetContent::Composed`], see [`GenerateSourceMap::source_map_content`].
-    ///
-    /// [`GenerateSourceMap::source_map_content`]: crate::source_map::GenerateSourceMap::source_map_content
-    pub async fn source_map_content(&self, ty: SourceMapType) -> Result<Vc<AssetContent>> {
+    /// yields [`AssetContent::Composed`], see [`GenerateSourceMap::generate_source_map`].
+    pub async fn generate_source_map(&self, ty: SourceMapType) -> Result<Vc<AssetContent>> {
         Ok(match self.composition {
             Some(composition) => {
                 let debug_id = self.code.debug_id().owned().await?;
@@ -1006,7 +1006,7 @@ impl ComposedCode {
                 AssetContent::Composed(ComposedFile::new(rope, FileMeta::default()).resolved_cell())
                     .cell()
             }
-            None => AssetContent::file(self.code.generate_source_map(ty)),
+            None => self.code.generate_source_map(ty),
         })
     }
 }

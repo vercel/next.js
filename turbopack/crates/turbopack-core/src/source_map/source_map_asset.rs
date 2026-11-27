@@ -108,7 +108,7 @@ impl Asset for SourceMapAsset {
         let ty = self
             .source_map_ty
             .context("Cannot emit a source map asset when source maps are disabled")?;
-        let content = self.generate_source_map.source_map_content(ty);
+        let content = self.generate_source_map.generate_source_map(ty);
         // A composed map always has content; only a flat one can be missing.
         if let AssetContent::File(file) = &*content.await?
             && !file.await?.is_content()

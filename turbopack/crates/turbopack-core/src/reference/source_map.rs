@@ -4,6 +4,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath};
 
 use super::ModuleReference;
 use crate::{
+    asset::AssetContent,
     chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     raw_module::RawModule,
@@ -63,17 +64,19 @@ impl ModuleReference for SourceMapReference {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMapReference {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<AssetContent>> {
         let Some(file) = self.get_file().await else {
-            return Ok(FileContent::NotFound.cell());
+            return Ok(AssetContent::file(FileContent::NotFound.cell()));
         };
 
         let content = file.read().await?;
         let content = content.as_content().map(|file| file.content());
-        if let Some(source_map) = resolve_source_map_sources(content, &self.from).await? {
-            Ok(FileContent::Content(File::from(source_map)).cell())
-        } else {
-            Ok(FileContent::NotFound.cell())
-        }
+        Ok(AssetContent::file(
+            if let Some(source_map) = resolve_source_map_sources(content, &self.from).await? {
+                FileContent::Content(File::from(source_map)).cell()
+            } else {
+                FileContent::NotFound.cell()
+            },
+        ))
     }
 }

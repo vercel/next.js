@@ -2453,7 +2453,7 @@ async fn emit_content(
     let original_source_maps = if generate_source_map && source_map_generation_options.full {
         original_source_map
             .iter()
-            .map(|map| map.generate_source_map(SourceMapType::Full))
+            .map(|map| map.generate_source_map(SourceMapType::Full).as_rope())
             .try_join()
             .await?
     } else {
@@ -2461,8 +2461,7 @@ async fn emit_content(
     };
     let original_source_maps = original_source_maps
         .iter()
-        .filter_map(|map| map.as_content())
-        .map(|map| map.content())
+        .filter_map(|map| map.as_ref())
         .collect::<Vec<_>>();
 
     let shallow_source_map = if generate_source_map && source_map_generation_options.shallow {

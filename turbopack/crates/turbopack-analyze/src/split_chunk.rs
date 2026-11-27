@@ -93,11 +93,12 @@ pub async fn split_output_asset_into_parts(
     };
     let source_map = generate_source_map
         .generate_source_map(SourceMapType::Shallow)
+        .as_rope()
         .await?;
-    let Some(source_map) = source_map.as_content() else {
+    let Some(source_map) = &*source_map else {
         return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
     };
-    let Some(source_map) = SourceMap::new_from_rope(source_map.content())? else {
+    let Some(source_map) = SourceMap::new_from_rope(source_map)? else {
         return unaccounted(asset, content, lines_vc).await;
     };
 

@@ -25,7 +25,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
-    asset::Asset,
+    asset::{Asset, OptionRope},
     chunk::ChunkingContext,
     environment::Environment,
     issue::{
@@ -292,7 +292,7 @@ pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify: bool,
-    origin_source_map: Vc<FileContent>,
+    origin_source_map: Vc<OptionRope>,
     source_map_generation_options: SourceMapGenerationOptions,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
@@ -334,11 +334,8 @@ pub async fn finalize_css(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            let origin_source_map = if let Some(rope) = origin_source_map.await?.as_content() {
-                Some(parcel_sourcemap::SourceMap::from_json(
-                    "",
-                    &rope.content().to_str()?,
-                )?)
+            let origin_source_map = if let Some(rope) = &*origin_source_map.await? {
+                Some(parcel_sourcemap::SourceMap::from_json("", &rope.to_str()?)?)
             } else {
                 None
             };

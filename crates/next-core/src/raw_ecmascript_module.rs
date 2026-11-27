@@ -6,7 +6,7 @@ use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, JoinIterExt, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, rope::Rope};
+use turbo_tasks_fs::rope::Rope;
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     asset::Asset,
@@ -155,10 +155,9 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
         async {
             let module = self.await?;
             let source = module.source;
-            let content = source.content().file_content().await?;
-            let content = match &*content {
-                FileContent::Content(file) => file.content(),
-                FileContent::NotFound => bail!("RawEcmascriptModule content not found"),
+            let content = source.content().as_rope().await?;
+            let Some(content) = &*content else {
+                bail!("RawEcmascriptModule content not found");
             };
 
             static ENV_REGEX: LazyLock<Regex> =
@@ -230,9 +229,11 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                     parse_source_map_comment(source, source_mapping_url, &self.ident().await?.path)
                         .await?
                 {
-                    let full_source_map =
-                        source_map.generate_source_map(SourceMapType::Full).await?;
-                    full_source_map.as_content().map(|f| f.content().clone())
+                    let full_source_map = source_map
+                        .generate_source_map(SourceMapType::Full)
+                        .as_rope()
+                        .await?;
+                    (*full_source_map).clone()
                 } else {
                     None
                 }

@@ -75,6 +75,7 @@ use turbo_tasks_malloc::TurboMalloc;
 use turbo_unix_path::{get_relative_path_to, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    asset::AssetContent,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
@@ -2747,11 +2748,14 @@ async fn project_trace_source_operation(
     frame_module: Option<RcStr>,
     current_directory_file_url: RcStr,
 ) -> Result<Vc<OptionStackFrame>> {
-    let Some(map) = &*SourceMap::new_from_rope_cached(get_source_map_rope(
-        *container,
-        frame_file_path_sys,
-        frame_module,
-    ))
+    let Some(map) = &*SourceMap::new_from_rope_cached(
+        AssetContent::file(get_source_map_rope(
+            *container,
+            frame_file_path_sys,
+            frame_module,
+        ))
+        .as_rope(),
+    )
     .await?
     else {
         return Ok(Vc::cell(None));

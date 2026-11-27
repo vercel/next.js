@@ -59,7 +59,7 @@ impl SourceTransform for JsonSourceTransform {
     ) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;
         let ident = source.ident().owned().await?;
-        let content = source.content().file_content();
+        let content = source.content();
 
         // Parse the JSON to validate it and get the data
         let data = content.parse_json().await?;

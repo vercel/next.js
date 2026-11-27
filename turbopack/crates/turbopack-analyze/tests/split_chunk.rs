@@ -165,7 +165,7 @@ impl Asset for TestAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self, ty: SourceMapType) -> Vc<FileContent> {
+    pub fn generate_source_map(&self, ty: SourceMapType) -> Vc<AssetContent> {
         self.code.generate_source_map(ty)
     }
 }

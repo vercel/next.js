@@ -620,15 +620,11 @@ async fn build_manifest(
                     let path = path.into();
                     if chunk_path.has_extension(".css") {
                         let content = if inlined_css {
-                            Some(
-                                if let Some(content_file) =
-                                    chunk.content().file_content().await?.as_content()
-                                {
-                                    content_file.content().to_str()?.into()
-                                } else {
-                                    RcStr::default()
-                                },
-                            )
+                            Some(if let Some(content) = &*chunk.content().as_rope().await? {
+                                content.to_str()?.into()
+                            } else {
+                                RcStr::default()
+                            })
                         } else {
                             None
                         };
@@ -736,10 +732,10 @@ async fn client_chunk_components(
         {
             let size = component
                 .content()
-                .file_content()
+                .as_rope()
                 .await?
-                .as_content()
-                .map_or(0, |file| file.content().len() as u64);
+                .as_ref()
+                .map_or(0, |content| content.len() as u64);
             components.push((RcStr::from(rel), size));
         }
     }

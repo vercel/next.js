@@ -160,7 +160,7 @@ impl Asset for EcmascriptBrowserWorkerEntrypoint {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<AssetContent> {
         self.code().generate_source_map(ty)
     }
 }

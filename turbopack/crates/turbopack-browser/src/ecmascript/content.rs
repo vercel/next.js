@@ -226,13 +226,8 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
-        self.source_map_content(ty).file_content()
-    }
-
-    #[turbo_tasks::function]
-    async fn source_map_content(self: Vc<Self>, ty: SourceMapType) -> Result<Vc<AssetContent>> {
-        self.composed_code().await?.source_map_content(ty).await
+    async fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        self.composed_code().await?.generate_source_map(ty).await
     }
 
     #[turbo_tasks::function]
@@ -247,8 +242,10 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
             let entries = self.entries().await?;
             for (entry_id, entry) in entries.iter() {
                 if id == *entry_id {
-                    let sm = entry.code.generate_source_map(ty);
-                    return Ok(sm);
+                    let sm = entry.code.generate_source_map(ty).await?;
+                    return Ok(sm
+                        .as_file_content()
+                        .unwrap_or_else(|| FileContent::NotFound.cell()));
                 }
             }
         }
