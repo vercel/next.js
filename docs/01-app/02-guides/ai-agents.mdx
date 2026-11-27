@@ -139,17 +139,14 @@ When upgrade reminders are enabled, `next dev` also creates or updates a separat
 
 ## Runtime visibility
 
-Agents need both framework and browser state to verify a running application. Next.js and its supporting tools expose these complementary views as structured text.
+Use the URL printed by `next dev` to inspect the running app. If a server is already running, Next.js prints its URL and PID so the agent can reuse it. These are also recorded in `.next/dev/lock`. The terminal also shows [browser errors and warnings](/docs/app/api-reference/config/next-config-js/logging).
 
-First, `next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the client-side failures they're asked to fix.
+### Debugging a running app
 
-`next dev` also writes its PID, port, and URL to `.next/dev/lock`. If you run `next dev` while another development server is already running for the project, the command prints the existing server's URL and PID, along with a command to stop it. Continue with the existing server when possible to avoid interrupting the active development session.
-
-The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
-
-The [`next-dev-loop` skill](#next-dev-loop) adds the **browser's view** through [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. The Skill opens `agent-browser` with React DevTools enabled, which also exposes the component tree and pending Suspense boundaries. An agent can run a command such as `react tree` and use the structured output to decide what to inspect next.
-
-See [Debugging with a coding agent](/docs/app/guides/debugging-with-agents) for examples of tracing a request, inspecting a React render, or finding a navigation Insight for a route.
+- **A click has an unexpected result.** [Agent Browser](https://github.com/vercel-labs/agent-browser) can click the control and inspect the DOM, network requests, console, and Web Vitals. The optional [`next-dev-loop` skill](#next-dev-loop) opens it with React DevTools enabled, so an agent can also inspect component state and pending Suspense boundaries.
+- **A route won't compile, or a request is slow.** The [dev server's MCP tools](/docs/app/guides/mcp#runtime-tools) can report compiler errors, show server logs, or trace fetches and cache behavior. For example, with Turbopack, `compile_route` reports compilation issues for a single path.
+- **A route renders but has a navigation Insight.** Read the [DevTools Insight](/docs/app/guides/devtools#issues-and-insights) or [call `check_route`](/docs/app/guides/mcp#calling-the-dev-server-directly) with the affected path and query string. With Cache Components enabled, `validation.errors` reports findings for that request. Recheck the same path after editing: a `"validated"` status with the original finding gone confirms it cleared. If the status is `"not-run"`, read `validation.reason`.
+- **You want to see what was ready when a link was clicked.** Open the page containing the link. Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) or click the link inside [Playwright's `instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) to inspect the prefetched UI while the rest loads.
 
 <span id="step-3-let-errors-drive-the-fixes" />
 

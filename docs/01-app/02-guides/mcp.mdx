@@ -11,7 +11,7 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open s
 
 In Next.js 16 and later, the development server exposes an MCP endpoint at `/_next/mcp`. It gives coding agents the running app's view of errors, routes, logs, and compilation issues.
 
-An agent can [call the HTTP endpoint directly](/docs/app/guides/debugging-with-agents#calling-the-dev-server), without installing anything. The optional [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) connector makes these tools available in your agent's configured MCP client.
+An agent can [call the HTTP endpoint directly](#calling-the-dev-server-directly), without installing anything. The optional [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) connector makes these tools available in your agent's configured MCP client.
 
 ## Getting started
 
@@ -36,6 +36,22 @@ Or add it to the `.mcp.json` file at the root of your project:
 
 When you start your development server, `next-devtools-mcp` discovers and connects to the running Next.js instance. For client-specific setup, see the [next-devtools-mcp repository](https://github.com/vercel/next-devtools-mcp).
 
+### Calling the dev server directly
+
+Use the port printed by `next dev`. Send `tools/list` to see which tools your installed version exposes, then send `tools/call` to the same endpoint. For example, on port 3000:
+
+```bash filename="Terminal"
+mcp() {
+  curl -sS http://localhost:3000/_next/mcp \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d "$1"
+}
+
+mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+mcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"check_route","arguments":{"path":"/settings"}}}'
+```
+
 ## Capabilities
 
 `next-devtools-mcp` connects your agent client to the Next.js development server. It gives agents these tools:
@@ -59,7 +75,7 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_server_action_by_id`**: Look up a Server Action by its ID to find its source file and export name.
 - **`get_compilation_issues`**: Build the module graph for all routes and return compilation issues such as resolve errors, missing modules, and transform errors. Doesn't require a browser session. Turbopack only.
 - **`compile_route`**: Compile a specific route without making an HTTP request to it. Accepts either a `routeSpecifier` (for example, `/blog/[slug]`, as returned by `get_routes`) or a `path` (for example, `/blog/hello-world`), which is resolved to the matching route. Returns any compilation issues for the route. Turbopack only.
-- **`check_route`**: Check a route without a browser. Pass its `path` (for example, `/blog/hello-world`) to get compilation diagnostics and, with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, route validation results. These can include [Instant Navigation Insights](/docs/app/guides/instant-navigation#validate-instant-navigation) even when the page renders. See [how to read the validation result](/docs/app/guides/debugging-with-agents#route-errors-and-navigation-insights).
+- **`check_route`**: Check a route without a browser. Pass its `path` (for example, `/blog/hello-world`) to get compilation diagnostics and, with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, route validation results. These can include [Instant Navigation Insights](/docs/app/guides/instant-navigation#validate-instant-navigation) even when the page renders. The request does not use browser cookies. For an issue that depends on sign-in, reproduce it in the signed-in browser.
 - **`get_request_insights`**: Get recent App Router request timelines, server fetches, and cache behavior captured by the local span recorder. Requires `experimental.requestInsights`.
 
 With the compilation tools, agents can check whether code compiles from the running dev server instead of running `next build` while they are still editing.
