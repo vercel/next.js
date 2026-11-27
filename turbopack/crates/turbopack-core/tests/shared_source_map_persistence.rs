@@ -243,7 +243,7 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
         for (map, tail) in section_maps.into_iter().zip(tails) {
             let map = map.await?;
             let referenced = map
-                .segments()
+                .parts()
                 .iter()
                 .filter_map(|segment| match segment {
                     CellRopeSegment::Cell(cell) => Some(*cell),
