@@ -121,7 +121,7 @@ export default async function Page() {
   return (
     <main>
       ...
-      <Suspense>
+      <Suspense fallback={<span>Loading time...</span>}>
         <RelativeTime when={data.createdAt} />
       </Suspense>
     </main>
@@ -165,7 +165,7 @@ export default async function Page() {
   return (
     <main>
       ...
-      <Suspense>
+      <Suspense fallback={<span>Loading time...</span>}>
         <RelativeTime when={data.createdAt} />
       </Suspense>
     </main>

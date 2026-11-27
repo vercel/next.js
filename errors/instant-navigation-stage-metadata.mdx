@@ -117,13 +117,15 @@ export default function Page() {
   return (
     <>
       <main>Dashboard</main>
-      <Suspense>
+      <Suspense fallback={null}>
         <NavigationStageMarker />
       </Suspense>
     </>
   )
 }
 ```
+
+The empty `fallback={null}` is intentional because `NavigationStageMarker` renders no UI. Keep visible page content outside this boundary, or give that content its own visible fallback.
 
 Learn more: [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation).
 

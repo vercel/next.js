@@ -97,6 +97,8 @@ export async function CsrfToken() {
 }
 ```
 
+The empty `fallback={null}` is intentional because `CsrfToken` only renders a hidden input. There is no visible content to replace while it loads. If the component displays content, provide a visible fallback instead.
+
 #### Alternative: `await io()`
 
 Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` works inside `"use cache"` scopes and Client Components.

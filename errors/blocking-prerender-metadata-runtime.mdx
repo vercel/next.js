@@ -142,13 +142,15 @@ export default function Page() {
   return (
     <>
       <article>This article is completely static</article>
-      <Suspense>
+      <Suspense fallback={null}>
         <DynamicMarker />
       </Suspense>
     </>
   )
 }
 ```
+
+The empty `fallback={null}` is intentional because `DynamicMarker` renders no UI. Keep visible page content outside this boundary, or give that content its own visible fallback.
 
 Learn more: [`connection`](/docs/app/api-reference/functions/connection).
 

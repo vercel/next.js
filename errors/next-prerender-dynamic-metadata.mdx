@@ -127,7 +127,7 @@ async function DynamicMarker() {
     return null
   }
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <Connection />
     </Suspense>
   )
@@ -145,7 +145,7 @@ export default function Page() {
 }
 ```
 
-Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered.
+The `DynamicMarker` has its own Suspense boundary so the page content can still prerender. The empty `fallback={null}` is intentional because the marker renders no UI. Keep visible content outside this boundary, or give that content its own visible fallback.
 
 ## Useful Links
 

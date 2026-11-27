@@ -162,7 +162,7 @@ export function NavigationEvents() {
     // ...
   }, [pathname, searchParams])
 
-  return '...'
+  return null
 }
 ```
 
@@ -187,7 +187,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> **Good to know**: `<NavigationEvents>` is wrapped in a [`Suspense` boundary](/docs/app/api-reference/file-conventions/loading#examples) because[`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) causes client-side rendering up to the closest `Suspense` boundary during [prerendering](/docs/app/glossary#prerendering). [Learn more](/docs/app/api-reference/functions/use-search-params#behavior).
+> **Good to know**: `<NavigationEvents>` is wrapped in a [`Suspense` boundary](/docs/app/api-reference/file-conventions/loading#examples) because [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) causes client-side rendering up to the closest `Suspense` boundary during [prerendering](/docs/app/glossary#prerendering). The empty `fallback={null}` is intentional because this component only logs navigation events and renders no UI. Use a visible fallback if the component also displays content. [Learn more](/docs/app/api-reference/functions/use-search-params#behavior).
 
 ### Disabling scroll to top
 

@@ -265,7 +265,7 @@ import { LastUpdated } from './components/last-updated'
 
 export default function Page() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<span>Loading update time...</span>}>
       <LastUpdated />
     </Suspense>
   )

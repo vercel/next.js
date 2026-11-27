@@ -118,6 +118,10 @@ See the [`loading.js` API reference](/docs/app/api-reference/file-conventions/lo
 
 `<Suspense>` lets you control exactly which parts of the page stream independently. Instead of a full-page skeleton, you can push fallbacks down into specific sections so the static shell includes more real content.
 
+Always provide an explicit `fallback` prop. For visible content, use a loading message or skeleton that matches the final layout. Omitting `fallback` or setting `fallback={null}` leaves that region empty while it loads and can cause layout shifts when the content appears.
+
+Use `fallback={null}` only when showing nothing is intentional, such as for a component that records analytics or marks dynamic metadata without rendering UI. An optional decorative indicator can also use an empty fallback if the surrounding UI remains usable and reserves any space the indicator needs. Keep these boundaries scoped to those components and explain why no loading UI is needed.
+
 ### Parallel streaming with sibling boundaries
 
 When multiple components perform async work (fetching data, reading from a database), wrap each one in its own `<Suspense>` boundary. Each boundary streams independently as its async work completes, in whatever order that happens, without blocking each other:

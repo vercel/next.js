@@ -140,7 +140,7 @@ function ProductTab() {
   return (
     <>
       <button onClick={() => router.push('?edit=true')}>Edit Product</button>
-      <Suspense fallback={null}>
+      <Suspense fallback={<p>Loading editor...</p>}>
         <ProductDialog />
       </Suspense>
     </>

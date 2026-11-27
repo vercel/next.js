@@ -84,6 +84,8 @@ export function CorrelationId() {
 }
 ```
 
+The empty `fallback={null}` is intentional because `CorrelationId` only renders a hidden input. There is no visible content to replace while it loads. If the component displays content, provide a visible fallback instead.
+
 Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
@@ -221,7 +223,7 @@ import { RequestId } from './components/request-id'
 
 export default function Page() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<span>Loading request ID...</span>}>
       <RequestId />
     </Suspense>
   )

@@ -920,7 +920,7 @@ export async function generateMetadata() {
 
 async function DynamicMarker() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <Connection />
     </Suspense>
   )
@@ -940,6 +940,8 @@ export default function Page() {
   )
 }
 ```
+
+The empty `fallback={null}` is intentional because `Connection` renders no UI. Keep visible page content outside this boundary, or give that content its own visible fallback.
 
 See [`generateMetadata` with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport` with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for the full set of fix options and trade-offs.
 

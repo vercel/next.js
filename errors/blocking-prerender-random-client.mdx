@@ -214,7 +214,7 @@ import { RandomBanner } from './components/random-banner'
 
 export default function Page() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<span>Loading banner...</span>}>
       <RandomBanner />
     </Suspense>
   )
