@@ -311,11 +311,14 @@ export function InstantHeaderExplanation({
   variant,
   explanation,
   docsUrl,
+  thirdPartyPackage,
 }: {
   kind?: GuidanceKind
   variant?: GuidanceVariant
   explanation?: string
   docsUrl?: string
+  /** The dependency that made the read, for sync IO errors. */
+  thirdPartyPackage?: string | null
 }) {
   const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
   let resolvedDocsUrl = docsUrl
@@ -336,9 +339,19 @@ export function InstantHeaderExplanation({
     resolvedDocsUrl = DOCS_URLS[kind]
   }
 
+  if (resolvedDocsUrl && thirdPartyPackage) {
+    resolvedDocsUrl += '#when-the-read-comes-from-an-external-library'
+  }
+
   return (
     <p data-nextjs-instant-explanation>
-      {resolvedExplanation}{' '}
+      {resolvedExplanation}
+      {thirdPartyPackage ? (
+        <>
+          {' '}
+          The call comes from the <code>{thirdPartyPackage}</code> package.
+        </>
+      ) : null}{' '}
       {resolvedDocsUrl ? (
         <a href={resolvedDocsUrl} target="_blank" rel="noopener noreferrer">
           Learn more

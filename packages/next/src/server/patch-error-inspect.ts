@@ -13,6 +13,7 @@ import {
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import type { IgnorableStackFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { getThirdPartyPackageName } from './lib/third-party-package'
 import { dim, italic, stdoutIsTerminal } from '../lib/picocolors'
 
 type FindSourceMapPayload = (
@@ -596,6 +597,59 @@ function parseAndSourceMap(
   )
 }
 
+/**
+ * Returns the name of the third-party package whose code is on top of `error`'s
+ * stack, before any frame from code the user owns.
+ *
+ * Framework frames (Next.js, React, Node.js internals) are skipped. Returns
+ * `null` if user code is reached first, i.e. the user's own code triggered the
+ * error, or if no frame can be attributed to a package.
+ */
+export function findThirdPartyPackageInStack(error: Error): string | null {
+  // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
+  return workUnitAsyncStorage.exit(() => {
+    const frames = parseStack(
+      getUnparsedStackFrames(error, computeErrorName(error))
+    )
+    const sourceMapCache: SourceMapCache = new Map()
+    for (const frame of frames) {
+      if (
+        frame.file === null ||
+        frame.file === '<anonymous>' ||
+        frame.file.startsWith('node:')
+      ) {
+        continue
+      }
+      const sourcemappedFrame = getSourcemappedFrameIfPossible(
+        frame as SourcemappableStackFrame,
+        sourceMapCache,
+        {}
+      ).stack
+      if (!sourcemappedFrame.ignored) {
+        // Code the user owns triggered the error.
+        return null
+      }
+      if (sourcemappedFrame.file !== null) {
+        const packageName = getThirdPartyPackageName(sourcemappedFrame.file)
+        if (packageName !== null) {
+          return packageName
+        }
+      }
+    }
+    return null
+  })
+}
+
+// Shared via `globalThis` for the same reason as the code frame renderer:
+// errors are created in the app-page runtime bundle, which has its own copy of
+// this module, and frames can only be attributed where source maps are enabled.
+const FIND_THIRD_PARTY_PACKAGE_IN_STACK = Symbol.for(
+  'next.server.findThirdPartyPackageInStack'
+)
+type GlobalWithFindThirdPartyPackageInStack = typeof globalThis & {
+  [FIND_THIRD_PARTY_PACKAGE_IN_STACK]?: typeof findThirdPartyPackageInStack
+}
+
 function sourceMapError(
   this: void,
   error: Error,
@@ -651,6 +705,9 @@ export function patchErrorInspectNodeJS(
   const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
 
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
+  ;(globalThis as GlobalWithFindThirdPartyPackageInStack)[
+    FIND_THIRD_PARTY_PACKAGE_IN_STACK
+  ] = findThirdPartyPackageInStack
 
   // @ts-expect-error -- TODO upstream types
   errorConstructor.prototype[inspectSymbol] = function (
