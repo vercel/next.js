@@ -22,7 +22,8 @@ use turbopack_core::{
     free_var_references,
     issue::IssueSeverity,
     module_graph::{
-        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+        binding_usage_info::OptionBindingUsageInfo, merged_modules::MergedModuleGroups,
+        style_groups::StyleGroupsAlgorithm,
     },
     resolve::{parse::Request, pattern::Pattern},
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
@@ -494,6 +495,7 @@ pub struct ClientChunkingContextOptions {
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
+    pub merged_modules: Vc<MergedModuleGroups>,
     pub minify: Vc<bool>,
     pub emitted_source_map_type: Vc<OptionSourceMapType>,
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
@@ -550,6 +552,7 @@ pub async fn get_client_chunking_context(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         minify,
         emitted_source_map_type,
         source_map_generation_options,
@@ -674,12 +677,14 @@ pub async fn get_client_chunking_context(
                 },
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
-            .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?)
             .shared_runtime(*shared_runtime.await?)
             .bootstrap_metadata_attribute(
                 (*external_browser_runtime.await?).then(|| rcstr!("data-next-turbopack")),
             );
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(Vc::upcast(builder.build()))

@@ -2,6 +2,7 @@
 // boundary and its export object is really emitted even with scope hoisting on.
 
 export const someLongExportName = 'shared-1'
+export const a = 'shared-short'
 export const anotherLongExportName = 'shared-2'
 
 export function aLongFunctionName() {
