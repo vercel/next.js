@@ -145,7 +145,7 @@ Open a setup pull request against acme/web (main)?
   Cancel
 ```
 
-After opening the setup pull request, the CLI shows how to create two GitHub Actions repository secrets. It prints a `gh secret set` command for each one; running the command prompts you for its value.
+After opening the setup pull request, the CLI prints a `gh secret set` command for each of the two GitHub Actions repository secrets. Each command prompts you for the secret's value.
 
 | Secret                          | Value                                                                                                             |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -157,7 +157,7 @@ The setup pull request adds `.github/workflows/next-upgrade.yml`. This file pins
 ```yaml filename=".github/workflows/next-upgrade.yml"
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * *' # every day at 00:00 UTC; change it to run less often
   workflow_dispatch:
 
 jobs:
