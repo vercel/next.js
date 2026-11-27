@@ -34,6 +34,7 @@ mod next_shared;
 pub mod next_telemetry;
 mod page_loader;
 pub mod pages_structure;
+pub mod polyfills;
 pub mod raw_ecmascript_module;
 pub mod segment_config;
 pub mod tracing_presets;

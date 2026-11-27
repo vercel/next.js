@@ -397,6 +397,10 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            self.project()
+                .client_compile_time_info()
+                .environment()
+                .runtime_versions(),
         ))
     }
 
@@ -579,6 +583,10 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            self.project()
+                .client_compile_time_info()
+                .environment()
+                .runtime_versions(),
         );
         Ok(client_runtime_entries.resolve_entries(Vc::upcast(self.client_module_context())))
     }

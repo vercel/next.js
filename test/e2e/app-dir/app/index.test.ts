@@ -19,6 +19,14 @@ describe('app dir - basic', () => {
       ? 'pnpm compile-mode'
       : undefined,
     packageJson: {
+      // Include a browser without ES module support so that the nomodule polyfills are emitted.
+      browserslist: [
+        'chrome 111',
+        'edge 111',
+        'firefox 111',
+        'safari 16.4',
+        'chrome 60',
+      ],
       scripts: {
         'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
           ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
