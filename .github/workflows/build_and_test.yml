@@ -1325,6 +1325,7 @@ jobs:
       - wait-for-preview-tarball
       - test-new-tests-deploy
       - test-turbopack-production
+      - test-switchyard-prod
       - test-unit-windows
       - test-dev-windows
       - test-integration-windows
