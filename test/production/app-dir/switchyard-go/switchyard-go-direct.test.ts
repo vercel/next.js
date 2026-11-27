@@ -70,7 +70,11 @@ describe('switchyard-go direct path', () => {
     const { parentPid } = await received('/go/echo')
     process.kill(parentPid, 'SIGSTOP')
     try {
-      for (const target of ['/go/echo']) {
+      for (const target of [
+        '/go/echo',
+        // A query already in the form Node writes reaches the worker as sent.
+        '/go/echo?q=hello%20world&tags=a%2Cb',
+      ]) {
         expect((await received(target)).requestURI).toBe(target)
       }
     } finally {
