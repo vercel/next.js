@@ -98,9 +98,4 @@ impl<T: Ord> HeapQueue<T> {
         // Drop the items outside of the lock.
         drop(items);
     }
-
-    #[cfg(test)]
-    pub(super) fn len(&self) -> usize {
-        self.heap.lock().as_ref().map_or(0, |heap| heap.len())
-    }
 }
