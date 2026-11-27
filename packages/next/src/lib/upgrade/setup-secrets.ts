@@ -3,7 +3,11 @@ import { bold, cyan, dim, green } from '../picocolors'
 import { chooseOption } from './choose-option'
 import { withHiddenInput } from './secret-input'
 
-export type AgentAuth = 'codex-openai-api-key' | 'claude-anthropic-api-key'
+export type AgentAuth =
+  | 'codex-openai-api-key'
+  | 'claude-anthropic-api-key'
+  | 'codex-ai-gateway-api-key'
+  | 'claude-ai-gateway-api-key'
 
 type Secret = {
   name: string
@@ -29,31 +33,50 @@ export function setupSecrets({
   publishSecret: string
 }): Secret[] {
   const [owner] = repo.split('/')
+  const gatewaySecret = {
+    name: agentSecret,
+    title: 'Vercel AI Gateway API key',
+    label: 'Key',
+    createUrl:
+      'https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys%3FshowCreateKeyModal',
+    createSteps: ['Create a key, then paste it below.'],
+    problem: null,
+  }
+  const agentSecrets: Record<AgentAuth, Secret> = {
+    'codex-openai-api-key': {
+      name: agentSecret,
+      title: 'OpenAI API key',
+      description: ['An OpenAI API key for the hosted Codex agent.'],
+      label: 'Key',
+      createUrl: 'https://platform.openai.com/api-keys',
+      createSteps: ['Create a secret key, then paste it below.'],
+      problem: null,
+    },
+    'claude-anthropic-api-key': {
+      name: agentSecret,
+      title: 'Anthropic API key',
+      description: ['An Anthropic API key for the hosted Claude Code agent.'],
+      label: 'Key',
+      createUrl: 'https://platform.claude.com/settings/keys',
+      createSteps: ['Create a key, then paste it below.'],
+      problem: null,
+    },
+    'codex-ai-gateway-api-key': {
+      ...gatewaySecret,
+      description: ['A Vercel AI Gateway API key for the hosted Codex agent.'],
+    },
+    'claude-ai-gateway-api-key': {
+      ...gatewaySecret,
+      description: [
+        'A Vercel AI Gateway API key for the hosted Claude Code agent.',
+      ],
+    },
+  }
   return [
     // The agent credential is not checked here: what each provider issues can
     // change, and the workflow checks the credential with the provider before
     // the agent runs.
-    auth === 'codex-openai-api-key'
-      ? {
-          name: agentSecret,
-          title: 'OpenAI API key',
-          description: ['An OpenAI API key for the hosted Codex agent.'],
-          label: 'Key',
-          createUrl: 'https://platform.openai.com/api-keys',
-          createSteps: ['Create a secret key, then paste it below.'],
-          problem: null,
-        }
-      : {
-          name: agentSecret,
-          title: 'Anthropic API key',
-          description: [
-            'An Anthropic API key for the hosted Claude Code agent.',
-          ],
-          label: 'Key',
-          createUrl: 'https://platform.claude.com/settings/keys',
-          createSteps: ['Create a key, then paste it below.'],
-          problem: null,
-        },
+    agentSecrets[auth],
     {
       name: publishSecret,
       title: 'Publication token',

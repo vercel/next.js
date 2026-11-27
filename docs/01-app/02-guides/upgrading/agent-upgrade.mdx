@@ -139,6 +139,8 @@ Choose the upgrade policy:
 Choose the hosted agent for the scheduled GitHub workflow:
 ❯ Codex with an OpenAI API key
   Claude Code with an Anthropic API key
+  Codex with a Vercel AI Gateway API key
+  Claude Code with a Vercel AI Gateway API key
 
 Which Codex model should run the upgrade?
 ❯ Terra
@@ -155,10 +157,10 @@ Open a setup pull request against acme/web (main)?
 
 After opening the setup pull request, the CLI walks you through the two GitHub Actions repository secrets. For each one, it can open the page that creates the value, then reads the value you paste without showing it and stores it with the GitHub CLI. You can also skip a secret and add it later with `gh secret set` or in **Settings > Secrets and variables > Actions**.
 
-| Secret                          | Value                                                                                                             |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `NEXT_UPGRADE_AGENT_CREDENTIAL` | An OpenAI API key for Codex or an Anthropic API key for Claude Code                                               |
-| `NEXT_UPGRADE_PUBLISH_TOKEN`    | A fine-grained personal access token for this repository with read and write access to Contents and Pull requests |
+| Secret                          | Value                                                                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_UPGRADE_AGENT_CREDENTIAL` | An OpenAI API key for Codex, an Anthropic API key for Claude Code, or a [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) API key for either |
+| `NEXT_UPGRADE_PUBLISH_TOKEN`    | A fine-grained personal access token for this repository with read and write access to Contents and Pull requests                                  |
 
 The setup pull request adds `.github/workflows/next-upgrade.yml`. This file pins the reusable workflow to a specific commit and records the version of the Next.js CLI used for setup. Here's an excerpt for an app using Codex with the `security` policy:
 

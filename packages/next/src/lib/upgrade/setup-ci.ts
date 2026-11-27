@@ -42,9 +42,34 @@ const SECRET = 'NEXT_UPGRADE_AGENT_CREDENTIAL'
 const PUBLISH_SECRET = 'NEXT_UPGRADE_PUBLISH_TOKEN'
 const TITLE = 'Set up scheduled Next.js upgrades'
 
-const AUTH_OPTIONS: Record<AgentAuth, string> = {
-  'codex-openai-api-key': 'Codex with an OpenAI API key',
-  'claude-anthropic-api-key': 'Claude Code with an Anthropic API key',
+const AUTH_OPTIONS: Record<
+  AgentAuth,
+  {
+    label: string
+    agent: 'codex' | 'claude'
+    credential: 'api-key' | 'ai-gateway'
+  }
+> = {
+  'codex-openai-api-key': {
+    label: 'Codex with an OpenAI API key',
+    agent: 'codex',
+    credential: 'api-key',
+  },
+  'claude-anthropic-api-key': {
+    label: 'Claude Code with an Anthropic API key',
+    agent: 'claude',
+    credential: 'api-key',
+  },
+  'codex-ai-gateway-api-key': {
+    label: 'Codex with a Vercel AI Gateway API key',
+    agent: 'codex',
+    credential: 'ai-gateway',
+  },
+  'claude-ai-gateway-api-key': {
+    label: 'Claude Code with a Vercel AI Gateway API key',
+    agent: 'claude',
+    credential: 'ai-gateway',
+  },
 }
 
 type Policy = 'security' | 'latest'
@@ -781,7 +806,7 @@ export async function setupUpgradeCI({
     // instead of reporting success with nothing set up.
     if (!interactive) {
       throw new SetupError(
-        `Run next upgrade --ci in an interactive terminal to choose the hosted agent. The workflow needs an OpenAI API key or an Anthropic API key in the ${SECRET} secret and a fine-grained personal access token in the ${PUBLISH_SECRET} secret.`,
+        `Run next upgrade --ci in an interactive terminal to choose the hosted agent. The workflow needs the hosted agent's credential in the ${SECRET} secret and a fine-grained personal access token in the ${PUBLISH_SECRET} secret.`,
         'blocked'
       )
     }
@@ -870,11 +895,16 @@ export async function setupUpgradeCI({
     let effort = 'default'
     try {
       while (true) {
-        if (stage === 'agent') {
+        if (stage === 'agent' || !auth) {
           const id = await chooseOption({
             question:
               'Choose the hosted agent for the scheduled GitHub workflow:',
-            values: AUTH_OPTIONS,
+            values: Object.fromEntries(
+              Object.entries(AUTH_OPTIONS).map(([value, { label }]) => [
+                value,
+                label,
+              ])
+            ),
             defaultValue: Math.max(
               0,
               Object.keys(AUTH_OPTIONS).indexOf(auth ?? '')
@@ -890,7 +920,7 @@ export async function setupUpgradeCI({
           continue
         }
 
-        const harnessName = auth === 'codex-openai-api-key' ? 'codex' : 'claude'
+        const harnessName = AUTH_OPTIONS[auth].agent
         const displayName = getHarnessDisplayName(harnessName)
         if (stage === 'model') {
           const models = catalogs.get(harnessName) ?? []
@@ -990,18 +1020,16 @@ export async function setupUpgradeCI({
       return { status: 'cancelled' }
     }
 
+    const { agent, credential } = AUTH_OPTIONS[auth]
     let model = ''
     // Codex lists its default as a concrete model, which the workflow's pinned
     // Codex may not default to, so only Claude's default alias stays implicit.
-    if (
-      chosenModel &&
-      !(chosenModel.isDefault && auth === 'claude-anthropic-api-key')
-    ) {
+    if (chosenModel && !(chosenModel.isDefault && agent === 'claude')) {
       if (/^[\w.:/[\]-]+$/.test(chosenModel.id)) {
         model = chosenModel.id
       } else {
         Log.warn(
-          `The workflow cannot pass the model ${JSON.stringify(chosenModel.id)}, so it uses the default model of its ${getHarnessDisplayName(auth === 'codex-openai-api-key' ? 'codex' : 'claude')} CLI.`
+          `The workflow cannot pass the model ${JSON.stringify(chosenModel.id)}, so it uses the default model of its ${getHarnessDisplayName(agent)} CLI.`
         )
       }
     }
@@ -1095,11 +1123,8 @@ export async function setupUpgradeCI({
         '      policy: __NEXT_UPGRADE_POLICY__',
         `      policy: ${selectedPolicy}`,
       ],
-      [
-        '      agent: __NEXT_UPGRADE_AGENT__',
-        `      agent: ${auth === 'codex-openai-api-key' ? 'codex' : 'claude'}`,
-      ],
-      ['      auth: __NEXT_UPGRADE_AUTH__', '      auth: api-key'],
+      ['      agent: __NEXT_UPGRADE_AGENT__', `      agent: ${agent}`],
+      ['      auth: __NEXT_UPGRADE_AUTH__', `      auth: ${credential}`],
       ['      model: __NEXT_UPGRADE_MODEL__', `      model: ${scalar(model)}`],
       [
         '      effort: __NEXT_UPGRADE_EFFORT__',
@@ -1245,7 +1270,7 @@ export async function setupUpgradeCI({
           head: SETUP_BRANCH,
           base,
           body: [
-            `\`next upgrade --ci\` opened this pull request. It adds a workflow that keeps this app's Next.js up to date: every day it checks for ${selectedPolicy === 'security' ? 'a Next.js release that fixes a security advisory' : 'a new stable Next.js release'}, runs ${getHarnessDisplayName(auth === 'codex-openai-api-key' ? 'codex' : 'claude')} to upgrade the app, and opens a pull request with the result.`,
+            `\`next upgrade --ci\` opened this pull request. It adds a workflow that keeps this app's Next.js up to date: every day it checks for ${selectedPolicy === 'security' ? 'a Next.js release that fixes a security advisory' : 'a new stable Next.js release'}, runs ${getHarnessDisplayName(agent)} to upgrade the app, and opens a pull request with the result.`,
             '',
             `Before you merge, add these secrets in [Settings > Secrets and variables > Actions](https://github.com/${repo}/settings/secrets/actions/new):`,
             '',
