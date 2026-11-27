@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Error;
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
     atoms::{Wtf8Atom, atom},
@@ -18,7 +19,8 @@ use turbo_tasks::FxIndexSet;
 use super::{
     Analyzer, Key,
     graph::{
-        DepGraph, Dependency, InternedGraph, ItemId, ItemIdGroupKind, Mode, SplitModuleResult,
+        DepGraph, Dependency, InternedGraph, ItemId, ItemIdGroupKind, Mode, PartId,
+        SplitModuleResult,
     },
     merge::Merger,
 };
@@ -188,8 +190,11 @@ fn run(input: PathBuf) {
                 let SplitModuleResult {
                     modules,
                     entrypoints,
+                    part_deps,
                     ..
                 } = g.split_module(&[], analyzer.items);
+
+                assert_part_ids_in_bounds(&modules, &entrypoints, &part_deps);
 
                 writeln!(
                     s,
@@ -260,6 +265,37 @@ fn run(input: PathBuf) {
         Ok(())
     })
     .unwrap();
+}
+
+/// Every part id produced by `split_module` must be a valid position in `modules`.
+/// Empty groups must not be dropped from `modules`; dropping them makes the indices point at
+/// the wrong fragment or past the end of the vector.
+fn assert_part_ids_in_bounds(
+    modules: &[Module],
+    entrypoints: &FxHashMap<Key, u32>,
+    part_deps: &FxHashMap<u32, Vec<PartId>>,
+) {
+    let len = modules.len();
+    for (key, &ix) in entrypoints {
+        assert!(
+            (ix as usize) < len,
+            "entrypoint {key:?} points to part {ix}, but there are only {len} parts"
+        );
+    }
+    for (&part, deps) in part_deps {
+        assert!(
+            (part as usize) < len,
+            "part_deps contains part {part}, but there are only {len} parts"
+        );
+        for dep in deps {
+            if let PartId::Internal(ix, _) = dep {
+                assert!(
+                    (*ix as usize) < len,
+                    "part {part} depends on part {ix}, but there are only {len} parts"
+                );
+            }
+        }
+    }
 }
 
 struct SingleModuleLoader<'a> {
