@@ -75,6 +75,7 @@ func TestLoadRejectsUnknownVersionsAndPatterns(t *testing.T) {
 		`{"contract":{"version":2},"maxHeaderBytes":1}`,
 		`{"contract":{"version":1},"maxHeaderBytes":1,"goExact":{"/api/echo":""}}`,
 		`{"contract":{"version":1}}`,
+		`{"contract":{"version":1},"maxHeaderBytes":1,"basePath":"shop"}`,
 		`{"contract":{"version":1},"maxHeaderBytes":1,"dynamic":[{"path":[{"rest":"a","min":1},"x"]}]}`,
 		`{"contract":{"version":1},"maxHeaderBytes":1,"dynamic":[{"path":[{"param":"id","suffix":".json"}]}]}`,
 		`{"contract":{"version":1},"maxHeaderBytes":1,"dynamic":[{"path":[""]}]}`,
