@@ -727,8 +727,169 @@ fn collected_task_read_error(task_id: TaskId, operation: &str) -> anyhow::Error 
     )
 }
 
+/// Whether a task under a shared lock can be read by the shared-lock fast paths: it must be fully
+/// restored and not deleted. This must be checked before using any generated getter.
+fn is_task_readable(task: &storage::StorageReadGuard<'_>) -> bool {
+    task.flags.is_restored(TaskDataCategory::All) && !task.flags.deleted()
+}
+
+/// Whether reads of the task don't need dependency edges, because it can never be invalidated.
+/// See [`lock_task_and_optional_reader`].
+fn is_immutable(task: &storage::StorageReadGuard<'_>) -> bool {
+    task.immutable() && !cfg!(feature = "verify_immutable")
+}
+
 // Operations
 impl TurboTasksBackend {
+    /// Shared-lock fast path for cell reads. It only takes a shared lock on the read task, so many
+    /// readers of the same cell don't serialize on it. Returns `None` when the slow path is needed
+    /// (cell missing, task not resident/restored/alive, or a new dependency edge must be inserted).
+    ///
+    /// Reads that don't need a dependency edge (immutable task, untracked reads, ...) just read
+    /// the content under the shared lock.
+    ///
+    /// Tracked reads are only handled when the dependency edge already exists (e.g. a repeated read
+    /// in the same execution or a re-execution). As in the slow path (`add_cell_dependency` in
+    /// `try_read_task_cell`), the reader's forward edge (current or outdated) tells whether the
+    /// task-side reverse edge exists, so the task's `cell_dependents`, a flat array that is scanned
+    /// on lookup, is never searched.
+    ///
+    /// Race argument: `update_cell` changes the content and snapshots `cell_dependents` under the
+    /// task's exclusive lock, and only afterwards checks each dependent's current/outdated
+    /// `cell_dependencies`. We first make the reader's existing forward edge current (locking only
+    /// the reader), and only then read the content under the shared lock. If an update's exclusive
+    /// section happens before our shared section, we read the new content. If it happens after, the
+    /// update finds the reverse edge and then a *current* forward edge, so the reader is made
+    /// stale. Making the forward edge current when we then fall back is harmless: the slow path
+    /// does the same.
+    ///
+    /// A *new* edge also needs its reverse edge, which still requires the slow path, locking both
+    /// tasks together (see `lock_task_and_optional_reader`).
+    ///
+    /// Provisional keyed reads (`lazy_reader()` / `keyed_reader()`) always take the slow path:
+    /// their edges are refined or converted later under `task_pair`, and `update_cell` invalidates
+    /// provisional dependents without checking the reader-side edge.
+    fn try_read_task_cell_shared(
+        &self,
+        ctx: &mut ExecuteContext<'_>,
+        task_id: TaskId,
+        need_reader_task: Option<TaskId>,
+        cell: CellId,
+        tracking: ReadCellTracking,
+    ) -> Option<SharedReference> {
+        let key = tracking.key();
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) {
+            return None;
+        }
+        let reader_id = match need_reader_task {
+            Some(reader_id) if tracking.should_track(false) && !is_immutable(&task) => reader_id,
+            // No dependency edge needed.
+            _ => return task.get_cell_data(&cell).cloned(),
+        };
+        if key.is_some_and(|k| k.is_provisional()) {
+            return None;
+        }
+        if !task.cell_data_contains(&cell) {
+            return None;
+        }
+        drop(task);
+
+        // Make the existing forward edge current *before* reading the content (see above).
+        {
+            let mut reader_task = ctx.task(reader_id, TaskDataCategory::All);
+            let target = CellRef {
+                task: task_id,
+                cell,
+            };
+            let edge_exists = if let Some(k) = key {
+                if reader_task.remove_outdated_cell_dependencies_keyed(&(target, k)) {
+                    let _ = reader_task.add_cell_dependencies_keyed((target, k));
+                    true
+                } else {
+                    reader_task.cell_dependencies_keyed_contains(&(target, k))
+                }
+            } else if reader_task.remove_outdated_cell_dependencies(&target) {
+                let _ = reader_task.add_cell_dependencies(target);
+                true
+            } else {
+                reader_task.cell_dependencies_contains(&target)
+            };
+            if !edge_exists {
+                // A new edge: the slow path adds both sides together.
+                return None;
+            }
+        }
+
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) {
+            return None;
+        }
+        task.get_cell_data(&cell).cloned()
+    }
+
+    /// Shared-lock fast path for eventually consistent output reads, analogous to
+    /// [`Self::try_read_task_cell_shared`]. Only handles a task that is not in progress and has a
+    /// non-error output; everything else returns `None` and takes the slow path.
+    ///
+    /// The race argument for the tracked case mirrors the cell case: an output only changes when
+    /// the task completes, which happens under the task's exclusive lock and is followed by
+    /// checking each output dependent's current/outdated `output_dependencies`. Before that, the
+    /// task is in progress, which makes this fast path bail out.
+    fn try_read_task_output_shared(
+        &self,
+        ctx: &mut ExecuteContext<'_>,
+        task_id: TaskId,
+        need_reader_task: Option<TaskId>,
+        tracking: ReadTracking,
+    ) -> Option<RawVc> {
+        // Callers must have checked `is_task_readable` before.
+        let read = |task: &storage::StorageReadGuard<'_>| -> Option<RawVc> {
+            if task.get_in_progress().is_some() {
+                return None;
+            }
+            match *task.get_output()? {
+                OutputValue::Cell(cell) => Some(RawVc::task_cell(cell.task, cell.cell)),
+                OutputValue::Output(output_task) => Some(RawVc::task_output(output_task)),
+                OutputValue::Error(_) => None,
+            }
+        };
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) {
+            return None;
+        }
+        let reader_id = match need_reader_task {
+            Some(reader_id) if tracking.should_track(false) && !is_immutable(&task) => reader_id,
+            // No dependency edge needed.
+            _ => return read(&task),
+        };
+        // Only a readable output can be served here, so check it before locking the reader.
+        read(&task)?;
+        drop(task);
+
+        // Make the existing forward edge current *before* reading the output (see above). The
+        // reader's forward edge tells whether the task-side `output_dependent` edge exists.
+        {
+            let mut reader_task = ctx.task(reader_id, TaskDataCategory::All);
+            let edge_exists = if reader_task.remove_outdated_output_dependencies(&task_id) {
+                let _ = reader_task.add_output_dependencies(task_id);
+                true
+            } else {
+                reader_task.output_dependencies_contains(&task_id)
+            };
+            if !edge_exists {
+                // A new edge: the slow path adds both sides together.
+                return None;
+            }
+        }
+
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) {
+            return None;
+        }
+        read(&task)
+    }
+
     fn try_read_task_output(
         &self,
         task_id: TaskId,
@@ -745,6 +906,16 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
+        if matches!(options.consistency, ReadConsistency::Eventual)
+            && let Some(value) = self.try_read_task_output_shared(
+                &mut ctx,
+                task_id,
+                need_reader_task,
+                options.tracking,
+            )
+        {
+            return Ok(ReadOutcome::Value(value));
+        }
         let Some((mut task, mut reader_task)) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
         else {
@@ -1159,6 +1330,15 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
+        if !final_read_hint
+            && let Some(content) =
+                self.try_read_task_cell_shared(&mut ctx, task_id, need_reader_task, cell, tracking)
+        {
+            return Ok(ReadOutcome::Value(TypedCellContent(
+                cell.type_id(),
+                CellContent(Some(content)),
+            )));
+        }
         let Some((mut task, reader_task)) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
         else {
