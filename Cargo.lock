@@ -9844,6 +9844,7 @@ dependencies = [
  "swc_core",
  "swc_ecma_react_compiler",
  "swc_sourcemap",
+ "tempfile",
  "thread_local",
  "tokio",
  "tracing",
