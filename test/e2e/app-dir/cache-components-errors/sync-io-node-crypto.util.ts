@@ -72,9 +72,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
@@ -99,9 +99,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
@@ -127,9 +127,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
@@ -154,9 +154,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -232,9 +232,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
@@ -259,9 +259,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
@@ -287,9 +287,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
@@ -314,9 +314,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -392,9 +392,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
@@ -419,9 +419,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
@@ -447,9 +447,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
@@ -474,9 +474,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -552,9 +552,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
@@ -579,9 +579,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
@@ -607,9 +607,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
@@ -634,9 +634,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -712,9 +712,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
@@ -739,9 +739,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
@@ -767,9 +767,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
@@ -794,9 +794,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -872,9 +872,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
@@ -899,9 +899,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
@@ -927,9 +927,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
@@ -954,9 +954,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -1032,9 +1032,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
@@ -1059,9 +1059,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
@@ -1087,9 +1087,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
@@ -1114,9 +1114,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -1192,9 +1192,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
@@ -1219,9 +1219,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
@@ -1247,9 +1247,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
@@ -1274,9 +1274,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -1352,9 +1352,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
@@ -1379,9 +1379,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
@@ -1407,9 +1407,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
@@ -1434,9 +1434,9 @@ export function registerSyncIoNodeCryptoTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)

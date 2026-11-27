@@ -55,9 +55,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -82,9 +82,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -111,9 +111,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -137,9 +137,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -199,9 +199,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -226,9 +226,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -255,9 +255,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -281,9 +281,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -343,9 +343,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -370,9 +370,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -399,9 +399,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -425,9 +425,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -487,9 +487,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
@@ -513,9 +513,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
@@ -541,9 +541,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-random/math-random/page.tsx:19:21)
@@ -566,9 +566,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -627,9 +627,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -654,9 +654,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -683,9 +683,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -709,9 +709,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -770,9 +770,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -796,9 +796,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -824,9 +824,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -849,9 +849,9 @@ export function registerSyncIoTimeAndRandomTests(
              This value can change between renders, so it must be either prerendered or computed later.
 
              Ways to fix this:
-               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] In a Client Component, read the value in \`useEffect\` or an event handler
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
