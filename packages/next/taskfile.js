@@ -46,6 +46,19 @@ export async function copy_docs(task, opts) {
     })
     .target('dist/docs')
 
+  // Errors and warnings link to nextjs.org/docs/messages/<name>. Ship those
+  // pages too, at the same path under the bundled docs, so the link resolves
+  // offline and matches the installed version.
+  await task
+    .source(join(__dirname, '../../errors/**/*.mdx'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs/messages')
+
   // The agent-feedback protocol is intentionally kept out of dist/docs so
   // agents globbing the bundled docs don't read its instructions out of
   // context. `next internal agent-feedback-instructions` prints it on demand.
