@@ -235,11 +235,9 @@ When you read the value in an effect, the first paint shows the initial state un
 
 ## When the read comes from an external library
 
-A library called by your Server Component can read a random value internally, even if your application code never calls `Math.random()`. Choose when to run the library based on how it uses the value. For example, a randomized order can be shared for a cache window, while a new assignment for each visit needs request-time generation.
+If a library reads a random value internally, [defer the library call to request time](#generate-on-every-request) when you need a fresh result, or [cache the function that calls it](#cache-the-random-value) when the result can be shared. For browser-only work, see [Render on the client](#render-on-the-client).
 
-- **Fresh result for each request:** call [`await io()`](/docs/app/api-reference/functions/io) before invoking the library helper or creating the library instance that performs the read. Put that work in an async Server Component under a parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. The `await io()` suspends prerendering before the library runs, and the boundary supplies the fallback. Adding only the boundary does not defer a synchronous Server Component read. See [Generate on every request](#generate-on-every-request).
-- **Reusable result:** [cache the application function that calls the library](#cache-the-random-value). The library call and its random value become part of the same cache entry. Choose a lifetime that matches how long the result can be reused.
-- **Browser work:** move the library call into a Client Component and follow the [external-library guidance for Client Components](/docs/messages/blocking-prerender-random-client#when-the-read-comes-from-an-external-library). Adding `'use client'` alone still allows server rendering.
+See [Synchronous IO in external libraries](/docs/app/getting-started/caching#synchronous-io-in-external-libraries) for a TanStack Query example.
 
 ## Verifying the fix
 

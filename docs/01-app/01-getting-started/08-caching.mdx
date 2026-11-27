@@ -388,6 +388,33 @@ You don't need to memorize which operations behave this way. The dev overlay sur
   />
 </FixCardGrid>
 
+### Synchronous IO in external libraries
+
+A library can read the clock or generate a random value even when your component doesn't call those APIs directly. Apply the fix to the code in your app that calls the library.
+
+For example, TanStack Query's `dehydrate()` reads the current time when it prepares query data for the browser. Caching only the data fetch leaves that clock read outside the cache. If a public product catalog and its hydration timestamp can be reused together, cache the function that produces both:
+
+```ts filename="app/lib/catalog.ts"
+import { dehydrate, QueryClient } from '@tanstack/react-query'
+import { cacheTag } from 'next/cache'
+import { getProducts } from './data'
+
+export async function getCatalogState() {
+  'use cache'
+  cacheTag('catalog')
+
+  const client = new QueryClient()
+  client.setQueryData(['catalog'], await getProducts())
+  return dehydrate(client)
+}
+```
+
+Pass the returned state to `<HydrationBoundary>` and invalidate the `catalog` tag when the catalog changes. If the data already has its own cache entry, see [Build a prerenderable hydration state](/docs/app/guides/client-side-data-fetching/tanstack-query#build-a-prerenderable-hydration-state).
+
+If a server result must be fresh for each request, call [`await io()`](/docs/app/api-reference/functions/io) before invoking the library, under a parent [`<Suspense>` boundary](#streaming-uncached-data). A driver can read time or randomness while creating a client or starting a query, before the query promise suspends.
+
+If the read happens while rendering a Client Component or calling a hook, put `<Suspense>` above the component that makes the call. If the library's output appears in the server HTML, use its hydration support to preserve that output for the browser. For a library that must run only in the browser, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+
 ## Predictable values
 
 Unlike random values and timestamps, which can vary between renders, module imports, synchronous I/O, and pure computations produce the same result every time they run. Components using only these operations are prerendered automatically, and their output becomes part of the static HTML at build time.

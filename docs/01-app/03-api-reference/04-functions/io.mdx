@@ -89,7 +89,7 @@ export function DeferredWidget() {
 
 If an operation already suspends prerendering, such as an uncached `fetch` or async database query inside `<Suspense>`, you don't need an additional `io()` call before it.
 
-An async function can perform synchronous work before reaching an operation that suspends prerendering. If a database driver or SDK reads time or randomness while creating a client or starting a query, call `await io()` before that initialization or helper call. Awaiting the eventual query result does not defer synchronous work that has already run. See [When the read comes from an external library](/docs/messages/blocking-prerender-current-time#when-the-read-comes-from-an-external-library).
+An async helper can still read the clock or generate a random value before it reaches its first operation that suspends. See [Synchronous IO in external libraries](/docs/app/getting-started/caching#synchronous-io-in-external-libraries).
 
 ### Synchronous IO after request data
 

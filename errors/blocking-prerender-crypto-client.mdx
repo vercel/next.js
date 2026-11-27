@@ -211,18 +211,31 @@ The user sees the placeholder briefly before the real value. For interactions th
 - Only [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) ships to the browser. Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client. If you're seeing this error for one of those, the call lives on the server: see [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
-<span id="suspend-with-useio" />
+## Other options
+
+### Suspend with `use(io())`
+
+To wait for a request before rendering a Client Component, call [`io()`](/docs/app/api-reference/functions/io) with React's [`use`](https://react.dev/reference/react/use) hook. For example, this wrapper defers its Client Component children even if they don't suspend on their own:
+
+```jsx filename="app/components/request-only.js"
+'use client'
+
+import { use } from 'react'
+import { io } from 'next/cache'
+
+export function RequestOnly({ children }) {
+  use(io())
+  return children
+}
+```
+
+Wrap `RequestOnly` in a [parent `<Suspense>` boundary](#wrap-in-or-move-into-suspense) so the surrounding shell can prerender. The children can still render on the server at request time. If the HTML includes an ID, the browser must [reuse that value during hydration](#if-the-initial-html-needs-the-id).
 
 ## When the read comes from an external library
 
-An external library can read a random value from a crypto API while rendering a Client Component or initializing a hook. Put [`<Suspense>`](https://react.dev/reference/react/Suspense) above the component that renders the library or calls that hook. A boundary returned by the same component after the library call is too late to cover the call.
+If a library reads a random value from a crypto API during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-or-move-into-suspense). To defer the component explicitly, see [Suspend with `use(io())`](#suspend-with-useio). If the library accepts an initial value, you can [pass the ID from the server](#if-the-initial-html-needs-the-id) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler). A library that uses Node-only crypto APIs must [run on the server](/docs/messages/blocking-prerender-crypto#when-the-read-comes-from-an-external-library).
 
-The read already interrupts prerendering. The boundary provides a fallback for that interruption, so this fix does not require adding `use(io())`. It also does not make the library browser-only.
-
-- **Keep server rendering:** use the library's documented hydration support to preserve its server result for the first browser render. If the library accepts an initial identifier, [generate it in a Server Component and pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components). State and refs alone do not transfer a generated value between the server and browser.
-- **Run only in the browser:** if the library cannot preserve its server output for hydration or needs browser APIs, use a Client Component wrapper with [`use(browser())` inside a parent `<Suspense>` boundary](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser). If the library accesses browser APIs at module scope, or you also need to lazy load its code, use `next/dynamic` with `ssr: false` as described in the same guide. For a helper invoked by an interaction or effect, see [Move into effect or event handler](#move-into-effect-or-event-handler).
-
-A library that requires Node crypto APIs must run on the server. Follow the [Server Component guidance](/docs/messages/blocking-prerender-crypto#when-the-read-comes-from-an-external-library) for those calls.
+See [Synchronous IO in external libraries](/docs/app/getting-started/caching#synchronous-io-in-external-libraries) for a TanStack Query example.
 
 ## Verifying the fix
 
