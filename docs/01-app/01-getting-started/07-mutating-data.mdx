@@ -503,6 +503,8 @@ export async function createPost(formData) {
 
 Calling `redirect` [throws](/docs/app/api-reference/functions/redirect#behavior) a framework handled control-flow exception. Any code after it won't execute. If you need fresh data, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) beforehand.
 
+For custom error handling around redirecting actions, see [Handling redirect errors](/docs/app/guides/server-actions#handling-redirect-errors).
+
 ### Cookies
 
 You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API.

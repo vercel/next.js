@@ -60,6 +60,7 @@ If a route segment is marked to throw an error unless it's static, a Request-tim
 > **Good to know**:
 >
 > - This method should be called at the top of the catch block, passing the error object as its only argument. It can also be used within a `.catch` handler of a promise.
+> - In Client Components, use it before application error handling when an awaited Server Action may redirect. See [Handling redirect errors](/docs/app/guides/server-actions#handling-redirect-errors).
 > - You may be able to avoid using `unstable_rethrow` if you encapsulate your API calls that throw and let the **caller** handle the exception.
 > - Only use `unstable_rethrow` if your caught exceptions may include both application errors and framework-controlled exceptions (like `redirect()` or `notFound()`).
 > - Any resource cleanup (like clearing intervals, timers, etc) would have to either happen prior to the call to `unstable_rethrow` or within a `finally` block.
