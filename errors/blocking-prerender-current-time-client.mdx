@@ -279,7 +279,7 @@ Wrap `RequestOnly` in a [parent `<Suspense>` boundary](#wrap-in-or-move-into-sus
 
 If a library reads the clock during render, [wrap the component that calls it in `<Suspense>`](#wrap-in-or-move-into-suspense). To defer the component explicitly, see [Suspend with `use(io())`](#suspend-with-useio). If the library accepts an initial value, you can [pass the timestamp from the server](#if-the-initial-html-needs-the-timestamp) for hydration. If the call only needs to run after mount or on interaction, [move it into an effect or event handler](#move-into-effect-or-event-handler).
 
-See [Synchronous IO in external libraries](/docs/app/getting-started/caching#synchronous-io-in-external-libraries) for a TanStack Query example.
+See [Synchronous IO in external libraries](/docs/app/api-reference/functions/io#synchronous-io-in-external-libraries) for a TanStack Query example.
 
 ## Verifying the fix
 
