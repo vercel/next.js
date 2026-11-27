@@ -11,6 +11,7 @@ pub(crate) mod cjs_ast;
 pub mod graph;
 pub mod imports;
 pub mod linker;
+pub(crate) mod no_side_effects;
 pub mod side_effects;
 pub mod top_level_await;
 pub mod well_known;
