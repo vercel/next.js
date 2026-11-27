@@ -79,6 +79,19 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
     expect(agentsContent).toContain(AGENT_RULES_MARKER)
     expect(agentsContent).toContain('\n## This is NOT the Next.js you know\n')
     expect(agentsContent).toContain('node_modules/next/dist/docs/')
+    // The block tells agents where the page behind a message link is, and
+    // the installed package ships that page.
+    expect(agentsContent).toContain(
+      'node_modules/next/dist/docs/messages/<name>.md'
+    )
+    expect(
+      fs.existsSync(
+        path.join(
+          next.testDir,
+          'node_modules/next/dist/docs/messages/cache-bypass-in-dev.md'
+        )
+      )
+    ).toBe(true)
   })
 })
 
