@@ -53,7 +53,7 @@ Some entries appear only when relevant, in this order:
 
 - **Diagnostics**, at the top, shows red Issue and amber Insight counts. It opens Issues when there are errors, otherwise Insights. See [Issues and Insights](#issues-and-insights).
 - **Route**, above **Bundler**, shows Static or Dynamic when Cache Components is off. See [Route information](#route-information).
-- **Request Insights**, below **Navigation Inspector**, shows request timelines, server fetches, and cache activity when `experimental.requestInsights` is enabled. Agents can read this data using the [MCP runtime tools](/docs/app/guides/mcp#runtime-tools).
+- **Request Insights**, below **Navigation Inspector**, shows request timelines, server fetches, and cache activity unless `experimental.requestInsights` is `false`. Agents can read this data using the [MCP runtime tools](/docs/app/guides/mcp#runtime-tools).
 - **Cache**, above **Route Info**, explains a **Disabled** or **Cold** cache state. Disabled means the load bypassed caches, for example after a hard reload. Cold means the load filled empty caches; reload to see the loading sequence with warm caches.
 
 Navigation Inspector, Request Insights, and Route Info are available in the App Router. Navigation Inspector requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents).

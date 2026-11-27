@@ -1917,11 +1917,9 @@ export async function createHotReloaderTurbopack(
             },
             devIndicator: devIndicatorServerState,
             devToolsConfig,
-            requestInsights:
-              nextConfig.experimental.requestInsights ||
-              isRequestInsightsEnabled()
-                ? getRequestInsightsSnapshot()
-                : undefined,
+            requestInsights: isRequestInsightsEnabled()
+              ? getRequestInsightsSnapshot()
+              : undefined,
           }
 
           sendToClient(client, syncMessage)

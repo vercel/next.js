@@ -2618,7 +2618,7 @@ async function prepareAppPageRender(
 
   let requestId: string
   let htmlRequestId: string
-  const requestInsightsIdentity = process.env.__NEXT_REQUEST_INSIGHTS
+  const requestInsightsIdentity = process.env.__NEXT_DEV_SERVER
     ? getRequestInsightsIdentity()
     : undefined
 

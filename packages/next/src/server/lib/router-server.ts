@@ -75,6 +75,7 @@ import {
   isRequestInsightsEnabled,
   recordRequestInsightSource,
   registerRequestInsightsExporter,
+  REQUEST_INSIGHTS_DISABLED_ERROR,
 } from './trace/request-insights'
 import {
   NEXT_HTML_REQUEST_ID_HEADER,
@@ -182,12 +183,13 @@ export async function initialize(opts: {
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
-  // Set before workers fork so they inherit the opt-in.
+  // Set both ways before workers fork, so they inherit this server's setting
+  // rather than one left by an earlier server in this process or the parent.
   if (opts.dev && config.experimental.requestInsights) {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    delete process.env.__NEXT_REQUEST_INSIGHTS
     registerRequestInsightsExporter()
   } else {
-    delete process.env.__NEXT_REQUEST_INSIGHTS
+    process.env.__NEXT_REQUEST_INSIGHTS = 'false'
   }
 
   let compress: ReturnType<typeof setupCompression> | undefined
@@ -368,8 +370,7 @@ export async function initialize(opts: {
       // reference to it.
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
-      },
-      Boolean(developmentConfig.experimental.requestInsights)
+      }
     )
 
     development = {
@@ -418,15 +419,11 @@ export async function initialize(opts: {
           res.end(JSON.stringify({ error: 'Method not allowed' }))
           return
         }
-        if (
-          !config.experimental.requestInsights &&
-          !isRequestInsightsEnabled()
-        ) {
+        if (!isRequestInsightsEnabled()) {
           res.statusCode = 404
           res.end(
             JSON.stringify({
-              error:
-                'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
+              error: REQUEST_INSIGHTS_DISABLED_ERROR,
             })
           )
           return
@@ -573,9 +570,10 @@ export async function initialize(opts: {
         }
       }
 
-      // Only Request Insights in dev records the router-to-render handoff, so
-      // `next start` traces keep their existing root span. The request is
-      // already inside its identity scope, so the span gets its request ID.
+      // Only Request Insights in dev records the router-to-render handoff. The
+      // request is already inside its identity scope, so the span gets its
+      // request ID. It isn't exported, so `BaseServer.handleRequest` still
+      // takes the root (see `NextTracerImpl.trace`).
       const recordRenderHandoff =
         opts.dev && getRequestMeta(req, 'requestInsightsIdentity') !== undefined
 
@@ -781,14 +779,12 @@ export async function initialize(opts: {
         }
 
         try {
-          if (config.experimental.requestInsights) {
-            const requestInsightsIdentity = getRequestMeta(
-              req,
-              'requestInsightsIdentity'
-            )
-            if (requestInsightsIdentity) {
-              recordRequestInsightSource(requestInsightsIdentity, 'asset')
-            }
+          const requestInsightsIdentity = getRequestMeta(
+            req,
+            'requestInsightsIdentity'
+          )
+          if (requestInsightsIdentity) {
+            recordRequestInsightSource(requestInsightsIdentity, 'asset')
           }
           return await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
@@ -1036,7 +1032,7 @@ export async function initialize(opts: {
       }
       return await requestHandlerInner(req, res)
     } finally {
-      if (opts.dev && config.experimental.requestInsights) {
+      if (opts.dev) {
         const identity = getRequestMeta(req, 'requestInsightsIdentity')
         if (identity) {
           void waitForResponseToFinish(res).then(() => {

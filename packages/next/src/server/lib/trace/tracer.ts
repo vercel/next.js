@@ -422,23 +422,30 @@ class NextTracerImpl implements NextTracer {
     // from outside of nextjs to ensure that we can provide the same level
     // of telemetry when using a custom server
     const existingRootSpanId = spanContext.getValue(rootSpanIdKey)
+    const exported = tracingEnabled && shouldDelegateSpan
+    // Local-only (Request Insights) spans skip root bookkeeping so they never
+    // displace the exported root or its `http.route`.
     const isRootSpan =
-      typeof existingRootSpanId !== 'number' ||
-      !rootSpanAttributesStore.has(existingRootSpanId)
+      exported &&
+      (typeof existingRootSpanId !== 'number' ||
+        !rootSpanAttributesStore.has(existingRootSpanId))
 
     const spanId = getSpanId()
+    const rootSpanContext = exported
+      ? spanContext.setValue(rootSpanIdKey, spanId)
+      : spanContext
 
     options.attributes = {
       ...getNextSpanAttributes(type, spanName),
       ...options.attributes,
     }
 
-    return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
+    return context.with(rootSpanContext, () =>
       this.runWithActiveSpan(
         spanName,
         options,
         spanContext,
-        tracingEnabled && shouldDelegateSpan,
+        exported,
         localSpanRecordingEnabled,
         parentSpan,
         isolatedParentSpan !== undefined || localSpanSinkActive,

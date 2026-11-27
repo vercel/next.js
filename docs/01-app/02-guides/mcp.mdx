@@ -59,7 +59,7 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_server_action_by_id`**: Look up a Server Action by its ID to find its source file and export name.
 - **`get_compilation_issues`**: Build the module graph for all routes and return compilation issues such as resolve errors, missing modules, and transform errors. Doesn't require a browser session. Turbopack only.
 - **`compile_route`**: Compile a specific route without making an HTTP request to it. Accepts either a `routeSpecifier` (for example, `/blog/[slug]`, as returned by `get_routes`) or a `path` (for example, `/blog/hello-world`), which is resolved to the matching route. Returns any compilation issues for the route. Turbopack only.
-- **`get_request_insights`**: Get recent App Router request timelines, server fetches, and cache behavior captured by the local span recorder. Requires `experimental.requestInsights`.
+- **`get_request_insights`**: Get recent App Router request timelines, server fetches, and cache behavior captured by the local span recorder.
 
 With the compilation tools, agents can check whether code compiles from the running dev server instead of running `next build` while they are still editing.
 
