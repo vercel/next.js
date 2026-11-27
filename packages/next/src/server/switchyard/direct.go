@@ -217,7 +217,18 @@ func (f *switchyard) serveAttempt(w http.ResponseWriter, r *http.Request, s *dir
 	})
 	// Node never guesses a Content-Type (see newProxy).
 	w.Header()["Content-Type"] = nil
-	f.direct.ServeHTTP(attempt, r.WithContext(ctx))
+	// As in newProxy: Node's proxy to the worker lets the worker answer while
+	// the client is still uploading; Go's server doesn't unless asked.
+	_ = http.NewResponseController(w).EnableFullDuplex()
+	out := r.WithContext(ctx)
+	if r.ContentLength != 0 && r.Body != nil && r.Body != http.NoBody {
+		// As in newProxy: track whether the body is read to its end before
+		// the worker answers, and whether reading it hit the request timeout.
+		body := newRequestBody(r.Body)
+		out = r.WithContext(context.WithValue(ctx, requestBodyKey{}, body))
+		out.Body = body
+	}
+	f.direct.ServeHTTP(attempt, out)
 }
 
 func attemptOf(ctx context.Context) *directAttempt {
@@ -280,15 +291,33 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 		},
 		ModifyResponse: func(res *http.Response) error {
 			skipCompression(res)
+			// As in newProxy: after an answer sent mid-upload, the rest of the
+			// body is still on the client connection; don't reuse it.
+			if body, ok := res.Request.Context().Value(requestBodyKey{}).(*requestBody); ok && !body.readToEnd.Load() {
+				res.Header.Set("Connection", "close")
+			}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			attempt := attemptOf(r.Context())
 			if r.Context().Err() != nil {
+				// Go's server cancels the request when the client's upload
+				// hits the request timeout. Answer that as Node does, as in
+				// newProxy: 408, and close the connection, since the rest of
+				// the body is still on it. Any other cancellation means the
+				// client went away, and nobody reads an answer.
+				if body, ok := r.Context().Value(requestBodyKey{}).(*requestBody); ok && body.timedOut() {
+					attempt.Header().Set("Connection", "close")
+					attempt.WriteHeader(http.StatusRequestTimeout)
+				}
 				return
 			}
-			attempt := attemptOf(r.Context())
 			// The worker is gone and never saw the request (Node hasn't told
-			// us yet): hand it to Node, as if the worker weren't ready.
+			// us yet): hand it to Node, as if the worker weren't ready. No
+			// attempt wrote the request, so none of its body was read either:
+			// the Transport sends a request again only without a body, and the
+			// body (requestBody) ignores the Transport's Close, so Node can
+			// still read it.
 			//
 			// Known difference: if a new worker for another route has already
 			// taken the exited worker's port, the dial succeeds and the new
@@ -301,6 +330,11 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 				}
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
+			}
+			// As in newProxy: part of the body may still be unread, and Go's
+			// server, in full-duplex mode, would read it as the next request.
+			if r.ContentLength != 0 {
+				attempt.Header().Set("Connection", "close")
 			}
 			proxyErrorLog.Printf("route.go worker %s: %v", attempt.up.address, err)
 			// TODO: answer with Node's error page, as without Switchyard. Node

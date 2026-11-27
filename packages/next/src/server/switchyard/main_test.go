@@ -945,6 +945,48 @@ func TestForwardsOptionsStarToNode(t *testing.T) {
 	}
 }
 
+func TestAChunkedAnswerSentMidUploadEndsAtOnce(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Answers without reading the rest of the body, as Node can.
+		http.NewResponseController(w).EnableFullDuplex()
+		w.WriteHeader(http.StatusForbidden)
+		io.WriteString(w, "no")
+		w.(http.Flusher).Flush()
+	}))
+	t.Cleanup(upstream.Close)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	public := ln.Addr().(*net.TCPAddr)
+	srv := newServer(newProxy(upstream.Listener.Addr().String(), public, 4*time.Second, testToken), 4*time.Second, time.Minute, 3*time.Second, 16<<10)
+	go srv.Serve(ln)
+	t.Cleanup(func() { srv.Close() })
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(10 * time.Second))
+	// Headers announce a 10-byte body; only 1 byte comes.
+	io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: example.com\r\nContent-Length: 10\r\n\r\na")
+	start := time.Now()
+	res, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodPost})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(res.Body)
+	if err != nil || string(body) != "no" {
+		t.Fatalf("body %q, %v", body, err)
+	}
+	// Node ends the response as soon as its handler does, not at the 3s
+	// request timeout.
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("response ended after %v", elapsed)
+	}
+}
+
 func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 	for _, head := range []string{
 		"OPTIONS * HTTP/1.1",
@@ -1281,8 +1323,10 @@ func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T
 	}
 	// What the client sends next must not reach Node as a request.
 	io.WriteString(conn, "0\r\n\r\nGET /second HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
-	if _, err := reader.ReadByte(); err != io.EOF {
-		t.Errorf("connection still open after the answer: err = %v", err)
+	// Switchyard may close the connection before these bytes arrive, so the
+	// client sees either the end of the stream or a reset.
+	if b, err := reader.ReadByte(); err == nil {
+		t.Errorf("connection still open after the answer: read %q", b)
 	}
 	<-seen
 	select {
