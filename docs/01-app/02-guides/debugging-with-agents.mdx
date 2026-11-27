@@ -1,10 +1,22 @@
 ---
 title: Debugging a Next.js app with a coding agent
 nav_title: Debugging with a coding agent
-description: Find navigation Insights, inspect loading UI, and look up browser or build errors when debugging Next.js with a coding agent.
+description: Inspect a running Next.js app with a coding agent: browser interactions, React renders, network requests, server logs, and navigation Insights.
 ---
 
-A route can return HTTP 200 and still have a navigation Insight. The dev server can explain what blocked the route; the browser can show what a reader saw when they clicked a particular link.
+Where you look depends on the symptom. If a button leaves stale text on screen, the browser can show what changed after the click. If a page won't compile, the dev server can report the error before you open a browser. The [AI Agents guide](/docs/app/guides/ai-agents#runtime-visibility) describes the available tools and skills.
+
+## Page state and browser interactions
+
+An agent can use [Agent Browser (`agent-browser`)](https://github.com/vercel-labs/agent-browser) to click a control and inspect the DOM, console, and network requests. For example, if clicking **Save** leaves the old value on screen, inspect the response to the save request and the value the page displays afterward. In a project with Playwright, the same interaction can become a [browser test](/docs/app/guides/testing/playwright).
+
+For a React rendering question, the optional [`next-dev-loop` skill](/docs/app/guides/ai-agents#next-dev-loop) opens Agent Browser with React DevTools enabled. For example, if a fallback stays visible after the request completes, `agent-browser react tree --json` shows the component tree and pending Suspense boundaries. Agent Browser can also report Web Vitals if the symptom is a layout shift or a slow interaction.
+
+## Routes, compilation, and logs
+
+The [Next.js MCP server](/docs/app/guides/mcp#runtime-tools) exposes information from the running app. For example, `get_routes` lists route patterns, and with Turbopack, `compile_route` can report a missing import for a single route. If you're investigating repeated data fetches, `get_request_insights` shows server fetches and cache behavior when `experimental.requestInsights` is enabled.
+
+For an exception after a click, reproduce it in the affected browser. Its console shows the error, and `get_errors` can read the connected browser's error state. For server output and browser logs, `get_logs` returns the path to the dev log.
 
 ## Route errors and navigation Insights
 
@@ -20,10 +32,6 @@ With Turbopack, `compilationIssues` also reports compiler diagnostics for that r
 ## Loading UI during a navigation
 
 To see what a link prefetched, open the page containing the link. In the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools), enable **Pause on navigations** and click it. In Playwright, click the same link inside [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations). Both let you inspect the destination while the remaining content is still loading. Checking the destination path alone can't show what was ready for that click.
-
-## Browser errors and logs
-
-If an interaction throws, reproduce it in the browser where it happens. The browser console shows the error; `get_errors` can read the connected browser's error state. For server output and browser logs, `get_logs` returns the path to the dev log. Both tools take an empty arguments object. The optional [`next-dev-loop` skill](/docs/app/guides/ai-agents#next-dev-loop) can help an agent inspect the running page.
 
 ## Production-only failures
 
