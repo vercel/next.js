@@ -37,6 +37,8 @@ After:
 export default async function Page() {
   'use cache'
   const products = await getCachedProducts()
+  // Cached, so the value is reused until revalidation
+  // eslint-disable-next-line react-hooks/purity
   const randomSeed = Math.random()
   const randomizedProducts = randomize(products, randomSeed)
   return <ProductsView products={randomizedProducts} />

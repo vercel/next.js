@@ -353,8 +353,6 @@ export default function Page() {
 }
 ```
 
-> **Good to know:** The [`react-hooks/purity`](https://react.dev/reference/eslint-plugin-react-hooks/lints/purity) lint rule flags `Date.now()` and `Math.random()` even after `await connection()`. A new value per request is intended there, so disable the rule for that line with a short comment.
-
 Alternatively, you can **cache the result** so all users see the same value until revalidation:
 
 ```tsx filename="page.tsx"
