@@ -1,6 +1,9 @@
 use std::{
     process::ExitStatus,
-    sync::{Arc, LazyLock},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use anyhow::{Context, Result};
@@ -86,6 +89,8 @@ pub(super) struct WorkerPoolOperation {
     #[allow(clippy::type_complexity)]
     task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
     pub(super) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
+    /// Set by [`Self::close`]. A closed pool doesn't keep idle workers.
+    closed: AtomicBool,
 }
 
 impl WorkerPoolOperation {
@@ -93,7 +98,25 @@ impl WorkerPoolOperation {
         self.pools.lock().entry(worker_options).or_default().clone()
     }
 
-    pub(super) fn scale_down(&self) -> Result<()> {
+    pub(super) fn idle_worker_count(&self) -> usize {
+        self.pools
+            .lock()
+            .values()
+            .map(|state| state.idle_workers.lock().len())
+            .sum()
+    }
+
+    /// Stops all idle workers and stops pooling, see `NodeBackend::close`.
+    pub(super) fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+        self.scale_zero();
+    }
+
+    pub(super) fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
+    }
+
+    pub(super) fn scale_down(&self) {
         let mut to_terminate = Vec::new();
 
         {
@@ -111,15 +134,12 @@ impl WorkerPoolOperation {
             }
         }
 
-        to_terminate
-            .into_iter()
-            .map(|(worker_options, worker_id)| self.terminate_worker(worker_options, worker_id))
-            .collect::<Result<Vec<_>>>()?;
-
-        Ok(())
+        for (worker_options, worker_id) in to_terminate {
+            self.terminate_worker(worker_options, worker_id);
+        }
     }
 
-    pub(super) fn scale_zero(&self) -> Result<()> {
+    pub(super) fn scale_zero(&self) {
         let mut to_terminate = Vec::new();
 
         {
@@ -135,18 +155,14 @@ impl WorkerPoolOperation {
             }
         }
 
-        to_terminate
-            .into_iter()
-            .map(|(worker_options, worker_id)| self.terminate_worker(worker_options, worker_id))
-            .collect::<Result<Vec<_>>>()?;
-
-        Ok(())
+        for (worker_options, worker_id) in to_terminate {
+            self.terminate_worker(worker_options, worker_id);
+        }
     }
 
-    fn terminate_worker(&self, worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
+    fn terminate_worker(&self, worker_options: Arc<WorkerOptions>, worker_id: u32) {
         self.remove_worker_channel(worker_id);
         worker_thread::terminate_worker(worker_options, worker_id);
-        Ok(())
     }
 
     fn remove_worker_channel(&self, worker_id: u32) {
@@ -182,7 +198,7 @@ impl WorkerPoolOperation {
 pub(super) static WORKER_POOL_OPERATION: LazyLock<WorkerPoolOperation> =
     LazyLock::new(WorkerPoolOperation::default);
 
-fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
+pub(super) fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) {
     WORKER_POOL_OPERATION.terminate_worker(worker_options, worker_id)
 }
 
@@ -286,7 +302,7 @@ impl Operation for WorkerOperation {
             self.state.stats.lock().remove_worker();
             self.on_drop = None;
         }
-        terminate_worker(self.worker_options.clone(), self.worker_id)?;
+        terminate_worker(self.worker_options.clone(), self.worker_id);
         Ok(ExitStatus::default())
     }
 
@@ -295,7 +311,7 @@ impl Operation for WorkerOperation {
             self.state.stats.lock().remove_worker();
             self.on_drop = None;
             // Clearing the return-to-pool callback does not stop the underlying Node.js worker.
-            let _ = terminate_worker(self.worker_options.clone(), self.worker_id);
+            terminate_worker(self.worker_options.clone(), self.worker_id);
         }
     }
 }

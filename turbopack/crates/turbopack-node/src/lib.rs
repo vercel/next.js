@@ -38,6 +38,18 @@ pub fn worker_threads_backend() -> Vc<Box<dyn backend::NodeBackend>> {
     Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
 }
 
+/// The number of idle Node.js processes and worker threads across all pools. Without watching,
+/// the pools are closed after building the module graph (see `NodeBackend::close`),
+/// so this is 0 from then on.
+pub fn idle_node_process_count() -> usize {
+    let count = 0;
+    #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+    let count = count + process_pool::idle_process_count();
+    #[cfg(feature = "worker_pool")]
+    let count = count + worker_pool::idle_worker_count();
+    count
+}
+
 #[turbo_tasks::function]
 async fn emit(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,

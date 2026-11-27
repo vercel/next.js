@@ -48,7 +48,14 @@ pub trait NodeBackend: sealed::Sealed {
 
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture;
 
-    fn scale_down(&self) -> Result<()>;
+    /// Stops all idle processes of each pool except one.
+    fn scale_down(&self);
 
-    fn scale_zero(&self) -> Result<()>;
+    /// Stops all idle processes and stops pooling for the rest of the process's lifetime: a
+    /// process that becomes idle later, e.g. because an operation that was still running
+    /// finishes, or a pool pre-warms one, is stopped instead. Operations started afterwards
+    /// still work, with a process that is stopped once they're done.
+    ///
+    /// Use it once no more Node.js work is expected, e.g. after a build's module graph.
+    fn close(&self);
 }
