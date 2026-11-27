@@ -231,9 +231,11 @@ import {
   yieldToForegroundRequest,
 } from './dev-validation-scheduler'
 import {
-  parseRelativeUrl,
-  type ParsedRelativeUrl,
-} from '../../shared/lib/router/utils/parse-relative-url'
+  parseRequestPath,
+  formatRelativeURL,
+  type RelativeURL,
+} from '../../shared/lib/router/utils/relative-url'
+import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import AppRouter from '../../client/components/app-router'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
@@ -407,7 +409,7 @@ export type AppRenderContext = {
   workStore: WorkStore
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy
   renderCapabilities: AppRenderCapabilities
-  url: ReturnType<typeof parseRelativeUrl>
+  url: RelativeURL
   componentMod: AppPageModule
   renderOpts: RenderOpts
   parsedRequestHeaders: ParsedRequestHeaders
@@ -2534,7 +2536,7 @@ function initializeClientComponentLoadTracking(
 async function prepareAppPageRender(
   responseStatus: ResponseStatus,
   requestUrl: string,
-  url: ReturnType<typeof parseRelativeUrl>,
+  url: RelativeURL,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
@@ -2786,7 +2788,10 @@ async function prerenderAppPage({
   if (maybeRevalidatesPromise !== false) {
     const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-        console.log('pending revalidates promise finished for:', url.href)
+        console.log(
+          'pending revalidates promise finished for:',
+          formatRelativeURL(url)
+        )
       }
     })
     if (renderOpts.waitUntil) {
@@ -3114,7 +3119,10 @@ async function renderAppPage(
     if (maybeRevalidatesPromise !== false) {
       const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', url.href)
+          console.log(
+            'pending revalidates promise finished for:',
+            formatRelativeURL(url)
+          )
         }
       })
       if (renderOpts.waitUntil) {
@@ -3152,7 +3160,7 @@ async function renderToHTMLOrFlightImpl(
   res: BaseNextResponse,
   requestUrl: string,
   requestHeaders: IncomingHttpHeaders,
-  url: ReturnType<typeof parseRelativeUrl>,
+  url: RelativeURL,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
@@ -3214,7 +3222,7 @@ async function renderToHTMLOrFlightImpl(
 async function prerenderToHTMLOrFlightImpl(
   initialStatusCode: number,
   requestUrl: string,
-  url: ReturnType<typeof parseRelativeUrl>,
+  url: RelativeURL,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
@@ -3298,7 +3306,7 @@ export type AppPagePrerender = (
 ) => Promise<PrerenderResult>
 
 type AppPagePreparation = {
-  url: ReturnType<typeof parseRelativeUrl>
+  url: RelativeURL
   interpolatedParams: Params
   postponedState: PostponedState | null
 }
@@ -3314,7 +3322,7 @@ function prepareAppPage(
     throw new Error('Invalid URL')
   }
 
-  const url = parseRelativeUrl(requestUrl, undefined, false)
+  const url = parseRequestPath(requestUrl)
 
   const interpolatedParams = interpolateParallelRouteParams(
     renderOpts.ComponentMod.routeModule.userland.loaderTree,
@@ -5129,7 +5137,7 @@ async function runInstantInsightsWithTracing<T>(
     requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
     kind: 'instant-insights' as const,
     htmlRequestId: ctx.htmlRequestId,
-    url: ctx.url.href,
+    url: formatRelativeURL(ctx.url),
   }
   startRequestInsight(identity)
   return runWithRequestInsightsIdentity(identity, () =>
@@ -6644,7 +6652,7 @@ async function logMessagesAndSendErrorsToBrowser(
     options.logAsValidationResult
 
   const { htmlRequestId, requestId, renderOpts } = ctx
-  const url = ctx.url.href
+  const url = formatRelativeURL(ctx.url)
   const { sendErrorsToBrowser } = renderOpts
 
   if (logAsValidationResult) {
@@ -6711,7 +6719,7 @@ async function logMessagesAndSendErrorsToBrowser(
 function logValidationSkipped(ctx: AppRenderContext) {
   if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
     const requestId = ctx.requestId
-    const url = ctx.url.href
+    const url = formatRelativeURL(ctx.url)
     console.log(
       formatValidationEvent({ type: 'validation_start', requestId, url })
     )
@@ -6724,7 +6732,7 @@ function logValidationSkipped(ctx: AppRenderContext) {
 function logValidationAborted(ctx: AppRenderContext) {
   if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
     const requestId = ctx.requestId
-    const url = ctx.url.href
+    const url = formatRelativeURL(ctx.url)
     console.log(
       formatValidationEvent({ type: 'validation_aborted', requestId, url })
     )
@@ -6751,7 +6759,7 @@ async function runWithDevValidationLogging(
   }
 
   const requestId = ctx.requestId
-  const url = ctx.url.href
+  const url = formatRelativeURL(ctx.url)
   const responseFinished = ctx.devResponseLifecycle?.isFinished() ?? true
 
   console.log(
@@ -8692,9 +8700,8 @@ async function validateInstantConfigInBuildWithSample(
 
   const sampleRootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
 
-  let sampleUrlWithoutQuery: Omit<ParsedRelativeUrl, 'query'>
-  let sampleQuery: ParsedRelativeUrl['query']
-  ;({ query: sampleQuery, ...sampleUrlWithoutQuery } = sampleUrl)
+  const sampleUrlWithoutQuery = sampleUrl
+  const sampleQuery = searchParamsToUrlQuery(sampleUrl.searchParams)
 
   const { AfterContext } =
     require('../after/after-context') as typeof import('../after/after-context')

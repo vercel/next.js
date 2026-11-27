@@ -9,7 +9,7 @@ import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import type { SearchParams } from '../../request/search-params'
 import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
-import { parseRelativeUrl } from '../../../shared/lib/router/utils/parse-relative-url'
+import { parseRequestPath } from '../../../shared/lib/router/utils/relative-url'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { InstantValidationError } from './instant-validation-error'
 import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
@@ -383,7 +383,7 @@ export function createRelativeURLFromSamples(
     }
   }
 
-  return parseRelativeUrl(pathname + search, undefined, true)
+  return parseRequestPath(pathname + search)
 }
 
 function createURLSearchParamsFromSample(
