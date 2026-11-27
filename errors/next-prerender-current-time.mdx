@@ -37,8 +37,11 @@ After:
 
 ```jsx filename="app/page.js"
 export default async function Page() {
+  // Only used for timing, not rendered
+  // eslint-disable-next-line react-hooks/purity
   const start = performance.now();
   const data = computeDataSlowly(...);
+  // eslint-disable-next-line react-hooks/purity
   const end = performance.now();
   console.log(`somethingSlow took ${end - start} milliseconds to complete`)
   return ...
@@ -212,6 +215,8 @@ export default async function Page() {
 
 async function DynamicBanner() {
   await connection();
+  // Runs per request after `connection()`, so the new value is intended
+  // eslint-disable-next-line react-hooks/purity
   const currentTime = Date.now();
   if (currentTime > someTriggerDate) {
     return <SpecialBanner />
