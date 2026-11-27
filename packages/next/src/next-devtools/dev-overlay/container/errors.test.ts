@@ -705,13 +705,16 @@ describe('card sets for all error families', () => {
       .find((card) => card.group === 'client')
       ?.snippets.map(({ text }) => text)
       .join('\n')
-    const handler = clientExample?.match(/onClick=\{\(\) => \{([^}]+)\}/)?.[1]
-    expect(handler).toContain(cause)
+    expect(clientExample).toMatch(
+      /<Suspense fallback=.*>\s+<\w+ \/>\s+<\/Suspense>/
+    )
 
     for (const factory of [createSyncIOError, createSyncIORuntimeError]) {
       const message = factory(ROUTE, cause, type).message
       expect(message).toContain('`await io()` before this read')
-      expect(message).toContain('in `useEffect` or an event handler')
+      expect(message).toContain(
+        'Client Component and wrap it in a parent `<Suspense>` boundary'
+      )
     }
 
     const clientCards = getCards('sync-io-client', 'runtime', cause)
@@ -719,6 +722,12 @@ describe('card sets for all error families', () => {
       id: 'wrap-in-or-move-into-suspense',
       group: 'stream',
     })
+    const handler = clientCards
+      .find((card) => card.group === 'defer')
+      ?.snippets.map(({ text }) => text)
+      .join('\n')
+      .match(/onClick=\{\(\) => \{([^}]+)\}/)?.[1]
+    expect(handler).toContain(cause)
     expect(createSyncIOClientError(ROUTE, cause, type).message).toContain(
       '[stream] Wrap the Client Component in `<Suspense fallback={...}>`'
     )
