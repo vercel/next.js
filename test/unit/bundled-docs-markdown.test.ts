@@ -275,9 +275,9 @@ describe('bundled docs as Markdown', () => {
         'return <time>{Date.now()}</time>',
         '```',
         '',
-        '[Analyzer walkthrough](/videos/analyzer.mp4)',
+        '[Analyzer walkthrough](https://h8DxKfmAPhn8O0p3.public.blob.vercel-storage.com/videos/analyzer.mp4)',
         '',
-        '![App Folder Structure](/docs/light/app.png)',
+        '![App Folder Structure](https://h8DxKfmAPhn8O0p3.public.blob.vercel-storage.com/docs/light/app.png)',
       ].join('\n')
     )
   })

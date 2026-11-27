@@ -95,11 +95,20 @@ function fixCard(node) {
   return lines.join('\n')
 }
 
-/** An `<Image>` as a Markdown image, with the path the page was written with. */
+// Docs images and videos are written as root-relative paths (`/docs/light/…`)
+// that only the website's own components resolve. This is where nextjs.org
+// serves them from, and what its Markdown output points at.
+const MEDIA_BASE = 'https://h8DxKfmAPhn8O0p3.public.blob.vercel-storage.com'
+
+/** A root-relative media path as a URL that opens; anything else as written. */
+const media = (src) =>
+  src.startsWith('/') && !src.startsWith('//') ? MEDIA_BASE + src : src
+
+/** An `<Image>` as a Markdown image that opens, with its alt text. */
 function image(node) {
   const alt = attribute(node, 'alt') ?? ''
   const src = attribute(node, 'srcLight') ?? attribute(node, 'src')
-  if (src) return `![${alt}](${src})`
+  if (src) return `![${alt}](${media(src)})`
   return alt ? `_${alt}_` : ''
 }
 
@@ -107,7 +116,7 @@ function image(node) {
 function video(node) {
   const src = attribute(node, 'src')
   const caption = attribute(node, 'caption')
-  return src && caption ? `[${caption}](${src})` : ''
+  return src && caption ? `[${caption}](${media(src)})` : ''
 }
 
 /** A note to docs authors, written as an MDX comment. */
