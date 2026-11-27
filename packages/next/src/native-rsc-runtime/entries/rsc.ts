@@ -1,3 +1,3 @@
-// The RSC layer's entry. Empty until the render lands.
+// The RSC layer's entry: renders a route to Flight.
 
-export {}
+export { createFlightRenderer } from '../core/flight'
