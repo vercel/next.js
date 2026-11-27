@@ -1,4 +1,8 @@
 commonjs/*
 esm/*
+esm-defer/*
+esm-eager/*
+esm-deferred/*
+esm-deferred-unused/*
 CPU*
 benchmark-results-*.json

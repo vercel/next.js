@@ -144,6 +144,14 @@ pub async fn compute_ecmascript_module_exports(
                     module_fragments_enabled: options.module_fragments_enabled,
                     export_usage_passthrough: namespace_reexports.contains(&i).then_some(false),
                     resolve_override,
+                    deferred: eval_context.imports.is_deferred(i),
+                    deferred_namespace: eval_context.imports.is_deferred_namespace(i),
+                    // The evaluation reference of a declaration is always created before its
+                    // binding references.
+                    deferred_evaluation: eval_context
+                        .imports
+                        .deferred_evaluation_reference(i)
+                        .and_then(|e| import_references.get(e).copied()),
                 },
             )
             .await?

@@ -234,6 +234,9 @@ pub enum Effect<'a> {
         in_try: bool,
         /// The export usage extracted from the usage pattern.
         export_usage: ExportUsage,
+        /// `import.defer(...)`: the module is loaded, but only evaluated on first access to the
+        /// resolved namespace.
+        deferred: bool,
     },
     /// Unreachable code, e.g. after a `return` statement.
     Unreachable {

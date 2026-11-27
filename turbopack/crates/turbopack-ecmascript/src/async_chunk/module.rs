@@ -215,6 +215,19 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         };
         let id = id.as_ref();
 
+        // `import.defer()` evaluates async modules eagerly. Tell the import function (see
+        // `asyncLoader` in the runtime) about it, as it can't know before evaluating the module.
+        let async_arg = if id.is_some()
+            && module_graph
+                .async_module_info()
+                .is_async(ResolvedVc::upcast(this.inner))
+                .await?
+        {
+            ", true"
+        } else {
+            ""
+        };
+
         let chunks_data = self.chunks_data(module_graph).await?;
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
@@ -228,7 +241,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                     r#"
                         {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
                             return Promise.resolve().then(() => {{
-                                return parentImport({id});
+                                return parentImport({id}{async_arg});
                             }});
                         }});
                     "#,
@@ -240,7 +253,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                     r#"
                         {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
                             return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
-                                return parentImport({id});
+                                return parentImport({id}{async_arg});
                             }});
                         }});
                     "#,

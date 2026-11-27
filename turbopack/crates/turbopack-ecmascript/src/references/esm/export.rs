@@ -14,11 +14,11 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, KeyedReadRef, NonLocalValue, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt, Vc,
-    turbofmt,
+    FxIndexMap, KeyedReadRef, NonLocalValue, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, turbofmt,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ModuleChunkItemIdExt, UnusedReferences},
+    chunk::{AsyncModuleInfo, ChunkingContext, ModuleChunkItemIdExt, UnusedReferences},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
@@ -270,6 +270,16 @@ async fn handle_declared_export(
             }
         }
         EsmExport::ImportedNamespace(reference) => {
+            if is_deferred_reference(*reference).await? {
+                // A re-exported deferred namespace (`import defer * as ns from '...'; export { ns
+                // }`): the re-exporting module creates the deferred namespace, importing the
+                // namespace directly would evaluate it eagerly.
+                return Ok(ControlFlow::Break(FollowExportsResult {
+                    module,
+                    export_name: Some(export_name),
+                    ty: FoundExportType::Found,
+                }));
+            }
             if let ReferencedAsset::Some(module) =
                 ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
@@ -300,6 +310,20 @@ async fn handle_declared_export(
         export_name: Some(export_name),
         ty: FoundExportType::Unknown,
     }))
+}
+
+/// Whether the reference was created by a deferred import (`import defer * as ns from '...'`),
+/// see [`EsmAssetReference::is_deferred_namespace`].
+pub(crate) async fn is_deferred_reference(
+    reference: ResolvedVc<Box<dyn ModuleReference>>,
+) -> Result<bool> {
+    Ok(
+        if let Some(reference) = ResolvedVc::try_downcast_type::<EsmAssetReference>(reference) {
+            reference.await?.is_deferred_namespace()
+        } else {
+            false
+        },
+    )
 }
 
 #[turbo_tasks::value]
@@ -813,6 +837,8 @@ async fn build_compact_reexports(
                     asset,
                     namespace_ident,
                 },
+            // re-exports are never deferred
+            deferred: _,
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -1119,8 +1145,10 @@ impl EsmExports {
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         export_registration_mode: ExportRegistrationMode,
         synthetic_references: Option<SyntheticReexportReferences<'_>>,
-        is_async_module: bool,
+        // The async modules referenced by this module, `None` when it isn't async.
+        async_module_info: Option<&AsyncModuleInfo>,
     ) -> Result<(CodeGeneration, SubsumedImports)> {
+        let is_async_module = async_module_info.is_some();
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
@@ -1202,12 +1230,27 @@ impl EsmExports {
         // decided during analysis whether that is possible without reordering evaluation. Async
         // modules may yield a promise from `i()`. A known circuit breaker must expose its getters
         // before importing the other side of the cycle, and a module without analysis must do the
-        // same conservatively, so all three stay on the general registration.
+        // same conservatively, so all three stay on the general registration. A compact
+        // registration imports namespaces eagerly, so re-exported deferred namespaces also use the
+        // general registration.
+        let has_deferred_namespace_reexport = expanded
+            .exports
+            .values()
+            .filter_map(|export| match export {
+                EsmExport::ImportedNamespace(reference) => Some(*reference),
+                _ => None,
+            })
+            .map(is_deferred_reference)
+            .try_join()
+            .await?
+            .into_iter()
+            .any(|deferred| deferred);
         let compact = if compact_registration_is_safe(CompactRegistrationSafety {
             mode: export_registration_mode,
             is_circuit_breaker: export_usage_info.is_circuit_breaker,
             is_async_module,
-        }) && expanded.dynamic_exports.is_empty()
+        }) && !has_deferred_namespace_reexport
+            && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
             build_compact_reexports(
@@ -1374,9 +1417,26 @@ impl EsmExports {
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
-                    referenced_asset
-                        .get_ident(chunking_context, None, scope_hoisting_context)
-                        .await?
+                    // A re-exported deferred namespace is exported as deferred namespace object.
+                    let ident = if let Some(esm_ref) =
+                        ResolvedVc::try_downcast_type::<EsmAssetReference>(*esm_ref)
+                    {
+                        esm_ref
+                            .await?
+                            .get_ident(
+                                &referenced_asset,
+                                chunking_context,
+                                None,
+                                scope_hoisting_context,
+                                async_module_info,
+                            )
+                            .await?
+                    } else {
+                        referenced_asset
+                            .get_ident(chunking_context, None, scope_hoisting_context)
+                            .await?
+                    };
+                    ident
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);
                             if export_usage_info.is_circuit_breaker {

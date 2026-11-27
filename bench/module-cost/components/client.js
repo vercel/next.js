@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { deferCases } from '../lib/defer-cases'
 import { format, measure } from '../lib/measure'
 
 function report(result, element, textarea) {
@@ -45,7 +46,7 @@ async function measureApiButton(element, textarea, url) {
   report(result, element, textarea)
 }
 
-export function Client({ prefix, commonjsAction, esmAction }) {
+export function Client({ prefix, commonjsAction, esmAction, deferAction }) {
   const [runtime, setRuntime] = useState('')
   const textarea = useRef()
   useEffect(() => {
@@ -126,6 +127,44 @@ export function Client({ prefix, commonjsAction, esmAction }) {
           ESM API
         </button>
       </p>
+      {Object.entries(deferCases).map(([name, load]) => (
+        <div key={name}>
+          <p>
+            <button
+              type="button"
+              onClick={(e) =>
+                measureClientButton(e.target, textarea, `client ${name}`, load)
+              }
+            >
+              {name} client
+            </button>
+          </p>
+          {deferAction && (
+            <p>
+              <button
+                type="button"
+                onClick={(e) =>
+                  measureActionButton(e.target, textarea, () =>
+                    deferAction(name)
+                  )
+                }
+              >
+                {name} server action
+              </button>
+            </p>
+          )}
+          <p>
+            <button
+              type="button"
+              onClick={(e) =>
+                measureApiButton(e.target, textarea, `${prefix}/defer/${name}`)
+              }
+            >
+              {name} API
+            </button>
+          </p>
+        </div>
+      ))}
       {
         // holds all the timing data for easier copy paste
       }

@@ -7,7 +7,7 @@ use swc_core::{
 };
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType},
+    chunk::{ChunkableModule, ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
@@ -23,11 +23,17 @@ use turbopack_resolve::ecmascript::esm_resolve;
 use crate::{
     analyzer::imports::ImportAnnotations,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
-    async_chunk::proxy::LazyCompilationProxyModule,
+    async_chunk::{
+        async_flag::{AsyncModuleFlagModule, AsyncModuleFlagsReference},
+        proxy::LazyCompilationProxyModule,
+    },
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::pattern_mapping::{PatternMapping, ResolveType},
+    references::{
+        esm::base::known_namespace_exports,
+        pattern_mapping::{DeferTarget, DeferTargets, PatternMapping, ResolveType},
+    },
 };
 
 #[turbo_tasks::value]
@@ -45,6 +51,9 @@ pub struct EsmAsyncAssetReference {
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     /// Whether the target is compiled only after its runtime proxy is activated.
     pub lazy_compilation: bool,
+    /// `import.defer(...)`: the module is loaded, but only evaluated on first access of a
+    /// property of the resolved namespace.
+    pub deferred: bool,
 }
 
 impl EsmAsyncAssetReference {
@@ -58,6 +67,7 @@ impl EsmAsyncAssetReference {
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         lazy_compilation: bool,
+        deferred: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -78,6 +88,7 @@ impl EsmAsyncAssetReference {
             export_usage,
             resolve_override,
             lazy_compilation,
+            deferred,
         })
     }
 }
@@ -145,6 +156,7 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
             CodeGen::EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen {
                 reference,
                 path,
+                async_flags: None,
             }),
         )
     }
@@ -154,22 +166,113 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPathId,
     reference: ResolvedVc<EsmAsyncAssetReference>,
+    /// For `import.defer()`: the reference to the async module flags of the targets, needed
+    /// without async chunk loading (see [`AsyncModuleFlagModule`]).
+    async_flags: Option<ResolvedVc<AsyncModuleFlagsReference>>,
 }
 
 impl EsmAsyncAssetReferenceCodeGen {
+    /// For `import.defer()`: creates the reference, the reference to the async module flags of
+    /// its targets (to know whether they have to be evaluated eagerly in environments without
+    /// async chunk loading), and the code generation.
+    pub async fn new_deferred(
+        reference: EsmAsyncAssetReference,
+        path: AstPathId,
+    ) -> Result<(
+        ResolvedVc<Box<dyn ModuleReference>>,
+        ResolvedVc<Box<dyn ModuleReference>>,
+        CodeGen,
+    )> {
+        let reference = reference.resolved_cell();
+        let async_flags = AsyncModuleFlagsReference::new(Vc::upcast(*reference))
+            .to_resolved()
+            .await?;
+        Ok((
+            ResolvedVc::upcast(reference),
+            ResolvedVc::upcast(async_flags),
+            CodeGen::EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen {
+                path,
+                reference,
+                async_flags: Some(async_flags),
+            }),
+        ))
+    }
+
+    /// The possible target modules of an `import.defer()`, see [`DeferTargets`].
+    async fn defer_targets(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        can_split_async: bool,
+    ) -> Result<DeferTargets> {
+        let mut targets = DeferTargets::default();
+        let modules = self
+            .reference
+            .resolve_reference()
+            .await?
+            .primary_modules()
+            .await?;
+        for module in modules {
+            let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module)
+            else {
+                continue;
+            };
+            let exports = if let Some(placeable) =
+                ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+            {
+                known_namespace_exports(placeable).await?
+            } else {
+                None
+            };
+            if can_split_async {
+                let ident = chunking_context.async_loader_chunk_item_ident(*chunkable);
+                let loader_id = chunking_context
+                    .chunk_item_id_strategy()
+                    .await?
+                    .get_id_from_ident(ident)
+                    .await?;
+                targets.insert(
+                    loader_id,
+                    DeferTarget {
+                        exports,
+                        async_flag: None,
+                    },
+                );
+            } else {
+                let async_flag = if self.async_flags.is_some() {
+                    let flag_module = AsyncModuleFlagModule::new(*module).to_resolved().await?;
+                    Some(
+                        ResolvedVc::upcast::<Box<dyn ChunkableModule>>(flag_module)
+                            .chunk_item_id(chunking_context)
+                            .await?,
+                    )
+                } else {
+                    None
+                };
+                targets.insert(
+                    chunkable.chunk_item_id(chunking_context).await?,
+                    DeferTarget {
+                        exports,
+                        async_flag,
+                    },
+                );
+            }
+        }
+        Ok(targets)
+    }
     pub async fn code_generation(
         &self,
         trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
+        let can_split_async = chunking_context.chunk_loading().await?.can_split_async();
 
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
-            if chunking_context.chunk_loading().await?.can_split_async() {
+            if can_split_async {
                 ResolveType::AsyncChunkLoader
             } else {
                 ResolveType::ChunkItem
@@ -178,6 +281,13 @@ impl EsmAsyncAssetReferenceCodeGen {
         )
         .await?;
 
+        let deferred = reference.deferred;
+        let defer_targets = if deferred {
+            self.defer_targets(chunking_context, can_split_async)
+                .await?
+        } else {
+            DeferTargets::default()
+        };
         let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
@@ -186,7 +296,11 @@ impl EsmAsyncAssetReferenceCodeGen {
                         spread: None,
                         expr: key_expr,
                     }) => {
-                        *expr = pm.create_import(*key_expr);
+                        *expr = if deferred {
+                            pm.create_import_defer(*key_expr, &defer_targets)
+                        } else {
+                            pm.create_import(*key_expr)
+                        };
                         return;
                     }
                     // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

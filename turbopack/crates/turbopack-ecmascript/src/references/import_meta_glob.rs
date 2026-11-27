@@ -980,6 +980,9 @@ pub async fn import_meta_glob_reference(
             module_fragments_enabled,
             export_usage_passthrough: None,
             resolve_override: Some(synthetic_module),
+            deferred: false,
+            deferred_namespace: false,
+            deferred_evaluation: None,
         },
     )
     .await

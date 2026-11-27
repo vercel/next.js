@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/import-defer/input/index.js"],"sourcesContent":["// prettier-ignore\nimport defer * as lib from './lib.js'\n\nexport function useLib() {\n  return lib.used\n}\n\nexport async function dynamicLib() {\n  // prettier-ignore\n  const ns = await import.defer('./dynamic.js')\n  return ns.value\n}\n\nuseLib()\ndynamicLib()\n"],"names":["useLib","dynamicLib","ns","value"],"mappings":"AAAA,kBAAkB;AAClB;;AAEO,SAASA;IACd,OAAO,gNAAQ;AACjB;AAEO,eAAeC;IACpB,kBAAkB;IAClB,MAAMC,KAAK;;;IACX,OAAOA,GAAGC,KAAK;AACjB;AAEAH;AACAC"}},
+    {"offset": {"line": 29, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/import-defer/input/lib.js"],"sourcesContent":["export const used = 'used-export'\nexport const unused = 'UNUSED_EXPORT_SHOULD_BE_TREE_SHAKEN'\n"],"names":["used","unused"],"mappings":"AAAO,MAAMA,OAAO;AACb,MAAMC,SAAS"}}]
+}

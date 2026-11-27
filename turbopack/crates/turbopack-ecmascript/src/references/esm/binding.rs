@@ -7,7 +7,7 @@ use swc_core::ecma::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
 
 use crate::{
     ScopeHoistingContext,
@@ -93,6 +93,7 @@ impl EsmBindings {
         trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        async_module_info: Option<&AsyncModuleInfo>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
@@ -106,6 +107,7 @@ impl EsmBindings {
                 continue;
             }
             let imported_module = reference.get_referenced_asset().await?;
+            let reference_ref = reference.await?;
 
             let mut exports_cache: FxHashMap<Option<RcStr>, _> = FxHashMap::default();
             #[derive(Clone)]
@@ -135,8 +137,14 @@ impl EsmBindings {
                     }
                     imported_module => match exports_cache.entry(export.clone()) {
                         std::collections::hash_map::Entry::Vacant(entry) => {
-                            let ident: ImportedIdent = match imported_module
-                                .get_ident(chunking_context, export.clone(), scope_hoisting_context)
+                            let ident: ImportedIdent = match reference_ref
+                                .get_ident(
+                                    imported_module,
+                                    chunking_context,
+                                    export.clone(),
+                                    scope_hoisting_context,
+                                    async_module_info,
+                                )
                                 .await?
                             {
                                 Some(ident) => ImportedIdent::Module(ident),
