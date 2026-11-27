@@ -35,8 +35,7 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     href="#generate-on-every-request"
     snippets={[
       { text: 'await io()', highlight: true },
-      { text: 'const id = crypto.randomUUID()' },
-      { text: 'return <Token id={id} />' },
+      { text: 'return crypto.randomUUID()' },
     ]}
   />
   <FixCard
@@ -44,9 +43,8 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     title="Cache the generated value"
     href="#cache-the-generated-value"
     snippets={[
-      { text: 'function TokenId() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return crypto.randomUUID()' },
+      { text: '"use cache"', highlight: true },
+      { text: 'return crypto.randomUUID()' },
     ]}
   />
   <FixCard
@@ -54,7 +52,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '"use client"' },
       { text: '<button onClick={() => {', highlight: true },
       { text: '  setId(crypto.randomUUID())' },
       { text: '}}>Start a draft</button>' },

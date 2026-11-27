@@ -35,8 +35,7 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     href="#generate-on-every-request"
     snippets={[
       { text: 'await io()', highlight: true },
-      { text: 'const id = Math.random()' },
-      { text: 'return <Item id={id} />' },
+      { text: 'return Math.random()' },
     ]}
   />
   <FixCard
@@ -44,9 +43,8 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     title="Cache the random value"
     href="#cache-the-random-value"
     snippets={[
-      { text: 'function RandomId() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return String(Math.random())' },
+      { text: '"use cache"', highlight: true },
+      { text: 'return Math.random()' },
     ]}
   />
   <FixCard
@@ -54,7 +52,6 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '"use client"' },
       { text: '<button onClick={() => {', highlight: true },
       { text: '  setSeed(Math.random())' },
       { text: '}}>Shuffle</button>' },
