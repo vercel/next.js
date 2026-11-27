@@ -10,6 +10,7 @@
 package routing
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/textproto"
@@ -34,6 +35,28 @@ type Table struct {
 	// Paths answered by a route.go, to its route id. A dynamic route's path
 	// (with brackets) can be in here too; no request path matches it.
 	goExact map[string]string
+	// Dynamic routes in Node's order; the first match wins.
+	dynamic []dynamicRoute
+}
+
+type dynamicRoute struct {
+	path []entry
+	// The route.go route id, or "" for a route Node answers.
+	route string
+}
+
+type entryKind int
+
+const (
+	literal      entryKind = iota // one segment equal to text
+	param                         // [name]: one non-empty segment
+	rest                          // [...name]: one or more segments
+	optionalRest                  // [[...name]]: zero or more segments
+)
+
+type entry struct {
+	kind entryKind
+	text string // the literal; unused for the other kinds
 }
 
 // tableJSON is the wire format Node writes (see switchyard-route-table.ts).
@@ -47,6 +70,10 @@ type tableJSON struct {
 	NodeHeaders    []string          `json:"nodeRequestHeaders"`
 	NodeExact      []string          `json:"nodeExact"`
 	GoExact        map[string]string `json:"goExact"`
+	Dynamic        []struct {
+		Path []json.RawMessage `json:"path"`
+		Go   string            `json:"go"`
+	} `json:"dynamic"`
 }
 
 // Load reads a route table. A table of another version is an error; the
@@ -85,5 +112,78 @@ func Load(data []byte) (*Table, error) {
 		}
 		t.goExact[p] = route
 	}
+	for i, d := range raw.Dynamic {
+		path, err := parsePattern(d.Path)
+		if err != nil {
+			return nil, fmt.Errorf("route table: dynamic route %d: %w", i, err)
+		}
+		t.dynamic = append(t.dynamic, dynamicRoute{path: path, route: d.Go})
+	}
 	return t, nil
+}
+
+// parsePattern reads a pattern written as a segment list, as in the router
+// contract spec (section 9.1): "docs" is a literal segment, {"param": "id"}
+// one segment, {"rest": "path", "min": 1} the remaining segments.
+func parsePattern(items []json.RawMessage) ([]entry, error) {
+	path := make([]entry, 0, len(items))
+	for i, item := range items {
+		var text string
+		if err := json.Unmarshal(item, &text); err == nil {
+			if text == "" {
+				return nil, fmt.Errorf("empty literal segment")
+			}
+			path = append(path, entry{kind: literal, text: text})
+			continue
+		}
+		var obj struct {
+			Param *string `json:"param"`
+			Rest  *string `json:"rest"`
+			Min   *int    `json:"min"`
+		}
+		// Unknown fields (a "suffix", an "is" constraint from a later version
+		// of the format) are an error: matching without them would accept
+		// paths Node doesn't.
+		decoder := json.NewDecoder(bytes.NewReader(item))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&obj); err != nil {
+			return nil, fmt.Errorf("segment %d: %w", i, err)
+		}
+		switch {
+		case obj.Param != nil && obj.Rest == nil && obj.Min == nil:
+			path = append(path, entry{kind: param})
+		case obj.Rest != nil && obj.Param == nil && obj.Min != nil && (*obj.Min == 0 || *obj.Min == 1):
+			if i != len(items)-1 {
+				return nil, fmt.Errorf("segment %d: rest must be last", i)
+			}
+			kind := rest
+			if *obj.Min == 0 {
+				kind = optionalRest
+			}
+			path = append(path, entry{kind: kind})
+		default:
+			return nil, fmt.Errorf("segment %d: unsupported entry %s", i, item)
+		}
+	}
+	return path, nil
+}
+
+// matches reports whether segments (non-empty, already checked by the
+// request gate) fit the pattern.
+func matches(pattern []entry, segments []string) bool {
+	for i, e := range pattern {
+		switch e.kind {
+		case rest:
+			return len(segments) > i
+		case optionalRest:
+			return true
+		}
+		if i >= len(segments) {
+			return false
+		}
+		if e.kind == literal && segments[i] != e.text {
+			return false
+		}
+	}
+	return len(pattern) == len(segments)
 }
