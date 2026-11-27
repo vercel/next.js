@@ -828,7 +828,8 @@ export async function fetchExternalImage(
   href: string,
   dangerouslyAllowLocalIP: boolean,
   maximumResponseBody: number,
-  count = 3
+  count = 3,
+  abortSignal?: AbortSignal
 ): Promise<ImageUpstream> {
   const url = new URL(href)
   // `URL.hostname` keeps the brackets around an IPv6 literal, the socket does not
@@ -867,11 +868,23 @@ export async function fetchExternalImage(
     }
   }
 
-  // The signal is owned here rather than by `requestUpstreamImage()` because it
-  // has to stay readable while the body streams. Node reports an abort during
-  // the body as a plain `ECONNRESET` on the response, so the signal is the only
-  // way to tell a timeout apart from the upstream resetting the connection.
-  const signal = AbortSignal.timeout(agentOptions.timeout)
+  // The signals are owned here rather than by `requestUpstreamImage()` because
+  // they have to stay readable while the body streams. Node reports an abort
+  // during the body as a plain `ECONNRESET` on the response, so the signals are
+  // the only way to tell a timeout or abort apart from the upstream resetting
+  // the connection.
+  const timeoutSignal = AbortSignal.timeout(agentOptions.timeout)
+  const signal = abortSignal
+    ? AbortSignal.any([timeoutSignal, abortSignal])
+    : timeoutSignal
+  const toAbortError = (err: unknown) => {
+    // Our own errors (e.g. an oversized body) were not caused by the signal,
+    // even if it happened to abort around the same time
+    if (err instanceof ImageError) return err
+    if (abortSignal?.aborted) return abortSignal.reason
+    if (timeoutSignal.aborted) return upstreamTimedOut(href)
+    return err
+  }
   let res: IncomingMessage
   try {
     res = await requestUpstreamImage(
@@ -882,10 +895,7 @@ export async function fetchExternalImage(
       signal
     )
   } catch (err) {
-    if (signal.aborted) {
-      throw upstreamTimedOut(href)
-    }
-    throw err
+    throw toAbortError(err)
   }
 
   const statusCode = res.statusCode
@@ -916,7 +926,8 @@ export async function fetchExternalImage(
       redirect,
       dangerouslyAllowLocalIP,
       maximumResponseBody,
-      count - 1
+      count - 1,
+      abortSignal
     )
   }
 
@@ -953,10 +964,7 @@ export async function fetchExternalImage(
     }
   } catch (err) {
     res.destroy()
-    if (signal.aborted) {
-      throw upstreamTimedOut(href)
-    }
-    throw err
+    throw toAbortError(err)
   }
 
   if (totalSize === 0) {
@@ -984,9 +992,12 @@ export async function fetchInternalImage(
     newParsedUrl?: NextUrlWithParsedQuery
   ) => Promise<void>,
   imagesConfig: ImageConfigComplete,
-  count = imagesConfig.maximumRedirects
+  count = imagesConfig.maximumRedirects,
+  abortSignal?: AbortSignal
 ): Promise<ImageUpstream> {
   try {
+    abortSignal?.throwIfAborted()
+
     // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
@@ -1011,8 +1022,21 @@ export async function fetchInternalImage(
       }),
     }
 
-    await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
-    await mocked.res.hasStreamed
+    // Destroying the mocked response rejects `hasStreamed` with the abort
+    // reason, and stops whatever is writing to it (it also aborts the
+    // `request.signal` of a route handler serving the image).
+    const onAbort = () => mocked.res.destroy(abortSignal?.reason)
+    abortSignal?.addEventListener('abort', onAbort, { once: true })
+    try {
+      // Not awaited in sequence, as `handleRequest` may never settle once the
+      // response is destroyed
+      await Promise.all([
+        handleRequest(mocked.req, mocked.res, parseReqUrl(href)),
+        mocked.res.hasStreamed,
+      ])
+    } finally {
+      abortSignal?.removeEventListener('abort', onAbort)
+    }
 
     const locationHeader = mocked.res.getHeader('Location')
     if (
@@ -1041,7 +1065,8 @@ export async function fetchInternalImage(
           _res,
           handleRequest,
           imagesConfig,
-          count - 1
+          count - 1,
+          abortSignal
         )
       }
 
@@ -1049,7 +1074,8 @@ export async function fetchInternalImage(
         urlResult.href,
         imagesConfig.dangerouslyAllowLocalIP,
         imagesConfig.maximumResponseBody,
-        count - 1
+        count - 1,
+        abortSignal
       )
     }
 
@@ -1084,7 +1110,10 @@ export async function fetchInternalImage(
 
     return { buffer, contentType, cacheControl, etag }
   } catch (err) {
-    if (err instanceof ImageError) {
+    if (
+      err instanceof ImageError ||
+      (abortSignal?.aborted && err === abortSignal.reason)
+    ) {
       throw err
     }
 

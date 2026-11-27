@@ -281,6 +281,34 @@ describe('fetchInternalImage', () => {
       expect(result.buffer.length).toBe(maximumResponseBody)
     })
   })
+  describe('abort signal', () => {
+    it('should reject with the abort reason and close the internal response', async () => {
+      const controller = new AbortController()
+      const reason = new Error('client disconnected')
+      let internalRes!: ServerResponse
+
+      // Never answers, like a route handler that is still working
+      const handleRequest = (_req: IncomingMessage, res: ServerResponse) => {
+        internalRes = res
+        return new Promise<void>(() => {})
+      }
+
+      const fetched = fetchInternalImage(
+        '/test-image.jpg',
+        {} as IncomingMessage,
+        {} as ServerResponse,
+        handleRequest,
+        getImagesConfig(300_000_000),
+        undefined,
+        controller.signal
+      ).catch((e) => e)
+      controller.abort(reason)
+
+      expect(await fetched).toBe(reason)
+      expect(internalRes.destroyed).toBe(true)
+    })
+  })
+
   describe('when the requesting client disconnects', () => {
     it('should complete the internal fetch even if the requester socket is no longer writable', async () => {
       const size = 1024 * 1024

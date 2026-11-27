@@ -641,7 +641,8 @@ export default class NextNodeServer extends BaseServer<
     req: NodeNextRequest,
     res: NodeNextResponse,
     paramsResult: import('./image-optimizer').ImageParamsResult,
-    previousCacheEntry?: IncrementalResponseCacheEntry | null
+    previousCacheEntry?: IncrementalResponseCacheEntry | null,
+    signal?: AbortSignal
   ): Promise<{
     buffer: Buffer
     contentType: string
@@ -701,20 +702,23 @@ export default class NextNodeServer extends BaseServer<
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
             this.nextConfig.images.maximumResponseBody,
-            this.nextConfig.images.maximumRedirects
+            this.nextConfig.images.maximumRedirects,
+            signal
           )
         : await fetchInternalImage(
             href,
             req.originalRequest,
             res.originalResponse,
             handleInternalReq,
-            this.nextConfig.images
+            this.nextConfig.images,
+            this.nextConfig.images.maximumRedirects,
+            signal
           )
 
       return imageOptimizer(
         imageUpstream,
         paramsResult,
-        getImageOptimizerTransformOptions(this.nextConfig),
+        { ...getImageOptimizerTransformOptions(this.nextConfig), signal },
         { isDev: this.dev, previousCacheEntry }
       )
     }
@@ -962,19 +966,21 @@ export default class NextNodeServer extends BaseServer<
       }
 
       const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+      const signal = signalFromNodeResponse(res.originalResponse)
 
       try {
         const { getExtension } =
           require('./serve-static') as typeof import('./serve-static')
         const cacheEntry = await this.imageResponseCache.get(
           cacheKey,
-          async ({ previousCacheEntry }) => {
+          async ({ previousCacheEntry, signal: optimizeSignal }) => {
             const { buffer, contentType, maxAge, upstreamEtag, etag } =
               await this.imageOptimizer(
                 req,
                 res,
                 paramsResult,
-                previousCacheEntry
+                previousCacheEntry,
+                optimizeSignal
               )
 
             return {
@@ -992,6 +998,13 @@ export default class NextNodeServer extends BaseServer<
             routeKind: RouteKind.IMAGE,
             incrementalCache: imageOptimizerCache,
             isFallback: false,
+            // Passing a signal tells the response cache that the work can be
+            // aborted, which is only true for nsio. sharp can't be
+            // interrupted, so aborting it would only let another request
+            // start a duplicate.
+            signal: this.nextConfig.experimental.imgOptSafeMode?.nextImage
+              ? signal
+              : undefined,
           }
         )
 
@@ -1003,6 +1016,11 @@ export default class NextNodeServer extends BaseServer<
           throw new Error(
             'invariant did not get entry from image response cache'
           )
+        }
+
+        if (signal.aborted) {
+          // The client disconnected, so there's nothing to respond to
+          return true
         }
 
         sendResponse(
@@ -1020,6 +1038,10 @@ export default class NextNodeServer extends BaseServer<
         )
         return true
       } catch (err) {
+        if (signal.aborted) {
+          // The client disconnected, so there's nothing to respond to
+          return true
+        }
         if (err instanceof ImageError) {
           res.statusCode = err.statusCode
           res.body(err.message).send()
