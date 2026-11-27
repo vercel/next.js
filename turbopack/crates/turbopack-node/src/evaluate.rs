@@ -1,4 +1,9 @@
-use std::{iter, process::ExitStatus, time::Duration};
+use std::{
+    iter,
+    process::ExitStatus,
+    sync::atomic::{AtomicU32, Ordering},
+    time::Duration,
+};
 
 use anyhow::{Context, Result, anyhow, bail};
 use async_trait::async_trait;
@@ -10,8 +15,8 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
-    duration_span, parallel::available_parallelism,
+    Completion, CompletionBag, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc,
+    TryJoinIterExt, Vc, duration_span, parallel::available_parallelism,
     resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -199,9 +204,16 @@ pub struct EvaluatePool {
     pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub(crate) assets_root: FileSystemPath,
     project_dir: FileSystemPath,
+    /// The additional invalidations of all evaluations that used this pool. When one of them
+    /// changes, all workers are killed, see [`get_evaluate_pool`].
+    completion_bag: ResolvedVc<CompletionBag>,
+    /// The [`CompletionBag::invalidation_count`] that the workers were last killed for.
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    handled_invalidation_count: AtomicU32,
 }
 
 impl EvaluatePool {
+    /// Must be called from within a task.
     #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
     pub(crate) fn new(
         pool: Box<dyn EvaluateOperation>,
@@ -214,6 +226,8 @@ impl EvaluatePool {
             assets_for_source_mapping,
             assets_root,
             project_dir,
+            completion_bag: CompletionBag::new().resolved_cell(),
+            handled_invalidation_count: AtomicU32::new(0),
         }
     }
 
@@ -226,8 +240,24 @@ impl EvaluatePool {
         self.pool.stats()
     }
 
+    #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
+    pub(crate) fn kill_all_workers(&self) {
+        self.pool.kill_all_workers()
+    }
+
     pub(crate) fn pre_warm(&self) {
         self.pool.pre_warm()
+    }
+
+    /// Kills all workers when `invalidation_count` differs from the count the workers were last
+    /// killed for.
+    fn kill_workers_if_invalidated(&self, invalidation_count: u32) {
+        let previous = self
+            .handled_invalidation_count
+            .swap(invalidation_count, Ordering::AcqRel);
+        if previous != invalidation_count {
+            self.pool.kill_all_workers();
+        }
     }
 }
 
@@ -242,6 +272,9 @@ pub(crate) trait EvaluateOperation: Send + Sync {
     /// If a worker request comes in while this is still initializing, it should wait on the bootup
     /// semaphore and will resume when the worker is ready.
     fn pre_warm(&self);
+    /// Kill all workers, so that later operations run on freshly spawned workers. Workers that
+    /// are currently in use are killed when their operation finishes.
+    fn kill_all_workers(&self);
 }
 
 #[async_trait::async_trait]
@@ -338,6 +371,11 @@ pub(crate) enum EnvVarTracking {
 #[turbo_tasks::function(operation, root)]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
+///
+/// The pool is shared by all evaluations with the same arguments. Evaluations push their additional
+/// invalidation into the pool's [`CompletionBag`] (see [`custom_evaluate`]). When one of these
+/// changes, all workers of the pool are killed, so that the re-executed evaluation runs on fresh
+/// workers.
 pub(crate) async fn get_evaluate_pool(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
@@ -345,7 +383,36 @@ pub(crate) async fn get_evaluate_pool(
     node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-    additional_invalidation: ResolvedVc<Completion>,
+    debug: bool,
+    env_var_tracking: EnvVarTracking,
+) -> Result<Vc<EvaluatePool>> {
+    let pool = create_evaluate_pool_operation(
+        entries,
+        cwd,
+        env,
+        node_backend,
+        chunking_context,
+        module_graph,
+        debug,
+        env_var_tracking,
+    )
+    .connect();
+    let pool_ref = pool.await?;
+    // INVALIDATION: This only re-executes when a contained completion changes (or the pool is
+    // re-created), not when an evaluation adds a new completion.
+    let invalidation_count = *pool_ref.completion_bag.invalidation_count().await?;
+    pool_ref.kill_workers_if_invalidated(invalidation_count);
+    Ok(pool)
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn create_evaluate_pool_operation(
+    entries: ResolvedVc<EvaluateEntries>,
+    cwd: FileSystemPath,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<EvaluatePool>> {
@@ -405,7 +472,6 @@ pub(crate) async fn get_evaluate_pool(
         })
         .await?;
     pool.pre_warm();
-    additional_invalidation.await?;
     Ok(pool.cell())
 }
 
@@ -485,6 +551,10 @@ pub(crate) trait EvaluateContext {
     type State: Default;
 
     fn pool(&self) -> OperationVc<EvaluatePool>;
+    /// Re-executes the evaluation when it changes. It's also pushed into the pool's
+    /// [`CompletionBag`], so that the pool kills its workers when it changes. It's an operation,
+    /// so that a strongly consistent read of the pool waits for it to be recomputed.
+    fn additional_invalidation(&self) -> OperationVc<Completion>;
     fn keep_alive(&self) -> bool {
         false
     }
@@ -539,9 +609,19 @@ pub(crate) async fn custom_evaluate(
     let pool_op = evaluate_context.pool();
     let mut state = Default::default();
 
+    // Depend on the additional invalidation before reading the pool: when it changed, the pool
+    // has to kill its workers before this evaluation acquires one. The strongly consistent read
+    // below waits for that.
+    let additional_invalidation = evaluate_context.additional_invalidation();
+    additional_invalidation.connect().await?;
+
     // Read this strongly consistent, since we don't want to run inconsistent
     // node.js code.
     let pool = pool_op.read_strongly_consistent().await?;
+    pool.completion_bag
+        .await?
+        .push(additional_invalidation)
+        .await?;
     // Assume this is a one-off operation, so we can kill the process
     // TODO use a better way to decide that.
     let kill = !evaluate_context.keep_alive();
@@ -721,7 +801,7 @@ pub async fn evaluate(
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
     args: Vec<EvaluateArg>,
-    additional_invalidation: ResolvedVc<Completion>,
+    additional_invalidation: OperationVc<Completion>,
     debug: bool,
 ) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(BasicEvaluateContext {
@@ -835,7 +915,7 @@ struct BasicEvaluateContext {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
     args: Vec<EvaluateArg>,
-    additional_invalidation: ResolvedVc<Completion>,
+    additional_invalidation: OperationVc<Completion>,
     debug: bool,
 }
 
@@ -853,10 +933,13 @@ impl EvaluateContext for BasicEvaluateContext {
             self.node_backend,
             self.chunking_context,
             self.module_graph,
-            self.additional_invalidation,
             self.debug,
             EnvVarTracking::WholeEnvTracked,
         )
+    }
+
+    fn additional_invalidation(&self) -> OperationVc<Completion> {
+        self.additional_invalidation
     }
 
     fn args(&self) -> &[EvaluateArg] {

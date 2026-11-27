@@ -58,6 +58,10 @@ struct NodeJsPoolProcess {
     recent_stderr: RecentLines,
     debug: bool,
     cpu_time_invested: Duration,
+    /// The pool generation this process belongs to. Set when the process is ready to run its
+    /// first evaluation, and kept while it's returned to the idle queue for the same generation,
+    /// so a process that ran an evaluation before a `kill_all_workers` keeps an older generation.
+    generation: u64,
 }
 
 impl Ord for NodeJsPoolProcess {
@@ -444,6 +448,7 @@ impl NodeJsPoolProcess {
             recent_stderr,
             debug,
             cpu_time_invested: Duration::ZERO,
+            generation: 0,
         };
 
         drop(guard);
@@ -652,6 +657,12 @@ struct ChildProcessPool {
     debug: bool,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     stats: Arc<Mutex<NodeJsPoolStats>>,
+    /// Incremented by [`EvaluateOperation::kill_all_workers`]. Processes of an older generation
+    /// (see [`NodeJsPoolProcess::generation`]) are not returned to the idle queue. The lock is
+    /// held while comparing the generation and returning a process, so that a concurrent kill
+    /// can't miss it.
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    generation: Arc<Mutex<u64>>,
 }
 
 impl ChildProcessPool {
@@ -686,6 +697,7 @@ impl ChildProcessPool {
                 shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
                 debug,
                 stats: Default::default(),
+                generation: Default::default(),
             }),
             assets_for_source_mapping,
             assets_root,
@@ -752,6 +764,7 @@ impl EvaluateOperation for ChildProcessPool {
         let operation = {
             let _guard = duration_span!("Node.js operation", blocking = true);
             let (process, permits) = self.acquire_process().await?;
+            let generation = process.generation;
             ChildProcessOperation {
                 process: Some(process),
                 permits,
@@ -759,6 +772,8 @@ impl EvaluateOperation for ChildProcessPool {
                 start: Instant::now(),
                 stats: self.stats.clone(),
                 allow_process_reuse: true,
+                generation,
+                pool_generation: self.generation.clone(),
             }
         };
 
@@ -780,6 +795,7 @@ impl EvaluateOperation for ChildProcessPool {
         let bootup_semaphore = self.bootup_semaphore.clone();
         let idle_processes = self.idle_processes.clone();
         let stats = self.stats.clone();
+        let pool_generation = self.generation.clone();
 
         tokio::spawn(async move {
             let Ok(bootup_permit) = bootup_semaphore.clone().acquire_owned().await else {
@@ -789,13 +805,18 @@ impl EvaluateOperation for ChildProcessPool {
                 stats.lock().add_booting_worker();
             }
             match args.create_process().await {
-                Ok((process, bootup_time)) => {
+                Ok((mut process, bootup_time)) => {
                     {
                         let mut s = stats.lock();
                         s.add_bootup_time(bootup_time);
                         s.finished_booting_worker();
                     }
                     drop(bootup_permit);
+                    // The process hasn't run an evaluation yet, so it belongs to the current
+                    // generation even if the pool killed all workers while it was booting. Hold the
+                    // lock while pushing, so that a concurrent kill can't miss it.
+                    let current_generation = pool_generation.lock();
+                    process.generation = *current_generation;
                     idle_processes.push(process, &ACTIVE_POOLS);
                 }
                 Err(_e) => {
@@ -805,6 +826,20 @@ impl EvaluateOperation for ChildProcessPool {
                 }
             }
         });
+    }
+
+    fn kill_all_workers(&self) {
+        // Processes that are currently in use are killed when their operation finishes.
+        let killed = {
+            let mut generation = self.generation.lock();
+            *generation += 1;
+            // Dropping the processes kills them.
+            self.idle_processes.reduce_to_zero(&ACTIVE_POOLS)
+        };
+        let mut stats = self.stats.lock();
+        for _ in 0..killed {
+            stats.remove_worker();
+        }
     }
 }
 
@@ -833,7 +868,10 @@ impl ChildProcessPool {
                 {
                     self.stats.lock().add_booting_worker();
                 }
-                let (process, bootup_time) = self.create_process().await?;
+                let (mut process, bootup_time) = self.create_process().await?;
+                // The process hasn't run an evaluation yet, so it belongs to the current
+                // generation even if the pool killed all workers while it was booting.
+                process.generation = *self.generation.lock();
                 // Update the worker count
                 {
                     let mut stats = self.stats.lock();
@@ -892,6 +930,9 @@ struct ChildProcessOperation {
     start: Instant,
     stats: Arc<Mutex<NodeJsPoolStats>>,
     allow_process_reuse: bool,
+    /// The generation of the acquired process.
+    generation: u64,
+    pool_generation: Arc<Mutex<u64>>,
 }
 
 #[async_trait::async_trait]
@@ -982,8 +1023,16 @@ impl Drop for ChildProcessOperation {
                 }
             }
             if self.allow_process_reuse {
-                process.cpu_time_invested += elapsed;
-                self.idle_processes.push(process, &ACTIVE_POOLS);
+                let current_generation = self.pool_generation.lock();
+                if *current_generation == self.generation {
+                    process.cpu_time_invested += elapsed;
+                    self.idle_processes.push(process, &ACTIVE_POOLS);
+                } else {
+                    drop(current_generation);
+                    // The pool killed all workers during this operation. Dropping the process
+                    // kills it.
+                    self.stats.lock().remove_worker();
+                }
             }
         }
     }

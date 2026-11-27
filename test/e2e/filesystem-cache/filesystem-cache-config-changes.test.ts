@@ -7,10 +7,7 @@ for (const cacheEnabled of [false, true]) {
   describe(`filesystem-caching with cache ${cacheEnabled ? 'enabled' : 'disabled'}`, () => {
     const { testChangesWhileStopped } = setupFilesystemCacheTest(cacheEnabled)
 
-    if (!process.env.IS_TURBOPACK_TEST) {
-      // TODO enable again
-      testChangesWhileStopped(['loader change'])
-    }
+    testChangesWhileStopped(['loader change'])
     testChangesWhileStopped(['next config change'])
     testChangesWhileStopped(['env var change'])
   })
