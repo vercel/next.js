@@ -1,0 +1,20 @@
+.base {
+  color: red;
+}
+
+.composed {
+  composes: base;
+  color: blue;
+}
+
+.foo-bar {
+  color: green;
+}
+
+.default {
+  color: orange;
+}
+
+.__esModule {
+  color: purple;
+}

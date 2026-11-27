@@ -136,6 +136,9 @@ pub enum ModuleType {
     NodeAddon,
     CssModule {
         source_map_generation_options: SourceMapGenerationOptions,
+        /// Whether the keys of the module's exports may be shortened, like
+        /// [`EcmascriptOptions::mangle_export_names`].
+        mangle_export_names: bool,
     },
     Css {
         ty: CssModuleType,
@@ -291,6 +294,7 @@ impl ConfiguredModuleType {
             ConfiguredModuleType::CssModule => {
                 ModuleRuleEffect::ModuleType(ModuleType::CssModule {
                     source_map_generation_options,
+                    mangle_export_names: options.await?.mangle_export_names,
                 })
             }
             ConfiguredModuleType::Json => {
