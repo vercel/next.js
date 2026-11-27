@@ -27,6 +27,8 @@ By default, Server Components are automatically [code split](https://developer.m
 
 Next.js already splits Client Component code by route, so a route loads the code for the components it renders. Lazy loading splits code within a route. Use it for UI that is not on screen when the page first loads, such as a modal that opens on a click, so its code is requested separately from the rest of the route.
 
+Each lazy loaded component adds a network request, and requests carry overhead even when the file is small. Lazy load code that is large or that few visitors need, and import small components normally. To learn how Next.js balances the number of requests against download size, see [How Turbopack chunks your JavaScript](https://nextjs.org/blog/turbopack-chunking).
+
 | The component is                                                                                   | Approach                                                                                                                   |
 | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Visible when the page loads                                                                        | Import it normally, so it is prerendered with the page                                                                     |
