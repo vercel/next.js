@@ -260,17 +260,23 @@ function checkExports(
         node.type === 'ExportDeclaration' &&
         node.declaration?.type === 'VariableDeclaration'
       ) {
-        const id = node.declaration?.declarations[0]?.id.value
-        if (exportsSet.has(id)) {
-          getServerSideProps = id === 'getServerSideProps'
-          getStaticProps = id === 'getStaticProps'
-          generateImageMetadata = id === 'generateImageMetadata'
-          generateSitemaps = id === 'generateSitemaps'
+        // A single declaration can export several bindings, e.g.
+        // `export const revalidate = 60, generateStaticParams = ...`. Flags are
+        // only ever set here so a later declarator can't clear an earlier one.
+        for (const declaration of node.declaration.declarations) {
+          const id = declaration.id?.value
+          if (!exportsSet.has(id)) {
+            continue
+          }
+          if (id === 'getServerSideProps') getServerSideProps = true
+          if (id === 'getStaticProps') getStaticProps = true
+          if (id === 'generateImageMetadata') generateImageMetadata = true
+          if (id === 'generateSitemaps') generateSitemaps = true
           if (id === 'unstable_paramMatching') paramMatching = true
           if (id === 'unstable_generateParamMatching') {
             generateParamMatching = true
           }
-          generateStaticParams = id === 'generateStaticParams'
+          if (id === 'generateStaticParams') generateStaticParams = true
         }
       }
 
@@ -435,7 +441,10 @@ function validateMiddlewareProxyExports({
       node.type === 'ExportDeclaration' &&
       node.declaration?.type === 'VariableDeclaration'
     ) {
-      const names = collectBindingNames(node.declaration?.declarations[0]?.id)
+      const names: string[] = []
+      for (const declaration of node.declaration.declarations) {
+        collectBindingNames(declaration.id, names)
+      }
       if (names.includes('middleware')) {
         hasMiddlewareExport = true
       }
