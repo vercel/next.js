@@ -24,14 +24,11 @@ const STATIC_ROUTE = '/example'
 const DYNAMIC_ROUTE_TEMPLATE = '/posts/[slug]'
 const CATCH_ALL_ROUTE_TEMPLATE = '/docs/[...slug]'
 
-function createRequestInsight(
-  kind: RequestInsight['kind'],
-  durationMs: number
-): RequestInsight {
+function createRequestInsight(durationMs: number): RequestInsight {
   return {
     requestId: 'shared-request',
-    kind,
-    source: kind === 'instant-insights' ? 'instant-insights' : 'page',
+    kind: 'request',
+    source: 'page',
     htmlRequestId: 'shared-html',
     route: '/dashboard',
     startTime: 100,
@@ -133,7 +130,7 @@ describe('mergeErrorEvent', () => {
 
 describe('updateRequestInsights', () => {
   it('serializes new spans once instead of resending the growing request', () => {
-    const request = createRequestInsight('request', 25)
+    const request = createRequestInsight(25)
     const updates = []
     let firstHalfBytes = 0
     let totalBytes = 0
@@ -157,7 +154,7 @@ describe('updateRequestInsights', () => {
   })
 
   it('splits large batches into bounded deltas without losing records', () => {
-    const request = createRequestInsight('request', 25)
+    const request = createRequestInsight(25)
     request.spans = Array.from({ length: 300 }, (_, index) => ({
       name: `span ${index}`,
       startTime: index,
@@ -190,7 +187,7 @@ describe('updateRequestInsights', () => {
     const firstFetch = { url: '/first', startTime: 100 }
     const secondFetch = { url: '/second', startTime: 120 }
     const snapshot = {
-      ...createRequestInsight('request', 25),
+      ...createRequestInsight(25),
       spans: [firstSpan, secondSpan],
       fetches: [firstFetch],
     }
@@ -212,7 +209,7 @@ describe('updateRequestInsights', () => {
 
   it('preserves span and fetch arrays when only metadata changes', () => {
     const previous = {
-      ...createRequestInsight('request', 25),
+      ...createRequestInsight(25),
       spans: [{ name: 'render', startTime: 100 }],
       fetches: [{ url: '/data', startTime: 100 }],
     }
@@ -233,7 +230,7 @@ describe('updateRequestInsights', () => {
 
   it('keeps completed requests in completion order after late updates', () => {
     const first = {
-      ...createRequestInsight('request', 25),
+      ...createRequestInsight(25),
       requestId: 'first',
       completedAt: 100,
     }
@@ -254,7 +251,7 @@ describe('updateRequestInsights', () => {
 
   it('waits for the initial snapshot when a delta starts after missing records', () => {
     const delta = {
-      ...createRequestInsight('request', 25),
+      ...createRequestInsight(25),
       spanOffset: 5,
       fetchOffset: 0,
       spans: [{ name: 'late work', startTime: 120 }],
@@ -262,29 +259,16 @@ describe('updateRequestInsights', () => {
     expect(updateRequestInsights([], delta)).toEqual([])
   })
 
-  it('updates request kinds independently when request IDs match', () => {
-    const request = createRequestInsight('request', 25)
-    const instantInsights = createRequestInsight('instant-insights', 50)
-    const updatedInstantInsights = createRequestInsight('instant-insights', 75)
-
-    expect(
-      updateRequestInsights(
-        updateRequestInsights([request], instantInsights),
-        updatedInstantInsights
-      )
-    ).toEqual([request, updatedInstantInsights])
-  })
-
   it('keeps active requests outside the completed request limit', () => {
     const active = {
-      ...createRequestInsight('request', 25),
+      ...createRequestInsight(25),
       requestId: 'active',
       completedAt: undefined,
     }
     const completed = Array.from(
       { length: MAX_LIVE_COMPLETED_REQUEST_INSIGHTS + 1 },
       (_, index) => ({
-        ...createRequestInsight('request', 25),
+        ...createRequestInsight(25),
         requestId: `completed-${index}`,
         completedAt: index + 1,
       })
@@ -304,7 +288,7 @@ describe('updateRequestInsights', () => {
 
   it('keeps the newest RSC and HTML page requests when trimming updates', () => {
     const page = {
-      ...createRequestInsight('request', 25),
+      ...createRequestInsight(25),
       requestId: 'page',
       completedAt: 1,
       spans: [
@@ -312,7 +296,7 @@ describe('updateRequestInsights', () => {
       ],
     }
     const rsc = {
-      ...createRequestInsight('request', 25),
+      ...createRequestInsight(25),
       requestId: 'rsc',
       completedAt: 2,
       spans: [{ name: 'rsc', startTime: 2, attributes: { 'next.rsc': true } }],
@@ -320,7 +304,7 @@ describe('updateRequestInsights', () => {
     const api = Array.from(
       { length: MAX_LIVE_COMPLETED_REQUEST_INSIGHTS },
       (_, index) => ({
-        ...createRequestInsight('request', 25),
+        ...createRequestInsight(25),
         requestId: `api-${index}`,
         source: 'app-route' as const,
         completedAt: index + 3,

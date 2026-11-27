@@ -5125,8 +5125,11 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
+  const parentRequestId =
+    getRequestInsightsIdentity()?.requestId ?? ctx.requestId
   const identity = {
-    requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+    requestId: await generateRenderRequestId(ctx.url.href),
+    parentRequestId,
     kind: 'instant-insights' as const,
     htmlRequestId: ctx.htmlRequestId,
     url: ctx.url.href,

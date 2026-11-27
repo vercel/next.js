@@ -357,7 +357,6 @@ describe('local recording span', () => {
         requestId: 'originating-request',
         requestInsightKind: 'instant-insights',
         htmlRequestId: 'originating-html',
-        route: '/dashboard',
       }),
     ])
   })

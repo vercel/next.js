@@ -806,7 +806,7 @@ requestInsights
   .addOption(
     new Option(
       '--kind <kind>',
-      'Select the request or its Instant Insights entry when both share an ID.'
+      'Select a request or Instant Insights entry. With instant-insights, the validated request ID also works.'
     ).choices(['request', 'instant-insights'])
   )
   .action(

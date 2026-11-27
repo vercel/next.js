@@ -14,7 +14,6 @@ import {
 import { ContextMenu } from '@base-ui-components/react/context-menu'
 import { Menu } from '@base-ui-components/react/menu'
 import {
-  getRequestInsightKey,
   getRequestInsightKind,
   type RequestInsight,
   type RequestInsightFetch,
@@ -123,9 +122,7 @@ export function RequestInsightsPanel() {
     selectedRequestKey
   )
   const selectedRequest =
-    requests.find(
-      (request) => getRequestInsightKey(request) === activeRequestKey
-    ) ?? null
+    requests.find((request) => request.requestId === activeRequestKey) ?? null
   const initialRequestId = self.__next_r
   const internalRequests = useMemo(
     () => requests.filter((request) => isInternalRequestInsight(request)),
@@ -414,7 +411,7 @@ function VirtualRequestList({
         {entries
           .slice(startIndex, endIndex)
           .map(({ request, nested }, index) => {
-            const requestKey = getRequestInsightKey(request)
+            const requestKey = request.requestId
             const itemIndex = startIndex + index
             return (
               <div
@@ -870,12 +867,7 @@ function RequestDetails({
         <div className="request-insights-diagnosis">{diagnosis}</div>
       ) : null}
 
-      <Trace
-        items={traceItems}
-        key={getRequestInsightKey(request)}
-        request={request}
-      />
-
+      <Trace items={traceItems} key={request.requestId} request={request} />
       <FetchTable fetches={request.fetches} />
     </div>
   )
