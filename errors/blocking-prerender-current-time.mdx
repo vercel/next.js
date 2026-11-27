@@ -52,9 +52,9 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '<button onClick={() => {', highlight: true },
-      { text: '  setTaken(Date.now())' },
-      { text: '}}>Snapshot</button>' },
+      { text: '<Suspense fallback="…">', highlight: true },
+      { text: '  <TimeDisplay />' },
+      { text: '</Suspense>' },
     ]}
   />
   <FixCard
@@ -227,13 +227,25 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Read the clock after mount or in an event handler. [Client Components also render on the server](/docs/app/getting-started/server-and-client-components#on-the-server).
+Choose this fix when the time can appear after a fallback. Move the read into a [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) and wrap it in a parent `<Suspense>` boundary.
 
 ### Patterns
 
 #### Move the component to the client
 
-Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside `useEffect`.
+If `TimeDisplay` calls `Date.now()` during render, add `'use client'` to its file. In the parent, wrap just `<TimeDisplay />` so the rest of the page can prerender:
+
+```jsx filename="app/page.js"
+<Suspense fallback="…">
+  <TimeDisplay />
+</Suspense>
+```
+
+Learn more: [Place Suspense above the Client Component](/docs/messages/blocking-prerender-current-time-client#place-suspense-above-the-client-component).
+
+#### Read the value after mount
+
+For a ticking clock, start the timer in `useEffect`.
 
 ```jsx filename="app/now.js"
 'use client'
@@ -243,20 +255,12 @@ import { startTransition, useEffect, useState } from 'react'
 export function Now() {
   const [now, setNow] = useState(null)
   useEffect(() => {
-    // Wrap in startTransition so that if any component below suspends
-    // during this update, React keeps the existing UI visible instead
-    // of flashing the nearest outer <Suspense> fallback.
-    startTransition(() => {
-      setNow(Date.now())
-    })
-    const id = setInterval(() => {
-      startTransition(() => {
-        setNow(Date.now())
-      })
-    }, 1000)
+    const tick = () => startTransition(() => setNow(Date.now()))
+    tick()
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
-  return <time>{now ? new Date(now).toLocaleString() : '…'}</time>
+  return <time>{now === null ? '…' : new Date(now).toLocaleTimeString()}</time>
 }
 ```
 
@@ -264,11 +268,11 @@ Learn more: [Initialize the timestamp after mount](/docs/messages/blocking-prere
 
 ### Trade-off
 
-The timestamp appears only after the component renders in the browser. Until then, the user sees the fallback or placeholder. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The prerendered page shows the fallback. If you read the value in an effect, it shows the initial state until the effect runs. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- If a Client Component calls `Date.now()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
+- If the server and browser need the same timestamp on the first render, [generate it on the server](#generate-on-every-request) and pass it as a prop.
 
 ## For telemetry, use a timing API
 

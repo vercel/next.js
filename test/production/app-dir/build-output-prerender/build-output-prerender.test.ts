@@ -341,7 +341,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+             - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (app/server/page.tsx:13:27)
@@ -389,7 +389,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+             - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)

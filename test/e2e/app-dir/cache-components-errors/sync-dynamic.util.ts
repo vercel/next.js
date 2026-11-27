@@ -56,7 +56,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at RandomReadingComponent (app/sync-random-with-fallback/page.tsx:37:23)
@@ -83,7 +83,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at RandomReadingComponent (webpack:///app/sync-random-with-fallback/page.tsx:37:23)
@@ -112,7 +112,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at a (app/sync-random-with-fallback/page.tsx:37:23)
@@ -138,7 +138,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at a (<next-dist-dir>)
@@ -200,7 +200,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at getRandomNumber (app/sync-random-without-fallback/page.tsx:32:15)
@@ -228,7 +228,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
@@ -258,7 +258,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at a (app/sync-random-without-fallback/page.tsx:32:15)
@@ -284,7 +284,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                Ways to fix this:
                  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
                  - [cache] Prerender and cache the value with \`"use cache"\`
-                 - [client] In a Client Component, read the value in \`useEffect\` or an event handler
+                 - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                    at a (<next-dist-dir>)

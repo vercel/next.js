@@ -71,7 +71,7 @@ function createSyncIOErrorImpl(
       `Ways to fix this:\n` +
       `  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary\n` +
       `  - [cache] Prerender and cache the value with \`"use cache"\`\n` +
-      `  - [client] In a Client Component, read the value in \`useEffect\` or an event handler` +
+      `  - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary` +
       elapsedTimeBullet(type) +
       `\n\nLearn more: ${getSyncIODocsUrl(docsUrl, thirdPartyPackage)}`
   )

@@ -35,7 +35,8 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     href="#generate-on-every-request"
     snippets={[
       { text: 'await io()', highlight: true },
-      { text: 'return crypto.randomUUID()' },
+      { text: 'const id = crypto.randomUUID()' },
+      { text: 'return <Token id={id} />' },
     ]}
   />
   <FixCard
@@ -44,7 +45,8 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     href="#cache-the-generated-value"
     snippets={[
       { text: '"use cache"', highlight: true },
-      { text: 'return crypto.randomUUID()' },
+      { text: 'const key = crypto.randomUUID()' },
+      { text: 'return db.query(key)' },
     ]}
   />
   <FixCard
@@ -52,9 +54,9 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '<button onClick={() => {', highlight: true },
-      { text: '  setId(crypto.randomUUID())' },
-      { text: '}}>Start a draft</button>' },
+      { text: '<Suspense fallback="…">', highlight: true },
+      { text: '  <CorrelationId />' },
+      { text: '</Suspense>' },
     ]}
   />
 </FixCardGrid>
@@ -211,13 +213,25 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the generated value belongs to the client experience. A client-only correlation ID for telemetry, a draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), a UI nonce for a confirmation modal. Read the value after mount or in an event handler. [Client Components also render on the server](/docs/app/getting-started/server-and-client-components#on-the-server).
+Choose this fix when a client-side correlation ID can appear after a fallback. Move the read into a [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) and wrap it in a parent `<Suspense>` boundary.
 
 ### Patterns
 
 #### Move the component to the client
 
-Add [`use client`](/docs/app/api-reference/directives/use-client) and call the crypto API inside `useEffect`.
+If `CorrelationId` calls `crypto.randomUUID()` during render, add `'use client'` to its file. In the parent, wrap just `<CorrelationId />` so the rest of the page can prerender:
+
+```jsx filename="app/page.js"
+<Suspense fallback="…">
+  <CorrelationId />
+</Suspense>
+```
+
+Learn more: [Place Suspense above the Client Component](/docs/messages/blocking-prerender-crypto-client#place-suspense-above-the-client-component).
+
+#### Read the value after mount
+
+If the ID is only needed after mount, generate it in `useEffect`.
 
 ```jsx filename="app/draft-key.js"
 'use client'
@@ -225,16 +239,11 @@ Add [`use client`](/docs/app/api-reference/directives/use-client) and call the c
 import { startTransition, useEffect, useState } from 'react'
 
 export function DraftKey() {
-  const [key, setKey] = useState(null)
+  const [key, setKey] = useState('')
   useEffect(() => {
-    // Wrap in startTransition so that if any component below suspends
-    // during this update, React keeps the existing UI visible instead
-    // of flashing the nearest outer <Suspense> fallback.
-    startTransition(() => {
-      setKey(crypto.randomUUID())
-    })
+    startTransition(() => setKey(crypto.randomUUID()))
   }, [])
-  return <input type="hidden" value={key ?? ''} />
+  return <input type="hidden" value={key} />
 }
 ```
 
@@ -242,11 +251,11 @@ Learn more: [Initialize a value after mount](/docs/messages/blocking-prerender-c
 
 ### Trade-off
 
-The ID appears only after the component renders in the browser. Until then, the user sees the fallback or placeholder. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The prerendered page shows the fallback. If you read the value in an effect, it shows the initial state until the effect runs. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- If a Client Component calls a synchronous crypto API during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
+- If the server and browser need the same ID, [generate it on the server](#generate-on-every-request) and pass it as a prop.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
 
 ## When the read comes from an external library
