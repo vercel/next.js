@@ -26,7 +26,8 @@ use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, GitVersionInfo, StorageMode, TurboTasksBackend,
 };
 use turbo_tasks_fs::{
-    CellRope, CellRopePart, DiskFileSystem, File, FileContent, FileSystem, rope::Rope,
+    CellRope, CellRopeSegment, DiskFileSystem, File, FileContent, FileSystem, SkippableRope,
+    rope::Rope,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -145,7 +146,7 @@ async fn piece(input: ResolvedVc<Input>, prefix: RcStr) -> Result<Vc<CodeCells>>
 #[turbo_tasks::value(shared)]
 struct PieceRef {
     cells: ResolvedVc<CodeCells>,
-    code: ResolvedVc<Rope>,
+    code: ResolvedVc<SkippableRope>,
 }
 
 #[turbo_tasks::function]
@@ -192,7 +193,7 @@ async fn code_content(input: ResolvedVc<Input>) -> Result<Vc<FileContent>> {
 
 #[turbo_tasks::function]
 async fn map_content(input: ResolvedVc<Input>, ty: SourceMapType) -> Result<Vc<AssetContent>> {
-    composed(*input).await?.source_map_content(ty).await
+    composed(*input).await?.generate_source_map(ty).await
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -242,9 +243,10 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
         for (map, tail) in section_maps.into_iter().zip(tails) {
             let map = map.await?;
             let referenced = map
-                .parts()
-                .filter_map(|part| match part {
-                    CellRopePart::Cell { cell, skip: None } => Some(cell),
+                .segments()
+                .iter()
+                .filter_map(|segment| match segment {
+                    CellRopeSegment::Cell(cell) => Some(*cell),
                     _ => None,
                 })
                 .collect::<Vec<_>>();

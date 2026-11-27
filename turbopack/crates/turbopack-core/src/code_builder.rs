@@ -101,9 +101,9 @@ impl SectionMap {
         }
     }
 
-    /// The map as a [`CellRope`]: a [`SectionMap::Split`] map references its tail cell, other
-    /// maps are inline.
-    fn to_cell_rope(&self) -> CellRope {
+    /// The map as a [`CellRope`] cell: a [`SectionMap::Split`] map references its tail cell,
+    /// other maps are inline.
+    fn to_cell_rope(&self) -> ResolvedVc<CellRope> {
         let mut builder = CellRopeBuilder::default();
         match self {
             SectionMap::Split { head, tail, .. } => {
@@ -112,7 +112,7 @@ impl SectionMap {
             }
             SectionMap::Raw(_) | SectionMap::Structured(_) => builder.concat(&self.to_rope()),
         }
-        builder.build()
+        builder.build_resolved_cell()
     }
 }
 
@@ -290,12 +290,7 @@ impl Code {
             .mappings
             .mappings
             .iter()
-            .map(|(index, maps)| {
-                (
-                    *index,
-                    maps.clone().map(|map| map.to_cell_rope().resolved_cell()),
-                )
-            })
+            .map(|(index, maps)| (*index, maps.clone().map(|map| map.to_cell_rope())))
             .collect();
         let strict_directive = self.strict_directive();
         let code = SkippableRope::new(self.code, strict_directive).resolved_cell();
@@ -1335,8 +1330,9 @@ mod composition_tests {
     /// How many parts of `rope` reference another cell (a section map's cell is referenced as a
     /// nested rope).
     fn referenced_parts(rope: &CellRope) -> usize {
-        rope.parts()
-            .filter(|part| !matches!(part, CellRopePart::Inline(_)))
+        rope.segments()
+            .iter()
+            .filter(|segment| !matches!(segment, CellRopeSegment::Inline(_)))
             .count()
     }
 
@@ -1690,6 +1686,7 @@ mod composition_tests {
         let map = composition
             .generate_source_map(&code, None, SourceMapType::Full)
             .await?
+            .await?
             .read()
             .await?;
 
@@ -1706,9 +1703,10 @@ mod composition_tests {
             let map_cell = map_cell.await?;
             // The section map references the module's tail instead of copying it.
             let referenced = map_cell
-                .parts()
-                .filter_map(|part| match part {
-                    CellRopePart::Cell { cell, skip: None } => Some(cell),
+                .segments()
+                .iter()
+                .filter_map(|segment| match segment {
+                    CellRopeSegment::Cell(cell) => Some(*cell),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
@@ -1733,8 +1731,9 @@ mod composition_tests {
         let structured_map = structured_map.await?;
         ensure!(
             structured_map
-                .parts()
-                .all(|part| matches!(part, CellRopePart::Inline(_))),
+                .segments()
+                .iter()
+                .all(|segment| matches!(segment, CellRopeSegment::Inline(_))),
             "an unsplit structured map is stored inline"
         );
         ensure!(
@@ -1752,8 +1751,9 @@ mod composition_tests {
         ensure!(
             fixed_map
                 .await?
-                .parts()
-                .all(|part| matches!(part, CellRopePart::Inline(_))),
+                .segments()
+                .iter()
+                .all(|segment| matches!(segment, CellRopeSegment::Inline(_))),
             "a map that isn't split is stored inline"
         );
         flat.push_code(&*fixed_piece().to_code().await?)?;
@@ -1996,8 +1996,9 @@ mod variant_tests {
                 .await?;
             ensure!(
                 composed
-                    .parts()
-                    .filter(|part| !matches!(part, CellRopePart::Inline(_)))
+                    .segments()
+                    .iter()
+                    .filter(|segment| !matches!(segment, CellRopeSegment::Inline(_)))
                     .count()
                     == names.len(),
                 "{ty:?} maps are referenced"
