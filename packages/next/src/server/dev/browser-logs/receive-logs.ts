@@ -58,6 +58,8 @@ const forwardConsole: typeof console = {
     methods.map((method) => [
       method,
       (...args: Array<any>) =>
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (console[method] as any)(
           ...args.map((arg) =>
             methodsToSkipInspect.has(method) ||
@@ -391,6 +393,8 @@ async function handleDir(
 ) {
   const loggableEntry = await prepareConsoleArgs(entry, ctx, distDir)
   const consoleMethod =
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     (forwardConsole as any)[entry.method] || forwardConsole.log
 
   if (entry.consoleMethodStack) {

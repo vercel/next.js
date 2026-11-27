@@ -331,6 +331,106 @@ it('runs ticks and microtasks from immediates before moving onto the next task',
   ])
 })
 
+it('runs microtasks queued by a nextTick callback before the next immediate', async () => {
+  const { log, logs } = createLogger()
+  const done = createPromiseWithResolvers<void>()
+
+  setTimeout(() => {
+    DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+
+    log('timeout 1')
+    setImmediate(() => {
+      log('timeout 1 -> immediate 1')
+      queueMicrotask(() => {
+        process.nextTick(() => {
+          log('timeout 1 -> immediate 1 -> microtask -> nextTick')
+          queueMicrotask(() => {
+            log(
+              'timeout 1 -> immediate 1 -> microtask -> nextTick -> microtask'
+            )
+          })
+        })
+      })
+      setImmediate(() => {
+        log('timeout 1 -> immediate 2')
+      })
+    })
+  })
+
+  setTimeout(() => {
+    log('timeout 2')
+    try {
+      expectNoPendingImmediates()
+      done.resolve()
+    } catch (err) {
+      done.reject(err)
+    }
+  })
+
+  await done.promise
+
+  expect(logs).toEqual([
+    // ===================================
+    'timeout 1',
+    // ======================
+    'timeout 1 -> immediate 1',
+    'timeout 1 -> immediate 1 -> microtask -> nextTick',
+    'timeout 1 -> immediate 1 -> microtask -> nextTick -> microtask',
+    // ======================
+    'timeout 1 -> immediate 2',
+    // ===================================
+    'timeout 2',
+  ])
+})
+
+it('runs immediates scheduled in a microtask queued by a nextTick callback', async () => {
+  const { log, logs } = createLogger()
+  const done = createPromiseWithResolvers<void>()
+
+  setTimeout(() => {
+    DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+
+    log('timeout 1')
+    setImmediate(() => {
+      log('timeout 1 -> immediate 1')
+      queueMicrotask(() => {
+        process.nextTick(() => {
+          queueMicrotask(() => {
+            setImmediate(() => {
+              log(
+                'timeout 1 -> immediate 1 -> microtask -> nextTick -> microtask -> immediate 1'
+              )
+            })
+          })
+        })
+      })
+    })
+  })
+
+  setTimeout(() => {
+    log('timeout 2')
+    try {
+      expectNoPendingImmediates()
+      done.resolve()
+    } catch (err) {
+      done.reject(err)
+    }
+  })
+
+  await done.promise
+
+  expect(logs).toEqual([
+    // ===================================
+    'timeout 1',
+    // ======================
+    'timeout 1 -> immediate 1',
+    // ======================
+    'timeout 1 -> immediate 1 -> microtask -> nextTick -> microtask -> immediate 1',
+    // ===================================
+    'timeout 2',
+  ])
+})
+
 describe('native immediate tracking', () => {
   it('separates explicit trackers, forwards arguments and results, and restores the parent scope', async () => {
     const first = new ImmediateTracker()
@@ -765,6 +865,8 @@ describe('native immediate tracking', () => {
         runInThisContext('Symbol.dispose')
       disposed[nativeDispose]()
       disposed[nativeDispose]()
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(() => setImmediate(undefined as any)).toThrow(/callback/)
 
       await new Promise<void>((resolve) => tracker.onIdle(resolve))
@@ -967,9 +1069,13 @@ describe('patched function behavior', () => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         try {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => setImmediate(undefined as any)).toThrow(
             /The "callback" argument must be of type function. Received undefined/
           )
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => setImmediate('not a callback' as any)).toThrow(
             /The "callback" argument must be of type function. Received type string/
           )
@@ -1014,9 +1120,13 @@ describe('patched function behavior', () => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         try {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => process.nextTick(undefined as any)).toThrow(
             /The "callback" argument must be of type function. Received undefined/
           )
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => process.nextTick('not a callback' as any)).toThrow(
             /The "callback" argument must be of type function. Received type string/
           )

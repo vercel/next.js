@@ -35,16 +35,17 @@ use next_core::{
     },
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
+    pages_structure::PagesDirectoryStructure,
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
-use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack::{
     ModuleAssetContext,
@@ -75,7 +76,7 @@ use turbopack_core::{
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
     GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_bundle_from_sources, go_declarations, go_source_set,
+    go_declarations, go_package_bundle_from_sources, go_source_failure, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
@@ -93,7 +94,8 @@ use crate::{
     project::{BaseAndFullModuleGraph, Project},
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, FirstLoadChunks, ModuleGraphs,
+        Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
@@ -109,12 +111,7 @@ pub struct AppProject {
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
-impl AppProject {}
-impl AppProject {
-    pub fn client_transition_name() -> RcStr {
-        rcstr!("next-ecmascript-client-reference")
-    }
-}
+pub static CLIENT_TRANSITION_NAME: RcStr = rcstr!("next-ecmascript-client-reference");
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -149,7 +146,7 @@ impl AppProject {
             client_transition: Some(ResolvedVc::upcast(
                 self.client_transition().to_resolved().await?,
             )),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -159,7 +156,7 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir.clone(),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -192,14 +189,16 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_client_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
-            self.project().client_compile_time_info().environment(),
+            project.project_path().owned().await?,
+            project.execution_context(),
+            project.client_compile_time_info().environment(),
             self.client_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
-            self.project().encryption_key(),
+            project.next_mode(),
+            project.next_config(),
+            project.encryption_key(),
+            project.client_source_map_generation_options(),
         ))
     }
 
@@ -222,67 +221,75 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::NodeJs,
-            self.project().encryption_key(),
-            self.project().server_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            project.encryption_key(),
+            project.server_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
+            *project.should_trace().await?,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::Edge,
-            self.project().encryption_key(),
-            self.project().edge_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
+            project.encryption_key(),
+            project.edge_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.route_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::NodeJs,
-            self.project().encryption_key(),
-            self.project().server_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            project.encryption_key(),
+            project.server_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
+            *project.should_trace().await?,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.route_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::Edge,
-            self.project().encryption_key(),
-            self.project().edge_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
+            project.encryption_key(),
+            project.edge_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            project.server_source_map_generation_options(),
         ))
     }
 
@@ -369,7 +376,7 @@ impl AppProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    AppProject::client_transition_name(),
+                    CLIENT_TRANSITION_NAME.clone(),
                     ecmascript_client_reference_transition.to_resolved().await?,
                 ),
                 (
@@ -471,7 +478,7 @@ impl AppProject {
     pub(crate) async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -522,7 +529,7 @@ impl AppProject {
     async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -610,7 +617,8 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -628,6 +636,7 @@ impl AppProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -906,7 +915,7 @@ impl AppProject {
         if *self.project.per_page_module_graph().await? {
             let next_mode = self.project.next_mode();
             let next_mode_ref = next_mode.await?;
-            let should_trace = *self.project.should_write_nft_manifests().await?;
+            let should_trace = *self.project.should_trace().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
             let remove_unused_imports = *self
                 .project
@@ -1104,10 +1113,10 @@ pub async fn app_entry_point_to_route(
             Route::AppGoRoute {
                 original_name: page.to_string().into(),
                 endpoint: ResolvedVc::upcast(
-                    GoRouteEndpoint {
-                        app_project,
+                    GoEndpoint {
+                        project: app_project.project().to_resolved().await?,
                         path,
-                        page,
+                        kind: GoEndpointKind::Route { page },
                     }
                     .resolved_cell(),
                 ),
@@ -1144,11 +1153,102 @@ pub async fn app_entry_point_to_route(
     .cell())
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
+enum GoEndpointKind {
+    Route { page: AppPage },
+    Proxy,
+}
+
 #[turbo_tasks::value(shared)]
-struct GoRouteEndpoint {
-    app_project: ResolvedVc<AppProject>,
+struct GoEndpoint {
+    project: ResolvedVc<Project>,
     path: FileSystemPath,
-    page: AppPage,
+    kind: GoEndpointKind,
+}
+
+pub(crate) fn go_proxy_endpoint(
+    project: ResolvedVc<Project>,
+    path: FileSystemPath,
+) -> Vc<Box<dyn Endpoint>> {
+    Vc::upcast(
+        GoEndpoint {
+            project,
+            path,
+            kind: GoEndpointKind::Proxy,
+        }
+        .cell(),
+    )
+}
+
+/// Renders the Go proxy handler with the configuration that proxy.ts URL
+/// normalization depends on.
+fn go_proxy_handler_source(skip_proxy_url_normalize: bool, base_path: &str) -> Result<String> {
+    let source = include_str!("templates/go_proxy_handler.go");
+    let placeholder = "const nextGoSkipProxyURLNormalize = false";
+    ensure!(
+        source.contains(placeholder),
+        "Go proxy template is missing the skipProxyUrlNormalize placeholder"
+    );
+    let source = source.replacen(
+        placeholder,
+        &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
+        1,
+    );
+    let placeholder = "const nextGoProxyBasePath = \"\"";
+    ensure!(
+        source.contains(placeholder),
+        "Go proxy template is missing the basePath placeholder"
+    );
+    Ok(source.replacen(
+        placeholder,
+        &format!(
+            "const nextGoProxyBasePath = {}",
+            serde_json::to_string(base_path)?
+        ),
+        1,
+    ))
+}
+
+/// proxy.go only supports App Router applications. Pages Router routing (data
+/// requests and locales) would need its own URL normalization in Go to match
+/// proxy.ts.
+async fn go_proxy_unsupported_reason(project: Vc<Project>) -> Result<Option<RcStr>> {
+    let pages = project.pages_project().pages_structure().await?;
+    let mut has_pages_routes = false;
+    for directory in pages.pages.iter().chain(pages.api.iter()) {
+        if pages_directory_has_routes(**directory).await? {
+            has_pages_routes = true;
+            break;
+        }
+    }
+    if has_pages_routes {
+        return Ok(Some(rcstr!(
+            "proxy.go is only supported in App Router applications. Move the routes in the pages \
+             directory to the app directory, or use proxy.ts."
+        )));
+    }
+    if project.next_config().i18n().await?.is_some() {
+        return Ok(Some(rcstr!(
+            "proxy.go does not support the i18n configuration, which only applies to the Pages \
+             Router. Remove i18n from your Next.js config, or use proxy.ts."
+        )));
+    }
+    Ok(None)
+}
+
+/// Whether a pages directory contains a route. `_app`, `_document` and `_error`
+/// are not routes.
+async fn pages_directory_has_routes(directory: Vc<PagesDirectoryStructure>) -> Result<bool> {
+    let directory = directory.await?;
+    if !directory.items.is_empty() {
+        return Ok(true);
+    }
+    for child in &directory.children {
+        if Box::pin(pages_directory_has_routes(**child)).await? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
@@ -1166,6 +1266,205 @@ async fn managed_session(
     watch: bool,
 ) -> Result<Vc<GoBuildSession>> {
     Ok(*owner.await?.session(scope, options, None, watch).await?)
+}
+
+/// Module path for route directories that have no go.mod.
+const GO_STANDALONE_MODULE: &str = "next-go-route";
+
+/// Language version for the generated go.mod of route directories without one, taken from the
+/// toolchain's `GOVERSION` (such as `go1.26.1`, `go1.26rc1`, or `devel go1.27-abcdef ...` for a
+/// development toolchain), so they can use every language feature the installed toolchain
+/// supports. Falls back to the minimum supported version.
+fn go_language_version(toolchain_version: &str) -> String {
+    toolchain_version
+        .split_whitespace()
+        .find_map(|word| word.strip_prefix("go1."))
+        .map(|rest| {
+            rest.chars()
+                .take_while(|ch| ch.is_ascii_digit())
+                .collect::<String>()
+        })
+        .filter(|minor| !minor.is_empty())
+        .map_or_else(|| "1.24".to_owned(), |minor| format!("1.{minor}"))
+}
+
+/// Virtual, module-relative directories for a route or proxy package and its generated `main`
+/// package.
+struct GoPackageAlias {
+    package: String,
+    entrypoint: String,
+}
+
+/// Whether Go accepts `element` in an import path, following
+/// `golang.org/x/mod/module.CheckImportPath`.
+fn is_go_import_path_element(element: &str) -> bool {
+    let short = element.split('.').next().unwrap_or_default();
+    let reserved = short.to_ascii_uppercase();
+    !element.is_empty()
+        && !element.ends_with('.')
+        && element
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '.' | '_' | '~' | '+'))
+        && !matches!(reserved.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        && !(reserved.len() == 4
+            && (reserved.starts_with("COM") || reserved.starts_with("LPT"))
+            && reserved.ends_with(|ch: char| matches!(ch, '1'..='9')))
+        && !short.rsplit_once('~').is_some_and(|(_, suffix)| {
+            !suffix.is_empty() && suffix.bytes().all(|ch| ch.is_ascii_digit())
+        })
+}
+
+/// Choose virtual package directories with valid import paths for a source directory.
+///
+/// The package lives in the deepest ancestor-or-self of the source directory whose path is a
+/// valid, importable import path. Go only lets a package import `x/internal/...` when the
+/// importer's path starts with `x`, and any such `x` the source directory could reach is a
+/// valid prefix of it, so this keeps `internal` imports working. The prefix stops before a
+/// `vendor` element: in module mode Go refuses to import any path containing one, and nothing
+/// below it is importable, so this does not change `internal` visibility. The entrypoint is
+/// placed beside the package so it can import it even when that prefix contains an `internal`
+/// element. The final name is readable in stack traces and unique per source directory.
+fn go_package_alias(source_directory: &str, is_proxy: bool) -> GoPackageAlias {
+    let elements: Vec<_> = source_directory
+        .split('/')
+        .filter(|element| !element.is_empty())
+        .collect();
+    let valid = elements
+        .iter()
+        .take_while(|element| **element != "vendor" && is_go_import_path_element(element))
+        .count();
+    let parent = elements[..valid].join("/");
+    let mut name = String::new();
+    for ch in elements[valid..].join("/").chars() {
+        if ch.is_ascii_alphanumeric() {
+            name.push(ch);
+        } else if !name.is_empty() && !name.ends_with('_') {
+            name.push('_');
+        }
+    }
+    let name = name.trim_end_matches('_');
+    let kind = if is_proxy { "proxy" } else { "route" };
+    let hash = turbo_tasks_hash::hash_xxh3_hash64(source_directory) as u32;
+    let package = if name.is_empty() {
+        format!("_next_go_{kind}_{hash:08x}")
+    } else {
+        format!("_next_go_{kind}_{name}_{hash:08x}")
+    };
+    let entrypoint = format!("_next_go_main_{hash:08x}");
+    let join = |name: String| {
+        if parent.is_empty() {
+            name
+        } else {
+            format!("{parent}/{name}")
+        }
+    };
+    GoPackageAlias {
+        package: join(package),
+        entrypoint: join(entrypoint),
+    }
+}
+
+#[cfg(test)]
+mod go_package_alias_tests {
+    use super::*;
+
+    #[test]
+    fn aliases_keep_the_longest_valid_import_path_prefix() {
+        let hash = |path: &str| turbo_tasks_hash::hash_xxh3_hash64(path) as u32;
+        let alias = go_package_alias("app/(group)/native/[id]", false);
+        let h = hash("app/(group)/native/[id]");
+        assert_eq!(
+            alias.package,
+            format!("app/_next_go_route_group_native_id_{h:08x}")
+        );
+        assert_eq!(alias.entrypoint, format!("app/_next_go_main_{h:08x}"));
+        let alias = go_package_alias("app/api/hello", false);
+        let h = hash("app/api/hello");
+        assert_eq!(
+            alias.package,
+            format!("app/api/hello/_next_go_route_{h:08x}")
+        );
+        let alias = go_package_alias("", true);
+        let h = hash("");
+        assert_eq!(alias.package, format!("_next_go_proxy_{h:08x}"));
+        assert_eq!(alias.entrypoint, format!("_next_go_main_{h:08x}"));
+        let alias = go_package_alias("app/café a 100%/x", false);
+        assert!(alias.package.starts_with("app/_next_go_route_caf_a_100_x_"));
+        for element in [
+            "@slot", "[id]", "(group)", ".", "..", "a.", "CON", "com1.txt", "a~1", "a~12.txt", "",
+        ] {
+            assert!(!is_go_import_path_element(element), "{element}");
+        }
+        for element in [
+            "api",
+            "rss.xml",
+            "v1-beta",
+            "_private",
+            "console",
+            "c++",
+            "a~b",
+            ".hidden",
+            ".well-known",
+            "a~",
+            "com0",
+            "lpt0",
+        ] {
+            assert!(is_go_import_path_element(element), "{element}");
+            let directory = format!("app/{element}/[id]");
+            let alias = go_package_alias(&directory, false);
+            let h = hash(&directory);
+            assert_eq!(
+                alias.package,
+                format!("app/{element}/_next_go_route_id_{h:08x}")
+            );
+            assert_eq!(
+                alias.entrypoint,
+                format!("app/{element}/_next_go_main_{h:08x}")
+            );
+        }
+    }
+
+    #[test]
+    fn aliases_stop_before_vendor_elements() {
+        let hash = |path: &str| turbo_tasks_hash::hash_xxh3_hash64(path) as u32;
+        let h = hash("app/vendor/[id]");
+        let alias = go_package_alias("app/vendor/[id]", false);
+        assert_eq!(
+            alias.package,
+            format!("app/_next_go_route_vendor_id_{h:08x}")
+        );
+        assert_eq!(alias.entrypoint, format!("app/_next_go_main_{h:08x}"));
+        let h = hash("app/vendor/list");
+        let alias = go_package_alias("app/vendor/list", false);
+        assert_eq!(
+            alias.package,
+            format!("app/_next_go_route_vendor_list_{h:08x}")
+        );
+        let h = hash("vendor");
+        assert_eq!(
+            go_package_alias("vendor", true).package,
+            format!("_next_go_proxy_vendor_{h:08x}")
+        );
+        // Only the exact element is special to Go.
+        let h = hash("app/vendors/list");
+        assert_eq!(
+            go_package_alias("app/vendors/list", false).package,
+            format!("app/vendors/list/_next_go_route_{h:08x}")
+        );
+    }
+
+    #[test]
+    fn standalone_module_uses_the_toolchain_language_version() {
+        assert_eq!(go_language_version("go1.26.11"), "1.26");
+        assert_eq!(go_language_version("go1.25rc2"), "1.25");
+        assert_eq!(go_language_version("go1.24"), "1.24");
+        assert_eq!(go_language_version("devel go1.27-abcdef"), "1.27");
+        assert_eq!(
+            go_language_version("devel go1.27-abcdef Tue Nov 3 12:00:00 2026 +0000"),
+            "1.27"
+        );
+        assert_eq!(go_language_version("devel +abcdef"), "1.24");
+    }
 }
 
 #[turbo_tasks::value]
@@ -1187,7 +1486,9 @@ impl Issue for GoRouteIssue {
         Ok(self.path.clone())
     }
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!("Unable to compile route.go")))
+        Ok(StyledString::Text(
+            format!("Unable to compile {}", self.path.file_name()).into(),
+        ))
     }
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.message.clone())))
@@ -1195,15 +1496,20 @@ impl Issue for GoRouteIssue {
 }
 
 #[turbo_tasks::value_impl]
-impl Endpoint for GoRouteEndpoint {
+impl Endpoint for GoEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
-        let project = this.app_project.project().to_resolved().await?;
+        let project = this.project;
+        let is_proxy = matches!(this.kind, GoEndpointKind::Proxy);
         if !*project.next_config().go_routes().await? {
             GoRouteIssue {
                 path: this.path.clone(),
-                message: rcstr!("route.go requires experimental.goRoutes: true"),
+                message: if is_proxy {
+                    rcstr!("proxy.go requires experimental.goRoutes: true")
+                } else {
+                    rcstr!("route.go requires experimental.goRoutes: true")
+                },
             }
             .resolved_cell()
             .emit();
@@ -1211,6 +1517,22 @@ impl Endpoint for GoRouteEndpoint {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
                 output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
+        if is_proxy && let Some(message) = go_proxy_unsupported_reason(*project).await? {
+            GoRouteIssue {
+                path: this.path.clone(),
+                message,
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
             }
             .cell());
         }
@@ -1242,9 +1564,77 @@ impl Endpoint for GoRouteEndpoint {
         )
         .to_resolved()
         .await?;
-        let module_root = sources.await?.root.clone();
+        let source_set = sources.await?;
+        let module_root = source_set.root.clone();
+        // The generated `main`, dispatch and handler files below still form a valid program when
+        // the handler is not among the compiled sources, e.g. after it was deleted or replaced by
+        // `route.ts`. Such an endpoint must publish nothing, otherwise it keeps writing outputs
+        // that a replacement endpoint also writes, such as `app-paths-manifest.json`. The source
+        // set tracks the directory listing, so recreating the handler invalidates this check.
+        let handler_name = module_root
+            .get_path_to(&this.path)
+            .context("Go handler outside module")?;
+        if !source_set.files.contains_key(handler_name) {
+            if matches!(*this.path.get_type().await?, FileSystemEntryType::Error) {
+                bail!("Unable to read the Go handler {}", this.path);
+            }
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
         let analysis = go_declarations(*sources, session).await?;
-        let methods = analysis.functions.iter().filter(|name| {
+        // Next.js owns the program entrypoint. It imports the route directory as an ordinary
+        // package, so that directory cannot be a program itself. Only files Go selects for the
+        // package count: `//go:build ignore` generators commonly use `package main`.
+        if analysis.selected_packages.iter().any(|name| name == "main") {
+            let (file, suggestion) = if is_proxy {
+                ("proxy.go", "proxy")
+            } else {
+                ("route.go", "route")
+            };
+            let message: RcStr = format!(
+                "{file} must not use `package main`. Next.js generates the program entrypoint and \
+                 imports this directory as a package. Rename the package in every .go file in \
+                 this directory, for example to `package {suggestion}`."
+            )
+            .into();
+            GoRouteIssue {
+                path: this.path.clone(),
+                message: message.clone(),
+            }
+            .resolved_cell()
+            .emit();
+            // Carry the source selection's inputs so request-time validation notices when the
+            // package is renamed, rather than relying only on the file watcher.
+            let build = (*go_source_failure(*sources, session, message.clone()).await?).clone();
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: Some(build) }
+                    .resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
+        // Files that disagree are reported by the compiler.
+        let package = analysis
+            .selected_packages
+            .first()
+            .map_or("route", |name| name.as_str());
+        if is_proxy {
+            ensure!(
+                analysis
+                    .selected_functions
+                    .iter()
+                    .any(|name| name == "Proxy"),
+                "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
+            );
+        }
+        let methods = analysis.selected_functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
                 "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS"
@@ -1255,52 +1645,104 @@ impl Endpoint for GoRouteEndpoint {
             .collect::<Vec<_>>()
             .join("\n");
         let dispatch = include_str!("templates/go_route_dispatch.go")
+            .replace("__NEXT_GO_PACKAGE__", package)
             .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
-        let pathname = AppPath::from(this.page.clone()).to_string();
+        let (original_name, pathname) = match &this.kind {
+            GoEndpointKind::Route { page } => {
+                (page.to_string(), AppPath::from(page.clone()).to_string())
+            }
+            GoEndpointKind::Proxy => (String::new(), String::new()),
+        };
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
-        let handler = include_str!("templates/go_route_handler.go").replace(
-            "\"__NEXT_GO_ROUTE_PATTERN__\"",
-            &serde_json::to_string(&route_pattern)?,
-        );
+        let handler = if is_proxy {
+            go_proxy_handler_source(
+                *project.next_config().skip_proxy_url_normalize().await?,
+                base_path.as_deref().unwrap_or(""),
+            )?
+        } else {
+            include_str!("templates/go_route_handler.go").replace(
+                "\"__NEXT_GO_ROUTE_PATTERN__\"",
+                &serde_json::to_string(&route_pattern)?,
+            )
+        }
+        .replace("__NEXT_GO_PACKAGE__", package);
+        // The route directory is overlaid at a virtual directory with a valid import path, since
+        // segments such as `[id]` or `(group)` are not. Nothing is written to the project.
+        // See `go_package_alias` for how `internal` imports keep working.
+        let source_directory = if module_root == directory {
+            ""
+        } else {
+            module_root
+                .get_path_to(&directory)
+                .context("Go route outside module")?
+        };
+        let GoPackageAlias {
+            package: alias,
+            entrypoint,
+        } = go_package_alias(source_directory, is_proxy);
+        let mut generated = BTreeMap::new();
+        let import_path = match &source_set.module_path {
+            Some(module_path) => format!("{module_path}/{alias}"),
+            None => {
+                // A directory without go.mod gets a module so the entrypoint can import it.
+                let version = go_language_version(&go_session.go_context.version);
+                generated.insert(
+                    rcstr!("go.mod"),
+                    RcStr::from(format!("module {GO_STANDALONE_MODULE}\n\ngo {version}\n")),
+                );
+                format!("{GO_STANDALONE_MODULE}/{alias}")
+            }
+        };
         // All executables extract parameters from the selected destination URL.
         // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
-            include_str!("templates/go_route_adapter_main.go").to_owned()
+            include_str!("templates/go_route_adapter_main.go")
         } else {
-            include_str!("templates/go_route_main.go").to_owned()
-        };
-        let generated_path = directory.join("zz_next_route_main.go")?;
-        let dispatch_path = directory.join("zz_next_route_dispatch.go")?;
-        let handler_path = directory.join("zz_next_route_handler.go")?;
-        let generated = BTreeMap::from([
+            include_str!("templates/go_route_main.go")
+        }
+        .replace(
+            "\"__NEXT_GO_ROUTE_IMPORT__\"",
+            &serde_json::to_string(&import_path)?,
+        );
+        generated.extend([
             (
-                module_root
-                    .get_path_to(&handler_path)
-                    .context("Go handler outside module")?
-                    .into(),
+                RcStr::from(format!("{alias}/zz_next_route_handler.go")),
                 RcStr::from(handler),
             ),
             (
-                module_root
-                    .get_path_to(&generated_path)
-                    .context("Go wrapper outside module")?
-                    .into(),
-                RcStr::from(wrapper),
-            ),
-            (
-                module_root
-                    .get_path_to(&dispatch_path)
-                    .context("Go dispatch outside module")?
-                    .into(),
+                RcStr::from(format!("{alias}/zz_next_route_dispatch.go")),
                 RcStr::from(dispatch),
             ),
+            (
+                RcStr::from(format!("{entrypoint}/main.go")),
+                RcStr::from(wrapper),
+            ),
         ]);
-        let result = go_bundle_from_sources(*sources, session, generated).await?;
-        ensure!(
-            result.is_current().await?,
-            "Go route inputs changed during compilation; retry the request"
-        );
+        let result =
+            go_package_bundle_from_sources(*sources, session, alias.into(), generated).await?;
+        // Inputs that changed while compiling invalidate this task, which recomputes. Until
+        // then, publish nothing and leave the retry to request-side validation, instead of
+        // failing change subscriptions with an internal error. Editing files next to a Go
+        // entry, such as `next.config.ts` or `pages/` beside `proxy.go`, can race a compile.
+        if matches!(result.outcome, GoBuildOutcome::Retry) || !result.is_current().await? {
+            // Without a watcher, as in `next build`, nothing recomputes this task and build
+            // output is not validated per request, so fail instead of omitting the executable.
+            ensure!(
+                watch,
+                "Go route inputs changed during compilation; run the build again"
+            );
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed {
+                    build: Some((*result).clone()),
+                }
+                .resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
         let content = match &result.outcome {
             GoBuildOutcome::Success(content) => *content,
             GoBuildOutcome::Failed(message) => {
@@ -1317,9 +1759,11 @@ impl Endpoint for GoRouteEndpoint {
                         build: Some((*result).clone()),
                     }
                     .resolved_cell(),
+                    first_load_chunks: None,
                 }
                 .cell());
             }
+            // Handled above.
             GoBuildOutcome::Retry => {
                 bail!("Go inputs changed during compilation; retry the request")
             }
@@ -1328,14 +1772,19 @@ impl Endpoint for GoRouteEndpoint {
         let hash = AssetContent::file(*content)
             .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
             .await?;
-        let original_name = this.page.to_string();
-        let entry = format!("app{original_name}.native.json");
-        let executable = format!(
-            "app{original_name}-{hash}{}",
-            go_session.go_context.exe_suffix
-        );
+        let output_name = if is_proxy {
+            "middleware".to_owned()
+        } else {
+            format!("app{original_name}")
+        };
+        let entry = format!("{output_name}.native.json");
+        let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
-        let descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
+        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
+        if is_proxy {
+            descriptor["source"] =
+                serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
+        }
         let output_root = to_sys_path(node_root.clone())
             .await?
             .context("native Go output requires a disk filesystem")?;
@@ -1353,7 +1802,7 @@ impl Endpoint for GoRouteEndpoint {
         let descriptor_path = node_root.join(&format!("server/{entry}"))?;
         let executable_path = node_root.join(&format!("server/{executable}"))?;
         let trace = serde_json::json!({ "version": 1, "files": [descriptor_path.parent().get_path_to(&executable_path).context("native executable outside descriptor directory")?] });
-        let assets = vec![
+        let mut assets = vec![
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
                     node_root.join(&format!("server/{entry}.nft.json"))?,
@@ -1383,8 +1832,28 @@ impl Endpoint for GoRouteEndpoint {
                 .to_resolved()
                 .await?,
             ),
-            create_app_paths_manifest(node_root, &original_name, entry.into()).await?,
         ];
+        if is_proxy {
+            // This partial manifest lists Edge functions only. Like Node.js proxies,
+            // Go proxies emit an empty manifest so the manifest loader clears any
+            // previous Edge entry when the proxy changes runtime in development.
+            let middleware_manifest = MiddlewaresManifestV2::default();
+            assets.push(ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    node_root.join("server/middleware/middleware-manifest.json")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest,
+                        )?))
+                        .cell(),
+                    ),
+                )
+                .to_resolved()
+                .await?,
+            ));
+        } else {
+            assets.push(create_app_paths_manifest(node_root, &original_name, entry.into()).await?);
+        }
         // Validate again before these assets are offered to the output writer.
         ensure!(
             result.is_current().await?,
@@ -1398,6 +1867,7 @@ impl Endpoint for GoRouteEndpoint {
                 build: (*result).clone(),
             }
             .resolved_cell(),
+            first_load_chunks: None,
         }
         .cell())
     }
@@ -1421,7 +1891,7 @@ impl Endpoint for GoRouteEndpoint {
     }
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
-        self.app_project.project()
+        *self.project
     }
     #[turbo_tasks::function]
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
@@ -1616,37 +2086,42 @@ impl AppEndpoint {
                 .get_client_references_for_endpoint(
                     *rsc_entry,
                     matches!(this.ty, AppEndpointType::Page { .. }),
-                    /* include_traced */ *project.should_write_nft_manifests().await?,
+                    /* include_traced */ *project.should_trace().await?,
                     /* include_binding_usage */ project.next_mode().await?.is_production(),
                 )
                 .to_resolved()
                 .await?;
 
         // We only need the client runtime entries for pages not for Route Handlers
-        let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
-            if is_app_page {
-                let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                    AssetIdent::from_path(project.project_path().owned().await?)
-                        .with_modifier(rcstr!("client-shared-chunks"))
-                        .into_vc(),
-                    this.app_project.client_runtime_entries(),
-                    *module_graphs.full,
-                    *client_chunking_context,
-                );
+        let (
+            availability_info,
+            client_shared_chunks,
+            client_shared_chunks_vc,
+            client_chunk_group_bootstrap_params,
+        ) = if is_app_page {
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
+                this.app_project.client_runtime_entries(),
+                *module_graphs.full,
+                *client_chunking_context,
+            );
 
-                client_assets.extend(client_shared_chunk_group.all_assets().await?);
+            client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
-                let client_shared_chunk_group = client_shared_chunk_group.await?;
-                (
-                    client_shared_chunk_group.availability_info,
-                    client_shared_chunk_group.assets.owned().await?,
-                    client_shared_chunk_group
-                        .chunk_group_bootstrap_params
-                        .clone(),
-                )
-            } else {
-                (AvailabilityInfo::root(), vec![], None)
-            };
+            let client_shared_chunk_group = client_shared_chunk_group.await?;
+            (
+                client_shared_chunk_group.availability_info,
+                client_shared_chunk_group.assets.owned().await?,
+                Some(client_shared_chunk_group.assets),
+                client_shared_chunk_group
+                    .chunk_group_bootstrap_params
+                    .clone(),
+            )
+        } else {
+            (AvailabilityInfo::root(), vec![], None, None)
+        };
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1725,11 +2200,16 @@ impl AppEndpoint {
         // root_main_files_per_page so it is serialized under rootMainFilesTree[page] in
         // the build manifest. The server renderer reads rootMainFilesTree[pagePath] first
         // (required-scripts.tsx), so only the correct page's register chunk is loaded.
+        //
+        // rootMainFilesTree is only used for the bootstrap scripts of a full page load. A
+        // client-side navigation loads the page's client reference chunks from the RSC
+        // payload instead, so the register chunk is also passed to the client reference
+        // manifest, which appends it to the chunks of each of the page's client components.
         let is_hot_module_replacement_enabled = project
             .client_compile_time_info()
             .await?
             .hot_module_replacement_enabled;
-        let page_hmr_chunks = if is_app_page && is_hot_module_replacement_enabled {
+        let page_hmr_chunk_list = if is_app_page && is_hot_module_replacement_enabled {
             let client_components_chunks_ident =
                 AssetIdent::from_path(project.project_path().owned().await?)
                     .with_modifier(rcstr!("client-components"))
@@ -1737,12 +2217,21 @@ impl AppEndpoint {
                     .into_vc();
             let client_reference_chunks =
                 get_client_references_chunks_for_hmr(*client_references_chunks);
-            client_chunking_context
-                .hmr_chunk_list(
-                    client_components_chunks_ident,
-                    client_reference_chunks,
-                    HmrChunkListSource::Entry,
-                )
+            Some(
+                client_chunking_context
+                    .hmr_chunk_list(
+                        client_components_chunks_ident,
+                        client_reference_chunks,
+                        HmrChunkListSource::Entry,
+                    )
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
+        let page_hmr_chunks = if let Some(page_hmr_chunk_list) = page_hmr_chunk_list {
+            page_hmr_chunk_list
                 .await?
                 .iter()
                 .copied()
@@ -1825,9 +2314,9 @@ impl AppEndpoint {
 
         if emit_manifests != EmitManifests::None {
             let root_main_files_per_page = if page_hmr_chunks.is_empty() {
-                FxIndexMap::default()
+                OrderedAutoMap::default()
             } else {
-                let mut m = FxIndexMap::default();
+                let mut m = OrderedAutoMap::default();
                 m.insert(app_entry.original_name.clone(), page_hmr_chunks);
                 m
             };
@@ -1849,7 +2338,7 @@ impl AppEndpoint {
                 root_main_files_per_page,
                 pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
                     .map(|params| {
-                        let mut m = FxIndexMap::default();
+                        let mut m = OrderedAutoMap::default();
                         m.insert(app_entry.original_name.clone(), params);
                         m
                     })
@@ -1963,6 +2452,20 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
+        // Only needed for the route bundle stats of production builds.
+        let first_load_chunks = if let Some(client_shared_chunks) = client_shared_chunks_vc
+            && emit_rsc_manifests
+            && project.next_mode().await?.is_production()
+        {
+            Some(FirstLoadChunks::AppPage {
+                client_references,
+                client_references_chunks,
+                client_shared_chunks,
+            })
+        } else {
+            None
+        };
+
         if emit_rsc_manifests {
             let entry_manifest = ResolvedVc::upcast(
                 ClientReferenceManifest {
@@ -1971,6 +2474,7 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
+                    hmr_chunk_list: page_hmr_chunk_list,
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
@@ -2065,7 +2569,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2117,7 +2621,7 @@ impl AppEndpoint {
                             .as_ref()
                             .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
-                        env: project.edge_env().owned().await?,
+                        env: project.edge_env().owned().await?.into_iter().collect(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],
@@ -2161,6 +2665,7 @@ impl AppEndpoint {
                     files: app_entry_chunks,
                     server_assets,
                     client_assets,
+                    first_load_chunks,
                 }
             }
             NextRuntime::NodeJs => {
@@ -2189,7 +2694,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2219,17 +2724,25 @@ impl AppEndpoint {
                     .should_write_nft_manifests()
                     .await?
                 {
+                    let mut additional_assets = Vec::with_capacity(
+                        client_reference_manifest.iter().len()
+                            + loadable_manifest_output
+                                .iter()
+                                .map(|m| m.len())
+                                .sum::<usize>(),
+                    );
+                    additional_assets.extend(
+                        client_reference_manifest
+                            .iter()
+                            .chain(loadable_manifest_output.iter().flat_map(|m| &**m))
+                            .map(|m| **m),
+                    );
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
                             Some(app_function_name(&app_entry.original_name).into()),
                             *rsc_chunk,
-                            client_reference_manifest
-                                .iter()
-                                .copied()
-                                .chain(loadable_manifest_output.iter().flat_map(|m| &**m).copied())
-                                .map(|m| *m)
-                                .collect(),
+                            additional_assets,
                             self.trace_result(),
                         )
                         .to_resolved()
@@ -2243,6 +2756,7 @@ impl AppEndpoint {
                     rsc_chunk,
                     server_assets,
                     client_assets,
+                    first_load_chunks,
                 }
             }
         }
@@ -2330,10 +2844,10 @@ impl AppEndpoint {
                                 let merged = chunk_group_info
                                     .get_shared_merged_chunk_group(
                                         entry_index,
-                                        NEXT_SERVER_UTILITY_MERGE_TAG,
+                                        NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     )
                                     .await?;
-                                merged.as_ref().map(|group| group.chunk_group.key())
+                                merged.as_ref().and_then(|group| group.kind.key())
                             };
 
                             ensure!(
@@ -2626,11 +3140,21 @@ impl Endpoint for AppEndpoint {
                 },
             };
 
+            let first_load_chunks = match &*output.await? {
+                AppEndpointOutput::NodeJs {
+                    first_load_chunks, ..
+                }
+                | AppEndpointOutput::Edge {
+                    first_load_chunks, ..
+                } => first_load_chunks.clone(),
+            };
+
             anyhow::Ok(
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    first_load_chunks,
                 }
                 .cell(),
             )
@@ -2675,7 +3199,7 @@ impl Endpoint for AppEndpoint {
             .get_client_references_for_endpoint(
                 *app_entry.rsc_entry,
                 true,
-                *project.should_write_nft_manifests().await?,
+                *project.should_trace().await?,
                 project.next_mode().await?.is_production(),
             )
             .await?;
@@ -2745,7 +3269,7 @@ impl Endpoint for AppEndpoint {
             .get_client_references_for_endpoint(
                 *app_entry.rsc_entry,
                 true,
-                *project.should_write_nft_manifests().await?,
+                *project.should_trace().await?,
                 project.next_mode().await?.is_production(),
             )
             .to_resolved()
@@ -2904,11 +3428,15 @@ enum AppEndpointOutput {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_chunks: Option<FirstLoadChunks>,
     },
     Edge {
         files: ResolvedVc<OutputAssets>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_chunks: Option<FirstLoadChunks>,
     },
 }
 
@@ -2941,5 +3469,20 @@ impl AppEndpointOutput {
             AppEndpointOutput::NodeJs { client_assets, .. }
             | AppEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::go_proxy_handler_source;
+
+    #[test]
+    fn renders_go_proxy_handler_configuration() {
+        let source = go_proxy_handler_source(false, "").unwrap();
+        assert!(source.contains("const nextGoSkipProxyURLNormalize = false\n"));
+        assert!(source.contains("const nextGoProxyBasePath = \"\"\n"));
+        let source = go_proxy_handler_source(true, "/docs").unwrap();
+        assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
+        assert!(source.contains("const nextGoProxyBasePath = \"/docs\"\n"));
     }
 }

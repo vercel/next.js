@@ -70,7 +70,6 @@ import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
-import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -539,6 +538,8 @@ async function exportAppImpl(
   }
 
   // We need this for server rendering the Link component.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__NEXT_DATA__ = {
     nextExport: true,
   }
@@ -815,9 +816,9 @@ async function exportAppImpl(
       worker = staticWorker
     } else {
       worker = createStaticWorker(nextConfig, {
-        debuggerPortOffset: getNextBuildDebuggerPortOffset({
-          kind: 'export-page',
-        }),
+        // Port offset 0: export-page workers get the first debugger port after
+        // the parent process (base + 1 + 0).
+        debuggerPortOffset: 0,
         numberOfWorkers: options.numWorkers,
         progress,
       })
@@ -916,10 +917,10 @@ async function exportAppImpl(
     }
   }
 
-  // Export mode provide static outputs that are not compatible with PPR mode.
   if (!options.buildExport && nextConfig.cacheComponents) {
-    // TODO: add message
-    throw new Error('Invariant: PPR cannot be enabled in export mode')
+    throw new Error(
+      "`cacheComponents` is not yet supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#with-cache-components"
+    )
   }
 
   // copy prerendered routes to outDir
@@ -1095,7 +1096,7 @@ async function exportAppImpl(
   }
 
   if (!staticWorker && worker) {
-    await worker.end()
+    await worker.shutdown()
   }
 
   return collector

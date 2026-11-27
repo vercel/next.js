@@ -85,5 +85,7 @@ describe('basePath + trailingSlash', () => {
       }
     })
   }
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   runTests((global as any).isDev)
 })

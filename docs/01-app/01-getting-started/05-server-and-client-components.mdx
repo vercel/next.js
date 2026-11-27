@@ -293,6 +293,8 @@ export default function LikeButton({ likes }) {
 }
 ```
 
+Props are serialized into the [RSC Payload](/docs/app/glossary#rsc-payload), which is inlined in the page's HTML on the initial load and fetched on client-side navigations. Pass Client Components only the fields they use, like `post.likes` in this example, instead of the whole `post` object.
+
 Alternatively, you can stream data from a Server Component to a Client Component with the [`use` API](https://react.dev/reference/react/use). See an [example](/docs/app/getting-started/fetching-data#streaming-data-with-the-use-api).
 
 > **Good to know**: Props passed to Client Components need to be [serializable](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values) by React.

@@ -11,7 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::IssueSource,
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
 };
 
 /// The source of a synthetic module, with a source map that maps all of its code
@@ -62,7 +62,7 @@ impl Asset for SyntheticSource {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SyntheticSource {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         call_site_source_map(self.call_site, &self.code).await
     }
 }

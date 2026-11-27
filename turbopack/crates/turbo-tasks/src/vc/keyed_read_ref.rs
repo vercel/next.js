@@ -118,15 +118,18 @@ where
         }
         dependency.release_alive_ref();
         let key_hashes = std::mem::take(self.accessed_key_hashes.get_mut());
-        with_turbo_tasks(|tt| {
+        if let Err(error) = with_turbo_tasks(|tt| {
             tt.refine_provisional_cell_dependency(
                 task,
                 index,
                 dependency.reader,
                 dependency.id,
-                &mut key_hashes.into_iter(),
+                &key_hashes,
             )
-        });
+        }) {
+            // The cell's task was garbage collected while this execution used it.
+            dependency.fail_execution(error);
+        }
     }
 }
 

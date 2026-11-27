@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{chunk::ChunkableModule, module::Module};
 
@@ -21,7 +21,7 @@ impl ModuleOrBatch {
     pub async fn ident_strings(self) -> Result<IdentStrings> {
         Ok(match self {
             ModuleOrBatch::Module(module) => {
-                IdentStrings::Single(module.ident().to_string().owned().await?)
+                IdentStrings::Single(module.ident_string().owned().await?)
             }
             ModuleOrBatch::Batch(batch) => IdentStrings::Multiple(batch.ident_strings().await?),
             ModuleOrBatch::None(_) => IdentStrings::None,
@@ -49,7 +49,7 @@ impl ChunkableModuleOrBatch {
     pub async fn ident_strings(self) -> Result<IdentStrings> {
         Ok(match self {
             ChunkableModuleOrBatch::Module(module) => {
-                IdentStrings::Single(module.ident().to_string().owned().await?)
+                IdentStrings::Single(module.ident_string().owned().await?)
             }
             ChunkableModuleOrBatch::Batch(batch) => {
                 IdentStrings::Multiple(batch.ident_strings().await?)
@@ -87,7 +87,7 @@ impl Debug for IdentStrings {
 
 #[turbo_tasks::value]
 pub struct ModuleBatch {
-    pub modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub modules: Box<[ResolvedVc<Box<dyn ChunkableModule>>]>,
     pub chunk_groups: Option<Bitset>,
 }
 
@@ -95,7 +95,7 @@ pub struct ModuleBatch {
 impl ModuleBatch {
     #[turbo_tasks::function]
     pub fn new(
-        modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+        modules: Box<[ResolvedVc<Box<dyn ChunkableModule>>]>,
         chunk_groups: Option<Bitset>,
     ) -> Vc<Self> {
         Self {
@@ -110,7 +110,7 @@ impl ModuleBatch {
         Ok(Vc::cell(
             self.modules
                 .iter()
-                .map(|module| module.ident().to_string().owned())
+                .map(|module| module.ident_string().owned())
                 .try_join()
                 .await?,
         ))

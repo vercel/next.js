@@ -23,6 +23,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
+import { htmlEscapeAttributeString } from '../../shared/lib/htmlescape'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -586,9 +587,9 @@ export function createHeadInsertionTransformStream(
   })
 }
 
-async function createClientResumeScriptInsertionTransformStream(): Promise<
-  TransformStream<Uint8Array, Uint8Array>
-> {
+async function createClientResumeScriptInsertionTransformStream(
+  nonce: string | undefined
+): Promise<TransformStream<Uint8Array, Uint8Array>> {
   const segmentPath = '/_full'
   const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
@@ -597,7 +598,10 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
     undefined //       headers[NEXT_URL]
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
+  const nonceAttribute = nonce
+    ? ` nonce="${htmlEscapeAttributeString(nonce)}"`
+    : ''
+  const NEXT_CLIENT_RESUME_SCRIPT = `<script${nonceAttribute}>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({
@@ -1065,8 +1069,8 @@ export async function continueDynamicPrerender(
   ])
 }
 
-type ContinueStaticPrerenderOptions = {
-  inlinedDataStream: ReadableStream<Uint8Array>
+type ContinueStaticPrerenderOptions<TStream = ReadableStream<Uint8Array>> = {
+  inlinedDataStream: TStream
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   deploymentId: string | undefined
@@ -1098,6 +1102,12 @@ export async function continueStaticPrerender(
   ])
 }
 
+export type ContinueStaticFallbackPrerenderOptions<
+  TStream = ReadableStream<Uint8Array>,
+> = ContinueStaticPrerenderOptions<TStream> & {
+  nonce: string | undefined
+}
+
 export async function continueStaticFallbackPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
   {
@@ -1105,7 +1115,8 @@ export async function continueStaticFallbackPrerender(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     deploymentId,
-  }: ContinueStaticPrerenderOptions
+    nonce,
+  }: ContinueStaticFallbackPrerenderOptions
 ) {
   // Same as `continueStaticPrerender`, but also inserts an additional script
   // to instruct the client to start fetching the hydration data as early
@@ -1118,7 +1129,7 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    await createClientResumeScriptInsertionTransformStream(),
+    await createClientResumeScriptInsertionTransformStream(nonce),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

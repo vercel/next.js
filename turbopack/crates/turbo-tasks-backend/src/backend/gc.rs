@@ -64,7 +64,7 @@ pub enum TtlCounter {
     /// Pinned, or found as a root, by the most recent pass.
     MostRecent,
     /// System time millis at which a pass first found this root without a session-only pin.
-    FirstStale(u64),
+    FirstStale(#[bincode(fixint)] u64),
 }
 
 /// One unit of GC work.
@@ -203,7 +203,10 @@ impl TurboTasksBackend {
         let mut roots = self
             .backing_storage
             .roots()
-            .expect("reading gc roots should not fail")
+            .unwrap_or_else(|e| {
+                self.backing_storage
+                    .panic_on_read_error("reading gc roots should not fail", e)
+            })
             .into_iter()
             .collect::<FxHashMap<TaskId, TtlCounter>>();
         let roots_before = roots.clone();
@@ -253,7 +256,7 @@ impl TurboTasksBackend {
                     return ControlFlow::Continue(());
                 }
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
+                let mut ctx = ExecuteContext::new_for_gc(turbo_tasks, phase, &collector);
                 // `All` restores Data so `capture_all_edges` below can read the
                 // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -265,14 +268,28 @@ impl TurboTasksBackend {
                 }
 
                 let old_edges = capture_all_edges(&task);
-                // Clear `immutable` defensively so `resurrect_deleted` can mark the task dirty if
-                // it needs to
-                task.set_immutable(false);
                 // Drop the whole cell payload. This recovers most of the RAM while persistence
                 // writes the tombstone.
                 drop(task.take_cell_data());
                 task.set_deleted(true);
+                let task_type = task.get_persistent_task_type().cloned();
                 drop(task); // drop the lock so edge cleanup can run
+                // Remove the task_cache mapping now, so this deleted task cannot be found via a
+                // task launch.
+                // This must run after dropping the task lock: `get_or_create_task` takes
+                // `task_cache` before `storage.map`.
+                if let Some(task_type) = task_type {
+                    let removed_id = self
+                        .storage
+                        .task_cache
+                        .remove(task_type.as_ref())
+                        .map(|(_, id)| id);
+                    debug_assert!(
+                        removed_id.is_none_or(|id| id == task_id),
+                        "task_cache mapped the type of collected task {task_id} to another task: \
+                         {removed_id:?}"
+                    );
+                }
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
                 // Delete outgoing edges but don't update the aggregation graph yet.
@@ -292,7 +309,7 @@ impl TurboTasksBackend {
         let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut ctx = ExecuteContext::new_for_gc(turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
             queue.execute(&mut ctx);

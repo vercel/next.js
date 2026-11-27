@@ -138,6 +138,19 @@ export default defineConfig({
 })
 ```
 
+`@next/env` is published as a CommonJS module. In a native ES module, such as a `.mjs` or `.mts` file or a file in a package with `"type": "module"`, Node.js can't find the named export and throws `SyntaxError: Named export 'loadEnvConfig' not found`. In those files, import the default export and read `loadEnvConfig` from it:
+
+```js filename="envConfig.mjs"
+import nextEnv from '@next/env'
+
+const { loadEnvConfig } = nextEnv
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+Keep the named import in files that your tooling compiles to CommonJS, where the default import can be `undefined`.
+
 ### Referencing Other Variables
 
 Next.js will automatically expand variables that use `$` to reference other variables e.g. `$VARIABLE` inside of your `.env*` files. This allows you to reference other secrets. For example:
@@ -165,7 +178,7 @@ This will tell Next.js to replace all references to `process.env.NEXT_PUBLIC_ANA
 
 > **Note**: After being built, your app will no longer respond to changes to these environment variables. For instance, if you use a Heroku pipeline to promote slugs built in one environment to another environment, or if you build and deploy a single Docker image to multiple environments, all `NEXT_PUBLIC_` variables will be frozen with the value evaluated at build time, so these values need to be set appropriately when the project is built. If you need access to runtime environment values, you'll have to set up your own API to provide them to the client (either on demand or during initialization).
 
-```js filename="pages/index.js"
+```jsx filename="pages/index.js"
 import setupAnalyticsService from '../lib/my-analytics-service'
 
 // 'NEXT_PUBLIC_ANALYTICS_ID' can be used here as it's prefixed by 'NEXT_PUBLIC_'.
@@ -207,7 +220,7 @@ To read runtime environment variables, we recommend using `getServerSideProps` o
 
 You can safely read environment variables on the server during dynamic rendering:
 
-```tsx filename="app/page.ts" switcher
+```tsx filename="app/page.tsx" switcher
 import { connection } from 'next/server'
 
 export default async function Component() {
@@ -262,6 +275,8 @@ export default async () => {
   loadEnvConfig(projectDir)
 }
 ```
+
+If your setup file runs as a native ES module, use the default import shown in [Loading Environment Variables with `@next/env`](#loading-environment-variables-with-nextenv).
 
 ## Environment Variable Load Order
 

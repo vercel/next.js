@@ -61,6 +61,8 @@ import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import { getExportPathPageKey } from './utils'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -71,6 +73,26 @@ class TimeoutError extends Error {
 
 class ExportPageError extends Error {
   code = 'NEXT_EXPORT_PAGE_ERROR'
+}
+
+/**
+ * Set to true when prerenderEarlyExit fires. Suppresses logging from other
+ * pages that are concurrently in-flight so the user only sees the first error.
+ */
+let isEarlyExiting = false
+
+/**
+ * Saved reference to the real console.error. When isEarlyExiting is set we
+ * replace console.error with a no-op so that render-time logging from
+ * concurrent pages (e.g. logDisallowedDynamicError) is silenced.
+ */
+let realConsoleError: typeof console.error = console.error
+
+function setEarlyExiting(): void {
+  isEarlyExiting = true
+  // Silence all further console.error output so concurrent pages don't
+  // produce noise after the first failure has been reported.
+  console.error = () => {}
 }
 
 async function exportPageImpl(
@@ -176,7 +198,7 @@ async function exportPageImpl(
     params = getParams(normalizedPage, updatedPath)
   }
 
-  const { req, res } = createRequestResponseMocks({ url: updatedPath })
+  let initialStatusCode = 200
 
   // If this is a status code page, then set the response code.
   for (const statusCode of [404, 500]) {
@@ -187,27 +209,36 @@ async function exportPageImpl(
         `/${statusCode}/index.html`,
       ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
     ) {
-      res.statusCode = statusCode
+      initialStatusCode = statusCode
     }
   }
 
   // Ensure that the URL has a trailing slash if it's configured.
-  if (trailingSlash && !req.url?.endsWith('/')) {
-    req.url += '/'
-  }
+  const requestUrl =
+    trailingSlash && !updatedPath.endsWith('/')
+      ? updatedPath + '/'
+      : updatedPath
 
   // Resolve the pathname without a trailing slash for app page rendering.
   const resolvedPathname = removeTrailingSlash(updatedPath)
 
-  if (
-    locale &&
-    buildExport &&
-    commonRenderOpts.domainLocales &&
-    commonRenderOpts.domainLocales.some(
-      (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
-    )
-  ) {
-    addRequestMeta(req, 'isLocaleDomain', true)
+  // Pages and Route Handlers retain their HTTP adapters. App Page prerenders
+  // consume parsed inputs and output metadata without constructing transport.
+  const createTransportMocks = () => {
+    const { req, res } = createRequestResponseMocks({ url: requestUrl })
+    res.statusCode = initialStatusCode
+    if (
+      locale &&
+      buildExport &&
+      commonRenderOpts.domainLocales &&
+      commonRenderOpts.domainLocales.some(
+        (dl) =>
+          dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+      )
+    ) {
+      addRequestMeta(req, 'isLocaleDomain', true)
+    }
+    return { req, res }
   }
 
   const getHtmlFilename = (p: string) =>
@@ -274,6 +305,7 @@ async function exportPageImpl(
 
   // Handle App Routes.
   if (isAppDir && isAppRouteRoute(page)) {
+    const { req, res } = createTransportMocks()
     return exportAppRoute(
       req,
       res,
@@ -331,9 +363,8 @@ async function exportPageImpl(
     }
 
     return exportAppPage(
-      req,
-      res,
-      req.url,
+      initialStatusCode,
+      requestUrl,
       page,
       path,
       pathname,
@@ -362,6 +393,7 @@ async function exportPageImpl(
       developmentNotFoundSourcePage: undefined,
     }
 
+    const { req, res } = createTransportMocks()
     return exportPagesPage(
       req,
       res,
@@ -392,6 +424,13 @@ export async function exportPages(
   // (which uses the native codeFrameColumns function) works during prerendering.
   await installBindings()
   installCodeFrameSupport()
+
+  // Reset per-call so the flag doesn't leak across sequential batches.
+  // Restore console.error first (realConsoleError is still the original captured
+  // at module load; reassigning it here would overwrite it with the no-op set by
+  // setEarlyExiting() if a previous batch triggered an early exit).
+  console.error = realConsoleError
+  isEarlyExiting = false
 
   const {
     exportPaths,
@@ -461,6 +500,9 @@ export async function exportPages(
       : undefined
 
     while (attempt < maxAttempts) {
+      // Cleared once the race settles (resolved or rejected), so a finished
+      // export doesn't leave a ref'd timer behind that keeps the worker alive.
+      let timeoutTimer: ReturnType<typeof setTimeout> | undefined
       try {
         result = await Promise.race<ExportPageResult | undefined>([
           exportPage({
@@ -494,11 +536,11 @@ export async function exportPages(
               new Promise(() => {})
             : // If exporting the page takes longer than the timeout, reject the promise.
               new Promise((_, reject) => {
-                setTimeout(() => {
+                timeoutTimer = setTimeout(() => {
                   reject(new TimeoutError())
                 }, nextConfig.staticPageGenerationTimeout * 1000)
               }),
-        ])
+        ]).finally(() => clearTimeout(timeoutTimer))
 
         // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
         // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
@@ -531,10 +573,26 @@ export async function exportPages(
           }
           // If prerenderEarlyExit is enabled, we'll exit the build immediately.
           if (nextConfig.experimental.prerenderEarlyExit) {
-            console.error(
+            // If another page already triggered an early exit, this page's
+            // promise was abandoned by the outer Promise.all. Throwing here
+            // would produce an unhandled rejection, so return silently instead.
+            if (isEarlyExiting) {
+              return { result: undefined, path, page, pageKey }
+            }
+            // Suppress output from any concurrently-running pages so the user
+            // only sees the error from the first failing page.
+            setEarlyExiting()
+            const exportError: Error & {
+              code?: string
+              isPrerenderEarlyExit?: boolean
+            } = new Error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
-            process.exit(1)
+            exportError.code = 'NEXT_EXPORT_ERROR'
+            // Lets the build tell an early exit apart from the end-of-build
+            // export failure summary (which uses the same code).
+            exportError.isPrerenderEarlyExit = true
+            throw exportError
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
           }
@@ -628,31 +686,39 @@ async function exportPage(
       return { error: result.error, duration: Date.now() - start }
     }
   } catch (err) {
-    console.error(
-      `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
-    )
+    if (!isEarlyExiting) {
+      console.error(
+        `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
+      )
 
-    // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
-    // a framework signal
-    if (!isBailoutToCSRError(err)) {
-      // A static generation bailout error is a framework signal to fail static generation but
-      // and will encode a reason in the error message. If there is a message, we'll print it.
-      // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
-      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
-      if (isStaticGenBailoutError(err)) {
-        if (err.message) {
-          console.error(`Error: ${err.message}`)
+      // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
+      // a framework signal
+      if (!isBailoutToCSRError(err)) {
+        // A static generation bailout error is a framework signal to fail static generation but
+        // and will encode a reason in the error message. If there is a message, we'll print it.
+        // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+        // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
+        if (isStaticGenBailoutError(err)) {
+          if (err.message) {
+            console.error(`Error: ${err.message}`)
+          }
+        } else {
+          console.error(err)
         }
-      } else {
-        console.error(err)
       }
     }
 
     return { error: true, duration: Date.now() - start }
   }
 
-  // Notify the parent process that we processed a page (used by the progress activity indicator)
-  process.send?.([3, { type: 'activity' }])
+  // Notify the parent process that we processed a page (used by the progress activity indicator).
+  // Wrap in try/catch: if the IPC channel closed because the pool already propagated a
+  // NEXT_EXPORT_ERROR, the send throws ERR_IPC_CHANNEL_CLOSED — treat it as a no-op.
+  try {
+    process.send?.([3, { type: 'activity' }])
+  } catch {
+    // Channel already closed; nothing to do.
+  }
 
   // Otherwise we can return the result.
   return {
@@ -668,7 +734,12 @@ process.on('unhandledRejection', (err: unknown) => {
     return
   }
 
-  console.error(err)
+  // Suppress errors from concurrent pages when an early exit is in progress.
+  if (isEarlyExiting) {
+    return
+  }
+
+  realConsoleError(err)
 })
 
 process.on('rejectionHandled', () => {
@@ -681,12 +752,15 @@ const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
 
 process.on('uncaughtException', (err) => {
   if (isDynamicUsageError(err)) {
-    console.error(
+    realConsoleError(
       'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
     )
-    console.error(err)
+    realConsoleError(err)
     process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+  } else if (isEarlyExiting) {
+    // Suppress uncaught exceptions (e.g. ERR_IPC_CHANNEL_CLOSED) from
+    // concurrent pages when an early exit is already in progress.
   } else {
-    console.error(err)
+    realConsoleError(err)
   }
 })

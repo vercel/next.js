@@ -121,6 +121,27 @@ pub(crate) fn directory(path: &Path) -> Result<DirectoryInput> {
     })
 }
 
+// Compare the same directory view as Tasks FS. Frameworks exclude output
+// directories such as .next; their presence must not look like a source race.
+async fn input_directory(path: &FileSystemPath, system: &Path) -> Result<DirectoryInput> {
+    let mut input = directory(system)?;
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs)
+        .context("Go inputs require a disk filesystem")?;
+    let fs = fs.await?;
+    if let Some(names) = &mut input.names {
+        let mut denied = Vec::new();
+        for name in names.keys() {
+            if fs.is_path_denied(&path.join(name)?) {
+                denied.push(name.clone());
+            }
+        }
+        for name in denied {
+            names.remove(&name);
+        }
+    }
+    Ok(input)
+}
+
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct Inputs {
@@ -170,7 +191,7 @@ impl CompilerInputs {
         };
         for (key, (path, expected)) in &self.directories {
             let path_ref = input_sys_path(path).await?;
-            let actual = directory(&path_ref)?;
+            let actual = input_directory(path, &path_ref).await?;
             if &actual.names != expected {
                 return Ok(None);
             }
@@ -200,8 +221,8 @@ impl CompilationSnapshot {
             }
         }
         for (path, expected) in self.directories.values() {
-            let path = input_sys_path(path).await?;
-            if &directory(&path)? != expected {
+            let system = input_sys_path(path).await?;
+            if &input_directory(path, &system).await? != expected {
                 return Ok(false);
             }
         }
@@ -260,7 +281,11 @@ impl Inputs {
             }
         }
         for (path, input) in self.directories.values() {
-            if directory(&input_sys_path(path).await?)?.names != input.names {
+            if input_directory(path, &input_sys_path(path).await?)
+                .await?
+                .names
+                != input.names
+            {
                 return Ok(false);
             }
         }
@@ -360,7 +385,8 @@ impl<'a> Tracker<'a> {
         let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(tracked.fs)
             .context("Go inputs require a disk filesystem")?;
         fs.await?.track_directory(&tracked).await?;
-        let before = directory(path)?;
+        let before = input_directory(&tracked, path).await?;
+        // DETERMINISM: Recorded and live inventories are compared as BTreeMaps.
         let entries = tracked.raw_read_dir().await?;
         let recorded = match &*entries {
             RawDirectoryContent::NotFound => None,
@@ -381,7 +407,7 @@ impl<'a> Tracker<'a> {
                     .collect(),
             ),
         };
-        let after = directory(path)?;
+        let after = input_directory(&tracked, path).await?;
         self.dirty |= before != after || recorded != after.names;
         self.inputs.directories.insert(key, (tracked, after));
         Ok(())
@@ -395,21 +421,6 @@ impl<'a> Tracker<'a> {
                 break;
             }
             path = path.parent().context("Go lookup has no parent")?;
-        }
-        Ok(())
-    }
-
-    pub(crate) async fn tree(&mut self, root: &Path) -> Result<()> {
-        let mut pending = vec![root.to_owned()];
-        while let Some(path) = pending.pop() {
-            self.dir(&path).await?;
-            if let Some(names) = &self.inputs.directories[path.to_str().unwrap()].1.names {
-                for (name, kind) in names {
-                    if *kind == 1 {
-                        pending.push(path.join(name));
-                    }
-                }
-            }
         }
         Ok(())
     }
@@ -457,7 +468,7 @@ impl std::io::Write for HashWriter<'_> {
 
 /// Translate Go path.Match patterns. In particular, Go treats braces literally, uses ^ for class
 /// negation, and gives ** the same meaning as *. Generic filesystem glob dialects differ here.
-fn embed_matcher(pattern: &str) -> Result<regex::Regex> {
+pub(crate) fn embed_matcher(pattern: &str) -> Result<regex::Regex> {
     let mut expression = String::from(r"\A");
     let mut chars = pattern.chars().peekable();
     while let Some(ch) = chars.next() {

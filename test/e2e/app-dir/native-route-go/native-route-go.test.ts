@@ -1,5 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, fetchViaRawHttp, findPort, retry } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  fetchViaRawHttp,
+  findPort,
+  initNextServerScript,
+  killApp,
+  retry,
+} from 'next-test-utils'
 import { request } from 'http'
 import { promises as fs } from 'fs'
 import { dirname, join, relative } from 'path'
@@ -123,6 +130,10 @@ describe('native-route-go', () => {
       TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
     },
   })
+  // A first native request waits for a cold Go build of the toolchain helper, the standard
+  // library and the route. CI runs this suite three times concurrently with an empty Go build
+  // cache, where that request has taken up to 168s, beyond the default 120s test timeout.
+  const coldGoBuildTimeout = 180_000
   const route = 'app/(group)/native/[id]/route.go'
   const helper = 'app/(group)/native/[id]/helper.go'
   const nativePids = new Set<number>()
@@ -149,57 +160,67 @@ describe('native-route-go', () => {
       })
     }
   })
-  it('serves native methods, params, headers, cookies, query, and streamed request bodies', async () => {
-    const response = await next.fetch('/native/a%20b?key=one&key=two', {
-      method: 'POST',
-      body: 'request body',
-    })
-    expect(response.status).toBe(201)
-    expect(response.headers.get('x-handled-by')).toBe('POST')
-    expect(response.headers.get('x-native-route')).toBe('yes')
-    expect(response.headers.get('set-cookie')).toContain('first=1')
-    expect(response.headers.get('set-cookie')).toContain('second=2')
-    expect(response.headers.get('vary')).toContain('X-Proxy')
-    expect(response.headers.get('vary')).toContain('X-Go')
-    expect(response.headers.get('link')).toContain('</proxy.css>')
-    expect(response.headers.get('link')).toContain('</go.css>')
-    expect(await response.json()).toMatchObject({
-      id: 'a b',
-      method: 'POST',
-      query: 'key=one&key=two',
-      body: 'request body',
-      sibling: 'sibling-v1',
-      dependency: 'transitive-v1',
-      embedded: 'embedded-v1',
-      proxy: '1',
-    })
-    const get = await next.fetch('/native/get')
-    expect(get.status).toBe(201)
-    expect(get.headers.get('x-handled-by')).toBe('GET')
-    expect((await get.json()).method).toBe('GET')
-    const head = await next.fetch('/native/head', { method: 'HEAD' })
-    expect(head.status).toBe(201)
-    expect(head.headers.get('x-handled-by')).toBe('GET')
-    expect(await head.text()).toBe('')
-    const options = await next.fetch('/native/options', { method: 'OPTIONS' })
-    expect(options.status).toBe(204)
-    expect(options.headers.get('allow')).toBe('GET, HEAD, OPTIONS, POST')
-    expect(
-      (await next.fetch('/native/method', { method: 'DELETE' })).status
-    ).toBe(405)
-  })
-  it('finishes oversized proxied uploads when proxy copies the original Content-Length', async () => {
-    const response = await next.fetch('/native/upload', {
-      method: 'POST',
-      body: 'x'.repeat(128 * 1024),
-      signal: AbortSignal.timeout(10_000),
-    })
-    expect(response.status).toBe(201)
-    const result = await response.json()
-    expect(result.body.length).toBeLessThanOrEqual(64 * 1024)
-    expect(result.contentLength).toBe(result.body.length)
-    expect(result.proxy).toBe('1')
-  })
+  it(
+    'serves native methods, params, headers, cookies, query, and streamed request bodies',
+    async () => {
+      const response = await next.fetch('/native/a%20b?key=one&key=two', {
+        method: 'POST',
+        body: 'request body',
+      })
+      expect(response.status).toBe(201)
+      expect(response.headers.get('x-handled-by')).toBe('POST')
+      expect(response.headers.get('x-native-route')).toBe('yes')
+      expect(response.headers.get('set-cookie')).toContain('first=1')
+      expect(response.headers.get('set-cookie')).toContain('second=2')
+      expect(response.headers.get('vary')).toContain('X-Proxy')
+      expect(response.headers.get('vary')).toContain('X-Go')
+      expect(response.headers.get('link')).toContain('</proxy.css>')
+      expect(response.headers.get('link')).toContain('</go.css>')
+      expect(await response.json()).toMatchObject({
+        id: 'a b',
+        method: 'POST',
+        query: 'key=one&key=two',
+        body: 'request body',
+        sibling: 'sibling-v1',
+        dependency: 'transitive-v1',
+        embedded: 'embedded-v1',
+        proxy: '1',
+      })
+      const get = await next.fetch('/native/get')
+      expect(get.status).toBe(201)
+      expect(get.headers.get('x-handled-by')).toBe('GET')
+      expect((await get.json()).method).toBe('GET')
+      const head = await next.fetch('/native/head', { method: 'HEAD' })
+      expect(head.status).toBe(201)
+      expect(head.headers.get('x-handled-by')).toBe('GET')
+      expect(await head.text()).toBe('')
+      const options = await next.fetch('/native/options', { method: 'OPTIONS' })
+      expect(options.status).toBe(204)
+      expect(options.headers.get('allow')).toBe('GET, HEAD, OPTIONS, POST')
+      expect(
+        (await next.fetch('/native/method', { method: 'DELETE' })).status
+      ).toBe(405)
+    },
+    coldGoBuildTimeout
+  )
+  it(
+    'finishes oversized proxied uploads when proxy copies the original Content-Length',
+    async () => {
+      // Compile the route first, so the abort timeout below only bounds the upload itself.
+      await data('/native/upload')
+      const response = await next.fetch('/native/upload', {
+        method: 'POST',
+        body: 'x'.repeat(128 * 1024),
+        signal: AbortSignal.timeout(10_000),
+      })
+      expect(response.status).toBe(201)
+      const result = await response.json()
+      expect(result.body.length).toBeLessThanOrEqual(64 * 1024)
+      expect(result.contentLength).toBe(result.body.length)
+      expect(result.proxy).toBe('1')
+    },
+    coldGoBuildTimeout
+  )
   it('dispatches every declared method and automatically implements HEAD and sorted OPTIONS', async () => {
     await expectAutomaticMethods((method) => next.fetch('/methods', { method }))
   })
@@ -232,6 +253,7 @@ describe('native-route-go', () => {
       headers: {
         connection: 'x-next-internal-go-token',
         'x-next-internal-go-token': 'forged',
+        'x-next-internal-test': 'internal value',
       },
     })
     expect(response.status).toBe(201)
@@ -386,6 +408,7 @@ describe('native-route-go', () => {
         const path = 'app/lifecycle/route.go'
         const source = await next.readFile(path)
         const pid = await lifecyclePid()
+        const outputStart = next.cliOutput.length
         try {
           if (change === 'replace') {
             await next.patchFile(
@@ -406,6 +429,11 @@ describe('native-route-go', () => {
               expect(await next.render('/lifecycle')).toBe('javascript')
             }, 30_000)
           }
+          // A Go endpoint whose route.go is gone must stop publishing output;
+          // otherwise it races the replacement for the shared manifests.
+          expect(next.cliOutput.slice(outputStart)).not.toContain(
+            'conflicting effects for the same key'
+          )
         } finally {
           if (change === 'rename') {
             await next.renameFolder('app/lifecycle-renamed', 'app/lifecycle')
@@ -421,6 +449,7 @@ describe('native-route-go', () => {
       const path = 'app/lifecycle/route.go'
       const source = await next.readFile(path)
       const controller = new AbortController()
+      const outputStart = next.cliOutput.length
       try {
         await lifecyclePid()
         const response = await next.fetch('/lifecycle?stream=1', {
@@ -447,22 +476,82 @@ describe('native-route-go', () => {
         await retry(async () => {
           expect(() => process.kill(pid, 0)).toThrow()
         }, 30_000)
+        expect(next.cliOutput.slice(outputStart)).not.toContain(
+          'conflicting effects for the same key'
+        )
       } finally {
         controller.abort()
         await next.patchFile(path, source)
       }
     })
+    // Creating symlinks may require elevated privileges on Windows.
+    if (process.platform !== 'win32') {
+      it('serves a Go route that becomes a symlink and recovers', async () => {
+        const path = 'app/lifecycle/route.go'
+        const target = 'internal/lifecycle-link/route.go'
+        const source = await next.readFile(path)
+        const pid = await lifecyclePid()
+        const outputStart = next.cliOutput.length
+        try {
+          await next.patchFile(
+            target,
+            source.replace(
+              'map[string]int{"pid": os.Getpid()}',
+              'map[string]any{"linked": true, "pid": os.Getpid()}'
+            )
+          )
+          await next.deleteFile(path)
+          await fs.symlink(
+            relative(
+              dirname(join(next.testDir, path)),
+              join(next.testDir, target)
+            ),
+            join(next.testDir, path)
+          )
+          // Route discovery resolves the link and builds the target's handler, while
+          // the endpoint for the original path stops publishing output.
+          await retry(async () => {
+            const response = await next.fetch('/lifecycle')
+            expect(response.status).toBe(200)
+            const body = await response.json()
+            nativePids.add(body.pid)
+            expect(body).toEqual({ linked: true, pid: expect.any(Number) })
+            expect(body.pid).not.toBe(pid)
+          }, 30_000)
+          expect(next.cliOutput.slice(outputStart)).not.toContain(
+            'conflicting effects for the same key'
+          )
+        } finally {
+          await next.deleteFile(path)
+          await next.deleteFile('internal/lifecycle-link')
+          await next.patchFile(path, source)
+        }
+        await retry(async () => {
+          const response = await next.fetch('/lifecycle')
+          expect(response.status).toBe(200)
+          const body = await response.json()
+          nativePids.add(body.pid)
+          expect(body).toEqual({ pid: expect.any(Number) })
+        }, 30_000)
+      })
+    }
     it('reports conflicting Go and TS handlers from Rust and recovers', async () => {
       const path = 'app/(group)/native/[id]/route.ts'
-      const outputStart = next.cliOutput.length
+      const goPath = 'app/(group)/native/[id]/route.go'
+      const goSource = await next.readFile(goPath)
       try {
         await next.patchFile(
           path,
           'export function GET() { return new Response("conflict") }'
         )
+        // Recreate route.go so filesystems that list entries in creation order
+        // list it after route.ts. The result must not depend on that order.
+        await next.deleteFile(goPath)
+        await next.patchFile(goPath, goSource)
         await retry(async () => {
-          expect((await next.fetch('/native/example')).status).toBe(500)
-          expect(next.cliOutput.slice(outputStart)).toContain(
+          const response = await next.fetch('/native/example')
+          expect(response.status).toBe(500)
+          expect(await response.text()).toContain(
             'Conflicting App Router handlers'
           )
         }, 30_000)
@@ -588,10 +677,31 @@ describe('native-route-go', () => {
         expect((await data()).id).toBe('example')
       })
     })
+    it('rejects package main and recovers after the package is renamed', async () => {
+      const path = 'app/package-main/route.go'
+      const source =
+        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("renamed")) }\n'
+      const outputStart = next.cliOutput.length
+      await next.patchFile(path, source)
+      await retry(async () => {
+        expect((await next.fetch('/package-main')).status).toBe(500)
+        expect(next.cliOutput.slice(outputStart)).toContain(
+          'route.go must not use `package main`'
+        )
+      }, 30_000)
+      await next.patchFile(
+        path,
+        source.replace('package main', 'package route')
+      )
+      await retry(async () => {
+        expect(await next.render('/package-main')).toBe('renamed')
+      })
+      await next.deleteFile(path)
+    })
     it('repairs a first compilation failure and survives a persistent cache restart', async () => {
       const path = 'app/first-error/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
+        'package route\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
       const outputStart = next.cliOutput.length
       await next.patchFile(path, source + '\ninvalid syntax\n')
       // A newly added route enters the polling route table asynchronously.
@@ -648,7 +758,7 @@ describe('native-route-go', () => {
     it('caches startup errors and repairs them after an edit', async () => {
       const path = 'app/startup/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
+        'package route\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
       await next.patchFile(path, source)
       // Route-table discovery can lag behind creation of the source file.
       await retry(async () => {
@@ -1117,6 +1227,90 @@ describe('native-route-go', () => {
   }
 })
 
+// Standalone output is a self-hosted production build.
+// @force-gate turbopack && start
+describe('native-route-go with standalone output', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    // Standalone output is self-hosted with `node server.js`; see README.md for
+    // the deploy coverage boundary.
+    skipDeployment: true,
+  })
+
+  it('serves Go routes from .next/standalone/server.js without a Go toolchain', async () => {
+    await next.patchFile('next.config.ts', (config) =>
+      config.replace('experimental:', "output: 'standalone',\n  experimental:")
+    )
+    const result = await next.build()
+    expect(result.exitCode).toBe(0)
+    expect(result.cliOutput).not.toContain('Failed to copy traced files')
+
+    const standaloneDir = join(next.testDir, '.next/standalone')
+    const manifest = await next.readJSON(
+      '.next/standalone/.next/server/app-paths-manifest.json'
+    )
+    const entry = manifest['/(group)/native/[id]/route']
+    expect(entry).toMatch(/\.native\.json$/)
+    const descriptor = JSON.parse(
+      await fs.readFile(join(standaloneDir, '.next/server', entry), 'utf8')
+    )
+    const metadata = await fs.stat(
+      join(standaloneDir, '.next/server', descriptor.executable)
+    )
+    if (process.platform !== 'win32') expect(metadata.mode & 0o111).not.toBe(0)
+
+    // The standalone server must not fall back to the original build output.
+    await next.renameFolder('.next/standalone', 'standalone')
+    await next.renameFolder('.next', '.next-original')
+
+    const port = await findPort()
+    let output = ''
+    const server = await initNextServerScript(
+      join(next.testDir, 'standalone/server.js'),
+      /- Local:/,
+      {
+        ...process.env,
+        PORT: String(port),
+        HOSTNAME: '127.0.0.1',
+        TURBOPACK_GO: '/missing-go-toolchain',
+      },
+      undefined,
+      {
+        cwd: next.testDir,
+        onStdout: (message) => (output += message),
+        onStderr: (message) => (output += message),
+      }
+    )
+    try {
+      const origin = `http://127.0.0.1:${port}`
+      const response = await fetchViaHTTP(origin, '/native/standalone')
+      expect(response.status).toBe(201)
+      expect(response.headers.get('x-native-route')).toBe('yes')
+      expect(await response.json()).toMatchObject({
+        id: 'standalone',
+        sibling: 'sibling-v1',
+        embedded: expect.any(String),
+        proxy: '1',
+      })
+
+      const rewritten = await fetchViaHTTP(origin, '/alias')
+      expect(rewritten.status).toBe(201)
+      expect((await rewritten.json()).id).toBe('123')
+
+      await expectAutomaticMethods((method) =>
+        fetchViaHTTP(origin, '/methods', undefined, { method })
+      )
+
+      const js = await fetchViaHTTP(origin, '/js')
+      expect(js.status).toBe(200)
+    } finally {
+      await killApp(server)
+    }
+    expect(output).not.toContain('Error')
+  })
+})
+
 // @force-gate turbopack
 describe('native-route-go in src/app', () => {
   const { next, skipped } = nextTestSetup({
@@ -1133,6 +1327,14 @@ describe('native-route-go in src/app', () => {
     await next.renameFolder('app', 'src/app')
     await next.renameFolder('pages', 'src/pages')
     await next.renameFile('proxy.ts', 'src/proxy.ts')
+    const helper = 'src/app/(group)/native/[id]/helper.go'
+    await next.patchFile(
+      helper,
+      (await next.readFile(helper)).replace(
+        'example.com/native-route/app/internal/visibility',
+        'example.com/native-route/src/app/internal/visibility'
+      )
+    )
     await next.start()
   })
   it('discovers grouped native handlers below src/app', async () => {
@@ -1172,6 +1374,26 @@ describe('native route diagnostics', () => {
         expect(result.exitCode).not.toBe(0)
         expect(result.cliOutput).toContain(
           'route.go requires experimental.goRoutes: true'
+        )
+      }
+    )
+  })
+  it('rejects static export output', async () => {
+    await next.patchFile(
+      'next.config.ts',
+      (config) =>
+        config!.replace('experimental:', "output: 'export',\n  experimental:"),
+      async () => {
+        const result = await next.runCommand(['build', '--turbopack'], {
+          env: {
+            TURBOPACK_GO: '/missing-go-toolchain',
+            IS_TURBOPACK_TEST: '1',
+            IS_WEBPACK_TEST: '',
+          },
+        })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.cliOutput).toContain(
+          '`route.go` and `proxy.go` do not support `output: "export"`'
         )
       }
     )

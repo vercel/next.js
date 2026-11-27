@@ -12,11 +12,13 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
-import type {
-  RequestInsight,
-  RequestInsightsSnapshot,
+import {
+  getRequestInsightKey,
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  type RequestInsight,
+  type RequestInsightDelta,
+  type RequestInsightsSnapshot,
 } from '../shared/request-insights'
-import { getRequestInsightKey } from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -32,7 +34,6 @@ export type DevToolsConfig = {
   >
   devToolsPanelSize?: Record<string, { width: number; height: number }>
   scale?: number
-  hideShortcut?: string | null
   requestInsights?: {
     showInternal?: boolean
     verbose?: boolean
@@ -72,6 +73,7 @@ export interface OverlayState {
   readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
+  readonly devIndicatorHideVersion: number
   readonly debugInfo: DebugInfo
   readonly routerType: 'pages' | 'app'
   /** This flag is used to handle the Error Overlay state in the "old" overlay.
@@ -88,7 +90,6 @@ export interface OverlayState {
   readonly page: string
   readonly tree: FlightRouterState | null
   readonly theme: 'light' | 'dark' | 'system'
-  readonly hideShortcut: string | null
   readonly instantNavs: boolean
   readonly requestInsights: readonly RequestInsight[]
   readonly requestInsightsConfig: Readonly<{
@@ -96,7 +97,11 @@ export interface OverlayState {
     verbose: boolean
   }>
   readonly hasVulnerabilityInsight: boolean
+  /** Tab the error overlay should show when it was opened for a specific
+   *  diagnostic type (the Issues or Insights badge/menu entries). */
+  readonly errorOverlayTab: ErrorOverlayTab | null
 }
+export type ErrorOverlayTab = 'errors' | 'instant'
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
@@ -136,14 +141,66 @@ export const ACTION_VULNERABILITY_INSIGHT = 'vulnerability-insight'
 
 export function updateRequestInsights(
   currentRequests: readonly RequestInsight[],
-  insight: RequestInsight
+  update: RequestInsight | RequestInsightDelta
 ): RequestInsight[] {
-  const insightKey = getRequestInsightKey(insight)
-  const requests = currentRequests.filter(
-    (request) => getRequestInsightKey(request) !== insightKey
+  const insightKey = getRequestInsightKey(update)
+  const index = currentRequests.findIndex(
+    (request) => getRequestInsightKey(request) === insightKey
   )
-  requests.push(insight)
-  return requests.slice(-100)
+  const previous = currentRequests[index]
+  let insight: RequestInsight
+  if ('spanOffset' in update) {
+    const { spanOffset, fetchOffset, ...metadata } = update
+    const spans = previous?.spans ?? []
+    const fetches = previous?.fetches ?? []
+    // Updates can arrive before the initial snapshot while HMR connects.
+    if (spanOffset > spans.length || fetchOffset > fetches.length) {
+      return [...currentRequests]
+    }
+    const addedSpans = update.spans.slice(spans.length - spanOffset)
+    const addedFetches = update.fetches.slice(fetches.length - fetchOffset)
+    insight = {
+      ...metadata,
+      completedAt: previous?.completedAt ?? update.completedAt,
+      status: previous?.status === 'error' ? 'error' : update.status,
+      spans: addedSpans.length > 0 ? [...spans, ...addedSpans] : spans,
+      fetches:
+        addedFetches.length > 0 ? [...fetches, ...addedFetches] : fetches,
+    }
+  } else {
+    insight = update
+  }
+  const requests = [...currentRequests]
+  if (index === -1) {
+    requests.push(insight)
+  } else if (
+    previous.completedAt === undefined &&
+    insight.completedAt !== undefined
+  ) {
+    requests.splice(index, 1)
+    requests.push(insight)
+  } else {
+    requests[index] = insight
+  }
+
+  let completedCount = requests.reduce(
+    (count, request) => count + (request.completedAt === undefined ? 0 : 1),
+    0
+  )
+  if (completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
+    return requests
+  }
+
+  return requests.filter((request) => {
+    if (
+      request.completedAt === undefined ||
+      completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+    ) {
+      return true
+    }
+    completedCount--
+    return false
+  })
 }
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
@@ -214,6 +271,7 @@ interface DevIndicatorSetAction {
 
 interface ErrorOverlayOpenAction {
   type: typeof ACTION_ERROR_OVERLAY_OPEN
+  tab: ErrorOverlayTab
 }
 interface ErrorOverlayCloseAction {
   type: typeof ACTION_ERROR_OVERLAY_CLOSE
@@ -283,7 +341,7 @@ interface RequestInsightsSnapshotAction {
 
 interface RequestInsightsUpdateAction {
   type: typeof ACTION_REQUEST_INSIGHTS_UPDATE
-  insight: RequestInsight
+  insight: RequestInsightDelta
 }
 
 interface VulnerabilityInsightAction {
@@ -392,6 +450,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   // but the HMR WebSocket is only created during hydration.
   showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
+  devIndicatorHideVersion: 0,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
@@ -405,11 +464,11 @@ export const INITIAL_OVERLAY_STATE: Omit<
   page: '',
   tree: null,
   theme: 'system',
-  hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
   requestInsightsConfig: { showInternal: false, verbose: false },
   hasVulnerabilityInsight: false,
+  errorOverlayTab: null,
 }
 
 function getInitialState(
@@ -602,7 +661,16 @@ export function useErrorOverlayReducer(
           return { ...state, versionInfo: action.versionInfo }
         }
         case ACTION_DEV_INDICATOR_SET: {
-          return { ...state, disableDevIndicator: action.disabled }
+          return {
+            ...state,
+            disableDevIndicator: action.disabled,
+            devIndicatorHideVersion:
+              state.devIndicatorHideVersion + (action.disabled ? 1 : 0),
+            isErrorOverlayOpen:
+              action.disabled && !state.buildError
+                ? false
+                : state.isErrorOverlayOpen,
+          }
         }
         case ACTION_DEV_INDICATOR: {
           return {
@@ -613,7 +681,11 @@ export function useErrorOverlayReducer(
           }
         }
         case ACTION_ERROR_OVERLAY_OPEN: {
-          return { ...state, isErrorOverlayOpen: true }
+          return {
+            ...state,
+            isErrorOverlayOpen: true,
+            errorOverlayTab: action.tab,
+          }
         }
         case ACTION_ERROR_OVERLAY_CLOSE: {
           return { ...state, isErrorOverlayOpen: false }
@@ -661,7 +733,6 @@ export function useErrorOverlayReducer(
             devToolsPanelPosition,
             devToolsPanelSize,
             scale,
-            hideShortcut,
             requestInsights: requestInsightsConfig,
           } = action.devToolsConfig
 
@@ -675,9 +746,6 @@ export function useErrorOverlayReducer(
               devToolsPanelPosition ?? state.devToolsPanelPosition,
             scale: scale ?? state.scale,
             devToolsPanelSize: devToolsPanelSize ?? state.devToolsPanelSize,
-            hideShortcut:
-              // hideShortcut can be null.
-              hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
             requestInsightsConfig: requestInsightsConfig
               ? {
                   showInternal:

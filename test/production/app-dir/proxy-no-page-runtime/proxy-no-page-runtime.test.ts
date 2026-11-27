@@ -46,4 +46,46 @@ describe('proxy-no-page-runtime', () => {
       proxyFiles.filter((file) => pageRuntimeFiles.includes(file))
     ).toEqual([])
   })
+
+  // The proxy doesn't read the manifests that Node.js route handlers need, so
+  // they are left out of its output. Some of them (e.g. `BUILD_ID`) change on
+  // every build and would otherwise change the proxy's asset hashes.
+  it('should not include required server files in the proxy output', async () => {
+    const { outputs }: { outputs: Outputs } = await next.readJSON(
+      'build-complete.json'
+    )
+    const { files: requiredServerFiles }: { files: string[] } =
+      await next.readJSON('.next/required-server-files.json')
+
+    const normalize = (file: string) => file.replace(/\\/g, '/')
+    const findRequiredServerFiles = (files: string[]) =>
+      requiredServerFiles
+        .map(normalize)
+        .filter((requiredFile) =>
+          files.some((file) => normalize(file).endsWith(requiredFile))
+        )
+
+    expect(outputs.middleware).toBeDefined()
+    const proxy = outputs.middleware!
+    expect(proxy.runtime).toBe('nodejs')
+
+    expect(requiredServerFiles.map(normalize)).toContain(
+      '.next/prerender-manifest.json'
+    )
+
+    // The distDir `package.json` (the CommonJS boundary) is still needed.
+    expect(findRequiredServerFiles(Object.keys(proxy.assets))).toEqual([
+      '.next/package.json',
+    ])
+    expect(
+      findRequiredServerFiles(Object.keys(proxy.assetsHashes ?? {}))
+    ).toBeOneOf([[], ['.next/package.json']])
+
+    // Route handlers still get them.
+    for (const output of outputs.appPages) {
+      expect(findRequiredServerFiles(Object.keys(output.assets))).toContain(
+        '.next/prerender-manifest.json'
+      )
+    }
+  })
 })

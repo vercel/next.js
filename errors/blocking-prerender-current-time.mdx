@@ -22,7 +22,7 @@ kind: error
   come back here for the specific fix.
 </div>
 
-During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake "now" into the prerendered HTML. The timestamp at build time will be stale at runtime, so you need to choose: cache the value (treat it as "now-ish" with a tolerated drift), defer the read behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
+During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date). [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) can reuse the prerendered HTML on later requests, so a timestamp captured at build time can be stale when someone visits the page.
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
@@ -73,13 +73,13 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 
 ## Generate on every request
 
-Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. Add [`await connection()`](/docs/app/api-reference/functions/connection) before the call to tell Next.js the surrounding component is request-bound. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight.
 
 ### Patterns
 
-#### Use `await connection()` before the timestamp read
+#### Use `await io()` before the timestamp read
 
-Call [`connection()`](/docs/app/api-reference/functions/connection) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Everything after the `await` is request-time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
+Await [`io()`](/docs/app/api-reference/functions/io) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Outside a cache scope, the code after the `await` runs at request time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
 
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the timestamp read as possible. If the parent has cached content (metrics, headers, navigation), isolate the timestamp in its own component so only that piece falls behind the boundary.
 
@@ -99,19 +99,6 @@ export default function Page() {
 ```
 
 ```jsx filename="app/dashboard/updated-at.js"
-import { connection } from 'next/server'
-
-export async function UpdatedAt() {
-  await connection()
-  return <small>Updated at {new Date().toLocaleString()}</small>
-}
-```
-
-#### Alternative: `await io()`
-
-Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` works inside `"use cache"` scopes and Client Components.
-
-```jsx filename="app/dashboard/updated-at.js"
 import { io } from 'next/cache'
 
 export async function UpdatedAt() {
@@ -120,7 +107,20 @@ export async function UpdatedAt() {
 }
 ```
 
-Learn more: [`io`](/docs/app/api-reference/functions/io), [Streaming](/docs/app/guides/streaming).
+#### Alternative: `await connection()`
+
+Use [`await connection()`](/docs/app/api-reference/functions/connection) to wait for an incoming request under the same parent `<Suspense>` boundary.
+
+```jsx filename="app/dashboard/updated-at.js"
+import { connection } from 'next/server'
+
+export async function UpdatedAt() {
+  await connection()
+  return <small>Updated at {new Date().toLocaleString()}</small>
+}
+```
+
+Learn more: [How `io()` differs from `connection()`](/docs/app/api-reference/functions/io#how-io-differs-from-connection), [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
@@ -128,6 +128,7 @@ The route renders on every request. The shell still ships instantly because of t
 
 ### Gotchas
 
+- For errors after awaiting request data, see [Synchronous IO after request data](/docs/app/api-reference/functions/io#synchronous-io-after-request-data).
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
 - If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a re-render. See [Render on the client](#render-on-the-client).
 
@@ -228,13 +229,13 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Read the clock after mount or in an event handler. [Client Components also render on the server](/docs/app/getting-started/server-and-client-components#on-the-server).
 
 ### Patterns
 
 #### Move the component to the client
 
-Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
+Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside `useEffect`.
 
 ```jsx filename="app/now.js"
 'use client'
@@ -265,11 +266,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-The first paint shows the SSR fallback (often `null` or an em-dash), and the timestamp appears only after the browser hydrates the component. That's fine for time-of-day displays but wrong for timestamps that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The timestamp appears only after the component renders in the browser. Until then, the user sees the fallback or placeholder. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- If a Client Component calls `Date.now()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
 
 ## For telemetry, use a timing API
 
@@ -283,11 +284,16 @@ Drop-in replacement for any elapsed-time calculation.
 
 ```jsx filename="app/page.js"
 export default async function Page() {
+  const data = await getTimedReport()
+  return <Report data={data} />
+}
+
+async function getTimedReport() {
   const start = performance.now()
   const data = await computeReport()
   const elapsedMs = performance.now() - start
   console.log(`computeReport took ${elapsedMs}ms`)
-  return <Report data={data} />
+  return data
 }
 ```
 
@@ -303,11 +309,17 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 - Don't pass a [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) value into the rendered output or into a cached function. The high-resolution timestamp is non-deterministic and shouldn't influence what's prerendered.
 - For absolute time in an observability tool, use `performance.timeOrigin + performance.now()` to get a wall-clock timestamp without tripping this error.
 
+## When the read comes from an external library
+
+If the timestamp records when shared data was prepared, [cache the server function that calls the library](#cache-the-timestamp) so the timestamp and data are reused together. If it should reflect each visit, [call the library at request time](#generate-on-every-request). For browser-only work, see [Render on the client](#render-on-the-client). If the read is only for instrumentation, check whether the library can [use a timing API](#for-telemetry-use-a-timing-api).
+
+For example, TanStack Query's `dehydrate()` reads the clock on the server. See how to [cache the hydration timestamp](/docs/app/guides/client-side-data-fetching/tanstack-query#build-a-prerenderable-hydration-state).
+
 ## Verifying the fix
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Use [`--debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for more detailed stack traces or [`--debug-build-paths`](/docs/app/guides/building#build-specific-routes) to build specific routes.
 
 ## Why `instant = false` doesn't clear this error
 

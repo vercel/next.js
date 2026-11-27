@@ -4,6 +4,11 @@ const path = require('path')
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  // Exercise loader evaluation with lazy compilation regardless of the defaults.
+  experimental: {
+    turbopackLazyDynamicImports: true,
+    turbopackLazyDynamicImportsSSR: true,
+  },
   turbopack: {
     resolveAlias: {
       'alias-data': './alias-data.mjs',
@@ -17,6 +22,9 @@ const nextConfig = {
       '*.custom-data': {
         loaders: [require.resolve('./text-to-export-loader.js')],
         as: '*.js',
+      },
+      '*.counted.js': {
+        loaders: [require.resolve('./count-loader.js')],
       },
     },
   },

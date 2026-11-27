@@ -15,7 +15,7 @@
 //! identically to what `swc_sourcemap::SourceMap::to_writer` would have produced (pinned by the
 //! golden tests below).
 
-use std::sync::LazyLock;
+use std::{borrow::Cow, sync::LazyLock};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
@@ -330,24 +330,41 @@ impl StructuredSourceMap {
         Ok(result)
     }
 
+    /// Returns whether any `sources` entry satisfies `predicate`. Returns `false` if there are no
+    /// `sources` or they cannot be decoded (the same cases in which [`Self::rewrite_sources`]
+    /// leaves the map unchanged).
+    pub fn any_source(&self, mut predicate: impl FnMut(&str) -> bool) -> bool {
+        self.parsed_sources()
+            .is_some_and(|sources| sources.iter().flatten().any(|source| predicate(source)))
+    }
+
+    /// Decodes the `sources` field, or returns `None` if it is missing or cannot be decoded (e.g.
+    /// non-string entries in an external map).
+    fn parsed_sources(&self) -> Option<Cow<'_, [Option<String>]>> {
+        match self.sources.as_ref()? {
+            SourcesField::Rewritten(sources) => Some(Cow::Borrowed(sources)),
+            SourcesField::Raw(raw) => {
+                serde_json::from_slice::<Vec<Option<String>>>(&raw.to_bytes())
+                    .ok()
+                    .map(Cow::Owned)
+            }
+        }
+    }
+
     /// Rewrites each `sources` entry, keeping every other field (including the shared
     /// `sourcesContent` ropes) intact. `rewrite` returns `None` to leave an entry unchanged.
     ///
-    /// `sources` is only decoded if a rewrite actually changes an entry; if it cannot be decoded
+    /// `sources` is only re-encoded if a rewrite actually changes an entry; if it cannot be decoded
     /// (e.g. non-string entries in an external map) the map is returned unchanged.
     pub fn rewrite_sources(
         &self,
         mut rewrite: impl FnMut(&str) -> Result<Option<String>>,
     ) -> Result<Self> {
         let mut result = self.clone();
-        let mut sources: Vec<Option<String>> = match &self.sources {
-            None => return Ok(result),
-            Some(SourcesField::Rewritten(sources)) => sources.clone(),
-            Some(SourcesField::Raw(raw)) => match serde_json::from_slice(&raw.to_bytes()) {
-                Ok(sources) => sources,
-                Err(_) => return Ok(result),
-            },
+        let Some(sources) = self.parsed_sources() else {
+            return Ok(result);
         };
+        let mut sources = sources.into_owned();
         let mut changed = false;
         for source in sources.iter_mut().flatten() {
             if let Some(new_source) = rewrite(source)? {
@@ -359,6 +376,12 @@ impl StructuredSourceMap {
             result.sources = Some(SourcesField::Rewritten(sources));
         }
         Ok(result)
+    }
+
+    /// Omits source text from analyzer maps without copying their mappings.
+    pub fn without_sources_content(mut self) -> Self {
+        self.sources_content = None;
+        self
     }
 
     /// Serializes the map. Field order matches `swc_sourcemap`'s serializer; `sourcesContent`
@@ -514,6 +537,29 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn content_free_sections_preserve_sources_when_flattened() -> Result<()> {
+        let input = r#"{"version":3,"sources":["a.js","b.js"],"sourcesContent":["let a = 1","let b = 2"],"names":[],"mappings":"AAAA,KCAA"}"#;
+        let original = StructuredSourceMap::from_json_slice(input.as_bytes())?;
+        let map = original.clone().without_sources_content();
+        let map: serde_json::Value = serde_json::from_slice(&map.to_rope().to_bytes())?;
+        assert!(map.get("sourcesContent").is_none());
+        assert_eq!(original.to_rope().to_str()?.as_ref(), input);
+        let index = serde_json::to_vec(&serde_json::json!({
+            "version": 3,
+            "sources": [],
+            "names": [],
+            "sections": [{"offset": {"line": 0, "column": 0}, "map": map}],
+        }))?;
+        let flattened = swc_sourcemap::lazy::decode(&index)?
+            .into_source_map()?
+            .into_raw_sourcemap();
+        let flattened = serde_json::to_value(flattened)?;
+        assert_eq!(flattened["sources"], map["sources"]);
+        assert_eq!(flattened["mappings"], map["mappings"]);
+        Ok(())
+    }
+
     /// Same, for a map without any source contents.
     #[test]
     fn golden_matches_swc_serializer_no_contents() -> Result<()> {
@@ -607,6 +653,18 @@ mod tests {
             let reparsed = StructuredSourceMap::from_json_slice(&expected)?;
             assert_eq!(split, reparsed, "field-level equality, case: {case}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn any_source() -> Result<()> {
+        let map = |json: &'static str| StructuredSourceMap::from_json(&Rope::from(json));
+        let is_a = |source: &str| source == "a.js";
+        assert!(map(r#"{"version":3,"sources":[null,"a.js"],"mappings":""}"#)?.any_source(is_a));
+        assert!(!map(r#"{"version":3,"sources":["b.js"],"mappings":""}"#)?.any_source(is_a));
+        assert!(!map(r#"{"version":3,"mappings":""}"#)?.any_source(is_a));
+        // Undecodable `sources` are treated like missing ones.
+        assert!(!map(r#"{"version":3,"sources":[1,"a.js"],"mappings":""}"#)?.any_source(is_a));
         Ok(())
     }
 

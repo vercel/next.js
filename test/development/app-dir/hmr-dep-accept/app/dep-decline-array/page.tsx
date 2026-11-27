@@ -18,6 +18,8 @@ export default function DepDeclineArrayPage() {
     if (import.meta.turbopackHot) {
       // Decline updates for both dependencies — should trigger full reload
       import.meta.turbopackHot.decline(['./dep-a', './dep-b'])
+    } else if (import.meta.webpackHot) {
+      import.meta.webpackHot.decline(['./dep-a', './dep-b'])
     }
   }, [])
 

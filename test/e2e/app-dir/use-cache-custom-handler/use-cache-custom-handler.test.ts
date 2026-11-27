@@ -47,8 +47,9 @@ describe('use-cache-custom-handler', () => {
 
     // The implementation parts contain either the code hash and version or the
     // build ID, followed by an optional HMR refresh hash in development.
+    // Durable cache handler keys also have a trailing environment-state hash.
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["([0-9a-f]{2})+",\[\],\["(development|[A-Za-z0-9_-]+)"(,"[^"]+")*\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
+      /ModernCustomCacheHandler::get \["([0-9a-f]{2})+",\[\],\["(development|[A-Za-z0-9_-]+)"(,"[^"]+")*\]\](?:[0-9a-f]{64})? \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
     )
 
     // Since no existing cache entry was retrieved, we don't need to call
