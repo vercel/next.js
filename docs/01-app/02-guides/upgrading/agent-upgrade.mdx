@@ -157,7 +157,7 @@ The setup pull request adds `.github/workflows/next-upgrade.yml`. This file pins
 ```yaml filename=".github/workflows/next-upgrade.yml"
 on:
   schedule:
-    - cron: '0 0 * * *' # every day at 00:00 UTC; change it to run less often
+    - cron: '0 0 * * *' # daily
   workflow_dispatch:
 
 jobs:
@@ -172,7 +172,7 @@ jobs:
       publish-token: ${{ secrets.NEXT_UPGRADE_PUBLISH_TOKEN }}
 ```
 
-Once you merge the setup pull request, GitHub Actions runs the workflow daily at 00:00 UTC. You can change the schedule in the workflow file or start a run from **Actions > Next.js upgrade > Run workflow**.
+Once you merge the setup pull request, the workflow runs daily by default. You can change the schedule by editing the cron expression. To start a run manually, go to **Actions > Next.js upgrade > Run workflow**.
 
 Each CI run checks whether an upgrade is needed before it starts a hosted agent:
 
