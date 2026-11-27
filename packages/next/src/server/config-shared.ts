@@ -1159,6 +1159,21 @@ export interface ExperimentalConfig {
   turbopackFileSystemCacheForBuild?: boolean
 
   /**
+   * Instead of deleting the distDir before a build (see `cleanDistDir`),
+   * Turbopack builds only remove the output of previous builds that the
+   * current build doesn't write, while Turbopack writes its output. This
+   * avoids deleting and rewriting unchanged output files, which speeds up
+   * rebuilds of large apps.
+   *
+   * Files written into the distDir by other tools during the build (e.g. by
+   * webpack loaders) are removed as well. Only applies to Turbopack builds
+   * with `cleanDistDir` enabled.
+   *
+   * Defaults to `false`.
+   */
+  clearAfterBuild?: boolean
+
+  /**
    * When running inside a git worktree, warm-start this worktree's Turbopack
    * filesystem cache by seeding it from the main checkout's cache if the
    * worktree doesn't have one yet. This is best-effort and never fails a build.
@@ -2648,6 +2663,7 @@ export const defaultConfig = Object.freeze({
     exposeRuntimeErrorsToHMR: false,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
+    clearAfterBuild: false,
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',

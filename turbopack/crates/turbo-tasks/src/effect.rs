@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     collections::hash_map,
     error::Error as StdError,
     future::Future,
@@ -67,8 +68,11 @@ where
 /// `apply()` is responsible for coordinating with [`EffectStateStorage`] via
 /// [`EffectStateStorage::run_apply`] (which handles the per-key state machine, in-progress
 /// coordination, dedup-hit short-circuit, and panic recovery).
+///
+/// `Any` is a supertrait, so that the implementation of a captured effect can recognize its own
+/// effects among the [captured effects][Effects::captured] by downcasting.
 #[async_trait]
-pub trait CapturedEffect: NonLocalValue + Send + Sync + 'static {
+pub trait CapturedEffect: Any + NonLocalValue + Send + Sync + 'static {
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
     fn key(&self) -> Box<[u8]>;
 
@@ -520,6 +524,17 @@ pub struct Effects {
     unique_keys: Arc<UniqueKeys>,
 }
 
+/// The captured effects of [`Effects`], see [`Effects::captured`]. Cheap to clone.
+#[derive(Clone, NonLocalValue)]
+pub struct CapturedEffects(CapturedSlice);
+
+impl CapturedEffects {
+    /// Iterates over the captured effects, including duplicates of the same effect.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &dyn CapturedEffect> {
+        self.0.iter().map(|effect| &**effect)
+    }
+}
+
 /// `PartialEq`/`Eq` are compat shims so containing structs (which derive `PartialEq`/`Eq` via
 /// `turbo_tasks::value`) can still embed `Effects`. The actual cell-update strategy for `Effects`
 /// itself is `cell = "new"` — see the doc-comment above — so this `PartialEq` is not consulted
@@ -556,6 +571,43 @@ impl Effects {
         Self {
             captured,
             invalidator: Some(invalidator),
+            unique_keys: Arc::new(unique_keys),
+        }
+    }
+
+    /// The captured effects, e.g. to derive an additional effect from them (see
+    /// [`Effects::with_additional_effect`]).
+    pub fn captured(&self) -> CapturedEffects {
+        CapturedEffects(self.captured.clone())
+    }
+
+    /// Returns these effects plus `effect`, which is applied together with (and concurrently to)
+    /// them. A retry invalidates the same producing task as for these effects.
+    ///
+    /// The key of `effect` must differ from the keys of the captured effects. Conflicting effects
+    /// among the captured effects are still reported when applying.
+    pub fn with_additional_effect(&self, effect: Box<dyn CapturedEffect>) -> Effects {
+        debug_assert!(
+            {
+                let key = effect.key();
+                self.captured.iter().all(|captured| captured.key() != key)
+            },
+            "the additional effect must have a unique key"
+        );
+        let idx = self.captured.len();
+        let captured: CapturedSlice = self
+            .captured
+            .iter()
+            .cloned()
+            .chain([Arc::<dyn CapturedEffect>::from(effect)])
+            .collect();
+        let unique_keys = match &*self.unique_keys {
+            Ok(unique) => Ok(unique.iter().copied().chain([idx]).collect()),
+            Err(err) => Err(err.clone()),
+        };
+        Self {
+            captured,
+            invalidator: self.invalidator,
             unique_keys: Arc::new(unique_keys),
         }
     }
