@@ -38,14 +38,43 @@ export function createNodeDebugChannel(): NodeDebugChannelPair {
   // writable half is still open — so the debug channel would never close on the
   // client. Ending it via `passthrough.end()` closes both halves and the close
   // propagates.
+  //
+  // The client side might be destroyed while React is still writing to the
+  // debug channel, e.g. when nobody claimed it in time (see
+  // `releaseParkedStream`). In that case, we drop the remaining chunks instead
+  // of erroring the server side, which React doesn't expect.
   const passthrough = new PassThrough()
+
+  // The callback of the write (or end) that's currently forwarded to the
+  // PassThrough. If the PassThrough is destroyed, a pending write's callback
+  // might never be called (e.g. when it's waiting for a reader), or it's called
+  // with an error, so we settle it ourselves when the PassThrough closes.
+  let pendingCallback: ((error?: Error | null) => void) | undefined
+
+  const settlePendingCallback = (error?: Error | null) => {
+    const callback = pendingCallback
+    pendingCallback = undefined
+    callback?.(passthrough.destroyed ? null : error)
+  }
+
+  passthrough.once('close', () => settlePendingCallback())
 
   const writable = new Writable({
     write(chunk, encoding, callback) {
-      passthrough.write(chunk, encoding, callback)
+      if (passthrough.destroyed) {
+        callback()
+      } else {
+        pendingCallback = callback
+        passthrough.write(chunk, encoding, settlePendingCallback)
+      }
     },
     final(callback) {
-      passthrough.end(callback)
+      if (passthrough.destroyed) {
+        callback()
+      } else {
+        pendingCallback = callback
+        passthrough.end(settlePendingCallback)
+      }
     },
   })
 
