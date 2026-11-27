@@ -328,7 +328,7 @@ As you build, consider that inside [`generateMetadata`](/docs/app/api-reference/
 
 ## Random values and timestamps
 
-Operations like `Math.random()`, `Date.now()`, or `crypto.randomUUID()` produce different values each time they execute. Cache Components requires you to explicitly handle these. If a dependency makes the read, see [Synchronous IO in external libraries](/docs/app/api-reference/functions/io#synchronous-io-in-external-libraries).
+Operations like `Math.random()`, `Date.now()`, or `crypto.randomUUID()` produce different values each time they execute. Cache Components requires you to explicitly handle these.
 
 > **Good to know:** `performance.now()` is meant for telemetry, so Next.js doesn't treat it as a value to guard. Use it for timing and pass the result to your logger or metrics rather than rendering it.
 
