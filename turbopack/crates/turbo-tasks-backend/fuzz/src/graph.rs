@@ -70,6 +70,9 @@ static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
         .on_thread_park(|| {
             TurboMalloc::thread_park();
         })
+        .on_blocking_thread_park(|| {
+            TurboMalloc::thread_park();
+        })
         .build()
         .unwrap()
 });
