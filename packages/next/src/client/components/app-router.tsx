@@ -499,7 +499,7 @@ function Router({
   )
 
   let content = (
-    <RedirectBoundary>
+    <RedirectBoundary isActive={true}>
       {head}
       {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
           When users wrap their layout in <Suspense>, this creates the component stack pattern

@@ -689,7 +689,9 @@ export default function OuterLayoutRouter({
               forbidden={forbidden}
               unauthorized={unauthorized}
             >
-              <RedirectBoundary>
+              <RedirectBoundary
+                isActive={isActive && stateKey === activeStateKey}
+              >
                 <InnerLayoutRouter
                   url={url}
                   tree={tree}
