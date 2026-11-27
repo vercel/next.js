@@ -145,7 +145,7 @@ export default function Page() {
 }
 ```
 
-The `DynamicMarker` has its own Suspense boundary so the page content can still prerender. The empty `fallback={null}` is intentional because the marker renders no UI. Keep visible content outside this boundary, or give that content its own visible fallback.
+The `DynamicMarker` has its own Suspense boundary so the page content can still prerender. Its [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) matches the marker's nonvisual output.
 
 ## Useful Links
 

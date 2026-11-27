@@ -84,7 +84,7 @@ export function CorrelationId() {
 }
 ```
 
-The empty `fallback={null}` is intentional because `CorrelationId` only renders a hidden input. There is no visible content to replace while it loads. If the component displays content, provide a visible fallback instead.
+The hidden correlation ID input needs no loading UI. See [Choosing a fallback](/docs/app/guides/streaming#choosing-a-fallback).
 
 Learn more: [Streaming](/docs/app/guides/streaming).
 

@@ -118,9 +118,15 @@ See the [`loading.js` API reference](/docs/app/api-reference/file-conventions/lo
 
 `<Suspense>` lets you control exactly which parts of the page stream independently. Instead of a full-page skeleton, you can push fallbacks down into specific sections so the static shell includes more real content.
 
-Always provide an explicit `fallback` prop. For visible content, use a loading message or skeleton that matches the final layout. Omitting `fallback` or setting `fallback={null}` leaves that region empty while it loads and can cause layout shifts when the content appears.
+### Choosing a fallback
 
-Use `fallback={null}` only when showing nothing is intentional, such as for a component that records analytics or marks dynamic metadata without rendering UI. An optional decorative indicator can also use an empty fallback if the surrounding UI remains usable and reserves any space the indicator needs. Keep these boundaries scoped to those components and explain why no loading UI is needed.
+Adding a `<Suspense>` boundary means accepting that React may show its fallback while the content isn't ready. Choose a fallback you are willing to show, even if you don't expect it to be needed.
+
+For visible content, provide an explicit `fallback` with a loading message or skeleton that matches the final layout. Omitting `fallback` or setting `fallback={null}` leaves that region empty while it loads and can cause [layout shifts](#cls-cumulative-layout-shift) when the content appears.
+
+Use `fallback={null}` when showing nothing is intentional. This can fit nonvisual work such as analytics, hidden inputs, or metadata markers. An optional decorative indicator can also use an empty fallback if the surrounding UI remains usable and reserves any space the indicator needs.
+
+For a boundary around the document body, an empty fallback means accepting a blank initial loading state. Use this only when the whole document must wait for request-time data, such as a [dynamic viewport](/docs/app/api-reference/functions/generate-viewport#with-cache-components), and that delay is acceptable. For content that can load independently, keep the surrounding shell visible and give the loading region its own fallback.
 
 ### Parallel streaming with sibling boundaries
 

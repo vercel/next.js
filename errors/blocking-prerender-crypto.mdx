@@ -97,7 +97,7 @@ export async function CsrfToken() {
 }
 ```
 
-The empty `fallback={null}` is intentional because `CsrfToken` only renders a hidden input. There is no visible content to replace while it loads. If the component displays content, provide a visible fallback instead.
+The hidden CSRF input uses an [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) because it has no visible output.
 
 #### Alternative: `await io()`
 

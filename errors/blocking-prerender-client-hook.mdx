@@ -145,7 +145,7 @@ export function ActiveDot({ href }) {
 }
 ```
 
-The nav links prerender into the static shell with their final `href` and label. The empty `fallback={null}` is intentional because only the optional decorative dot is deferred, and the links remain usable without it. Reserve space for the dot in your styles if its appearance would shift the layout. Use a visible fallback when deferring content people need to use the navigation.
+The nav links prerender into the static shell with their final `href` and label. Only the optional decorative dot uses an [empty fallback](/docs/app/guides/streaming#choosing-a-fallback), and the links remain usable without it. Reserve space for the dot to avoid [layout shifts](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 To style the parent `<Link>` itself instead (for example, bolding the active label), have the leaf set `data-active` and read it from the parent with `has-data-active:font-bold`.
 
@@ -188,7 +188,7 @@ export function TrackPageView() {
 }
 ```
 
-The empty `fallback={null}` is intentional because `TrackPageView` only records analytics and renders no UI. The rest of the page stays in the static shell. Use a visible fallback if the component also displays content.
+The analytics component has no rendered output, so its [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) leaves the rest of the page in the static shell.
 
 ### Trade-off
 

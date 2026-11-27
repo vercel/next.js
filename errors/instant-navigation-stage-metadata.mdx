@@ -94,7 +94,7 @@ This insight appears because metadata is the only part of the route delayed to t
 
 #### Add a navigation stage marker
 
-Create the marker and render it inside [`<Suspense>`](https://react.dev/reference/react/Suspense). The existing page content remains available at its current stages.
+Create the marker and render it inside [`<Suspense fallback={null}>`](/docs/app/guides/streaming#choosing-a-fallback). The marker has no visible output, and the existing page content remains available at its current stages.
 
 This example uses [`navigation()`](/docs/app/api-reference/functions/navigation). If `generateMetadata()` calls [`prefetch()`](/docs/app/api-reference/functions/prefetch), call `prefetch()` in the marker instead.
 
@@ -124,8 +124,6 @@ export default function Page() {
   )
 }
 ```
-
-The empty `fallback={null}` is intentional because `NavigationStageMarker` renders no UI. Keep visible page content outside this boundary, or give that content its own visible fallback.
 
 Learn more: [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation).
 

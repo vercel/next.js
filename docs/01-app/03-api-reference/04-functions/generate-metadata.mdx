@@ -1419,7 +1419,7 @@ export default function Page() {
 }
 ```
 
-The `DynamicMarker` component renders nothing but tells Next.js the page has intentional dynamic content. By wrapping it in Suspense, the static content still prerenders normally. The empty `fallback={null}` is intentional because the marker has no visible UI. Use a visible fallback for components that display content.
+The `DynamicMarker` component renders nothing but tells Next.js the page has intentional dynamic content. Its [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) lets the static content prerender without adding loading UI for the marker.
 
 See [Next.js encountered runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) and [Next.js encountered uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic) for full fix options and trade-offs.
 
