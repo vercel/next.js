@@ -80,15 +80,71 @@ function hasMissedTraversal(): boolean {
 let checkedMissedTraversalBeforeHistoryWrite = false
 let checkedMissedTraversalBeforeReplay = false
 
+// The URL and history state of the page that is currently rendered: set when
+// HistoryUpdater commits a router state, and updated synchronously when
+// userland `pushState`/`replaceState` changes the URL (the router applies those
+// in a transition, but the tree stays the same). Unlike the action queue's
+// state, this never reflects a navigation that is still pending.
+let lastCommittedHistoryEntry: {
+  canonicalUrl: string
+  appHistoryState: AppHistoryState
+} | null = null
+
+function syncLastCommittedUrlAfterUserlandHistoryWrite(): void {
+  if (lastCommittedHistoryEntry !== null) {
+    lastCommittedHistoryEntry = {
+      canonicalUrl: createHrefFromUrl(new URL(window.location.href)),
+      appHistoryState: lastCommittedHistoryEntry.appHistoryState,
+    }
+  }
+}
+
+/**
+ * Handles a popstate event with no history state. Such an entry was not
+ * written by the app router: usually it was created by a same-document
+ * fragment navigation (e.g. a plain `<a href="#section">`), which bypasses the
+ * patched `history.pushState`.
+ */
+function handleNullHistoryStatePopState(): void {
+  if (lastCommittedHistoryEntry === null) {
+    return
+  }
+  const { href, pathname, search } = window.location
+  const renderedUrl = new URL(lastCommittedHistoryEntry.canonicalUrl, href)
+  if (renderedUrl.pathname === pathname && renderedUrl.search === search) {
+    // A fragment navigation within the rendered page. The browser handles the
+    // scroll; record the rendered router state on the entry so that a later
+    // traversal back to it (e.g. after navigating to another route) can
+    // restore this page like any entry written by the router. The URL is left
+    // unchanged, and the `__NA` marker makes the patched `replaceState` pass
+    // the call straight through.
+    window.history.replaceState(
+      {
+        __NA: true,
+        __PRIVATE_NEXTJS_INTERNALS_TREE:
+          lastCommittedHistoryEntry.appHistoryState,
+      },
+      ''
+    )
+    return
+  }
+  // The entry belongs to a different URL than the rendered page, and without
+  // a router tree it can't be restored on the client (e.g. a fragment entry
+  // created before hydration). Reload so the page that owns the URL renders.
+  window.location.reload()
+}
+
 /**
  * Handles a popstate event (or one that was missed before hydration).
  * By default dispatches ACTION_RESTORE, however if the history entry was not
  * pushed/replaced by app-router it will reload the page.
  * That case can happen when the old router injected the history entry.
+ * Entries without any history state are handled by
+ * `handleNullHistoryStatePopState`.
  */
 function handlePopState(state: PopStateEvent['state']): void {
   if (!state) {
-    // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+    handleNullHistoryStatePopState()
     return
   }
 
@@ -120,6 +176,9 @@ function HistoryUpdater({
       if (hasMissedTraversal()) {
         // Skip the write: it would overwrite the traversed-to entry's state.
         // The tree was rendered even though the history write is skipped.
+        // `lastCommittedHistoryEntry` is left unset: this tree doesn't belong
+        // to the current URL, and the replayed traversal will commit one that
+        // does.
         setLastCommittedTree(tree)
         return
       }
@@ -129,6 +188,7 @@ function HistoryUpdater({
       tree,
       renderedSearch,
     }
+    lastCommittedHistoryEntry = { canonicalUrl, appHistoryState }
 
     // TODO: Use Navigation API if available
     const historyState = {
@@ -392,7 +452,8 @@ function Router({
         applyUrlFromHistoryPushReplace(url)
       }
 
-      return originalPushState(data, _unused, url)
+      originalPushState(data, _unused, url)
+      syncLastCommittedUrlAfterUserlandHistoryWrite()
     }
 
     /**
@@ -415,7 +476,8 @@ function Router({
       if (url) {
         applyUrlFromHistoryPushReplace(url)
       }
-      return originalReplaceState(data, _unused, url)
+      originalReplaceState(data, _unused, url)
+      syncLastCommittedUrlAfterUserlandHistoryWrite()
     }
 
     const onPopState = (event: PopStateEvent) => handlePopState(event.state)
