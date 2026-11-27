@@ -61,17 +61,22 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
                 aggregated,
                 sort: SortMode::ExecutionOrder,
                 search: None,
+                recursive: false,
                 max_depth: u32::MAX,
                 depth: 1,
                 page: 1,
                 page_size: None,
+                include_memory_samples: true,
             },
         );
         assert_eq!(result.spans.len(), 1);
+        // Sample timestamps are absolute: 20 µs, on the same clock as the span.
         assert_eq!(
             result.spans[0].memory_samples,
-            vec![(1000, 1234, 7, 5555, 2)]
+            vec![(2000, 1234, 7, 5555, 2)]
         );
+        assert_eq!(result.spans[0].start, 1000);
+        assert_eq!(result.spans[0].end, 3000);
     }
 }
 
