@@ -1,0 +1,6 @@
+{
+  "name": "subpath-imports-dynamic",
+  "imports": {
+    "#/*": "./src/*"
+  }
+}
