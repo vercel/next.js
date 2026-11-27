@@ -242,6 +242,7 @@ export default async function Page() {
 >
 > - Use a [`<time>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/time) element with a `dateTime` attribute so search engines and screen readers can parse the ISO string regardless of the displayed text.
 > - Inline scripts with `dangerouslySetInnerHTML` are blocked by strict [Content Security Policies](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) that don't allow `'unsafe-inline'`. If your app uses a CSP, you'll need to add a [nonce](/docs/app/guides/content-security-policy).
+> - With Cache Components enabled, inline scripts in the prerendered shell cannot receive a per-request nonce. Review [Cache Components and CSP](/docs/app/guides/content-security-policy#cache-components) before using these scripts with a nonce-based policy.
 
 ## Themes
 
