@@ -127,8 +127,7 @@ function Search() {
 
 export function Searchbar() {
   return (
-    // You could have a loading skeleton as the `fallback` too
-    <Suspense>
+    <Suspense fallback={<p>Loading search...</p>}>
       <Search />
     </Suspense>
   )
@@ -149,8 +148,7 @@ function Search() {
 
 export function Searchbar() {
   return (
-    // You could have a loading skeleton as the `fallback` too
-    <Suspense>
+    <Suspense fallback={<p>Loading search...</p>}>
       <Search />
     </Suspense>
   )

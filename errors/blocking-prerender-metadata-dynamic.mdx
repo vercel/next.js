@@ -131,7 +131,7 @@ This error fires specifically because the metadata is the only dynamic part of a
 
 #### Add a dynamic marker component
 
-Create a small component that calls [`connection()`](/docs/app/api-reference/functions/connection) and renders nothing, wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page content remains prerenderable and only the marker is excluded from the prerender.
+Create a small component that calls [`connection()`](/docs/app/api-reference/functions/connection) and renders nothing, wrapped in [`<Suspense fallback={null}>`](/docs/app/guides/streaming#choosing-a-fallback). The page content remains prerenderable and only the marker is excluded from the prerender.
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -152,7 +152,7 @@ export default function Page() {
   return (
     <>
       <article>This article is completely static</article>
-      <Suspense>
+      <Suspense fallback={null}>
         <DynamicMarker />
       </Suspense>
     </>

@@ -97,7 +97,7 @@ export async function generateViewport() {
 
 export default function RootLayout({ children }) {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <html>
         <body>{children}</body>
       </html>
@@ -105,6 +105,8 @@ export default function RootLayout({ children }) {
   )
 }
 ```
+
+The document uses an [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) because its viewport must be ready before the content is displayed.
 
 ## Useful Links
 
