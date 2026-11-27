@@ -11,10 +11,13 @@ It's useful when a component doesn't use [Request-time APIs](/docs/app/glossary#
 import { connection } from 'next/server'
 
 export default async function Page() {
-  await connection() // prerendering stops here
-  // the following code only runs at request time
-  const rand = Math.random()
+  const rand = await getRandomValue()
   return <span>{rand}</span>
+}
+
+async function getRandomValue() {
+  await connection() // prerendering stops here
+  return Math.random()
 }
 ```
 
@@ -22,10 +25,13 @@ export default async function Page() {
 import { connection } from 'next/server'
 
 export default async function Page() {
-  await connection() // prerendering stops here
-  // the following code only runs at request time
-  const rand = Math.random()
+  const rand = await getRandomValue()
   return <span>{rand}</span>
+}
+
+async function getRandomValue() {
+  await connection() // prerendering stops here
+  return Math.random()
 }
 ```
 
@@ -33,7 +39,7 @@ export default async function Page() {
 
 ### Synchronous database drivers
 
-Queries from synchronous database drivers like `better-sqlite3` complete during prerendering. If you are not already using Request-time APIs, call `connection()` before your query to exclude them from prerendering:
+Queries from synchronous database drivers like `better-sqlite3` complete during prerendering. Call `connection()` before your query to wait for an incoming request before running it:
 
 ```ts filename="app/lib/data.ts" switcher
 import { connection } from 'next/server'
