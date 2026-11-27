@@ -6,7 +6,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
 };
-use turbo_tasks_fs::{OptionByteRange, rope::Rope};
+use turbo_tasks_fs::SkippableRope;
 use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ModuleId},
     code_builder::CodeCells,
@@ -100,7 +100,6 @@ async fn code_module_id_and_path(
     Ok(CodeModuleIdAndPath {
         id: item.chunk_item.id().await?,
         code: cells_value.code(),
-        strict_directive: cells_value.strict_directive_range(),
         cells,
         path: item.chunk_item.asset_ident().to_string().owned().await?,
         strict,
@@ -115,11 +114,9 @@ pub struct CodeModuleIdAndPath {
     pub id: ModuleId,
     /// The factory's persisted cells.
     pub cells: ResolvedVc<CodeCells>,
-    /// The cell holding the factory's bytes ([`CodeCells::code`]).
-    pub code: ResolvedVc<Rope>,
-    /// The cell holding the byte range of the factory's strict directive
-    /// ([`CodeCells::strict_directive_range`]).
-    pub strict_directive: ResolvedVc<OptionByteRange>,
+    /// The cell holding the factory's bytes, with its strict directive (if any) as the skip
+    /// range ([`CodeCells::code`]).
+    pub code: ResolvedVc<SkippableRope>,
     pub path: RcStr,
     pub strict: bool,
 }

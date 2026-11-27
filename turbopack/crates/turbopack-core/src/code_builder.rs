@@ -14,7 +14,8 @@ use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FixintU128, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
-    CellRope, CellRopeBuilder, CellRopePart, ComposedFile, File, FileContent, OptionByteRange,
+    CellRope, CellRopeBuilder, CellRopeSegment, ComposedFile, File, FileContent, FileMeta,
+    SkippableRope,
     rope::{Rope, RopeBuilder},
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
@@ -103,7 +104,10 @@ pub struct Code {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct CodeCells {
-    code: ResolvedVc<Rope>,
+    /// The code's bytes, with [`Code::strict_directive`] as the skip range, so that a composition
+    /// can leave the directive out without reading the cell (see
+    /// [`CodeCompositionBuilder::push_code_cells_without_strict_directive`]).
+    code: ResolvedVc<SkippableRope>,
     /// The same byte offsets as [`Code`]'s mappings, with each generated map variant as a cell
     /// holding [`SectionMap::to_rope`]. A map shared by both variants stays one cell.
     mappings: Vec<(usize, SourceMaps<ResolvedVc<Rope>>)>,
@@ -112,10 +116,6 @@ pub struct CodeCells {
     should_generate_debug_id: bool,
     /// Same as [`Code`]'s strict directive offset.
     strict_directive: Option<usize>,
-    /// [`Code::strict_directive`] as a cell, so that a composition can leave the directive out of
-    /// `code` without reading either (see
-    /// [`CodeCompositionBuilder::push_code_cells_without_strict_directive`]).
-    strict_directive_range: ResolvedVc<OptionByteRange>,
 }
 
 #[turbo_tasks::value_impl]
@@ -137,7 +137,7 @@ impl CodeCells {
             .try_join()
             .await?;
         Ok(Code {
-            code: (*code).clone(),
+            code: code.rope().clone(),
             mappings: Mappings::from_parts(mappings, self.source_map_generation_options),
             should_generate_debug_id: self.should_generate_debug_id,
             strict_directive: self.strict_directive,
@@ -147,14 +147,9 @@ impl CodeCells {
 }
 
 impl CodeCells {
-    /// The cell holding the code's bytes.
-    pub fn code(&self) -> ResolvedVc<Rope> {
+    /// The cell holding the code's bytes, with its strict directive (if any) as the skip range.
+    pub fn code(&self) -> ResolvedVc<SkippableRope> {
         self.code
-    }
-
-    /// The cell holding the byte range of the code's strict directive, if it has one.
-    pub fn strict_directive_range(&self) -> ResolvedVc<OptionByteRange> {
-        self.strict_directive_range
     }
 }
 
@@ -244,14 +239,14 @@ impl Code {
                 )
             })
             .collect();
-        let strict_directive_range = OptionByteRange::new(self.strict_directive()).resolved_cell();
+        let strict_directive = self.strict_directive();
+        let code = SkippableRope::new(self.code, strict_directive).resolved_cell();
         CodeCells {
-            code: self.code.resolved_cell(),
+            code,
             mappings,
             source_map_generation_options,
             should_generate_debug_id: self.should_generate_debug_id,
             strict_directive: self.strict_directive,
-            strict_directive_range,
         }
         .resolved_cell()
     }
@@ -299,7 +294,7 @@ impl Code {
                     rope_builder.concat(&prefix);
                     rope_builder.push_rope(body);
                     rope_builder.concat(&suffix);
-                    rope_builder.build().resolved_cell()
+                    rope_builder.build_resolved_cell()
                 }
                 None => body,
             },
@@ -569,29 +564,31 @@ impl CodeCompositionBuilder {
     ///
     /// Takes the code cell separately so that callers can depend on just that reference: the
     /// `CodeCells` value itself changes with the code's length (its mappings are byte offsets).
-    pub fn push_code_cells(&mut self, cells: ResolvedVc<CodeCells>, code: ResolvedVc<Rope>) {
-        self.body.push_cell(code);
+    pub fn push_code_cells(
+        &mut self,
+        cells: ResolvedVc<CodeCells>,
+        code: ResolvedVc<SkippableRope>,
+    ) {
+        self.body.push_skippable(code, false);
         self.items.push(cells);
     }
 
     /// Like [`CodeCompositionBuilder::push_code_cells`], but leaves out the code's strict
-    /// directive, like [`CodeBuilder::push_code_without_strict_directive`]. `strict_directive` is
-    /// [`CodeCells::strict_directive_range`]; it's applied when the composition is read, so this
-    /// reads none of the cells either, and the composition doesn't depend on where the directive
-    /// is.
+    /// directive, like [`CodeBuilder::push_code_without_strict_directive`]. The directive is
+    /// `code`'s skip range, which is applied when the composition is read, so this reads none of
+    /// the cells either, and the composition doesn't depend on where the directive is.
     pub fn push_code_cells_without_strict_directive(
         &mut self,
         cells: ResolvedVc<CodeCells>,
-        code: ResolvedVc<Rope>,
-        strict_directive: ResolvedVc<OptionByteRange>,
+        code: ResolvedVc<SkippableRope>,
     ) {
-        self.body.push_cell_skipping(code, strict_directive);
+        self.body.push_skippable(code, true);
         self.items.push(cells);
     }
 
     pub fn build(self) -> CodeComposition {
         CodeComposition {
-            body: self.body.build().resolved_cell(),
+            body: self.body.build_resolved_cell(),
             items: self.items,
             should_generate_debug_id: self.should_generate_debug_id,
             source_map_generation_options: self.source_map_generation_options,
@@ -791,29 +788,30 @@ impl CodeComposition {
             self.should_generate_debug_id,
             self.source_map_generation_options,
         );
-        for part in body.parts() {
-            match part {
-                CellRopePart::Inline(bytes) => {
-                    code.push_source(&bytes, SourceMaps::<SectionMap>::None)?
+        for segment in body.segments() {
+            match segment {
+                CellRopeSegment::Inline(bytes) => {
+                    code.push_source(bytes, SourceMaps::<SectionMap>::None)?
                 }
-                CellRopePart::Cell { skip, .. } => {
+                CellRopeSegment::Skippable { cell, skip } => {
                     let piece = pieces
                         .next()
                         .context("a composition has one piece per cell segment")?;
-                    match skip {
-                        None => code.push_code(piece)?,
-                        Some(skip) => {
-                            // The body leaves out the range the cell holds; it's the piece's
-                            // directive by construction, which this removes from the mappings.
-                            ensure!(
-                                skip.await?.range() == piece.strict_directive(),
-                                "a skipped range must be the piece's strict directive"
-                            );
-                            code.push_code_without_strict_directive(piece)?
-                        }
+                    if *skip {
+                        // The body leaves out the cell's skip range; it's the piece's directive
+                        // by construction, which this removes from the mappings.
+                        ensure!(
+                            cell.await?.skip() == piece.strict_directive(),
+                            "a skipped range must be the piece's strict directive"
+                        );
+                        code.push_code_without_strict_directive(piece)?
+                    } else {
+                        code.push_code(piece)?
                     }
                 }
-                CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
+                CellRopeSegment::Cell(_) | CellRopeSegment::Nested(_) => {
+                    bail!("a composition body only holds inline bytes and code cells")
+                }
             }
         }
         Ok(code.build())
@@ -828,7 +826,7 @@ impl CodeComposition {
         code: &Code,
         debug_id: Option<RcStr>,
         ty: SourceMapType,
-    ) -> Result<CellRope> {
+    ) -> Result<ResolvedVc<CellRope>> {
         code.validate_source_map_type(ty)?;
         let map_cells = self.map_cells().await?;
         let sections = code
@@ -863,7 +861,7 @@ impl CodeComposition {
                 section.push_to(rope)
             });
         }
-        Ok(rope.build())
+        Ok(rope.build_resolved_cell())
     }
 
     /// The pieces' section maps that are cells (every generated variant), by their byte offset in
@@ -880,22 +878,22 @@ impl CodeComposition {
             .iter()
             .map(async |cells| {
                 let cells = cells.await?;
-                let len = cells.code.await?.len();
+                let len = cells.code.await?.rope().len();
                 anyhow::Ok((cells, len))
             })
             .try_join()
             .await?;
         let mut pieces = pieces.iter();
         let mut offset = 0;
-        for part in body.parts() {
-            match part {
-                CellRopePart::Inline(bytes) => offset += bytes.len(),
-                CellRopePart::Cell { skip, .. } => {
+        for segment in body.segments() {
+            match segment {
+                CellRopeSegment::Inline(bytes) => offset += bytes.len(),
+                CellRopeSegment::Skippable { skip, .. } => {
                     let (cells, len) = pieces
                         .next()
                         .context("a composition has one piece per cell segment")?;
                     // Mirrors `CodeBuilder::push_code_without_strict_directive`.
-                    let directive = if skip.is_some() {
+                    let directive = if *skip {
                         cells
                             .strict_directive
                             .map(|start| start..start + STRICT_DIRECTIVE.len())
@@ -914,7 +912,9 @@ impl CodeComposition {
                     }
                     offset += len - directive.map_or(0, |directive| directive.len());
                 }
-                CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
+                CellRopeSegment::Cell(_) | CellRopeSegment::Nested(_) => {
+                    bail!("a composition body only holds inline bytes and code cells")
+                }
             }
         }
         Ok(map_cells)
@@ -976,7 +976,8 @@ impl ComposedCode {
                         source_map_path_fn,
                     )
                     .await?;
-                AssetContent::Composed(ComposedFile::new(rope).resolved_cell()).cell()
+                AssetContent::Composed(ComposedFile::new(rope, FileMeta::default()).resolved_cell())
+                    .cell()
             }
             None => AssetContent::File(
                 FileContent::Content(File::from(
@@ -1002,7 +1003,7 @@ impl ComposedCode {
                     .await?
                     .generate_source_map(&*self.code.await?, debug_id, ty)
                     .await?;
-                AssetContent::Composed(ComposedFile::new(rope.resolved_cell()).resolved_cell())
+                AssetContent::Composed(ComposedFile::new(rope, FileMeta::default()).resolved_cell())
                     .cell()
             }
             None => AssetContent::file(self.code.generate_source_map(ty)),
@@ -1207,8 +1208,14 @@ mod tests {
 /// The number of cells `rope` references directly (not counting nested ropes' cells).
 #[cfg(test)]
 fn cell_count(rope: &CellRope) -> usize {
-    rope.parts()
-        .filter(|part| matches!(part, CellRopePart::Cell { .. }))
+    rope.segments()
+        .iter()
+        .filter(|segment| {
+            matches!(
+                segment,
+                CellRopeSegment::Cell(_) | CellRopeSegment::Skippable { .. }
+            )
+        })
         .count()
 }
 
@@ -1266,7 +1273,7 @@ mod composition_tests {
     #[turbo_tasks::value(shared)]
     struct PieceRef {
         cells: ResolvedVc<CodeCells>,
-        code: ResolvedVc<Rope>,
+        code: ResolvedVc<SkippableRope>,
     }
 
     #[turbo_tasks::function]
@@ -1312,6 +1319,7 @@ mod composition_tests {
         let code = composition.build_code().await?;
         let map_rope = composition
             .generate_source_map(&code, None, SourceMapType::Full)
+            .await?
             .await?;
         let map_cells = cell_count(&map_rope);
         let map = map_rope.read().await?;
@@ -1415,17 +1423,14 @@ mod composition_tests {
     #[turbo_tasks::value(shared)]
     struct StrictPieceRef {
         cells: ResolvedVc<CodeCells>,
-        code: ResolvedVc<Rope>,
-        strict_directive: ResolvedVc<OptionByteRange>,
+        code: ResolvedVc<SkippableRope>,
     }
 
     #[turbo_tasks::function]
     async fn strict_piece_ref(cells: ResolvedVc<CodeCells>) -> Result<Vc<StrictPieceRef>> {
-        let value = cells.await?;
         Ok(StrictPieceRef {
             cells,
-            code: value.code(),
-            strict_directive: value.strict_directive_range(),
+            code: cells.await?.code(),
         }
         .cell())
     }
@@ -1439,20 +1444,12 @@ mod composition_tests {
         let mut builder = CodeCompositionBuilder::new(false, SourceMapGenerationOptions::default());
         builder += "[";
         let edited = strict_piece_ref(edited_strict_piece(*text)).await?;
-        builder.push_code_cells_without_strict_directive(
-            edited.cells,
-            edited.code,
-            edited.strict_directive,
-        );
+        builder.push_code_cells_without_strict_directive(edited.cells, edited.code);
         builder += ",";
         let fixed = strict_piece_ref(fixed_strict_piece()).await?;
         builder.push_code_cells(fixed.cells, fixed.code);
         builder += ",";
-        builder.push_code_cells_without_strict_directive(
-            fixed.cells,
-            fixed.code,
-            fixed.strict_directive,
-        );
+        builder.push_code_cells_without_strict_directive(fixed.cells, fixed.code);
         builder += "]";
         Ok(builder.build().cell())
     }
@@ -1465,6 +1462,7 @@ mod composition_tests {
         let code = composition.build_code().await?;
         let map_rope = composition
             .generate_source_map(&code, None, SourceMapType::Full)
+            .await?
             .await?;
         let map_cells = cell_count(&map_rope);
         let map = map_rope.read().await?;
@@ -1707,6 +1705,7 @@ mod variant_tests {
         for &ty in variants.types() {
             let composed = composition
                 .generate_source_map(&code, debug_id.clone(), ty)
+                .await?
                 .await?;
             ensure!(
                 cell_count(&composed) == names.len(),

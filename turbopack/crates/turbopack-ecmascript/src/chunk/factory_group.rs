@@ -34,11 +34,7 @@ pub trait ModuleFactorySink<F>: Write + AddAssign<&'static str> {
 impl ModuleFactorySink<CodeModuleIdAndPath> for CodeCompositionBuilder {
     fn push_factory(&mut self, factory: &CodeModuleIdAndPath, without_strict_directive: bool) {
         if without_strict_directive {
-            self.push_code_cells_without_strict_directive(
-                factory.cells,
-                factory.code,
-                factory.strict_directive,
-            );
+            self.push_code_cells_without_strict_directive(factory.cells, factory.code);
         } else {
             self.push_code_cells(factory.cells, factory.code);
         }

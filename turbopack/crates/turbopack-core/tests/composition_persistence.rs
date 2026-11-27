@@ -19,7 +19,7 @@ use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, StorageMode,
     TurboTasksBackend,
 };
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, rope::Rope};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, SkippableRope, rope::Rope};
 use turbopack_core::{
     asset::AssetContent,
     code_builder::{CodeBuilder, CodeCells, CodeComposition, CodeCompositionBuilder, ComposedCode},
@@ -111,7 +111,7 @@ async fn piece(input: ResolvedVc<Input>, slot: u32) -> Result<Vc<CodeCells>> {
 #[turbo_tasks::value(shared)]
 struct PieceRef {
     cells: ResolvedVc<CodeCells>,
-    code: ResolvedVc<Rope>,
+    code: ResolvedVc<SkippableRope>,
 }
 
 #[turbo_tasks::function]
