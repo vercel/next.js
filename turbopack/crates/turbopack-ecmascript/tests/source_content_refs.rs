@@ -12,7 +12,7 @@ use anyhow::{Context, Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{CellRopePart, DiskFileSystem, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{CellRopeSegment, DiskFileSystem, FileSystem, FileSystemPath};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -100,8 +100,9 @@ async fn map_contents_operation(fs: ResolvedVc<DiskFileSystem>) -> Result<Vc<Map
     let contents = map.contents().context("the contents are a part")?;
     let references_file = contents
         .await?
-        .parts()
-        .any(|part| matches!(part, CellRopePart::EscapedFileContent(_)));
+        .segments()
+        .iter()
+        .any(|segment| matches!(segment, CellRopeSegment::EscapedFileContent(_)));
     let head = map.head().clone();
     let rope = map.to_section_map(head).await?.to_rope();
     Ok(MapContents {
@@ -151,8 +152,9 @@ async fn failsafe_parse_operation(fs: ResolvedVc<DiskFileSystem>) -> Result<Vc<F
     let contents = map.contents().context("the contents are a part")?;
     let map_references_file = contents
         .await?
-        .parts()
-        .any(|part| matches!(part, CellRopePart::EscapedFileContent(_)));
+        .segments()
+        .iter()
+        .any(|segment| matches!(segment, CellRopeSegment::EscapedFileContent(_)));
     let rope = map.to_section_map(map.head().clone()).await?.to_rope();
     Ok(FailsafeParse {
         program_source: program_source.to_str()?.into(),

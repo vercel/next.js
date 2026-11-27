@@ -698,7 +698,7 @@ impl StructuredSourceMap {
     fn write_tail_parts(
         &self,
         source_refs: &[Option<ResolvedVc<FileContent>>],
-    ) -> (Option<ContentsPart>, CellRope) {
+    ) -> (Option<ContentsPart>, CellRopeBuilder) {
         if let (true, Some(SourcesContentField::Escaped(contents))) =
             (self.has_shareable_contents(), &self.sources_content)
         {
@@ -712,7 +712,7 @@ impl StructuredSourceMap {
             let mut rest_builder = CellRopeBuilder::default();
             rest_builder.concat(&rest.build());
             let contents_part = ContentsPart {
-                rope: contents_builder.build(),
+                rope: contents_builder,
                 entries: contents.len() as u32,
                 // Every entry is either a reference to a file's content or `null`: the part's
                 // inline bytes are only JSON scaffolding (see `SharedMapPart`).
@@ -721,13 +721,13 @@ impl StructuredSourceMap {
                         || content.to_bytes().as_ref() == b"null"
                 }),
             };
-            (Some(contents_part), rest_builder.build())
+            (Some(contents_part), rest_builder)
         } else {
             let mut rest = CellRopeBuilder::default();
             let mut first = !self.has_head();
             self.write_tail_cells(&mut rest, &mut first, source_refs);
             rest += "}";
-            (None, rest.build())
+            (None, rest)
         }
     }
 
@@ -953,7 +953,7 @@ struct SplitContents {
 
 /// A `sourcesContent` part as [`StructuredSourceMap::write_tail_parts`] writes it.
 struct ContentsPart {
-    rope: CellRope,
+    rope: CellRopeBuilder,
     entries: u32,
     reference_only: bool,
 }
@@ -982,11 +982,11 @@ impl SplitSourceMap {
         SplitSourceMap {
             head,
             contents: contents.map(|contents| SplitContents {
-                cell: contents.rope.resolved_cell(),
+                cell: contents.rope.build_resolved_cell(),
                 entries: contents.entries,
                 reference_only: contents.reference_only,
             }),
-            rest: rest.resolved_cell(),
+            rest: rest.build_resolved_cell(),
         }
     }
 
@@ -1426,9 +1426,9 @@ mod tests {
             if let Some(contents) = contents {
                 assert_eq!(contents.entries, 1);
                 assert!(!contents.reference_only);
-                joined.extend_from_slice(&contents.rope.read().await?.to_bytes());
+                joined.extend_from_slice(&contents.rope.build().read().await?.to_bytes());
             }
-            joined.extend_from_slice(&rest.read().await?.to_bytes());
+            joined.extend_from_slice(&rest.build().read().await?.to_bytes());
             assert_eq!(joined, map.to_rope().to_bytes().to_vec());
         }
         Ok(())

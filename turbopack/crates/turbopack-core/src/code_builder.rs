@@ -2120,14 +2120,14 @@ mod composition_tests {
         let file = text_file(*text).to_resolved().await?;
         let parts = contents.await?;
         ensure!(
-            parts
-                .parts()
-                .any(|part| matches!(part, CellRopePart::EscapedFileContent(f) if f == file)),
+            parts.segments().iter().any(
+                |segment| matches!(segment, CellRopeSegment::EscapedFileContent(f) if *f == file)
+            ),
             "the contents don't reference the file"
         );
         ensure!(
-            parts.parts().all(|part| match part {
-                CellRopePart::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
+            parts.segments().iter().all(|segment| match segment {
+                CellRopeSegment::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
                 _ => true,
             }),
             "the contents hold a copy of the text"
@@ -2229,9 +2229,10 @@ mod composition_tests {
         };
         let map_cell = map_cell.await?;
         let referenced = map_cell
-            .parts()
-            .filter_map(|part| match part {
-                CellRopePart::Nested(rope) => Some(rope),
+            .segments()
+            .iter()
+            .filter_map(|segment| match segment {
+                CellRopeSegment::Nested(rope) => Some(*rope),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -2240,8 +2241,8 @@ mod composition_tests {
             "inline contents must be referenced, not copied"
         );
         ensure!(
-            map_cell.parts().all(|part| match part {
-                CellRopePart::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
+            map_cell.segments().iter().all(|segment| match segment {
+                CellRopeSegment::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
                 _ => true,
             }),
             "the section map holds a copy of the inline contents"
@@ -2485,10 +2486,10 @@ mod variant_tests {
                 let content = composed
                     .to_content_with_magic_comments(emitted, || map_asset(path_ty))
                     .await?;
-                let FileContent::Content(file) = &*content.file_content().await? else {
+                let Some(file) = &*content.as_rope().await? else {
                     anyhow::bail!("{emitted:?} composed file is missing");
                 };
-                anyhow::Ok(file.content().clone())
+                anyhow::Ok(file.clone())
             }
             .await;
             let flat_file = flat

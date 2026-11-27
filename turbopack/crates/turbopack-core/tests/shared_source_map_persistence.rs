@@ -317,8 +317,9 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
     };
     let file = source_file(*input).to_resolved().await?;
     let references_file = |rope: &CellRope| {
-        rope.parts()
-            .any(|part| matches!(part, CellRopePart::EscapedFileContent(f) if f == file))
+        rope.segments()
+            .iter()
+            .any(|segment| matches!(segment, CellRopeSegment::EscapedFileContent(f) if *f == file))
     };
     let mut tails = Vec::new();
     for map in module_maps {
