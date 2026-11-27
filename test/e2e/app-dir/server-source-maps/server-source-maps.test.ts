@@ -396,6 +396,30 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('Server Component frames in SSR owner stacks are sourcemapped', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/ssr-owner-stack')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: ssr-owner-stack'
+        )
+      })
+      const output = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      // The owners are Server Components, so their frames come from the fake
+      // functions created by the SSR Flight client.
+      expect(output).toContain(
+        'Error: ssr-owner-stack' +
+          '\n    at ServerComponent (app/ssr-owner-stack/page.tsx:4:10)' +
+          '\n    at Page (app/ssr-owner-stack/page.tsx:8:10)' +
+          '\n'
+      )
+    } else {
+      // Owner stacks are only available in development.
+    }
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
