@@ -5,8 +5,8 @@ mod util;
 
 use std::{collections::VecDeque, fs, fs::canonicalize, io, path::PathBuf};
 
-use anyhow::{Context, Result};
-use rustc_hash::FxHashSet;
+use anyhow::{Context, Result, bail};
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use serde_json::json;
 use smallvec::{SmallVec, smallvec};
@@ -30,7 +30,7 @@ use turbopack::{
 };
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EmitOption, EvaluatableAsset,
         EvaluatableAssetExt, SourceMapSourceType, availability_info::AvailabilityInfo,
@@ -751,7 +751,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         }
     };
 
-    let mut seen = FxHashSet::default();
+    let mut seen = FxHashMap::default();
     let mut queue: VecDeque<_> = chunks.expand_all_assets().await?.iter().copied().collect();
 
     let output_path = project_path.clone();
@@ -762,7 +762,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         }
     }
 
-    matches_expected(expected_paths, seen)
+    matches_expected(expected_paths, seen.into_keys().collect())
         .await
         .context("Actual assets doesn't match with expected assets")?;
 
@@ -772,14 +772,23 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 async fn walk_asset(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     output_path: &FileSystemPath,
-    seen: &mut FxHashSet<FileSystemPath>,
+    seen: &mut FxHashMap<FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
     let path = asset.path().owned().await?;
 
-    if !seen.insert(path.clone()) {
+    if let Some(&first) = seen.get(&path) {
+        // Two different assets may share a path only if they have the same content. Otherwise
+        // whichever is written last wins, and the output depends on emit order.
+        if first != asset && !same_content(first, asset).await? {
+            bail!(
+                "same output path emitted with different content: {}",
+                path.path
+            );
+        }
         return Ok(());
     }
+    seen.insert(path.clone(), asset);
 
     if path.is_inside_ref(output_path) {
         // Only consider assets that should be written to disk.
@@ -789,6 +798,17 @@ async fn walk_asset(
     queue.extend(asset.references().all_assets().await?.iter().copied());
 
     Ok(())
+}
+
+async fn same_content(
+    a: ResolvedVc<Box<dyn OutputAsset>>,
+    b: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<bool> {
+    Ok(match (&*a.content().await?, &*b.content().await?) {
+        (AssetContent::File(a), AssetContent::File(b)) => *a.await? == *b.await?,
+        (AssetContent::Redirect(a), AssetContent::Redirect(b)) => a == b,
+        _ => false,
+    })
 }
 
 async fn maybe_load_env(

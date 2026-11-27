@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_1k5gimee4_xwm.js",
-    {"otherChunks":["output/[root-of-the-server]__01hlsg4dgrn8u._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)"]}
+    "output/0rv8_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0eu9gua8eik4y.js",
+    {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_07hs0yaq7iorj.js","output/[root-of-the-server]__03vfglhs9mdqf._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/self-spawning/input/worker.js [test] (ecmascript)"]}
 ]);
 (() => {
 var chunksToRegister = globalThis["TURBOPACK"];
@@ -865,6 +865,18 @@ const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? 
 // the chunk again, so entries are added with `cacheLoadPromise`.
 const availableModules = new Map();
 const availableModuleChunks = new Map();
+// Paths of the JS chunks whose module factories are installed in this runtime,
+// in registration order. Chunks that only evaluate (runtime params) are not
+// recorded. Created on the first registration.
+let loadedJsChunkPaths;
+function registerLoadedJsChunk(chunk) {
+    if (loadedJsChunkPaths === undefined) loadedJsChunkPaths = new Set();
+    loadedJsChunkPaths.add(getPathFromScript(chunk));
+}
+// Runtime primitive exposed as `__turbopack_get_loaded_js_chunk_paths__`.
+function getLoadedJsChunkPaths() {
+    return loadedJsChunkPaths ? Array.from(loadedJsChunkPaths) : [];
+}
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents = new Map();
 // Registry mapping a component chunk's path to its size in bytes, used by the
@@ -1154,6 +1166,8 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
+// Shared runtime primitive: paths of the JS chunks loaded in this runtime.
+browserContextPrototype.G = getLoadedJsChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -2286,6 +2300,8 @@ function registerChunk(registration) {
         let chunkPath = getPathFromScript(chunk);
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, (id)=>addModuleToChunk(id, chunkPath));
+        // Module factories are available as soon as their chunk registers.
+        registerLoadedJsChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -2707,4 +2723,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_1k5gimee4_xwm.js.map
+//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_workers_self-spawning_input_worker_0eu9gua8eik4y.js.map

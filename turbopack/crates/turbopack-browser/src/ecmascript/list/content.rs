@@ -78,6 +78,13 @@ impl EcmascriptDevChunkListContent {
                 .chunks
                 .await?
                 .iter()
+                // Another chunk list can be reached through output asset references, e.g. the HMR
+                // chunk list of a web worker's chunk group. It belongs to a separate runtime that
+                // this list can't update, and its updates aren't mergeable chunk updates, so it is
+                // left out. Its chunks are still covered where they are reachable on their own.
+                .filter(|chunk| {
+                    ResolvedVc::try_downcast_type::<EcmascriptDevChunkList>(**chunk).is_none()
+                })
                 .map(async |chunk| {
                     Ok((
                         output_root
