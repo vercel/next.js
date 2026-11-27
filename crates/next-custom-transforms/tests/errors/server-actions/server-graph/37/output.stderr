@@ -1,0 +1,30 @@
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+   ,-[input.js:2:1]
+ 1 | const fn = function () {
+ 2 |   'use client'
+   :   ^^^^^^^^^^^^
+ 3 | }
+   `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+   ,-[input.js:6:1]
+ 5 | export const fnExpr = function named() {
+ 6 |   'use client'
+   :   ^^^^^^^^^^^^
+ 7 | }
+   `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+    ,-[input.js:11:1]
+ 10 |   return null
+ 11 |   'use client'
+    :   ^^^^^^^^^^^^
+ 12 | }
+    `----

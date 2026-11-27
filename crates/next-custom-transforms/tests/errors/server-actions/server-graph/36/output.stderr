@@ -1,0 +1,42 @@
+  x The "use server" directive must be at the top of the function body.
+  | 
+   ,-[input.js:3:1]
+ 2 |   if (true) {
+ 3 |     'use server'
+   :     ^^^^^^^^^^^^
+ 4 |   }
+   `----
+  x The "use cache" directive must be at the top of the function body.
+  | 
+    ,-[input.js:9:1]
+  8 |   try {
+  9 |     'use cache'
+    :     ^^^^^^^^^^^
+ 10 |   } catch (e) {
+    `----
+  x The "use server" directive must be at the top of the function body.
+  | 
+    ,-[input.js:11:1]
+ 10 |   } catch (e) {
+ 11 |     'use server'
+    :     ^^^^^^^^^^^^
+ 12 |   } finally {
+    `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+    ,-[input.js:13:1]
+ 12 |   } finally {
+ 13 |     'use client'
+    :     ^^^^^^^^^^^^
+ 14 |   }
+    `----
+  x The "use cache: remote" directive must be at the top of the function body.
+  | 
+    ,-[input.js:19:1]
+ 18 |   while (true) {
+ 19 |     'use cache: remote'
+    :     ^^^^^^^^^^^^^^^^^^^
+ 20 |   }
+    `----
