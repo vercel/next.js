@@ -158,6 +158,15 @@ export async function spawnNextUpgrade(
   let baseDir = resolvePath(directory || '.')
 
   if (options.agent) {
+    // The upgrade harness runs build verification commands that expect a clean or production
+    // environment. Strip NODE_ENV if it was set by next dev or defaulted.
+    if (
+      process.env.__NEXT_DEFAULT_NODE_ENV === 'true' ||
+      process.env.NODE_ENV === 'development'
+    ) {
+      delete process.env.NODE_ENV
+      delete process.env.__NEXT_DEFAULT_NODE_ENV
+    }
     // Match dev/build's telemetry storage, including custom output directories in CI.
     // Retain config errors until after recording the invocation so failed runs still count.
     let distDir = '.next'

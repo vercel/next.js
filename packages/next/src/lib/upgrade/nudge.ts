@@ -516,6 +516,21 @@ export async function runUpgrade(
   // The agent's dev/build commands must not trigger this explicit request again.
   delete process.env.__NEXT_AGENT_UPGRADE
   updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
+
+  // The upgrade harness may run both dev and production checks. When starting from
+  // next dev, drop the defaulted NODE_ENV so child commands (e.g. next build) do not inherit it.
+  if (
+    process.env.__NEXT_DEFAULT_NODE_ENV === 'true' ||
+    process.env.NODE_ENV === 'development'
+  ) {
+    delete process.env.NODE_ENV
+    delete process.env.__NEXT_DEFAULT_NODE_ENV
+    updateInitialEnv({
+      NODE_ENV: undefined,
+      __NEXT_DEFAULT_NODE_ENV: undefined,
+    })
+  }
+
   const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
 
   // Human Update actions invoke the CLI directly, so their ID does not need an env var.
