@@ -83,6 +83,34 @@ describe('bundled docs as Markdown', () => {
     }
   })
 
+  it('resolves router tags inside a sentence', () => {
+    const source = [
+      'Edit the <AppOnly>`app/page.tsx`</AppOnly><PagesOnly>`pages/index.tsx`</PagesOnly> file and save it.',
+      '',
+      'Forward the request to a <AppOnly>[Route Handler](/docs/app/route)</AppOnly> <PagesOnly>[API Route](/docs/pages/api)</PagesOnly>.',
+      '',
+      'Wrap content in an `<AppOnly>` or `<PagesOnly>` component.',
+    ].join('\n')
+    expect(toMarkdown(source, { relativePath: '01-app/page.mdx' })).toBe(
+      [
+        'Edit the `app/page.tsx` file and save it.',
+        '',
+        'Forward the request to a [Route Handler](/docs/app/route).',
+        '',
+        'Wrap content in an `<AppOnly>` or `<PagesOnly>` component.',
+      ].join('\n')
+    )
+    expect(toMarkdown(source, { relativePath: '02-pages/page.mdx' })).toBe(
+      [
+        'Edit the `pages/index.tsx` file and save it.',
+        '',
+        'Forward the request to a [API Route](/docs/pages/api).',
+        '',
+        'Wrap content in an `<AppOnly>` or `<PagesOnly>` component.',
+      ].join('\n')
+    )
+  })
+
   it('fills a page that shares content from the page it names', () => {
     const pointer = [
       '---',
@@ -228,10 +256,10 @@ describe('bundled docs as Markdown', () => {
         const { lines, fences } = prose(page.output)
         for (const line of lines) {
           if (
-            /^\s*<\/?(AppOnly|PagesOnly|FixCardGrid|FixCard|Image|Check|Cross)\b/.test(
-              line
-            ) ||
-            /^\s*\{\/\*/.test(line)
+            /^\s*<\/?(FixCardGrid|FixCard|Image|Check|Cross)\b/.test(line) ||
+            /^\s*\{\/\*/.test(line) ||
+            // Router tags anywhere in a sentence, except where a page names them in inline code.
+            /<\/?(AppOnly|PagesOnly)>/.test(line.replace(/`+[^`]*`+/g, ''))
           ) {
             left.push(`${page.name}: ${line.trim()}`)
           }

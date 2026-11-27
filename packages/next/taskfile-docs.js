@@ -18,6 +18,40 @@ const ROUTER_OPEN = /^\s*<(AppOnly|PagesOnly)>\s*$/
 const ROUTER_CLOSE = /^\s*<\/(AppOnly|PagesOnly)>\s*$/
 const KEPT_BY_ROUTER = { app: 'AppOnly', pages: 'PagesOnly' }
 
+/**
+ * A line of prose with the router tags inside a sentence resolved:
+ * "Edit the <AppOnly>`app/page.tsx`</AppOnly><PagesOnly>`pages/index.tsx`</PagesOnly> file".
+ * Text in inline code is kept as written, so a page can still name the tags.
+ * `state.dropping` carries a tag left open at the end of a line into the next.
+ */
+function resolveInline(line, router, state) {
+  if (!state.dropping && !/<\/?(?:AppOnly|PagesOnly)>/.test(line)) return line
+  let out = ''
+  // Inline code spans, then everything between them.
+  for (const part of line.split(/(`+[^`]*`+)/)) {
+    if (/^`/.test(part)) {
+      if (!state.dropping) out += part
+      continue
+    }
+    let rest = part
+    for (let match; (match = rest.match(/<(\/?)(AppOnly|PagesOnly)>/)); ) {
+      if (!state.dropping) out += rest.slice(0, match.index)
+      rest = rest.slice(match.index + match[0].length)
+      if (match[1]) {
+        if (state.dropping === match[2]) state.dropping = null
+      } else if (
+        !state.dropping &&
+        router &&
+        KEPT_BY_ROUTER[router] !== match[2]
+      ) {
+        state.dropping = match[2]
+      }
+    }
+    if (!state.dropping) out += rest
+  }
+  return out
+}
+
 /** The router a bundled file belongs to, from its path under the docs root. */
 function routerOf(relativePath) {
   const top = relativePath.split(/[/\\]/)[0]
@@ -98,10 +132,11 @@ function convertBody(body, router) {
   // Router blocks being dropped, and styled <div>s whose closing tag goes too.
   let dropping = 0
   let styledDivs = 0
+  const inline = { dropping: null }
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    const fenceLine = line.match(FENCE)
+    const raw = lines[i]
+    const fenceLine = raw.match(FENCE)
 
     if (fence) {
       const closes =
@@ -109,7 +144,7 @@ function convertBody(body, router) {
         fenceLine[2][0] === fence.marker[0] &&
         fenceLine[2].length >= fence.marker.length &&
         fenceLine[3].trim() === ''
-      if (!skippingFence && dropping === 0) out.push(line)
+      if (!skippingFence && dropping === 0) out.push(raw)
       if (closes) {
         fence = null
         skippingFence = false
@@ -117,13 +152,13 @@ function convertBody(body, router) {
       continue
     }
 
-    if (ROUTER_OPEN.test(line)) {
-      const name = line.match(ROUTER_OPEN)[1]
+    if (ROUTER_OPEN.test(raw)) {
+      const name = raw.match(ROUTER_OPEN)[1]
       if (dropping > 0 || (router && KEPT_BY_ROUTER[router] !== name))
         dropping++
       continue
     }
-    if (ROUTER_CLOSE.test(line)) {
+    if (ROUTER_CLOSE.test(raw)) {
       if (dropping > 0) dropping--
       continue
     }
@@ -145,13 +180,28 @@ function convertBody(body, router) {
         out.push(
           paired
             ? `${fenceLine[1]}${fenceLine[2]}${info.replace(/\s+switcher(?=\s|$)/, '')}`
-            : line
+            : raw
         )
       }
       continue
     }
 
     if (dropping > 0) continue
+
+    // Router tags inside a sentence. A line they leave empty goes with them.
+    const resolved = resolveInline(lines[i], router, inline)
+    if (resolved !== lines[i]) {
+      if (resolved.trim() === '') continue
+      // A dropped tag can leave a doubled space or one before punctuation; indentation is kept.
+      const lead = resolved.match(/^\s*/)[0]
+      lines[i] =
+        lead +
+        resolved
+          .slice(lead.length)
+          .replace(/ {2,}/g, ' ')
+          .replace(/ +([.,;:])/g, '$1')
+    }
+    const line = lines[i]
     if (line.trim() !== '') afterTypeScriptSample = false
 
     const indent = line.match(/^\s*/)[0]
