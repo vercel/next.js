@@ -131,6 +131,10 @@ pub struct NextSegmentConfig {
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub ensure_static: Option<Span>,
+    /// The `metadata`, `generateMetadata`, `viewport`, or `generateViewport` export.
+    #[turbo_tasks(unsafe_ignore)]
+    #[bincode(with_serde)]
+    pub metadata: Option<Span>,
 }
 
 /// Legacy config fields that are fallbacks for individual exports outside the App Router.
@@ -167,6 +171,7 @@ impl NextSegmentConfig {
             instant: _,
             prefetch: _,
             ensure_static: _,
+            metadata: _,
             // Don't need merging
             middleware_matcher: _,
             unstable_allow_dynamic: _,
@@ -220,6 +225,7 @@ impl NextSegmentConfig {
             instant: _,
             prefetch: _,
             ensure_static: _,
+            metadata: _,
             // Don't need merging
             middleware_matcher: _,
             unstable_allow_dynamic: _,
@@ -1236,6 +1242,9 @@ async fn parse_config_value(
         }
         "ensureStatic" => {
             config.ensure_static = Some(span);
+        }
+        "metadata" | "generateMetadata" | "viewport" | "generateViewport" => {
+            config.metadata = Some(span);
         }
         _ => {}
     }

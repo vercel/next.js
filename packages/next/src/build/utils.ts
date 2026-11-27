@@ -857,6 +857,7 @@ export async function isPageStatic({
   clientAssetToken,
   sriEnabled,
   isNativeRoute = false,
+  isNativeRscRuntime = false,
 }: {
   dir: string
   page: string
@@ -887,6 +888,8 @@ export async function isPageStatic({
   clientAssetToken: string
   sriEnabled: boolean
   isNativeRoute?: boolean
+  /** The page is on the native RSC runtime. */
+  isNativeRscRuntime?: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
   if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
@@ -925,7 +928,9 @@ export async function isPageStatic({
         httpAgentOptions,
       })
 
-      if (isNativeRoute) {
+      // The build doesn't prerender Go routes or pages on the native RSC runtime: every
+      // request runs them, so they're dynamic.
+      if (isNativeRoute || isNativeRscRuntime) {
         return {
           isStatic: false,
           isRoutePPREnabled: false,
@@ -1206,6 +1211,7 @@ type ReducedAppConfig = Pick<
   | 'maxDuration'
   | 'prefetch'
   | 'ensureStatic'
+  | 'experimental_nativeRscRuntime'
 >
 
 /**
@@ -1230,6 +1236,7 @@ export function reduceAppConfig(
       maxDuration,
       prefetch,
       ensureStatic,
+      experimental_nativeRscRuntime,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
@@ -1266,6 +1273,10 @@ export function reduceAppConfig(
 
     if (typeof maxDuration !== 'undefined') {
       config.maxDuration = maxDuration
+    }
+
+    if (typeof experimental_nativeRscRuntime !== 'undefined') {
+      config.experimental_nativeRscRuntime = experimental_nativeRscRuntime
     }
 
     // These two should be set uniformly across all segments

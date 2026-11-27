@@ -12,9 +12,11 @@ use next_core::{
     get_edge_resolve_options_context, get_next_package,
     next_app::{
         AppEntry, AppPage, AppPath, get_app_client_references_chunks,
-        get_app_client_shared_chunk_group, get_app_page_entry, get_app_route_entry,
+        get_app_client_shared_chunk_group, get_app_page_entry,
+        get_app_page_native_rsc_runtime_entry, get_app_route_entry,
         get_client_references_chunks_for_hmr, metadata::route::get_app_metadata_route_entry,
-        report_app_builtin_page_native_rsc_runtime, report_app_page_native_rsc_runtime,
+        report_app_builtin_page_native_rsc_runtime,
+        report_app_page_native_rsc_runtime_client_references,
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -1931,32 +1933,51 @@ struct AppEndpoint {
 #[turbo_tasks::value_impl]
 impl AppEndpoint {
     #[turbo_tasks::function]
-    async fn app_page_entry(&self, loader_tree: Vc<AppPageLoaderTree>) -> Result<Vc<AppEntry>> {
+    async fn is_native_rsc_runtime_page(
+        &self,
+        loader_tree: Vc<AppPageLoaderTree>,
+    ) -> Result<Vc<bool>> {
         let config = parse_segment_config_from_loader_tree(loader_tree).await?;
         // The built-in not-found and global-error pages stay on App Router, even when the root
         // layout opts in: like other not-found and error renders, they aren't on the native RSC
-        // runtime yet. A file of theirs that sets the export itself is a build error instead.
+        // runtime yet. Matching their routes is the same rule as the build's static info, which
+        // skips layout inheritance for built-in pages by file path (`isAppBuiltinPage`): no user
+        // file can create these routes. A file of theirs that sets the export itself is a build
+        // error instead.
         let is_builtin_page = matches!(
             AppPath::from(self.page.clone()).to_string().as_str(),
             "/_not-found" | "/_global-error"
         );
         if is_builtin_page {
             report_app_builtin_page_native_rsc_runtime(loader_tree, self.page.clone()).await?;
-        } else if config.native_rsc_runtime == Some(true) {
-            report_app_page_native_rsc_runtime(
+            return Ok(Vc::cell(false));
+        }
+        Ok(Vc::cell(config.native_rsc_runtime == Some(true)))
+    }
+
+    #[turbo_tasks::function]
+    async fn app_page_entry(
+        self: Vc<Self>,
+        loader_tree: Vc<AppPageLoaderTree>,
+    ) -> Result<Vc<AppEntry>> {
+        let this = self.await?;
+        if *self.is_native_rsc_runtime_page(loader_tree).await? {
+            return Ok(get_app_page_native_rsc_runtime_entry(
+                this.app_project.rsc_module_context(),
                 loader_tree,
-                self.page.clone(),
-                self.app_project.project().next_config(),
-            )
-            .await?;
+                this.page.clone(),
+                this.app_project.project().project_path().owned().await?,
+                this.app_project.project().next_config(),
+                this.app_project.project().next_mode(),
+            ));
         }
         Ok(get_app_page_entry(
-            self.app_project.rsc_module_context(),
-            self.app_project.edge_rsc_module_context(),
+            this.app_project.rsc_module_context(),
+            this.app_project.edge_rsc_module_context(),
             loader_tree,
-            self.page.clone(),
-            self.app_project.project().project_path().owned().await?,
-            self.app_project.project().next_config(),
+            this.page.clone(),
+            this.app_project.project().project_path().owned().await?,
+            this.app_project.project().next_config(),
         ))
     }
 
@@ -2111,6 +2132,19 @@ impl AppEndpoint {
                 )
                 .to_resolved()
                 .await?;
+
+        // The native RSC runtime has no client components or CSS yet, so a page on it with any
+        // client reference is a build error.
+        if let AppEndpointType::Page { loader_tree, .. } = &this.ty
+            && *self.is_native_rsc_runtime_page(**loader_tree).await?
+        {
+            report_app_page_native_rsc_runtime_client_references(
+                *client_references,
+                **loader_tree,
+                this.page.clone(),
+            )
+            .await?;
+        }
 
         // We only need the client runtime entries for pages not for Route Handlers
         let (

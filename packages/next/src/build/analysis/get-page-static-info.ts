@@ -83,6 +83,11 @@ export interface SharedPageStaticInfo {
   middleware?: ProxyConfig
   maxDuration: number | undefined
   hadUnsupportedValue: boolean
+  /**
+   * The page is on the native RSC runtime (`experimental_nativeRscRuntime`),
+   * inherited from its layouts. Only set by `getStaticInfoIncludingLayouts`.
+   */
+  nativeRscRuntime?: true
 }
 
 export interface AppPageStaticInfo extends SharedPageStaticInfo {
