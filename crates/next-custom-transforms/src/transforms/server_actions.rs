@@ -167,6 +167,12 @@ enum ServerActionsErrorKind {
         captured_name: Atom,
         directive: Directive,
     },
+    HoistedServerReferenceCapturedMutated {
+        span: Span,
+        fn_name: Atom,
+        captured_name: Atom,
+        directive: Directive,
+    },
     InlineSyncFunction {
         span: Span,
         directive: Directive,
@@ -1249,12 +1255,12 @@ impl<C: Comments> ServerActions<C> {
 
         // Assemble final statement list and track each placed closure declaration's final position.
         let mut new = Vec::with_capacity(visited.len());
-        let mut placed_closure_decls: Vec<(usize, RewrittenFnDecl, Span)> = Vec::new();
+        let mut placed_closure_decls: Vec<(usize, RewrittenFnDecl, Span, bool)> = Vec::new();
 
         for (i, mut item) in visited.into_iter().enumerate() {
             for (stmt, rewritten, err_span) in insert_before[i].drain(..) {
                 let pos = new.len();
-                placed_closure_decls.push((pos, rewritten, err_span));
+                placed_closure_decls.push((pos, rewritten, err_span, true));
                 new.push(stmt);
             }
 
@@ -1273,7 +1279,7 @@ impl<C: Comments> ServerActions<C> {
                 if let Some(rewritten) = item.rewritten {
                     let pos = new.len();
                     let err_span = rewritten.ident.span;
-                    placed_closure_decls.push((pos, rewritten, err_span));
+                    placed_closure_decls.push((pos, rewritten, err_span, false));
                 }
                 new.push(item.stmt);
             }
@@ -1308,7 +1314,8 @@ impl<C: Comments> ServerActions<C> {
         };
 
         // Validate that every closure-capturing server/cache declaration is placed after all
-        // non-hoisted local declarations it captures.
+        // non-hoisted local declarations it captures, and that hoisted closure declarations do not
+        // capture bindings reassigned at or after their hoisted position.
         if !placed_closure_decls.is_empty() {
             let mut decl_pos: FxHashMap<Id, usize> = FxHashMap::default();
             for (idx, stmt) in new.iter().enumerate() {
@@ -1320,12 +1327,14 @@ impl<C: Comments> ServerActions<C> {
                 );
             }
 
-            for (mut pos, rewritten, err_span) in placed_closure_decls {
+            for (mut pos, rewritten, err_span, was_hoisted) in placed_closure_decls {
                 if let Some((splice_at, count)) = top_offset
                     && pos >= splice_at
                 {
                     pos += count;
                 }
+
+                let mut emitted_error = false;
                 for cap_id in &rewritten.captured_ids {
                     if let Some(&cap_pos) = decl_pos.get(cap_id)
                         && cap_pos >= pos
@@ -1338,7 +1347,26 @@ impl<C: Comments> ServerActions<C> {
                                 directive: rewritten.directive.clone(),
                             },
                         );
+                        emitted_error = true;
                         break;
+                    }
+                }
+
+                if !emitted_error && was_hoisted {
+                    for stmt in &new[(pos + 1)..] {
+                        if let Some((write_span, captured_name)) =
+                            find_ident_write_in_stmt(stmt, &rewritten.captured_ids)
+                        {
+                            emit_error(
+                                ServerActionsErrorKind::HoistedServerReferenceCapturedMutated {
+                                    span: write_span,
+                                    fn_name: rewritten.ident.sym.clone(),
+                                    captured_name,
+                                    directive: rewritten.directive.clone(),
+                                },
+                            );
+                            break;
+                        }
                     }
                 }
             }
@@ -3760,6 +3788,141 @@ fn find_ident_ref_in_stmt(stmt: &Stmt, target_id: &Id, only_direct: bool) -> Opt
     finder.found
 }
 
+struct IdentWriteFinder<'a> {
+    captured_ids: &'a [Id],
+    found: Option<(Span, Atom)>,
+}
+
+impl IdentWriteFinder<'_> {
+    fn check_ident(&mut self, ident: &Ident) {
+        if self.found.is_none()
+            && self
+                .captured_ids
+                .iter()
+                .any(|cap_id| *cap_id == ident.to_id())
+        {
+            self.found = Some((ident.span, ident.sym.clone()));
+        }
+    }
+
+    fn check_pat(&mut self, pat: &Pat) {
+        match pat {
+            Pat::Ident(binding) => self.check_ident(&binding.id),
+            Pat::Array(arr) => {
+                for elem in arr.elems.iter().flatten() {
+                    self.check_pat(elem);
+                }
+            }
+            Pat::Object(obj) => {
+                for prop in &obj.props {
+                    match prop {
+                        ObjectPatProp::KeyValue(kv) => self.check_pat(&kv.value),
+                        ObjectPatProp::Assign(assign) => self.check_ident(&assign.key.id),
+                        ObjectPatProp::Rest(rest) => self.check_pat(&rest.arg),
+                    }
+                }
+            }
+            Pat::Rest(rest) => self.check_pat(&rest.arg),
+            Pat::Assign(assign) => self.check_pat(&assign.left),
+            Pat::Expr(_) | Pat::Invalid(_) => {}
+        }
+    }
+}
+
+impl Visit for IdentWriteFinder<'_> {
+    fn visit_assign_expr(&mut self, assign: &AssignExpr) {
+        match &assign.left {
+            AssignTarget::Simple(SimpleAssignTarget::Ident(binding)) => {
+                self.check_ident(&binding.id);
+            }
+            AssignTarget::Pat(pat) => match pat {
+                AssignTargetPat::Array(arr) => {
+                    for elem in arr.elems.iter().flatten() {
+                        self.check_pat(elem);
+                    }
+                }
+                AssignTargetPat::Object(obj) => {
+                    for prop in &obj.props {
+                        match prop {
+                            ObjectPatProp::KeyValue(kv) => self.check_pat(&kv.value),
+                            ObjectPatProp::Assign(assign) => self.check_ident(&assign.key.id),
+                            ObjectPatProp::Rest(rest) => self.check_pat(&rest.arg),
+                        }
+                    }
+                }
+                AssignTargetPat::Invalid(_) => {}
+            },
+            _ => {}
+        }
+        assign.visit_children_with(self);
+    }
+
+    fn visit_update_expr(&mut self, update: &UpdateExpr) {
+        let mut inner = update.arg.as_ref();
+        while let Expr::Paren(paren) = inner {
+            inner = paren.expr.as_ref();
+        }
+        if let Expr::Ident(ident) = inner {
+            self.check_ident(ident);
+        }
+        update.visit_children_with(self);
+    }
+
+    fn visit_for_in_stmt(&mut self, stmt: &ForInStmt) {
+        if let ForHead::Pat(pat) = &stmt.left {
+            self.check_pat(pat);
+        }
+        stmt.visit_children_with(self);
+    }
+
+    fn visit_for_of_stmt(&mut self, stmt: &ForOfStmt) {
+        if let ForHead::Pat(pat) = &stmt.left {
+            self.check_pat(pat);
+        }
+        stmt.visit_children_with(self);
+    }
+
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        if let Callee::Expr(callee_expr) = &call.callee {
+            let mut inner = callee_expr.as_ref();
+            while let Expr::Paren(paren) = inner {
+                inner = paren.expr.as_ref();
+            }
+            match inner {
+                Expr::Fn(fn_expr) => {
+                    fn_expr.function.params.visit_with(self);
+                    fn_expr.function.body.visit_with(self);
+                    call.args.visit_with(self);
+                    return;
+                }
+                Expr::Arrow(arrow) => {
+                    arrow.params.visit_with(self);
+                    arrow.body.visit_with(self);
+                    call.args.visit_with(self);
+                    return;
+                }
+                _ => {}
+            }
+        }
+        call.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, _: &Function) {}
+
+    fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
+
+    noop_visit_type!();
+}
+
+fn find_ident_write_in_stmt(stmt: &Stmt, captured_ids: &[Id]) -> Option<(Span, Atom)> {
+    let mut finder = IdentWriteFinder {
+        captured_ids,
+        found: None,
+    };
+    stmt.visit_with(&mut finder);
+    finder.found
+}
+
 fn collect_non_hoisted_decl_ids_in_stmt(
     stmt: &Stmt,
     collect_nested_vars: bool,
@@ -4505,6 +4668,24 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             formatdoc! {
                 r#"
                     {subject} `{fn_name}` cannot be referenced before its captured variable `{captured_name}` is declared. Move `{captured_name}` above this reference, or move `{fn_name}` after `{captured_name}` is initialized.
+                "#,
+                subject = if let Directive::UseServer = directive {
+                    "Server Action"
+                } else {
+                    "\"use cache\" function"
+                }
+            },
+        ),
+        ServerActionsErrorKind::HoistedServerReferenceCapturedMutated {
+            span,
+            fn_name,
+            captured_name,
+            directive,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    {subject} `{fn_name}` is referenced before its declaration and captures `{captured_name}`, which is reassigned here. Move `{fn_name}` after `{captured_name}` is reassigned so it captures the updated value.
                 "#,
                 subject = if let Directive::UseServer = directive {
                     "Server Action"

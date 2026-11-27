@@ -1,0 +1,8 @@
+  x "use cache" function `readCached` is referenced before its declaration and captures `value`, which is reassigned here. Move `readCached` after `value` is reassigned so it captures the updated
+  | value.
+  | 
+   ,-[input.js:4:1]
+ 3 |   const cacheRef = readCached
+ 4 |   value = 'updated'
+   :   ^^^^^
+   `----
