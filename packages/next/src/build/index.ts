@@ -1069,6 +1069,10 @@ export function createStaticWorker(
           config.supportsImmutableAssets || !config.deploymentId
             ? ''
             : `?dpl=${config.deploymentId}`,
+        // Page-data collection loads precompiled app-render bundles, which select
+        // the scheduler at module initialization, before prerendering starts.
+        __NEXT_SEQUENTIAL_TASK_SCHEDULING:
+          config.experimental.sequentialTaskScheduling ?? 'unstable_timer',
       },
     },
   }) as StaticWorker

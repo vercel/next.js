@@ -231,6 +231,9 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
+    // Precompiled app-render bundles do not receive the app's build-time defines.
+    process.env.__NEXT_SEQUENTIAL_TASK_SCHEDULING =
+      this.nextConfig.experimental.sequentialTaskScheduling ?? 'unstable_timer'
     if (
       (isDev || process.env.__NEXT_DEV_SERVER) &&
       this.nextConfig.experimental.requestInsights
