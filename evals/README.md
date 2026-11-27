@@ -161,6 +161,37 @@ A run takes ~2–5 min. To validate a fixture without executing:
 pnpm eval agent-042-your-thing --dry
 ```
 
+Evals configured with a skill and metrics collector can gate skill efficiency.
+Replace `<configured-eval>` with the eval name:
+
+```bash
+pnpm eval <configured-eval> --effort-gate
+```
+
+For faster iteration, override the five-sample default:
+
+```bash
+pnpm eval <configured-eval> --effort-gate --effort-samples 2
+```
+
+To prepend a result from Next.js before the current change, pack that revision
+separately and pass it to the gate:
+
+```bash
+pnpm eval <configured-eval> --effort-gate \
+  --effort-pre-stack-tarball /path/to/pre-stack-next.tgz
+```
+
+The gate runs five sequential samples each for baseline, bundled-docs discovery
+through `agents-md`, and the configured skill. Fixtures that don't depend on
+Next.js skip `agents-md`, which would match baseline. With a pre-stack tarball, it runs
+that package first against the same fixture and grader. It reports pass rate
+and median input tokens for every variant, plus how many samples set each
+boolean or list field the configured collector returns. A pre-stack tarball
+requires a fixture that depends on Next.js. Samples without a token count are left out of the median but still count against the
+pass rate. The skill must match or exceed the baseline pass rate and reduce
+median input tokens by at least 40%. Normal eval runs do not execute this gate.
+
 Run a group from `eval.suites.json` with `--suite`:
 
 ```bash
