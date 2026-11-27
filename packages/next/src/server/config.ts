@@ -573,7 +573,7 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
 
-  // Enable per-module minification by default (since 16.5). An explicit value still wins.
+  // Enable per-module minification by default.
   result.experimental.turbopackMinifyBeforeChunking ??= true
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
