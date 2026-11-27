@@ -12,6 +12,7 @@ import {
   isPageLoadRequest,
 } from './request-list'
 import {
+  getReactTimingGroups,
   getTraceItems,
   getTraceNavigationIndex,
   getTracePosition,
@@ -63,6 +64,117 @@ describe('request insights trace viewer', () => {
     expect(getRequestInsightRowType(background)).toMatchObject({
       type: 'background',
     })
+  })
+
+  it('groups React intervals by pass and environment without summing overlapping work', () => {
+    const request = createRequest({
+      spans: [
+        ...[
+          ['a', 'first', 'Server', 105, 80, 'component'],
+          ['b', 'first', 'Server', 115, 60, 'component'],
+          ['c', 'first', 'Server', 120, 40, 'await'],
+          ['d', 'second', 'Server', 110, 5, 'component'],
+          ['e', 'first', 'Prerender', 100, 4, 'component'],
+        ].map(([id, pass, environment, start, duration, kind]) => ({
+          name: `ReactServerComponents.${kind}`,
+          spanId: String(id),
+          parentSpanId: 'shared-parent',
+          startTime: Number(start),
+          durationMs: Number(duration),
+          attributes: {
+            'next.span_type': `ReactServerComponents.${kind}`,
+            'next.rsc.render_id': pass,
+            'next.rsc.environment': environment,
+          },
+        })),
+        { name: 'GET', spanId: 'request', startTime: 100, durationMs: 100 },
+      ],
+    })
+    const items = getTraceItems(request, false)
+    const original = structuredClone(items)
+    const groups = getReactTimingGroups(items)
+    expect(groups).toHaveLength(3)
+    expect(groups.map((group) => group.environment)).toEqual([
+      'Prerender',
+      'Server',
+      'Server',
+    ])
+    expect(groups[1]).toMatchObject({
+      range: { startTime: 105, durationMs: 80 },
+      components: [
+        expect.objectContaining({ spanId: 'a', depth: 0 }),
+        expect.objectContaining({ spanId: 'b', depth: 0 }),
+      ],
+      awaits: [expect.objectContaining({ spanId: 'c', depth: 0 })],
+    })
+    expect(groups[2].components.map((item) => item.spanId)).toEqual(['d'])
+    expect(items).toEqual(original)
+  })
+
+  it.each([true, false])(
+    'shows incomplete renders without making an interval, with earlier intervals: %s',
+    (includeInterval) => {
+      const request = createRequest({
+        spans: [
+          ...(includeInterval
+            ? ['Server', 'Cache'].map((environment) => ({
+                name: 'ReactServerComponents.component',
+                startTime: 100,
+                durationMs: 0,
+                attributes: {
+                  'next.span_type': 'ReactServerComponents.component',
+                  'next.rsc.render_id': 'first',
+                  'next.rsc.environment': environment,
+                },
+              }))
+            : []),
+          {
+            name: 'ReactServerComponents.incomplete',
+            startTime: 100,
+            durationMs: 0,
+            attributes: {
+              'next.span_type': 'ReactServerComponents.incomplete',
+              'next.rsc.render_id': 'first',
+              'next.rsc.incomplete_reason': 'budget',
+            },
+          },
+        ],
+      })
+      const groups = getReactTimingGroups(getTraceItems(request, false))
+      expect(groups).toHaveLength(includeInterval ? 2 : 1)
+      for (const group of groups) {
+        expect(group.incompleteReason).toBe('budget')
+        expect(group.components).toHaveLength(includeInterval ? 1 : 0)
+        expect(group.awaits).toHaveLength(0)
+      }
+    }
+  )
+
+  it('does not associate incomplete metadata with unrelated legacy renders', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'ReactServerComponents.component',
+          startTime: 100,
+          durationMs: 1,
+          attributes: { 'next.span_type': 'ReactServerComponents.component' },
+        },
+        {
+          name: 'ReactServerComponents.incomplete',
+          startTime: 100,
+          durationMs: 0,
+          attributes: {
+            'next.span_type': 'ReactServerComponents.incomplete',
+            'next.rsc.incomplete_reason': 'budget',
+          },
+        },
+      ],
+    })
+    const groups = getReactTimingGroups(getTraceItems(request, false))
+    expect(groups).toHaveLength(2)
+    expect(groups[0].incompleteReason).toBeUndefined()
+    expect(groups[1].incompleteReason).toBe('budget')
+    expect(groups[1].components).toEqual([])
   })
 
   it('moves the active trace row without leaving the listbox', () => {

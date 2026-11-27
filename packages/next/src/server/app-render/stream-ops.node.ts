@@ -569,23 +569,36 @@ export function renderToNodeFlightStream(
       callback(null, typeof chunk === 'string' ? chunk.toWellFormed() : chunk)
     },
   })
-  const pipeable = ComponentMod.renderToPipeableStream!(
-    payload,
-    clientModules,
-    renderOptions
-  )
+  let pipeable: ReturnType<
+    NonNullable<FlightComponentMod['renderToPipeableStream']>
+  >
+  try {
+    pipeable = ComponentMod.renderToPipeableStream(
+      payload,
+      clientModules,
+      renderOptions
+    )
+  } catch (error) {
+    pt.destroy()
+    throw error
+  }
 
   // If the destination is destroyed before the render ended, React aborts with a
   // generic "The destination stream closed early." error that `onError` can't
   // tell apart from a real render error. Abort first with the reason we already
   // know; the listener is registered before piping so it runs before React's.
   pt.once('close', () => {
-    if (!pt.writableEnded) {
+    if (!pt.writableFinished) {
       pipeable.abort(new ResponseAborted())
     }
   })
 
-  pipeable.pipe(pt)
+  try {
+    pipeable.pipe(pt)
+  } catch (error) {
+    pt.destroy()
+    throw error
+  }
 
   if (signal) {
     if (signal.aborted) {

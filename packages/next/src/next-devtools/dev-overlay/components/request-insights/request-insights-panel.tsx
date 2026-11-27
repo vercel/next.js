@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ContextMenu } from '@base-ui-components/react/context-menu'
 import { Menu } from '@base-ui-components/react/menu'
 import {
@@ -37,7 +37,12 @@ import {
   isPageLoadRequest,
   type RequestListEntry,
 } from './request-list'
-import { getTraceItems, type TraceItem } from './trace-viewer'
+import {
+  getReactTimingGroups,
+  getTraceItems,
+  type TraceItem,
+  type ReactTimingGroup,
+} from './trace-viewer'
 import {
   CopyErrorContext,
   RequestContextMenuItem,
@@ -762,7 +767,7 @@ function RequestDetails({
   request: RequestInsight
   verbose: boolean
 }) {
-  const traceItems = useMemo(
+  const allTraceItems = useMemo(
     () =>
       getTraceItems(
         request,
@@ -770,6 +775,11 @@ function RequestDetails({
         typeof window === 'undefined' ? undefined : window.location.origin
       ),
     [request, verbose]
+  )
+  const traceItems = allTraceItems.filter((item) => !item.reactTiming)
+  const reactGroups = useMemo(
+    () => getReactTimingGroups(allTraceItems),
+    [allTraceItems]
   )
   const overview = useMemo(() => getRequestOverview(request), [request])
   const diagnosis = verbose ? getDiagnosis(request, traceItems) : null
@@ -807,7 +817,113 @@ function RequestDetails({
       ) : null}
 
       <Trace items={traceItems} key={request.requestId} request={request} />
+
+      {reactGroups.length > 0 ? (
+        <div className="request-insights-section request-insights-react-timings">
+          <div className="request-insights-section-heading">
+            <div className="request-insights-section-title">
+              React Server Components
+            </div>
+          </div>
+          {reactGroups.map((group, index) => (
+            <ReactRenderPass
+              group={group}
+              index={index}
+              key={`${request.requestId}:${group.id}`}
+              request={request}
+            />
+          ))}
+        </div>
+      ) : null}
+
       <FetchTable fetches={request.fetches} />
+    </div>
+  )
+}
+
+function ReactRenderPass({
+  group,
+  index,
+  request,
+}: {
+  group: ReactTimingGroup
+  index: number
+  request: RequestInsight
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const contentId = useId()
+  const label = `${group.environment || 'React'} · ${index + 1}`
+  let incompleteMessage: string | undefined
+  if (group.incompleteReason === 'budget') {
+    incompleteMessage =
+      'Recording limit reached. Some React intervals are missing.'
+  } else if (group.incompleteReason) {
+    incompleteMessage =
+      'Some React intervals were dropped during recording or transport.'
+  }
+  let waitSummary = ''
+  if (group.awaits.length > 0) {
+    waitSummary = ` · ${group.awaits.length} wait${group.awaits.length === 1 ? '' : 's'}`
+  }
+  let expandedContent
+  if (expanded) {
+    expandedContent = (
+      <div id={contentId}>
+        {incompleteMessage ? (
+          <p className="request-insights-section-note">{incompleteMessage}</p>
+        ) : null}
+        {group.components.length > 0 ? (
+          <Trace
+            items={group.components}
+            request={request}
+            range={group.range}
+            title="Rendering"
+          />
+        ) : null}
+        {group.awaits.length > 0 ? (
+          <Trace
+            items={group.awaits}
+            request={request}
+            range={group.range}
+            title="Waiting"
+          />
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="request-insights-react-pass">
+      <button
+        aria-controls={expanded ? contentId : undefined}
+        aria-expanded={expanded}
+        className="request-insights-react-toggle"
+        onClick={() => setExpanded((value) => !value)}
+        type="button"
+      >
+        <span className="request-insights-react-pass-label">
+          <span aria-hidden="true" className="request-insights-react-chevron">
+            ›
+          </span>
+          {label}
+          {incompleteMessage ? (
+            <span
+              className="request-insights-section-note"
+              title={incompleteMessage}
+            >
+              Incomplete
+            </span>
+          ) : null}
+        </span>
+        <span className="request-insights-section-note">
+          {group.components.length} render interval
+          {group.components.length === 1 ? '' : 's'}
+          {waitSummary}
+          {' · '}
+          {formatDuration(group.range.durationMs)} window
+        </span>
+      </button>
+      {expandedContent}
     </div>
   )
 }

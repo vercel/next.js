@@ -930,6 +930,14 @@ export default abstract class Server<
               },
             },
             async (span) => {
+              if (process.env.__NEXT_DEV_SERVER) {
+                const { setRequestInsightRootParent } =
+                  require('./lib/trace/request-insights') as typeof import('./lib/trace/request-insights')
+                setRequestInsightRootParent(
+                  getRequestMeta(req, 'requestInsightsIdentity'),
+                  span?.spanContext()
+                )
+              }
               if (getRequestMeta(req, 'middlewareInvoke')) {
                 // When middleware lets the request continue, the router server
                 // calls `handleRequest` twice: once to run middleware (this pass)
