@@ -449,7 +449,7 @@ export async function spawnNextUpgrade(
         major(result.targetVersion) > pinnedMajor
           ? {
               status: 'blocked' as const,
-              reason: `Next.js ${result.targetVersion} needs the scheduled upgrade workflow from a Next.js ${major(result.targetVersion)} release. Update the pinned commit in the workflow file.`,
+              reason: `Next.js ${result.targetVersion} needs the scheduled upgrade workflow from a Next.js ${major(result.targetVersion)} release. Change next-version in the workflow file to a Next.js ${major(result.targetVersion)} release.`,
             }
           : result
 

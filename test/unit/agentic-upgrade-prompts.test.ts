@@ -383,7 +383,7 @@ describe('agentic upgrade prompts', () => {
       handoffPath,
       JSON.stringify({
         status: 'blocked',
-        reason: `Next.js ${nextMajor}.0.0 needs the scheduled upgrade workflow from a Next.js ${nextMajor} release. Update the pinned commit in the workflow file.`,
+        reason: `Next.js ${nextMajor}.0.0 needs the scheduled upgrade workflow from a Next.js ${nextMajor} release. Change next-version in the workflow file to a Next.js ${nextMajor} release.`,
       }),
       { flag: 'wx' }
     )
