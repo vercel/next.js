@@ -8,6 +8,7 @@ import (
 var Config = proxy.Config{
 	Matcher: []proxy.Matcher{
 		{Source: "/configured"},
+		{Source: "/configured", Has: []proxy.Condition{{Type: "header", Key: "x-resource", Value: "private"}}},
 		{Source: "/conditional", Has: []proxy.Condition{{Type: "header", Key: "x-config-match", Value: "yes"}}},
 		{Source: "/missing", Missing: []proxy.Condition{{Type: "cookie", Key: "skip"}}},
 		{Source: "/headers/has", Has: []proxy.Condition{{Type: "header", Key: "x-resource", Value: "private"}}},

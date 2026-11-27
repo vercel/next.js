@@ -19,6 +19,10 @@ export class InvalidGoProxyRequestError extends DecodeError {
 export function getGoProxyMatcher(
   matchers: Parameters<typeof getMiddlewareRouteMatcher>[0]
 ): MiddlewareRouteMatch {
+  const compiled = matchers.map((matcher) => ({
+    matcher,
+    regexp: new RegExp(matcher.regexp),
+  }))
   const cookiePatterns = new Map<string, RegExp>()
   for (const matcher of matchers) {
     for (const condition of [
@@ -34,10 +38,11 @@ export function getGoProxyMatcher(
     }
   }
   return (pathname, req, query) => {
+    let matched = false
     let request: Pick<NodeNextRequest, 'headers' | 'cookies'> | undefined
     let originalCookies: NodeNextRequest['cookies'] | undefined
-    for (const matcher of matchers) {
-      if (!new RegExp(matcher.regexp).test(pathname || '')) continue
+    for (const { matcher, regexp } of compiled) {
+      if (!regexp.test(pathname || '')) continue
       if (matcher.has || matcher.missing) {
         if (!request) {
           const original =
@@ -88,10 +93,19 @@ export function getGoProxyMatcher(
             }
           }
         }
-        if (!matchHas(request, query, matcher.has, matcher.missing)) continue
+        // Validate every path-matching condition even after another matcher
+        // selected the proxy. Reordering OR alternatives must not change
+        // whether an ambiguous request is rejected.
+        if (
+          !matched &&
+          matchHas(request, query, matcher.has, matcher.missing)
+        ) {
+          matched = true
+        }
+      } else {
+        matched = true
       }
-      return true
     }
-    return false
+    return matched
   }
 }

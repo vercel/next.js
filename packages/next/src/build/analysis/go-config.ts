@@ -102,6 +102,8 @@ async function readDescriptorConfig<T extends z.ZodTypeAny>(
 ): Promise<z.infer<T>> {
   try {
     const descriptor = JSON.parse(await readFile(descriptorPath, 'utf8'))
+    // An omitted config has the same meaning as omitting static declarations:
+    // proxies match every path and routes use the platform's default duration.
     return schema.parse(descriptor.config ?? {})
   } catch (error) {
     throw invalid(sourcePath, error)

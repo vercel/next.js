@@ -3,10 +3,24 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { IncomingMessage } from 'http'
 import { Socket } from 'net'
-import { readGoProxyConfig } from 'next/dist/build/analysis/go-config'
+import {
+  readGoProxyConfig,
+  readGoRouteConfig,
+} from 'next/dist/build/analysis/go-config'
+import type { MiddlewareConfigInput } from 'next/dist/build/segment-config/middleware/middleware-config'
 import { getGoProxyMatcher } from 'next/dist/server/lib/native-proxy-matcher'
 import { NodeNextRequest } from 'next/dist/server/base-http/node'
 import { getMiddlewareRouteMatcher } from 'next/dist/shared/lib/router/utils/middleware-route-matcher'
+
+// This internal build helper is omitted from the published declarations.
+const {
+  getMiddlewareMatchers,
+}: {
+  getMiddlewareMatchers: (
+    matcher: NonNullable<MiddlewareConfigInput['matcher']>,
+    config: Parameters<typeof readGoProxyConfig>[2]
+  ) => Parameters<typeof getGoProxyMatcher>[0]
+} = require('next/dist/build/analysis/get-page-static-info')
 
 describe('go-config', () => {
   let directory: string
@@ -41,6 +55,37 @@ describe('go-config', () => {
 
   it('preserves an explicitly empty matcher list', async () => {
     await expect(readConfig([])).resolves.toEqual({ matchers: [] })
+  })
+
+  it('defaults descriptors without config to an unrestricted proxy and platform route duration', async () => {
+    await writeFile(descriptor, JSON.stringify({}))
+    const proxy = await readGoProxyConfig(descriptor, 'proxy.go', {})
+    expect(proxy.matchers).toEqual(getMiddlewareMatchers('/:path*', {}))
+    await expect(readGoRouteConfig(descriptor, 'route.go')).resolves.toEqual({})
+  })
+
+  it('keeps page and transport expansion aligned with JavaScript proxies', async () => {
+    for (const basePath of ['', '/docs']) {
+      for (const source of [
+        '/',
+        '/dashboard',
+        '/dashboard/:path*',
+        '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      ]) {
+        const config = {
+          source,
+          locale: false as const,
+          has: [{ type: 'header' as const, key: 'x-match', value: 'yes' }],
+          missing: [{ type: 'cookie' as const, key: 'skip' }],
+        }
+        const { matchers } = await readConfig([config], { basePath })
+        // Cookie guards are intentionally additional Go matchers. The original
+        // matcher must still expand exactly like the JavaScript equivalent.
+        expect(matchers[0]).toEqual(
+          getMiddlewareMatchers([config], { basePath })[0]
+        )
+      }
+    }
   })
 
   it.each([
@@ -136,6 +181,47 @@ describe('go-config', () => {
   })
 
   it.each(['has', 'missing'] as const)(
+    'keeps %s query matching identical to proxy.ts for repeated keys',
+    async (kind) => {
+      const req = new IncomingMessage(new Socket())
+      req.method = 'GET'
+      req.url = '/secure'
+      try {
+        for (const value of [undefined, 'private']) {
+          const config = {
+            source: '/secure',
+            [kind]: [{ type: 'query' as const, key: 'resource', value }],
+          }
+          const { matchers } = await readConfig([config])
+          const javascript = getMiddlewareRouteMatcher(
+            getMiddlewareMatchers([config], {})
+          )
+          const go = getGoProxyMatcher(matchers)
+          for (const [query, present, matchesValue] of [
+            [{}, false, false],
+            [{ resource: 'private' }, true, true],
+            [{ resource: 'public' }, true, false],
+            [{ resource: '' }, false, false],
+            [{ resource: ['private', 'public'] }, true, false],
+            [{ resource: ['public', 'private'] }, true, true],
+            [{ resource: ['', 'private'] }, true, true],
+            [{ resource: ['private', ''] }, true, false],
+          ] satisfies [Parameters<typeof go>[2], boolean, boolean][]) {
+            const conditionMatches = value ? matchesValue : present
+            const expected =
+              kind === 'has' ? conditionMatches : !conditionMatches
+            const request = new NodeNextRequest(req)
+            expect(javascript('/secure', request, query)).toBe(expected)
+            expect(go('/secure', request, query)).toBe(expected)
+          }
+        }
+      } finally {
+        req.destroy()
+      }
+    }
+  )
+
+  it.each(['has', 'missing'] as const)(
     'keeps %s cookie conditions and routes repeated names to validation',
     async (kind) => {
       for (const name of ['resource', 'a.b', 'a+b', 'Session']) {
@@ -212,6 +298,62 @@ describe('go-config', () => {
       req.destroy()
     }
   })
+
+  it.each([
+    ['has', 'header'],
+    ['missing', 'header'],
+    ['has', 'cookie'],
+    ['missing', 'cookie'],
+  ] as const)(
+    'validates %s %s conditions regardless of an unconditional matcher order',
+    async (kind, type) => {
+      const req = new IncomingMessage(new Socket())
+      req.method = 'GET'
+      req.url = '/secure'
+      req.headers = {
+        'x-resource': 'private, public',
+        cookie: 'resource=private; resource=public',
+      }
+      req.rawHeaders = [
+        'X-Resource',
+        'private',
+        'x-resource',
+        'public',
+        'Cookie',
+        'resource=private; resource=public',
+      ]
+      const conditional = {
+        source: '/secure',
+        [kind]: [
+          {
+            type,
+            key: type === 'header' ? 'x-resource' : 'resource',
+            value: 'private',
+          },
+        ],
+      }
+      try {
+        for (const sources of [
+          [conditional, '/secure'],
+          ['/secure', conditional],
+        ]) {
+          const { matchers } = await readConfig(sources)
+          const match = getGoProxyMatcher(matchers)
+          expect(() => match('/secure', new NodeNextRequest(req), {})).toThrow(
+            'unambiguous request headers'
+          )
+          expect(match('/elsewhere', new NodeNextRequest(req), {})).toBe(false)
+          req.headers['x-resource'] = 'public'
+          req.headers.cookie = 'resource=public'
+          expect(match('/secure', new NodeNextRequest(req), {})).toBe(true)
+          req.headers['x-resource'] = 'private, public'
+          req.headers.cookie = 'resource=private; resource=public'
+        }
+      } finally {
+        req.destroy()
+      }
+    }
+  )
 
   it('rejects Connection-nominated fields in header and cookie conditions', async () => {
     const { matchers } = await readConfig([

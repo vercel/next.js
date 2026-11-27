@@ -685,8 +685,10 @@ export async function createHotReloaderTurbopack(
   }, 500)
 
   const goSdk = goSdkOptions(projectPath, distDir, nextConfig)
-  // The last written state of each Go endpoint: its descriptor, or none when
-  // compilation failed, and its issues.
+  // The last written state of each Go endpoint: its stable descriptor path, or
+  // none when compilation failed, and its issues. Executable hashes are not
+  // needed: an import that starts using next/go produces a compiler issue
+  // until the SDK requirement is synchronized.
   const goEndpointStates = new Map<EntryKey, string>()
   // Turbopack recompiles a Go endpoint when any of its tracked inputs change,
   // including imported packages outside the route directories that the dev
@@ -1357,6 +1359,14 @@ export async function createHotReloaderTurbopack(
                 nativeEntry: 'middleware.native.json',
               }
               opts.fsChecker.middlewareMatcher = getGoProxyMatcher(matchers)
+              // The filesystem watcher can run before native compilation
+              // finishes. Publish the compiled matchers to the render server
+              // as well, so its middleware check uses this same configuration.
+              await propagateServerField(
+                opts,
+                'middleware',
+                serverFields.middleware
+              )
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
