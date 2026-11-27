@@ -1,0 +1,3 @@
+(()=>{"use strict";module.exports=["[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/minified/input/helper.js [test] (ecmascript)",a=>{function b(a){return 2*a}function c(){return"this should compress away"}a.s(["double",()=>b,"unusedExport",()=>c])},"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/minified/input/index.js [test] (ecmascript)",a=>{a.s([]),console.log((0,a.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/minified/input/helper.js [test] (ecmascript)").double)(21))}];})()
+
+//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_source_maps_minified_input_1qkg6u-elw6bi._.js.map

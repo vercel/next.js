@@ -1,0 +1,4 @@
+{
+  "runtime": "NodeJs",
+  "minifyMode": "OptimalSize"
+}
