@@ -3473,6 +3473,11 @@ impl TurboTasksBackend {
                         // still gets an idle deadline after a no-data snapshot. (The time
                         // `snapshot_and_persist` returns is usually taken later, after GC.)
                         let attempt_start = Instant::now();
+                        // Values that finished work cached in thread-local stores (e.g. interned
+                        // strings no longer referenced after code generation) have often become
+                        // unused by now. Ask threads to collect them the next time they park,
+                        // during or after this snapshot; this doesn't wait for them.
+                        turbo_tasks::memory::request_thread_cleanup();
                         match self.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
                             Err(err) => {
                                 // save_snapshot consumed persisted_task_cache_log entries;

@@ -69,11 +69,14 @@ fn init() {
     use std::{
         cell::RefCell,
         panic::{set_hook, take_hook},
-        time::{Duration, Instant},
+        time::Duration,
     };
 
+    use turbo_tasks::memory::ThreadCleanupThrottle;
+
     thread_local! {
-        static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+        static SWC_ATOM_GC: RefCell<ThreadCleanupThrottle> =
+            const { RefCell::new(ThreadCleanupThrottle::new()) };
     }
 
     use napi::bindgen_prelude::create_custom_tokio_runtime;
@@ -126,11 +129,14 @@ fn init() {
         })
         .on_thread_park(|| {
             tokio_workers::park();
-            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
-                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
-                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
-                    *cell = Some(Instant::now());
-                }
+            // swc's atom store is thread-local, so each worker has to collect its own. Do that
+            // at most every 2s, or sooner when the turbo-tasks backend requested a cleanup (when it
+            // starts a background snapshot).
+            SWC_ATOM_GC.with_borrow_mut(|throttle| {
+                throttle.run_if_due(
+                    Duration::from_secs(2),
+                    swc_core::ecma::atoms::hstr::global_atom_store_gc,
+                );
             });
             TurboMalloc::thread_park();
         })
