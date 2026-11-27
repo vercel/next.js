@@ -271,7 +271,7 @@ export default function Page() {
 }
 ```
 
-The same loader can run at other moments, for example when the browser is idle, with [`requestIdleCallback`](https://developer.mozilla.org/docs/Web/API/Window/requestIdleCallback).
+The same loader can run at other moments, for example when the browser is idle. You can schedule that with [`requestIdleCallback`](https://developer.mozilla.org/docs/Web/API/Window/requestIdleCallback), which is not available in every browser, so check for it and fall back to `setTimeout`.
 
 ### Importing Named Exports
 
