@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
-    FileContent, FileJsonContent, FileLinesContent, FileSystemPath, WriteLinkContent,
+    ComposedFile, FileContent, FileJsonContent, FileLinesContent, FileSystemPath, WriteLinkContent,
 };
 use turbo_tasks_hash::HashAlgorithm;
 
@@ -58,8 +58,23 @@ pub trait Asset {
 #[derive(Clone)]
 pub enum AssetContent {
     File(ResolvedVc<FileContent>),
+    /// A file composed from other tasks' cells. It behaves like a [`AssetContent::File`] with the
+    /// same bytes, but creating it doesn't read them, and writing it persists only references to
+    /// the cells (see [`FileSystemPath::write_composed`]).
+    Composed(ResolvedVc<ComposedFile>),
     /// A symbolic link. See [`WriteLinkContent`] for how it is written.
     Redirect(WriteLinkContent),
+}
+
+impl AssetContent {
+    /// The content of a file (flat or composed), without reading it. `None` for a redirect.
+    pub fn as_file_content(&self) -> Option<Vc<FileContent>> {
+        match self {
+            AssetContent::File(content) => Some(**content),
+            AssetContent::Composed(composed) => Some(composed.content()),
+            AssetContent::Redirect(..) => None,
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -73,6 +88,7 @@ impl AssetContent {
     pub fn parse_json(&self) -> Vc<FileJsonContent> {
         match self {
             AssetContent::File(content) => content.parse_json(),
+            AssetContent::Composed(composed) => composed.content().parse_json(),
             AssetContent::Redirect(..) => {
                 FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
             }
@@ -81,16 +97,15 @@ impl AssetContent {
 
     #[turbo_tasks::function]
     pub fn file_content(&self) -> Vc<FileContent> {
-        match self {
-            AssetContent::File(content) => **content,
-            AssetContent::Redirect(..) => FileContent::NotFound.cell(),
-        }
+        self.as_file_content()
+            .unwrap_or_else(|| FileContent::NotFound.cell())
     }
 
     #[turbo_tasks::function]
     pub fn lines(&self) -> Vc<FileLinesContent> {
         match self {
             AssetContent::File(content) => content.lines(),
+            AssetContent::Composed(composed) => composed.content().lines(),
             AssetContent::Redirect(..) => FileLinesContent::Unparsable.cell(),
         }
     }
@@ -99,6 +114,7 @@ impl AssetContent {
     pub fn len(&self) -> Vc<Option<u64>> {
         match self {
             AssetContent::File(content) => content.len(),
+            AssetContent::Composed(composed) => composed.content().len(),
             AssetContent::Redirect(..) => Vc::cell(None),
         }
     }
@@ -107,6 +123,7 @@ impl AssetContent {
     pub fn parse_json_with_comments(&self) -> Vc<FileJsonContent> {
         match self {
             AssetContent::File(content) => content.parse_json_with_comments(),
+            AssetContent::Composed(composed) => composed.content().parse_json_with_comments(),
             AssetContent::Redirect(..) => {
                 FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
             }
@@ -118,6 +135,9 @@ impl AssetContent {
         match self {
             AssetContent::File(file) => {
                 path.write(**file).as_side_effect().await?;
+            }
+            AssetContent::Composed(composed) => {
+                path.write_composed(**composed).as_side_effect().await?;
             }
             AssetContent::Redirect(content) => {
                 path.write_link(content.clone().cell())
@@ -132,6 +152,7 @@ impl AssetContent {
     pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
         Ok(match self {
             AssetContent::File(content) => content.hash(salt, algorithm),
+            AssetContent::Composed(composed) => composed.content().hash(salt, algorithm),
             AssetContent::Redirect(content) => {
                 Vc::cell(content.hash(&*salt.await?, algorithm).await?)
             }
@@ -151,6 +172,9 @@ impl AssetContent {
     ) -> Result<Vc<Option<RcStr>>> {
         match self {
             AssetContent::File(content) => Ok(content.content_hash(salt, algorithm)),
+            AssetContent::Composed(composed) => {
+                Ok(composed.content().content_hash(salt, algorithm))
+            }
             AssetContent::Redirect(..) => Ok(Vc::cell(None)),
         }
     }

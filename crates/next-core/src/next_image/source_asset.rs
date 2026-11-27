@@ -63,8 +63,7 @@ impl Source for StructuredImageFileSource {
 impl Asset for StructuredImageFileSource {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let content = self.image.content().await?;
-        let AssetContent::File(content) = *content else {
+        let Some(content) = self.image.content().await?.as_file_content() else {
             bail!("Input source is not a file and can't be transformed into image information");
         };
         let mut result = RopeBuilder::from("");
@@ -72,7 +71,7 @@ impl Asset for StructuredImageFileSource {
         let blur_options = blur_options();
         match self.blur_placeholder_mode {
             BlurPlaceholderMode::NextImageUrl => {
-                let info = get_meta_data(*self.image, *content, None).await?;
+                let info = get_meta_data(*self.image, content, None).await?;
                 let width = info.width;
                 let height = info.height;
                 let blur_options = blur_options.await?;
@@ -100,7 +99,7 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
             BlurPlaceholderMode::DataUrl => {
-                let info = get_meta_data(*self.image, *content, Some(blur_options)).await?;
+                let info = get_meta_data(*self.image, content, Some(blur_options)).await?;
                 write!(
                     result,
                     "export default {{ src, width: {width}, height: {height}, blurWidth: \
@@ -122,7 +121,7 @@ impl Asset for StructuredImageFileSource {
                 writeln!(result, "}};")?;
             }
             BlurPlaceholderMode::None => {
-                let info = get_meta_data(*self.image, *content, None).await?;
+                let info = get_meta_data(*self.image, content, None).await?;
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height} }}",

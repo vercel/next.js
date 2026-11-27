@@ -1046,8 +1046,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     if rel_path.ends_with(".map") {
                         continue;
                     }
-                    let content = asset.content().await?;
-                    let AssetContent::File(file_vc) = *content else {
+                    let Some(file_vc) = asset.content().await?.as_file_content() else {
                         continue;
                     };
                     let file_content = file_vc.await?;

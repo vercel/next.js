@@ -25,7 +25,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::ChunkingContext,
     environment::Environment,
     issue::{
@@ -402,28 +402,29 @@ pub async fn parse_css(
     async move {
         let content = source.content();
         let ident_str = &*source.ident().to_string().await?;
-        Ok(match &*content.await? {
-            AssetContent::Redirect(..) => ParseCssResult::Unparsable.cell(),
-            AssetContent::File(file_content) => match &*file_content.await? {
-                FileContent::NotFound => ParseCssResult::NotFound.cell(),
-                FileContent::Content(file) => match file.content().to_str() {
-                    Err(_err) => ParseCssResult::Unparsable.cell(),
-                    Ok(string) => {
-                        process_content(
-                            *file_content,
-                            string.into_owned(),
-                            ident_str,
-                            source,
-                            origin,
-                            import_context,
-                            ty,
-                            environment,
-                            feature_flags,
-                            module_css_debuggable_idents,
-                        )
-                        .await?
-                    }
-                },
+        let Some(file_content) = content.await?.as_file_content() else {
+            return Ok(ParseCssResult::Unparsable.cell());
+        };
+        let file_content = file_content.to_resolved().await?;
+        Ok(match &*file_content.await? {
+            FileContent::NotFound => ParseCssResult::NotFound.cell(),
+            FileContent::Content(file) => match file.content().to_str() {
+                Err(_err) => ParseCssResult::Unparsable.cell(),
+                Ok(string) => {
+                    process_content(
+                        file_content,
+                        string.into_owned(),
+                        ident_str,
+                        source,
+                        origin,
+                        import_context,
+                        ty,
+                        environment,
+                        feature_flags,
+                        module_css_debuggable_idents,
+                    )
+                    .await?
+                }
             },
         })
     }

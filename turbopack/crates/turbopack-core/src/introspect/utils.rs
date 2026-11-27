@@ -17,18 +17,23 @@ static REFERENCE_TY: RcStr = rcstr!("reference");
 
 #[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
-    Ok(match &*content.await? {
-        AssetContent::File(file_content) => match &*file_content.await? {
-            FileContent::Content(file) => {
-                let content = file.content();
-                match content.to_str() {
-                    Ok(str) => Vc::cell(str.into()),
-                    Err(_) => Vc::cell(format!("{} binary bytes", content.len()).into()),
-                }
+    let content = content.await?;
+    let file_content = match &*content {
+        AssetContent::Redirect(content) => {
+            return Ok(Vc::cell(format!("redirect to {content:?}").into()));
+        }
+        AssetContent::File(file_content) => **file_content,
+        AssetContent::Composed(composed) => composed.content(),
+    };
+    Ok(match &*file_content.await? {
+        FileContent::Content(file) => {
+            let content = file.content();
+            match content.to_str() {
+                Ok(str) => Vc::cell(str.into()),
+                Err(_) => Vc::cell(format!("{} binary bytes", content.len()).into()),
             }
-            FileContent::NotFound => Vc::cell(rcstr!("not found")),
-        },
-        AssetContent::Redirect(content) => Vc::cell(format!("redirect to {content:?}").into()),
+        }
+        FileContent::NotFound => Vc::cell(rcstr!("not found")),
     })
 }
 

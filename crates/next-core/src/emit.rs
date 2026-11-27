@@ -231,8 +231,8 @@ async fn assets_diff(
     let content1 = asset1.content().await?;
     let content2 = asset2.content().await?;
 
-    let detail = match (&*content1, &*content2) {
-        (AssetContent::File(content1), AssetContent::File(content2)) => {
+    let detail = match (content1.as_file_content(), content2.as_file_content()) {
+        (Some(content1), Some(content2)) => {
             let content1 = content1.await?;
             let content2 = content2.await?;
 
@@ -281,22 +281,29 @@ async fn assets_diff(
                 ),
             }
         }
-        (AssetContent::Redirect(content1), AssetContent::Redirect(content2)) => {
-            if content1.target == content2.target && content1.target_type == content2.target_type {
-                None
-            } else {
-                Some(format!(
-                    "assets at the same path are both redirects but disagree: {:?} ({:?}) vs {:?} \
-                     ({:?})",
-                    content1.target, content1.target_type, content2.target, content2.target_type,
-                ))
+        _ => match (&*content1, &*content2) {
+            (AssetContent::Redirect(content1), AssetContent::Redirect(content2)) => {
+                if content1.target == content2.target
+                    && content1.target_type == content2.target_type
+                {
+                    None
+                } else {
+                    Some(format!(
+                        "assets at the same path are both redirects but disagree: {:?} ({:?}) vs \
+                         {:?} ({:?})",
+                        content1.target,
+                        content1.target_type,
+                        content2.target,
+                        content2.target_type,
+                    ))
+                }
             }
-        }
-        _ => Some(
-            "assets at the same path have different content types (one is a file, the other is a \
-             redirect)"
-                .into(),
-        ),
+            _ => Some(
+                "assets at the same path have different content types (one is a file, the other \
+                 is a redirect)"
+                    .into(),
+            ),
+        },
     };
 
     Ok(Vc::cell(detail.map(|d| d.into())))

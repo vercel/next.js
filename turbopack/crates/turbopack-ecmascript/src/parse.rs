@@ -36,7 +36,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL_STR,
-    asset::{Asset, AssetContent},
+    asset::Asset,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
     source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
@@ -340,38 +340,38 @@ async fn parse_internal(
             .cell());
         }
     };
-    Ok(match &*content {
-        AssetContent::File(file) => match &*file.await? {
-            FileContent::NotFound => ParseResult::NotFound.cell(),
-            FileContent::Content(file) => {
-                let transforms = &*transforms.await?;
-                match parse_file_content(
-                    file.content().clone(),
-                    fs_path,
-                    ident,
-                    source_ident.query.clone(),
-                    file_path_hash,
-                    source,
-                    ty,
-                    transforms,
-                    node_env.clone(),
-                    loose_errors,
-                    inline_helpers,
-                )
-                .await
-                {
-                    Ok(result) => result,
-                    Err(e) => {
-                        // ast-grep-ignore: no-context-turbofmt
-                        return Err(e).context(
-                            turbofmt!("Transforming and/or parsing of {} failed", source.ident())
-                                .await?,
-                        );
-                    }
+    let Some(file) = content.as_file_content() else {
+        return Ok(ParseResult::Unparsable { messages: None }.cell());
+    };
+    Ok(match &*file.await? {
+        FileContent::NotFound => ParseResult::NotFound.cell(),
+        FileContent::Content(file) => {
+            let transforms = &*transforms.await?;
+            match parse_file_content(
+                file.content().clone(),
+                fs_path,
+                ident,
+                source_ident.query.clone(),
+                file_path_hash,
+                source,
+                ty,
+                transforms,
+                node_env.clone(),
+                loose_errors,
+                inline_helpers,
+            )
+            .await
+            {
+                Ok(result) => result,
+                Err(e) => {
+                    // ast-grep-ignore: no-context-turbofmt
+                    return Err(e).context(
+                        turbofmt!("Transforming and/or parsing of {} failed", source.ident())
+                            .await?,
+                    );
                 }
             }
-        },
-        AssetContent::Redirect(..) => ParseResult::Unparsable { messages: None }.cell(),
+        }
     })
 }
 

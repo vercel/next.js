@@ -19,8 +19,9 @@ use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, StorageMode,
     TurboTasksBackend,
 };
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, rope::Rope};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, rope::Rope};
 use turbopack_core::{
+    asset::AssetContent,
     code_builder::{CodeBuilder, CodeCells, CodeComposition, CodeCompositionBuilder, ComposedCode},
     source_map::{SourceMapAsset, SourceMapGenerationOptions, SourceMapType, SourceMaps},
 };
@@ -151,14 +152,13 @@ async fn composed(input: ResolvedVc<Input>, debug_id: bool) -> Result<Vc<Compose
 /// the composition's body itself; with one it's a rope nesting the body between the debug id
 /// comments.
 #[turbo_tasks::function]
-async fn content(input: ResolvedVc<Input>, debug_id: bool) -> Result<Vc<FileContent>> {
-    let file = composed(*input, debug_id)
+async fn content(input: ResolvedVc<Input>, debug_id: bool) -> Result<Vc<AssetContent>> {
+    composed(*input, debug_id)
         .await?
-        .to_file_with_magic_comments(None, || -> Vc<SourceMapAsset> {
+        .to_content_with_magic_comments(None, || -> Vc<SourceMapAsset> {
             unreachable!("no source map is emitted")
         })
-        .await?;
-    Ok(FileContent::Content(file).cell())
+        .await
 }
 
 #[turbo_tasks::function]
@@ -166,10 +166,10 @@ async fn source_map(
     input: ResolvedVc<Input>,
     debug_id: bool,
     ty: SourceMapType,
-) -> Result<Vc<FileContent>> {
+) -> Result<Vc<AssetContent>> {
     composed(*input, debug_id)
         .await?
-        .source_map_file_content(ty)
+        .source_map_content(ty)
         .await
 }
 
@@ -177,15 +177,15 @@ async fn source_map(
 async fn write_operation(fs: ResolvedVc<DiskFileSystem>, input: ResolvedVc<Input>) -> Result<()> {
     let root = fs.root().owned().await?;
     for (name, debug_id) in [("direct", false), ("nested", true)] {
-        root.join(&format!("{name}.js"))?
-            .write(content(*input, debug_id))
+        content(*input, debug_id)
+            .write(root.join(&format!("{name}.js"))?)
             .await?;
         for (suffix, ty) in [
             ("full", SourceMapType::Full),
             ("shallow", SourceMapType::Shallow),
         ] {
-            root.join(&format!("{name}.{suffix}.map"))?
-                .write(source_map(*input, debug_id, ty))
+            source_map(*input, debug_id, ty)
+                .write(root.join(&format!("{name}.{suffix}.map"))?)
                 .await?;
         }
     }

@@ -180,15 +180,13 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        let file = self
-            .composed_code()
+        self.composed_code()
             .await?
-            .to_file_with_magic_comments(
+            .to_content_with_magic_comments(
                 *this.chunking_context.emitted_source_map_type().await?,
                 || *this.source_map,
             )
-            .await?;
-        Ok(AssetContent::file(FileContent::Content(file).cell()))
+            .await
     }
 
     #[turbo_tasks::function]
@@ -228,11 +226,13 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Result<Vc<FileContent>> {
-        self.composed_code()
-            .await?
-            .source_map_file_content(ty)
-            .await
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.source_map_content(ty).file_content()
+    }
+
+    #[turbo_tasks::function]
+    async fn source_map_content(self: Vc<Self>, ty: SourceMapType) -> Result<Vc<AssetContent>> {
+        self.composed_code().await?.source_map_content(ty).await
     }
 
     #[turbo_tasks::function]

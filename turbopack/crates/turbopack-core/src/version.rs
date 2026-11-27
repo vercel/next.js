@@ -222,17 +222,15 @@ pub struct FileHashVersion {
 impl FileHashVersion {
     /// Computes a new [`Vc<FileHashVersion>`] from a path.
     pub async fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
-        match asset_content {
-            AssetContent::File(file_vc) => {
-                let hash = file_vc
-                    .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
-                    .owned()
-                    .await?
-                    .context("file not found")?;
-                Ok(Self::cell(FileHashVersion { hash }))
-            }
-            AssetContent::Redirect(..) => bail!("not a file"),
-        }
+        let Some(file_vc) = asset_content.as_file_content() else {
+            bail!("not a file");
+        };
+        let hash = file_vc
+            .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+            .owned()
+            .await?
+            .context("file not found")?;
+        Ok(Self::cell(FileHashVersion { hash }))
     }
 }
 

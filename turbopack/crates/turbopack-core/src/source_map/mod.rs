@@ -107,6 +107,15 @@ pub trait GenerateSourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent>;
 
+    /// The source map as asset content, as emitted by [`SourceMapAsset`]: a file with the bytes of
+    /// [`GenerateSourceMap::generate_source_map`]. Implementations whose maps are composed from
+    /// other tasks' cells return [`AssetContent::Composed`] instead, so writing the map persists
+    /// only references to those cells.
+    #[turbo_tasks::function]
+    fn source_map_content(self: Vc<Self>, ty: SourceMapType) -> Vc<AssetContent> {
+        AssetContent::file(self.generate_source_map(ty))
+    }
+
     /// Returns an individual section of the larger source map, if found.
     /// `ty` selects the map variant, as in [`GenerateSourceMap::generate_source_map`].
     #[turbo_tasks::function]

@@ -14,12 +14,13 @@ use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FixintU128, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
-    CellRope, CellRopeBuilder, CellRopePart, File, FileContent, OptionByteRange,
+    CellRope, CellRopeBuilder, CellRopePart, ComposedFile, File, FileContent, OptionByteRange,
     rope::{Rope, RopeBuilder},
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
 
 use crate::{
+    asset::AssetContent,
     code_builder::source_map_sections::Mappings,
     debug_id::generate_debug_id,
     output::OutputAsset,
@@ -936,7 +937,7 @@ impl ComposedSection {
 
 /// A [`Code`], plus (when its bytes are composed from other tasks' cells) the
 /// [`CodeComposition`] describing them. Output files built from it reference those cells
-/// instead of persisting copies (see `turbo_tasks_fs::File::from_cell_rope`).
+/// instead of persisting copies (see [`AssetContent::Composed`]).
 #[turbo_tasks::value(shared)]
 pub struct ComposedCode {
     code: ResolvedVc<Code>,
@@ -958,13 +959,14 @@ impl ComposedCode {
     }
 
     /// The output file: the code with its source map and debug id comments. Same bytes as
-    /// [`Code::to_rope_with_magic_comments`].
-    pub async fn to_file_with_magic_comments(
+    /// [`Code::to_rope_with_magic_comments`]. Composed code yields [`AssetContent::Composed`],
+    /// without reading the referenced cells.
+    pub async fn to_content_with_magic_comments(
         &self,
         emitted_source_map_ty: Option<SourceMapType>,
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
-    ) -> Result<File> {
-        match self.composition {
+    ) -> Result<Vc<AssetContent>> {
+        Ok(match self.composition {
             Some(composition) => {
                 let rope = self
                     .code
@@ -974,18 +976,25 @@ impl ComposedCode {
                         source_map_path_fn,
                     )
                     .await?;
-                File::from_cell_rope(rope).await
+                AssetContent::Composed(ComposedFile::new(rope).resolved_cell()).cell()
             }
-            None => Ok(File::from(
-                self.code
-                    .to_rope_with_magic_comments(emitted_source_map_ty, source_map_path_fn)
-                    .await?,
-            )),
-        }
+            None => AssetContent::File(
+                FileContent::Content(File::from(
+                    self.code
+                        .to_rope_with_magic_comments(emitted_source_map_ty, source_map_path_fn)
+                        .await?,
+                ))
+                .resolved_cell(),
+            )
+            .cell(),
+        })
     }
 
-    /// The `ty` source map file. Same bytes as [`Code::generate_source_map`].
-    pub async fn source_map_file_content(&self, ty: SourceMapType) -> Result<Vc<FileContent>> {
+    /// The `ty` source map file. Same bytes as [`Code::generate_source_map`]. Composed code
+    /// yields [`AssetContent::Composed`], see [`GenerateSourceMap::source_map_content`].
+    ///
+    /// [`GenerateSourceMap::source_map_content`]: crate::source_map::GenerateSourceMap::source_map_content
+    pub async fn source_map_content(&self, ty: SourceMapType) -> Result<Vc<AssetContent>> {
         Ok(match self.composition {
             Some(composition) => {
                 let debug_id = self.code.debug_id().owned().await?;
@@ -993,9 +1002,10 @@ impl ComposedCode {
                     .await?
                     .generate_source_map(&*self.code.await?, debug_id, ty)
                     .await?;
-                FileContent::Content(File::from_cell_rope(rope.resolved_cell()).await?).cell()
+                AssetContent::Composed(ComposedFile::new(rope.resolved_cell()).resolved_cell())
+                    .cell()
             }
-            None => self.code.generate_source_map(ty),
+            None => AssetContent::file(self.code.generate_source_map(ty)),
         })
     }
 }
