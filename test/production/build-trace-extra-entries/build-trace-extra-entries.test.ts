@@ -2,16 +2,13 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('build trace with extra entries', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, isNextStart, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: path.join(__dirname, 'app'),
       skipStart: true,
     })
-
-    if (!isNextStart || isTurbopack) {
-      it('skipped for non-start or turbopack mode', () => {})
-      return
-    }
 
     it('should build and trace correctly', async () => {
       const { exitCode } = await next.build()
@@ -49,17 +46,72 @@ describe('build trace with extra entries', () => {
           file.includes('exclude-me')
         )
       ).toBe(false)
-      expect(appDirRoute1Trace.files).toEqual(
-        expect.arrayContaining([
-          '../../../../node_modules/pkg-behind-symlink/index.js',
-          '../../../../node_modules/pkg-behind-symlink/package.json',
-        ])
-      )
-      expect(
-        appDirRoute1Trace.files.some((file: string) =>
-          file.startsWith('../../../../node_modules/pkg/')
+      // Webpack preserves the package symlink in traced paths, while Turbopack
+      // traces files at the symlink's resolved target paths.
+      if (isTurbopack) {
+        expect(appDirRoute1Trace.files).toEqual(
+          expect.arrayContaining([
+            '../../../../node_modules/pkg/index.js',
+            '../../../../node_modules/pkg/package.json',
+          ])
         )
-      ).toBe(false)
+      } else {
+        expect(appDirRoute1Trace.files).toEqual(
+          expect.arrayContaining([
+            '../../../../node_modules/pkg-behind-symlink/index.js',
+            '../../../../node_modules/pkg-behind-symlink/package.json',
+          ])
+        )
+        expect(
+          appDirRoute1Trace.files.some((file: string) =>
+            file.startsWith('../../../../node_modules/pkg/')
+          )
+        ).toBe(false)
+      }
+
+      if (isTurbopack) {
+        // A symlink matched by outputFileTracingIncludes is traced as the symlink itself, even
+        // when it points at a directory. Files reached through it are traced at their resolved
+        // paths so deployment includes both the link and its target contents.
+        // Webpack's `nodir: true` glob omits the directory symlink itself, but the
+        // recursive include can still trace files beneath it using symlink paths.
+        const tracedFiles = [
+          ...appTrace.files,
+          ...indexTrace.files,
+          ...anotherTrace.files,
+          ...imageTrace.files,
+        ]
+        expect(
+          tracedFiles.some(
+            (file: string) => file === '../../../include-me/link-to-dir'
+          )
+        ).toBe(true)
+        expect(
+          tracedFiles.some(
+            (file: string) => file === '../../../content/hello.json'
+          )
+        ).toBe(true)
+        expect(
+          tracedFiles.some(
+            (file: string) =>
+              file === '../../../include-me/link-to-dir/hello.json'
+          )
+        ).toBe(false)
+        expect(
+          appDirRoute1Trace.files.some(
+            (file: string) => file === '../../../../include-me/link-to-dir'
+          )
+        ).toBe(true)
+        expect(
+          appDirRoute1Trace.files.some(
+            (file: string) => file === '../../../../content/hello.json'
+          )
+        ).toBe(true)
+      } else {
+        expect(indexTrace.files).toContain(
+          '../../../include-me/link-to-dir/hello.json'
+        )
+      }
 
       expect(
         indexTrace.files.filter(
@@ -72,11 +124,10 @@ describe('build trace with extra entries', () => {
       )
 
       if (!isTurbopack) {
-        expect(
-          appTrace.files.some((file: string) => file.endsWith('hello.json'))
-        ).toBe(true)
-      }
-      if (!isTurbopack) {
+        // Turbopack ignores the `webpack()` config hook, so `lib/get-data.js`
+        // is never injected into the `pages/_app` entry and neither it nor the
+        // `webpack-injected.json` it reads end up in the trace.
+        expect(appTrace.files).toContain('../../../webpack-injected.json')
         expect(
           appTrace.files.some((file: string) =>
             file.endsWith('lib/get-data.js')
@@ -89,29 +140,36 @@ describe('build trace with extra entries', () => {
         )
       ).toBe(true)
 
-      expect(
-        indexTrace.files.some((file: string) => file.endsWith('hello.json'))
-      ).toBeFalsy()
+      // Keep webpack-injected data outside the directory symlink's target so
+      // this checks entry isolation rather than outputFileTracingIncludes.
+      expect(indexTrace.files).not.toContain('../../../webpack-injected.json')
       expect(
         indexTrace.files.some((file: string) => file.endsWith('some-dir'))
       ).toBeFalsy()
-      expect(
-        indexTrace.files.some((file: string) =>
-          file.endsWith('.dot-folder/another-file.txt')
-        )
-      ).toBe(true)
-      expect(
-        indexTrace.files.some((file: string) =>
-          file.endsWith('some-dir/file.txt')
-        )
-      ).toBe(true)
+      if (!isTurbopack) {
+        // TODO: Turbopack only matches `outputFileTracingIncludes` keys against
+        // the normalized route ("/index"), not the prefixed entry name
+        // ("/pages/index") that this config uses for the index page. The same
+        // includes are asserted for `/route1` above, which uses the normalized
+        // form and does work in both bundlers.
+        expect(
+          indexTrace.files.some((file: string) =>
+            file.endsWith('.dot-folder/another-file.txt')
+          )
+        ).toBe(true)
+        expect(
+          indexTrace.files.some((file: string) =>
+            file.endsWith('some-dir/file.txt')
+          )
+        ).toBe(true)
+        expect(indexTrace.files).toContain('../../../include-me/hello.txt')
+        expect(indexTrace.files).toContain('../../../include-me/second.txt')
+      }
       expect(
         indexTrace.files.some((file: string) =>
           file.includes('some-cms/index.js')
         )
       ).toBe(true)
-      expect(indexTrace.files).toContain('../../../include-me/hello.txt')
-      expect(indexTrace.files).toContain('../../../include-me/second.txt')
       expect(
         indexTrace.files.some((file: string) => file.includes('exclude-me'))
       ).toBe(false)

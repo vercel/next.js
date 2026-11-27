@@ -480,7 +480,7 @@ rust-toolchain.toml
 scripts/{build-native.ts,install-native.mjs,docker-native-build.*,native-builder.Dockerfile,rust-fingerprint.js}
 test/e2e/app-dir/turbopack-*/**
 test/e2e/turbopack-*/**
-test/production/build-trace-extra-entries-turbo/**
+test/production/build-trace-extra-entries/**
 
 [turbopack-core-bundler] @sokra @lukesandberg @mischnic
 turbopack/crates/turbopack/**
