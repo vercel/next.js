@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        ChunkMinification, EcmascriptChunkContent, EcmascriptChunkContentEntries,
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, chunk_item_minify_options,
         strict_chunk_wrapper, strict_factory_mode, write_module_factories,
     },
     emit_options::EcmascriptEmitOptions,
@@ -74,10 +74,11 @@ impl EcmascriptNodeChunkContent {
             .emitted_source_map_type()
             .await?
             .is_some();
-        let minification =
-            ChunkMinification::for_chunking_context(Vc::upcast(*self.chunking_context)).await?;
+        let minify = chunk_item_minify_options(Vc::upcast(*self.chunking_context))
+            .await?
+            .map(|options| *options);
         let chunk_items = content
-            .chunk_item_code_module_ids_and_paths(&minification, emit_source_maps)
+            .chunk_item_code_module_ids_and_paths(minify, emit_source_maps)
             .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
         let strict_chunk_wrapper =
@@ -99,9 +100,7 @@ impl EcmascriptNodeChunkContent {
             code += suffix;
         }
 
-        let code = minification.finish_chunk(code.build(), emit_source_maps)?;
-
-        Ok(code.cell())
+        Ok(code.build().cell())
     }
 }
 

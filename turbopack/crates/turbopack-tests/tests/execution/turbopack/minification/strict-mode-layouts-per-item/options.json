@@ -1,5 +1,0 @@
-{
-  "minify": true,
-  "minifyBeforeChunking": true,
-  "scopeHoisting": false
-}

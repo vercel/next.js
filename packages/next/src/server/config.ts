@@ -65,7 +65,6 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { NSIO_OUTPUT_MIME_TYPES } from '../shared/lib/image-optimizer-constants'
 export type { DomainLocale, NextConfig } from './config-shared'
 
@@ -571,9 +570,6 @@ function assignDefaultsAndValidate(
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
-
-  // Enable per-module minification by default on canary releases.
-  result.experimental.turbopackMinifyBeforeChunking ??= !isStableBuild()
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (

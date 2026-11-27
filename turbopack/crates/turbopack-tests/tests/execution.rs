@@ -297,10 +297,6 @@ struct TestOptions {
     cjs_scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
-    /// Minify each module factory on its own instead of the assembled chunk. Only has an effect
-    /// together with `minify`.
-    #[serde(default)]
-    minify_before_chunking: bool,
     #[serde(default)]
     production_chunking: bool,
     /// `max_chunk_size` of the ecmascript chunking config when `production_chunking` is enabled.
@@ -355,7 +351,6 @@ impl Default for TestOptions {
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
             minify: false,
-            minify_before_chunking: false,
             production_chunking: false,
             max_chunk_size: 0,
             min_chunk_size: None,
@@ -662,7 +657,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     )
     .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
     .module_merging(options.scope_hoisting)
-    .minify_before_chunking(options.minify_before_chunking)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {

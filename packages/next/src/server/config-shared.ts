@@ -968,15 +968,6 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Minify each module separately instead of each finished chunk, so minification runs in
-   * parallel and is cached per module. The trade-off is slightly worse compression.
-   * Chunking then sizes modules by their minified code, see `turbopackChunking`.
-   * Defaults to true on canary releases and false on stable releases. Only applies to
-   * production builds.
-   */
-  turbopackMinifyBeforeChunking?: boolean
-
-  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
    * true. Only applies to production builds; has no effect in development mode.
@@ -987,9 +978,9 @@ export interface ExperimentalConfig {
    * (`next --turbopack` only) These options change the assumptions Turbopack makes when
    * making chunk merging decisions and the raw size thresholds it uses.
    *
-   * Sizes are measured on unminified code, or on minified code when
-   * `turbopackMinifyBeforeChunking` applies. In that case the default sizes and request cost
-   * below are scaled down to match; values set here are used as-is.
+   * Sizes are measured on minified code when the build is minified (each module is minified on
+   * its own), and on unminified code otherwise. The default sizes and request cost below are
+   * scaled down for minified code; values set here are used as-is.
    */
   turbopackChunking?: {
     /**
@@ -1049,22 +1040,22 @@ export interface ExperimentalConfig {
     maxMergeChunkSize?: number
     /**
      * Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
-     * (minified when `turbopackMinifyBeforeChunking` applies). Chunks are never merged into bigger
+     * (minified when the build is minified). Chunks are never merged into bigger
      * chunks, and chunks that are bigger on their own are split deterministically (by module
      * identifier) into smaller chunks. This can create chunks smaller than `minChunkSize` or
      * exceed `maxChunkCountPerGroup`. Must be at
      * least 3 times `minChunkSize`, and not smaller than `maxMergeChunkSize`; otherwise the values
      * are adjusted with a warning. Set to `0` to disable the limit. Defaults to `1000000` (1 MB),
-     * or `400000` (400 KB) when minifying before chunking. Explicit values are not scaled.
+     * or `400000` (400 KB) for minified builds. Explicit values are not scaled.
      */
     maxChunkSize?: number
     /**
      * Like `maxChunkSize`, but for server (Node.js and edge) JavaScript chunks. For Node.js,
      * must be at least 3 times `minServerChunkSize`, and not smaller than `maxMergeServerChunkSize`;
-     * otherwise the values are adjusted with a warning. Edge uses a minimum of 20 KB (8 KB when
-     * minifying before chunking) and the effective maximum as its merge limit.
+     * otherwise the values are adjusted with a warning. Edge uses a minimum of 20 KB (8 KB for
+     * minified builds) and the effective maximum as its merge limit.
      * Set to `0` to disable the maximum size limit. Defaults to `10000000` (10 MB), or `4000000`
-     * (4 MB) when minifying before chunking. Explicit values are not scaled.
+     * (4 MB) for minified builds. Explicit values are not scaled.
      */
     maxServerChunkSize?: number
     /**
