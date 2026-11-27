@@ -396,6 +396,36 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  // Fake React frames are only emitted in development.
+  // @force-gate dev
+  it('logged Server Component errors during ssr have sourcemapped fake frames', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/ssr-error-log-server-error')
+
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        'Error: ssr-error-log-server-error'
+      )
+    })
+    const output = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+    // The revived error's stack is built from React's fake frames...
+    expect(output).toContain('ssr-error-log-server-error has fake frames: true')
+    // ...which are sourcemapped back to the Server Component.
+    expect(output).toContain(
+      'Error: ssr-error-log-server-error' +
+        '\n    at createServerError (app/ssr-error-log-server-error/page.js:4:10)' +
+        '\n    at Page (app/ssr-error-log-server-error/page.js:8:17)' +
+        '\n  2 |' +
+        '\n  3 | function createServerError() {' +
+        "\n> 4 |   return new Error('ssr-error-log-server-error')" +
+        '\n    |          ^' +
+        '\n  5 | }' +
+        '\n  6 |' +
+        '\n  7 | export default function Page() {'
+    )
+    expect(output).not.toContain('about://React/')
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
