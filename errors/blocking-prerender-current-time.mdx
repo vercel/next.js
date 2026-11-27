@@ -313,7 +313,7 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 
 If a library reads the clock internally, [defer the library call to request time](#generate-on-every-request) when you need a fresh result, or [cache the function that calls it](#cache-the-timestamp) when the result can be shared. For browser-only work, see [Render on the client](#render-on-the-client). If the read is only for instrumentation, check whether the library can [use a timing API](#for-telemetry-use-a-timing-api).
 
-See [Synchronous IO in external libraries](/docs/app/api-reference/functions/io#synchronous-io-in-external-libraries) for a TanStack Query example.
+For example, TanStack Query's `dehydrate()` reads the clock on the server. See how to [cache the hydration timestamp](/docs/app/guides/client-side-data-fetching/tanstack-query#build-a-prerenderable-hydration-state).
 
 ## Verifying the fix
 

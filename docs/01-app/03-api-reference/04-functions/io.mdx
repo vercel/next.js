@@ -53,35 +53,27 @@ async function CurrentTime() {
 
 In this route `CurrentTime` is wrapped in a `<Suspense>` boundary, during prerender, the `await io()` suspends and the fallback ships in the static shell. If `CurrentTime` were rendered inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope instead, `io()` would be a no-op, the value is captured into the static shell and no `<Suspense>` boundary is required.
 
-If a Client Component reads the current time or a random value during render, wrap it in a parent `<Suspense>` boundary. The read already interrupts prerendering, so you don't need to add `use(io())`. See the guidance for [time](/docs/messages/blocking-prerender-current-time-client), [random values](/docs/messages/blocking-prerender-random-client), and [crypto](/docs/messages/blocking-prerender-crypto-client).
+In a Client Component, call `io()` with React's [`use`](https://react.dev/reference/react/use) hook before reading a synchronous source like `Date.now()`. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell:
 
-To defer a Client Component explicitly, call `use(io())` with React's [`use`](https://react.dev/reference/react/use) hook. This suspends static prerendering but still allows request-time server rendering. It does not make the component browser-only or preserve a generated value for hydration. For browser-only rendering, see [`use(browser())` and the module-loading alternatives](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
-
-For example, use a wrapper to exclude a library Client Component from static prerendering while retaining request-time server rendering. Here, `Widget` represents a library component whose SSR setup already preserves its initial data for hydration, such as through a dehydrated query cache. Render `DeferredWidget` inside a parent `<Suspense>` boundary, as shown in the Server Component example above.
-
-```tsx filename="app/deferred-widget.tsx" highlight={8} switcher
+```tsx filename="app/components.tsx" highlight={6} switcher
 'use client'
-
 import { use } from 'react'
 import { io } from 'next/cache'
-import { Widget } from './widget'
 
-export function DeferredWidget() {
+export function CurrentTime() {
   use(io())
-  return <Widget />
+  return <div>{Date.now()}</div>
 }
 ```
 
-```jsx filename="app/deferred-widget.js" highlight={8} switcher
+```jsx filename="app/components.js" highlight={6} switcher
 'use client'
-
 import { use } from 'react'
 import { io } from 'next/cache'
-import { Widget } from './widget'
 
-export function DeferredWidget() {
+export function CurrentTime() {
   use(io())
-  return <Widget />
+  return <div>{Date.now()}</div>
 }
 ```
 
@@ -89,38 +81,11 @@ export function DeferredWidget() {
 
 If an operation already suspends prerendering, such as an uncached `fetch` or async database query inside `<Suspense>`, you don't need an additional `io()` call before it.
 
-An async helper can still read the clock or generate a random value before it reaches its first operation that suspends. See [Synchronous IO in external libraries](#synchronous-io-in-external-libraries).
-
 ### Synchronous IO after request data
 
 During build-time prerendering, awaiting [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) suspends before the following code executes. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), these APIs can resolve during runtime prerendering. An uncached read of time or randomness after these APIs can still trigger a prerender error, even inside `<Suspense>`.
 
 Call `await io()` before the synchronous read, or before calling a helper that performs it. To keep the helper eligible for runtime prefetching instead, [read the required request values outside a `use cache` scope and pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions). Include the synchronous read in the cached scope.
-
-## Synchronous IO in external libraries
-
-If a library reads the clock or generates a random value, apply the fix where your app calls the library. For a fresh value in a Server Component, call `await io()` before creating the library instance or invoking its helper. Wrap the component in a parent `<Suspense>` boundary. Even an async database query can read the clock before it returns a promise.
-
-If the result can be shared, [cache the function that calls the library](/docs/app/getting-started/caching#random-values-and-timestamps) instead. For example, TanStack Query's `dehydrate()` reads the current time when it prepares query data for the browser. Caching only the data fetch leaves that clock read outside the cache. This function caches a public catalog and its hydration timestamp together:
-
-```ts filename="app/lib/catalog.ts"
-import { dehydrate, QueryClient } from '@tanstack/react-query'
-import { cacheTag } from 'next/cache'
-import { getProducts } from './data'
-
-export async function getCatalogState() {
-  'use cache'
-  cacheTag('catalog')
-
-  const client = new QueryClient()
-  client.setQueryData(['catalog'], await getProducts())
-  return dehydrate(client)
-}
-```
-
-Pass the returned state to `<HydrationBoundary>` and invalidate the `catalog` tag when the catalog changes. If the data already has its own cache entry, see [Build a prerenderable hydration state](/docs/app/guides/client-side-data-fetching/tanstack-query#build-a-prerenderable-hydration-state).
-
-If a library makes the read in a Client Component, put `<Suspense>` above the component that renders the library or calls its hook. If the library's output appears in the server HTML, use its hydration support so the first browser render matches. For browser-only libraries, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ## How `io()` differs from `connection()`
 

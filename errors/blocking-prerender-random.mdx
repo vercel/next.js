@@ -237,8 +237,6 @@ When you read the value in an effect, the first paint shows the initial state un
 
 If a library reads a random value internally, [defer the library call to request time](#generate-on-every-request) when you need a fresh result, or [cache the function that calls it](#cache-the-random-value) when the result can be shared. For browser-only work, see [Render on the client](#render-on-the-client).
 
-See [Synchronous IO in external libraries](/docs/app/api-reference/functions/io#synchronous-io-in-external-libraries) for a TanStack Query example.
-
 ## Verifying the fix
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
