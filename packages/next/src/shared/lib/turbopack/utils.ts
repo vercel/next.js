@@ -50,13 +50,37 @@ export function getIssueKey(issue: Issue): IssueKey {
   )}-${JSON.stringify(issue.description)}`
 }
 
+export type ProcessIssuesOptions = {
+  /** Throw error issues as a `ModuleBuildError` for the caller to report. */
+  throwIssue: boolean
+  /** When not throwing, print error issues to the terminal. */
+  logErrors: boolean
+  /**
+   * With `logErrors`, print errors that are not well-known when they first
+   * appear. Defaults to `true`.
+   */
+  logNewErrors?: boolean
+}
+
+/**
+ * Stores `result`'s issues as the current issues of the entry `key`.
+ *
+ * With `throwIssue`, error issues are thrown as a `ModuleBuildError` for the
+ * caller to report. Otherwise, with `logErrors`, error issues are printed:
+ * well-known errors on every call, other errors only when they first appear
+ * (`logNewErrors`), i.e. when neither this entry's previous issues nor any other
+ * entry's issues contain them. Requests that fail on a stored issue don't print
+ * it (`WrappedBuildError`), so it must have been printed when it was stored.
+ * Callers storing per-client copies of issues pass `logNewErrors: false` so an
+ * error isn't printed once per client.
+ */
 export function processIssues<T>(
   currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
   result: TurbopackResult<T>,
-  throwIssue: boolean,
-  logErrors: boolean
+  { throwIssue, logErrors, logNewErrors = true }: ProcessIssuesOptions
 ) {
+  const previousIssues = currentEntryIssues.get(key)
   const newIssues = new Map<IssueKey, Issue>()
   currentEntryIssues.set(key, newIssues)
 
@@ -71,6 +95,8 @@ export function processIssues<T>(
       continue
 
     const issueKey = getIssueKey(issue)
+    const alreadyStored =
+      previousIssues?.has(issueKey) || newIssues.has(issueKey)
     newIssues.set(issueKey, issue)
 
     if (issue.severity !== 'warning') {
@@ -79,7 +105,13 @@ export function processIssues<T>(
         relevantIssues.add(formatted)
       }
       // if we throw the issue it will most likely get handed and logged elsewhere
-      else if (logErrors && isWellKnownError(issue)) {
+      else if (
+        logErrors &&
+        (isWellKnownError(issue) ||
+          (logNewErrors &&
+            !alreadyStored &&
+            !isIssueInOtherEntry(currentEntryIssues, key, issueKey)))
+      ) {
         const formatted = formatIssue(issue)
         Log.error(formatted)
       }
@@ -89,6 +121,17 @@ export function processIssues<T>(
   if (relevantIssues.size && throwIssue) {
     throw new ModuleBuildError([...relevantIssues].join('\n\n'))
   }
+}
+
+function isIssueInOtherEntry(
+  currentEntryIssues: EntryIssuesMap,
+  key: EntryKey,
+  issueKey: IssueKey
+): boolean {
+  for (const [entryKey, issues] of currentEntryIssues) {
+    if (entryKey !== key && issues.has(issueKey)) return true
+  }
+  return false
 }
 
 function formatFilePath(filePath: string): string {
