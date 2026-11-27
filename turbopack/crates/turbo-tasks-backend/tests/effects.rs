@@ -735,8 +735,13 @@ async fn capture_skip_then_stomp_signals_retry() {
 }
 
 /// Enough effects that `take_effects` spreads their captures over several workers (it uses one
-/// worker per 64 effects, up to one per CPU and at most 8).
+/// worker per 64 effects, up to one per CPU and at most 8), but still captures them in the calling
+/// task.
 const MANY_EFFECTS: usize = 1000;
+
+/// Enough effects that `take_effects` captures them in shard tasks (more than 4096 effects, 256 per
+/// shard).
+const SHARDED_EFFECTS: usize = 5000;
 
 /// Lets captures wait until a number of captures run at the same time.
 #[derive(NonLocalValue)]
@@ -862,9 +867,19 @@ async fn many_effects_are_captured_concurrently() {
         // `take_effects` uses a single worker on a single CPU.
         return;
     }
+    captured_concurrently(MANY_EFFECTS).await;
+}
+
+/// The shard tasks capturing many effects run on several threads at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn sharded_effects_are_captured_concurrently() {
+    captured_concurrently(SHARDED_EFFECTS).await;
+}
+
+async fn captured_concurrently(count: usize) {
     let tt = create_tt();
     tt.run_once(async move {
-        let input = probe_input(MANY_EFFECTS, 2);
+        let input = probe_input(count, 2);
         let effects = extract_probe_effects(input)
             .read_strongly_consistent()
             .await?;
@@ -884,8 +899,13 @@ struct Version(u64);
 
 #[turbo_tasks::value(eq = "manual", serialization = "skip")]
 struct VersionInput {
+    count: usize,
+    /// The version read by the captures of all effects but the first one.
     #[turbo_tasks(debug_ignore)]
     version: Arc<State<u64>>,
+    /// The version read by the capture of the first effect.
+    #[turbo_tasks(debug_ignore)]
+    first_version: Arc<State<u64>>,
     #[turbo_tasks(debug_ignore)]
     counters: Arc<VersionCounters>,
 }
@@ -900,11 +920,31 @@ impl PartialEq for VersionInput {
 struct VersionCounters {
     producer_runs: AtomicU64,
     captures_of_version_1: AtomicU64,
+    /// The number of captures of each effect.
+    captures: Box<[AtomicU64]>,
+}
+
+impl VersionCounters {
+    fn captures_of(&self, index: usize) -> u64 {
+        self.captures[index].load(Ordering::Relaxed)
+    }
+
+    fn total_captures(&self) -> u64 {
+        self.captures
+            .iter()
+            .map(|c| c.load(Ordering::Relaxed))
+            .sum()
+    }
 }
 
 #[turbo_tasks::function]
 async fn current_version(input: ResolvedVc<VersionInput>) -> Result<Vc<Version>> {
     Ok(Version(*input.await?.version.get()).cell())
+}
+
+#[turbo_tasks::function]
+async fn first_version(input: ResolvedVc<VersionInput>) -> Result<Vc<Version>> {
+    Ok(Version(*input.await?.first_version.get()).cell())
 }
 
 /// An effect whose capture reads a cell that can change without its producer rerunning.
@@ -921,6 +961,7 @@ struct VersionedEffect {
 impl Effect for VersionedEffect {
     async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
         let version = self.version.await?.0;
+        self.counters.captures[self.index].fetch_add(1, Ordering::Relaxed);
         if version == 1 {
             self.counters
                 .captures_of_version_1
@@ -932,13 +973,15 @@ impl Effect for VersionedEffect {
 
 #[turbo_tasks::function(operation, root)]
 async fn versioned_producer_operation(input: ResolvedVc<VersionInput>) -> Result<()> {
-    let counters = input.await?.counters.clone();
+    let this = input.await?;
+    let counters = this.counters.clone();
     counters.producer_runs.fetch_add(1, Ordering::Relaxed);
     let version = current_version(*input).to_resolved().await?;
-    for index in 0..MANY_EFFECTS {
+    let first_version = first_version(*input).to_resolved().await?;
+    for index in 0..this.count {
         VersionedEffect {
             index,
-            version,
+            version: if index == 0 { first_version } else { version },
             counters: counters.clone(),
         }
         .resolved_cell()
@@ -954,22 +997,59 @@ async fn extract_versioned_effects(input: ResolvedVc<VersionInput>) -> Result<Vc
     Ok(take_effects(producer).await?.cell())
 }
 
+struct VersionedTest {
+    input: ResolvedVc<VersionInput>,
+    version: Arc<State<u64>>,
+    first_version: Arc<State<u64>>,
+    counters: Arc<VersionCounters>,
+}
+
+fn versioned_input(count: usize) -> VersionedTest {
+    let version = Arc::new(State::new(0));
+    let first_version = Arc::new(State::new(0));
+    let counters = Arc::new(VersionCounters {
+        producer_runs: AtomicU64::new(0),
+        captures_of_version_1: AtomicU64::new(0),
+        captures: (0..count).map(|_| AtomicU64::new(0)).collect(),
+    });
+    let input = VersionInput {
+        count,
+        version: version.clone(),
+        first_version: first_version.clone(),
+        counters: counters.clone(),
+    }
+    .resolved_cell();
+    VersionedTest {
+        input,
+        version,
+        first_version,
+        counters,
+    }
+}
+
 /// Cell reads by captures on worker threads are dependencies of the task calling `take_effects`.
 /// Changing the read cell recaptures every effect, although the effects themselves are unchanged.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn many_effects_capture_reads_are_tracked() {
+    capture_reads_are_tracked(MANY_EFFECTS).await;
+}
+
+/// Cell reads by captures in shard tasks are dependencies of the shard tasks, which the task
+/// calling `take_effects` depends on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn sharded_effects_capture_reads_are_tracked() {
+    capture_reads_are_tracked(SHARDED_EFFECTS).await;
+}
+
+async fn capture_reads_are_tracked(count: usize) {
     let tt = create_tt();
     tt.run_once(async move {
-        let version = Arc::new(State::new(0));
-        let counters = Arc::new(VersionCounters {
-            producer_runs: AtomicU64::new(0),
-            captures_of_version_1: AtomicU64::new(0),
-        });
-        let input = VersionInput {
-            version: version.clone(),
-            counters: counters.clone(),
-        }
-        .resolved_cell();
+        let VersionedTest {
+            input,
+            version,
+            first_version,
+            counters,
+        } = versioned_input(count);
         let op = extract_versioned_effects(input);
 
         op.read_strongly_consistent().await?;
@@ -977,7 +1057,8 @@ async fn many_effects_capture_reads_are_tracked() {
         assert_eq!(counters.captures_of_version_1.load(Ordering::Relaxed), 0);
 
         version.set(1);
-        op.read_strongly_consistent().await?;
+        first_version.set(1);
+        let effects = op.read_strongly_consistent().await?;
         assert_eq!(
             counters.producer_runs.load(Ordering::Relaxed),
             1,
@@ -985,8 +1066,121 @@ async fn many_effects_capture_reads_are_tracked() {
         );
         assert_eq!(
             counters.captures_of_version_1.load(Ordering::Relaxed),
-            MANY_EFFECTS as u64,
+            count as u64,
             "every capture must be invalidated by its cell read"
+        );
+        effects.apply_for_testing().await?;
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// A change read by the capture of one effect recaptures that effect's shard only.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn sharded_effect_change_recaptures_its_shard_only() {
+    let tt = create_tt();
+    tt.run_once(async move {
+        let VersionedTest {
+            input,
+            first_version,
+            counters,
+            ..
+        } = versioned_input(SHARDED_EFFECTS);
+        let op = extract_versioned_effects(input);
+
+        let before = op.read_strongly_consistent().await?;
+        assert_eq!(counters.total_captures(), SHARDED_EFFECTS as u64);
+
+        first_version.set(1);
+        let after = op.read_strongly_consistent().await?;
+        assert!(
+            !ReadRef::ptr_eq(&before, &after),
+            "the task calling `take_effects` must rerun"
+        );
+        assert_eq!(counters.producer_runs.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            counters.captures_of(0),
+            2,
+            "the changed effect is recaptured"
+        );
+        assert_eq!(
+            counters.captures_of(SHARDED_EFFECTS - 1),
+            1,
+            "effects in other shards are not recaptured"
+        );
+        let recaptured = counters.total_captures() - SHARDED_EFFECTS as u64;
+        assert!(
+            recaptured <= 256,
+            "only the shard of the changed effect is recaptured, got {recaptured} recaptures"
+        );
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// Like `capture_skip_then_stomp_signals_retry`, with enough effects to capture them in shard
+/// tasks. The retry must recapture the shard that elided the content, although none of its
+/// effects changed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn sharded_capture_skip_then_stomp_signals_retry() {
+    let tt = create_tt();
+    tt.run_once(async move {
+        let (
+            input_a,
+            TestInput {
+                shared,
+                spec: spec_a,
+                tick: tick_a,
+            },
+        ) = TestInput::new();
+        let (input_b, TestInput { spec: spec_b, .. }) = TestInput::new_with_shared(shared.clone());
+
+        let pairs: Vec<(RcStr, u128)> = (0..SHARDED_EFFECTS)
+            .map(|i| (RcStr::from(format!("key-{i}")), 0xAAAA))
+            .collect();
+        spec_a.set(EmitSpec {
+            pairs: pairs.clone(),
+        });
+        let op_a = extract_effects(input_a);
+        op_a.read_strongly_consistent()
+            .await?
+            .apply_for_testing()
+            .await?;
+        assert_eq!(shared.total(), SHARDED_EFFECTS as u64);
+
+        // Rerun the producer without changing what it emits: every capture elides the content.
+        tick_a.set(1);
+        let effects_a_skipped = op_a.read_strongly_consistent().await?;
+        assert_eq!(shared.captures_with_content(), SHARDED_EFFECTS as u64);
+
+        // B stomps one key.
+        emit_and_take(&spec_b, input_b, vec![(rcstr!("key-10"), 0xBBBB)])
+            .await?
+            .apply_for_testing()
+            .await?;
+
+        let err = effects_a_skipped
+            .apply_for_testing()
+            .await
+            .expect_err("expected Retry");
+        assert!(
+            matches!(err, EffectsError::Retry { .. }),
+            "expected EffectsError::Retry, got {err:?}"
+        );
+
+        // The re-read recaptures the stomped key with content, so the apply succeeds.
+        op_a.read_strongly_consistent()
+            .await?
+            .apply_for_testing()
+            .await?;
+        assert_eq!(
+            shared.applies_for(&rcstr!("key-10")),
+            3,
+            "fresh capture with content recovers A's apply"
         );
 
         anyhow::Ok(())

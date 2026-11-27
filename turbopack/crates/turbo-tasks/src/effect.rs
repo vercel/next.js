@@ -20,7 +20,7 @@ use tracing::Instrument;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
-    TryJoinIterExt, Upcast, VcRead, VcValueType, emit,
+    TryJoinIterExt, Upcast, Vc, VcRead, VcValueType, emit,
     event::Event,
     invalidation::{Invalidator, get_invalidator},
     manager::{
@@ -41,8 +41,9 @@ pub trait Effect {
     /// Read any Vc data needed for `apply()` and return the [`CapturedEffect`] that performs it.
     ///
     /// Must not create cells (e.g. with `.cell()`): [`take_effects`] captures many effects
-    /// concurrently as part of the one task calling it, so the order in which cells were created,
-    /// which assigns their indices in that task, wouldn't be deterministic.
+    /// concurrently as part of the one task calling it (or of one of its shard tasks), so the
+    /// order in which cells were created, which assigns their indices in that task, wouldn't be
+    /// deterministic.
     ///
     /// An implementation may elect to elide capturing data if the `EffectStateStorage` state is
     /// already up to date.
@@ -321,15 +322,126 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
         .into_iter()
         .collect();
 
-    let captured = capture_effects(effects).await?;
+    let invalidator = get_invalidator()
+        .expect("take_effects must be called from within a turbo-tasks task context");
+
+    let (captured, invalidators) = if effects.len() > CAPTURE_EFFECTS_SHARD_THRESHOLD {
+        capture_effects_sharded(effects, invalidator).await?
+    } else {
+        let captured: Vec<Arc<dyn CapturedEffect>> = capture_effects(effects)
+            .await?
+            .into_iter()
+            .map(Arc::<dyn CapturedEffect>::from)
+            .collect();
+        (captured, vec![invalidator])
+    };
 
     // detect duplicate keys
     let unique_keys = build_unique_keys(&captured);
 
-    let invalidator = get_invalidator()
-        .expect("take_effects must be called from within a turbo-tasks task context");
+    Ok(Effects::new(captured, unique_keys, invalidators))
+}
 
-    Ok(Effects::new(captured, unique_keys, invalidator))
+/// [`take_effects`] captures more effects than this in shard tasks (see
+/// [`capture_effects_sharded`]), fewer in the calling task (see [`capture_effects`]).
+const CAPTURE_EFFECTS_SHARD_THRESHOLD: usize = 4096;
+
+/// The number of effects one shard task of [`capture_effects_sharded`] captures.
+const CAPTURE_EFFECTS_PER_SHARD: usize = 256;
+
+/// The effects of one [`take_effects`] call, shared by its shard tasks.
+///
+/// Not serialized: a restored shard task can't use the captured effects of a previous session
+/// anyway, since [`CapturedEffectsShard`] isn't serialized either.
+#[turbo_tasks::value(transparent, serialization = "skip")]
+struct EffectsToCapture(Vec<ResolvedVc<Box<dyn Effect>>>);
+
+/// The effects captured by one shard task of [`capture_effects_sharded`].
+#[turbo_tasks::value(shared, eq = "manual", serialization = "skip", cell = "new")]
+struct CapturedEffectsShard {
+    #[turbo_tasks(debug_ignore)]
+    captured: Box<[Arc<dyn CapturedEffect>]>,
+    /// Invalidates the shard task, so that a retry recaptures its effects.
+    #[turbo_tasks(debug_ignore)]
+    invalidator: Invalidator,
+}
+
+impl PartialEq for CapturedEffectsShard {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+impl Eq for CapturedEffectsShard {}
+
+/// Captures the effects `shard * CAPTURE_EFFECTS_PER_SHARD..` (at most
+/// [`CAPTURE_EFFECTS_PER_SHARD`] of them) of `effects`.
+#[turbo_tasks::function]
+async fn capture_effects_shard(
+    effects: ResolvedVc<EffectsToCapture>,
+    shard: usize,
+) -> Result<Vc<CapturedEffectsShard>> {
+    let effects = effects.await?;
+    // The list can be from a different execution of the calling task than the one reading this
+    // shard (eventual consistency); `capture_effects_sharded` checks the total length.
+    let start = (shard * CAPTURE_EFFECTS_PER_SHARD).min(effects.len());
+    let end = (start + CAPTURE_EFFECTS_PER_SHARD).min(effects.len());
+    let captured = effects[start..end]
+        .iter()
+        .map(|&effect| async move { capture_effect(effect).await.map(Arc::from) })
+        .try_join()
+        .await?;
+    Ok(CapturedEffectsShard {
+        captured: captured.into_boxed_slice(),
+        invalidator: get_invalidator().expect("shard tasks have a task context"),
+    }
+    .cell())
+}
+
+/// Captures `effects` in shard tasks of [`CAPTURE_EFFECTS_PER_SHARD`] effects each, returning the
+/// captured effects in the same order, and the invalidators of the shard tasks and of the calling
+/// task.
+///
+/// Every capture records its reads as dependencies of the reading task. Capturing in the calling
+/// task (see [`capture_effects`]) makes every capture lock that one task, and the captures wait for
+/// each other. Each shard task is its own reader instead, and the calling task only depends on the
+/// shard outputs. The shard tasks run on the normal task scheduler, so they use all CPUs.
+///
+/// Shard tasks are cached. When the calling task reruns with the same effects, unchanged shards
+/// aren't captured again; a changed effect only recaptures its shard.
+async fn capture_effects_sharded(
+    effects: Vec<ResolvedVc<Box<dyn Effect>>>,
+    invalidator: Invalidator,
+) -> Result<(Vec<Arc<dyn CapturedEffect>>, Vec<Invalidator>)> {
+    let len = effects.len();
+    let span = tracing::info_span!(
+        "capture effects",
+        count = len,
+        shards = len.div_ceil(CAPTURE_EFFECTS_PER_SHARD)
+    );
+    async move {
+        let shards = len.div_ceil(CAPTURE_EFFECTS_PER_SHARD);
+        let effects = EffectsToCapture(effects).resolved_cell();
+        let shards = (0..shards)
+            .map(|shard| async move { capture_effects_shard(*effects, shard).await })
+            .try_join()
+            .await?;
+        let mut captured = Vec::with_capacity(len);
+        let mut invalidators = Vec::with_capacity(shards.len() + 1);
+        invalidators.push(invalidator);
+        for shard in &shards {
+            captured.extend(shard.captured.iter().cloned());
+            invalidators.push(shard.invalidator);
+        }
+        if captured.len() != len {
+            anyhow::bail!(
+                "capture effects: shard tasks captured {} effects instead of {len}",
+                captured.len()
+            );
+        }
+        Ok((captured, invalidators))
+    }
+    .instrument(span)
+    .await
 }
 
 /// [`capture_effects`] uses one worker per this many effects, so a few effects are captured on the
@@ -340,7 +452,8 @@ const CAPTURE_EFFECTS_MIN_PER_WORKER: usize = 64;
 /// dependencies of the one task calling [`take_effects`], which locks that task. With more workers
 /// they mostly wait for that lock: on a warm build with ~200k effects, capturing took 4.3s with 1
 /// worker, 1.4s with 4, 0.9s with 8, and still 0.9s with 16 or 32 workers, using 2-4x the CPU
-/// time.
+/// time. More than [`CAPTURE_EFFECTS_SHARD_THRESHOLD`] effects are captured in shard tasks
+/// instead, which don't share that lock.
 const CAPTURE_EFFECTS_MAX_WORKERS: usize = 8;
 
 async fn capture_effect(effect: ResolvedVc<Box<dyn Effect>>) -> Result<Box<dyn CapturedEffect>> {
@@ -509,9 +622,10 @@ pub struct Effects {
     /// upstream `ReadRef` strong-count cascades are naturally released.
     #[turbo_tasks(debug_ignore)]
     captured: CapturedSlice,
-    /// Captured at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
+    /// Captured at `take_effects` time: the task calling it, and the shard tasks that captured the
+    /// effects, if any. Empty for `Effects::empty()` (nothing to retry).
     #[turbo_tasks(debug_ignore)]
-    invalidator: Option<Invalidator>,
+    invalidators: Box<[Invalidator]>,
     /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
     /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
     /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
@@ -538,24 +652,19 @@ impl Effects {
     fn empty() -> Self {
         Self {
             captured: Arc::from(Vec::new()),
-            invalidator: None,
+            invalidators: Box::new([]),
             unique_keys: Arc::new(Ok(Vec::new())),
         }
     }
 
     fn new(
-        captured: Vec<Box<dyn CapturedEffect>>,
+        captured: Vec<Arc<dyn CapturedEffect>>,
         unique_keys: UniqueKeys,
-        invalidator: Invalidator,
+        invalidators: Vec<Invalidator>,
     ) -> Self {
-        // Convert Box<dyn> into Arc<dyn> per slot. Each Arc is independently Send/Sync.
-        let captured: CapturedSlice = captured
-            .into_iter()
-            .map(Arc::<dyn CapturedEffect>::from)
-            .collect();
         Self {
-            captured,
-            invalidator: Some(invalidator),
+            captured: captured.into(),
+            invalidators: invalidators.into_boxed_slice(),
             unique_keys: Arc::new(unique_keys),
         }
     }
@@ -653,12 +762,18 @@ impl Effects {
         self.apply().await
     }
 
-    /// Invalidate the producing task (if any) and return [`EffectsError::Retry`] carrying the
-    /// `keys` that signaled [`ApplyError::Retry`] (their capture elided content materialization but
-    /// storage state diverged before apply).
+    /// Invalidate the producing task and the shard tasks that captured its effects (if any) and
+    /// return [`EffectsError::Retry`] carrying the `keys` that signaled [`ApplyError::Retry`]
+    /// (their capture elided content materialization but storage state diverged before apply).
+    /// The shard tasks are invalidated too, since they would return their cached captures
+    /// otherwise.
     fn signal_retry(&self, keys: Vec<String>) -> Result<(), EffectsError> {
-        if let Some(invalidator) = self.invalidator {
-            with_turbo_tasks(|tt| invalidator.invalidate(&**tt));
+        if !self.invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in &self.invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
         Err(EffectsError::Retry { keys })
     }
@@ -768,7 +883,7 @@ fn handle_apply_retry(err: EffectsError, attempts: &mut usize) -> Result<()> {
 /// conflicts. This is the eager half of effect deduplication — it inspects only the captured
 /// effects themselves (no [`EffectStateStorage`] interaction) and is therefore safe to call
 /// from inside a turbo-tasks task in [`take_effects`].
-fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
+fn build_unique_keys(captured: &[Arc<dyn CapturedEffect>]) -> UniqueKeys {
     let mut by_key: FxHashMap<Box<[u8]>, usize> = FxHashMap::default();
     for (idx, effect) in captured.iter().enumerate() {
         match by_key.entry(effect.key()) {
