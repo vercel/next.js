@@ -166,7 +166,8 @@ The error type thrown by `imageOptimizerTransform` for invalid input. `statusCod
 - `sharp` is not used if `safeImageOptimization` is enabled.
 - The module intentionally imports very little so it loads quickly in a separate process, such as a worker or child process. Its file location and exports are a stable public contract.
 - The `contentType` field of `imageUpstream` is not used for detection. The content type is detected from the first bytes of the buffer.
-- Most transformation failures are caught by `imageOptimizerTransform`. `imageOptimizerTransform` returns the upstream buffer with `error` set on the result.
+- If the transformation is not aborted and fails, `imageOptimizerTransform` returns the upstream buffer with `error` set on the result.
+- If the transformation is successfully aborted using the `AbortSignal`, the promise is rejected with `signal.reason`.
 - Animated WebP, PNG, and GIF images are returned unoptimized. SVG, ICO, ICNS, BMP, JXL, and HEIC images are always passed through without optimization.
 
 ### Cancellation
