@@ -12,6 +12,7 @@ use next_core::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries,
     },
+    next_config::OutputType,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
@@ -163,6 +164,7 @@ impl PagesProject {
                     ref children,
                     next_router_path: _,
                     project_path: _,
+                    authored_files: _,
                 } = *dir.await?;
                 for &item in items.iter() {
                     add_page_to_routes(routes, *item, &make_route).await?;
@@ -178,6 +180,7 @@ impl PagesProject {
             add_dir_to_routes(&mut routes, *api, |pathname, original_name, page| {
                 Box::pin(async move {
                     Ok(Route::PageApi {
+                        source: page.file_path().owned().await?,
                         endpoint: ResolvedVc::upcast(
                             PageEndpoint::new(
                                 PageEndpointType::Api,
@@ -196,41 +199,43 @@ impl PagesProject {
             .await?;
         }
 
-        let make_page_route = |pathname: RcStr, original_name: RcStr, page| -> BoxFuture<_> {
-            Box::pin(async move {
-                Ok(Route::Page {
-                    html_endpoint: ResolvedVc::upcast(
-                        PageEndpoint::new(
-                            PageEndpointType::Html,
-                            self,
-                            pathname.clone(),
-                            original_name.clone(),
-                            page,
-                            pages_structure,
-                        )
-                        .to_resolved()
-                        .await?,
-                    ),
-                    // The data endpoint is only needed in development mode to support HMR
-                    data_endpoint: if self.project().next_mode().await?.is_development() {
-                        Some(ResolvedVc::upcast(
+        let make_page_route =
+            |pathname: RcStr, original_name: RcStr, page: Vc<PagesStructureItem>| -> BoxFuture<_> {
+                Box::pin(async move {
+                    Ok(Route::Page {
+                        source: page.file_path().owned().await?,
+                        html_endpoint: ResolvedVc::upcast(
                             PageEndpoint::new(
-                                PageEndpointType::Data,
+                                PageEndpointType::Html,
                                 self,
-                                pathname,
-                                original_name,
+                                pathname.clone(),
+                                original_name.clone(),
                                 page,
                                 pages_structure,
                             )
                             .to_resolved()
                             .await?,
-                        ))
-                    } else {
-                        None
-                    },
+                        ),
+                        // The data endpoint is only needed in development mode to support HMR
+                        data_endpoint: if self.project().next_mode().await?.is_development() {
+                            Some(ResolvedVc::upcast(
+                                PageEndpoint::new(
+                                    PageEndpointType::Data,
+                                    self,
+                                    pathname,
+                                    original_name,
+                                    page,
+                                    pages_structure,
+                                )
+                                .to_resolved()
+                                .await?,
+                            ))
+                        } else {
+                            None
+                        },
+                    })
                 })
-            })
-        };
+            };
 
         if let Some(pages) = *pages {
             add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
@@ -299,6 +304,27 @@ impl PagesProject {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    pub async fn has_typescript_files(self: Vc<Self>) -> Result<Vc<bool>> {
+        if let Some(pages) = self.pages_structure().await?.pages {
+            return Ok(next_core::route_discovery::has_typescript_files(
+                pages.await?.project_path.clone(),
+            ));
+        }
+        Ok(Vc::cell(false))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn development_discovery(
+        self: Vc<Self>,
+    ) -> Result<Vc<next_core::route_discovery::OptionDevelopmentDiscovery>> {
+        let is_export = *self.project().next_config().output().await? == Some(OutputType::Export);
+        Ok(next_core::pages_structure::development_discovery(
+            self.pages_structure(),
+            is_export,
+        ))
     }
 
     #[turbo_tasks::function]

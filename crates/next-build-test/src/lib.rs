@@ -221,13 +221,14 @@ pub async fn render_routes(
                         Route::Page {
                             html_endpoint,
                             data_endpoint: _,
+                            source: _,
                         } => {
                             endpoint_write_to_disk_with_apply(html_endpoint).await?;
                         }
-                        Route::PageApi { endpoint } => {
+                        Route::PageApi { endpoint, .. } => {
                             endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
-                        Route::AppPage(routes) => {
+                        Route::AppPage { pages: routes, .. } => {
                             for route in routes {
                                 endpoint_write_to_disk_with_apply(route.html_endpoint).await?;
                             }

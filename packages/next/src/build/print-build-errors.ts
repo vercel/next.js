@@ -3,7 +3,7 @@ import {
   isRelevantWarning,
   renderStyledStringToErrorAnsi,
 } from '../shared/lib/turbopack/utils'
-import type { TurbopackResult } from './swc/types'
+import type { Issue, TurbopackResult } from './swc/types'
 import * as Log from './output/log'
 
 const STRICT_ROUTE_MATCHING_ISSUE_TITLES = new Set([
@@ -11,6 +11,29 @@ const STRICT_ROUTE_MATCHING_ISSUE_TITLES = new Set([
   'Parallel route slots cannot render the same URLs',
   'Unmatched app pages',
 ])
+
+export function isStrictRouteMatchingIssue(issue: Issue): boolean {
+  return (
+    issue.severity === 'error' &&
+    STRICT_ROUTE_MATCHING_ISSUE_TITLES.has(
+      renderStyledStringToErrorAnsi(issue.title)
+    )
+  )
+}
+
+const PAGES_FILE_ISSUE_TITLES = new Set([
+  'Duplicate page detected',
+  'Nested Middleware is not allowed',
+  'API Routes cannot be used with "output: export".',
+])
+
+/**
+ * The Pages Router file checks that Turbopack reports from its scan of the
+ * pages directory. They leave routes to serve, like strict route matching.
+ */
+export function isPagesFileIssue(issue: Issue): boolean {
+  return PAGES_FILE_ISSUE_TITLES.has(renderStyledStringToErrorAnsi(issue.title))
+}
 
 export function formatWarningsHeader(count: number): string {
   return `Turbopack build encountered ${count} ${count === 1 ? 'warning' : 'warnings'}:`
@@ -49,12 +72,7 @@ export function printBuildErrors<T>(
   let hasStrictRouteMatchingIssue = false
 
   for (const issue of result.issues) {
-    if (
-      issue.severity === 'error' &&
-      STRICT_ROUTE_MATCHING_ISSUE_TITLES.has(
-        renderStyledStringToErrorAnsi(issue.title)
-      )
-    ) {
+    if (isStrictRouteMatchingIssue(issue)) {
       hasStrictRouteMatchingIssue = true
     }
 

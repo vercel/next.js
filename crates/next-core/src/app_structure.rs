@@ -24,6 +24,7 @@ use crate::{
         },
     },
     next_import_map::get_next_package,
+    route_discovery::{AuthoredLayout, DevelopmentDiscovery, authored_slot},
 };
 
 // Next.js ignores underscores for routes but you can use %5f to still serve an underscored
@@ -188,6 +189,7 @@ pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
     pub subdirectories: BTreeMap<RcStr, ResolvedVc<DirectoryTree>>,
     pub modules: AppDirModules,
+    pub has_source_files: bool,
 }
 
 #[turbo_tasks::value]
@@ -309,6 +311,44 @@ impl DirectoryTree {
     }
 }
 
+/// Development facts that App routes don't carry: layouts, which have route types but no
+/// endpoint, parallel-route slots, and whether a root `not-found` file exists. Slots are read
+/// before loader-tree pruning, so a slot declared by a helper file still gets its type.
+#[turbo_tasks::function]
+pub async fn development_discovery(
+    app_dir: FileSystemPath,
+    page_extensions: Vc<Vec<RcStr>>,
+) -> Result<Vc<crate::route_discovery::OptionDevelopmentDiscovery>> {
+    let root = get_directory_tree(app_dir, page_extensions);
+    let mut discovery = DevelopmentDiscovery {
+        has_root_not_found: root.await?.modules.not_found.is_some(),
+        ..Default::default()
+    };
+    let mut queue = vec![(String::new(), root.to_resolved().await?)];
+    while let Some((prefix, tree)) = queue.pop() {
+        let tree = tree.await?;
+        if tree.has_source_files
+            && let Some(slot) = authored_slot(&prefix)
+            && !discovery.slots.contains(&slot)
+        {
+            discovery.slots.push(slot);
+        }
+        if let Some(layout) = &tree.modules.layout {
+            discovery.layouts.push(AuthoredLayout {
+                original_name: format!("{prefix}/layout").into(),
+                source: layout.clone(),
+            });
+        }
+        for (name, child) in tree.subdirectories.iter().rev() {
+            queue.push((format!("{prefix}/{name}"), *child));
+        }
+    }
+    discovery
+        .layouts
+        .sort_by(|a, b| a.source.path.cmp(&b.source.path));
+    Ok(Vc::cell(Some(discovery)))
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppDir(Option<FileSystemPath>);
 
@@ -354,6 +394,7 @@ async fn get_directory_tree_internal(
         return Ok(DirectoryTree {
             subdirectories: Default::default(),
             modules: AppDirModules::default(),
+            has_source_files: false,
         }
         .cell());
     };
@@ -361,6 +402,7 @@ async fn get_directory_tree_internal(
 
     let mut subdirectories = BTreeMap::new();
     let mut modules = AppDirModules::default();
+    let mut has_source_files = false;
 
     let mut metadata_icon = Vec::new();
     let mut metadata_apple = Vec::new();
@@ -377,7 +419,16 @@ async fn get_directory_tree_internal(
         let entry = entry.clone().resolve_symlink().await?;
         match entry {
             DirectoryEntry::File(file) => {
-                // Do not process .d.ts files as routes
+                // Helpers can declare a slot without being convention files. Match their
+                // configured extension as a suffix, including names such as helper.test.ts
+                // and declaration files, which can declare a slot without being routes.
+                has_source_files = has_source_files
+                    || page_extensions_value.iter().any(|extension| {
+                        basename
+                            .strip_suffix(extension.as_str())
+                            .is_some_and(|stem| stem.ends_with('.'))
+                    });
+                // Do not process .d.ts files as routes.
                 if basename.ends_with(".d.ts") {
                     continue;
                 }
@@ -410,6 +461,12 @@ async fn get_directory_tree_internal(
                         },
                         _ => {}
                     }
+                }
+
+                if match_local_metadata_file(basename, &page_extensions_value).is_some()
+                    || match_global_metadata_file(basename, &page_extensions_value).is_some()
+                {
+                    has_source_files = true;
                 }
 
                 let Some(MetadataFileMatch {
@@ -484,6 +541,7 @@ async fn get_directory_tree_internal(
     Ok(DirectoryTree {
         subdirectories,
         modules,
+        has_source_files,
     }
     .cell())
 }
@@ -512,6 +570,26 @@ impl AppPageLoaderTree {
         for tree in self.parallel_routes.values() {
             tree.collect_page_files(pages);
         }
+    }
+
+    /// Structural page identities that participate in the finalized loader tree, each with its
+    /// page file. These may include pages from parallel branches that have no separate endpoint
+    /// for this URL.
+    pub fn collect_app_paths(&self, pages: &mut FxIndexMap<RcStr, FileSystemPath>) -> Result<()> {
+        if let Some(page) = &self.modules.page {
+            pages.insert(
+                self.page
+                    .clone()
+                    .complete(PageType::Page)?
+                    .to_string()
+                    .into(),
+                page.clone(),
+            );
+        }
+        for tree in self.parallel_routes.values() {
+            tree.collect_app_paths(pages)?;
+        }
+        Ok(())
     }
 
     /// Returns true if there's a page match in this loader tree.
@@ -706,6 +784,7 @@ pub enum Entrypoint {
         pages: Vec<AppPage>,
         loader_tree: ResolvedVc<AppPageLoaderTree>,
         participating_page_files: Vec<FileSystemPath>,
+        is_internal: bool,
         root_params: ResolvedVc<RootParamVecOption>,
     },
     AppRoute {
@@ -806,6 +885,7 @@ fn add_app_page(
     page: AppPage,
     loader_tree: ResolvedVc<AppPageLoaderTree>,
     participating_page_files: Vec<FileSystemPath>,
+    is_internal: bool,
     root_params: ResolvedVc<RootParamVecOption>,
 ) {
     let mut e = match result.entry(page.clone().into()) {
@@ -815,6 +895,7 @@ fn add_app_page(
                 pages: vec![page],
                 loader_tree,
                 participating_page_files,
+                is_internal,
                 root_params,
             });
             return;
@@ -2299,6 +2380,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_page.complete(PageType::Page)?,
             loader_tree,
             participating_page_files.into_iter().collect(),
+            false,
             root_params,
         );
     }
@@ -2527,6 +2609,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 app_page,
                 not_found_tree,
                 Vec::new(),
+                true,
                 root_params,
             );
         }
@@ -2578,6 +2661,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 app_global_error_page,
                 global_error_tree,
                 Vec::new(),
+                true,
                 root_params,
             );
         }
@@ -2678,6 +2762,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     pages,
                     loader_tree: _,
                     participating_page_files: child_participating_page_files,
+                    is_internal,
                     root_params,
                 } => {
                     for page in pages {
@@ -2698,6 +2783,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             page.clone(),
                             loader_tree,
                             participating_page_files.into_iter().collect(),
+                            *is_internal,
                             *root_params,
                         );
                     }
@@ -2903,6 +2989,7 @@ async fn directory_tree_has_entrypoints(directory_tree: Vc<DirectoryTree>) -> Re
     let DirectoryTree {
         subdirectories,
         modules,
+        ..
     } = &*directory_tree.await?;
     let Metadata {
         icon,

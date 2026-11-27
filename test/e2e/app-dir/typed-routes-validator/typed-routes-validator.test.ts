@@ -69,6 +69,108 @@ describe('typed-routes-validator', () => {
     }
   })
 
+  // Authored files must update type generation before any request compiles them.
+  // @force-gate dev
+  describe('development discovery updates', () => {
+    // Route observation and type generation can require several polling cycles.
+    const discoveryTimeout = 15_000
+
+    beforeEach(async () => {
+      await next.start()
+    })
+
+    afterEach(async () => {
+      await next.stop()
+      await next.deleteFile('app/inventory-layout-only')
+      await next.deleteFile('app/inventory-renamed')
+      await next.deleteFile('app/inventory-metadata')
+    })
+
+    it('should add, rename, and remove a layout without an executable page', async () => {
+      await next.patchFile(
+        'app/inventory-layout-only/layout.tsx',
+        'export default function Layout({ children }: { children: React.ReactNode }) { return children }'
+      )
+      await retry(async () => {
+        const validator = await next.readFile(
+          `${getDistDir()}/types/validator.ts`
+        )
+        expect(validator).toContain('app/inventory-layout-only/layout.tsx')
+        const routes = await next.readFile(`${getDistDir()}/types/routes.d.ts`)
+        expect(routes).toContain('"/inventory-layout-only"')
+      }, discoveryTimeout)
+      expect((await next.fetch('/inventory-layout-only')).status).toBe(404)
+
+      await next.renameFile(
+        'app/inventory-layout-only/layout.tsx',
+        'app/inventory-layout-only/layout.ts'
+      )
+      await retry(async () => {
+        const validator = await next.readFile(
+          `${getDistDir()}/types/validator.ts`
+        )
+        expect(validator).toContain('app/inventory-layout-only/layout.ts')
+        expect(validator).not.toContain('app/inventory-layout-only/layout.tsx')
+      }, discoveryTimeout)
+
+      await next.deleteFile('app/inventory-layout-only/layout.ts')
+      await retry(async () => {
+        const validator = await next.readFile(
+          `${getDistDir()}/types/validator.ts`
+        )
+        expect(validator).not.toContain('app/inventory-layout-only/layout')
+        const routes = await next.readFile(`${getDistDir()}/types/routes.d.ts`)
+        expect(routes).not.toContain('"/inventory-layout-only"')
+      }, discoveryTimeout)
+    })
+
+    it('should update metadata route types when generator exports change', async () => {
+      await next.patchFile(
+        'app/inventory-metadata/sitemap.ts',
+        'export default function sitemap() { return [] }'
+      )
+      await retry(async () => {
+        const routes = await next.readFile(`${getDistDir()}/types/routes.d.ts`)
+        expect(routes).toContain('"/inventory-metadata/sitemap.xml"')
+      }, discoveryTimeout)
+      await next.patchFile(
+        'app/inventory-metadata/sitemap.ts',
+        `export function generateSitemaps() { return [{ id: 0 }] }
+         export default function sitemap() { return [] }`
+      )
+      await retry(async () => {
+        const routes = await next.readFile(`${getDistDir()}/types/routes.d.ts`)
+        expect(routes).toContain(
+          '"/inventory-metadata/sitemap/[__metadata_id__]"'
+        )
+        expect(routes).not.toContain('"/inventory-metadata/sitemap.xml"')
+      }, discoveryTimeout)
+    })
+
+    it('should update validators when a route keeps its URL but changes source extension', async () => {
+      await next.patchFile(
+        'app/inventory-renamed/page.tsx',
+        'export default function Page() { return "same route" }'
+      )
+      await retry(async () => {
+        const routes = await next.readFile(`${getDistDir()}/types/routes.d.ts`)
+        expect(routes).toContain('"/inventory-renamed"')
+      }, discoveryTimeout)
+      await next.renameFile(
+        'app/inventory-renamed/page.tsx',
+        'app/inventory-renamed/page.ts'
+      )
+      await retry(async () => {
+        const validator = await next.readFile(
+          `${getDistDir()}/types/validator.ts`
+        )
+        expect(validator).toContain('app/inventory-renamed/page.ts\n')
+        expect(validator).not.toContain('app/inventory-renamed/page.tsx')
+      }, discoveryTimeout)
+      expect(await next.render('/inventory-renamed')).toContain('same route')
+    })
+  })
+
   // Type validation here explicitly runs local production builds.
   // @force-gate start
   describe('production mode', () => {

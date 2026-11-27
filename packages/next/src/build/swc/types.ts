@@ -1,5 +1,6 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import type { ProxyMatcher } from '../analysis/get-page-static-info'
 import type {
   ExternalObject,
   RefCell,
@@ -196,6 +197,7 @@ export type TurbopackResult<T> = {
 export interface Middleware {
   endpoint: Endpoint
   isProxy: boolean
+  matchers: ProxyMatcher[]
 }
 
 export interface Instrumentation {
@@ -203,8 +205,30 @@ export interface Instrumentation {
   edge: Endpoint
 }
 
+/** An App layout. Layouts have route types but no route of their own. */
+export interface AuthoredLayout {
+  /** The layout's App path, e.g. `/(shop)/cart/layout`. */
+  originalName: string
+  sourcePath: string
+}
+
+export interface AuthoredRouteSlot {
+  name: string
+  parent: string
+}
+
+/** Development facts that routes don't carry. Routes carry their own source files. */
+export interface DevelopmentDiscovery {
+  layouts: AuthoredLayout[]
+  slots: AuthoredRouteSlot[]
+  hasTypeScriptFiles: boolean
+  hasRootNotFound: boolean
+  authoredPagesSpecialRoutes: string[]
+}
+
 export interface RawEntrypoints {
   routes: Map<string, Route>
+  development?: DevelopmentDiscovery
   middleware?: Middleware
   instrumentation?: Instrumentation
   pagesDocumentEndpoint: Endpoint
@@ -413,6 +437,10 @@ export type Route =
     }
   | {
       type: 'app-page'
+      appPaths: string[]
+      /** Each page file in the route's loader tree, by its entry in `appPaths`. */
+      pageFiles: { appPath: string; sourcePath: string }[]
+      isInternal: boolean
       pages: {
         originalName: string
         htmlEndpoint: Endpoint
@@ -422,16 +450,23 @@ export type Route =
   | {
       type: 'app-route' | 'app-route-go'
       originalName: string
+      /** The route file, or the metadata file for a metadata route. */
+      sourcePath: string
+      runtimePage: string
+      runtimePathname: string
+      staticMetadataSource?: string
       hasActionManifest: boolean
       endpoint: Endpoint
     }
   | {
       type: 'page'
+      sourcePath: string
       htmlEndpoint: Endpoint
       dataEndpoint: Endpoint
     }
   | {
       type: 'page-api'
+      sourcePath: string
       endpoint: Endpoint
     }
 

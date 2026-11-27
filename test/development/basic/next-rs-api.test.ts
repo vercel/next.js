@@ -284,6 +284,13 @@ main()
 })
 
 describe('next.rs api', () => {
+  let project: Project
+  // Stop native observation before nextTestSetup removes the fixture files.
+  // shutdown also runs the project's exit handlers.
+  afterAll(async () => {
+    await project?.shutdown()
+  })
+
   const { next } = nextTestSetup({
     skipStart: true,
     files: {
@@ -313,7 +320,6 @@ describe('next.rs api', () => {
     },
   })
 
-  let project: Project
   let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
   beforeAll(async () => {
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
@@ -367,13 +373,13 @@ describe('next.rs api', () => {
         turbopackMemoryEviction: 'off' as MemoryEvictionMode,
       }
     )
+    project = projectResult.value
     const initializationIssues = normalizeIssues(projectResult.issues)
     if (initializationIssues.length > 0) {
       throw new Error(
         `Project initialization failed:\n${JSON.stringify(initializationIssues, null, 2)}`
       )
     }
-    project = projectResult.value
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
       (update) => (update.updateType === 'end' ? update.value : undefined)
@@ -401,8 +407,322 @@ describe('next.rs api', () => {
       '/route-edge',
       '/route-nodejs',
     ])
+    expect(entrypoints.value.value.routes.get('/app')).toMatchObject({
+      type: 'app-page',
+      appPaths: ['/app/page'],
+      pageFiles: [
+        {
+          appPath: '/app/page',
+          sourcePath: join(next.testDir, 'app/app/page.tsx'),
+        },
+      ],
+      isInternal: false,
+    })
+    expect(entrypoints.value.value.routes.get('/_not-found')).toMatchObject({
+      type: 'app-page',
+      appPaths: [],
+      pageFiles: [],
+      isInternal: true,
+    })
+    expect(entrypoints.value.value.routes.get('/route-nodejs')).toMatchObject({
+      type: 'app-route',
+      originalName: '/route-nodejs/route',
+      sourcePath: join(next.testDir, 'app/route-nodejs/route.ts'),
+      runtimePage: '/route-nodejs/route',
+      runtimePathname: '/route-nodejs',
+    })
+    expect(entrypoints.value.value.routes.get('/')).toMatchObject({
+      type: 'page',
+      sourcePath: join(next.testDir, 'pages/index.js'),
+    })
+    expect(entrypoints.value.value.routes.get('/api/nodejs')).toMatchObject({
+      type: 'page-api',
+      sourcePath: join(next.testDir, 'pages/api/nodejs.js'),
+    })
+    expect(entrypoints.value.value.development).toMatchObject({
+      hasRootNotFound: false,
+      authoredPagesSpecialRoutes: [],
+      layouts: [
+        {
+          originalName: '/layout',
+          sourcePath: join(next.testDir, 'app/layout.tsx'),
+        },
+      ],
+    })
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
     await entrypointsSubscription.return()
+  })
+
+  async function waitForEntrypoints(
+    subscription: ReturnType<Project['entrypointsSubscribe']>,
+    matches: (entrypoints: RawEntrypoints) => boolean | undefined
+  ): Promise<RawEntrypoints> {
+    while (true) {
+      const result = await subscription.next()
+      if (result.done) throw new Error('Entrypoints subscription ended')
+      if ('routes' in result.value.value && matches(result.value.value)) {
+        return result.value.value
+      }
+    }
+  }
+
+  it('should report layouts and slots that have no route', async () => {
+    const subscription = project.entrypointsSubscribe()
+    const hasLayout = (entrypoints: RawEntrypoints, source: string) =>
+      entrypoints.development?.layouts.some(
+        (layout) => layout.sourcePath === join(next.testDir, source)
+      )
+    try {
+      await waitForEntrypoints(subscription, () => true)
+      await next.patchFile(
+        'app/inventory-layout-only/layout.tsx',
+        'export default function Layout({ children }) { return children }'
+      )
+      let entrypoints = await waitForEntrypoints(subscription, (value) =>
+        hasLayout(value, 'app/inventory-layout-only/layout.tsx')
+      )
+      expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
+      expect(entrypoints.development?.layouts).toContainEqual({
+        originalName: '/inventory-layout-only/layout',
+        sourcePath: join(next.testDir, 'app/inventory-layout-only/layout.tsx'),
+      })
+
+      // Helpers can declare a parallel slot before that slot has a page or default.
+      await next.patchFile(
+        'app/inventory-layout-only/@panel/helper.js',
+        'export const value = 1'
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) =>
+        value.development?.slots.some(
+          (slot) =>
+            slot.name === 'panel' && slot.parent === '/inventory-layout-only'
+        )
+      )
+      expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
+
+      await next.patchFile(
+        'app/inventory-layout-only/@multidot/helper.test.ts',
+        'export const value: number = 1'
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) =>
+        value.development?.slots.some(
+          (slot) =>
+            slot.name === 'multidot' && slot.parent === '/inventory-layout-only'
+        )
+      )
+      expect(entrypoints.development?.slots).toContainEqual({
+        name: 'panel',
+        parent: '/inventory-layout-only',
+      })
+      expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
+
+      // The implicit children slot does not hide its nearest named parent slot.
+      await next.patchFile(
+        'app/inventory-layout-only/@outer/@children/helper.js',
+        'export const value = 1'
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) =>
+        value.development?.slots.some(
+          (slot) =>
+            slot.name === 'outer' && slot.parent === '/inventory-layout-only'
+        )
+      )
+      expect(entrypoints.development?.slots).not.toContainEqual({
+        name: 'children',
+        parent: '/inventory-layout-only',
+      })
+
+      await next.patchFile(
+        'app/inventory-layout-only/@declarations/types.d.ts',
+        'export interface Value { value: number }'
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) =>
+        value.development?.slots.some(
+          (slot) =>
+            slot.name === 'declarations' &&
+            slot.parent === '/inventory-layout-only'
+        )
+      )
+      expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
+
+      await next.patchFile(
+        'pages/inventory-declarations/types.d.ts',
+        'export interface Value { value: number }'
+      )
+      // A sibling page makes the directory observable even though its declaration is omitted.
+      await next.patchFile(
+        'pages/inventory-declarations/marker.js',
+        'export default function Page() { return null }'
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) =>
+        value.routes.has('/inventory-declarations/marker')
+      )
+      expect(entrypoints.routes.has('/inventory-declarations/types.d')).toBe(
+        false
+      )
+
+      // Renaming only the extension still needs to refresh type-generator imports.
+      await next.renameFile(
+        'app/inventory-layout-only/layout.tsx',
+        'app/inventory-layout-only/layout.jsx'
+      )
+      entrypoints = await waitForEntrypoints(
+        subscription,
+        (value) =>
+          hasLayout(value, 'app/inventory-layout-only/layout.jsx') &&
+          !hasLayout(value, 'app/inventory-layout-only/layout.tsx')
+      )
+      expect(entrypoints.routes.has('/inventory-layout-only')).toBe(false)
+
+      await next.patchFile(
+        'pages/_app.js',
+        'export default function App({ Component, pageProps }) { return <Component {...pageProps} /> }'
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) =>
+        value.development?.authoredPagesSpecialRoutes.includes('/_app')
+      )
+      expect(entrypoints.routes.has('/_app')).toBe(false)
+
+      await next.patchFile(
+        'app/not-found.js',
+        'export default function NotFound() { return <p>not found</p> }'
+      )
+      entrypoints = await waitForEntrypoints(
+        subscription,
+        (value) => value.development?.hasRootNotFound === true
+      )
+      expect(entrypoints.routes.get('/_not-found')).toMatchObject({
+        isInternal: true,
+        appPaths: [],
+      })
+    } finally {
+      await subscription.return()
+      await next.deleteFile('app/inventory-layout-only')
+      await next.deleteFile('pages/inventory-declarations')
+      await next.deleteFile('pages/_app.js')
+      await next.deleteFile('app/not-found.js')
+    }
+  })
+
+  it('should keep publishing routes and layouts alongside conflicting route diagnostics', async () => {
+    const subscription = project.entrypointsSubscribe()
+    try {
+      await waitForEntrypoints(subscription, () => true)
+      await next.patchFile(
+        'app/page.js',
+        'export default function Page() { return <p>conflicting root</p> }'
+      )
+      await next.patchFile(
+        'app/inventory-conflict/layout.tsx',
+        'export default function Layout({ children }) { return children }'
+      )
+      await next.patchFile(
+        'app/inventory-conflict/sitemap.ts',
+        'export default function sitemap() { return [] }'
+      )
+      while (true) {
+        const result = await subscription.next()
+        if (result.done) throw new Error('Entrypoints subscription ended')
+        const value = result.value.value
+        if (
+          !('routes' in value) ||
+          !value.routes.has('/inventory-conflict/sitemap.xml') ||
+          !value.development?.layouts.some(
+            (layout) =>
+              layout.sourcePath ===
+              join(next.testDir, 'app/inventory-conflict/layout.tsx')
+          )
+        ) {
+          continue
+        }
+        expect(value.routes.get('/')).toMatchObject({ type: 'conflict' })
+        expect(
+          value.routes.get('/inventory-conflict/sitemap.xml')
+        ).toMatchObject({
+          type: 'app-route',
+          sourcePath: join(next.testDir, 'app/inventory-conflict/sitemap.ts'),
+          runtimePathname: '/inventory-conflict/sitemap.xml',
+        })
+        expect(
+          result.value.issues.some((issue) => issue.severity === 'error')
+        ).toBe(true)
+        break
+      }
+    } finally {
+      await subscription.return()
+      await next.deleteFile('app/page.js')
+      await next.deleteFile('app/inventory-conflict')
+    }
+  })
+
+  it('should expose final metadata URLs separately from compiler entry names', async () => {
+    const subscription = project.entrypointsSubscribe()
+    try {
+      await waitForEntrypoints(subscription, () => true)
+      await next.patchFile(
+        'app/inventory-metadata/sitemap.ts',
+        'export default function sitemap() { return [] }'
+      )
+      let entrypoints = await waitForEntrypoints(subscription, (value) =>
+        value.routes.has('/inventory-metadata/sitemap.xml')
+      )
+      expect(
+        entrypoints.routes.get('/inventory-metadata/sitemap.xml')
+      ).toMatchObject({
+        type: 'app-route',
+        originalName: '/inventory-metadata/sitemap.xml/route',
+        runtimePage: '/inventory-metadata/sitemap.xml/route',
+        runtimePathname: '/inventory-metadata/sitemap.xml',
+      })
+
+      await next.patchFile(
+        'app/inventory-metadata/sitemap.ts',
+        `export function generateSitemaps() { return [{ id: 0 }] }
+         export default function sitemap() { return [] }`
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) => {
+        const route = value.routes.get('/inventory-metadata/sitemap.xml')
+        return (
+          route?.type === 'app-route' &&
+          route.runtimePathname ===
+            '/inventory-metadata/sitemap/[__metadata_id__]'
+        )
+      })
+      expect(
+        entrypoints.routes.get('/inventory-metadata/sitemap.xml')
+      ).toMatchObject({
+        originalName: '/inventory-metadata/sitemap.xml/route',
+        runtimePage: '/inventory-metadata/sitemap/[__metadata_id__]/route',
+      })
+      expect(
+        entrypoints.routes.get('/inventory-metadata/sitemap.xml')
+      ).toMatchObject({
+        sourcePath: join(next.testDir, 'app/inventory-metadata/sitemap.ts'),
+      })
+
+      await next.patchFile(
+        'app/inventory-metadata/icon.svg',
+        '<svg width="1" height="1" xmlns="http://www.w3.org/2000/svg" />'
+      )
+      entrypoints = await waitForEntrypoints(subscription, (value) =>
+        Array.from(value.routes.values()).some(
+          (route) =>
+            route.type === 'app-route' &&
+            route.staticMetadataSource ===
+              join(next.testDir, 'app/inventory-metadata/icon.svg')
+        )
+      )
+      const icon = Array.from(entrypoints.routes.values()).find(
+        (route) =>
+          route.type === 'app-route' &&
+          route.staticMetadataSource ===
+            join(next.testDir, 'app/inventory-metadata/icon.svg')
+      )
+      expect(icon).toMatchObject({ type: 'app-route' })
+    } finally {
+      await subscription.return()
+      await next.deleteFile('app/inventory-metadata')
+    }
   })
 
   const routes = [

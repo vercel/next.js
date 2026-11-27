@@ -225,6 +225,16 @@ export interface NapiAssetPath {
   contentHash: RcStr
 }
 
+export interface NapiAuthoredLayout {
+  originalName: RcStr
+  sourcePath: RcStr
+}
+
+export interface NapiAuthoredRouteSlot {
+  name: RcStr
+  parent: RcStr
+}
+
 export declare const enum NapiCodeFrameColorMode {
   Error = 0,
   Warning = 1,
@@ -278,6 +288,14 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 
+export interface NapiDevelopmentDiscovery {
+  layouts: Array<NapiAuthoredLayout>
+  slots: Array<NapiAuthoredRouteSlot>
+  hasTypeScriptFiles: boolean
+  hasRootNotFound: boolean
+  authoredPagesSpecialRoutes: Array<RcStr>
+}
+
 export interface NapiDraftModeOptions {
   previewModeId: RcStr
   previewModeEncryptionKey: RcStr
@@ -287,12 +305,13 @@ export interface NapiDraftModeOptions {
 export interface NapiEndpointConfig {}
 
 export interface NapiEntrypoints {
-  routes: Array<NapiRoute>
+  routes?: Array<NapiRoute>
+  development?: NapiDevelopmentDiscovery
   middleware?: NapiMiddleware
   instrumentation?: NapiInstrumentation
-  pagesDocumentEndpoint: ExternalObject<ExternalEndpoint>
-  pagesAppEndpoint: ExternalObject<ExternalEndpoint>
-  pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
+  pagesDocumentEndpoint?: ExternalObject<ExternalEndpoint>
+  pagesAppEndpoint?: ExternalObject<ExternalEndpoint>
+  pagesErrorEndpoint?: ExternalObject<ExternalEndpoint>
 }
 
 export interface NapiEnvVar {
@@ -341,6 +360,7 @@ export interface NapiLocation {
 export interface NapiMiddleware {
   endpoint: ExternalObject<ExternalEndpoint>
   isProxy: boolean
+  matchers: Array<any>
 }
 
 /**
@@ -486,6 +506,15 @@ export interface NapiRoute {
   /** The type of route, eg a Page or App */
   type: string
   pages?: Array<AppPageNapiRoute>
+  appPaths?: Array<RcStr>
+  /** The page file for each entry of `app_paths`, in the same order. */
+  appPathSources?: Array<RcStr>
+  isInternal?: boolean
+  /** The file the developer wrote for this route, for development tooling such as route types. */
+  sourcePath?: RcStr
+  runtimePage?: RcStr
+  runtimePathname?: RcStr
+  staticMetadataSource?: RcStr
   hasActionManifest?: boolean
   endpoint?: ExternalObject<ExternalEndpoint>
   htmlEndpoint?: ExternalObject<ExternalEndpoint>

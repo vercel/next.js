@@ -164,12 +164,14 @@ impl Asset for RouteBundleStatsAsset {
                     continue;
                 }
                 Route::Page { html_endpoint, .. } => vec![*html_endpoint, pages_app_endpoint],
-                Route::AppPage(_)
+                Route::AppPage { .. }
                     if matches!(pathname.as_str(), "/favicon.ico" | "/_global-error") =>
                 {
                     continue;
                 }
-                Route::AppPage(pages) => pages.iter().map(|page| page.html_endpoint).collect(),
+                Route::AppPage { pages, .. } => {
+                    pages.iter().map(|page| page.html_endpoint).collect()
+                }
                 // Route handlers and API routes ship no client JS.
                 Route::AppRoute { .. }
                 | Route::AppGoRoute { .. }

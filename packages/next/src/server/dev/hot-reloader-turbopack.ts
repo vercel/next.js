@@ -2,7 +2,7 @@ import type { Socket } from 'net'
 import { mkdir } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative, isAbsolute, sep } from 'path'
+import { join, relative, isAbsolute, sep } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -32,6 +32,7 @@ import type {
   TurbopackResult,
   Project,
   Entrypoints,
+  Issue,
   NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
@@ -76,7 +77,6 @@ import {
   type StartBuilding,
   processTopLevelIssues,
   printNonFatalIssue,
-  normalizedPageToTurbopackStructureRoute,
   type StartChangeSubscription,
 } from './turbopack-utils'
 import {
@@ -85,8 +85,15 @@ import {
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-import { findPagePathData } from './on-demand-entry-handler'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteIdentity } from '../route-definitions/route-definition'
+import type { TurbopackRoutePublisher } from '../lib/router-utils/turbopack-dev-routes'
+import {
+  hasTurbopackPage,
+  isAppRouteKind,
+  lookupTurbopackRoute,
+  lookupTurbopackRouteByPathname,
+} from '../lib/router-utils/dev-route-snapshot'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   type EntryKey,
   getEntryKey,
@@ -101,7 +108,6 @@ import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-de
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
-import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
@@ -123,7 +129,11 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
-import { printBuildErrors } from '../../build/print-build-errors'
+import {
+  isPagesFileIssue,
+  isStrictRouteMatchingIssue,
+  printBuildErrors,
+} from '../../build/print-build-errors'
 import { getStrictRouteMatchingDefaultWarning } from '../lib/router-utils/strict-route-matching-config'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
@@ -394,7 +404,8 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void,
   lockfile: Lockfile,
-  serverFastRefresh?: boolean
+  serverFastRefresh: boolean | undefined,
+  routePublisher: TurbopackRoutePublisher
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -591,8 +602,13 @@ export async function createHotReloaderTurbopack(
     app: new Map(),
   }
 
+  let routeSnapshot: ReturnType<TurbopackRoutePublisher['install']> | undefined
+  let routeGeneration = 0
+  let closed = false
+
   const currentTopLevelIssues: TopLevelIssuesMap = new Map()
   const currentEntryIssues: EntryIssuesMap = new Map()
+  let previousRouteStructureIssues = ''
 
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
@@ -1233,7 +1249,26 @@ export async function createHotReloaderTurbopack(
     state.clientIssues.delete(key)
   }
 
+  // Strict route-matching problems and the Pages Router file checks are
+  // top-level issues that still leave routes to serve, and the handler prints
+  // top-level issues only when no routes are returned. Print them (and the
+  // looseRouteMatching hint) when they change, as the old route watcher did.
+  function reportRouteStructureIssues(issues: Issue[]) {
+    const routeIssues = issues.filter(
+      (issue) => isStrictRouteMatchingIssue(issue) || isPagesFileIssue(issue)
+    )
+    const signature = routeIssues.map(formatIssue).join('\n')
+    if (signature === previousRouteStructureIssues) return
+    previousRouteStructureIssues = signature
+    if (routeIssues.length === 0) return
+    printBuildErrors({ value: undefined, issues: routeIssues }, true, {
+      strictRouteMatchingDefaultWarning:
+        getStrictRouteMatchingDefaultWarning(nextConfig),
+    })
+  }
+
   let nativeRoutePages: ReadonlySet<string> | undefined
+  let previousGoEntries: string | undefined
   const nativeRouteListeners = new Set<(pages: ReadonlySet<string>) => void>()
 
   async function handleEntrypointsSubscription() {
@@ -1248,27 +1283,57 @@ export async function createHotReloaderTurbopack(
       // Always process issues/diagnostics, even if there are no entrypoints yet
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
-      // Certain crtical issues prevent any entrypoints from being constructed so return early
+      // A route-structure error can prevent constructing endpoints. Keep the
+      // last valid routes; route types also wait until the error is fixed.
       if (!('routes' in entrypoints.value)) {
         printBuildErrors(entrypoints, true, {
           strictRouteMatchingDefaultWarning:
             getStrictRouteMatchingDefaultWarning(nextConfig),
         })
 
+        await routePublisher.publish(hotReloader)
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
         continue
       }
 
-      const routes = entrypoints.value.routes
+      reportRouteStructureIssues(entrypoints.issues)
+
+      try {
+        routeSnapshot = routePublisher.install(entrypoints.value)
+      } catch (error) {
+        // Keep both routing and compiler state from the last valid update.
+        // At startup they remain empty until the user fixes the invalid routes.
+        Log.warn('Failed to reload dynamic routes:', error)
+        await routePublisher.publish(hotReloader, entrypoints.value)
+        currentEntriesHandlingResolve!()
+        currentEntriesHandlingResolve = undefined
+        continue
+      }
       // Only valid Rust entrypoint snapshots replace the active Go route set.
       // Original names retain route groups and distinguish Go-to-JS replacement.
       nativeRoutePages = new Set(
-        [...routes.values()].flatMap((route) =>
+        [...entrypoints.value.routes.values()].flatMap((route) =>
           route.type === 'app-route-go' ? [route.originalName] : []
         )
       )
       for (const listener of nativeRouteListeners) listener(nativeRoutePages)
+      // A Go route or Proxy file added after startup can import next/go. Add
+      // the go.mod requirement before it is compiled, as the Webpack watcher
+      // does when a .go file changes. Edits to existing Go sources are covered
+      // when their endpoints are written (syncGoSdkIfChanged).
+      const goEntries = [
+        ...nativeRoutePages,
+        ...(entrypoints.value.middleware ? ['/proxy'] : []),
+      ]
+        .sort()
+        .join('\n')
+      if (nextConfig.experimental.goRoutes && goEntries !== previousGoEntries) {
+        previousGoEntries = goEntries
+        void ensureGoSdkQueued(goSdk)
+      }
+      routeGeneration++
+      const routes = new Set(routeSnapshot.sortedRoutes)
       const prevRouteKeys = previousRouteKeys
       const addedRoutes = prevRouteKeys
         ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
@@ -1276,12 +1341,16 @@ export async function createHotReloaderTurbopack(
       const removedRoutes = prevRouteKeys
         ? [...prevRouteKeys].filter((route) => !routes.has(route))
         : []
-      previousRouteKeys = new Set(routes.keys())
+      previousRouteKeys = routes
 
       await handleEntrypoints({
-        // TODO(as-any): pre-existing cast, not yet reviewed
-        // eslint-disable-next-line @next/internal/no-as-any
-        entrypoints: entrypoints as any,
+        entrypoints: {
+          ...entrypoints,
+          value:
+            nextConfig.output === 'export'
+              ? { ...entrypoints.value, middleware: undefined }
+              : entrypoints.value,
+        },
 
         currentEntrypoints,
 
@@ -1309,7 +1378,14 @@ export async function createHotReloaderTurbopack(
                 force: forceDeleteCache,
               })
             },
-            propagateServerField: propagateServerField.bind(null, opts),
+            propagateServerField: async (field, value) => {
+              if (field === 'middleware') {
+                opts.fsChecker.middlewareMatcher = value?.matchers
+                  ? getMiddlewareRouteMatcher(value.matchers)
+                  : undefined
+              }
+              await propagateServerField(opts, field, value)
+            },
             sendHmr,
             startBuilding,
             subscribeToChanges: subscribeToClientChanges,
@@ -1318,6 +1394,8 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
+
+      await routePublisher.publish(hotReloader, entrypoints.value, true)
 
       if (addedRoutes.length > 0 || removedRoutes.length > 0) {
         // When the list of routes changes a new manifest should be fetched for Pages Router.
@@ -1421,32 +1499,6 @@ export async function createHotReloaderTurbopack(
                 )
               }
 
-              // ensurePage uses findPagePathData when no definition is provided,
-              // which calls normalizePagePath("/") → "/index" then findPageFile
-              // looking for "index.tsx" — neither of which matches "page.tsx" in
-              // the app dir. Pass a synthetic definition instead.
-              //
-              // currentEntrypoints.app is keyed by originalName which includes the
-              // trailing /page or /route segment (e.g. "/page" for the root route,
-              // "/blog/[slug]/page" for a dynamic page). Use normalizeAppPath to
-              // strip that suffix and find the entry matching the user-facing route.
-              let extraOptions: object | undefined = undefined
-              for (const [name] of currentEntrypoints.app) {
-                if (normalizeAppPath(name) === page) {
-                  extraOptions = {
-                    // Synthesize a definition so ensurePage bypasses findPagePathData.
-                    // Only page and bundlePath are used from the definition:
-                    // - page: the originalName used as the route key for currentEntrypoints lookup
-                    // - bundlePath: must start with "app/" to set isInsideAppDir=true
-                    definition: {
-                      page: name,
-                      bundlePath: `app${name}`,
-                      filename: '',
-                    },
-                  }
-                  break
-                }
-              }
               const ensureOpts = {
                 page,
                 // Compile both server and client bundles, matching what happens
@@ -1457,7 +1509,6 @@ export async function createHotReloaderTurbopack(
                 // updates for routes compiled this way, and these subscriptions
                 // are never unsubscribed (see TODOs in handleRouteType).
                 subscribeToChanges: false,
-                ...extraOptions,
               }
 
               // Snapshot the current issue maps before compilation so we can
@@ -2123,15 +2174,19 @@ export async function createHotReloaderTurbopack(
       url: requestUrl,
       subscribeToChanges = true,
     }) {
-      // When there is no route definition this is an internal file not a route the user added.
-      // Middleware and instrumentation are handled in turbopack-utils.ts handleEntrypoints instead.
-      if (!definition) {
-        if (inputPage === '/middleware') return
-        if (inputPage === '/src/middleware') return
-        if (inputPage === '/proxy') return
-        if (inputPage === '/src/proxy') return
-        if (inputPage === '/instrumentation') return
-        if (inputPage === '/src/instrumentation') return
+      if (
+        !definition &&
+        [
+          '/middleware',
+          '/src/middleware',
+          '/proxy',
+          '/src/proxy',
+          '/instrumentation',
+          '/src/instrumentation',
+        ].includes(inputPage)
+      ) {
+        await currentEntriesHandling
+        return
       }
 
       return hotReloaderSpan
@@ -2143,70 +2198,158 @@ export async function createHotReloaderTurbopack(
             return
           }
 
-          await currentEntriesHandling
+          for (;;) {
+            await currentEntriesHandling
 
-          // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
-          let routeDef: Pick<
-            RouteDefinition,
-            'filename' | 'bundlePath' | 'page'
-          > =
-            definition ??
-            (await findPagePathData(
-              projectPath,
-              inputPage,
-              nextConfig.pageExtensions,
-              opts.pagesDir,
-              opts.appDir,
-              !!nextConfig.experimental.globalNotFound
-            ))
-
-          // If the route is actually an app page route, then we should have access
-          // to the app route definition, and therefore, the appPaths from it.
-          if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
-            appPaths = definition.appPaths
-          }
-
-          // Check if this is a deferred entry and wait for non-deferred entries first
-          if (hasDeferredEntriesConfig) {
-            const isDeferred = isDeferredEntry(
-              routeDef.page,
-              deferredEntriesConfig
-            )
-            if (isDeferred) {
-              await processDeferredEntry()
-            } else {
-              // Track non-deferred entry as building
-              nonDeferredBuildingEntries.add(routeDef.page)
+            if (closed) throw new Error('The development server has closed')
+            const generation = routeGeneration
+            const appHint = definition ? isAppRouteKind(definition.kind) : isApp
+            const routeDef: RouteIdentity | undefined = routeSnapshot
+              ? definition
+                ? lookupTurbopackRouteByPathname(
+                    routeSnapshot,
+                    definition.pathname,
+                    appHint
+                  )
+                : lookupTurbopackRoute(routeSnapshot, inputPage, isApp)
+              : undefined
+            if (!routeDef && inputPage !== '/_error') {
+              throw new PageNotFoundError(`route not found ${inputPage}`)
             }
-          }
+            const canonicalPage = routeDef?.page ?? '/_error'
+            // Always take participating paths from the current native snapshot;
+            // a caller may hold a hint from before an add, delete, or rename.
+            appPaths =
+              routeDef && isAppPageRouteDefinition(routeDef)
+                ? routeDef.appPaths
+                : undefined
 
-          let page = routeDef.page
-          if (appPaths) {
-            const normalizedPage = normalizeAppPath(page)
+            // Check if this is a deferred entry and wait for non-deferred entries first
+            if (hasDeferredEntriesConfig) {
+              const isDeferred = isDeferredEntry(
+                canonicalPage,
+                deferredEntriesConfig
+              )
+              if (isDeferred) {
+                await processDeferredEntry()
+              } else {
+                // Track non-deferred entry as building
+                nonDeferredBuildingEntries.add(canonicalPage)
+              }
+            }
 
-            // filter out paths that are not exact matches (e.g. catchall)
-            const matchingAppPaths = appPaths.filter(
-              (path) => normalizeAppPath(path) === normalizedPage
-            )
+            if (generation !== routeGeneration) {
+              nonDeferredBuildingEntries.delete(canonicalPage)
+              continue
+            }
+            let page = canonicalPage
+            if (appPaths) {
+              const normalizedPage = normalizeAppPath(page)
 
-            // the last item in the array is the root page, if there are parallel routes
-            page = matchingAppPaths[matchingAppPaths.length - 1]
-          }
+              // filter out paths that are not exact matches (e.g. catchall)
+              const matchingAppPaths = appPaths.filter(
+                (path) => normalizeAppPath(path) === normalizedPage
+              )
 
-          const pathname = definition?.pathname ?? inputPage
+              // the last item in the array is the root page, if there are parallel routes
+              page = matchingAppPaths[matchingAppPaths.length - 1]
+            }
 
-          if (page === '/_error') {
-            let finishBuilding = startBuilding(pathname, requestUrl, false)
+            const pathname = routeDef?.pathname ?? inputPage
+
+            if (page === '/_error') {
+              let finishBuilding = startBuilding(pathname, requestUrl, false)
+              try {
+                await handlePagesErrorRoute({
+                  currentEntryIssues,
+                  entrypoints: currentEntrypoints,
+                  manifestLoader,
+                  devRewrites: opts.fsChecker.rewrites,
+                  productionRewrites: undefined,
+                  logErrors: true,
+                  hooks: {
+                    subscribeToChanges: subscribeToClientChanges,
+                    handleWrittenEndpoint: (id, result, forceDeleteCache) => {
+                      currentWrittenEntrypoints.set(id, result.value)
+                      syncGoSdkIfChanged(id, result)
+                      assetMapper.setPathsForKey(id, result.value.clientPaths)
+                      serverAssetMapper.setPathsForKey(
+                        id,
+                        result.value.serverPaths.map(({ path }) => path)
+                      )
+                      return clearRequireCache(id, result.value, {
+                        force: forceDeleteCache,
+                      })
+                    },
+                  },
+                })
+              } catch (error) {
+                if (generation === routeGeneration) throw error
+              } finally {
+                finishBuilding()
+                nonDeferredBuildingEntries.delete(canonicalPage)
+              }
+              if (generation !== routeGeneration) continue
+              return
+            }
+
+            const isInsideAppDir = isAppRouteKind(routeDef!.kind)
+            const compilerPage = routeSnapshot!.appRouteKeys.get(page) ?? page
+            const route = isInsideAppDir
+              ? currentEntrypoints.app.get(compilerPage)
+              : currentEntrypoints.page.get(page)
+
+            if (!route) {
+              // Root conventions are prepared by the entrypoint subscription.
+              if (page === '/middleware') return
+              if (page === '/src/middleware') return
+              if (page === '/proxy') return
+              if (page === '/src/proxy') return
+              if (page === '/instrumentation') return
+              if (page === '/src/instrumentation') return
+
+              throw new PageNotFoundError(`route not found ${page}`)
+            }
+
+            // We don't throw on ensureOpts.isApp === true for page-api
+            // since this can happen when app pages make
+            // api requests to page API routes.
+            if (isApp && route.type === 'page') {
+              throw new Error(
+                `mis-matched route type: isApp && page for ${page}`
+              )
+            }
+
+            const finishBuilding = startBuilding(pathname, requestUrl, false)
+            // Set by `handleWrittenEndpoint` below, so the pull is gated on the
+            // same predicate as the require-cache handling rather than a second,
+            // coarser reading of `route.type`.
+            let shouldPullServerHmr = false
+            let serverHmrEntryPaths: string[] = []
             try {
-              await handlePagesErrorRoute({
+              await handleRouteType({
+                dev,
+                page,
+                pathname,
+                route,
                 currentEntryIssues,
                 entrypoints: currentEntrypoints,
                 manifestLoader,
+                readyIds,
                 devRewrites: opts.fsChecker.rewrites,
                 productionRewrites: undefined,
                 logErrors: true,
+
                 hooks: {
-                  subscribeToChanges: subscribeToClientChanges,
+                  // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
+                  // one-shot compilations (e.g. compile_route MCP tool).
+                  subscribeToChanges: subscribeToChanges
+                    ? subscribeToClientChanges
+                    : ((async () => {}) as StartChangeSubscription),
+                  subscribeToClientHmrChanges: subscribeToChanges
+                    ? subscribeToClientHmrChanges
+                    : undefined,
+                  handleServerComponentChanges,
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
                     syncGoSdkIfChanged(id, result)
@@ -2215,121 +2358,48 @@ export async function createHotReloaderTurbopack(
                       id,
                       result.value.serverPaths.map(({ path }) => path)
                     )
+                    shouldPullServerHmr ||= participatesInServerHmr(
+                      id,
+                      result.value
+                    )
+                    if (result.value.serverHmrEntryPaths.length > 0) {
+                      serverHmrEntryPaths = result.value.serverHmrEntryPaths
+                    }
                     return clearRequireCache(id, result.value, {
                       force: forceDeleteCache,
                     })
                   },
                 },
               })
+
+              // The only server HMR pull, driven by the request being built — which
+              // is what makes evaluating a changed module lazy.
+              if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
+                await serverHmr?.apply(serverHmrEntryPaths)
+              }
+            } catch (error) {
+              if (generation === routeGeneration) throw error
             } finally {
               finishBuilding()
+              // Remove non-deferred entry from building set
+              if (hasDeferredEntriesConfig) {
+                nonDeferredBuildingEntries.delete(canonicalPage)
+              }
             }
-            return
-          }
-
-          const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-          const isEntryMetadataRouteFile = isMetadataRouteFile(
-            routeDef.filename.replace(opts.appDir || '', ''),
-            nextConfig.pageExtensions,
-            true
-          )
-          const normalizedAppPage = isEntryMetadataRouteFile
-            ? normalizedPageToTurbopackStructureRoute(
-                page,
-                extname(routeDef.filename)
-              )
-            : page
-
-          const route = isInsideAppDir
-            ? currentEntrypoints.app.get(normalizedAppPage)
-            : currentEntrypoints.page.get(page)
-
-          if (!route) {
-            // TODO: why is this entry missing in turbopack?
-            if (page === '/middleware') return
-            if (page === '/src/middleware') return
-            if (page === '/proxy') return
-            if (page === '/src/proxy') return
-            if (page === '/instrumentation') return
-            if (page === '/src/instrumentation') return
-
-            throw new PageNotFoundError(`route not found ${page}`)
-          }
-
-          // We don't throw on ensureOpts.isApp === true for page-api
-          // since this can happen when app pages make
-          // api requests to page API routes.
-          if (isApp && route.type === 'page') {
-            throw new Error(`mis-matched route type: isApp && page for ${page}`)
-          }
-
-          const finishBuilding = startBuilding(pathname, requestUrl, false)
-          // Set by `handleWrittenEndpoint` below, so the pull is gated on the
-          // same predicate as the require-cache handling rather than a second,
-          // coarser reading of `route.type`.
-          let shouldPullServerHmr = false
-          let serverHmrEntryPaths: string[] = []
-          try {
-            await handleRouteType({
-              dev,
-              page,
-              pathname,
-              route,
-              currentEntryIssues,
-              entrypoints: currentEntrypoints,
-              manifestLoader,
-              readyIds,
-              devRewrites: opts.fsChecker.rewrites,
-              productionRewrites: undefined,
-              logErrors: true,
-
-              hooks: {
-                // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
-                // one-shot compilations (e.g. compile_route MCP tool).
-                subscribeToChanges: subscribeToChanges
-                  ? subscribeToClientChanges
-                  : ((async () => {}) as StartChangeSubscription),
-                subscribeToClientHmrChanges: subscribeToChanges
-                  ? subscribeToClientHmrChanges
-                  : undefined,
-                handleServerComponentChanges,
-                handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-                  currentWrittenEntrypoints.set(id, result.value)
-                  syncGoSdkIfChanged(id, result)
-                  assetMapper.setPathsForKey(id, result.value.clientPaths)
-                  serverAssetMapper.setPathsForKey(
-                    id,
-                    result.value.serverPaths.map(({ path }) => path)
-                  )
-                  shouldPullServerHmr ||= participatesInServerHmr(
-                    id,
-                    result.value
-                  )
-                  if (result.value.serverHmrEntryPaths.length > 0) {
-                    serverHmrEntryPaths = result.value.serverHmrEntryPaths
-                  }
-                  return clearRequireCache(id, result.value, {
-                    force: forceDeleteCache,
-                  })
-                },
-              },
-            })
-
-            // The only server HMR pull, driven by the request being built — which
-            // is what makes evaluating a changed module lazy.
-            if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
-              await serverHmr?.apply(serverHmrEntryPaths)
-            }
-          } finally {
-            finishBuilding()
-            // Remove non-deferred entry from building set
-            if (hasDeferredEntriesConfig) {
-              nonDeferredBuildingEntries.delete(routeDef.page)
-            }
+            if (generation === routeGeneration) return
           }
         })
     },
+    async hasPage(pathname) {
+      await currentEntriesHandling
+      return (
+        !closed && !!routeSnapshot && hasTurbopackPage(routeSnapshot, pathname)
+      )
+    },
     close() {
+      closed = true
+      currentEntriesHandlingResolve?.()
+      currentEntriesHandlingResolve = undefined
       // Report MCP telemetry if MCP server is enabled
       recordMcpTelemetry(opts.telemetry)
 
@@ -2350,10 +2420,16 @@ export async function createHotReloaderTurbopack(
     },
   }
 
-  handleEntrypointsSubscription().catch((err) => {
-    console.error(err)
-    process.exit(1)
-  })
+  handleEntrypointsSubscription()
+    .catch((err) => {
+      console.error(err)
+      process.exit(1)
+    })
+    .finally(() => {
+      closed = true
+      currentEntriesHandlingResolve?.()
+      currentEntriesHandlingResolve = undefined
+    })
 
   // Write empty manifests
   await currentEntriesHandling

@@ -1,3 +1,4 @@
+use next_core::route_discovery::DevelopmentDiscovery;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OrderedAutoMap, ResolvedVc};
 
@@ -11,6 +12,7 @@ pub struct Entrypoints {
     pub routes: OrderedAutoMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,
+    pub development: Option<DevelopmentDiscovery>,
     pub pages_document_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_app_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_error_endpoint: ResolvedVc<Box<dyn Endpoint>>,
