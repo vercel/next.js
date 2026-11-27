@@ -396,18 +396,19 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox Call stack count is correct for pages error",
-      "ReactRefreshLogBox boundaries",
-      "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox css syntax errors",
       "ReactRefreshLogBox logbox: anchors links in error messages",
-      "ReactRefreshLogBox module init error not shown",
       "ReactRefreshLogBox non-Error errors are handled properly",
       "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace by default",
       "ReactRefreshLogBox should show anonymous frames from stack trace",
       "ReactRefreshLogBox should strip whitespace correctly with newline",
       "ReactRefreshLogBox unterminated JSX"
     ],
-    "failed": [],
+    "failed": [
+      "ReactRefreshLogBox boundaries",
+      "ReactRefreshLogBox conversion to class component (1)",
+      "ReactRefreshLogBox module init error not shown"
+    ],
     "pending": ["ReactRefreshLogBox internal package errors"],
     "flakey": [],
     "runtimeError": false
@@ -459,14 +460,14 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a event handler error",
       "pages/ error recovery logbox: can recover from a syntax error without losing state",
-      "pages/ error recovery stuck error",
       "pages/ error recovery syntax > runtime error"
     ],
     "failed": [
-      "pages/ error recovery render error not shown right after syntax error"
+      "pages/ error recovery logbox: can recover from a component error",
+      "pages/ error recovery render error not shown right after syntax error",
+      "pages/ error recovery stuck error"
     ],
     "pending": [],
     "flakey": [],
@@ -1881,12 +1882,13 @@
   },
   "test/development/app-dir/server-navigation-error/server-navigation-error.test.ts": {
     "passed": [
-      "server-navigation-error middleware should error on navigation API not-found",
-      "server-navigation-error middleware should error on navigation API redirect ",
       "server-navigation-error pages router should error on navigation API notFound",
       "server-navigation-error pages router should error on navigation API redirect"
     ],
-    "failed": [],
+    "failed": [
+      "server-navigation-error middleware should error on navigation API not-found",
+      "server-navigation-error middleware should error on navigation API redirect "
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4027,13 +4029,12 @@
     "runtimeError": false
   },
   "test/development/typescript-auto-install/index.test.ts": {
-    "passed": [
-      "typescript-auto-install should detect TypeScript being added and auto setup",
-      "typescript-auto-install should work"
-    ],
+    "passed": ["typescript-auto-install should work"],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "typescript-auto-install should detect TypeScript being added and auto setup"
+    ],
     "runtimeError": false
   },
   "test/development/typescript-external-dir/typescript-external-dir.test.ts": {
