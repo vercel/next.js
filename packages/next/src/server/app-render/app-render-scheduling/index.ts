@@ -5,7 +5,9 @@ const Impl =
     ? (require('./immediate-scheduler') as typeof import('./immediate-scheduler'))
     : process.env.__NEXT_SEQUENTIAL_TASK_SCHEDULING === 'unstable_message-port'
       ? (require('./message-port-scheduler') as typeof import('./message-port-scheduler'))
-      : (require('./timer-scheduler') as typeof import('./timer-scheduler'))
+      : process.env.__NEXT_SEQUENTIAL_TASK_SCHEDULING === 'unstable_next-tick'
+        ? (require('./next-tick-scheduler') as typeof import('./next-tick-scheduler'))
+        : (require('./timer-scheduler') as typeof import('./timer-scheduler'))
 
 export const scheduleSequentialTasks: SequentialTaskScheduler =
   Impl.scheduleSequentialTasks
