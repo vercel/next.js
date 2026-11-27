@@ -25,15 +25,17 @@ By default, Server Components are automatically [code split](https://developer.m
 
 ## Choosing what to lazy load
 
-Next.js already splits Client Component code by route, so a route loads the code for the components it renders. Lazy loading splits code within a route. The lazy loaded code is a separate request, so it suits code the route doesn't need for its first render.
+Next.js already splits Client Component code by route, so a route loads the code for the components it renders. Lazy loading splits code within a route. Use it for UI that is not on screen when the page first loads, such as a modal that opens on a click, so its code is requested separately from the rest of the route.
 
-| The component is                                                  | Approach                                                                                                                   |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Visible when the page loads                                       | Import it normally, so it is prerendered with the page                                                                     |
-| Visible when the page loads, but can only render in the browser   | [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) inside `<Suspense>` |
-| Built on a module that reads `window` or `document` when imported | [`next/dynamic` with `ssr: false`](#skipping-ssr)                                                                          |
-| Rarely opened, such as an export dialog                           | [Load it on interaction](#loading-on-interaction)                                                                          |
-| Likely to be opened, such as a reply box or the next tab          | [Preload it before the interaction](#preloading-before-interaction)                                                        |
+| The component is                                                                                   | Approach                                                                                                                   |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Visible when the page loads                                                                        | Import it normally, so it is prerendered with the page                                                                     |
+| Visible when the page loads, but can only render in the browser                                    | [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) inside `<Suspense>` |
+| Likely to be opened, such as a reply box or the next tab                                           | [Preload it before the interaction](#preloading-before-interaction)                                                        |
+| Opened by few visitors, such as a modal or a chat box                                              | [Load it on interaction](#loading-on-interaction)                                                                          |
+| Visible when the page loads, and built on a module that reads `window` or `document` when imported | [`next/dynamic` with `ssr: false`](#skipping-ssr)                                                                          |
+
+Whether to preload depends on how often visitors open the component. Use your analytics to decide.
 
 ## Examples
 
@@ -168,7 +170,9 @@ export default function Page() {
 
 ### Loading on interaction
 
-A component that renders conditionally loads its code the first time it renders, for example when a user opens a dialog. With a `loading` component or `ssr: false`, `next/dynamic` wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+A component that renders conditionally loads its code the first time it renders, for example when a user opens a chat box. With a `loading` component or `ssr: false`, `next/dynamic` wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats).
+
+A component that first renders after an interaction is not part of the server render, so it does not need `ssr: false`, even when it depends on a module that reads `window` or `document` when imported. If the state that gates the component can be set during prerendering, the component renders on the server like any other.
 
 To show the component as soon as its code loads, use `next/dynamic` without those options and update state in a [transition](https://react.dev/reference/react/useTransition). React keeps the current UI on screen until the component is ready, and `isPending` lets you show that the click registered:
 
@@ -178,7 +182,7 @@ To show the component as soon as its code loads, use `next/dynamic` without thos
 import { useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 
-const ExportDialog = dynamic(() => import('../components/export-dialog'))
+const ChatBox = dynamic(() => import('../components/chat-box'))
 
 export default function Page() {
   const [open, setOpen] = useState(false)
@@ -190,9 +194,9 @@ export default function Page() {
         disabled={isPending}
         onClick={() => startTransition(() => setOpen(true))}
       >
-        {isPending ? 'Opening…' : 'Export'}
+        {isPending ? 'Opening…' : 'Open chat'}
       </button>
-      {open && <ExportDialog />}
+      {open && <ChatBox />}
     </div>
   )
 }
