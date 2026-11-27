@@ -1490,6 +1490,16 @@ pub async fn project_write_all_entrypoints_to_disk(
     let container = project.container;
     let tt = ctx.turbo_tasks();
 
+    // Lets tests exercise how an internal error (e.g. a panic) is reported, as
+    // there's no reliable way to cause one otherwise. Private and test-only.
+    if std::env::var_os("NEXT_PRIVATE_TEST_TURBOPACK_INTERNAL_ERROR").is_some() {
+        return ctx
+            .throw_turbopack_internal_result(&anyhow!(
+                "Simulated internal error (NEXT_PRIVATE_TEST_TURBOPACK_INTERNAL_ERROR)"
+            ))
+            .await;
+    }
+
     #[turbo_tasks::function(operation, root)]
     async fn has_deferred_entrypoints_operation(
         container: ResolvedVc<ProjectContainer>,

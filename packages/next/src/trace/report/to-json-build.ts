@@ -5,6 +5,9 @@ import { createJsonReporter } from './to-json'
 const allowlistedEvents = new Set([
   'next-build',
   'run-turbopack',
+  // The parent of Turbopack's spans (e.g. `turbopack-emit`) when it compiles
+  // in a separate process (`experimental.turbopackBuildWorker`).
+  'turbopack-build-worker',
   'run-webpack',
   'run-typescript',
   'run-eslint',

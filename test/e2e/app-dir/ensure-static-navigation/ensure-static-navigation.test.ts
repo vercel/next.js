@@ -544,9 +544,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params/[slug]
-             at <next-internal> {
-           type: 'Error'
-         }"
+             at <next-internal>"
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -585,9 +583,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params-passed-to-client/[slug]
-             at <next-internal> {
-           type: 'Error'
-         }"
+             at <next-internal>"
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -623,9 +619,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params-client-segment/[slug]
-             at <next-internal> {
-           type: 'Error'
-         }"
+             at <next-internal>"
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -820,9 +814,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-empty/[slug]
-             at <next-internal> {
-           type: 'Error'
-         }"
+             at <next-internal>"
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -856,9 +848,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-incomplete/[slug]/[snail]
-             at <next-internal> {
-           type: 'Error'
-         }"
+             at <next-internal>"
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -893,9 +883,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-incomplete-unused/[slug]/[snail]
-             at <next-internal> {
-           type: 'Error'
-         }"
+             at <next-internal>"
         `)
         expect(result.exitCode).toBe(1)
       }

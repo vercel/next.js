@@ -62,6 +62,20 @@ export type ParentMessageOk = [
   result: unknown,
 ]
 
+/**
+ * The `cause` of an error thrown in a worker. `{ value }` is a cause that isn't
+ * an `Error` (e.g. a string). Causes are nested up to a fixed depth.
+ */
+export type SerializedErrorCause =
+  | {
+      name: string
+      message: string
+      stack: string | undefined
+      properties: Record<string, unknown>
+      cause?: SerializedErrorCause | null
+    }
+  | { value: unknown }
+
 export type ParentMessageClientError = [
   type: typeof PARENT_MESSAGE_CLIENT_ERROR,
   requestId: number,
@@ -69,6 +83,8 @@ export type ParentMessageClientError = [
   errorMessage: string,
   errorStack: string | undefined,
   errorProperties: Record<string, unknown> | unknown,
+  // `null` (child processes, JSON) or `undefined` when there's no cause.
+  errorCause?: SerializedErrorCause | null,
 ]
 
 export type ParentMessageSetupError = [

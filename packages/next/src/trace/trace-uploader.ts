@@ -37,6 +37,9 @@ const BUILD_ALLOWED_EVENTS = new Set([
   ...COMMON_ALLOWED_EVENTS,
   'next-build',
   'run-turbopack',
+  // The parent of Turbopack's spans when it compiles in a separate process
+  // (`experimental.turbopackBuildWorker`).
+  'turbopack-build-worker',
   'webpack-compilation',
   'run-webpack-compiler',
   'create-entrypoints',
