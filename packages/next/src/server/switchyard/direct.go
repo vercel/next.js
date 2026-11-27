@@ -1,30 +1,49 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
 	"maps"
+	"net"
 	"net/http"
+	"net/http/httptrace"
+	"net/http/httputil"
 	"net/textproto"
 	"slices"
+	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/vercel/next.js/packages/next/src/server/switchyard/routing"
 )
 
-// switchyard is the public handler. It sends every request to Node, as in
-// step 1, and keeps what Node tells it about the app's route.go routes and
-// their workers, for sending those requests to a worker directly.
+// switchyard is the public handler. Each request goes either to Node, exactly
+// as in step 1, or straight to a route.go worker when Node's route table says
+// Node would have sent it there unchanged (see the routing package).
+//
+//	client ──► switchyard ──► Node              (default)
+//	                    └───► route.go worker   (direct)
 type switchyard struct {
 	node http.Handler
+	// Forwards direct requests, to whichever worker the request's
+	// directAttempt names.
+	direct *httputil.ReverseProxy
 	// The current routing state, replaced whole on every control message
 	// and read once per request, so a request never sees half an update.
 	// apply, which writes it, runs on one goroutine only (readControl).
 	state atomic.Pointer[directState]
 }
 
-// directState is what Switchyard knows from Node: the route table and the
-// workers that are ready.
+// directState is what Switchyard knows from Node: the route table, what Node
+// changes on the way to a worker, and the workers that are ready.
 type directState struct {
 	table *routing.Table
+	// Request headers Node removes, by canonical name, and prefixes of the
+	// canonical names it removes ("X-Next-Internal-").
+	strip         map[string]bool
+	stripPrefixes []string
 	// route id → worker serving it
 	workers map[string]*goUpstream
 }
@@ -36,14 +55,39 @@ type goUpstream struct {
 	token       []string // as a header value, set as is on each request
 }
 
-func newSwitchyard(node http.Handler) *switchyard {
+func newSwitchyard(node http.Handler, public *net.TCPAddr, upstreamIdle time.Duration) *switchyard {
 	f := &switchyard{node: node}
+	f.direct = f.newDirectProxy(public, upstreamIdle)
 	f.state.Store(&directState{workers: map[string]*goUpstream{}})
 	return f
 }
 
 func (f *switchyard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s := f.state.Load()
+	if up := s.choose(r); up != nil {
+		f.serveDirect(w, r, s, up)
+		return
+	}
 	f.node.ServeHTTP(w, r)
+}
+
+// choose returns the worker that answers r directly, or nil for Node.
+func (s *directState) choose(r *http.Request) *goUpstream {
+	if s.table == nil {
+		return nil
+	}
+	d := s.table.Decide(routing.Request{
+		Method:        r.Method,
+		Target:        r.RequestURI,
+		Proto:         r.Proto,
+		Host:          r.Host,
+		Header:        r.Header,
+		ContentLength: r.ContentLength,
+	})
+	// A route's worker is missing until Node has started it: the first
+	// request to a route goes through Node, which starts it and then
+	// announces it.
+	return s.workers[d.Route]
 }
 
 // apply updates the state from one control message.
@@ -91,12 +135,220 @@ func (f *switchyard) apply(msg controlMessage) {
 	f.state.Store(&next)
 }
 
-// loadTable reads the route table.
+// loadTable reads the route table: the routing part, and the "direct" part
+// that says what Node changes on the way to a worker.
 func (s *directState) loadTable(data []byte) error {
 	table, err := routing.Load(data)
 	if err != nil {
 		return err
 	}
+	var raw struct {
+		Direct struct {
+			StripRequestHeaders        []string `json:"stripRequestHeaders"`
+			StripRequestHeaderPrefixes []string `json:"stripRequestHeaderPrefixes"`
+		} `json:"direct"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	s.strip = map[string]bool{}
+	for _, name := range raw.Direct.StripRequestHeaders {
+		s.strip[textproto.CanonicalMIMEHeaderKey(name)] = true
+	}
+	// Node always removes x-next-internal-* (proxyNativeRequest), so the
+	// prefix is stripped even from a table that doesn't list it.
+	s.stripPrefixes = []string{"X-Next-Internal-"}
+	for _, prefix := range raw.Direct.StripRequestHeaderPrefixes {
+		// "x-next-internal-" → "X-Next-Internal-", how Go keys such headers.
+		s.stripPrefixes = append(s.stripPrefixes, textproto.CanonicalMIMEHeaderKey(prefix))
+	}
 	s.table = table
 	return nil
 }
+
+// keepAlive is the Connection header Node's client sends the worker; Go's
+// Transport keeps connections open without it.
+var keepAlive = []string{"keep-alive"}
+
+type directAttemptKey struct{}
+
+// directAttempt follows one direct request through the proxy. It is also
+// the ResponseWriter the proxy writes to, wrapping the client's, so the
+// client gets the response as Node would write it (WriteHeader and Write
+// below).
+type directAttempt struct {
+	http.ResponseWriter
+	state *directState
+	up    *goUpstream
+	// The request as the client sent it, for handing it to Node.
+	request *http.Request
+	// Whether the Transport has written the request to a worker, on any
+	// attempt. The Transport sends it on its own goroutine.
+	sent atomic.Bool
+	// Whether any of the body has been written, so Flush has something
+	// to send.
+	wrote bool
+}
+
+func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
+	attempt := &directAttempt{ResponseWriter: w, state: s, up: up, request: r}
+	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
+	// Go's Transport can send a request again on a new connection, so a
+	// failed dial doesn't mean no worker got it. The trace records whether
+	// any attempt wrote it; a write that failed counts too, since the worker
+	// may still have read it.
+	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		WroteRequest: func(httptrace.WroteRequestInfo) { attempt.sent.Store(true) },
+	})
+	// Node never guesses a Content-Type (see newProxy).
+	w.Header()["Content-Type"] = nil
+	f.direct.ServeHTTP(attempt, r.WithContext(ctx))
+}
+
+func attemptOf(ctx context.Context) *directAttempt {
+	return ctx.Value(directAttemptKey{}).(*directAttempt)
+}
+
+// newDirectProxy forwards to route.go workers. The worker must get the
+// request Node would have sent it, and the client the response Node would
+// have written.
+func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Duration) *httputil.ReverseProxy {
+	fw := newForwarding(public)
+	return &httputil.ReverseProxy{
+		// Node builds a worker's request in three places; Rewrite does the
+		// same in one. The client's Host, target and forwarded headers, and
+		// X-Forwarded-For and -Port, as for requests to Node (forwarding).
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			attempt := attemptOf(pr.In.Context())
+			fw.rewrite(pr)
+			pr.Out.URL.Host = attempt.up.address
+			// Node removes its internal headers from every request
+			// (filterInternalHeaders in server-ipc/utils.ts, called from
+			// router-server.ts), and proxyNativeRequest
+			// (native-route-proxy.ts) also drops x-next-internal-*. Go's
+			// proxy already drops hop-by-hop headers, as proxyNativeRequest
+			// does.
+			for name := range pr.Out.Header {
+				if attempt.state.strip[name] || hasAnyPrefix(name, attempt.state.stripPrefixes) {
+					delete(pr.Out.Header, name)
+				}
+			}
+			// Node also fills these when the client sent none
+			// (base-server.ts, where it updates the x-forwarded-* headers).
+			setIfMissing(pr.Out.Header, "X-Forwarded-Host", pr.Out.Host)
+			setIfMissing(pr.Out.Header, "X-Forwarded-Proto", "http")
+			// proxyNativeRequest sends the worker keep-alive and its token.
+			pr.Out.Header["Connection"] = keepAlive
+			pr.Out.Header[attempt.up.tokenHeader] = attempt.up.token
+		},
+		// directAttempt.Write flushes after every write, as Node does.
+		FlushInterval: 0,
+		// One Transport for every worker: it keeps idle connections per
+		// address.
+		//
+		// Known difference from Node: when a reused connection closes before
+		// the worker answers, Go's Transport sends a bodyless GET, HEAD,
+		// OPTIONS or TRACE request again on a new connection. Node's client
+		// (native-route-proxy.ts) never resends; the request fails and Node
+		// answers its error page. So a GET handler that does its work and
+		// then crashes can run twice here. Requests Go would also resend for
+		// their Idempotency-Key header go to Node (routing.headersNodeHandles).
+		Transport: &http.Transport{
+			Proxy:               nil,
+			DialContext:         (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+			MaxIdleConns:        0,
+			MaxIdleConnsPerHost: 512,
+			IdleConnTimeout:     upstreamIdle,
+			// Node's client doesn't ask the worker for compression either.
+			DisableCompression:    true,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if r.Context().Err() != nil {
+				return
+			}
+			attempt := attemptOf(r.Context())
+			// The worker is gone and never saw the request (Node hasn't told
+			// us yet): hand it to Node, as if the worker weren't ready.
+			//
+			// Known difference: if a new worker for another route has already
+			// taken the exited worker's port, the dial succeeds and the new
+			// worker answers 403 to the old token, which reaches the client.
+			// That needs the operating system to hand out the same port
+			// before Node's "gone" arrives, a window of milliseconds.
+			if isDialError(err) && !attempt.sent.Load() {
+				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
+				return
+			}
+			proxyErrorLog.Printf("route.go worker %s: %v", attempt.up.address, err)
+			// TODO: answer with Node's error page, as without Switchyard. Node
+			// renders that page per request, so Switchyard would have to hand
+			// the request back to Node together with a report that the worker
+			// failed, which Node must be able to trust is from Switchyard.
+			// Until then the client gets a plain 500 here, where Node sends
+			// its error page.
+			writeInternalError(attempt.ResponseWriter)
+		},
+		ErrorLog: proxyErrorLog,
+	}
+}
+
+// writeInternalError is Switchyard's own answer when a worker fails after it
+// may have received the request: a plain 500, with the Cache-Control Node's
+// error page has, so no shared cache keeps it.
+func writeInternalError(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusInternalServerError)
+	io.WriteString(w, "Internal Server Error")
+}
+
+func isDialError(err error) bool {
+	var op *net.OpError
+	return errors.As(err, &op) && op.Op == "dial"
+}
+
+func hasAnyPrefix(s string, prefixes []string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// WriteHeader writes the status line and headers.
+func (a *directAttempt) WriteHeader(code int) {
+	// The proxy clears the header map after each 1xx response, which also
+	// removes the marker that stops Go from guessing a Content-Type.
+	if _, ok := a.Header()["Content-Type"]; !ok {
+		a.Header()["Content-Type"] = nil
+	}
+	a.ResponseWriter.WriteHeader(code)
+}
+
+// Write sends each chunk to the client as soon as the worker sends it, as
+// Node's pipe does. The headers wait in Go's buffer until then, so they go
+// out with the first chunk, and a one-chunk response in a single write.
+func (a *directAttempt) Write(p []byte) (int, error) {
+	n, err := a.ResponseWriter.Write(p)
+	a.wrote = true
+	a.Flush()
+	return n, err
+}
+
+// Flush sends what has been written to the client so far. Before the first
+// body byte it does nothing. Node sends a response's headers with its first
+// chunk, or at its end, with Content-Length: 0 when there was no body. The
+// proxy flushes the headers of a response of unknown length right away,
+// which would send an empty body chunked instead.
+func (a *directAttempt) Flush() {
+	if !a.wrote {
+		return
+	}
+	if f, ok := a.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (a *directAttempt) Unwrap() http.ResponseWriter { return a.ResponseWriter }

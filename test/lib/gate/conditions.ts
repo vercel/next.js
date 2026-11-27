@@ -45,7 +45,10 @@
 
 import type { ResolvedNextConfig } from './resolved-config'
 import { getGateTestContext } from './test-context'
-import { SWITCHYARD_BINARY_ENV } from 'next/dist/server/lib/switchyard-env'
+import {
+  SWITCHYARD_BINARY_ENV,
+  SWITCHYARD_ENV,
+} from 'next/dist/server/lib/switchyard-env'
 
 export type ConditionValue = unknown
 
@@ -187,6 +190,10 @@ export const conditions: Record<string, Condition> = {
   switchyardBinary: staticCondition(
     'a switchyard build is available through `__NEXT_EXPERIMENTAL_SWITCHYARD_BINARY` (the test-switchyard-prod CI job builds one)',
     () => Boolean(process.env[SWITCHYARD_BINARY_ENV])
+  ),
+  switchyard: staticCondition(
+    '`next start` runs behind the experimental Switchyard (`__NEXT_EXPERIMENTAL_SWITCHYARD=1`)',
+    () => process.env[SWITCHYARD_ENV] === '1'
   ),
 
   // Always false, so `// @gate FIXME` marks a test as a known failure without

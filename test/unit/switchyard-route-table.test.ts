@@ -30,8 +30,10 @@ describe('switchyard-route-table', () => {
       useFileSystemPublicRoutes: true,
       hasMiddleware: false,
       hasInstrumentation: false,
+      directOff: false,
       keepsInternalHeaders: false,
       headers: [],
+      onMatchHeaders: [],
       redirects: [{ internal: true }],
       beforeFilesRewrites: [],
       afterFilesRewrites: [],
@@ -42,6 +44,8 @@ describe('switchyard-route-table', () => {
         goPages[pathname]
           ? { kind: RouteKind.APP_ROUTE_GO, page: goPages[pathname] }
           : { kind: RouteKind.APP_PAGE, page: `${pathname}/page` },
+      internalHeaders: ['x-matched-path'],
+      maxHeaderBytes: 16384,
       ...overrides,
     })
 
@@ -55,6 +59,7 @@ describe('switchyard-route-table', () => {
     })
 
     it.each<[string, Partial<SwitchyardRouteTableInput>]>([
+      ['__NEXT_EXPERIMENTAL_SWITCHYARD_DIRECT=0', { directOff: true }],
       ['experimental.goRoutes is off', { goRoutes: false }],
       ['proxy', { hasMiddleware: true }],
       ['instrumentation', { hasInstrumentation: true }],
@@ -74,6 +79,18 @@ describe('switchyard-route-table', () => {
         contract: { version: 1 },
         reason,
       })
+    })
+
+    it('sends requests with a header a header rule reads to Node', () => {
+      const table = buildSwitchyardRouteTable(
+        input({
+          onMatchHeaders: [
+            { source: '/:path*', has: [{ type: 'header', key: 'RSC' }] },
+            { source: '/_next/data/(.*)' },
+          ],
+        })
+      )
+      expect(table).toMatchObject({ nodeRequestHeaders: ['rsc'] })
     })
   })
   // collectSwitchyardRouteTable reads the router's own data; these check the
@@ -111,6 +128,7 @@ describe('switchyard-route-table', () => {
       // The router's matcher when the app has no proxy.
       getMiddlewareMatchers: () => () => false,
       headers: [],
+      onMatchHeaders: [],
       redirects: [],
       rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
       publicFolderItems: new Set(),
