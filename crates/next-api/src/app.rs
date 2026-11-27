@@ -1639,8 +1639,8 @@ impl GoEndpoint {
         )
         .to_resolved()
         .await?;
-        // Static config and `Browser` declarations are read only from the entrypoint.
-        // output() separately analyzes the whole package to discover handlers and `Proxy`.
+        // Handlers, static config, and `Browser` declarations share one entrypoint analysis.
+        // Sibling files compile as helpers without contributing declarations here.
         let source_set = sources.await?;
         let entrypoint: RcStr = source_set
             .root
