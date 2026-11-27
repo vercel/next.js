@@ -261,7 +261,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** With the toggle on, the next refresh or link click freezes the page so you can inspect the shell.
+Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Waiting for navigation...** With the toggle on, the next refresh or link click freezes the page so you can inspect the shell.
 
 Refresh the product page. The Inspector shows **Loading shell** labeled **Page load** with the target URL. Both fallbacks appear: "Loading product..." and "Checking availability...". This route has no `generateStaticParams`, so the static shell doesn't include the product details, even on a repeat visit.
 
@@ -287,7 +287,7 @@ Refresh the product page. The Inspector shows **Loading shell** labeled **Page l
 
 Click **Resume** to see the product details and inventory.
 
-Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. The Inspector shows **Loading shell** labeled **Client nav** with both source and target URLs. With Partial Prefetching enabled, the link has already fetched the product name and price. Inventory still shows "Checking availability...".
+Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. The product name and price are visible while inventory still shows "Checking availability...". The Inspector labels a captured client navigation **Client nav** and lists its source and target routes.
 
 <div
   style={{
@@ -298,7 +298,7 @@ Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. Th
   }}
 >
   <Image
-    alt="Navigation Inspector panel showing 'Loading shell' labeled 'Client nav' with source and target URLs"
+    alt="Navigation Inspector panel showing 'Loading shell' labeled 'Client nav' with source and target routes"
     srcLight="/docs/light/inspector-client.png"
     srcDark="/docs/dark/inspector-client.png"
     width="481"
@@ -309,27 +309,17 @@ Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. Th
   </span>
 </div>
 
-Toggle **Pause on navigations** off when you're done inspecting loading states. Each navigation pauses as long as the toggle is on.
+If clicking the link closes the panel, reopen **Navigation Inspector**. Turn off **Pause on navigations** to load the inventory and stop pausing subsequent navigations. This also works if the panel shows **Waiting for navigation...** instead of **Resume**.
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
 
 ### Inspect loading states with browser automation
 
-With Cache Components enabled, a browser tool can pause navigation on your running `next dev` server. Open `/store/shoes` and set this cookie in the browser:
+With Cache Components enabled, you can use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) on the running `next dev` server. It pauses the same navigation as the Inspector and resumes it when the callback finishes.
 
-```js filename="Browser"
-document.cookie = 'next-instant-navigation-testing=1; path=/'
-```
+To inspect a client navigation, open the source page first, then click its link inside `instant()`. Next.js waits for that link’s prefetch to finish. In the store example, the Hats link uses `prefetch={true}` with Partial Prefetching enabled, so the product name and price are visible while inventory is still loading. A default `<Link>` to the same route shows both fallbacks. Calling `page.goto('/store/hats')` inside the callback instead checks the static shell on a page load.
 
-Click the link to `/store/hats` and wait for the destination URL. Next.js waits for the link's prefetch to finish. In this example, a default `<Link>` shows both fallbacks. With `prefetch={true}` and Partial Prefetching enabled, the product name and price appear alongside "Checking availability...".
-
-To inspect the static shell for the same URL, reload with the cookie set.
-
-Clear the cookie to resume, even if the inspection fails:
-
-```js filename="Browser"
-document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
-```
+This shows what the link can display with a completed prefetch. To measure whether prefetching actually finished before a user clicked, observe the link in a production test build without pausing navigation.
 
 ## Prevent regressions with e2e tests
 

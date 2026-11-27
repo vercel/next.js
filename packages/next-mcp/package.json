@@ -1,7 +1,7 @@
 {
   "name": "@next/mcp",
   "private": true,
-  "version": "16.5.0-canary.68",
+  "version": "16.5.0-canary.70",
   "description": "Turn ordinary Next.js route handlers into secure, stateless MCP servers",
   "keywords": [
     "next",

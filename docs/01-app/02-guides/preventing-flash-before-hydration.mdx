@@ -539,7 +539,7 @@ export function ThemeToggle() {
 
 ### Rendering client-specific content
 
-With React 19.3, call [`use(browser())` in a Client Component inside a parent `<Suspense>` boundary](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to defer its rendering to the browser. A boundary alone does not make the component browser-only: it shows its fallback when `use(browser())` suspends during server rendering. The linked guide also explains when a browser-only library needs `next/dynamic` to defer its module import.
+With React 19.3, call [`use(browser())` in a Client Component inside a parent `<Suspense>` boundary](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to defer its rendering to the browser. A boundary alone does not make the component browser-only: it shows its fallback when `use(browser())` suspends during server rendering. If a module reads `window` during import, or you also want to load its code separately, see [Choosing what to lazy load](/docs/app/guides/lazy-loading#choosing-what-to-lazy-load).
 
 Deferring prerendering with [`io()`](/docs/app/api-reference/functions/io) still allows request-time server rendering. It does not make a component browser-only or preserve generated values for hydration. Generating a fresh timestamp or random value on both the server and browser can still cause a mismatch. State and refs alone do not transfer those values between environments.
 

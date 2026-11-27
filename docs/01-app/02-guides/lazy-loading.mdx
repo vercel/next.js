@@ -23,6 +23,28 @@ By default, Server Components are automatically [code split](https://developer.m
 
 `next/dynamic` is a composite of [`React.lazy()`](https://react.dev/reference/react/lazy) and [Suspense](https://react.dev/reference/react/Suspense). It behaves the same way in the `app` and `pages` directories to allow for incremental migration.
 
+## Choosing what to lazy load
+
+Next.js already splits Client Component code by route, so a route loads the code for the components it renders. Lazy loading splits code within a route. Use it for UI that is not on screen when the page first loads, such as a modal that opens on a click, so its code is requested separately from the rest of the route.
+
+Each lazy loaded component adds a network request, and requests carry overhead even when the file is small. Lazy load code that is large or that few visitors need, and import small components normally. To learn how Next.js balances the number of requests against download size, see [How Turbopack chunks your JavaScript](https://nextjs.org/blog/turbopack-chunking).
+
+| The component is                                                                                   | Approach                                                                                                                   |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Visible when the page loads                                                                        | Import it normally, so it is prerendered with the page                                                                     |
+| Visible when the page loads, but can only render in the browser                                    | [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) inside `<Suspense>` |
+| Likely to be opened, such as a reply box or the next tab                                           | [Preload it before the interaction](#preloading-before-interaction)                                                        |
+| Opened by few visitors, such as a modal or a chat box                                              | [Load it on interaction](#loading-on-interaction)                                                                          |
+| Visible when the page loads, and built on a module that reads `window` or `document` when imported | [`next/dynamic` with `ssr: false`](#skipping-ssr)                                                                          |
+
+Whether to preload depends on how often visitors open the component. Use your analytics to decide.
+
+> **Good to know**:
+>
+> - A component that renders only after an interaction, or from state that exists only in the browser, is not part of prerendering. It stays out of the server render without `use(browser())` or `ssr: false`.
+> - To guarantee that a component renders only in the browser, however it is gated, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+> - With `loading` or `ssr: false`, `next/dynamic` renders its own `<Suspense>` boundary around the component and uses `loading` as the fallback, so you don't add one yourself. React reveals content behind a fallback with its next batch of suspended content, so set these options when you want a placeholder.
+
 ## Examples
 
 ### Importing Client Components
@@ -65,7 +87,7 @@ When using `React.lazy()` and Suspense, Client Components will be [prerendered](
 
 > **Note:** `ssr: false` option will only work for Client Components, move it into Client Components ensure the client code-splitting working properly.
 
-If you want to disable prerendering for a Client Component, you can use the `ssr` option set to `false`:
+To lazy load a Client Component and skip prerendering it, set the `ssr` option to `false`. Next.js then leaves the component's module out of the server render, which suits libraries that read `window` or `document` when imported:
 
 ```jsx
 const ComponentC = dynamic(() => import('../components/C'), { ssr: false })
@@ -153,6 +175,105 @@ export default function Page() {
   )
 }
 ```
+
+### Loading on interaction
+
+A component that renders conditionally loads its code the first time it renders, for example when a user opens a chat box. Load it with `next/dynamic` and update state in a [transition](https://react.dev/reference/react/useTransition). React keeps the current UI on screen until the component is ready, and `isPending` lets you show that the click registered:
+
+```jsx filename="app/page.js"
+'use client'
+
+import { useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
+
+const ChatBox = dynamic(() => import('../components/chat-box'))
+
+export default function Page() {
+  const [open, setOpen] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <div>
+      <button
+        disabled={isPending}
+        onClick={() => startTransition(() => setOpen(true))}
+      >
+        {isPending ? 'Opening…' : 'Open chat'}
+      </button>
+      {open && <ChatBox />}
+    </div>
+  )
+}
+```
+
+Without a transition, the closest `<Suspense>` boundary above the component shows its fallback while the code loads.
+
+> **Good to know**: Use a transition even when no boundary is above the component today. Without one, a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file or a `<Suspense>` boundary added higher in the tree later replaces the UI it wraps with its fallback when the user opens the component.
+
+The example sets neither `loading` nor `ssr: false`. With either option, `next/dynamic` renders its own `<Suspense>` boundary around the component, with `loading` as the fallback. React shows that fallback right away and reveals the component with its next batch of suspended content. React spaces these reveals apart so content doesn't appear piece by piece, which means the component can show up later than its code loads. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats) for the timing.
+
+A component that first renders after an interaction is not part of the server render, so it does not need `ssr: false`, even when it depends on a module that reads `window` or `document` when imported. If the gate can be open during prerendering, the component renders on the server like any other. To keep it out of the server render regardless of the gate, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+
+### Preloading before interaction
+
+When a component is likely to be opened, load its code ahead of the interaction so it appears without a wait.
+
+Render the component inside a hidden [`<Activity>`](https://react.dev/reference/react/Activity). React prepares hidden content in the background, which loads the code, and shows the component when `mode` changes to `visible`:
+
+```jsx filename="app/page.js"
+'use client'
+
+import { Activity, useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const ReplyBox = dynamic(() => import('../components/reply-box'))
+
+export default function Page() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button onClick={() => setOpen(true)}>Reply</button>
+      <Activity mode={open ? 'visible' : 'hidden'}>
+        <ReplyBox />
+      </Activity>
+    </div>
+  )
+}
+```
+
+The code downloads on every visit, shortly after the page hydrates, whether or not the user opens the component.
+
+To download the code only when a user shows intent, start the download when they hover or focus the trigger. Share one loader function between the preload and `next/dynamic`:
+
+```jsx filename="app/page.js"
+'use client'
+
+import { startTransition, useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const loadReplyBox = () => import('../components/reply-box')
+const ReplyBox = dynamic(loadReplyBox)
+
+export default function Page() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button
+        onMouseEnter={loadReplyBox}
+        onFocus={loadReplyBox}
+        onClick={() => startTransition(() => setOpen(true))}
+      >
+        Reply
+      </button>
+      {open && <ReplyBox />}
+    </div>
+  )
+}
+```
+
+The same loader can run at other moments, for example shortly after the page loads. Call it from a `setTimeout`, or from [`requestIdleCallback`](https://developer.mozilla.org/docs/Web/API/Window/requestIdleCallback) in browsers that support it.
 
 ### Importing Named Exports
 

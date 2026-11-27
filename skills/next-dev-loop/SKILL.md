@@ -117,8 +117,9 @@ Four failure modes. Check each:
 - **Runs without errors** — `/_next/mcp` (server and bubbled-up
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
-  what the user actually sees. To inspect what a link prefetched in dev,
-  [pause the navigation in the browser](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
+  what the user actually sees. To inspect a link's prefetched UI, use the
+  [Navigation Inspector](https://nextjs.org/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools)
+  in the same session. For a Playwright check, [click the link inside `instant()`](https://nextjs.org/docs/app/guides/testing/playwright#client-navigations).
 - **React-level behavior** — `agent-browser` with react-devtools
   enabled exposes the component tree, props, state, and render
   counts. Anchor framework-level checks here (extra renders,

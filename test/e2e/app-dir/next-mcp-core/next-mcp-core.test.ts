@@ -5,6 +5,9 @@ describe('@next/mcp core', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     dependencies: { '@next/mcp': 'workspace:*' },
+    // Deployments install `@next/mcp` from npm, but the package is private
+    // and not published yet. Re-enable once it is published.
+    skipDeployment: true,
     // Next.js synthesizes request.url using this listening hostname. Requests
     // still arrive with a loopback Host, which localDev() must recognize.
     startArgs: ['--hostname', '0.0.0.0'],

@@ -284,6 +284,28 @@ function createCacheRoot() {
 function createCacheNode() {
   return { s: 0, v: void 0, o: null, p: null, u: null };
 }
+function normalizeLedgerEntry(type, entry) {
+  switch (type.kind) {
+    case 0:
+      return !0;
+    case 1:
+      return entry >>> 0;
+    case 2:
+    case 3:
+      if ("number" === typeof entry && isNaN(entry))
+        throw Error(formatProdErrorMessage(673));
+      return 0 === entry ? 0 : entry;
+    default:
+      if (
+        ("object" === typeof entry || "function" === typeof entry) &&
+        null !== entry
+      )
+        throw Error(formatProdErrorMessage(668));
+      if ("symbol" === typeof entry && void 0 === Symbol.keyFor(entry))
+        throw Error(formatProdErrorMessage(672));
+      return 0 === entry ? 0 : entry;
+  }
+}
 var reportGlobalError =
     "function" === typeof reportError
       ? reportError
@@ -373,10 +395,11 @@ exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.addToLedger = function (ledger, entry) {
+  entry = normalizeLedgerEntry(ledger, entry);
   var dispatcher = ReactSharedInternals.A;
   null !== dispatcher &&
     void 0 !== dispatcher.addToLedger &&
-    dispatcher.addToLedger(ledger, entry >>> 0);
+    dispatcher.addToLedger(ledger, entry);
 };
 exports.cache = function (fn) {
   return function () {
@@ -479,6 +502,9 @@ exports.cloneElement = function (element, config, children) {
   }
   return ReactElement(element.type, key, props);
 };
+exports.createBitLedger = function () {
+  return { kind: 0 };
+};
 exports.createElement = function (type, config, children) {
   var propName,
     props = {},
@@ -511,8 +537,17 @@ exports.createElement = function (type, config, children) {
 exports.createMaskLedger = function () {
   return { kind: 1 };
 };
+exports.createMaxLedger = function () {
+  return { kind: 3 };
+};
+exports.createMinLedger = function () {
+  return { kind: 2 };
+};
 exports.createRef = function () {
   return { current: null };
+};
+exports.createSetLedger = function () {
+  return { kind: 4 };
 };
 exports.experimental_taintObjectReference = function (message, object) {
   message =
@@ -620,4 +655,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.3.0-experimental-89d7b2b4-20261123";
+exports.version = "19.3.0-experimental-edae846a-20261125";
