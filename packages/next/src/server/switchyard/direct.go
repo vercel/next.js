@@ -37,13 +37,14 @@ type switchyard struct {
 }
 
 // directState is what Switchyard knows from Node: the route table, what Node
-// changes on the way to a worker, and the workers that are ready.
+// changes on the way to and from a worker, and the workers that are ready.
 type directState struct {
 	table *routing.Table
 	// Request headers Node removes, by canonical name, and prefixes of the
 	// canonical names it removes ("X-Next-Internal-").
 	strip         map[string]bool
 	stripPrefixes []string
+	compress      bool
 	// route id → worker serving it
 	workers map[string]*goUpstream
 }
@@ -136,14 +137,15 @@ func (f *switchyard) apply(msg controlMessage) {
 }
 
 // loadTable reads the route table: the routing part, and the "direct" part
-// that says what Node changes on the way to a worker.
+// that says what Node changes on the way to and from a worker.
 func (s *directState) loadTable(data []byte) error {
 	table, err := routing.Load(data)
 	if err != nil {
 		return err
 	}
 	var raw struct {
-		Direct struct {
+		Compress bool `json:"compress"`
+		Direct   struct {
 			StripRequestHeaders        []string `json:"stripRequestHeaders"`
 			StripRequestHeaderPrefixes []string `json:"stripRequestHeaderPrefixes"`
 		} `json:"direct"`
@@ -162,6 +164,7 @@ func (s *directState) loadTable(data []byte) error {
 		// "x-next-internal-" → "X-Next-Internal-", how Go keys such headers.
 		s.stripPrefixes = append(s.stripPrefixes, textproto.CanonicalMIMEHeaderKey(prefix))
 	}
+	s.compress = raw.Compress
 	s.table = table
 	return nil
 }
@@ -191,6 +194,18 @@ type directAttempt struct {
 }
 
 func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
+	if !s.compress {
+		f.serveAttempt(w, r, s, up)
+		return
+	}
+	// The compressor sits between the attempt and the client, so the
+	// attempt's choices (which headers and when) apply before it.
+	compressDirect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f.serveAttempt(w, r, s, up)
+	}))(w, r)
+}
+
+func (f *switchyard) serveAttempt(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
 	attempt := &directAttempt{ResponseWriter: w, state: s, up: up, request: r}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
 	// Go's Transport can send a request again on a new connection, so a
@@ -263,6 +278,10 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+		ModifyResponse: func(res *http.Response) error {
+			skipCompression(res)
+			return nil
+		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			if r.Context().Err() != nil {
 				return
@@ -277,6 +296,9 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// That needs the operating system to hand out the same port
 			// before Node's "gone" arrives, a window of milliseconds.
 			if isDialError(err) && !attempt.sent.Load() {
+				if attempt.state.compress {
+					keepNodesCompression(attempt.Header())
+				}
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
 			}
@@ -330,6 +352,7 @@ func (a *directAttempt) WriteHeader(code int) {
 // Write sends each chunk to the client as soon as the worker sends it, as
 // Node's pipe does. The headers wait in Go's buffer until then, so they go
 // out with the first chunk, and a one-chunk response in a single write.
+// With compression on, the compressor decides when its bytes go out.
 func (a *directAttempt) Write(p []byte) (int, error) {
 	n, err := a.ResponseWriter.Write(p)
 	a.wrote = true
@@ -338,10 +361,10 @@ func (a *directAttempt) Write(p []byte) (int, error) {
 }
 
 // Flush sends what has been written to the client so far. Before the first
-// body byte it does nothing. Node sends a response's headers with its first
-// chunk, or at its end, with Content-Length: 0 when there was no body. The
-// proxy flushes the headers of a response of unknown length right away,
-// which would send an empty body chunked instead.
+// body byte it does nothing: Node sends a response's headers with its first
+// chunk, or at its end, with Content-Length: 0 when there was no body, while
+// the proxy flushes the headers of a response of unknown length right away,
+// which would send an empty body chunked.
 func (a *directAttempt) Flush() {
 	if !a.wrote {
 		return

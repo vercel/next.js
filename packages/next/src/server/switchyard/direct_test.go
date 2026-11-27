@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/klauspost/compress/gzhttp"
 )
 
 // directFixture is Switchyard with a stub Node and a stub route.go worker.
@@ -40,6 +42,13 @@ func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 		r = r.Clone(r.Context())
 		r.Body = io.NopCloser(strings.NewReader(string(body)))
 		fx.node <- r
+		if r.URL.Query().Has("big") {
+			// A compressible answer Node chose not to compress.
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-transform")
+			io.WriteString(w, strings.Repeat("n", 2048))
+			return
+		}
 		io.WriteString(w, "node")
 	}))
 	t.Cleanup(node.Close)
@@ -154,6 +163,24 @@ func TestAWorkerThatCannotBeReachedHandsTheRequestToNode(t *testing.T) {
 		if value := got.Header.Get(name); value != "" {
 			t.Errorf("fallback added %s: %q", name, value)
 		}
+	}
+}
+
+// Node already chose whether to compress its answer, and adds its own Vary:
+// the compressor around the direct path leaves both alone.
+func TestNodesAnswerToAHandedBackRequestIsNotRecompressed(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {})
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	dead := ln.Addr().String()
+	ln.Close()
+	fx.announce(dead, "/api/echo/route")
+	res := fx.raw(t, "GET /api/echo?big=1 HTTP/1.1\r\nAccept-Encoding: gzip")
+	<-fx.node
+	if strings.Contains(res, "Content-Encoding") || strings.Contains(res, "Vary") || strings.Contains(res, gzhttp.HeaderNoCompression) {
+		t.Fatalf("Node's answer was changed: %q", res)
+	}
+	if !strings.HasSuffix(res, strings.Repeat("n", 2048)) {
+		t.Fatalf("body %q", res)
 	}
 }
 
@@ -306,11 +333,16 @@ func TestAnEmptyBodyOfUnknownLengthGetsContentLengthZero(t *testing.T) {
 		// Sends the headers chunked, then no body.
 		w.(http.Flusher).Flush()
 	})
-	res := fx.raw(t, "GET /api/echo HTTP/1.1")
 	// Node sends the headers with the first chunk or at the end, so an
-	// empty body goes out with Content-Length: 0.
-	if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
-		t.Errorf("response %q", res)
+	// empty body goes out with Content-Length: 0. With compression on,
+	// Node's middleware sends it chunked instead; through gzhttp it gets
+	// Content-Length: 0 too.
+	for _, compress := range []string{`"compress":true`, `"compress":false`} {
+		fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(strings.Replace(testTable, `"compress":true`, compress, 1))})
+		res := fx.raw(t, "GET /api/echo HTTP/1.1\r\nAccept-Encoding: gzip")
+		if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
+			t.Errorf("%s: response %q", compress, res)
+		}
 	}
 }
 
@@ -397,5 +429,28 @@ func TestApplyGoneSkipsWorkersWithoutAToken(t *testing.T) {
 	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
 	if f.state.Load().workers["/api/echo/route"] == nil {
 		t.Error("a gone removed a worker with no token")
+	}
+}
+
+func TestDirectCompressionVary(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Vary", "Origin")
+		if r.URL.Query().Get("case") == "no-transform" {
+			w.Header().Add("Cache-Control", "public")
+			w.Header().Add("Cache-Control", "no-transform")
+		}
+		// Above the 1 KiB threshold, so only no-transform keeps it as it is.
+		io.WriteString(w, `{"padding":"`+strings.Repeat("x", 2048)+`"}`)
+	})
+	// gzhttp adds its Vary as a line of its own, where Node's middleware
+	// writes one line, "Origin, Accept-Encoding": the same to a cache.
+	res := fx.raw(t, "GET /api/echo HTTP/1.1\r\nAccept-Encoding: gzip")
+	if !strings.Contains(res, "Content-Encoding: gzip\r\n") || !strings.Contains(res, "Vary: Accept-Encoding\r\n") || !strings.Contains(res, "Vary: Origin\r\n") {
+		t.Fatalf("Vary lines: %q", res)
+	}
+	res = fx.raw(t, "GET /api/echo?case=no-transform HTTP/1.1\r\nAccept-Encoding: gzip")
+	if strings.Contains(res, "Content-Encoding") || strings.Contains(res, gzhttp.HeaderNoCompression) {
+		t.Fatalf("ignored no-transform in repeated Cache-Control: %q", res)
 	}
 }
