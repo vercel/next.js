@@ -16,6 +16,7 @@ import {
 } from '../lib/helpers/get-pkg-manager'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
+import { stripNodeEnv } from '../lib/upgrade/agent-env'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
@@ -326,7 +327,7 @@ export async function spawnNextUpgrade(
               cwd: baseDir,
               stdio: 'inherit',
               env: {
-                ...process.env,
+                ...stripNodeEnv(),
                 // The delegated CLI emits the CLI result for this invocation's run ID.
                 __NEXT_AGENT_UPGRADE_RUN_ID: runId,
                 __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
