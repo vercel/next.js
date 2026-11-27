@@ -158,6 +158,12 @@ export function createValidFileMatcher(
     return isNativeRoute(filePath) || leafOnlyRouteFileRegex.test(filePath)
   }
 
+  // Determine if the file is a 'page.<extension>' or 'route.<extension>' file,
+  // excluding metadata files
+  function isAppPageOrRouteFile(filePath: string) {
+    return isNativeRoute(filePath) || leafOnlyPageFileRegex.test(filePath)
+  }
+
   function isAppLayoutPage(filePath: string) {
     return leafOnlyLayoutFileRegex.test(filePath)
   }
@@ -191,6 +197,7 @@ export function createValidFileMatcher(
     isPageFile,
     isAppRouterPage,
     isAppRouterRoute,
+    isAppPageOrRouteFile,
     isAppLayoutPage,
     isAppDefaultPage,
     isMetadataFile,
