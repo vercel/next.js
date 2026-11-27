@@ -98,7 +98,8 @@ You don't have to migrate every route at once. `instant = false` lets you get th
 
    The app keeps building and serving, now with validation deferred for the opted-out routes.
 
-3. **Fix synchronous IO. It can't be deferred.** Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear, so a route that uses them won't build until you address it, opt-out or not. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
+3. **Fix synchronous IO errors.** Setting `instant = false` does not clear prerender errors for [`Date.now()` or `new Date()`](/docs/messages/blocking-prerender-current-time), [`Math.random()`](/docs/messages/blocking-prerender-random), or [crypto APIs](/docs/messages/blocking-prerender-crypto). For a fresh value in a Server Component, wrap the component in `<Suspense>` and [await `io()`](/docs/app/api-reference/functions/io) before the read. Cache the value instead if it can be shared. If a Client Component reads the value during render, [wrap it in Suspense](/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense).
+
 4. **Convert one route at a time.** Remove `instant = false` from a route, then resolve its insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Repeat until no routes opt out.
 
 ## Following validation
@@ -920,7 +921,7 @@ export async function generateMetadata() {
 
 async function DynamicMarker() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <Connection />
     </Suspense>
   )
@@ -940,6 +941,8 @@ export default function Page() {
   )
 }
 ```
+
+The marker renders no UI, so it uses an [empty fallback](/docs/app/guides/streaming#choosing-a-fallback).
 
 See [`generateMetadata` with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport` with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for the full set of fix options and trade-offs.
 

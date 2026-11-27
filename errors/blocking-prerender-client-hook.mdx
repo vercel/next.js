@@ -118,13 +118,13 @@ export function Nav() {
     <nav>
       <Link href="/dashboard">
         Dashboard
-        <Suspense>
+        <Suspense fallback={null}>
           <ActiveDot href="/dashboard" />
         </Suspense>
       </Link>
       <Link href="/settings">
         Settings
-        <Suspense>
+        <Suspense fallback={null}>
           <ActiveDot href="/settings" />
         </Suspense>
       </Link>
@@ -145,7 +145,7 @@ export function ActiveDot({ href }) {
 }
 ```
 
-The nav links prerender into the static shell with their final `href` and label. Only the dot suspends, and its empty fallback doesn't shift the layout.
+The nav links prerender into the static shell with their final `href` and label. Only the optional decorative dot uses an [empty fallback](/docs/app/guides/streaming#choosing-a-fallback), and the links remain usable without it. Reserve space for the dot to avoid [layout shifts](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 To style the parent `<Link>` itself instead (for example, bolding the active label), have the leaf set `data-active` and read it from the parent with `has-data-active:font-bold`.
 
@@ -164,7 +164,7 @@ export default function Page() {
   return (
     <>
       <Header />
-      <Suspense>
+      <Suspense fallback={null}>
         <TrackPageView />
       </Suspense>
       <DashboardContent />
@@ -188,7 +188,7 @@ export function TrackPageView() {
 }
 ```
 
-The sibling renders nothing visible, so an empty fallback is correct. There is no UI to approximate, and the rest of the page stays in the static shell.
+The analytics component has no rendered output, so its [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) leaves the rest of the page in the static shell.
 
 ### Trade-off
 
