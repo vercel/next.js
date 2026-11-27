@@ -1,0 +1,14 @@
+error - [code gen] /turbopack/crates/turbopack-tests/tests/snapshot/imports/external_unsupported_patterns/input/index.js:11:43  node:fs is an external module, which is not supported in the browser environment
+  
+       7 |   request = 'node:async_hooks'
+       8 | } else {
+       9 |   request = 'node:fs'
+      10 | }
+         +                                           v--------------v
+      11 + globalThis.requireExternalPattern = () => require(request)
+         +                                           ^--------------^
+      12 | globalThis.importExternalPattern = () => import(request)
+      13 | globalThis.resolveExternalPattern = () => require.resolve(request)
+      14 | 
+  
+  External modules are loaded by the runtime instead of being bundled, which the browser environment can't do — this includes Node.js built-in modules. Remove the import from code that is bundled for the browser environment, or use an alternative that works there.

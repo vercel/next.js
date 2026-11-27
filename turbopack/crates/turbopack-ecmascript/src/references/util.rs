@@ -15,7 +15,10 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     self,
     chunk::ChunkingType,
-    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
+        code_gen::CodeGenerationIssue,
+    },
     resolve::{ModuleResolveResult, parse::Request, pattern::Pattern},
 };
 
@@ -51,6 +54,56 @@ pub fn throw_module_not_found_error_expr(request: &str, message: &str) -> Expr {
         "(() => { const e = new Error($message); e.code = 'MODULE_NOT_FOUND'; throw e; })()"
             as Expr,
         message: Expr = message.into()
+    )
+}
+
+/// Creates a Promise that rejects with a "Cannot find module" error and the given reason,
+/// without throwing synchronously when evaluating a dynamic import.
+pub fn throw_module_not_found_error_expr_async(request: &str, message: &str) -> Expr {
+    quote!(
+        "Promise.resolve().then(() => $error)" as Expr,
+        error: Expr = throw_module_not_found_error_expr(request, message)
+    )
+}
+
+/// Describes an external module that the target environment cannot load. The caller emits the
+/// issue only when generating code that loads the external, not when merely resolving its id.
+pub fn unsupported_external_issue(
+    request: &RcStr,
+    environment: &RcStr,
+    path: FileSystemPath,
+    source: Option<IssueSource>,
+) -> (ResolvedVc<CodeGenerationIssue>, RcStr) {
+    let issue = CodeGenerationIssue {
+        severity: IssueSeverity::Error,
+        title: StyledString::Line(vec![
+            StyledString::Code(request.clone()),
+            StyledString::Text(
+                format!(
+                    " is an external module, which is not supported in the {environment} \
+                     environment"
+                )
+                .into(),
+            ),
+        ])
+        .resolved_cell(),
+        message: StyledString::Text(
+            format!(
+                "External modules are loaded by the runtime instead of being bundled, which the \
+                 {environment} environment can't do — this includes Node.js built-in modules. \
+                 Remove the import from code that is bundled for the {environment} environment, \
+                 or use an alternative that works there."
+            )
+            .into(),
+        )
+        .resolved_cell(),
+        path,
+        source,
+    }
+    .resolved_cell();
+    (
+        issue,
+        format!("external modules are not supported in the {environment} environment").into(),
     )
 }
 

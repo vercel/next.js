@@ -29,8 +29,9 @@ use turbopack_core::{
 
 use crate::{
     references::util::{
-        request_to_string, throw_module_not_found_error_expr, throw_module_not_found_expr,
-        throw_module_not_found_expr_async,
+        request_to_string, throw_module_not_found_error_expr,
+        throw_module_not_found_error_expr_async, throw_module_not_found_expr,
+        throw_module_not_found_expr_async, unsupported_external_issue,
     },
     runtime_functions::{
         TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
@@ -65,6 +66,13 @@ pub(crate) enum SinglePatternMapping {
     ModuleLoader(ModuleId),
     /// External reference with request and type
     External(RcStr, ExternalType),
+    /// An external that the environment cannot load. Report the issue when generating a loader,
+    /// but keep id-only operations (e.g. require.resolve) working without emitting an issue.
+    UnsupportedExternal {
+        request: RcStr,
+        message: RcStr,
+        issue: ResolvedVc<CodeGenerationIssue>,
+    },
     /// The target was unused and dropped from the module graph, so nothing is loaded for it.
     Dropped,
 }
@@ -111,7 +119,9 @@ impl SinglePatternMapping {
                 quote!("undefined" as Expr)
             }
             Self::Module(module_id) | Self::ModuleLoader(module_id) => module_id_to_lit(module_id),
-            Self::External(s, _) => Expr::Lit(Lit::Str(s.as_str().into())),
+            Self::External(s, _) | Self::UnsupportedExternal { request: s, .. } => {
+                Expr::Lit(Lit::Str(s.as_str().into()))
+            }
         }
     }
 
@@ -119,6 +129,14 @@ impl SinglePatternMapping {
         match self {
             Self::Invalid => self.create_id(key_expr),
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
+            Self::UnsupportedExternal {
+                request,
+                message,
+                issue,
+            } => {
+                issue.emit();
+                throw_module_not_found_error_expr(request, message)
+            }
             Self::Ignored => quote!("{}" as Expr),
             Self::Dropped => quote!("0" as Expr),
             Self::Module(_) | Self::ModuleLoader(_) => quote!(
@@ -156,6 +174,14 @@ impl SinglePatternMapping {
                 })
             }
             Self::Unresolvable(request) => throw_module_not_found_expr_async(request),
+            Self::UnsupportedExternal {
+                request,
+                message,
+                issue,
+            } => {
+                issue.emit();
+                throw_module_not_found_error_expr_async(request, message)
+            }
             // Externals are replaced with modules that import them, which decide how to do
             // that, in every context that produces code that runs.
             Self::External(_, ExternalType::EcmaScriptModule) => Expr::Call(CallExpr {
@@ -213,6 +239,7 @@ impl SinglePatternMapping {
 
 #[derive(Clone, Copy)]
 enum ImportMode {
+    Resolve,
     Require,
     Import,
 }
@@ -230,7 +257,7 @@ fn create_context(
     // Every module of a context is resolved the same way, so they are either all
     // loaded by their module ids or all by the ids of their async loaders.
     let mode = match import_mode {
-        ImportMode::Require => CONTEXT_MODE_REQUIRE,
+        ImportMode::Resolve | ImportMode::Require => CONTEXT_MODE_REQUIRE,
         ImportMode::Import => {
             if map
                 .values()
@@ -256,6 +283,7 @@ fn create_context(
             _ => quote!(
                 "() => $module" as Expr,
                 module: Expr = match import_mode {
+                    ImportMode::Resolve => entry.create_id(Cow::Borrowed(key_expr)),
                     ImportMode::Require => entry.create_require(Cow::Borrowed(key_expr)),
                     ImportMode::Import => entry.create_import(Cow::Borrowed(key_expr)),
                 }
@@ -304,7 +332,7 @@ impl PatternMapping {
         match self {
             PatternMapping::Single(pm) => pm.create_id(Cow::Owned(key_expr)),
             PatternMapping::Map(map) => {
-                let module_context = create_context(map, &key_expr, ImportMode::Require);
+                let module_context = create_context(map, &key_expr, ImportMode::Resolve);
 
                 quote!("$module_context.resolve($key)" as Expr,
                     module_context: Expr = module_context,
@@ -349,11 +377,38 @@ async fn to_single_pattern_mapping(
     resolve_item: &ModuleResolveResultItem,
     primary: &[(turbopack_core::resolve::RequestKey, ModuleResolveResultItem)],
     resolve_type: ResolveType,
+    reference: Option<ResolvedVc<Box<dyn ModuleReference>>>,
     dropped_targets: Option<&FxHashSet<ResolvedVc<Box<dyn Module>>>>,
 ) -> Result<SinglePatternMapping> {
     let module = match resolve_item {
         ModuleResolveResultItem::Module(module) => *module,
         ModuleResolveResultItem::External { name: s, ty, .. } => {
+            let environment = chunking_context.environment();
+            let supported = match ty {
+                ExternalType::EcmaScriptModule => *environment.supports_esm_externals().await?,
+                ExternalType::CommonJs | ExternalType::Url => {
+                    *environment.supports_commonjs_externals().await?
+                }
+                // These types don't use the ESM/CommonJS external loaders.
+                ExternalType::Global | ExternalType::Script => true,
+            };
+            if !supported {
+                let source = match reference {
+                    Some(reference) => reference.into_trait_ref().await?.source(),
+                    None => None,
+                };
+                let path = match source {
+                    Some(source) => source.file_path().await?,
+                    None => origin.into_trait_ref().await?.origin_path(),
+                };
+                let (issue, message) =
+                    unsupported_external_issue(s, &*environment.name().await?, path, source);
+                return Ok(SinglePatternMapping::UnsupportedExternal {
+                    request: s.clone(),
+                    message,
+                    issue,
+                });
+            }
             return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
@@ -380,6 +435,7 @@ async fn to_single_pattern_mapping(
                 &primary[*first].1,
                 primary,
                 resolve_type,
+                reference,
                 dropped_targets,
             ))
             .await;
@@ -486,6 +542,7 @@ impl PatternMapping {
                     resolve_item,
                     &result.primary,
                     resolve_type,
+                    reference,
                     dropped_targets,
                 )
                 .await?;
@@ -510,6 +567,7 @@ impl PatternMapping {
                             v,
                             primary,
                             resolve_type,
+                            reference,
                             dropped_targets,
                         )
                         .await?;

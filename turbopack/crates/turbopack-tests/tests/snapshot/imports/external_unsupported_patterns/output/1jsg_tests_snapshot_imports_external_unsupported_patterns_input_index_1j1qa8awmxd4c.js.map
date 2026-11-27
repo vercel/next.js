@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/external_unsupported_patterns/input/index.js"],"sourcesContent":["globalThis.requireExternal = () => require('node:async_hooks')\nglobalThis.importExternal = () => import('node:async_hooks')\nglobalThis.resolveExternal = () => require.resolve('node:async_hooks')\n\nlet request\nif (Math.random() > 0.5) {\n  request = 'node:async_hooks'\n} else {\n  request = 'node:fs'\n}\nglobalThis.requireExternalPattern = () => require(request)\nglobalThis.importExternalPattern = () => import(request)\nglobalThis.resolveExternalPattern = () => require.resolve(request)\n"],"names":["globalThis","requireExternal","importExternal","resolveExternal","request","Math","random","requireExternalPattern","importExternalPattern","resolveExternalPattern"],"mappings":"AAAAA,WAAWC,eAAe,GAAG;;;;;AAC7BD,WAAWE,cAAc,GAAG;;;;;AAC5BF,WAAWG,eAAe,GAAG;AAE7B,IAAIC;AACJ,IAAIC,KAAKC,MAAM,KAAK,KAAK;IACvBF,UAAU;AACZ,OAAO;IACLA,UAAU;AACZ;AACAJ,WAAWO,sBAAsB,GAAG;;;;;;;;;;;;;OAAcH;AAClDJ,WAAWQ,qBAAqB,GAAG;;;;;;;;;;;;;iBAAaJ;AAChDJ,WAAWS,sBAAsB,GAAG;;;;;eAAsBL"}}]
+}
