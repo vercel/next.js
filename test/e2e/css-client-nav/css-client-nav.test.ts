@@ -86,7 +86,10 @@ describe('CSS Module client-side navigation', () => {
         expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
         expect(await browser.eval('window.beforeNav')).toBe('hello')
 
-        await browser.elementByCss('#link-blue').click()
+        // The router arms its timeout from `requestIdleCallback`. After
+        // Playwright's mouse click, Chromium can starve that callback until the
+        // stalled CSS resolves. A DOM click uses the same Link handler.
+        await browser.eval(`document.querySelector('#link-blue').click()`)
 
         await browser.waitForElementByCss('#verify-blue')
 

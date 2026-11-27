@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/cycle-shared-chunk/input/entry-b.js"],"sourcesContent":["import { ringC } from './ring-c'\n\nexport function b() {\n  return ringC(0)\n}\n"],"names":["b"],"mappings":";;;;AAAA;;AAEO,SAASA;IACd,OAAO,IAAA,4NAAK,EAAC;AACf"}}]
+}

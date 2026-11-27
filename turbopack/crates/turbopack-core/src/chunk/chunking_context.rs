@@ -103,6 +103,14 @@ pub enum ChunkGroupType {
     Evaluated,
 }
 
+/// For each async module of a chunk group, the availability its async loader was created with,
+/// i.e. the availability passed to [`ChunkingContext::async_loader_chunk_item`]. A chunk group
+/// doesn't create an async loader for a module when an available chunk group already did.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct AsyncLoaderAvailabilityMap(
+    FxHashMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailabilityInfo>,
+);
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ChunkGroupResult {
@@ -111,6 +119,12 @@ pub struct ChunkGroupResult {
     pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
     pub chunk_group_bootstrap_params: Option<RcJsonRawValue>,
+    /// The availability of the async loaders created by the chunk groups this result consists of,
+    /// one keyed map per chunk group, in the order the chunk groups are loaded (see
+    /// [`ChunkGroupResult::concatenate`]). It has one entry per concatenated chunk group. The maps
+    /// aren't merged: concatenation only copies the references, while merging would read and copy
+    /// every entry of every map for each concatenated result.
+    pub async_loader_availability: Vec<ResolvedVc<AsyncLoaderAvailabilityMap>>,
 }
 
 impl ChunkGroupResult {
@@ -121,6 +135,7 @@ impl ChunkGroupResult {
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
             chunk_group_bootstrap_params: None,
+            async_loader_availability: vec![],
         }
         .cell()
     }
@@ -132,10 +147,39 @@ impl ChunkGroupResult {
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
             chunk_group_bootstrap_params: None,
+            async_loader_availability: vec![],
         }
         .resolved_cell()
     }
+
+    /// The availability the async loader of `module` was created with by this result's chunk
+    /// groups, so that a loader for `module` with exactly the chunks they load at runtime can be
+    /// created elsewhere (e.g. for a manifest). `None` when none of them created one: the loader
+    /// was then created by another chunk group (e.g. an available one, or the async chunk group of
+    /// a module they load), or the caller's module graph and this result are momentarily out of
+    /// sync during recomputation.
+    ///
+    /// The first chunk group, in load order, that created an async loader for `module` wins.
+    /// Usually only one did: a chunk group doesn't create an async loader that an available chunk
+    /// group already created. But a later chunk group doesn't always see an earlier one as
+    /// available, so several can create one. All of these loaders share one module id, and the
+    /// runtime keeps the first module factory registered for an id, so the loader of the first
+    /// chunk group loaded is the one used.
+    pub async fn find_async_loader_availability_info(
+        &self,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Result<Option<AvailabilityInfo>> {
+        for chunk_group in &self.async_loader_availability {
+            if let Some(availability_info) = chunk_group.get(&module).await? {
+                return Ok(Some(*availability_info));
+            }
+        }
+        Ok(None)
+    }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionChunkGroupResult(Option<ResolvedVc<ChunkGroupResult>>);
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupResult {
@@ -166,6 +210,12 @@ impl ChunkGroupResult {
                 .await?,
             availability_info: next.availability_info,
             chunk_group_bootstrap_params: next.chunk_group_bootstrap_params.clone(),
+            async_loader_availability: self
+                .async_loader_availability
+                .iter()
+                .chain(&next.async_loader_availability)
+                .copied()
+                .collect(),
         }
         .cell())
     }

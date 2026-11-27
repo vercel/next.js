@@ -136,7 +136,7 @@
                     ),
                 ],
                 span: 50..62,
-                in_truthiness_context: false,
+                usage: Escapes,
             },
         ],
         ast_path: [
@@ -167,7 +167,7 @@
             ),
         ],
         span: 39..63,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Member {
         obj: Variable(
@@ -292,7 +292,7 @@
                     ),
                 ],
                 span: 103..115,
-                in_truthiness_context: false,
+                usage: Escapes,
             },
         ],
         ast_path: [
@@ -323,7 +323,7 @@
             ),
         ],
         span: 100..116,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Member {
         obj: Variable(
@@ -368,7 +368,7 @@
             ),
         ],
         span: 129..134,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Member {
         obj: Variable(
@@ -413,6 +413,6 @@
             ),
         ],
         span: 147..152,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
 ]

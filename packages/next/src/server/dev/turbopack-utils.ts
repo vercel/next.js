@@ -130,6 +130,7 @@ export type ClientState = {
   messages: Map<string, HmrMessageSentToBrowser>
   turbopackUpdates: TurbopackUpdate[]
   subscriptions: Map<string, AsyncIterator<any>>
+  hmrVersionChecked: boolean
 }
 
 export type ClientStateMap = WeakMap<ws, ClientState>
@@ -788,6 +789,15 @@ export async function handleEntrypoints({
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      if (logErrors && writtenEndpoint.value.type === 'native') {
+        // A Go proxy that failed to build has no fallback, so report its
+        // errors in the terminal as well as in the overlay.
+        for (const issue of writtenEndpoint.issues) {
+          if (issue.severity === 'error' || issue.severity === 'fatal') {
+            Log.error(formatIssue(issue))
+          }
+        }
+      }
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']

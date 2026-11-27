@@ -199,6 +199,7 @@ impl Asset for ServerNftJsonAsset {
                     include_mergeable: false,
                     include_traced: true,
                     include_binding_usage: false,
+                    force_activated: false,
                 },
             )],
             None,
@@ -249,6 +250,7 @@ impl Asset for ServerNftJsonAsset {
             nft_json.add(module_path, hash, &content)?;
 
             let contexts_dir = dir.join("vendored/contexts")?;
+            // DETERMINISM: NftJsonBuilder sorts and deduplicates asset locations.
             let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
                 bail!(
                     "Expected contexts directory to be a directory, found: {:?}",
@@ -286,6 +288,7 @@ fn next_owned_ignores(
     has_next_support: bool,
     is_standalone: bool,
     has_native_routes: bool,
+    img_opt_safe_mode_enabled: bool,
 ) -> Vec<RcStr> {
     let mut globs = vec![
         rcstr!("**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js"),
@@ -306,7 +309,6 @@ fn next_owned_ignores(
         rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE"),
         rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**"),
         rcstr!("**/next/dist/compiled/semver/semver/**/*.js"),
-        rcstr!("**/next/dist/compiled/jest-worker/**/*"),
         // -- The following were added for Turbopack specifically --
         // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
         rcstr!("**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js"),
@@ -326,6 +328,17 @@ fn next_owned_ignores(
         globs.push(rcstr!("**/next/dist/server/lib/native-route*.js"));
     }
 
+    // `image-optimizer/nsio.js` requires this, but it's only used with
+    // `experimental.imgOptSafeMode`. Keep the large platform-specific binary out of other builds.
+    // The package path itself is also ignored, or the pnpm symlink to it would be copied and left
+    // dangling.
+    if !img_opt_safe_mode_enabled {
+        globs.push(rcstr!("**/node_modules/@next/safe-image-optimization*"));
+        globs.push(rcstr!(
+            "**/node_modules/@next/safe-image-optimization*/**/*"
+        ));
+    }
+
     // only ignore image-optimizer code when
     // this is being handled outside of next-server
     if has_next_support {
@@ -340,6 +353,9 @@ fn next_owned_ignores(
         globs.extend([
             rcstr!("**/*/next/dist/server/next.js"),
             rcstr!("**/*/next/dist/bin/next"),
+            // The worker pool's child entrypoints are only needed when the
+            // standalone server spawns workers (matches `collect-build-traces.ts`).
+            rcstr!("**/next/dist/lib/worker/worker-*-child*"),
         ]);
     }
 
@@ -381,6 +397,11 @@ impl ServerNftJsonAsset {
                 *self.project.ci_has_next_support().await?,
                 is_standalone,
                 *has_native_routes(*self.project).await?,
+                *self
+                    .project
+                    .next_config()
+                    .img_opt_safe_mode_enabled()
+                    .await?,
             )
             .into_iter()
             .map(|g| Glob::new(g, GlobOptions::default()))
@@ -492,6 +513,11 @@ impl ServerNftJsonAsset {
             has_next_support,
             is_standalone,
             *has_native_routes(*self.project).await?,
+            *self
+                .project
+                .next_config()
+                .img_opt_safe_mode_enabled()
+                .await?,
         )
         .into_iter()
         .chain(additional_ignores)

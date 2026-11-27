@@ -48,6 +48,10 @@ pub async fn get_next_server_transforms_rules(
     }
     rules.push(get_next_font_transform_rule(mdx_rs).await?);
 
+    // Static image imports produce `StaticImageData` regardless of whether the
+    // image lives in the project or in `node_modules` (matching webpack).
+    rules.push(get_next_image_rule().await?);
+
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
             // Ignore the inner EcmascriptCssModule -> CssModule references
@@ -176,8 +180,6 @@ pub async fn get_next_server_transforms_rules(
         // https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L409
         // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
         // optimize_use_state))
-
-        rules.push(get_next_image_rule().await?);
     }
 
     if let NextRuntime::Edge = next_runtime {

@@ -45,6 +45,8 @@ export async function createUser(data) {
 }
 ```
 
+> **Good to know**: A file with top-level `use server` can only export async functions at runtime. Exporting other values causes an [Invalid "use server" Value](/docs/messages/invalid-use-server-value) error. TypeScript `export type` exports and re-exports, such as `export type { ActionResult } from './types'`, are erased during compilation and are allowed.
+
 ### Using Server Functions in a Client Component
 
 To use Server Functions in Client Components you need to create your Server Functions in a dedicated file using the `use server` directive at the top of the file. These Server Functions can then be imported into Client and Server Components and executed.

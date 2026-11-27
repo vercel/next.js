@@ -7,7 +7,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use futures::try_join;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map as JsonMap, Value as JsonValue, json};
+use serde_json::{Value as JsonValue, json};
 use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -65,7 +65,8 @@ use crate::{
     embed_js::embed_file_path,
     evaluate::{
         EnvVarTracking, EvaluateArg, EvaluateContext, EvaluateEntries, EvaluatePool,
-        EvaluationIssue, custom_evaluate, get_evaluate_entries, get_evaluate_pool,
+        EvaluationIssue, SourceContentEncoding, custom_evaluate, get_evaluate_entries,
+        get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     format::FormattingMode,
@@ -459,32 +460,6 @@ impl WebpackLoadersProcessedAsset {
                 env,
                 node_backend,
             } = &*transform.execution_context.await?;
-            let source_content = self.source.content();
-            let AssetContent::File(file) = *source_content.await? else {
-                bail!("Webpack Loaders transform only support transforming files");
-            };
-            let FileContent::Content(file_content) = &*file.await? else {
-                return Ok(ProcessWebpackLoadersResult {
-                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
-                        .resolved_cell(),
-                    assets: Vec::new(),
-                    source_map: FileContent::NotFound.resolved_cell(),
-                }
-                .cell());
-            };
-
-            // If the content is not a valid string (e.g. binary file), handle the error and pass a
-            // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
-            let content: JsonValue = match file_content.content().to_str() {
-                Ok(utf8_str) => utf8_str.to_string().into(),
-                Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
-                    "binary".to_string(),
-                    JsonValue::from(
-                        base64::engine::general_purpose::STANDARD
-                            .encode(file_content.content().to_bytes()),
-                    ),
-                )))),
-            };
             let evaluate_context = transform.evaluate_context;
 
             let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
@@ -538,7 +513,11 @@ impl WebpackLoadersProcessedAsset {
                 resolve_options_context: Some(transform.resolve_options_context),
                 asset_context: self.asset_context,
                 args: vec![
-                    EvaluateArg::Vc(ResolvedVc::cell(content)),
+                    EvaluateArg::SourceContent {
+                        source: self.source,
+                        // Pass non-UTF-8 content (e.g. images) to the loaders as a `Buffer`.
+                        encoding: SourceContentEncoding::TextOrBinary,
+                    },
                     EvaluateArg::Path(resource_fs_path.clone()),
                     // We need to pass the query string to the loader
                     EvaluateArg::Vc(ResolvedVc::cell(source_ident.query.to_string().into())),
@@ -602,6 +581,8 @@ impl WebpackLoadersProcessedAsset {
     }
 }
 
+/// Runs the loaders. Returns `None` when the transformed source doesn't exist or when an error was
+/// emitted as an issue.
 #[turbo_tasks::function]
 pub(super) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
@@ -1006,13 +987,17 @@ impl EvaluateContext for WebpackLoaderContext {
                     .context("importModule: module is not evaluatable")?;
 
                 // Build a module graph from the resolved module and its
-                // transitive dependencies
+                // transitive dependencies. The loader evaluates it in a separate process that can't
+                // activate lazily compiled dynamic imports, so the graph includes their targets.
                 let single_graph = SingleModuleGraph::new_with_entry(
                     ChunkGroupEntry::Entry {
                         modules: vec![module],
                         heuristics: EntryHeuristics::default(),
                     },
-                    ModuleGraphOptions::default(),
+                    ModuleGraphOptions {
+                        force_activated: true,
+                        ..Default::default()
+                    },
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()

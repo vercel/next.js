@@ -26,7 +26,7 @@ use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
 use crate::{
     embed_js::embed_file_path,
-    evaluate::{EvaluateArg, get_evaluate_entries},
+    evaluate::{EvaluateArg, SourceContentEncoding, get_evaluate_entries},
     execution_context::ExecutionContext,
     transforms::{
         util::{EmittedAsset, emitted_assets_to_virtual_sources},
@@ -492,18 +492,6 @@ impl PostCssTransformedAsset {
             .cell());
         };
 
-        let source_content = self.source.content();
-        let AssetContent::File(file) = *source_content.await? else {
-            bail!("PostCSS transform only support transforming files");
-        };
-        let FileContent::Content(content) = &*file.await? else {
-            return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
-            }
-            .cell());
-        };
-        let content = content.content().to_str()?;
         let evaluate_context = self.evaluate_context;
         let source_map = self.source_map;
 
@@ -553,7 +541,10 @@ impl PostCssTransformedAsset {
             resolve_options_context: None,
             asset_context: self.asset_context,
             args: vec![
-                EvaluateArg::Vc(ResolvedVc::cell(content.into())),
+                EvaluateArg::SourceContent {
+                    source: self.source,
+                    encoding: SourceContentEncoding::Text,
+                },
                 css_path,
                 EvaluateArg::Vc(ResolvedVc::cell(source_map.into())),
             ],

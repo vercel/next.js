@@ -85,7 +85,7 @@ function install() {
  *
  * Starts capturing calls to `setImmediate` to run them as "fast immediates".
  * All calls captured in this way will be executed after the current task
- * (after callbacks from `process.nextTick()`, microtasks, and nextTicks scheduled from microtasks).
+ * (after callbacks from `process.nextTick()` and microtasks, including the ones that they schedule in turn).
  * This function needs to be called again in each task that needs the
  * "fast immediates" behavior.
  *
@@ -311,9 +311,14 @@ export class ImmediateTracker {
 }
 
 /**
- * Wait until all nextTicks and microtasks spawned from the current task are done,
- * then execute any immediates that they queued.
- * */
+ * Execute the next captured immediate once the current task is done.
+ *
+ * Waits until all nextTicks and microtasks spawned from the current task are done,
+ * then executes any immediates that they queued.
+ *
+ * @param execution The current execution, which must be waiting.
+ * @throws {InvariantError} If the execution is not waiting.
+ */
 function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
   if (execution.state !== ExecutionState.Waiting) {
     throw new InvariantError(
@@ -329,15 +334,22 @@ function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
   // 2. process.nextTick (scheduled from sync code, or from one of these nextTicks)
   // 3. microtasks
   // 4. process.nextTick (scheduled from microtasks, e.g. `queueMicrotask(() => process.nextTick(callback))`)
+  // 5. back to step 3 if a callback from step 4 queued microtasks, until both queues are empty
   //
-  // We want to run to run in step 4, because that's the latest point before the next tick.
+  // We want to run in step 4, once nothing else is left to run before the next task.
   // However, there might also be other callbacks scheduled to run in that step.
-  // But importantly, they had to be scheduled using a `process.nextTick`,
-  // so we can detect them by checking if `pendingNextTicks > 0`.
-  // In that case, we'll just reschedule ourselves in the same way again to let them run first.
+  // But importantly, they had to be scheduled using a `process.nextTick`, so we can detect them:
+  // - The ones queued behind us are still pending when we run, so `pendingNextTicks > 0`.
+  // - The ones queued ahead of us have already run by then, so `pendingNextTicks` can be back to 0
+  //   even though the microtasks that they queued only run in step 5.
+  //   We detect those when we queue ourselves instead (`hadPendingNextTicks`).
+  // In both cases, we'll just reschedule ourselves in the same way again to let them run first.
   // (this process can theoretically repeat multiple times, hence the recursion).
 
   queueMicrotask(() => {
+    // The nextTick queue is FIFO: every nextTick that is pending now will run before our callback below.
+    const hadPendingNextTicks = pendingNextTicks > 0
+
     // (note that this call won't increment `pendingNextTicks`,
     // only the patched `process.nextTick` does that, so this won't loop infinitely)
     originalNextTick(() => {
@@ -356,10 +368,10 @@ function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
           debug?.(`scheduler :: the execution was abandoned`)
           return
         }
-        if (pendingNextTicks > 0) {
-          // Other nextTicks have been scheduled. Let those run first, then try again --
-          // we're simulating a event loop task, so all nextTicks should be exhausted before we execute.
-          debug?.(`scheduler :: yielding to ${pendingNextTicks} nextTicks`)
+        if (hadPendingNextTicks || pendingNextTicks > 0) {
+          // Other nextTicks have been scheduled. Let those and their microtasks run first, then try again --
+          // we're simulating a event loop task, so all nextTicks and microtasks should be exhausted before we execute.
+          debug?.(`scheduler :: yielding to nextTicks and their microtasks`)
           return scheduleWorkAfterNextTicksAndMicrotasks(execution)
         }
 

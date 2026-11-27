@@ -276,7 +276,7 @@ export const dispatcher: Dispatcher = {
     }
   ),
   openErrorOverlay: createQueuable((dispatch: Dispatch) => {
-    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN, tab: 'errors' })
   }),
   closeErrorOverlay: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })

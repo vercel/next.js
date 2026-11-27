@@ -17,18 +17,13 @@ import {
 } from '../../../shared/lib/request-insights'
 import {
   isRequestInsightsEnabled,
-  recordSpans,
   setLocalSpanExporter,
-  type LocalSpanBatch,
-  type LocalSpanParent,
   type SpanStoreRecord,
 } from './span-store'
 import type {
   RequestInsightFilter,
   RequestInsightsHistoryPage,
 } from '../../../shared/lib/request-insights-summary'
-import type { RequestInsightsIdentity } from './request-insights-identity'
-import { reparentLocalSpans } from './local-span-recorder'
 import { AppRenderSpan } from './constants'
 export { isRequestInsightsEnabled }
 
@@ -65,6 +60,7 @@ export type RequestInsightsJournalQuery = {
   htmlRequestId?: string
   kind?: RequestInsight['kind']
   limit?: number
+  indexedOnly?: boolean
 }
 
 export type RequestInsightsHistoryProvider = {
@@ -583,28 +579,7 @@ export function recordRequestInsightSpan(span: SpanStoreRecord): void {
   getRequestInsightsStore().recordSpan(span)
 }
 
-export function importRequestInsightSpans(
-  identity: RequestInsightsIdentity,
-  parent: LocalSpanParent,
-  batch: LocalSpanBatch
-): void {
-  recordSpans(
-    reparentLocalSpans(
-      parent,
-      batch.spans.filter(shouldRecordRequestInsightSpan)
-    ).map((span) => ({
-      ...span,
-      requestId: identity.requestId,
-      requestInsightKind: identity.kind,
-      requestInsightSource: identity.source,
-      requestInsightProxyStatus: identity.proxyStatus,
-      htmlRequestId: identity.htmlRequestId,
-      url: identity.url,
-    }))
-  )
-}
-
-function shouldRecordRequestInsightSpan(span: SpanStoreRecord): boolean {
+export function shouldRecordRequestInsightSpan(span: SpanStoreRecord): boolean {
   return (
     span.attributes?.['next.span_type'] !== CLIENT_COMPONENT_LOADING_SPAN_TYPE
   )

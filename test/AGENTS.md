@@ -73,6 +73,29 @@ router state, and prefetch stage. Ordinary HTTP requests are appropriate for
 fixture setup, such as revalidation. See the
 [router-act skill](../.agents/skills/router-act/SKILL.md) for the patterns.
 
+Always use `LinkAccordion` to control when prefetches happen inside `act`
+scopes. Never use `browser.back()` to return to a page where accordion links
+are already visible. BFCache restores state and triggers uncontrolled
+re-prefetches.
+
+## Test gotchas
+
+- **Cache Components enables PPR by default.** When
+  `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. The
+  dedicated `ppr-full/` and `ppr/` suites are mostly `describe.skip` while they
+  migrate to Cache Components. To test PPR code paths, run normal app-dir e2e
+  tests with `__NEXT_CACHE_COMPONENTS=true`.
+- **Mode-specific tests** need `skipStart: true` and a manual `next.start()` in
+  `beforeAll` after the mode check.
+- **Don't rely on exact log messages.** Filter by content patterns, and find
+  sequences rather than positions.
+- **Show full stack traces** with `__NEXT_SHOW_IGNORE_LISTED=true`. By default
+  the dev server collapses internal frames to `at ignore-listed frames`, which
+  hides framework internals. See
+  `packages/next/src/server/patch-error-inspect.ts`.
+- For bootstrapping, CI env flags, smoke tests, flaky tests and ignored fixture
+  files, use `$run-tests`.
+
 ## Code review
 
 - During code review, enforce the deployment coverage rules above. Flag new `test/production/` tests for deployable behavior, simulated minimal-mode setups, `skipDeployment: true`, and `isNextDeploy` exclusions. Require a concrete reason for each exception and keep deployment-compatible assertions active.

@@ -58,6 +58,7 @@ function MenuItem({
       className="dev-tools-indicator-item"
       data-index={index}
       data-selected={selected}
+      data-interactive={isInteractive}
       onClick={click}
       // Needs `onMouseMove` instead of enter to work together
       // with keyboard and mouse input

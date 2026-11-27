@@ -316,17 +316,20 @@ impl Asset for ServerActionManifestAsset {
                     && extract_type_from_server_reference_id(hash_id)
                         == ServerReferenceType::UseCache
                 {
-                    Some(
-                        compute_subtree_content_hash(
-                            *self.module_graph,
-                            **module,
-                            *chunking_context_for_content_hash,
-                            hash_salt,
-                            modules_to_ignore
-                                .expect("cache metadata collection requires module exclusions"),
-                        )
-                        .await?,
+                    let data = compute_subtree_content_hash(
+                        *self.module_graph,
+                        **module,
+                        *chunking_context_for_content_hash,
+                        hash_salt,
+                        modules_to_ignore
+                            .expect("cache metadata collection requires module exclusions"),
                     )
+                    .await?;
+                    // A non-statically analyzable `process.env` access in the subgraph could read
+                    // any env var, so the list of runtime env vars would be incomplete. Don't emit
+                    // durability metadata in that case: the runtime then falls back to cache keys
+                    // that aren't reused across deployments.
+                    (!data.has_dynamic_env_access).then_some(data)
                 } else {
                     None
                 };
@@ -457,6 +460,10 @@ struct ModulesInformation {
     /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
     /// in the subgraph.
     pub runtime_env_vars_existence: Vec<RcStr>,
+    /// Whether any module in the subgraph has a non-statically analyzable `process.env` access
+    /// (see [`EnvVarInfo::runtime_all`]), which means that the env var lists above are
+    /// incomplete.
+    pub has_dynamic_env_access: bool,
 }
 
 #[turbo_tasks::function]
@@ -607,9 +614,18 @@ async fn compute_subtree_content_hash(
                 data.iter()
                     .map(async |(m, data)| {
                         Ok(format!(
-                            "  '{}': {}{}{}",
+                            "  '{}': {}{}{}{}",
                             m.ident().await?.path.to_string_ref().await?,
                             data.path_code_hash,
+                            if data.env_var_info.as_ref().is_some_and(|e| e.runtime_all) {
+                                if data.ignore_runtime_all {
+                                    " with ignored dynamic env access"
+                                } else {
+                                    " with dynamic env access"
+                                }
+                            } else {
+                                ""
+                            },
                             if data
                                 .env_var_info
                                 .as_ref()
@@ -644,10 +660,14 @@ async fn compute_subtree_content_hash(
 
         let mut hashes = Vec::with_capacity(data.len());
         let mut runtime_env_vars = FxIndexMap::default();
+        let mut has_dynamic_env_access = false;
 
-        for (_m, data) in &data {
+        for (_, data) in &data {
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
+                if !data.ignore_runtime_all && env.runtime_all && !has_dynamic_env_access {
+                    has_dynamic_env_access = true;
+                }
                 for (name, mode) in &env.runtime {
                     match mode {
                         EnvVarAccessMode::Read => {
@@ -690,6 +710,7 @@ async fn compute_subtree_content_hash(
                 durability_key,
                 runtime_env_vars_read: runtime_read,
                 runtime_env_vars_existence: runtime_existence,
+                has_dynamic_env_access,
             }
             .cell(),
         )
@@ -714,6 +735,7 @@ async fn compute_subtree_content_hash(
 struct ModuleInformation {
     pub path_code_hash: RcStr,
     pub env_var_info: Option<ReadRef<EnvVarInfo>>,
+    pub ignore_runtime_all: bool,
 }
 
 #[turbo_tasks::function]
@@ -741,6 +763,10 @@ async fn module_hash(
         // ineffective.
         bail!("use cache subtree shouldn't contain {}", ident_str);
     }
+
+    // For the use-cache wrapper modules, we don't want to consider dynamic env access.
+    let ignore_runtime_all = ident_str.contains("next/dist/server/use-cache/use-cache-wrapper.js")
+        || ident_str.contains("next/dist/esm/server/use-cache/use-cache-wrapper.js");
 
     let env_var_info =
         if let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(m) {
@@ -793,6 +819,7 @@ async fn module_hash(
     Ok(ModuleInformation {
         path_code_hash,
         env_var_info,
+        ignore_runtime_all,
     }
     .cell())
 }

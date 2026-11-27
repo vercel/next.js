@@ -75,3 +75,22 @@ console.log(process.env.FOO_READ_DOMINATES)
 if (process.env.FOO_BOTH) {
   console.log(process.env.FOO_BOTH)
 }
+
+if (process.env.hasOwnProperty('FOO_HAS_OWN1')) {
+  return true
+}
+const o = !process.env.hasOwnProperty('FOO_HAS_OWN2')
+const p = process.env['hasOwnProperty']('FOO_HAS_OWN3')
+const hasOwnKey = 'FOO_HAS_OWN4'
+const q = process.env.hasOwnProperty(hasOwnKey)
+if (process.env.hasOwnProperty('FOO_HAS_OWN_READ')) {
+  console.log(process.env.FOO_HAS_OWN_READ)
+}
+const hasOwnMethod = 'hasOwnProperty'
+const r = process.env[hasOwnMethod]('FOO_HAS_OWN5')
+// `hasOwnProperty` could also be an env var
+const s = process.env.hasOwnProperty
+const u = 'hasOwnProperty' in process.env
+function shadowedProcess(process) {
+  return process.env.hasOwnProperty('FOO_SHADOWED_HAS_OWN')
+}

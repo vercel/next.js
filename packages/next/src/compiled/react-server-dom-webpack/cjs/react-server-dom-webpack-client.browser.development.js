@@ -184,6 +184,10 @@
           if (isArrayImpl(value)) return "[...]";
           if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
             return "client";
+          if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
+            return "LedgerData";
+          if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+            return "LedgerTotal";
           value = objectName(value);
           return "Object" === value ? "{...}" : value;
         case "function":
@@ -271,6 +275,10 @@
         objKind = "<" + describeElementType(objectOrArray.type) + "/>";
       else {
         if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
+        if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE)
+          return "LedgerData";
+        if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+          return "LedgerTotal";
         if (jsxPropsParents.has(objectOrArray)) {
           objKind = jsxPropsParents.get(objectOrArray);
           objKind = "<" + (describeElementType(objKind) || "...");
@@ -1520,6 +1528,125 @@
           );
       }
     }
+    function createLedgerCell(type) {
+      switch (type.kind) {
+        case 0:
+          return { kind: 0, state: !1 };
+        case 1:
+          return { kind: 1, state: 0 };
+        case 2:
+          return { kind: 2, state: null };
+        case 3:
+          return { kind: 3, state: null };
+        default:
+          return { kind: 4, state: new Set() };
+      }
+    }
+    function readLedgerTotal(total) {
+      var graph = total.graph;
+      if (null !== graph) {
+        var dirty = graph.dirtyUnits;
+        if (null !== dirty) {
+          graph.totals.forEach(function (record) {
+            updateLedgerTotal(record, dirty);
+          });
+          for (var unit = dirty; null !== unit; ) {
+            var next = unit.nextDirty;
+            unit.isQueued = !1;
+            unit.nextDirty = null;
+            unit.newEntries = null;
+            unit = next;
+          }
+          graph.dirtyUnits = null;
+        }
+      }
+      unit = total.cell;
+      null === unit &&
+        ((total.cell = unit = createLedgerCell(total.type)),
+        (total.visitedUnits = new WeakSet()),
+        updateLedgerTotal(total, null));
+      null !== graph &&
+        (graph.closed
+          ? ((total.graph = null), (total.visitedUnits = null))
+          : graph.isTracking || (graph.isTracking = !0));
+      return unit;
+    }
+    function updateLedgerTotal(total, dirty) {
+      var acc = total.cell,
+        visitedUnits = total.visitedUnits;
+      if (null !== acc && null !== visitedUnits) {
+        for (var type = total.type, queue = []; null !== dirty; )
+          visitedUnits.has(dirty) && queue.push(dirty),
+            (dirty = dirty.nextDirty);
+        dirty = queue.length;
+        for (
+          var pendingCaptureUnits = total.pendingCaptureUnits, i = 0;
+          i < pendingCaptureUnits.length;
+          i++
+        ) {
+          var unit = pendingCaptureUnits[i];
+          visitedUnits.has(unit) || (visitedUnits.add(unit), queue.push(unit));
+        }
+        i = function (entry) {
+          var accumulated = acc.state,
+            log = total.entries;
+          null === log
+            ? accumulated.add(entry)
+            : accumulated.has(entry) ||
+              (accumulated.add(entry), log.push(entry));
+        };
+        for (unit = 0; unit < queue.length; unit++) {
+          var _unit = queue[unit],
+            cells = _unit.cells;
+          cells = null === cells ? void 0 : cells.get(type);
+          if (void 0 !== cells)
+            switch (acc.kind) {
+              case 0:
+                acc.state = acc.state || cells.state;
+                break;
+              case 1:
+                acc.state = (acc.state | cells.state) >>> 0;
+                break;
+              case 2:
+                cells = cells.state;
+                var previous = acc.state;
+                null !== cells &&
+                  (null === previous || cells < previous) &&
+                  (acc.state = cells);
+                break;
+              case 3:
+                cells = cells.state;
+                previous = acc.state;
+                null !== cells &&
+                  (null === previous || cells > previous) &&
+                  (acc.state = cells);
+                break;
+              case 4:
+                unit < dirty
+                  ? ((cells = _unit.newEntries),
+                    (cells = null === cells ? void 0 : cells.get(type)),
+                    void 0 !== cells && cells.forEach(i))
+                  : cells.state.forEach(i);
+            }
+          cells = _unit.references;
+          if (null !== cells)
+            for (previous = 0; previous < cells.length; previous++) {
+              var target = cells[previous];
+              visitedUnits.has(target) ||
+                (visitedUnits.add(target), queue.push(target));
+            }
+          _unit = _unit.children;
+          if (null !== _unit)
+            for (cells = 0; cells < _unit.length; cells++)
+              (previous = _unit[cells]),
+                (target = previous.capturedLedgers),
+                (null !== target && -1 !== target.indexOf(type)) ||
+                  visitedUnits.has(previous) ||
+                  (visitedUnits.add(previous), queue.push(previous));
+        }
+        pendingCaptureUnits.length = 0;
+      }
+    }
     function ReactPromise(status, value, reason) {
       this.status = status;
       this.value = value;
@@ -1550,6 +1677,9 @@
           break;
         case "resolved_module":
           initializeModuleChunk(chunk);
+          break;
+        case "resolved_ledger":
+          initializeLedgerChunk(chunk);
       }
       switch (chunk.status) {
         case "fulfilled":
@@ -2829,6 +2959,8 @@
             return;
           case "S":
             return Symbol.for(value.slice(2));
+          case "y":
+            return;
           case "h":
             var ref = value.slice(2);
             return getOutlinedModel(
@@ -3264,8 +3396,8 @@
                   (previousBlockedChunk = chunk));
             } else {
               chunk = previousBlockedChunk;
-              var _chunk4 = createPendingChunk(response);
-              _chunk4.then(
+              var _chunk5 = createPendingChunk(response);
+              _chunk5.then(
                 function (v) {
                   return controller.enqueue(v);
                 },
@@ -3273,11 +3405,11 @@
                   return controller.error(e);
                 }
               );
-              previousBlockedChunk = _chunk4;
+              previousBlockedChunk = _chunk5;
               chunk.then(function () {
-                previousBlockedChunk === _chunk4 &&
+                previousBlockedChunk === _chunk5 &&
                   (previousBlockedChunk = null);
-                resolveModelChunk(response, _chunk4, json);
+                resolveModelChunk(response, _chunk5, json);
               });
             }
           },
@@ -3484,6 +3616,18 @@
       response.name = name;
       response.environmentName = env;
       return response;
+    }
+    function initializeLedgerChunk(chunk) {
+      var response = chunk.reason;
+      var state = readLedgerTotal(chunk.value);
+      state = 4 === state.kind ? new Set(state.state) : state.state;
+      state = null === state ? void 0 : state;
+      chunk.status = "fulfilled";
+      chunk.value = state;
+      chunk.reason = null;
+      null !== response &&
+        (filterDebugInfo(response, chunk),
+        moveDebugInfoFromChunkToInnerValue(chunk, state));
     }
     function createFakeFunction(
       name,
@@ -3786,18 +3930,18 @@
                 ),
                 (response._blockedConsole = blockedChunk));
         else {
-          var _chunk5 = createPendingChunk(response);
-          _chunk5.then(
+          var _chunk6 = createPendingChunk(response);
+          _chunk6.then(
             function (v) {
               return replayConsoleWithCallStackInDEV(response, v);
             },
             function () {}
           );
-          response._blockedConsole = _chunk5;
+          response._blockedConsole = _chunk6;
           var unblock = function () {
-            response._blockedConsole === _chunk5 &&
+            response._blockedConsole === _chunk6 &&
               (response._blockedConsole = null);
-            resolveModelChunk(response, _chunk5, json);
+            resolveModelChunk(response, _chunk6, json);
           };
           blockedChunk.then(unblock, unblock);
         }
@@ -4717,6 +4861,7 @@
             "halted" !== id.status &&
             "blocked" !== id.status &&
             "resolved_module" !== id.status &&
+            "resolved_ledger" !== id.status &&
             ((streamState = id._debugChunk),
             (tag = createResolvedModelChunk(response, row)),
             (tag._debugChunk = streamState),
@@ -5226,6 +5371,8 @@
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+      REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -5273,6 +5420,9 @@
             break;
           case "resolved_module":
             initializeModuleChunk(this);
+            break;
+          case "resolved_ledger":
+            initializeLedgerChunk(this);
         }
         var resolveCallback = resolve,
           rejectCallback = reject,
@@ -5427,10 +5577,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-a8342585-20261117",
+      version: "19.3.0-canary-edae846a-20261125",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-a8342585-20261117",
+      reconcilerVersion: "19.3.0-canary-edae846a-20261125",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
@@ -5453,7 +5603,15 @@
               options.debugChannel.readable,
               handleDone
             );
-            startReadingFromStream(response, r.body, handleDone, r);
+            startReadingFromStream(
+              response,
+              r.body,
+              function () {
+                hasGCedResponse(response) || unwrapWeakResponse(response);
+                handleDone();
+              },
+              r
+            );
           } else
             startReadingFromStream(
               response,
@@ -5480,7 +5638,15 @@
           options.debugChannel.readable,
           handleDone
         );
-        startReadingFromStream(response, stream, handleDone, stream);
+        startReadingFromStream(
+          response,
+          stream,
+          function () {
+            hasGCedResponse(response) || unwrapWeakResponse(response);
+            handleDone();
+          },
+          stream
+        );
       } else
         startReadingFromStream(
           response,

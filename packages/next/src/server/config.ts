@@ -66,6 +66,7 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
+import { NSIO_OUTPUT_MIME_TYPES } from '../shared/lib/image-optimizer-constants'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -502,9 +503,11 @@ function assignDefaultsAndValidate(
   }
 
   if (result.experimental.goRoutes) {
-    if (result.output) {
+    // Go handlers always execute dynamically, so they cannot be prerendered
+    // into static export files. Standalone output copies their executables.
+    if (result.output === 'export') {
       throw new Error(
-        '`route.go` and `proxy.go` do not support standalone or static export output'
+        '`route.go` and `proxy.go` do not support `output: "export"`'
       )
     }
   }
@@ -947,6 +950,48 @@ function assignDefaultsAndValidate(
         )
       }
       images.loaderFile = absolutePath
+    }
+  }
+
+  // Normalize imgOptSafeMode: boolean | { nextImage? } into a resolved object.
+  // `true` enables every feature, and omitted keys in the object form are
+  // disabled.
+  const safeImgOpt = result.experimental.imgOptSafeMode
+  const resolvedSafeImgOpt =
+    typeof safeImgOpt === 'object'
+      ? { nextImage: safeImgOpt.nextImage ?? false }
+      : { nextImage: !!safeImgOpt }
+  ;(result as NextConfigComplete).experimental.imgOptSafeMode =
+    resolvedSafeImgOpt
+
+  // `ImageOptimizerCache.validateParams` filters out unsupported formats. Nsio
+  // does not support all the output formats that Sharp does (notably AVIF).
+  // Warn about it here so that the warning is shown at startup.
+  //
+  // Don't filter them out of NextConfigComplete. If there's an optimization
+  // service used by the adapter (e.g. Vercel Image Optimization), we may
+  // actually be able to handle this value when deployed.
+  const userImageFormats = userConfig.images?.formats
+  if (
+    userImageFormats &&
+    resolvedSafeImgOpt.nextImage &&
+    // Otherwise the image optimizer isn't used
+    result.images?.loader === 'default' &&
+    !result.images.unoptimized &&
+    !silent
+  ) {
+    const unsupportedFormats = userImageFormats.filter(
+      (format) => !NSIO_OUTPUT_MIME_TYPES.includes(format)
+    )
+    if (unsupportedFormats.length > 0) {
+      // TODO: when turning on `imgOptSafeMode` by default, give
+      // users an easy way to disable this warning if they're using an external
+      // image optimization provider that supports the output format, and then
+      // document that in the warning. E.g. Vercel does this at the proxy layer
+      // for `_next/image`, so we can't know that here.
+      Log.warnOnce(
+        `Some "images.formats" are ignored when using "experimental.imgOptSafeMode": ${unsupportedFormats.join(', ')}`
+      )
     }
   }
 
