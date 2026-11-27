@@ -1,8 +1,13 @@
+import {
+  mockSetImmediate,
+  unmockedSetImmediate,
+} from './__tests__/mock-set-immediate.util'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import * as fsPromises from 'node:fs/promises'
 
 import * as TimerScheduler from './timer-scheduler'
+import * as ImmediateScheduler from './immediate-scheduler'
 
 function createLogger() {
   const logs: string[] = []
@@ -24,7 +29,7 @@ function createLogger() {
 }
 
 function runInNewTask(callback: () => void) {
-  setImmediate(callback)
+  unmockedSetImmediate(callback)
 }
 
 // NOTE: fast-set-immediate.external.test.ts includes more scenarios
@@ -32,7 +37,7 @@ function runInNewTask(callback: () => void) {
 
 describe.each([
   { description: 'Timer scheduler', scheduler: TimerScheduler },
-  // (more coming soon)
+  { description: 'Immediate scheduler', scheduler: ImmediateScheduler },
 ])('$description', ({ scheduler }) => {
   const { scheduleSequentialTasks } = scheduler
 
@@ -463,6 +468,64 @@ describe('Timer scheduler', () => {
     expect(setTimeoutWithoutIdleStart).toHaveBeenCalled()
 
     expect(logs).toEqual(['task 1', 'task 2', 'task 3', 'task 4'])
+
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Next.js cannot guarantee that Cache Components will run as expected'
+      )
+    )
+  })
+})
+
+describe('Immediate scheduler', () => {
+  // After each test we reset the module-level flag we set when we detect
+  // unexpected scheduling behavior.
+  const getScheduler = () => import('./immediate-scheduler')
+  afterEach(() => {
+    jest.resetModules()
+  })
+
+  it('warns if setImmediate is implemented as setTimeout', async () => {
+    const { scheduleSequentialTasks } = await getScheduler()
+
+    const { log, logs } = createLogger()
+    const done = createPromiseWithResolvers<void>()
+
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation()
+    using _s = deferSync(() => consoleWarnSpy.mockRestore())
+
+    // Note: we're using a custom mocking mechanism to avoid any interactions
+    // with the patching that fast-set-immediate does.
+    const setImmediatePolyfilledAsTimeout = jest.fn(
+      (callback: (...args: any[]) => any, ...args: any[]) => {
+        return setTimeout(callback, 0, ...args) as unknown as NodeJS.Immediate
+      }
+    )
+    mockSetImmediate(setImmediatePolyfilledAsTimeout)
+    using _i = deferSync(() => mockSetImmediate(null))
+
+    runInNewTask(() => {
+      scheduleSequentialTasks([
+        () => {
+          log('task 1')
+        },
+        () => {
+          log('task 2')
+        },
+        () => {
+          log('task 3')
+          done.resolve()
+        },
+      ])
+    })
+
+    await done.promise
+
+    // Sanity check that we successfully mocked setImmediate
+    expect(setImmediatePolyfilledAsTimeout).toHaveBeenCalled()
+
+    expect(logs).toEqual(['task 1', 'task 2', 'task 3'])
 
     expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
     expect(consoleWarnSpy).toHaveBeenCalledWith(

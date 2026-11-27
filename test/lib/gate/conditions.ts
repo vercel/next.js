@@ -210,6 +210,10 @@ export const conditions: Record<string, Condition> = {
     'Partial Prefetching is enabled globally for the fixture (does not check `export const prefetch = "partial"`)',
     (config) => config.partialPrefetching
   ),
+  sequentialTaskScheduling: lazyCondition(
+    'the sequential task scheduler selected for the fixture',
+    (config) => config.experimental?.sequentialTaskScheduling
+  ),
   ppr: lazyCondition(
     'partial prerendering is enabled (implied by `cacheComponents`)',
     (config) => config.experimental?.ppr
