@@ -132,20 +132,7 @@ The route renders on every request. The shell still ships instantly because of t
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) or [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
 - If [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) is being used as a unique ID for logging or correlation, consider an incrementing integer or [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage) request scope. Those don't trigger the error at all because they aren't unpredictable from Next.js's point of view.
 - Random values produced inside third-party packages will surface this error in your project code. The same fixes apply at the call site that consumes the value.
-- The [`react-hooks/purity`](https://react.dev/reference/eslint-plugin-react-hooks/lints/purity) lint rule, included in [`eslint-config-next`](/docs/app/api-reference/config/eslint), reports `Math.random()` in a component body even after `await io()` or `await connection()`. Disable it for that line, with a comment explaining why:
-
-  ```jsx filename="app/dashboard/request-trace.js"
-  import { connection } from 'next/server'
-
-  export async function RequestTrace() {
-    await connection()
-    // This runs at request time, after `await connection()`, so a new value on
-    // each request is intended. The react-hooks/purity lint rule can't detect that.
-    // eslint-disable-next-line react-hooks/purity
-    const traceId = Math.random().toString(16).slice(2)
-    return <small>trace: {traceId}</small>
-  }
-  ```
+- The [`react-hooks/purity`](https://react.dev/reference/eslint-plugin-react-hooks/lints/purity) lint rule flags `Math.random()` even after `await connection()`. The new value per request is intended there, so disable the rule for that line with a short comment.
 
 ## Cache the random value
 

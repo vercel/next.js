@@ -212,8 +212,7 @@ export default async function Page() {
 
 async function DynamicBanner() {
   await connection();
-  // This runs at request time, after `await connection()`, so a new value on
-  // each request is intended. The react-hooks/purity lint rule can't detect that.
+  // Runs per request after `connection()`, so the new value is intended
   // eslint-disable-next-line react-hooks/purity
   const currentTime = Date.now();
   if (currentTime > someTriggerDate) {

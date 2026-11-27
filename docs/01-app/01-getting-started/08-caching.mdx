@@ -353,7 +353,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know:** The [`react-hooks/purity`](https://react.dev/reference/eslint-plugin-react-hooks/lints/purity) lint rule, included in [`eslint-config-next`](/docs/app/api-reference/config/eslint), reports calls like `Date.now()` and `Math.random()` in a component body, even after `await connection()`. Disable it for that line, with a comment explaining that the value is meant to change on each request. See the [current time](/docs/messages/blocking-prerender-current-time#gotchas) and [random value](/docs/messages/blocking-prerender-random#gotchas) examples.
+> **Good to know:** The [`react-hooks/purity`](https://react.dev/reference/eslint-plugin-react-hooks/lints/purity) lint rule flags `Date.now()` and `Math.random()` even after `await connection()`. A new value per request is intended there, so disable the rule for that line with a short comment.
 
 Alternatively, you can **cache the result** so all users see the same value until revalidation:
 
