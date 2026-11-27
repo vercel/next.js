@@ -1,14 +1,14 @@
 //! [`CellRope`]: a rope whose contents are partly owned by other cells, and [`ComposedFile`]: a
 //! file made of one.
 
-use std::io::Write;
+use std::{io::Write, ops::Range};
 
 use anyhow::{Result, ensure};
 use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, Vc};
 
 use crate::{
-    File, FileContent,
+    File, FileContent, FileMeta,
     rope::{Rope, RopeBuilder},
 };
 
@@ -21,9 +21,9 @@ use crate::{
 /// Because the cells can change independently of the `CellRope`, it stores nothing derived
 /// from their contents (not even its total length).
 ///
-/// A referenced cell's bytes can be patched when the rope is read: see
-/// [`CellRopeBuilder::push_cell_skipping`]. The patch is itself a reference to a cell, so it stays
-/// as independent of the cells' contents as the rest of the rope.
+/// A referenced cell's bytes can be patched when the rope is read: see [`SkippableRope`]. The
+/// patch lives in the same cell as the bytes, so it stays as independent of the cells' contents as
+/// the rest of the rope.
 ///
 /// Only [`CellRopeBuilder`] creates cells of this type, see [`CellRopeBuilder::build_cell`].
 #[turbo_tasks::value]
@@ -32,54 +32,66 @@ pub struct CellRope {
     segments: Vec<CellRopeSegment>,
 }
 
+/// A segment of a [`CellRope`], see [`CellRope::segments`].
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
-enum CellRopeSegment {
+pub enum CellRopeSegment {
     /// Bytes owned by the `CellRope` itself (scaffolding between cells). Never empty.
     Inline(Rope),
     /// Bytes owned (and persisted) by another cell.
     Cell(ResolvedVc<Rope>),
-    /// Bytes owned by another cell, without the range held by `skip` (if any), see
-    /// [`CellRopeBuilder::push_cell_skipping`].
-    SkippedCell {
-        cell: ResolvedVc<Rope>,
-        skip: ResolvedVc<OptionByteRange>,
+    /// The bytes of a [`SkippableRope`] owned by another cell: all of them, or without its skip
+    /// range when `skip` is true. See [`CellRopeBuilder::push_skippable`].
+    Skippable {
+        cell: ResolvedVc<SkippableRope>,
+        skip: bool,
     },
     /// All of another `CellRope`'s bytes. Lets a rope extend another one (e.g. append a footer)
     /// without copying its segments.
     Nested(ResolvedVc<CellRope>),
 }
 
-/// An optional range of bytes, as `(start, end)` offsets. Left out of a cell's bytes by
-/// [`CellRopeBuilder::push_cell_skipping`].
+/// Bytes, together with a range of them that a [`CellRope`] can leave out when it references the
+/// bytes (see [`CellRopeBuilder::push_skippable`]).
+///
+/// Keeping the range in the same cell as the bytes means one cell can be referenced both whole
+/// and skipped, persisting the bytes once, and the range can never belong to other bytes.
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Copy, Debug)]
-pub struct OptionByteRange {
-    range: Option<(usize, usize)>,
+#[derive(Clone, Debug, Default)]
+pub struct SkippableRope {
+    rope: Rope,
+    skip: Option<(usize, usize)>,
 }
 
-impl OptionByteRange {
-    pub fn new(range: Option<std::ops::Range<usize>>) -> Self {
-        OptionByteRange {
-            range: range.map(|range| (range.start, range.end)),
+impl SkippableRope {
+    pub fn new(rope: Rope, skip: Option<Range<usize>>) -> Self {
+        SkippableRope {
+            rope,
+            skip: skip.map(|range| (range.start, range.end)),
         }
     }
 
-    pub fn range(&self) -> Option<std::ops::Range<usize>> {
-        self.range.map(|(start, end)| start..end)
+    /// All of the bytes.
+    pub fn rope(&self) -> &Rope {
+        &self.rope
     }
-}
 
-/// `rope` without the bytes in `skip`. Errors if `skip` doesn't lie within `rope`.
-fn skip_range(rope: Rope, skip: &OptionByteRange) -> Result<Rope> {
-    let Some(range) = skip.range() else {
-        return Ok(rope);
-    };
-    ensure!(
-        range.start <= range.end && range.end <= rope.len(),
-        "skipped range {range:?} is out of bounds for a cell of {} bytes",
-        rope.len()
-    );
-    Ok(rope.skip(range))
+    /// The range a skipping reference leaves out, if any.
+    pub fn skip(&self) -> Option<Range<usize>> {
+        self.skip.map(|(start, end)| start..end)
+    }
+
+    /// The bytes without the skip range. Errors if the range doesn't lie within the bytes.
+    pub fn skipped(&self) -> Result<Rope> {
+        let Some(range) = self.skip() else {
+            return Ok(self.rope.clone());
+        };
+        ensure!(
+            range.start <= range.end && range.end <= self.rope.len(),
+            "skipped range {range:?} is out of bounds for a cell of {} bytes",
+            self.rope.len()
+        );
+        Ok(self.rope.clone().skip(range))
+    }
 }
 
 impl CellRope {
@@ -136,14 +148,18 @@ impl CellRope {
                     };
                     builder.concat(&cell);
                 }
-                CellRopeSegment::SkippedCell { cell, skip } => {
-                    let (cell, skip) = if tracked {
-                        (cell.await?, skip.await?)
+                CellRopeSegment::Skippable { cell, skip } => {
+                    let cell = if tracked {
+                        cell.await?
                     } else {
                         // INVALIDATION: only `read_untracked` gets here, see `Cell` above.
-                        (cell.untracked().await?, skip.untracked().await?)
+                        cell.untracked().await?
                     };
-                    builder.concat(&skip_range((*cell).clone(), &skip)?);
+                    if skip {
+                        builder.concat(&cell.skipped()?);
+                    } else {
+                        builder.concat(cell.rope());
+                    }
                 }
                 CellRopeSegment::Nested(rope) => {
                     let rope = if tracked {
@@ -160,34 +176,9 @@ impl CellRope {
     }
 
     /// The rope's segments, in order, without reading any cells.
-    pub fn parts(&self) -> impl Iterator<Item = CellRopePart> + '_ {
-        self.segments.iter().map(|segment| match segment {
-            CellRopeSegment::Inline(inline) => CellRopePart::Inline(inline.clone()),
-            CellRopeSegment::Cell(cell) => CellRopePart::Cell {
-                cell: *cell,
-                skip: None,
-            },
-            CellRopeSegment::SkippedCell { cell, skip } => CellRopePart::Cell {
-                cell: *cell,
-                skip: Some(*skip),
-            },
-            CellRopeSegment::Nested(rope) => CellRopePart::Nested(*rope),
-        })
+    pub fn segments(&self) -> &[CellRopeSegment] {
+        &self.segments
     }
-}
-
-/// A segment of a [`CellRope`], see [`CellRope::parts`].
-pub enum CellRopePart {
-    /// Bytes owned by the rope itself.
-    Inline(Rope),
-    /// A reference to a cell owned by another task, and to the range of its bytes to leave out
-    /// (see [`CellRopeBuilder::push_cell_skipping`]).
-    Cell {
-        cell: ResolvedVc<Rope>,
-        skip: Option<ResolvedVc<OptionByteRange>>,
-    },
-    /// A reference to all of another `CellRope`'s bytes.
-    Nested(ResolvedVc<CellRope>),
 }
 
 /// Builds a [`CellRope`]. Inline bytes are buffered in a [`RopeBuilder`], so adjacent inline
@@ -216,20 +207,15 @@ impl CellRopeBuilder {
         self.segments.push(CellRopeSegment::Cell(cell));
     }
 
-    /// Appends a reference to a cell owned by another task, leaving out the range of its bytes
-    /// that `skip` holds (nothing if it holds `None`).
+    /// Appends a reference to a [`SkippableRope`] cell owned by another task: all of its bytes, or
+    /// without its skip range when `skip` is true.
     ///
-    /// Both are only read when the rope is read, so the range can follow the cell's contents:
-    /// e.g. a cell and a range computed from it by the same task. Reading fails if the range
-    /// doesn't lie within the cell's bytes.
-    pub fn push_cell_skipping(
-        &mut self,
-        cell: ResolvedVc<Rope>,
-        skip: ResolvedVc<OptionByteRange>,
-    ) {
+    /// The cell is only read when the rope is read, so the range always belongs to the bytes it
+    /// is read with. Reading fails if the range doesn't lie within the bytes.
+    pub fn push_skippable(&mut self, cell: ResolvedVc<SkippableRope>, skip: bool) {
         self.flush_inline();
         self.segments
-            .push(CellRopeSegment::SkippedCell { cell, skip });
+            .push(CellRopeSegment::Skippable { cell, skip });
     }
 
     /// Appends a reference to all of another `CellRope`'s bytes, without copying its segments.
@@ -243,11 +229,10 @@ impl CellRopeBuilder {
         for segment in &rope.segments {
             match segment {
                 CellRopeSegment::Inline(inline) => self.inline.concat(inline),
-                CellRopeSegment::Cell(cell) => self.push_cell(*cell),
-                CellRopeSegment::SkippedCell { cell, skip } => {
-                    self.push_cell_skipping(*cell, *skip)
+                segment => {
+                    self.flush_inline();
+                    self.segments.push(segment.clone());
                 }
-                CellRopeSegment::Nested(nested) => self.push_rope(*nested),
             }
         }
     }
@@ -295,7 +280,8 @@ impl std::ops::AddAssign<&'static str> for CellRopeBuilder {
     }
 }
 
-/// A file whose content is a [`CellRope`], i.e. composed from cells owned by other tasks.
+/// A file whose content is a [`CellRope`], i.e. composed from cells owned by other tasks, with the
+/// same [`FileMeta`] a [`File`] has.
 ///
 /// Creating one doesn't read the rope. Readers that need the bytes use [`ComposedFile::content`];
 /// [`crate::FileSystemPath::write_composed`] writes it without persisting the bytes as a whole,
@@ -304,24 +290,34 @@ impl std::ops::AddAssign<&'static str> for CellRopeBuilder {
 #[derive(Clone, Debug)]
 pub struct ComposedFile {
     rope: ResolvedVc<CellRope>,
+    meta: FileMeta,
 }
 
 impl ComposedFile {
-    pub fn new(rope: ResolvedVc<CellRope>) -> Self {
-        ComposedFile { rope }
+    pub fn new(rope: ResolvedVc<CellRope>, meta: FileMeta) -> Self {
+        ComposedFile { rope, meta }
     }
 
     pub fn rope(&self) -> ResolvedVc<CellRope> {
         self.rope
     }
+
+    pub fn meta(&self) -> &FileMeta {
+        &self.meta
+    }
+
+    /// A [`File`] with `bytes` (which must be the rope's) and this file's meta.
+    pub(crate) fn file(&self, bytes: Rope) -> File {
+        File::from(bytes).with_meta(self.meta.clone())
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ComposedFile {
-    /// The file's bytes, read (tracked) from the rope.
+    /// The file's bytes, read (tracked) from the rope, with its meta.
     #[turbo_tasks::function]
     pub async fn content(&self) -> Result<Vc<FileContent>> {
-        Ok(FileContent::Content(File::from(self.rope.await?.read().await?)).cell())
+        Ok(FileContent::Content(self.file(self.rope.await?.read().await?)).cell())
     }
 }
 
@@ -333,11 +329,18 @@ mod tests {
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
+    use crate::Permissions;
 
     /// The number of cells `rope` references directly (not counting nested ropes' cells).
     fn cell_count(rope: &CellRope) -> usize {
-        rope.parts()
-            .filter(|part| matches!(part, CellRopePart::Cell { .. }))
+        rope.segments()
+            .iter()
+            .filter(|segment| {
+                matches!(
+                    segment,
+                    CellRopeSegment::Cell(_) | CellRopeSegment::Skippable { .. }
+                )
+            })
             .count()
     }
 
@@ -434,64 +437,136 @@ mod tests {
         };
     }
 
-    /// A range owned by its own task, like the range a code cell's producer computes.
-    #[turbo_tasks::function(operation, root)]
-    fn range_operation(range: Option<(usize, usize)>) -> Vc<OptionByteRange> {
-        OptionByteRange::new(range.map(|(start, end)| start..end)).cell()
+    /// The bytes and skip range a [`skippable_operation`] produces.
+    #[turbo_tasks::value]
+    struct SkippableInput {
+        value: State<(RcStr, Option<(usize, usize)>)>,
     }
 
-    /// `a<cell without skip>d`, referencing both without reading them.
     #[turbo_tasks::function(operation, root)]
-    fn compose_skipping_operation(
-        cell: ResolvedVc<Rope>,
-        skip: ResolvedVc<OptionByteRange>,
-    ) -> Vc<CellRope> {
+    fn skippable_input_operation(text: RcStr, skip: Option<(usize, usize)>) -> Vc<SkippableInput> {
+        SkippableInput {
+            value: State::new((text, skip)),
+        }
+        .cell()
+    }
+
+    /// A skippable cell owned by its own task, like the code cell a chunk item's producer
+    /// computes together with its strict directive.
+    #[turbo_tasks::function(operation, root)]
+    async fn skippable_operation(input: ResolvedVc<SkippableInput>) -> Result<Vc<SkippableRope>> {
+        let (text, skip) = input.await?.value.get().clone();
+        Ok(SkippableRope::new(
+            Rope::from(text.to_string()),
+            skip.map(|(start, end)| start..end),
+        )
+        .cell())
+    }
+
+    /// `a<cell>|<cell without its skip range>d`: one cell referenced both whole and skipped,
+    /// without reading it.
+    #[turbo_tasks::function(operation, root)]
+    fn compose_skippable_operation(cell: ResolvedVc<SkippableRope>) -> Vc<CellRope> {
         let mut builder = CellRopeBuilder::default();
         builder += "a";
-        builder.push_cell_skipping(cell, skip);
+        builder.push_skippable(cell, false);
+        builder += "|";
+        builder.push_skippable(cell, true);
         builder += "d";
         builder.build_cell()
     }
 
-    /// Reads `a<"bcxyef" without range>d`, tracked and untracked, checking they agree.
-    async fn read_skipping(range: Option<(usize, usize)>) -> Result<(CellRope, RcStr)> {
-        let switch = switch_operation().resolve().strongly_consistent().await?;
-        let cell = item_operation(switch, "bcxyef".into())
+    /// The composition of [`compose_skippable_operation`] for `input`, read tracked and
+    /// untracked (checking they agree), with the rope itself.
+    async fn read_skippable(input: ResolvedVc<SkippableInput>) -> Result<(CellRope, RcStr)> {
+        let (rope_cell, rope, tracked) = read_skippable_tracked(input).await?;
+        let untracked = read_untracked_operation(rope_cell)
+            .read_strongly_consistent()
+            .await?;
+        assert_eq!(tracked, *untracked);
+        Ok((rope, tracked))
+    }
+
+    /// Like [`read_skippable`], with a tracked read only (and the rope's cell). An untracked read
+    /// isn't invalidated when the cell changes, so it can't be compared after an update.
+    async fn read_skippable_tracked(
+        input: ResolvedVc<SkippableInput>,
+    ) -> Result<(ResolvedVc<CellRope>, CellRope, RcStr)> {
+        let cell = skippable_operation(input)
             .resolve()
             .strongly_consistent()
             .await?;
-        let skip = range_operation(range)
-            .resolve()
-            .strongly_consistent()
-            .await?;
-        let rope = compose_skipping_operation(cell, skip)
+        let rope = compose_skippable_operation(cell)
             .resolve()
             .strongly_consistent()
             .await?;
         let tracked = read_operation(rope).read_strongly_consistent().await?;
-        let untracked = read_untracked_operation(rope)
-            .read_strongly_consistent()
+        Ok((rope, (*rope.await?).clone(), (*tracked).clone()))
+    }
+
+    async fn read_skipping(text: &str, skip: Option<(usize, usize)>) -> Result<RcStr> {
+        let input = skippable_input_operation(text.into(), skip)
+            .resolve()
+            .strongly_consistent()
             .await?;
-        assert_eq!(tracked, untracked);
-        Ok(((*rope.await?).clone(), (*tracked).clone()))
+        Ok(read_skippable(input).await?.1)
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn skipped_cells_leave_out_their_range_when_read() {
+    async fn skippable_cells_are_read_whole_or_without_their_range() {
         turbo_tasks!()
             .run_once(async {
-                let (rope, text) = read_skipping(Some((2, 4))).await?;
-                assert_eq!(text.as_str(), "abcefd");
-                assert_eq!(cell_count(&rope), 1);
-                assert!(
-                    rope.parts()
-                        .any(|part| matches!(part, CellRopePart::Cell { skip: Some(_), .. }))
-                );
+                let input = skippable_input_operation("bcxyef".into(), Some((2, 4)))
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let (rope, text) = read_skippable(input).await?;
+                assert_eq!(text.as_str(), "abcxyef|bcefd");
+                assert_eq!(cell_count(&rope), 2);
+                let cells: Vec<_> = rope
+                    .segments()
+                    .iter()
+                    .filter_map(|segment| match segment {
+                        CellRopeSegment::Skippable { cell, .. } => Some(*cell),
+                        _ => None,
+                    })
+                    .collect();
+                assert_eq!(cells[0], cells[1], "both references share one cell");
 
-                let (_, text) = read_skipping(None).await?;
-                assert_eq!(text.as_str(), "abcxyefd");
-                let (_, text) = read_skipping(Some((0, 6))).await?;
-                assert_eq!(text.as_str(), "ad");
+                assert_eq!(
+                    read_skipping("bcxyef", None).await?.as_str(),
+                    "abcxyef|bcxyefd"
+                );
+                assert_eq!(
+                    read_skipping("bcxyef", Some((0, 6))).await?.as_str(),
+                    "abcxyef|d"
+                );
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    /// Updating the skippable cell (bytes and range together) is followed by both references
+    /// without rebuilding the composition.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn skippable_cell_updates_are_followed_without_recomposing() {
+        turbo_tasks!()
+            .run_once(async {
+                let input_op = skippable_input_operation("bcxyef".into(), Some((2, 4)));
+                let input = input_op.resolve().strongly_consistent().await?;
+                let (rope, text) = read_skippable(input).await?;
+                assert_eq!(text.as_str(), "abcxyef|bcefd");
+
+                input_op
+                    .read_strongly_consistent()
+                    .await?
+                    .value
+                    .set(("123456".into(), Some((0, 2))));
+
+                let (_, updated, text) = read_skippable_tracked(input).await?;
+                assert_eq!(text.as_str(), "a123456|3456d");
+                assert_eq!(updated, rope, "the composition doesn't change");
                 anyhow::Ok(())
             })
             .await
@@ -502,7 +577,7 @@ mod tests {
     async fn skipped_ranges_out_of_bounds_fail_the_read() {
         turbo_tasks!()
             .run_once(async {
-                let err = read_skipping(Some((4, 7)))
+                let err = read_skipping("bcxyef", Some((4, 7)))
                     .await
                     .expect_err("a range past the cell's end must fail the read");
                 assert!(
@@ -524,6 +599,44 @@ mod tests {
         let rope = builder.build();
         assert_eq!(rope.segments.len(), 1);
         assert_eq!(cell_count(&rope), 0);
+    }
+
+    /// A non-default meta: a content type, executable permissions and atomic writes.
+    fn special_meta() -> FileMeta {
+        File::from("")
+            .with_content_type(mime::TEXT_CSS)
+            .with_permissions(Permissions::Executable)
+            .with_atomic_write()
+            .meta()
+            .clone()
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn composed_content_operation() -> Result<Vc<FileContent>> {
+        let mut builder = CellRopeBuilder::default();
+        builder += "body";
+        let file = ComposedFile::new(builder.build_resolved_cell(), special_meta()).cell();
+        Ok(file.content())
+    }
+
+    /// A composed file's content is a `File` with its meta, like a flat file's.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn composed_file_content_keeps_its_meta() {
+        turbo_tasks!()
+            .run_once(async {
+                let content = composed_content_operation()
+                    .read_strongly_consistent()
+                    .await?;
+                let FileContent::Content(file) = &*content else {
+                    bail!("expected content");
+                };
+                assert_eq!(file.content().to_str()?, "body");
+                assert_eq!(file.meta(), &special_meta());
+                assert_eq!(file.content_type(), Some(&mime::TEXT_CSS));
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
     }
 
     /// An item error surfaces when the composed content is read; no partial content is returned.

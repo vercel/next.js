@@ -46,7 +46,6 @@ use crate::{
     mutex_map::MutexMap,
     path_map::OrderedPathMapExt,
     retry::{can_retry, retry_blocking, retry_blocking_custom},
-    rope::Rope,
     watcher::{DiskWatcher, DiskWatcherConfig},
 };
 
@@ -1678,9 +1677,12 @@ async fn declare_write(
 enum WriteEffectContent {
     /// Bytes persisted as a whole ([`DiskFileSystem::write`]).
     Flat(ResolvedVc<PersistedFileContent>),
-    /// A [`CellRope`] whose bytes are persisted by the cells it references
+    /// A [`CellRope`] whose bytes are persisted by the cells it references, and the file's meta
     /// ([`DiskFileSystem::write_composed`]).
-    Composed(ResolvedVc<CellRope>),
+    Composed {
+        rope: ResolvedVc<CellRope>,
+        meta: FileMeta,
+    },
 }
 
 /// What a write declares for a file. See [`prepare_write`] and [`prepare_composed_write`].
@@ -1710,25 +1712,31 @@ async fn prepare_write(content: ResolvedVc<FileContent>) -> Result<Vc<PreparedWr
 
 /// Prepares [`DiskFileSystem::write_composed`]'s effect, in its own task so that it is persisted.
 ///
-/// Only the [`CellRope`] (inline bytes plus references) is persisted, because the referenced
-/// cells persist the bytes already. Its bytes are read (tracked) to compute the content hash, so
-/// the hash follows the referenced cells; they aren't kept. The hash is the one a flat write of
-/// the same bytes gets, so switching a path between the two doesn't rewrite an unchanged file.
+/// Only the [`CellRope`] (inline bytes plus references) and the meta are persisted, because the
+/// referenced cells persist the bytes already. Its bytes are read (tracked) to compute the content
+/// hash, so the hash follows the referenced cells; they aren't kept. The hash is the one a flat
+/// write of the same bytes and meta gets, so switching a path between the two doesn't rewrite an
+/// unchanged file, and a meta-only change rewrites it.
 #[turbo_tasks::function]
 async fn prepare_composed_write(content: ResolvedVc<ComposedFile>) -> Result<Vc<PreparedWrite>> {
-    let rope = content.await?.rope();
-    let content_hash = composed_content_hash(&rope.await?.read().await?);
+    let composed = content.await?;
+    let rope = composed.rope();
+    let file = composed.file(rope.await?.read().await?);
+    let content_hash = composed_content_hash(file);
     Ok(PreparedWrite {
-        content: WriteEffectContent::Composed(rope),
+        content: WriteEffectContent::Composed {
+            rope,
+            meta: composed.meta().clone(),
+        },
         content_hash,
     }
     .cell())
 }
 
-/// The hash [`DiskFileSystem::write`] computes for a file with these bytes and default
-/// metadata, so that composed and flat writes of the same bytes share effect state.
-fn composed_content_hash(rope: &Rope) -> u128 {
-    hash_xxh3_hash128(PersistedFileContent::Content(File::from(rope.clone())))
+/// The hash [`DiskFileSystem::write`] computes for `file`, so that composed and flat writes of the
+/// same bytes and meta share effect state.
+fn composed_content_hash(file: File) -> u128 {
+    hash_xxh3_hash128(PersistedFileContent::Content(file))
 }
 
 #[turbo_tasks::value(eq = "manual", cell = "new")]
@@ -1766,9 +1774,11 @@ impl Effect for WriteEffect {
             // cell — that would pin it and defeat the eviction this refactor enables.
             match &self.content {
                 WriteEffectContent::Flat(content) => Some((*content).untracked().await?),
-                WriteEffectContent::Composed(rope) => capture_composed(*rope, self.content_hash)
-                    .await
-                    .map(ReadRef::new_owned),
+                WriteEffectContent::Composed { rope, meta } => {
+                    capture_composed(*rope, meta, self.content_hash)
+                        .await
+                        .map(ReadRef::new_owned)
+                }
             }
         };
         Ok(Box::new(CapturedWriteEffect {
@@ -1790,6 +1800,7 @@ impl Effect for WriteEffect {
 /// bytes are never written.
 async fn capture_composed(
     rope: ResolvedVc<CellRope>,
+    meta: &FileMeta,
     content_hash: u128,
 ) -> Option<PersistedFileContent> {
     let bytes = async {
@@ -1800,8 +1811,9 @@ async fn capture_composed(
     }
     .await
     .ok()?;
-    (composed_content_hash(&bytes) == content_hash)
-        .then(|| PersistedFileContent::Content(File::from(bytes)))
+    let file = File::from(bytes).with_meta(meta.clone());
+    (composed_content_hash(file.clone()) == content_hash)
+        .then(|| PersistedFileContent::Content(file))
 }
 
 /// How much a file write buffers before writing to the file, see [`write_file_content`].
@@ -2077,8 +2089,8 @@ mod tests {
 
         use super::extract_effects_operation;
         use crate::{
-            CellRope, CellRopeBuilder, ComposedFile, DiskFileSystem, File, FileContent,
-            FileSystemPath, PersistedFileContent,
+            CellRope, CellRopeBuilder, ComposedFile, DiskFileSystem, File, FileContent, FileMeta,
+            FileSystemPath, Permissions, PersistedFileContent,
             disk::{
                 PreparedWrite, WriteEffectContent, capture_composed, composed_content_hash,
                 prepare_composed_write, prepare_write,
@@ -2136,7 +2148,8 @@ mod tests {
                 path: rcstr!("out.js"),
             };
             let rope = compose(*switch).to_resolved().await?;
-            path.write_composed(ComposedFile::new(rope).cell()).await?;
+            path.write_composed(ComposedFile::new(rope, FileMeta::default()).cell())
+                .await?;
             Ok(())
         }
 
@@ -2207,19 +2220,41 @@ mod tests {
             same_rope()
         }
 
-        #[turbo_tasks::function(operation, root)]
-        async fn prepare_composed_operation() -> Result<Vc<PreparedWrite>> {
-            let rope = same_rope().to_resolved().await?;
-            Ok(prepare_composed_write(ComposedFile::new(rope).cell()))
+        /// A meta for a script: executable, written atomically.
+        fn script_meta() -> FileMeta {
+            File::from("")
+                .with_permissions(Permissions::Executable)
+                .with_atomic_write()
+                .meta()
+                .clone()
+        }
+
+        fn meta(executable: bool) -> FileMeta {
+            if executable {
+                script_meta()
+            } else {
+                FileMeta::default()
+            }
         }
 
         #[turbo_tasks::function(operation, root)]
-        fn prepare_flat_operation() -> Vc<PreparedWrite> {
-            prepare_write(FileContent::Content(File::from("same")).cell())
+        async fn prepare_composed_operation(executable: bool) -> Result<Vc<PreparedWrite>> {
+            let rope = same_rope().to_resolved().await?;
+            Ok(prepare_composed_write(
+                ComposedFile::new(rope, meta(executable)).cell(),
+            ))
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn prepare_flat_operation(executable: bool) -> Vc<PreparedWrite> {
+            prepare_write(
+                FileContent::Content(File::from("same").with_meta(meta(executable))).cell(),
+            )
         }
 
         /// A composed write persists only the rope, with the hash a flat write of the same bytes
-        /// gets, so switching a path between the two doesn't rewrite an unchanged file.
+        /// and meta gets, so switching a path between the two doesn't rewrite an unchanged file,
+        /// while a meta-only change does.
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn composed_and_flat_writes_of_the_same_bytes_share_their_hash() {
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
@@ -2227,13 +2262,121 @@ mod tests {
                 noop_backing_storage(),
             ));
             tt.run_once(async move {
-                let composed = prepare_composed_operation()
+                for executable in [false, true] {
+                    let composed = prepare_composed_operation(executable)
+                        .read_strongly_consistent()
+                        .await?;
+                    let flat = prepare_flat_operation(executable)
+                        .read_strongly_consistent()
+                        .await?;
+                    assert!(matches!(
+                        composed.content,
+                        WriteEffectContent::Composed { .. }
+                    ));
+                    assert!(matches!(flat.content, WriteEffectContent::Flat(_)));
+                    assert_eq!(composed.content_hash, flat.content_hash);
+                }
+                let plain = prepare_composed_operation(false)
                     .read_strongly_consistent()
                     .await?;
-                let flat = prepare_flat_operation().read_strongly_consistent().await?;
-                assert!(matches!(composed.content, WriteEffectContent::Composed(_)));
-                assert!(matches!(flat.content, WriteEffectContent::Flat(_)));
-                assert_eq!(composed.content_hash, flat.content_hash);
+                let script = prepare_composed_operation(true)
+                    .read_strongly_consistent()
+                    .await?;
+                assert_ne!(plain.content_hash, script.content_hash);
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+
+        #[turbo_tasks::value]
+        struct Executable {
+            executable: State<bool>,
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn executable_operation() -> Vc<Executable> {
+            Executable {
+                executable: State::new(false),
+            }
+            .cell()
+        }
+
+        /// Writes `same` to `composed.sh` (composed) and `flat.sh` (flat), both with the meta
+        /// `executable` selects.
+        #[turbo_tasks::function(operation, root)]
+        async fn write_with_meta_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            executable: ResolvedVc<Executable>,
+        ) -> Result<()> {
+            let meta = meta(*executable.await?.executable.get());
+            let path = |name: &str| FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: name.into(),
+            };
+            let rope = same_rope().to_resolved().await?;
+            path("composed.sh")
+                .write_composed(ComposedFile::new(rope, meta.clone()).cell())
+                .await?;
+            path("flat.sh")
+                .write(FileContent::Content(File::from("same").with_meta(meta)).cell())
+                .await?;
+            Ok(())
+        }
+
+        /// A composed write applies its meta like a flat write does, and a meta-only change
+        /// rewrites the file.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn composed_writes_apply_their_meta() {
+            use std::os::unix::fs::PermissionsExt;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let dir = scratch.path().to_path_buf();
+            let root: RcStr = dir.to_str().unwrap().into();
+            let mode = move |name: &str| {
+                std::fs::metadata(dir.join(name))
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o111
+            };
+            let dir = scratch.path().to_path_buf();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                let fs = disk_fs_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let executable_op = executable_operation();
+                let executable = executable_op.resolve().strongly_consistent().await?;
+
+                read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(write_with_meta_operation(fs, executable)),
+                    |e| e,
+                )
+                .await?;
+                assert_eq!(mode("composed.sh"), mode("flat.sh"));
+                assert_eq!(mode("composed.sh"), 0, "default meta isn't executable");
+
+                executable_op
+                    .read_strongly_consistent()
+                    .await?
+                    .executable
+                    .set(true);
+                read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(write_with_meta_operation(fs, executable)),
+                    |e| e,
+                )
+                .await?;
+                for name in ["composed.sh", "flat.sh"] {
+                    assert_eq!(read_to_string(dir.join(name)).unwrap(), "same", "{name}");
+                }
+                assert_ne!(mode("composed.sh"), 0, "the meta-only change is applied");
+                assert_eq!(mode("composed.sh"), mode("flat.sh"));
                 anyhow::Ok(())
             })
             .await
@@ -2254,17 +2397,36 @@ mod tests {
                     .strongly_consistent()
                     .await?;
 
-                let Some(PersistedFileContent::Content(file)) =
-                    capture_composed(rope, composed_content_hash(&Rope::from("same"))).await
+                let default_meta = FileMeta::default();
+                let Some(PersistedFileContent::Content(file)) = capture_composed(
+                    rope,
+                    &default_meta,
+                    composed_content_hash(File::from("same")),
+                )
+                .await
                 else {
                     bail!("expected the rope's bytes to be captured");
                 };
                 assert_eq!(file.content().to_str()?, "same");
 
                 assert!(
-                    capture_composed(rope, composed_content_hash(&Rope::from("other")))
-                        .await
-                        .is_none()
+                    capture_composed(
+                        rope,
+                        &default_meta,
+                        composed_content_hash(File::from("other"))
+                    )
+                    .await
+                    .is_none()
+                );
+                // The meta is part of the hash: bytes captured for another meta don't match.
+                assert!(
+                    capture_composed(
+                        rope,
+                        &script_meta(),
+                        composed_content_hash(File::from("same"))
+                    )
+                    .await
+                    .is_none()
                 );
                 anyhow::Ok(())
             })

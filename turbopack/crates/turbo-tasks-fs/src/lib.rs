@@ -51,7 +51,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 
 pub use crate::{
-    cell_rope::{CellRope, CellRopeBuilder, CellRopePart, ComposedFile, OptionByteRange},
+    cell_rope::{CellRope, CellRopeBuilder, CellRopeSegment, ComposedFile, SkippableRope},
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
         LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
