@@ -317,7 +317,7 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
     };
     let file = source_file(*input).to_resolved().await?;
     let references_file = |rope: &CellRope| {
-        rope.segments()
+        rope.parts()
             .iter()
             .any(|segment| matches!(segment, CellRopeSegment::EscapedFileContent(f) if *f == file))
     };

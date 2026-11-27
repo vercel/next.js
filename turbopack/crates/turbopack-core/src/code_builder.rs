@@ -2120,13 +2120,13 @@ mod composition_tests {
         let file = text_file(*text).to_resolved().await?;
         let parts = contents.await?;
         ensure!(
-            parts.segments().iter().any(
+            parts.parts().iter().any(
                 |segment| matches!(segment, CellRopeSegment::EscapedFileContent(f) if *f == file)
             ),
             "the contents don't reference the file"
         );
         ensure!(
-            parts.segments().iter().all(|segment| match segment {
+            parts.parts().iter().all(|segment| match segment {
                 CellRopeSegment::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
                 _ => true,
             }),
@@ -2229,7 +2229,7 @@ mod composition_tests {
         };
         let map_cell = map_cell.await?;
         let referenced = map_cell
-            .segments()
+            .parts()
             .iter()
             .filter_map(|segment| match segment {
                 CellRopeSegment::Nested(rope) => Some(*rope),
@@ -2241,7 +2241,7 @@ mod composition_tests {
             "inline contents must be referenced, not copied"
         );
         ensure!(
-            map_cell.segments().iter().all(|segment| match segment {
+            map_cell.parts().iter().all(|segment| match segment {
                 CellRopeSegment::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
                 _ => true,
             }),

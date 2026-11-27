@@ -100,7 +100,7 @@ async fn map_contents_operation(fs: ResolvedVc<DiskFileSystem>) -> Result<Vc<Map
     let contents = map.contents().context("the contents are a part")?;
     let references_file = contents
         .await?
-        .segments()
+        .parts()
         .iter()
         .any(|segment| matches!(segment, CellRopeSegment::EscapedFileContent(_)));
     let head = map.head().clone();
@@ -152,7 +152,7 @@ async fn failsafe_parse_operation(fs: ResolvedVc<DiskFileSystem>) -> Result<Vc<F
     let contents = map.contents().context("the contents are a part")?;
     let map_references_file = contents
         .await?
-        .segments()
+        .parts()
         .iter()
         .any(|segment| matches!(segment, CellRopeSegment::EscapedFileContent(_)));
     let rope = map.to_section_map(map.head().clone()).await?.to_rope();
