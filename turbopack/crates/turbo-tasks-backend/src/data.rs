@@ -1,13 +1,16 @@
 use std::{
     fmt::{self, Debug, Display},
+    hash::BuildHasherDefault,
     pin::Pin,
     sync::Arc,
 };
 
 use anyhow::Result;
+use auto_hash_map::{AutoMap, map::Entry};
 use bincode::{Decode, Encode};
 use parking_lot::Mutex;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashSet, FxHasher};
+use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
@@ -16,7 +19,7 @@ use turbo_tasks::{
     event::{Event, EventDescription, EventListener},
 };
 
-use crate::error::TaskError;
+use crate::{backend::counter_map::CounterMap, error::TaskError};
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -165,6 +168,127 @@ impl ActivenessState {
 }
 
 transient_traits!(ActivenessState);
+
+/// The follower edge additions that a task published while holding its lock and that haven't
+/// been applied to the uppers yet, and the removals of follower edges that wait for them. Keyed by
+/// follower.
+///
+/// Stored on the task that published the additions (the owner): a task that connected new
+/// children, a task that became inner of an upper and passes its followers on, or an upper that
+/// got a new follower and passes it on to its own uppers. See "Pending additions" in the module
+/// docs of `aggregation_update`.
+#[derive(Debug, Default)]
+pub struct PendingFollowerAdditions {
+    followers: AutoMap<TaskId, PendingFollowerAddition, BuildHasherDefault<FxHasher>, 1>,
+}
+
+#[derive(Debug, Default)]
+struct PendingFollowerAddition {
+    /// The number of additions of the follower that haven't been settled yet.
+    pending_count: usize,
+    /// The uppers from which the follower is removed once `pending_count` is 0, with the number of
+    /// removals.
+    parked_removals: CounterMap<TaskId, u32, 1>,
+}
+
+impl PendingFollowerAdditions {
+    pub fn is_empty(&self) -> bool {
+        self.followers.is_empty()
+    }
+
+    /// The number of pending additions and of parked removals, for the verification of the graph.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub fn counts(&self) -> (usize, usize) {
+        self.followers
+            .values()
+            .fold((0, 0), |(pending, parked), follower| {
+                (
+                    pending + follower.pending_count,
+                    parked
+                        + follower
+                            .parked_removals
+                            .iter()
+                            .map(|(_, &count)| count as usize)
+                            .sum::<usize>(),
+                )
+            })
+    }
+
+    /// Counts an addition of each of `follower_ids` that the owner published and that hasn't been
+    /// applied yet.
+    pub fn add(&mut self, follower_ids: &[TaskId]) {
+        for &follower_id in follower_ids {
+            self.followers.entry(follower_id).or_default().pending_count += 1;
+        }
+    }
+
+    /// Parks the removal of one edge between each of `upper_ids` and each of `follower_ids` that
+    /// has a pending addition. These removals wait until no addition of their follower is pending
+    /// anymore. Returns the followers whose removals were parked; the caller removes the other
+    /// ones right away.
+    pub fn park_removals(
+        &mut self,
+        upper_ids: &[TaskId],
+        follower_ids: &[TaskId],
+    ) -> SmallVec<[TaskId; 1]> {
+        let mut parked = SmallVec::new();
+        for &follower_id in follower_ids {
+            let Some(follower) = self.followers.get_mut(&follower_id) else {
+                continue;
+            };
+            if follower.pending_count == 0 {
+                continue;
+            }
+            for &upper_id in upper_ids {
+                follower.parked_removals.update_count(upper_id, 1);
+            }
+            parked.push(follower_id);
+        }
+        parked
+    }
+
+    /// Settles the applied additions, `count` for each follower. Returns the removals that were
+    /// parked for followers that have no pending addition anymore, as `(upper, follower, count)`.
+    pub fn settle(
+        &mut self,
+        follower_counts: impl IntoIterator<Item = (TaskId, u32)>,
+    ) -> SmallVec<[(TaskId, TaskId, u32); 1]> {
+        let mut released = SmallVec::new();
+        let mut removed_followers = false;
+        for (follower_id, count) in follower_counts {
+            let Entry::Occupied(mut entry) = self.followers.entry(follower_id) else {
+                panic!("{follower_id} has no pending follower addition to settle");
+            };
+            let follower = entry.get_mut();
+            follower.pending_count = follower
+                .pending_count
+                .checked_sub(count as usize)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "{count} pending additions of {follower_id} were settled, but only {} \
+                         were pending",
+                        follower.pending_count
+                    )
+                });
+            if follower.pending_count == 0 {
+                let follower = entry.remove();
+                removed_followers = true;
+                released.extend(
+                    follower
+                        .parked_removals
+                        .into_iter()
+                        .map(|(upper_id, count)| (upper_id, follower_id, count)),
+                );
+            }
+        }
+        if removed_followers {
+            self.followers.shrink_amortized();
+        }
+        released
+    }
+}
+
+transient_traits!(PendingFollowerAdditions);
 
 type TransientTaskOnce =
     Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;

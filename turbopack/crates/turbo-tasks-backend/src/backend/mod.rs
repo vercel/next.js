@@ -1,6 +1,6 @@
 mod activity;
 mod cell_data;
-mod counter_map;
+pub(crate) mod counter_map;
 mod eviction;
 mod gc;
 mod operation;
