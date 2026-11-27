@@ -3581,7 +3581,17 @@ impl TurboTasksBackend {
                                 if !check_idle_ended!()
                                     && (new_data || ran_compaction || ran_eviction)
                                 {
-                                    TurboMalloc::collect(true);
+                                    if ran_eviction {
+                                        // Eviction frees most of the heap, but leaves it
+                                        // fragmented: the remaining tasks split the freed memory
+                                        // into ranges that are mostly smaller than a transparent
+                                        // huge page. A regular forced collect doesn't return those
+                                        // to the OS where mimalloc only purges huge page sized
+                                        // ranges, so the evicted memory would stay resident.
+                                        TurboMalloc::collect_and_purge_all();
+                                    } else {
+                                        TurboMalloc::collect(true);
+                                    }
                                 }
 
                                 // Sample the new baseline after the collect above, which is what
