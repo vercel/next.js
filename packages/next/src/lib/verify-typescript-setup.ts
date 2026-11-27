@@ -265,6 +265,7 @@ export async function verifyAndRunTypeScript({
           baseDir: dir,
           tsConfigPath: resolvedTsConfigPath,
           tscPath: typeScriptPath,
+          typescriptVersion,
           cacheDir,
           onFirstOutput: onFirstCliOutput,
         })
