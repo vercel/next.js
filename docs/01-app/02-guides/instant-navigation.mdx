@@ -106,6 +106,8 @@ With Partial Prefetching enabled, `prefetch={true}` also opts the link into [per
 
 By **default** (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. Validation surfaces what would keep navigations into a segment from being instant — which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
 
+To read a finding for a specific path, an agent can [query the running dev server with `check_route`](/docs/app/guides/debugging-with-agents#route-errors-and-navigation-insights).
+
 To opt out of automatic validation and only validate segments that explicitly export `instant`, set [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
 
 ```ts filename="next.config.ts" highlight={7}

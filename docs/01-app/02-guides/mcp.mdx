@@ -11,7 +11,7 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open s
 
 In Next.js 16 and later, the development server exposes an MCP endpoint at `/_next/mcp`. It gives coding agents the running app's view of errors, routes, logs, and compilation issues.
 
-An agent can [call the HTTP endpoint directly](/docs/app/guides/debugging-with-agents#find-the-error), without installing anything. The optional [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) connector makes these tools available in your agent's configured MCP client.
+An agent can [call the HTTP endpoint directly](/docs/app/guides/debugging-with-agents#calling-the-dev-server), without installing anything. The optional [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) connector makes these tools available in your agent's configured MCP client.
 
 ## Getting started
 
@@ -59,7 +59,7 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_server_action_by_id`**: Look up a Server Action by its ID to find its source file and export name.
 - **`get_compilation_issues`**: Build the module graph for all routes and return compilation issues such as resolve errors, missing modules, and transform errors. Doesn't require a browser session. Turbopack only.
 - **`compile_route`**: Compile a specific route without making an HTTP request to it. Accepts either a `routeSpecifier` (for example, `/blog/[slug]`, as returned by `get_routes`) or a `path` (for example, `/blog/hello-world`), which is resolved to the matching route. Returns any compilation issues for the route. Turbopack only.
-- **`check_route`**: Check a route without a browser. Pass its `path` (for example, `/blog/hello-world`) to get compilation diagnostics and, with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, route validation results. These can include [Instant Navigation Insights](/docs/app/guides/instant-navigation#validate-instant-navigation) even when the page renders. After a fix, [check the same path again](/docs/app/guides/debugging-with-agents#verify-the-fix).
+- **`check_route`**: Check a route without a browser. Pass its `path` (for example, `/blog/hello-world`) to get compilation diagnostics and, with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, route validation results. These can include [Instant Navigation Insights](/docs/app/guides/instant-navigation#validate-instant-navigation) even when the page renders. See [how to read the validation result](/docs/app/guides/debugging-with-agents#route-errors-and-navigation-insights).
 - **`get_request_insights`**: Get recent App Router request timelines, server fetches, and cache behavior captured by the local span recorder. Requires `experimental.requestInsights`.
 
 With the compilation tools, agents can check whether code compiles from the running dev server instead of running `next build` while they are still editing.
