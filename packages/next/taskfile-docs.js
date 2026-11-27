@@ -99,23 +99,35 @@ function attribute(block, name) {
   return match ? (match[1] ?? match[2] ?? match[3]) : null
 }
 
-/** A `<FixCard>` as a list item: its title linked to its section, then its lines of code. */
+/**
+ * A `<FixCard>` the way nextjs.org renders it as Markdown: its group and its
+ * title linked to its section, then its lines of code.
+ */
 function fixCard(block, indent) {
   const title = attribute(block, 'title')
   const href = attribute(block, 'href')
+  const group = attribute(block, 'group')
   const snippets = []
   const text = /text:\s*(['"`])((?:\\.|(?!\1).)*)\1/g
   for (let match; (match = text.exec(block)); ) {
     snippets.push(match[2].replace(/\\(['"`\\])/g, '$1'))
   }
   if (!title) return []
-  const lines = [`${indent}- ${href ? `[${title}](${href})` : title}`]
+  const label = group ? `${group[0].toUpperCase()}${group.slice(1)}: ` : ''
+  const lines = [`${indent}${label}${href ? `[${title}](${href})` : title}`, '']
   if (snippets.length) {
-    lines.push('', `${indent}  \`\`\``)
-    for (const snippet of snippets) lines.push(`${indent}  ${snippet}`)
-    lines.push(`${indent}  \`\`\``, '')
+    lines.push(`${indent}\`\`\``)
+    for (const snippet of snippets) lines.push(`${indent}${snippet}`)
+    lines.push(`${indent}\`\`\``, '')
   }
   return lines
+}
+
+/** A `<Video>` as a link to it, labelled with its caption. */
+function video(block, indent) {
+  const src = attribute(block, 'src')
+  const caption = attribute(block, 'caption')
+  return src && caption ? [`${indent}[${caption}](${src})`] : []
 }
 
 /** An `<Image>` as a Markdown image, with the path the page was written with. */
@@ -235,6 +247,12 @@ function convertBody(body, router) {
       i = to
       // Cards are indented under their grid; as list items they start the line.
       out.push(...fixCard(block, indent.replace(/^ {1,2}/, '')))
+      continue
+    }
+    if (/^<Video\b/.test(trimmed)) {
+      const { block, to } = tagBlock(lines, i, /\/>\s*$/)
+      i = to
+      out.push(...video(block, indent))
       continue
     }
     if (/^<Image\b/.test(trimmed)) {

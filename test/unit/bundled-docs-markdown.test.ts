@@ -193,6 +193,12 @@ describe('bundled docs as Markdown', () => {
       '  />',
       '</FixCardGrid>',
       '',
+      '<Video',
+      '  caption="Analyzer walkthrough"',
+      '  src="/videos/analyzer.mp4"',
+      '  width={1708}',
+      '/>',
+      '',
       '<Image',
       '  alt="App Folder Structure"',
       '  srcLight="/docs/light/app.png"',
@@ -207,12 +213,14 @@ describe('bundled docs as Markdown', () => {
       [
         'Start with the guide.',
         '',
-        '- [Cache the timestamp](#cache-the-timestamp)',
+        'Cache: [Cache the timestamp](#cache-the-timestamp)',
         '',
-        '  ```',
-        '    "use cache"',
-        '  return <time>{Date.now()}</time>',
-        '  ```',
+        '```',
+        '  "use cache"',
+        'return <time>{Date.now()}</time>',
+        '```',
+        '',
+        '[Analyzer walkthrough](/videos/analyzer.mp4)',
         '',
         '![App Folder Structure](/docs/light/app.png)',
       ].join('\n')
@@ -279,7 +287,7 @@ describe('bundled docs as Markdown', () => {
           if (
             /^\s*\{\/\*/.test(line) ||
             // Anywhere in a line, except where a page names a tag in inline code.
-            /<\/?(AppOnly|PagesOnly|FixCardGrid|FixCard|Image|Check|Cross)\b/.test(
+            /<\/?(AppOnly|PagesOnly|FixCardGrid|FixCard|Image|Video|Check|Cross)\b/.test(
               line.replace(/`+[^`]*`+/g, '')
             )
           ) {
