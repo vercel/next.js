@@ -4313,6 +4313,7 @@ dependencies = [
  "smallvec",
  "swc_core",
  "swc_sourcemap",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
