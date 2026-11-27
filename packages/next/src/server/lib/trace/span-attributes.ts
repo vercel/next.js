@@ -1,4 +1,44 @@
-import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
+import type {
+  AttributeValue,
+  SpanOptions,
+  SpanStatusCode,
+} from 'next/dist/compiled/@opentelemetry/api'
+import type { SpanStoreAttributes, SpanStoreLink } from './span-store'
+import type { OpenTelemetryReadableSpan } from './request-insights-otel'
+
+// The OTel status code is part of its public API. Keep recording independent of
+// loading the runtime API.
+export const SPAN_STATUS_ERROR: SpanStatusCode = 2
+
+export function cleanSpanStoreAttributes(
+  attributes:
+    | Record<string, AttributeValue | undefined>
+    | SpanStoreAttributes
+    | undefined,
+  cleanedAttributes: SpanStoreAttributes = {}
+): SpanStoreAttributes {
+  if (attributes) {
+    for (const key of Object.keys(attributes)) {
+      const value = attributes[key]
+      if (value !== undefined) {
+        cleanedAttributes[key] = value
+      }
+    }
+  }
+  return cleanedAttributes
+}
+
+export function getSpanStoreLinks(
+  links: SpanOptions['links'] | OpenTelemetryReadableSpan['links'] | undefined
+): SpanStoreLink[] | undefined {
+  const spanStoreLinks = links?.map((link) => ({
+    traceId: link.context.traceId,
+    spanId: link.context.spanId,
+    attributes: cleanSpanStoreAttributes(link.attributes),
+  }))
+
+  return spanStoreLinks?.length ? spanStoreLinks : undefined
+}
 
 export function normalizeTraceAttributes(
   attributes: Record<string, unknown> | undefined,

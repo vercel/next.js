@@ -210,6 +210,15 @@ const rootSpanIdKey = api.createContextKey('next.rootSpanId')
 let lastSpanId = 0
 const getSpanId = () => lastSpanId++
 
+/** The attributes `NextTracer.trace` adds to every span it starts. */
+export function getNextSpanAttributes(type: SpanTypes, spanName: string) {
+  return {
+    'next.span_category': 'nextjs',
+    'next.span_name': spanName,
+    'next.span_type': type,
+  }
+}
+
 export interface ClientTraceDataEntry {
   key: string
   value: string
@@ -420,9 +429,7 @@ class NextTracerImpl implements NextTracer {
     const spanId = getSpanId()
 
     options.attributes = {
-      'next.span_category': 'nextjs',
-      'next.span_name': spanName,
-      'next.span_type': type,
+      ...getNextSpanAttributes(type, spanName),
       ...options.attributes,
     }
 
@@ -736,12 +743,7 @@ class NextTracerImpl implements NextTracer {
   public withSpan<T>(span: Span, fn: () => T): T {
     const recorder = getLocalSpanRecorder()
     if (recorder?.isLocalRecordingSpan(span)) {
-      const publicContext = recorder.isOpenTelemetryIsolatedSpan(span)
-        ? context.active()
-        : this.getSpanContext(span)
-      return context.with(publicContext, () =>
-        recorder.withLocalSpan(span, fn, trace.getSpanContext(publicContext))
-      )
+      return recorder.runInLocalSpan(span, fn)
     }
     return context.with(trace.setSpan(context.active(), span), fn)
   }

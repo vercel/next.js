@@ -1,8 +1,15 @@
 import type { LocalSpanDelivery } from './local-span-recorder'
+import {
+  SPAN_STATUS_ERROR,
+  cleanSpanStoreAttributes,
+  getSpanStoreLinks,
+} from './span-attributes'
 import { captureLocalSpanRecorder, type SpanStoreRecord } from './span-store'
+import type { OpenTelemetryReadableSpan } from './request-insights-otel'
+import { getTimestamp, hrTimeToMilliseconds } from './utils'
 
 export type RequestIdentity = ReturnType<typeof getCurrentRequestIdentity>
-export function applyRequestIdentity(
+function applyRequestIdentity(
   record: SpanStoreRecord,
   identity: RequestIdentity
 ) {
@@ -24,6 +31,47 @@ export function captureRequestSpanRecorder(
     const span = recording.toSpanStoreRecord(end)
     applyRequestIdentity(span, identity)
     deliver([span])
+  }
+}
+
+export function captureOpenTelemetrySpanRecorder():
+  | ((span: OpenTelemetryReadableSpan) => void)
+  | undefined {
+  const identity = getCurrentRequestIdentity()
+  if (!identity.requestId) {
+    return undefined
+  }
+
+  const deliver = captureLocalSpanRecorder()
+  return (span) => {
+    const { traceId, spanId } = span.spanContext()
+    const isError = span.status.code === SPAN_STATUS_ERROR
+    const record: SpanStoreRecord = {
+      timestamp: getTimestamp(),
+      name: span.name,
+      category: 'opentelemetry',
+      startTime: hrTimeToMilliseconds(span.startTime),
+      durationMs: hrTimeToMilliseconds(span.duration),
+      status: isError ? 'error' : 'ok',
+      traceId,
+      spanId,
+      parentSpanId: span.parentSpanContext?.spanId ?? span.parentSpanId,
+      attributes: cleanSpanStoreAttributes(span.attributes),
+      events: span.events.length
+        ? span.events.map((event) => ({
+            name: event.name,
+            timestamp: hrTimeToMilliseconds(event.time),
+            attributes: cleanSpanStoreAttributes(event.attributes),
+          }))
+        : undefined,
+      links: getSpanStoreLinks(span.links),
+      error:
+        isError && span.status.message
+          ? { message: span.status.message }
+          : undefined,
+    }
+    applyRequestIdentity(record, identity)
+    deliver([record])
   }
 }
 
