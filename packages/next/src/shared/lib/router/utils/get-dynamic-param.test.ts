@@ -141,9 +141,44 @@ describe('getDynamicParam', () => {
         treeSegment: ['slug', '%%drp:slug:parallel123%%', 'd', null],
       })
     })
+
+    it('should preserve slash delimiters and split multi-segment string for catchall', () => {
+      const params: Params = { slug: 'docs/getting-started' }
+      const result = getDynamicParam(params, 'slug', 'c', null, null)
+
+      expect(result).toEqual({
+        param: 'slug',
+        value: ['docs', 'getting-started'],
+        type: 'c',
+        treeSegment: ['slug', 'docs/getting-started', 'c', null],
+      })
+    })
+
+    it('should split unsplit elements in array for catchall', () => {
+      const params: Params = { slug: ['docs/getting', 'started'] }
+      const result = getDynamicParam(params, 'slug', 'c', null, null)
+
+      expect(result).toEqual({
+        param: 'slug',
+        value: ['docs', 'getting', 'started'],
+        type: 'c',
+        treeSegment: ['slug', 'docs/getting/started', 'c', null],
+      })
+    })
   })
 
   describe('optional catchall parameters (oc)', () => {
+    it('should preserve slash delimiters and split multi-segment string for optional catchall', () => {
+      const params: Params = { slug: 'api/v1/users' }
+      const result = getDynamicParam(params, 'slug', 'oc', null, null)
+
+      expect(result).toEqual({
+        param: 'slug',
+        value: ['api', 'v1', 'users'],
+        type: 'oc',
+        treeSegment: ['slug', 'api/v1/users', 'oc', null],
+      })
+    })
     it('should handle array of values for optional catchall', () => {
       const params: Params = { slug: ['api', 'users', 'create'] }
       const result = getDynamicParam(params, 'slug', 'oc', null, null)

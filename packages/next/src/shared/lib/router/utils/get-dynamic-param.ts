@@ -21,6 +21,7 @@ import { resolveParamValue } from './resolve-param-value'
 function getParamValue(
   interpolatedParams: Params,
   segmentKey: string,
+  dynamicParamType: DynamicParamTypesShort,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
   let value = interpolatedParams[segmentKey]
@@ -30,10 +31,29 @@ function getParamValue(
     // checked that above.
     const placeholder = fallbackRouteParams.get(segmentKey)!
     value = placeholder
-  } else if (Array.isArray(value)) {
-    value = value.map((i) => encodeURIComponent(i))
-  } else if (typeof value === 'string') {
-    value = encodeURIComponent(value)
+  } else {
+    const isCatchAll =
+      dynamicParamType === 'c' ||
+      dynamicParamType === 'oc' ||
+      dynamicParamType.startsWith('ci')
+
+    if (isCatchAll) {
+      if (Array.isArray(value)) {
+        value = value
+          .flatMap((i) => (typeof i === 'string' ? i.split('/') : i))
+          .map((i) => encodeURIComponent(i))
+      } else if (typeof value === 'string') {
+        if (value.includes('/')) {
+          value = value.split('/').map((i) => encodeURIComponent(i))
+        } else {
+          value = encodeURIComponent(value)
+        }
+      }
+    } else if (Array.isArray(value)) {
+      value = value.map((i) => encodeURIComponent(i))
+    } else if (typeof value === 'string') {
+      value = encodeURIComponent(value)
+    }
   }
 
   return value
@@ -127,6 +147,7 @@ export function getDynamicParam(
   let value: string | string[] | undefined = getParamValue(
     interpolatedParams,
     segmentKey,
+    dynamicParamType,
     fallbackRouteParams
   )
 
