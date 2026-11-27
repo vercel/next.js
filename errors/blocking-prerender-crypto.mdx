@@ -79,9 +79,12 @@ import { Suspense } from 'react'
 export default function Page() {
   return (
     <DashboardShell>
-      <Suspense fallback={<span>Request ID: …</span>}>
-        <RequestId />
-      </Suspense>
+      <p>
+        Request ID:{' '}
+        <Suspense fallback="…">
+          <RequestId />
+        </Suspense>
+      </p>
       <CachedStats />
     </DashboardShell>
   )
@@ -93,7 +96,7 @@ import { io } from 'next/cache'
 
 export async function RequestId() {
   await io()
-  return <span>Request ID: {crypto.randomUUID()}</span>
+  return crypto.randomUUID()
 }
 ```
 
@@ -106,7 +109,7 @@ import { connection } from 'next/server'
 
 export async function RequestId() {
   await connection()
-  return <span>Request ID: {crypto.randomUUID()}</span>
+  return crypto.randomUUID()
 }
 ```
 

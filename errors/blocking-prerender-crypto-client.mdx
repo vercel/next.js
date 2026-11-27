@@ -69,9 +69,12 @@ import { CorrelationId } from './correlation-id'
 
 export default function Page() {
   return (
-    <Suspense fallback={<span>Request ID: …</span>}>
-      <CorrelationId />
-    </Suspense>
+    <p>
+      Request ID:{' '}
+      <Suspense fallback="…">
+        <CorrelationId />
+      </Suspense>
+    </p>
   )
 }
 ```
@@ -95,7 +98,7 @@ export async function RequestCorrelationId() {
 'use client'
 
 export function CorrelationId({ id }) {
-  return <span>Request ID: {id}</span>
+  return id
 }
 ```
 
