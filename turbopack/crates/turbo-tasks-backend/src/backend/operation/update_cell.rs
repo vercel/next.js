@@ -272,8 +272,11 @@ fn invalidate_cell_dependents(
                 Some(key) if !key.is_provisional() => {
                     let in_outdated =
                         dependent.outdated_cell_dependencies_keyed_contains(&(cell_ref, key));
-                    let in_current = !in_outdated
-                        && dependent.cell_dependencies_keyed_contains(&(cell_ref, key));
+                    let in_current = !in_outdated && {
+                        // See the keyless case below.
+                        dependent.cell_dependencies_keyed_inflate();
+                        dependent.cell_dependencies_keyed_contains(&(cell_ref, key))
+                    };
                     (in_outdated, in_current)
                 }
                 Some(_) => {
@@ -286,8 +289,18 @@ fn invalidate_cell_dependents(
                 }
                 None => {
                     let in_outdated = dependent.outdated_cell_dependencies_contains(&cell_ref);
-                    let in_current =
-                        !in_outdated && dependent.cell_dependencies_contains(&cell_ref);
+                    let in_current = !in_outdated && {
+                        // A completed task keeps its dependencies in a flat `EdgeSet`, where
+                        // lookups are linear scans. A task that read many cells is looked up once
+                        // per changed cell until it starts executing again (which copies them to
+                        // the outdated dependencies), so this is quadratic when many of them
+                        // change at once. Inflate the set to a hash table on the first lookup
+                        // instead (sets of up to 32 elements stay flat). It stays inflated until
+                        // the task completes again, also when the dependency turns out to be
+                        // removed or the task doesn't execute soon.
+                        dependent.cell_dependencies_inflate();
+                        dependent.cell_dependencies_contains(&cell_ref)
+                    };
                     (in_outdated, in_current)
                 }
             };
@@ -304,8 +317,7 @@ fn invalidate_cell_dependents(
                 // (which implies dirty).
                 make_stale = true;
                 // The other keys can't change the outcome (the dirty cause below is built from
-                // all `keys`), and checking them can be expensive: a completed task keeps its
-                // dependencies in a flat `EdgeSet`, where each lookup is a linear scan.
+                // all `keys`), so they aren't checked.
                 break;
             }
             // Otherwise the cell dependency has been removed, so the task doesn't depend
