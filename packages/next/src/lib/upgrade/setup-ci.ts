@@ -47,7 +47,7 @@ const AUTH_OPTIONS: Record<
   {
     label: string
     agent: 'codex' | 'claude'
-    credential: 'api-key' | 'ai-gateway'
+    credential: 'api-key' | 'ai-gateway' | 'subscription'
   }
 > = {
   'codex-openai-api-key': {
@@ -69,6 +69,11 @@ const AUTH_OPTIONS: Record<
     label: 'Claude Code with a Vercel AI Gateway API key',
     agent: 'claude',
     credential: 'ai-gateway',
+  },
+  'claude-subscription': {
+    label: 'Claude Code with a Claude subscription',
+    agent: 'claude',
+    credential: 'subscription',
   },
 }
 
@@ -921,6 +926,9 @@ export async function setupUpgradeCI({
         }
 
         const harnessName = AUTH_OPTIONS[auth].agent
+        // A subscription is not billed by the token prices the model
+        // descriptions show.
+        const showsPrices = AUTH_OPTIONS[auth].credential !== 'subscription'
         const displayName = getHarnessDisplayName(harnessName)
         if (stage === 'model') {
           const models = catalogs.get(harnessName) ?? []
@@ -944,7 +952,9 @@ export async function setupUpgradeCI({
             values: Object.fromEntries(
               models.map(({ id, label, description }) => [
                 id,
-                description ? `${label} — ${description}` : label,
+                description && showsPrices
+                  ? `${label} — ${description}`
+                  : label,
               ])
             ),
             defaultValue: Math.max(

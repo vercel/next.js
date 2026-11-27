@@ -8,6 +8,7 @@ describe('setupSecrets', () => {
         'claude-anthropic-api-key',
         'codex-ai-gateway-api-key',
         'claude-ai-gateway-api-key',
+        'claude-subscription',
       ] as const
     ).map((auth) => {
       const [secret] = setupSecrets({
@@ -53,7 +54,33 @@ describe('setupSecrets', () => {
          ],
          "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys%3FshowCreateKeyModal",
        ],
+       [
+         "NEXT_UPGRADE_AGENT_CREDENTIAL",
+         "Claude subscription token",
+         [
+           "A long-lived token that lets the hosted Claude Code agent use your",
+           "Claude subscription.",
+         ],
+         "https://code.claude.com/docs/en/authentication#generate-a-long-lived-token",
+       ],
      ]
     `)
+  })
+
+  it('rejects a subscription token that is not one printable token', () => {
+    const [secret] = setupSecrets({
+      repo: 'acme/web',
+      auth: 'claude-subscription',
+      agentSecret: 'NEXT_UPGRADE_AGENT_CREDENTIAL',
+      publishSecret: 'NEXT_UPGRADE_PUBLISH_TOKEN',
+    })
+    expect(
+      ['sk-ant-oat01-abc', 'claude setup-token'].map((value) =>
+        secret.problem === null ? 'unchecked' : secret.problem(value)
+      )
+    ).toEqual([
+      null,
+      'This is not a token. It should be one line with no spaces.',
+    ])
   })
 })

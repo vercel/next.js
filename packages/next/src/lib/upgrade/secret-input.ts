@@ -43,7 +43,8 @@ export async function withHiddenInput<T>({
           return
         }
 
-        for (const character of text) {
+        const characters = [...text]
+        for (const [index, character] of characters.entries()) {
           if (sequence === 'escape') {
             // `ESC [` starts a longer sequence, `ESC O` takes one more
             // character, and anything else is Alt with that key.
@@ -62,6 +63,11 @@ export async function withHiddenInput<T>({
           } else if (character === '\x1b') {
             sequence = 'escape'
           } else if (character === '\r' || character === '\n') {
+            // A line break inside one paste comes from a wrapped token.
+            if (index < characters.length - 1) {
+              continue
+            }
+
             finish(value)
             return
           } else if (character === '\x7f' || character === '\b') {
