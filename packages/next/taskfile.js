@@ -6,6 +6,7 @@ const execa = require('execa')
 // Taskr evaluates this file without a `process` global.
 const nodeProcess = require('process')
 const recast = require('recast')
+const { toMarkdown, docsPath } = require('./taskfile-docs')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -33,30 +34,44 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 export async function copy_docs(task, opts) {
-  // Copy documentation from repo root into the package.
-  // Rename .mdx → .md so AI agents find them when globbing for *.md.
+  // Copy documentation from repo root into the package, as Markdown: the
+  // website's MDX constructs are resolved (see taskfile-docs.js) and files
+  // are renamed .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
+  const errorsSource = join(__dirname, '../../errors')
+
+  // Pages that share another page's content name it as `app/guides/forms`.
+  const docsByPath = new Map()
+  for (const file of glob.sync('**/*.mdx', { cwd: docsSource })) {
+    docsByPath.set(docsPath(file), join(docsSource, file))
+  }
+  const readSource = (path) => {
+    const file = docsByPath.get(path) ?? docsByPath.get(`${path}/index`)
+    return file ? require('fs').readFileSync(file, 'utf8') : null
+  }
+  const asMarkdown = (root) =>
+    // eslint-disable-next-line require-yield
+    function* (file) {
+      if (!file.base.endsWith('.mdx')) return
+      const relativePath = relative(root, join(file.dir, file.base))
+      // Taskr evaluates this file without a `Buffer` global.
+      file.data = require('buffer').Buffer.from(
+        toMarkdown(file.data.toString('utf8'), { relativePath, readSource })
+      )
+      file.base = file.base.replace(/\.mdx$/, '.md')
+    }
+
   await task
     .source(join(docsSource, '**/*'))
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      if (file.base.endsWith('.mdx')) {
-        file.base = file.base.replace(/\.mdx$/, '.md')
-      }
-    })
+    .run({ every: true }, asMarkdown(docsSource))
     .target('dist/docs')
 
   // Errors and warnings link to nextjs.org/docs/messages/<name>. Ship those
   // pages too, at the same path under the bundled docs, so the link resolves
   // offline and matches the installed version.
   await task
-    .source(join(__dirname, '../../errors/**/*.mdx'))
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      if (file.base.endsWith('.mdx')) {
-        file.base = file.base.replace(/\.mdx$/, '.md')
-      }
-    })
+    .source(join(errorsSource, '**/*.mdx'))
+    .run({ every: true }, asMarkdown(errorsSource))
     .target('dist/docs/messages')
 
   // The agent-feedback protocol is intentionally kept out of dist/docs so
