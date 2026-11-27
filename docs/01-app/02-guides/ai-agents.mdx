@@ -139,14 +139,38 @@ When upgrade reminders are enabled, `next dev` also creates or updates a separat
 
 ## Runtime visibility
 
-Use the URL printed by `next dev` to inspect the running app. If a server is already running, Next.js prints its URL and PID so the agent can reuse it. These are also recorded in `.next/dev/lock`. The terminal also shows [browser errors and warnings](/docs/app/api-reference/config/next-config-js/logging).
+Agents need both framework and browser state to verify a running application. Next.js and its supporting tools expose these complementary views as structured text.
 
-### Debugging a running app
+First, `next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the client-side failures they're asked to fix.
 
-- **A click has an unexpected result.** [Agent Browser](https://github.com/vercel-labs/agent-browser) can click the control and inspect the DOM, network requests, console, and Web Vitals. The optional [`next-dev-loop` skill](#next-dev-loop) opens it with React DevTools enabled, so an agent can also inspect component state and pending Suspense boundaries.
-- **A route won't compile, or a request is slow.** The [dev server's MCP tools](/docs/app/guides/mcp#runtime-tools) can report compiler errors, show server logs, or trace fetches and cache behavior. For example, with Turbopack, `compile_route` reports compilation issues for a single path.
-- **A route renders but has a navigation Insight.** Read the [DevTools Insight](/docs/app/guides/devtools#issues-and-insights) or [call `check_route`](/docs/app/guides/mcp#calling-the-dev-server-directly) with the affected path and query string. With Cache Components enabled, `validation.errors` reports findings for that request. Recheck the same path after editing: a `"validated"` status with the original finding gone confirms it cleared. If the status is `"not-run"`, read `validation.reason`.
-- **You want to see what was ready when a link was clicked.** Open the page containing the link. Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) or click the link inside [Playwright's `instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) to inspect the prefetched UI while the rest loads.
+`next dev` also writes its PID, port, and URL to `.next/dev/lock`. If you run `next dev` while another development server is already running for the project, the command prints the existing server's URL and PID, along with a command to stop it. Continue with the existing server when possible to avoid interrupting the active development session.
+
+The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
+
+The [`next-dev-loop` skill](#next-dev-loop) adds the **browser's view** through [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. The Skill opens `agent-browser` with React DevTools enabled, which also exposes the component tree and pending Suspense boundaries. An agent can run a command such as `react tree` and use the structured output to decide what to inspect next.
+
+Together with the Next.js MCP server, `next-dev-loop` combines the framework's and the browser's perspectives into one edit-and-verify loop.
+
+## Debugging a running app
+
+### 1. Reproduce the problem
+
+Start the app with its development script, such as `npm run dev`, or use the server that's already running. Give your agent the URL, the action, and what you expected to see. For example: “Open Home and click Settings. I expect the Settings heading to appear immediately, but it only appears after the data loads.” Opening Settings directly would miss the click you're investigating.
+
+### 2. Observe what happens
+
+Choose the observation that answers your question:
+
+- **What appeared during the click?** Open Home and click Settings with **Pause on navigations** enabled in the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools). In Playwright, put the click inside [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) and check for the heading inside the callback. Both show what was ready while the remaining content loaded.
+- **Why does the route have an Insight?** Read the [DevTools Insight](/docs/app/guides/devtools#issues-and-insights) or ask the dev server about the destination. [Call `check_route`](/docs/app/guides/mcp#calling-the-dev-server-directly) with the concrete path, for example `{"path":"/settings"}`. Include the query string if it changes the page. With Cache Components enabled, `validation.errors` reports findings and their source locations when available. The request doesn't use browser cookies.
+- **What happened after an interaction?** If clicking **Save** leaves the old value on screen, reproduce it in the same browser session. Use [Agent Browser](https://github.com/vercel-labs/agent-browser) to inspect the response to the save request and the value displayed afterward. If the click threw an exception, `get_errors` reads the connected browser's error state and `get_logs` returns the dev log path. If a fallback stays visible after the response, [`next-dev-loop`](#next-dev-loop) can show which React boundary is still pending.
+- **Does it only fail in production?** Run `next build`. If prerendering fails, [`--debug-prerender`](/docs/app/guides/building#debug-prerender-errors) gives you a readable stack trace; [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) limits it to the affected routes. If the build succeeds, reproduce the problem with `next start`.
+
+### 3. Verify the fix
+
+After editing, repeat the reproduction. For the Settings example, click from Home again and check that the heading appears before the data arrives, then that the finished page shows the data. For a production failure, repeat the normal production build and the interaction that failed.
+
+If you're fixing a route Insight, call `check_route` again with the same path and query. Confirm that `validation.status` is `"validated"` and the original finding is gone. If the status is `"not-run"`, read `validation.reason`. An HTTP 200 alone doesn't tell you whether validation ran or what the reader saw during the click.
 
 <span id="step-3-let-errors-drive-the-fixes" />
 
