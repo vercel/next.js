@@ -1941,10 +1941,27 @@ export default class NextNodeServer extends BaseServer<
       /* non-fatal we can't decode so can't match it */
     }
 
+    // The router server tests the proxy matcher against the pathname as
+    // requested, trailing slash included. Stripping the slash first turns
+    // a locale root such as `/ja/` into `/ja`, which a regex-group matcher
+    // like `/(.*)` cannot match, so the request would end here with an
+    // empty 200 instead of running the proxy and rendering the page.
+    // Test the pathname as requested as well.
+    const requestedPathname = parsed.pathname || ''
+    let maybeDecodedRequestedPathname = requestedPathname
+
+    try {
+      maybeDecodedRequestedPathname = decodeURIComponent(requestedPathname)
+    } catch {
+      /* non-fatal we can't decode so can't match it */
+    }
+
     if (
       !(
         middleware.match(normalizedPathname, req, parsedUrl.query) ||
-        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+        middleware.match(maybeDecodedPathname, req, parsedUrl.query) ||
+        middleware.match(requestedPathname, req, parsedUrl.query) ||
+        middleware.match(maybeDecodedRequestedPathname, req, parsedUrl.query)
       )
     ) {
       return handleFinished()
