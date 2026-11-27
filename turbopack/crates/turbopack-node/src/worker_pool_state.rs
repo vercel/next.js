@@ -1,4 +1,4 @@
-//! Bookkeeping of the idle workers of worker-thread pools, and the registry of live pools.
+//! Bookkeeping of the idle workers of a worker-thread pool.
 //!
 //! This has no N-API dependency, so that it can be unit tested without a Node.js environment.
 //! Terminating a worker is left to the caller: the functions here only return the ids of the
@@ -7,21 +7,29 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use rustc_hash::{FxBuildHasher, FxHashMap};
-use tokio::sync::oneshot;
+use tokio::{
+    sync::{Notify, oneshot},
+    time::Instant,
+};
 
-use crate::pool_stats::NodeJsPoolStats;
+use crate::{
+    idle_timeout::{IdleQueue, NodePoolOptions, spawn_idle_reaper, split_expired},
+    pool_stats::NodeJsPoolStats,
+};
 
 /// The state of one worker-thread pool.
 #[derive(Default)]
 pub(crate) struct PoolState {
-    /// The ids of the idle workers. `None` once the pool is closed.
-    idle_workers: Mutex<Option<Vec<u32>>>,
+    /// The ids of the idle workers, with the time they became idle, from the least to the most
+    /// recently used. `None` once the pool is closed.
+    idle_workers: Mutex<Option<Vec<(u32, Instant)>>>,
     pub(crate) stats: Arc<Mutex<NodeJsPoolStats>>,
     /// Operations waiting for a worker to become idle.
     ///
     /// Lock order: `waiters` before `idle_workers`.
     waiters: Mutex<Vec<oneshot::Sender<u32>>>,
+    /// See [`IdleQueue::idle_changed`].
+    idle_changed: Arc<Notify>,
 }
 
 impl PoolState {
@@ -32,9 +40,10 @@ impl PoolState {
         }
     }
 
-    /// Takes an idle worker, if there is one.
+    /// Takes the most recently used idle worker, if there is one.
     pub(crate) fn pop_idle(&self) -> Option<u32> {
-        self.idle_workers.lock().as_mut()?.pop()
+        let (worker_id, _) = self.idle_workers.lock().as_mut()?.pop()?;
+        Some(worker_id)
     }
 
     /// Takes an idle worker if there is one, or registers `waiter` to receive the next worker
@@ -62,7 +71,9 @@ impl PoolState {
         }
         let mut idle_workers = self.idle_workers.lock();
         if let Some(idle_workers) = idle_workers.as_mut() {
-            idle_workers.push(worker_id);
+            idle_workers.push((worker_id, Instant::now()));
+            drop(waiters);
+            self.idle_changed.notify_waiters();
             return None;
         }
         drop(idle_workers);
@@ -71,129 +82,109 @@ impl PoolState {
         Some(worker_id)
     }
 
-    /// Removes idle workers so that at most `max_idle` remain, and returns the removed ones: the
-    /// caller must terminate them.
-    #[must_use]
-    pub(crate) fn reduce_to(&self, max_idle: usize) -> Vec<u32> {
-        let workers = {
-            let mut idle_workers = self.idle_workers.lock();
-            match idle_workers.as_mut() {
-                Some(idle_workers) if idle_workers.len() > max_idle => {
-                    idle_workers.split_off(max_idle)
-                }
-                _ => return Vec::new(),
-            }
-        };
-        let mut stats = self.stats.lock();
-        for _ in &workers {
-            stats.remove_worker();
-        }
-        workers
-    }
-
     /// Closes the pool and returns its idle workers: the caller must terminate them. Workers
     /// returned with [`Self::return_worker`] from now on are handed back for termination too.
     #[must_use]
     fn close(&self) -> Vec<u32> {
         let workers = self.idle_workers.lock().take().unwrap_or_default();
+        self.idle_changed.notify_waiters();
         let mut stats = self.stats.lock();
         for _ in &workers {
             stats.remove_worker();
         }
         workers
+            .into_iter()
+            .map(|(worker_id, _)| worker_id)
+            .collect()
     }
 
     #[cfg(test)]
     fn idle_workers(&self) -> Vec<u32> {
-        self.idle_workers.lock().clone().unwrap_or_default()
+        self.idle_workers
+            .lock()
+            .iter()
+            .flatten()
+            .map(|(worker_id, _)| *worker_id)
+            .collect()
+    }
+}
+
+impl IdleQueue for PoolState {
+    type Item = u32;
+
+    /// Keeps the most recently used workers, which [`PoolState::pop_idle`] hands out first.
+    fn expire_idle(
+        &self,
+        options: &NodePoolOptions,
+        now: Instant,
+    ) -> Option<(Vec<u32>, Option<Instant>)> {
+        let (expired, next_expiry) = {
+            let mut idle_workers = self.idle_workers.lock();
+            let idle_workers = idle_workers.as_mut()?;
+            let (expired, kept, next_expiry) =
+                split_expired(std::mem::take(idle_workers), options, now);
+            *idle_workers = kept;
+            (expired, next_expiry)
+        };
+        let mut stats = self.stats.lock();
+        for _ in &expired {
+            stats.remove_worker();
+        }
+        Some((
+            expired
+                .into_iter()
+                .map(|(worker_id, _)| worker_id)
+                .collect(),
+            next_expiry,
+        ))
+    }
+
+    fn idle_changed(&self) -> &Arc<Notify> {
+        &self.idle_changed
     }
 }
 
 /// Terminates the worker with the given id, which belongs to a pool with the given key.
 pub(crate) type TerminateWorker<K> = fn(&K, u32);
 
-/// The states of all live worker-thread pools, so that they can be scaled down globally.
-pub(crate) struct PoolRegistry<K> {
-    /// Keyed by [`state_key`].
-    pools: Mutex<FxHashMap<usize, (K, Arc<PoolState>)>>,
+/// Owns a pool's state, and closes it when the pool is dropped.
+///
+/// The pool is owned by its `EvaluatePool` cell. When the cell is dropped (e.g. replaced after an
+/// invalidation, evicted, or dropped when turbo-tasks shuts down), this closes the state: its idle
+/// workers are terminated, and so are workers that in-flight operations return later.
+pub(crate) struct PoolStateOwner<K: Send + Sync + 'static> {
+    key: K,
+    state: Arc<PoolState>,
+    terminate: TerminateWorker<K>,
 }
 
-/// Identifies a pool's state by its address. The address stays unique while the pool is
-/// registered, because its [`PoolRegistry`] holds a reference to the state.
-fn state_key(state: &Arc<PoolState>) -> usize {
-    Arc::as_ptr(state) as usize
-}
-
-impl<K: Clone + Send + Sync + 'static> PoolRegistry<K> {
-    pub(crate) const fn new() -> Self {
-        Self {
-            pools: Mutex::new(FxHashMap::with_hasher(FxBuildHasher)),
-        }
-    }
-
-    /// Registers a new pool's state until the returned [`PoolRegistration`] is dropped.
-    pub(crate) fn register(
-        &'static self,
-        key: K,
-        terminate: TerminateWorker<K>,
-    ) -> PoolRegistration<K> {
+impl<K: Clone + Send + Sync + 'static> PoolStateOwner<K> {
+    /// Creates a new pool state, and starts the task that terminates its expired idle workers.
+    /// Must be called within a Tokio runtime.
+    pub(crate) fn new(key: K, terminate: TerminateWorker<K>, options: NodePoolOptions) -> Self {
         let state = Arc::new(PoolState::new());
-        self.pools
-            .lock()
-            .insert(state_key(&state), (key.clone(), state.clone()));
-        PoolRegistration {
-            registry: self,
+        spawn_idle_reaper(&state, options, {
+            let key = key.clone();
+            move |expired: Vec<u32>| {
+                for worker_id in expired {
+                    terminate(&key, worker_id);
+                }
+            }
+        });
+        Self {
             key,
             state,
             terminate,
         }
     }
 
-    /// Removes idle workers from every pool so that at most `max_idle` remain in each, and
-    /// returns the removed ones: the caller must terminate them.
-    #[must_use]
-    pub(crate) fn reduce_to(&self, max_idle: usize) -> Vec<(K, u32)> {
-        // Release the registry lock before locking the pools' states.
-        let pools: Vec<_> = self.pools.lock().values().cloned().collect();
-        pools
-            .into_iter()
-            .flat_map(|(key, state)| {
-                state
-                    .reduce_to(max_idle)
-                    .into_iter()
-                    .map(move |worker_id| (key.clone(), worker_id))
-            })
-            .collect()
-    }
-
-    #[cfg(test)]
-    fn contains(&self, state: &Arc<PoolState>) -> bool {
-        self.pools.lock().contains_key(&state_key(state))
-    }
-}
-
-/// Publishes a pool's state in its [`PoolRegistry`] for as long as the pool is alive.
-///
-/// The pool is owned by its `EvaluatePool` cell. When the cell is dropped (e.g. replaced after an
-/// invalidation, evicted, or dropped when turbo-tasks shuts down), this unregisters the state and
-/// closes it: its idle workers are terminated, and so are workers that in-flight operations return
-/// later.
-pub(crate) struct PoolRegistration<K: Clone + Send + Sync + 'static> {
-    registry: &'static PoolRegistry<K>,
-    key: K,
-    state: Arc<PoolState>,
-    terminate: TerminateWorker<K>,
-}
-
-impl<K: Clone + Send + Sync + 'static> PoolRegistration<K> {
     pub(crate) fn state(&self) -> &Arc<PoolState> {
         &self.state
     }
 }
 
-impl<K: Clone + Send + Sync + 'static> Drop for PoolRegistration<K> {
+impl<K: Send + Sync + 'static> Drop for PoolStateOwner<K> {
     fn drop(&mut self) {
-        self.registry.pools.lock().remove(&state_key(&self.state));
         for worker_id in self.state.close() {
             (self.terminate)(&self.key, worker_id);
         }
@@ -202,12 +193,14 @@ impl<K: Clone + Send + Sync + 'static> Drop for PoolRegistration<K> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use parking_lot::Mutex;
 
     use super::*;
 
-    /// Each test uses its own registry and key, so that tests running in parallel don't observe
-    /// each other's terminations.
+    /// Each test uses its own key, so that tests running in parallel don't observe each other's
+    /// terminations.
     static TERMINATED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
 
     fn record_termination(key: &u32, worker_id: u32) {
@@ -225,45 +218,54 @@ mod tests {
         workers
     }
 
-    fn leak_registry() -> &'static PoolRegistry<u32> {
-        Box::leak(Box::new(PoolRegistry::new()))
+    /// Never expires anything within a test.
+    const NO_TIMEOUT: NodePoolOptions = NodePoolOptions {
+        idle_timeout: Duration::from_secs(3600),
+        min_idle: 0,
+    };
+
+    async fn wait_for_terminated(key: u32, expected: Vec<u32>) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while terminated(key) != expected {
+            assert!(
+                Instant::now() < deadline,
+                "terminated {:?}, expected {expected:?}",
+                terminated(key)
+            );
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
     }
 
-    #[test]
-    fn drop_unregisters_and_terminates_idle_workers() {
-        let registry = leak_registry();
-        let registration = registry.register(1, record_termination);
-        let state = registration.state().clone();
-        assert!(registry.contains(&state));
+    #[tokio::test]
+    async fn drop_terminates_idle_workers() {
+        let owner = PoolStateOwner::new(1, record_termination, NO_TIMEOUT);
+        let state = owner.state().clone();
 
         assert_eq!(state.return_worker(10), None);
         assert_eq!(state.return_worker(11), None);
         assert_eq!(terminated(1), Vec::<u32>::new());
 
-        drop(registration);
-        assert!(!registry.contains(&state));
+        drop(owner);
         assert_eq!(terminated(1), vec![10, 11]);
         assert_eq!(state.idle_workers(), Vec::<u32>::new());
     }
 
-    #[test]
-    fn return_after_drop_terminates_worker() {
-        let registry = leak_registry();
-        let registration = registry.register(2, record_termination);
-        let state = registration.state().clone();
+    #[tokio::test]
+    async fn return_after_drop_terminates_worker() {
+        let owner = PoolStateOwner::new(2, record_termination, NO_TIMEOUT);
+        let state = owner.state().clone();
 
-        drop(registration);
+        drop(owner);
         // An operation that was still running when the pool was dropped returns its worker.
         assert_eq!(state.return_worker(20), Some(20));
         assert_eq!(state.idle_workers(), Vec::<u32>::new());
         assert_eq!(state.pop_idle(), None);
     }
 
-    #[test]
-    fn return_hands_worker_to_waiter() {
-        let registry = leak_registry();
-        let registration = registry.register(3, record_termination);
-        let state = registration.state();
+    #[tokio::test]
+    async fn return_hands_worker_to_waiter() {
+        let owner = PoolStateOwner::new(3, record_termination, NO_TIMEOUT);
+        let state = owner.state();
 
         let (canceled_tx, canceled_rx) = oneshot::channel();
         let (tx, mut rx) = oneshot::channel();
@@ -276,42 +278,127 @@ mod tests {
         assert_eq!(state.idle_workers(), Vec::<u32>::new());
     }
 
-    #[test]
-    fn drop_does_not_affect_other_pool() {
-        let registry = leak_registry();
-        let registration_a = registry.register(4, record_termination);
-        let registration_b = registry.register(5, record_termination);
-        let state_a = registration_a.state().clone();
-        let state_b = registration_b.state().clone();
-        assert_eq!(state_a.return_worker(40), None);
-        assert_eq!(state_b.return_worker(50), None);
+    #[tokio::test]
+    async fn drop_does_not_affect_other_pool() {
+        let owner_a = PoolStateOwner::new(4, record_termination, NO_TIMEOUT);
+        let owner_b = PoolStateOwner::new(5, record_termination, NO_TIMEOUT);
+        assert_eq!(owner_a.state().return_worker(40), None);
+        assert_eq!(owner_b.state().return_worker(50), None);
 
-        drop(registration_a);
-        assert!(!registry.contains(&state_a));
-        assert!(registry.contains(&state_b));
+        drop(owner_a);
         assert_eq!(terminated(4), vec![40]);
         assert_eq!(terminated(5), Vec::<u32>::new());
-        assert_eq!(state_b.pop_idle(), Some(50));
+        assert_eq!(owner_b.state().pop_idle(), Some(50));
     }
 
     #[test]
-    fn reduce_to_scales_down_registered_pools() {
-        let registry = leak_registry();
-        let registration_a = registry.register(6, record_termination);
-        let registration_b = registry.register(7, record_termination);
-        for worker_id in [60, 61, 62] {
-            assert_eq!(registration_a.state().return_worker(worker_id), None);
+    fn expire_keeps_min_idle_most_recently_used() {
+        let state = PoolState::new();
+        let options = NodePoolOptions {
+            idle_timeout: Duration::from_secs(1),
+            min_idle: 1,
+        };
+        for worker_id in [1, 2, 3] {
+            assert_eq!(state.return_worker(worker_id), None);
         }
-        assert_eq!(registration_b.state().return_worker(70), None);
+        let now = Instant::now();
 
-        let mut removed = registry.reduce_to(1);
-        removed.sort_unstable();
-        assert_eq!(removed, vec![(6, 61), (6, 62)]);
-        assert_eq!(registration_a.state().idle_workers(), vec![60]);
-        assert_eq!(registration_b.state().idle_workers(), vec![70]);
+        let (expired, next_expiry) = state.expire_idle(&options, now).unwrap();
+        assert_eq!(expired, Vec::<u32>::new());
+        assert!(next_expiry.is_some());
 
-        let mut removed = registry.reduce_to(0);
-        removed.sort_unstable();
-        assert_eq!(removed, vec![(6, 60), (7, 70)]);
+        let (expired, next_expiry) = state
+            .expire_idle(&options, now + Duration::from_secs(2))
+            .unwrap();
+        assert_eq!(expired, vec![1, 2]);
+        assert_eq!(next_expiry, None);
+        assert_eq!(state.idle_workers(), vec![3]);
+    }
+
+    #[test]
+    fn expire_after_close() {
+        let state = PoolState::new();
+        assert_eq!(state.return_worker(1), None);
+        assert_eq!(state.close(), vec![1]);
+        assert!(state.expire_idle(&NO_TIMEOUT, Instant::now()).is_none());
+    }
+
+    #[test]
+    fn expire_with_min_idle_zero_removes_every_expired_worker() {
+        let state = PoolState::new();
+        let options = NodePoolOptions {
+            idle_timeout: Duration::from_secs(1),
+            min_idle: 0,
+        };
+        assert_eq!(state.return_worker(1), None);
+        assert_eq!(state.return_worker(2), None);
+
+        let (expired, next_expiry) = state
+            .expire_idle(&options, Instant::now() + Duration::from_secs(2))
+            .unwrap();
+        assert_eq!(expired, vec![1, 2]);
+        assert_eq!(next_expiry, None);
+        assert_eq!(state.idle_workers(), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn reuse_restarts_worker_idle_time() {
+        let state = PoolState::new();
+        let options = NodePoolOptions {
+            idle_timeout: Duration::from_millis(100),
+            min_idle: 0,
+        };
+        assert_eq!(state.return_worker(1), None);
+        let first_idle = Instant::now();
+        std::thread::sleep(Duration::from_millis(60));
+        assert_eq!(state.pop_idle(), Some(1));
+        assert_eq!(state.return_worker(1), None);
+
+        let (expired, next_expiry) = state
+            .expire_idle(&options, first_idle + Duration::from_millis(110))
+            .unwrap();
+        assert_eq!(expired, Vec::<u32>::new());
+        assert!(next_expiry.unwrap() > first_idle + options.idle_timeout);
+        assert_eq!(state.idle_workers(), vec![1]);
+    }
+
+    #[tokio::test]
+    async fn idle_workers_expire() {
+        let options = NodePoolOptions {
+            idle_timeout: Duration::from_millis(100),
+            min_idle: 1,
+        };
+        let owner = PoolStateOwner::new(6, record_termination, options);
+        let state = owner.state();
+        assert_eq!(state.return_worker(60), None);
+        assert_eq!(state.return_worker(61), None);
+
+        // The least recently used worker expires, and `min_idle` keeps the other one.
+        wait_for_terminated(6, vec![60]).await;
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert_eq!(terminated(6), vec![60]);
+        assert_eq!(state.idle_workers(), vec![61]);
+
+        // A worker that is taken out of the pool doesn't expire while it is in use.
+        assert_eq!(state.pop_idle(), Some(61));
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert_eq!(terminated(6), vec![60]);
+    }
+
+    #[tokio::test]
+    async fn reaper_does_not_keep_pool_alive() {
+        let options = NodePoolOptions {
+            idle_timeout: Duration::from_millis(50),
+            min_idle: 0,
+        };
+        let owner = PoolStateOwner::new(7, record_termination, options);
+        let weak = Arc::downgrade(owner.state());
+        assert_eq!(owner.state().return_worker(70), None);
+        drop(owner);
+        assert_eq!(terminated(7), vec![70]);
+        assert_eq!(weak.strong_count(), 0);
+        // The reaper ends without terminating anything else.
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(terminated(7), vec![70]);
     }
 }

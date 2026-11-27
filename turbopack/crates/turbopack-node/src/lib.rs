@@ -19,6 +19,15 @@ pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
 mod format;
+#[cfg(any(feature = "process_pool", feature = "worker_pool"))]
+#[cfg_attr(
+    not(any(
+        all(feature = "process_pool", not(target_family = "wasm")),
+        feature = "worker_pool"
+    )),
+    allow(dead_code)
+)]
+mod idle_timeout;
 mod pool_stats;
 // The child-process pool needs `tokio::process` and a TCP listener, neither of which exists on
 // wasi, so `process_pool` is inert on wasm and `worker_pool` is the only available backend there.
@@ -36,13 +45,16 @@ mod worker_pool;
 #[cfg_attr(not(feature = "worker_pool"), allow(dead_code))]
 mod worker_pool_state;
 
+#[cfg(any(feature = "process_pool", feature = "worker_pool"))]
+pub use crate::idle_timeout::NodePoolOptions;
+
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
-pub fn child_process_backend() -> Vc<Box<dyn backend::NodeBackend>> {
-    Vc::upcast(process_pool::ChildProcessesBackend.cell())
+pub fn child_process_backend(pool_options: NodePoolOptions) -> Vc<Box<dyn backend::NodeBackend>> {
+    Vc::upcast(process_pool::ChildProcessesBackend { pool_options }.cell())
 }
 #[cfg(feature = "worker_pool")]
-pub fn worker_threads_backend() -> Vc<Box<dyn backend::NodeBackend>> {
-    Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
+pub fn worker_threads_backend(pool_options: NodePoolOptions) -> Vc<Box<dyn backend::NodeBackend>> {
+    Vc::upcast(worker_pool::WorkerThreadsBackend { pool_options }.cell())
 }
 
 #[turbo_tasks::function]

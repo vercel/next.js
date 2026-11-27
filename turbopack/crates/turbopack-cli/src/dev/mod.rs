@@ -41,7 +41,7 @@ use turbopack_dev_server::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
+use turbopack_node::{NodePoolOptions, child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_trace_utils::exit::ExitHandler;
 
@@ -304,7 +304,11 @@ async fn source(
     .shared_runtime_chunk(true)
     .build();
 
-    let node_backend = child_process_backend();
+    // Keep one process per pool, so that the next change doesn't have to wait for one to boot.
+    let node_backend = child_process_backend(NodePoolOptions {
+        idle_timeout: Duration::from_secs(1),
+        min_idle: 1,
+    });
     let execution_context = ExecutionContext::new(
         root_path.clone(),
         Vc::upcast(build_chunking_context),

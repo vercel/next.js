@@ -1,6 +1,7 @@
 use std::{
     path::PathBuf,
     sync::{Arc, Weak},
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -15,6 +16,7 @@ use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 use crate::{
     AssetsForSourceMapping,
     evaluate::{EvaluatePool, Operation},
+    idle_timeout::NodePoolOptions,
     process_pool::{ChildProcessPool, HeapQueue, NodeJsPoolProcess},
 };
 
@@ -55,6 +57,11 @@ async fn create_pool_with_queue(
         root_path,
         concurrency,
         false,
+        // No idle process expires within a test.
+        NodePoolOptions {
+            idle_timeout: Duration::from_secs(3600),
+            min_idle: 0,
+        },
     );
     let idle_processes = Arc::downgrade(&pool.idle_processes);
     Ok((pool.into_evaluate_pool(), idle_processes))

@@ -13,7 +13,7 @@ use bytes::Bytes;
 use futures::join;
 use owo_colors::OwoColorize;
 use parking_lot::Mutex;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::FxHashMap;
 use tokio::{
     io::{
         AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, Stderr,
@@ -37,6 +37,7 @@ use crate::{
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
     format::FormattingMode,
+    idle_timeout::{NodePoolOptions, spawn_idle_reaper},
     pool_stats::{AcquiredPermits, NodeJsPoolStats},
     source_map::apply_source_mapping,
 };
@@ -576,49 +577,19 @@ impl NodeJsPoolProcess {
 
 type IdleProcessQueue = Arc<HeapQueue<NodeJsPoolProcess>>;
 
-/// The idle process queues of all live [`ChildProcessPool`]s of the whole application.
-/// This is used to scale down processes globally.
-///
-/// A pool registers its queue when it is created, and its [`ClosePoolOnDrop`] guard unregisters it
-/// when the pool is dropped. Keyed by [`queue_key`].
-static ACTIVE_POOLS: Mutex<FxHashMap<usize, IdleProcessQueue>> =
-    Mutex::new(FxHashMap::with_hasher(FxBuildHasher));
-
-/// Identifies a queue by its address. The address stays unique while the queue is registered,
-/// because [`ACTIVE_POOLS`] holds a reference to it.
-fn queue_key(queue: &IdleProcessQueue) -> usize {
-    Arc::as_ptr(queue) as usize
-}
-
-/// The idle process queues of all live pools. Collected so that `ACTIVE_POOLS` isn't locked while
-/// the queues are scaled down.
-fn active_pools() -> Vec<IdleProcessQueue> {
-    ACTIVE_POOLS.lock().values().cloned().collect()
-}
-
-/// Publishes a pool's idle process queue in [`ACTIVE_POOLS`] for as long as the pool is alive.
+/// Closes a pool's idle process queue when the pool is dropped.
 ///
 /// The pool is owned by its `EvaluatePool` cell. When the cell is dropped (e.g. replaced after an
-/// invalidation, evicted, or dropped when turbo-tasks shuts down), this unregisters the queue and
-/// closes it: its idle processes are killed, and processes that in-flight operations or pre-warming
-/// return to it later are killed instead of being kept.
+/// invalidation, evicted, or dropped when turbo-tasks shuts down), this closes the queue: its idle
+/// processes are killed, and processes that in-flight operations or pre-warming return to it later
+/// are killed instead of being kept.
 struct ClosePoolOnDrop {
     idle_processes: IdleProcessQueue,
 }
 
-impl ClosePoolOnDrop {
-    fn new(idle_processes: IdleProcessQueue) -> Self {
-        ACTIVE_POOLS
-            .lock()
-            .insert(queue_key(&idle_processes), idle_processes.clone());
-        Self { idle_processes }
-    }
-}
-
 impl Drop for ClosePoolOnDrop {
     fn drop(&mut self) {
-        ACTIVE_POOLS.lock().remove(&queue_key(&self.idle_processes));
-        // Close the queue after releasing `ACTIVE_POOLS`: dropping the idle processes kills them.
+        // Dropping the idle processes kills them.
         self.idle_processes.close();
     }
 }
@@ -681,7 +652,7 @@ struct ChildProcessPool {
     project_dir: FileSystemPath,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     idle_processes: IdleProcessQueue,
-    /// Keeps `idle_processes` registered in [`ACTIVE_POOLS`] until the pool is dropped.
+    /// Closes `idle_processes` when the pool is dropped.
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     _close_on_drop: ClosePoolOnDrop,
     /// Semaphore to limit the number of concurrent operations in general
@@ -712,6 +683,7 @@ impl ChildProcessPool {
         project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
+        pool_options: NodePoolOptions,
     ) -> EvaluatePool {
         Self::new(
             cwd,
@@ -722,10 +694,13 @@ impl ChildProcessPool {
             project_dir,
             concurrency,
             debug,
+            pool_options,
         )
         .into_evaluate_pool()
     }
 
+    /// Must be called within a Tokio runtime: this starts the task that stops expired idle
+    /// processes.
     fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
@@ -735,8 +710,23 @@ impl ChildProcessPool {
         project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
+        pool_options: NodePoolOptions,
     ) -> Self {
         let idle_processes = Arc::new(HeapQueue::new());
+        let stats: Arc<Mutex<NodeJsPoolStats>> = Default::default();
+        spawn_idle_reaper(&idle_processes, pool_options, {
+            let stats = stats.clone();
+            move |expired: Vec<NodeJsPoolProcess>| {
+                {
+                    let mut stats = stats.lock();
+                    for _ in &expired {
+                        stats.remove_worker();
+                    }
+                }
+                // Dropping the processes kills them.
+                drop(expired);
+            }
+        });
         Self {
             cwd,
             entrypoint,
@@ -746,12 +736,14 @@ impl ChildProcessPool {
             project_dir,
             concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
             bootup_semaphore: Arc::new(Semaphore::new(1)),
-            _close_on_drop: ClosePoolOnDrop::new(idle_processes.clone()),
+            _close_on_drop: ClosePoolOnDrop {
+                idle_processes: idle_processes.clone(),
+            },
             idle_processes,
             shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
             shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
             debug,
-            stats: Default::default(),
+            stats,
         }
     }
 
@@ -768,8 +760,11 @@ impl ChildProcessPool {
     }
 }
 
+/// Runs Node.js code in pools of child processes.
 #[turbo_tasks::value(shared)]
-pub(crate) struct ChildProcessesBackend;
+pub(crate) struct ChildProcessesBackend {
+    pub(crate) pool_options: NodePoolOptions,
+}
 
 #[turbo_tasks::value_impl]
 impl NodeBackend for ChildProcessesBackend {
@@ -782,6 +777,7 @@ impl NodeBackend for ChildProcessesBackend {
     }
 
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
+        let pool_options = self.pool_options;
         Box::pin(async move {
             let CreatePoolOptions {
                 cwd,
@@ -803,18 +799,9 @@ impl NodeBackend for ChildProcessesBackend {
                 project_dir,
                 concurrency,
                 debug,
+                pool_options,
             ))
         })
-    }
-
-    fn scale_down(&self) -> Result<()> {
-        ChildProcessPool::scale_down();
-        Ok(())
-    }
-
-    fn scale_zero(&self) -> Result<()> {
-        ChildProcessPool::scale_zero();
-        Ok(())
     }
 }
 
@@ -942,18 +929,6 @@ impl ChildProcessPool {
             .create_process()
             .await
             .context("creating new process")
-    }
-
-    fn scale_down() {
-        for pool in active_pools() {
-            pool.reduce_to_one();
-        }
-    }
-
-    fn scale_zero() {
-        for pool in active_pools() {
-            pool.reduce_to_zero();
-        }
     }
 }
 

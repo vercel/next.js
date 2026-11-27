@@ -47,8 +47,4 @@ pub trait NodeBackend: sealed::Sealed {
     fn globals_module_path(&self) -> RcStr;
 
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture;
-
-    fn scale_down(&self) -> Result<()>;
-
-    fn scale_zero(&self) -> Result<()>;
 }
