@@ -86,6 +86,8 @@ async function DynamicProductsView({ products }) {
 }
 ```
 
+> **Note**: The [`react-hooks/purity`](https://react.dev/reference/eslint-plugin-react-hooks/lints/purity) lint rule, included in [`eslint-config-next`](/docs/app/api-reference/config/eslint), reports `Math.random()` here even after `await connection()`, because it doesn't know the call runs at request time. Disable the rule for that line and say why, for example `// eslint-disable-next-line react-hooks/purity -- runs at request time after connection()`, rather than restructuring code only to hide the call from the rule.
+
 ## Useful Links
 
 - [`connection` function](/docs/app/api-reference/functions/connection)
