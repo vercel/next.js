@@ -119,6 +119,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
 >
 > - Types are generated during `next dev`, `next build` or `next typegen`.
 > - After type generation, the `RouteContext` helper is globally available. It doesn't need to be imported.
+> - The route literal excludes [route group](/docs/app/api-reference/file-conventions/route-groups) folders. Type the context for `app/(api)/users/[id]/route.ts` as `RouteContext<'/users/[id]'>`.
 
 ## Examples
 

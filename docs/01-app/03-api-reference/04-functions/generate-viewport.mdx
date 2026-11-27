@@ -237,7 +237,7 @@ export async function generateViewport() {
 }
 ```
 
-If viewport genuinely requires runtime data, wrap the document `<body>` in a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary to signal that the entire route should be dynamic. The shell ships immediately and the document streams in once the viewport resolves:
+If viewport genuinely requires runtime data, wrap the document `<body>` in a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary to accept fully dynamic rendering:
 
 ```tsx filename="app/layout.tsx" highlight={1,13,17}
 import { Suspense } from 'react'
@@ -252,7 +252,7 @@ export async function generateViewport() {
 
 export default function RootLayout({ children }) {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <html>
         <body>{children}</body>
       </html>
@@ -260,6 +260,8 @@ export default function RootLayout({ children }) {
   )
 }
 ```
+
+This boundary's [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) accepts a blank initial loading state while the viewport resolves.
 
 Alternatively, opt the segment out of instant-navigation validation with [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant). The route renders on every request and the navigation blocks until the render completes:
 

@@ -71,7 +71,7 @@ Choose this fix when each request needs a fresh value, such as a request ID or a
 
 Await [`io()`](/docs/app/api-reference/functions/io) before calling the synchronous crypto API. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
 
-Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the crypto call as possible. If the parent has cached content, isolate the crypto read in its own component so only that piece falls behind the boundary.
+Keep the boundary around the ID so the label and cached content stay visible. See [Choosing a fallback](/docs/app/guides/streaming#choosing-a-fallback).
 
 ```jsx filename="app/dashboard/page.js"
 import { Suspense } from 'react'
