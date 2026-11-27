@@ -2595,7 +2595,8 @@ function enforceExperimentalFeatures(
   const sequentialTaskScheduling = process.env.__NEXT_SEQUENTIAL_TASK_SCHEDULING
   if (
     (sequentialTaskScheduling === 'unstable_timer' ||
-      sequentialTaskScheduling === 'unstable_immediate') &&
+      sequentialTaskScheduling === 'unstable_immediate' ||
+      sequentialTaskScheduling === 'unstable_message-port') &&
     // We do respect an explicit value in the user config.
     (config.experimental.sequentialTaskScheduling === undefined ||
       (isDefaultConfig &&

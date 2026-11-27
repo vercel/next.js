@@ -1643,10 +1643,18 @@ export interface ExperimentalConfig {
    * - `unstable_immediate`: Sequential tasks will be scheduled using `setImmediate()`.
    *   Assumes that multiple immediates queued synchronously will run without interruption
    *   by other tasks.
+   * - `unstable_message-port`: Sequential tasks will be scheduled by queueing messages
+   *   on a `MessagePort` and then attaching a listener. Assumes Node.js-like behavior
+   *   of `MessagePort` listeners, where each message is processed in a separate task,
+   *   and queued messages are processed without interruption by other tasks (up to a
+   *   large limit).
    *
    * @default 'unstable_timer'
    */
-  sequentialTaskScheduling?: 'unstable_timer' | 'unstable_immediate'
+  sequentialTaskScheduling?:
+    | 'unstable_timer'
+    | 'unstable_immediate'
+    | 'unstable_message-port'
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
