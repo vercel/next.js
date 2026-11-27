@@ -16,6 +16,8 @@ There is a single `CURRENT` file, a small JSON object holding the latest committ
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
+Files whose name starts with `.` are ignored, such as `.DS_Store` or the `._<name>` AppleDouble files macOS writes next to every file on filesystems like exFAT. Any other unrecognized file fails opening the database, with an error that names it.
+
 There are four different file types:
 
 - Static Sorted Table (SST, `*.sst`): These files contain key value pairs.
@@ -102,7 +104,7 @@ The 4-byte header distinguishes compressed from uncompressed storage:
 
 #### Block Checksum
 
-Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged. Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
+Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged, marked as `CacheFileUnreadable` (see [Unreadable files](#unreadable-files)). Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
 
 #### Index Block
 
@@ -260,9 +262,24 @@ The checksum is verified **before** decompression when the blob is read, so a da
 Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
 files, from newest to oldest; there is no ordering dependency between families.
 
-SST files are opened lazily. Opening the database only loads the meta files (see
-[Opening](#opening)). An SST file is opened the first time a lookup gets past its meta file
-checks (hash range and AMQF), and stays open, cached on its meta file entry. How it is opened
+SST files are opened eagerly in the background. Opening the database only loads the meta files
+(see [Opening](#opening)) and then starts opening their SST files without waiting for them. This
+hides the latency of opening SST files on slow (e.g. network attached) storage, where opening them
+one at a time as lookups first reach them would serialize their dependent reads. The opens are
+spread over several tasks run with `ParallelScheduler::spawn_blocking`, so many files are opened in
+parallel on blocking threads, newest meta files first, since lookups consult those first. SST files
+written by a commit or compaction are not opened eagerly: they were written moments ago, so they are
+usually still in the page cache and opening them lazily is cheap. On WASI eager opening is disabled
+and SST files are only opened lazily, because WASI runtimes that run each thread as its own instance
+give every thread its own file descriptor table.
+
+A lookup that gets past an entry's meta file checks (hash range and AMQF) uses the SST file if it
+is open already, waits for it if a background open is in progress, and otherwise opens it itself.
+An open file stays cached on its meta file entry. A failed background open is ignored: the next
+lookup that needs the file opens it lazily and reports the error. Every background open runs to
+completion: if its entry was dropped in the meantime (e.g. retired by compaction, or because the
+database was closed), the opened file is closed again right away. Compaction clears all cached SST
+files before it merges. How an SST file is opened
 depends on the access mode:
 
 - `AccessMode::Mmap`: the SST file is memory mapped, and key and value blocks are read from the
@@ -272,8 +289,8 @@ depends on the access mode:
 
 In both modes, opening an SST file reads only its block offset table and index block, and keeps
 them in memory (see [Opening](#opening)). Key and value blocks are read when a lookup needs them.
-So per-open memory cost scales with the meta files (their AMQFs), while SST files cost memory only
-once they are actually touched.
+So per-open memory cost scales with the meta files (their AMQFs) plus the block offset tables and
+index blocks of the SST files.
 
 - for each meta file of the queried key family, newest first
   - Check the hash range of the SST file -> if the key hash is outside, continue
@@ -289,6 +306,16 @@ once they are actually touched.
       - found -> lookup value from value block, return
         - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
+
+### Unreadable files
+
+SST and blob files are read lazily, so a file can become unreadable after the database was opened,
+e.g. when another process deletes or modifies it while the database is in use. Errors of such reads
+are wrapped in a `CacheFileUnreadable` marker naming the file (find it with
+`CacheFileUnreadable::find`; it displays like the error it wraps): an SST file that can't be opened,
+an SST block that can't be read or fails its checksum, and a blob file that can't be read, fails its
+checksum, or can't be decompressed. This lets callers tell damage to the files apart from other
+errors.
 
 ### Memory map advice
 
@@ -432,8 +459,12 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
 - Read all `*.del` files and delete the files that are listed in there.
 - Open all remaining `*.meta` files (memory mapped with `AccessMode::Mmap`, read onto the heap with
   `AccessMode::File`), parse their AMQFs and drop entries for SST files that are obsolete.
-- SST and blob files are not opened here. An SST file is opened lazily, the first time a lookup
-  needs it (see [Reading](#reading)): memory mapped in mmap access mode, or read with positional
+- Check that the SST file of every remaining entry exists. If one is missing (e.g. because it was
+  deleted from outside), opening fails with an error that names it, rather than a later lookup
+  failing on a key stored in it.
+- SST and blob files are not opened while the database opens. Once the meta files are loaded, the SST
+  files start opening eagerly in the background (see [Reading](#reading)); a lookup that needs one
+  first opens it itself. An SST file is memory mapped in mmap access mode, or read with positional
   reads in file access mode. Either way, its block-offset table (4 bytes per block) is read with one
   positional read (`pread`) and decoded in place. It is validated once (every block holds at least
   its header and ends before the table) and kept in memory, so locating a block neither reads the

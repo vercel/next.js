@@ -27,10 +27,18 @@ export function printDebugThrownValueForProspectiveRender(
   if (
     typeof thrownValue === 'object' &&
     thrownValue !== null &&
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     typeof (thrownValue as any).message === 'string'
   ) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     message = (thrownValue as any).message
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if (typeof (thrownValue as any).stack === 'string') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const originalErrorStack: string = (thrownValue as any).stack
       const stackStart = originalErrorStack.indexOf('\n')
       if (stackStart > -1) {

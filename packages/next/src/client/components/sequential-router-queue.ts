@@ -177,6 +177,15 @@ export function traverse(
  * observe it.
  */
 export function prepare(href: string): PreparedNavigation {
+  // Only reachable through `router.experimental_prepare()`, which exists only
+  // when the flag is on. The throw lets the minifier drop the body when the
+  // flag is off.
+  if (!process.env.__NEXT_PREPARE_NAVIGATION) {
+    throw new Error(
+      '`router.experimental_prepare()` requires `experimental.prepareNavigation`.'
+    )
+  }
+
   if (isJavaScriptURLString(href)) {
     throw new Error(
       'Next.js has blocked a javascript: URL as a security precaution.'

@@ -121,8 +121,9 @@ impl PersistedFileContent {
             // handle open. In which case, we just pretend the file never existed.
             return Ok(FileComparison::Create);
         };
-        // If the meta is different, we need to rewrite the file to update it.
-        if new_file.meta != old_meta.into() {
+        // If the permissions differ, we need to rewrite the file to update them. They are the
+        // only part of the meta that is stored on disk.
+        if new_file.meta.permissions != Permissions::from(old_meta.permissions()) {
             return Ok(FileComparison::NotEqual);
         }
 
@@ -344,6 +345,17 @@ impl File {
         self
     }
 
+    /// Writes this file atomically: a concurrent reader sees the previous or the new content,
+    /// never an empty or partial file. Use it for files that other processes read while they may
+    /// be rewritten.
+    ///
+    /// The new content is written to a temporary file in the same directory, which then replaces
+    /// the file. That costs an extra create and rename per write, and the file gets a new inode.
+    pub fn with_atomic_write(mut self) -> Self {
+        self.meta.atomic_write = true;
+        self
+    }
+
     /// Returns a Read/AsyncRead/Stream/Iterator to access the File's contents.
     pub fn read(&self) -> RopeReader<'_> {
         self.content.read()
@@ -435,6 +447,8 @@ pub struct FileMeta {
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::mime_option")]
     content_type: Option<Mime>,
+    /// See [`File::with_atomic_write`]. Not stored on disk.
+    pub(crate) atomic_write: bool,
 }
 
 impl Ord for FileMeta {
@@ -442,6 +456,7 @@ impl Ord for FileMeta {
         self.permissions
             .cmp(&other.permissions)
             .then_with(|| self.content_type.as_ref().cmp(&other.content_type.as_ref()))
+            .then_with(|| self.atomic_write.cmp(&other.atomic_write))
     }
 }
 
@@ -458,6 +473,7 @@ impl From<std::fs::Metadata> for FileMeta {
         Self {
             permissions,
             content_type: None,
+            atomic_write: false,
         }
     }
 }
@@ -468,6 +484,7 @@ impl DeterministicHash for FileMeta {
         if let Some(content_type) = &self.content_type {
             content_type.to_string().deterministic_hash(state);
         }
+        // `atomic_write` is left out: it changes how the file is written, not what is written.
     }
 }
 

@@ -1,17 +1,17 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    ValueToStringRef, Vc,
+    FxIndexMap, FxIndexSet, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, ValueToStringRef, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
     module_graph::{
         ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupInfo, ChunkGroupKey},
+        chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, ChunkGroupKind},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
@@ -25,16 +25,15 @@ use crate::{
 };
 
 fn is_isolated_merged_group_for_parent(
-    chunk_group: &ChunkGroup,
+    kind: &ChunkGroupKind,
     parent_indices: &FxIndexSet<u32>,
     merge_tag: &RcStr,
 ) -> bool {
     matches!(
-        chunk_group,
-        ChunkGroup::IsolatedMerged {
+        kind,
+        ChunkGroupKind::IsolatedMerged {
             parent,
             merge_tag: group_merge_tag,
-            ..
         } if group_merge_tag == merge_tag && parent_indices.contains(&(*parent as u32))
     )
 }
@@ -95,12 +94,11 @@ async fn derived_isolated_merged_groups(
             // Follow async importer ancestry, not every group containing the shared proxy:
             // unrelated pages' merged groups can also contain other client entries.
             for group in source_groups.iter() {
-                if let ChunkGroup::Async(module) = &group.chunk_group
+                if let ChunkGroupKind::Async(module) = &group.kind
                     && chunk_group_info
                         .get_async_loader_ancestor_chunk_groups(**module)
                         .await?
-                        .iter()
-                        .any(|ancestor| ancestor.index == server_component_index)
+                        .contains(&server_component_index)
                 {
                     indices.insert(group.index);
                 }
@@ -125,11 +123,15 @@ async fn derived_isolated_merged_groups(
             .await?
             .iter()
         {
-            if is_isolated_merged_group_for_parent(&group.chunk_group, &parent_indices, merge_tag) {
+            if is_isolated_merged_group_for_parent(&group.kind, &parent_indices, merge_tag) {
                 found = true;
-                groups
-                    .entry(group.index)
-                    .or_insert_with(|| group.chunk_group.key());
+                if !groups.contains_key(&group.index) {
+                    let key = group
+                        .kind
+                        .key()
+                        .context("isolated merged chunk groups always have a key")?;
+                    groups.insert(group.index, key);
+                }
             }
         }
         if !found {
@@ -172,15 +174,14 @@ fn client_references_by_server_component(
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
-    #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_client_chunks:
-        FxIndexMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
-    #[bincode(with = "turbo_bincode::indexmap")]
+        OrderedAutoMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
     pub client_component_ssr_chunks:
-        FxIndexMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub layout_segment_client_chunks:
-        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssetsWithReferenced>>,
+        OrderedAutoMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
+    pub layout_segment_client_chunks: OrderedAutoMap<
+        ResolvedVc<NextServerComponentModule>,
+        ResolvedVc<OutputAssetsWithReferenced>,
+    >,
 }
 
 /// Computes all client references chunks.
@@ -282,7 +283,7 @@ pub async fn get_app_client_references_chunks(
             //             ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
             //         })
             //         .collect(),
-            //     layout_segment_client_chunks: FxIndexMap::default(),
+            //     layout_segment_client_chunks: OrderedAutoMap::default(),
             // }
             // .cell())
         } else {
@@ -297,13 +298,14 @@ pub async fn get_app_client_references_chunks(
                 references: ResolvedVc::cell(vec![]),
                 availability_info: client_availability_info,
                 chunk_group_bootstrap_params: None,
+                async_loader_availability: vec![],
             }
             .resolved_cell();
             let mut current_ssr_chunk_group = ChunkGroupResult::empty_resolved();
 
-            let mut layout_segment_client_chunks = FxIndexMap::default();
-            let mut client_component_ssr_chunks = FxIndexMap::default();
-            let mut client_component_client_chunks = FxIndexMap::default();
+            let mut layout_segment_client_chunks = OrderedAutoMap::default();
+            let mut client_component_ssr_chunks = OrderedAutoMap::default();
+            let mut client_component_client_chunks = OrderedAutoMap::default();
 
             for (server_component, client_references) in
                 client_references_by_server_component.into_iter()
@@ -539,7 +541,7 @@ pub async fn get_client_references_chunks_for_hmr(
 #[cfg(test)]
 mod tests {
     use turbo_tasks::FxIndexSet;
-    use turbopack_core::module_graph::chunk_group_info::ChunkGroup;
+    use turbopack_core::module_graph::chunk_group_info::ChunkGroupKind;
 
     use crate::{
         next_app::app_client_references_chunks::is_isolated_merged_group_for_parent,
@@ -548,10 +550,9 @@ mod tests {
 
     #[test]
     fn isolated_merged_groups_must_match_parent_and_tag() {
-        let group = ChunkGroup::IsolatedMerged {
+        let group = ChunkGroupKind::IsolatedMerged {
             parent: 7,
             merge_tag: CLIENT_MERGE_TAG.clone(),
-            entries: Vec::new(),
         };
 
         assert!(is_isolated_merged_group_for_parent(

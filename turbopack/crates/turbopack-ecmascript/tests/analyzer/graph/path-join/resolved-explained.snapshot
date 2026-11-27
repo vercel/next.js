@@ -26,7 +26,5 @@ z3_joined = "foo/bar"
 
 z4_joined = "foo/bar"
 
-z5_joined = `foo/baz${("/" | "")}${???*0*}${("/" | "")}../foo`
-- *0* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+z5_joined = `foo/baz${("/" | "")}${global*0*}${("/" | "")}../foo`
+- *0* global: The Node.js global object: https://nodejs.org/api/globals.html#global

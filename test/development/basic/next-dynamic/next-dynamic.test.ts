@@ -115,6 +115,8 @@ describe('next/dynamic', () => {
             /Browser hydrated/
           )
 
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           if ((global as any).browserName === 'chrome') {
             const logs = await browser.log()
 

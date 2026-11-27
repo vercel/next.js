@@ -194,6 +194,7 @@ export type EventBuildFeatureUsage = {
     | 'next/font/local'
     | 'experimental/nextScriptWorkers'
     | 'experimental/cacheComponents'
+    | 'experimental/goRoutes'
     | 'experimental/optimizeCss'
     | 'swcLoader'
     | 'swcRelay'

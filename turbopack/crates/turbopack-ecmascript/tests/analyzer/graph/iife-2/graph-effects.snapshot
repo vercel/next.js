@@ -171,7 +171,7 @@
             ),
         ],
         span: 80..91,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(
@@ -340,7 +340,7 @@
             ),
         ],
         span: 108..119,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Member {
         obj: Variable(
@@ -433,7 +433,7 @@
             ),
         ],
         span: 142..149,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Member {
         obj: FreeVar(
@@ -613,7 +613,7 @@
             ),
         ],
         span: 155..168,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(
@@ -939,7 +939,7 @@
             ),
         ],
         span: 208..219,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
     Call {
         func: Variable(
@@ -1066,7 +1066,7 @@
                             ),
                         ],
                         span: 224..238,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                 ],
             ),
@@ -1362,7 +1362,7 @@
                             ),
                         ],
                         span: 271..282,
-                        in_truthiness_context: false,
+                        usage: Escapes,
                     },
                 ],
             ),

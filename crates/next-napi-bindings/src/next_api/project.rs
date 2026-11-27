@@ -20,7 +20,8 @@ use napi::{
 use napi_derive::napi;
 use next_api::{
     aggregate_hmr::{
-        ServerHmrChunkListVersion, ServerHmrChunkLists, ServerHmrUpdate, compute_server_hmr_update,
+        ServerHmrChunkLists, ServerHmrRouteModules, ServerHmrUpdate, compute_server_hmr_update,
+        reset_server_hmr_state,
     },
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
@@ -35,6 +36,7 @@ use next_api::{
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
+    route_bundle_stats::route_bundle_stats_asset_if_enabled,
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
     shutdown::ShutdownHooks,
 };
@@ -660,6 +662,13 @@ pub fn project_new<'env>(
                         ProjectContainer::initialize(container_op, options).await?;
                     let container = container_op.resolve().strongly_consistent().await?;
                     container.await?.register_shutdown_hooks(&shutdown_hooks);
+                    // Write the files of the dist dir that don't belong to any entrypoint before
+                    // anything is executed from the dist dir.
+                    read_strongly_consistent_and_apply_effects(
+                        write_dist_dir_files_operation(container),
+                        |effects| effects,
+                    )
+                    .await?;
                     // Return the operation itself so we can pin it below
                     Ok((container, container_op, initialization_issues))
                 })
@@ -720,6 +729,23 @@ pub fn project_new<'env>(
         }
         .instrument(tracing::info_span!("create project")),
     )
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn write_dist_dir_files_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    container.project().write_dist_dir_files().await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn write_dist_dir_files_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<Effects>> {
+    let op = write_dist_dir_files_inner_operation(container);
+    op.read_strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1859,6 +1885,7 @@ async fn output_assets_operation(
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
     let immutable_hashes_manifest_asset =
         immutable_hashes_manifest_asset_if_enabled(project).await?;
+    let route_bundle_stats = route_bundle_stats_asset_if_enabled(project, app_dir_only).await?;
 
     Ok(Vc::cell(
         output_assets
@@ -1866,6 +1893,7 @@ async fn output_assets_operation(
             .chain(nft.iter().copied())
             .chain(routes_hashes_manifest.iter().copied())
             .chain(immutable_hashes_manifest_asset.iter().copied())
+            .chain(route_bundle_stats.iter().copied())
             .collect(),
     ))
 }
@@ -2011,7 +2039,7 @@ async fn hmr_update_with_issues_operation(
 #[turbo_tasks::value(serialization = "skip")]
 struct ServerHmrSnapshotWithEffects {
     chunk_lists: ReadRef<ServerHmrChunkLists>,
-    version: ReadRef<ServerHmrChunkListVersion>,
+    route: ReadRef<ServerHmrRouteModules>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
@@ -2019,7 +2047,7 @@ struct ServerHmrSnapshotWithEffects {
 #[turbo_tasks::value(serialization = "skip")]
 struct ServerHmrSnapshot {
     chunk_lists: ReadRef<ServerHmrChunkLists>,
-    version: ReadRef<ServerHmrChunkListVersion>,
+    route: ReadRef<ServerHmrRouteModules>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -2027,19 +2055,17 @@ async fn project_server_hmr_snapshot_operation(
     project: ResolvedVc<Project>,
     entry_paths: Vec<RcStr>,
 ) -> Result<Vc<ServerHmrSnapshot>> {
-    let chunk_lists = project.server_hmr_chunks_for_entries(entry_paths).await?;
-    let version = ServerHmrChunkListVersion::from_chunk_lists(chunk_lists.as_slice())
+    let chunk_lists = project
+        .server_hmr_chunks_for_entries(entry_paths.into_iter().collect())
+        .await?;
+    let route = ServerHmrRouteModules::from_chunk_lists(chunk_lists.as_slice())
         .await?
         .cell()
         .await?;
-    Ok(ServerHmrSnapshot {
-        chunk_lists,
-        version,
-    }
-    .cell())
+    Ok(ServerHmrSnapshot { chunk_lists, route }.cell())
 }
 
-/// Snapshot only; diffing here would keep old baselines active.
+/// Snapshot only; the diff against the loaded state happens outside of tasks.
 #[tracing::instrument(level = "info", name = "server hmr snapshot", skip_all)]
 #[turbo_tasks::function(operation, root)]
 async fn server_hmr_snapshot_with_effects_operation(
@@ -2058,56 +2084,48 @@ async fn server_hmr_snapshot_with_effects_operation(
     let effects = Arc::new(take_effects(snapshot_op).await?);
     Ok(ServerHmrSnapshotWithEffects {
         chunk_lists: snapshot.chunk_lists.clone(),
-        version: snapshot.version.clone(),
+        route: snapshot.route.clone(),
         issues,
         effects,
     }
     .cell())
 }
 
-pub struct ServerHmrVersion(ReadRef<ServerHmrChunkListVersion>);
-
 #[napi(object, object_from_js = false)]
 pub struct NapiServerHmrUpdate {
     #[napi(ts_type = "\"none\" | \"partial\" | \"restart\"")]
     pub kind: String,
-    /// `unknown` forces the TypeScript boundary to narrow the payload.
+    /// For `partial`: one merged update per runtime directory, each touching only chunks of its
+    /// runtime. `unknown` forces the TypeScript boundary to narrow the payload.
     #[napi(ts_type = "unknown")]
-    pub instruction: Option<serde_json::Value>,
-    pub version: Option<External<ServerHmrVersion>>,
+    pub updates: Option<serde_json::Value>,
 }
 
 impl NapiServerHmrUpdate {
     /// Flattens the union for napi; `swc/types.ts` restores it.
     fn new(update: &ServerHmrUpdate) -> Result<Self> {
-        let (kind, to, instruction) = match update {
-            ServerHmrUpdate::NoRuntimeUpdate { to } => ("none", to.as_ref(), None),
-            ServerHmrUpdate::FullReevaluation { to } => ("restart", Some(to), None),
-            ServerHmrUpdate::Partial { to, instruction } => {
-                ("partial", Some(to), Some(instruction))
-            }
+        let (kind, updates) = match update {
+            ServerHmrUpdate::None => ("none", None),
+            ServerHmrUpdate::FullReevaluation => ("restart", None),
+            ServerHmrUpdate::Partial(updates) => ("partial", Some(updates)),
         };
 
         Ok(Self {
             kind: kind.into(),
-            instruction: instruction.map(serde_json::to_value).transpose()?,
-            version: to.map(|to| External::new(ServerHmrVersion(to.clone()))),
+            updates: updates.map(serde_json::to_value).transpose()?,
         })
     }
 }
 
-#[tracing::instrument(level = "info", name = "get server HMR update", skip_all)]
-#[napi]
-pub async fn project_get_server_hmr_update(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    from: Option<&External<ServerHmrVersion>>,
+/// Snapshots the route with the given entries (writing its chunks), while the project is held.
+async fn server_hmr_snapshot(
+    project: &ProjectInstance,
     entry_paths: Vec<RcStr>,
-) -> napi::Result<TurbopackResult<NapiServerHmrUpdate>> {
+) -> napi::Result<(ResolvedVc<Project>, ReadRef<ServerHmrSnapshotWithEffects>)> {
     let container = project.container;
-    let turbo_tasks = project.turbopack_ctx.turbo_tasks();
-    let from = from.map(|from| from.0.clone());
-
-    let (project, read) = turbo_tasks
+    project
+        .turbopack_ctx
+        .turbo_tasks()
         .run(async move {
             // HACK(bgw): Remove this unmark call
             unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -2120,22 +2138,41 @@ pub async fn project_get_server_hmr_update(
             Ok((project, read))
         })
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+}
 
-    // Diffing must not remain active after the pull completes.
-    let (update, issues) = turbo_tasks
+/// Pulls the update that brings the server runtimes up to date for the route with the given
+/// entries, and records the route's modules as loaded.
+#[tracing::instrument(level = "info", name = "get server HMR update", skip_all)]
+#[napi]
+pub async fn project_get_server_hmr_update(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
+    entry_paths: Vec<RcStr>,
+) -> napi::Result<TurbopackResult<NapiServerHmrUpdate>> {
+    let container = project.container;
+    let (keep_alive, read) = server_hmr_snapshot(project, entry_paths.clone()).await?;
+
+    // The diff reads and updates the loaded state, so it must not run in a task.
+    let (update, issues) = project
+        .turbopack_ctx
+        .turbo_tasks()
         .run(async move {
             // The snapshot's chunk-list `Vc`s are only valid while the project is held.
-            let _project_keep_alive = project;
+            let _project_keep_alive = keep_alive;
             let ServerHmrSnapshotWithEffects {
                 chunk_lists,
-                version,
+                route,
                 issues,
                 ..
             } = &*read;
-            let update =
-                compute_server_hmr_update(chunk_lists.as_slice(), from.as_deref(), version.clone())
-                    .await?;
+            let container = container.await?;
+            let update = compute_server_hmr_update(
+                chunk_lists.as_slice(),
+                route,
+                entry_paths.into_iter().collect(),
+                container.server_hmr_loaded_state(),
+            )
+            .await?;
             Ok::<_, anyhow::Error>((update, issues.clone()))
         })
         .await
@@ -2149,6 +2186,39 @@ pub async fn project_get_server_hmr_update(
             .map(|issue| NapiIssue::from(&**issue))
             .collect(),
     })
+}
+
+/// Forgets what the server runtimes have loaded. Must be called whenever all server modules are
+/// re-evaluated. When the runtimes load a route next, pass its entries to record its modules as
+/// loaded.
+#[napi]
+pub async fn project_reset_server_hmr_state(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
+    entry_paths: Option<Vec<RcStr>>,
+) -> napi::Result<()> {
+    let container = project.container;
+    let snapshot = match entry_paths {
+        Some(entry_paths) => Some((
+            server_hmr_snapshot(project, entry_paths.clone()).await?,
+            entry_paths,
+        )),
+        None => None,
+    };
+    project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run(async move {
+            let container = container.await?;
+            // The snapshot's chunk-list `Vc`s are only valid while the project is held, which
+            // `snapshot` does.
+            let route = snapshot.as_ref().map(|((_, read), entry_paths)| {
+                (&*read.route, entry_paths.iter().cloned().collect())
+            });
+            reset_server_hmr_state(container.server_hmr_loaded_state(), route);
+            Ok(())
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[tracing::instrument(level = "info", name = "get client HMR events", skip(env, project, func), fields(chunk_name = %chunk_name))]

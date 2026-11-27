@@ -385,8 +385,13 @@ mod tests {
         assert!(before > 0, "a running process has live memory");
 
         // Large enough to dwarf whatever else the test process does concurrently, and written to
-        // so the pages are actually committed.
-        const SIZE: usize = 256 * 1024 * 1024;
+        // so the pages are actually committed. Miri uses allocation-based accounting instead of
+        // committed memory, and 256 MiB took minutes there, so a smaller buffer suffices.
+        const SIZE: usize = if cfg!(miri) {
+            4 * 1024 * 1024
+        } else {
+            256 * 1024 * 1024
+        };
         let mut buffer = vec![0u8; SIZE];
         for chunk in buffer.chunks_mut(4096) {
             chunk[0] = 1;

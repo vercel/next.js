@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	nextroute "__NEXT_GO_ROUTE_IMPORT__"
 )
 
 func main() {
@@ -20,7 +22,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	handler := nextGoHandler()
+	// Next.js authenticates every request with this worker's token and replaces
+	// client-supplied x-next-internal-* headers before forwarding.
+	handler := nextroute.NextInternalGoHandler(true)
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("x-next-internal-go-token")), []byte(token)) != 1 {
 			http.Error(w, "Forbidden", http.StatusForbidden)

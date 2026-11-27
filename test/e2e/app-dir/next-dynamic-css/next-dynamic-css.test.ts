@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-dynamic-css', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -55,6 +55,52 @@ describe('next-dynamic-css', () => {
       await browser.elementByCss('#component').getComputedCss('color')
     ).toBe('rgb(0, 0, 0)')
   })
+
+  // Webpack-only: Turbopack doesn't load chunk CSS through the app router's
+  // runtime stylesheet list. Dev has the ordering TODO above.
+  if (!isNextDev && !isTurbopack) {
+    it('should have correct order of styles when next/dynamic CSS is registered before the first commit', async () => {
+      // Hold the page's client chunk until the next/dynamic chunk has loaded.
+      // The dynamic component's CSS is then always registered before the app
+      // router's first commit, a timing that otherwise only happens under load.
+      let releasePageChunk: () => void
+      const dynamicChunkLoaded = new Promise<void>((resolve) => {
+        releasePageChunk = resolve
+      })
+      const browser = await next.browser('/page', {
+        async beforePageLoad(page) {
+          page.on('requestfinished', (request) => {
+            if (
+              request
+                .url()
+                .includes('/_next/static/chunks/next-dynamic-css-component.')
+            ) {
+              releasePageChunk()
+            }
+          })
+          await page.route(
+            /\/_next\/static\/chunks\/app\/page\/page-[^/]*\.js/,
+            async (route) => {
+              await dynamicChunkLoaded
+              await route.continue()
+            }
+          )
+        },
+      })
+      expect(await browser.waitForElementByCss('#component').text()).toBe(
+        'Hello Component'
+      )
+
+      expect(
+        await browser.elementByCss('#inner2').getComputedCss('color')
+      ).toBe('rgb(0, 0, 0)')
+      expect(
+        await browser
+          .elementByCss('#component')
+          .getComputedCss('background-color')
+      ).toBe('rgb(0, 128, 0)')
+    })
+  }
 
   it('should have correct order of global styles between layout and pages', async () => {
     const browser = await next.browser('/page')

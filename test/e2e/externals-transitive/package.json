@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "dep-a": "file:./dep-a",
-    "dep-b": "file:./dep-b",
+    "externals-transitive-dep-a": "file:./externals-transitive-dep-a",
+    "externals-transitive-dep-b": "file:./externals-transitive-dep-b",
     "lodash": "3.10.1"
   }
 }

@@ -804,11 +804,11 @@ He = (???*0* ? ???*4* : (...) => ???*6*)
 - *2* Object*3*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -4196,13 +4196,10 @@ a#454 = (???*0* | ???*1*)
 - *1* ???*2*["call"](b)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *2* ???*3*["toString"]
-  ⚠️  unknown object
+- *2* Object.prototype*3*["toString"]
+  ⚠️  unsupported property on Object.prototype
   ⚠️  This value might have side effects
-- *3* Object*4*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *4* Object: The global Object variable
+- *3* Object.prototype: The prototype of plain objects
 
 a#455 = ???*0*
 - *0* arguments[0]
@@ -10351,7 +10348,7 @@ c#270 = ???*0*
 - *1* Object*2*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -11748,7 +11745,7 @@ c#63 = ???*0*
 - *1* Object*2*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* ???*4*["prototype"]
   ⚠️  unknown object
 - *4* ???*5*["constructor"]
@@ -12837,7 +12834,7 @@ d#270 = (???*0* | 0 | ???*4*)
 - *1* Object*2*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+- *2* Object: The global Object constructor
 - *3* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *4* updated with update expression
@@ -15360,7 +15357,7 @@ e#270 = (???*0* | undefined)
 - *2* Object*3*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -16505,7 +16502,7 @@ e#63 = (???*0* | undefined)
 - *2* Object*3*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* ???*5*["prototype"]
   ⚠️  unknown object
 - *5* ???*6*["constructor"]
@@ -17876,11 +17873,11 @@ f#534 = !(???*0*)
 - *4* Object*5*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *5* Object: The global Object variable
+- *5* Object: The global Object constructor
 - *6* Object*7*["is"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *7* Object: The global Object variable
+- *7* Object: The global Object constructor
 - *8* (((a === b) && ((0 !== a) || (???*9* === ???*10*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *9* unsupported expression
@@ -18105,7 +18102,7 @@ f#63 = (???*0* | undefined)
 - *2* Object*3*["getOwnPropertyDescriptor"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* Object: The global Object variable
+- *3* Object: The global Object constructor
 - *4* ???*5*["prototype"]
   ⚠️  unknown object
 - *5* ???*6*["constructor"]
@@ -19669,14 +19666,8 @@ ik = (...) => undefined
 
 il = (...) => undefined
 
-ja = ???*0*
-- *0* ???*1*["hasOwnProperty"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* Object*2*["prototype"]
-  ⚠️  unsupported property on global Object
-  ⚠️  This value might have side effects
-- *2* Object: The global Object variable
+ja = Object.prototype.hasOwnProperty*0*
+- *0* Object.prototype.hasOwnProperty: The standard Object.prototype.hasOwnProperty method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
 
 jb = (...) => undefined
 

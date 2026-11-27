@@ -210,6 +210,10 @@
           if (isArrayImpl(value)) return "[...]";
           if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
             return "client";
+          if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
+            return "LedgerData";
+          if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+            return "LedgerTotal";
           value = objectName(value);
           return "Object" === value ? "{...}" : value;
         case "function":
@@ -297,6 +301,10 @@
         objKind = "<" + describeElementType(objectOrArray.type) + "/>";
       else {
         if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
+        if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE)
+          return "LedgerData";
+        if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+          return "LedgerTotal";
         if (jsxPropsParents.has(objectOrArray)) {
           objKind = jsxPropsParents.get(objectOrArray);
           objKind = "<" + (describeElementType(objKind) || "...");
@@ -1494,6 +1502,15 @@
         return "";
       }
     }
+    function createReactMetadata(requestId, kind, outcome, environment) {
+      return {
+        version: 1,
+        requestId: requestId,
+        kind: kind,
+        outcome: outcome,
+        environment: environment
+      };
+    }
     function markAllTracksInOrder() {
       supportsUserTiming &&
         (console.timeStamp(
@@ -1572,7 +1589,8 @@
       startTime,
       endTime,
       rootEnv,
-      value
+      value,
+      requestId
     ) {
       if (supportsUserTiming && 0 < endTime) {
         var description = getIODescription(value),
@@ -1591,7 +1609,7 @@
             ? addObjectToProperties(value, properties, 0, "")
             : void 0 !== value &&
               addValueToProperties("awaited value", value, properties, 0, "");
-          asyncInfo = getIOLongName(
+          rootEnv = getIOLongName(
             asyncInfo.awaited,
             description,
             asyncInfo.env,
@@ -1607,8 +1625,14 @@
                   track: trackNames[trackIdx],
                   trackGroup: "Server Components \u269b",
                   properties: properties,
-                  tooltipText: asyncInfo
-                }
+                  tooltipText: rootEnv
+                },
+                react: createReactMetadata(
+                  requestId,
+                  "await",
+                  "completed",
+                  asyncInfo.env
+                )
               }
             })
           );
@@ -1713,6 +1737,125 @@
           );
       }
     }
+    function createLedgerCell(type) {
+      switch (type.kind) {
+        case 0:
+          return { kind: 0, state: !1 };
+        case 1:
+          return { kind: 1, state: 0 };
+        case 2:
+          return { kind: 2, state: null };
+        case 3:
+          return { kind: 3, state: null };
+        default:
+          return { kind: 4, state: new Set() };
+      }
+    }
+    function readLedgerTotal(total) {
+      var graph = total.graph;
+      if (null !== graph) {
+        var dirty = graph.dirtyUnits;
+        if (null !== dirty) {
+          graph.totals.forEach(function (record) {
+            updateLedgerTotal(record, dirty);
+          });
+          for (var unit = dirty; null !== unit; ) {
+            var next = unit.nextDirty;
+            unit.isQueued = !1;
+            unit.nextDirty = null;
+            unit.newEntries = null;
+            unit = next;
+          }
+          graph.dirtyUnits = null;
+        }
+      }
+      unit = total.cell;
+      null === unit &&
+        ((total.cell = unit = createLedgerCell(total.type)),
+        (total.visitedUnits = new WeakSet()),
+        updateLedgerTotal(total, null));
+      null !== graph &&
+        (graph.closed
+          ? ((total.graph = null), (total.visitedUnits = null))
+          : graph.isTracking || (graph.isTracking = !0));
+      return unit;
+    }
+    function updateLedgerTotal(total, dirty) {
+      var acc = total.cell,
+        visitedUnits = total.visitedUnits;
+      if (null !== acc && null !== visitedUnits) {
+        for (var type = total.type, queue = []; null !== dirty; )
+          visitedUnits.has(dirty) && queue.push(dirty),
+            (dirty = dirty.nextDirty);
+        dirty = queue.length;
+        for (
+          var pendingCaptureUnits = total.pendingCaptureUnits, i = 0;
+          i < pendingCaptureUnits.length;
+          i++
+        ) {
+          var unit = pendingCaptureUnits[i];
+          visitedUnits.has(unit) || (visitedUnits.add(unit), queue.push(unit));
+        }
+        i = function (entry) {
+          var accumulated = acc.state,
+            log = total.entries;
+          null === log
+            ? accumulated.add(entry)
+            : accumulated.has(entry) ||
+              (accumulated.add(entry), log.push(entry));
+        };
+        for (unit = 0; unit < queue.length; unit++) {
+          var _unit = queue[unit],
+            cells = _unit.cells;
+          cells = null === cells ? void 0 : cells.get(type);
+          if (void 0 !== cells)
+            switch (acc.kind) {
+              case 0:
+                acc.state = acc.state || cells.state;
+                break;
+              case 1:
+                acc.state = (acc.state | cells.state) >>> 0;
+                break;
+              case 2:
+                cells = cells.state;
+                var previous = acc.state;
+                null !== cells &&
+                  (null === previous || cells < previous) &&
+                  (acc.state = cells);
+                break;
+              case 3:
+                cells = cells.state;
+                previous = acc.state;
+                null !== cells &&
+                  (null === previous || cells > previous) &&
+                  (acc.state = cells);
+                break;
+              case 4:
+                unit < dirty
+                  ? ((cells = _unit.newEntries),
+                    (cells = null === cells ? void 0 : cells.get(type)),
+                    void 0 !== cells && cells.forEach(i))
+                  : cells.state.forEach(i);
+            }
+          cells = _unit.references;
+          if (null !== cells)
+            for (previous = 0; previous < cells.length; previous++) {
+              var target = cells[previous];
+              visitedUnits.has(target) ||
+                (visitedUnits.add(target), queue.push(target));
+            }
+          _unit = _unit.children;
+          if (null !== _unit)
+            for (cells = 0; cells < _unit.length; cells++)
+              (previous = _unit[cells]),
+                (target = previous.capturedLedgers),
+                (null !== target && -1 !== target.indexOf(type)) ||
+                  visitedUnits.has(previous) ||
+                  (visitedUnits.add(previous), queue.push(previous));
+        }
+        pendingCaptureUnits.length = 0;
+      }
+    }
     function prepareStackTrace(error, structuredStackTrace) {
       error = (error.name || "Error") + ": " + (error.message || "");
       for (var i = 0; i < structuredStackTrace.length; i++)
@@ -1749,6 +1892,9 @@
           break;
         case "resolved_module":
           initializeModuleChunk(chunk);
+          break;
+        case "resolved_ledger":
+          initializeLedgerChunk(chunk);
       }
       switch (chunk.status) {
         case "fulfilled":
@@ -2181,6 +2327,7 @@
         var response = unwrapWeakResponse(weakResponse);
         response._closed = !0;
         response._closedReason = error;
+        resolveLedgerTotalsAtClose(response);
         response._chunks.forEach(function (chunk, id) {
           "pending" === chunk.status
             ? (null !== response._missingChunks &&
@@ -3007,6 +3154,19 @@
             );
           case "S":
             return Symbol.for(value.slice(2));
+          case "y":
+            response = getResponseLedgers(response).totals.get(
+              parseInt(value.slice(2), 16)
+            );
+            if (void 0 !== response)
+              return (
+                (response = response.chunk),
+                null !== initializingChunk &&
+                  isArrayImpl(initializingChunk._children) &&
+                  initializingChunk._children.push(response),
+                response
+              );
+            return;
           case "h":
             var ref = value.slice(2);
             return getOutlinedModel(
@@ -3184,7 +3344,8 @@
       environmentName,
       debugStartTime,
       debugEndTime,
-      debugChannel
+      debugChannel,
+      debugRequestId
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -3199,6 +3360,7 @@
       this._closedReason = null;
       this._allowPartialStream = allowPartialStream;
       this._tempRefs = temporaryReferences;
+      this._ledgers = null;
       this._timeOrigin = 0;
       this._pendingInitialRender = null;
       this._pendingChunks = 0;
@@ -3222,6 +3384,7 @@
       this._debugIOStarted = !1;
       setTimeout(markIOStarted.bind(this), 0);
       this._debugEndTime = void 0 === debugEndTime ? null : debugEndTime;
+      this._debugRequestId = debugRequestId;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._debugChannel = debugChannel;
       this._blockedConsole = null;
@@ -3247,7 +3410,8 @@
       environmentName,
       debugStartTime,
       debugEndTime,
-      debugChannel
+      debugChannel,
+      debugRequestId
     ) {
       checkEvalAvailabilityOnceDev();
       bundlerConfig = new ResponseInstance(
@@ -3264,7 +3428,8 @@
         environmentName,
         debugStartTime,
         debugEndTime,
-        debugChannel
+        debugChannel,
+        debugRequestId
       )._weakResponse;
       return bundlerConfig;
     }
@@ -3489,8 +3654,8 @@
                   (previousBlockedChunk = chunk));
             } else {
               chunk = previousBlockedChunk;
-              var _chunk4 = createPendingChunk(response);
-              _chunk4.then(
+              var _chunk5 = createPendingChunk(response);
+              _chunk5.then(
                 function (v) {
                   return controller.enqueue(v);
                 },
@@ -3498,11 +3663,11 @@
                   return controller.error(e);
                 }
               );
-              previousBlockedChunk = _chunk4;
+              previousBlockedChunk = _chunk5;
               chunk.then(function () {
-                previousBlockedChunk === _chunk4 &&
+                previousBlockedChunk === _chunk5 &&
                   (previousBlockedChunk = null);
-                resolveModelChunk(response, _chunk4, json);
+                resolveModelChunk(response, _chunk5, json);
               });
             }
           },
@@ -3709,6 +3874,79 @@
       response.name = name;
       response.environmentName = env;
       return response;
+    }
+    function getResponseLedgers(response) {
+      var ledgers = response._ledgers;
+      null === ledgers &&
+        (response._ledgers = ledgers =
+          {
+            totals: new Map(),
+            types: new Map(),
+            units: new Map(),
+            isTracking: !1,
+            dirtyUnits: null,
+            closed: !1
+          });
+      return ledgers;
+    }
+    function resolveLedgerTotalsAtClose(response) {
+      var ledgers = response._ledgers;
+      null !== ledgers &&
+        ((ledgers.closed = !0),
+        ledgers.totals.forEach(function (record) {
+          var chunk = record.chunk;
+          if ("pending" === chunk.status) {
+            releasePendingChunk(response, chunk);
+            var resolveListeners = chunk.value,
+              rejectListeners = chunk.reason;
+            chunk.status = "resolved_ledger";
+            chunk.value = record;
+            chunk.reason = response;
+            null !== resolveListeners
+              ? (initializeLedgerChunk(chunk),
+                wakeChunkIfInitialized(
+                  response,
+                  chunk,
+                  resolveListeners,
+                  rejectListeners
+                ))
+              : null !== record.cell && initializeLedgerChunk(chunk);
+          }
+        }));
+    }
+    function initializeLedgerChunk(chunk) {
+      var response = chunk.reason;
+      var state = readLedgerTotal(chunk.value);
+      state = 4 === state.kind ? new Set(state.state) : state.state;
+      state = null === state ? void 0 : state;
+      chunk.status = "fulfilled";
+      chunk.value = state;
+      chunk.reason = null;
+      null !== response &&
+        (filterDebugInfo(response, chunk),
+        moveDebugInfoFromChunkToInnerValue(chunk, state));
+    }
+    function getOrCreateUnit(ledgers, id) {
+      var unit = ledgers.units.get(id);
+      void 0 === unit &&
+        ((unit = {
+          children: null,
+          capturedLedgers: null,
+          cells: null,
+          references: null,
+          isQueued: !1,
+          nextDirty: null,
+          newEntries: null
+        }),
+        ledgers.units.set(id, unit));
+      return unit;
+    }
+    function markUnitDirty(ledgers, unit) {
+      ledgers.isTracking &&
+        !unit.isQueued &&
+        ((unit.isQueued = !0),
+        (unit.nextDirty = ledgers.dirtyUnits),
+        (ledgers.dirtyUnits = unit));
     }
     function createFakeFunction(
       name,
@@ -4011,18 +4249,18 @@
                 ),
                 (response._blockedConsole = blockedChunk));
         else {
-          var _chunk5 = createPendingChunk(response);
-          _chunk5.then(
+          var _chunk6 = createPendingChunk(response);
+          _chunk6.then(
             function (v) {
               return replayConsoleWithCallStackInDEV(response, v);
             },
             function () {}
           );
-          response._blockedConsole = _chunk5;
+          response._blockedConsole = _chunk6;
           var unblock = function () {
-            response._blockedConsole === _chunk5 &&
+            response._blockedConsole === _chunk6 &&
               (response._blockedConsole = null);
-            resolveModelChunk(response, _chunk5, json);
+            resolveModelChunk(response, _chunk6, json);
           };
           blockedChunk.then(unblock, unblock);
         }
@@ -4259,7 +4497,8 @@
                       trackIdx$jscomp$1 = trackIdx$jscomp$0,
                       startTime$jscomp$2 = startTime$jscomp$1,
                       childrenEndTime$jscomp$1 = childrenEndTime$jscomp$0,
-                      error = root.reason;
+                      error = root.reason,
+                      requestId = response._debugRequestId;
                     if (supportsUserTiming) {
                       var env = componentInfo$jscomp$2.env,
                         name = componentInfo$jscomp$2.name,
@@ -4304,7 +4543,13 @@
                             trackGroup: "Server Components \u269b",
                             tooltipText: entryName$jscomp$0 + " Errored",
                             properties: properties
-                          }
+                          },
+                          react: createReactMetadata(
+                            requestId,
+                            "component",
+                            "errored",
+                            env
+                          )
                         }
                       });
                       performance.clearMeasures(measureName);
@@ -4313,7 +4558,8 @@
                     var componentInfo$jscomp$3 = componentInfo$jscomp$1,
                       trackIdx$jscomp$2 = trackIdx$jscomp$0,
                       startTime$jscomp$3 = startTime$jscomp$1,
-                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0;
+                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0,
+                      requestId$jscomp$0 = response._debugRequestId;
                     if (
                       supportsUserTiming &&
                       0 <= childrenEndTime$jscomp$2 &&
@@ -4376,7 +4622,13 @@
                                   track: trackNames[trackIdx$jscomp$2],
                                   trackGroup: "Server Components \u269b",
                                   properties: properties$jscomp$0
-                                }
+                                },
+                                react: createReactMetadata(
+                                  requestId$jscomp$0,
+                                  "component",
+                                  "completed",
+                                  env$jscomp$0
+                                )
                               }
                             }
                           )
@@ -4414,7 +4666,8 @@
                           time,
                           endTime,
                           env$jscomp$1,
-                          thenable.value
+                          thenable.value,
+                          response$jscomp$0._debugRequestId
                         );
                         break;
                       case "rejected":
@@ -4423,7 +4676,9 @@
                           startTime$jscomp$4 = time,
                           endTime$jscomp$0 = endTime,
                           rootEnv = env$jscomp$1,
-                          error$jscomp$0 = thenable.reason;
+                          error$jscomp$0 = thenable.reason,
+                          requestId$jscomp$1 =
+                            response$jscomp$0._debugRequestId;
                         if (supportsUserTiming && 0 < endTime$jscomp$0) {
                           var description = getIODescription(error$jscomp$0),
                             entryName$jscomp$1 =
@@ -4472,7 +4727,13 @@
                                       trackGroup: "Server Components \u269b",
                                       properties: properties$jscomp$1,
                                       tooltipText: tooltipText
-                                    }
+                                    },
+                                    react: createReactMetadata(
+                                      requestId$jscomp$1,
+                                      "await",
+                                      "errored",
+                                      asyncInfo$jscomp$0.env
+                                    )
                                   }
                                 }
                               )
@@ -4496,7 +4757,8 @@
                           time,
                           endTime,
                           env$jscomp$1,
-                          void 0
+                          void 0,
+                          response$jscomp$0._debugRequestId
                         );
                     }
                   } else
@@ -4506,7 +4768,8 @@
                       time,
                       endTime,
                       env$jscomp$1,
-                      void 0
+                      void 0,
+                      response$jscomp$0._debugRequestId
                     );
                 }
               }
@@ -4522,7 +4785,8 @@
                     componentInfo$jscomp$4 = _componentInfo,
                     trackIdx$jscomp$4 = trackIdx$jscomp$6,
                     startTime$jscomp$5 = time,
-                    childrenEndTime$jscomp$3 = childrenEndTime;
+                    childrenEndTime$jscomp$3 = childrenEndTime,
+                    requestId$jscomp$2 = response$jscomp$0._debugRequestId;
                   if (supportsUserTiming) {
                     var env$jscomp$2 = componentInfo$jscomp$4.env,
                       name$jscomp$1 = componentInfo$jscomp$4.name,
@@ -4562,7 +4826,13 @@
                           trackGroup: "Server Components \u269b",
                           tooltipText: entryName$jscomp$2 + " Aborted",
                           properties: properties$jscomp$2
-                        }
+                        },
+                        react: createReactMetadata(
+                          requestId$jscomp$2,
+                          "component",
+                          "aborted",
+                          env$jscomp$2
+                        )
                       }
                     });
                     performance.clearMeasures(measureName$jscomp$1);
@@ -4583,7 +4853,8 @@
                     trackIdx$jscomp$5 = trackIdx$jscomp$6,
                     startTime$jscomp$6 = time,
                     endTime$jscomp$1 = endTime,
-                    rootEnv$jscomp$0 = _env2;
+                    rootEnv$jscomp$0 = _env2,
+                    requestId$jscomp$3 = response$jscomp$0._debugRequestId;
                   if (supportsUserTiming && 0 < endTime$jscomp$1) {
                     var entryName$jscomp$3 =
                         "await " +
@@ -4624,7 +4895,13 @@
                                   ]
                                 ],
                                 tooltipText: tooltipText$jscomp$0
-                              }
+                              },
+                              react: createReactMetadata(
+                                requestId$jscomp$3,
+                                "await",
+                                "aborted",
+                                asyncInfo$jscomp$1.env
+                              )
                             }
                           }
                         )
@@ -4872,26 +5149,26 @@
           }
           break;
         case 69:
-          tag = response._chunks;
-          var chunk = tag.get(id);
+          var chunks = response._chunks;
+          tag = chunks.get(id);
           row = JSON.parse(row);
           var error = resolveErrorDev(response, row);
           error.digest = row.digest;
-          chunk
-            ? (resolveChunkDebugInfo(response, streamState, chunk),
-              triggerErrorOnChunk(response, chunk, error))
+          tag
+            ? (resolveChunkDebugInfo(response, streamState, tag),
+              triggerErrorOnChunk(response, tag, error))
             : ((row = new ReactPromise("rejected", null, error)),
               resolveChunkDebugInfo(response, streamState, row),
-              tag.set(id, row));
+              chunks.set(id, row));
           break;
         case 84:
-          tag = response._chunks;
-          (chunk = tag.get(id)) && "pending" !== chunk.status
-            ? chunk.reason.enqueueValue(row)
-            : (chunk && releasePendingChunk(response, chunk),
+          chunks = response._chunks;
+          (tag = chunks.get(id)) && "pending" !== tag.status
+            ? tag.reason.enqueueValue(row)
+            : (tag && releasePendingChunk(response, tag),
               (row = new ReactPromise("fulfilled", row, null)),
               resolveChunkDebugInfo(response, streamState, row),
-              tag.set(id, row));
+              chunks.set(id, row));
           break;
         case 78:
           response._timeOrigin = +row - performance.timeOrigin;
@@ -4903,12 +5180,13 @@
             "halted" !== id.status &&
             "blocked" !== id.status &&
             "resolved_module" !== id.status &&
+            "resolved_ledger" !== id.status &&
             ((streamState = id._debugChunk),
-            (tag = createResolvedModelChunk(response, row)),
-            (tag._debugChunk = streamState),
-            (id._debugChunk = tag),
+            (chunks = createResolvedModelChunk(response, row)),
+            (chunks._debugChunk = streamState),
+            (id._debugChunk = chunks),
             initializeDebugChunk(response, id),
-            "blocked" !== tag.status ||
+            "blocked" !== chunks.status ||
               (void 0 !== response._debugChannel &&
                 response._debugChannel.hasReadable) ||
               '"' !== row[0] ||
@@ -4943,6 +5221,152 @@
               (response._weakResponse.response = null),
             id.reason.close("" === row ? '"$undefined"' : row));
           break;
+        case 75:
+          a: {
+            switch (row.charCodeAt(0)) {
+              case 48:
+                streamState = 0;
+                break;
+              case 49:
+                streamState = 1;
+                break;
+              case 50:
+                streamState = 2;
+                break;
+              case 51:
+                streamState = 3;
+                break;
+              case 52:
+                streamState = 4;
+                break;
+              default:
+                break a;
+            }
+            getResponseLedgers(response).types.set(id, { kind: streamState });
+          }
+          break;
+        case 89:
+          row = parseInt(row, 16);
+          streamState = getResponseLedgers(response);
+          row = streamState.types.get(row);
+          void 0 !== row &&
+            ((response = createPendingChunk(response)),
+            (row = {
+              chunk: response,
+              type: row,
+              pendingCaptureUnits: [],
+              graph: streamState,
+              cell: null,
+              visitedUnits: null,
+              entries: null
+            }),
+            streamState.totals.set(id, row),
+            (response.$$typeof = REACT_LEDGER_TOTAL_TYPE),
+            (response.total = row));
+          break;
+        case 81:
+          streamState = parseModel(response, row);
+          response = getResponseLedgers(response);
+          row = response.units;
+          id = getOrCreateUnit(response, id);
+          chunks = streamState[0];
+          null !== chunks &&
+            ((row = row.get(parseInt(chunks, 16))),
+            void 0 !== row &&
+              ((chunks = row.children),
+              null === chunks && (row.children = chunks = []),
+              chunks.push(id),
+              markUnitDirty(response, row)));
+          streamState = streamState[1];
+          if (0 !== streamState.length) {
+            row = response.totals;
+            chunks = [];
+            for (tag = 0; tag < streamState.length; tag++)
+              (error = row.get(parseInt(streamState[tag], 16))),
+                void 0 !== error &&
+                  (chunks.push(error.type), error.pendingCaptureUnits.push(id));
+            id.capturedLedgers = chunks;
+          }
+          markUnitDirty(response, id);
+          break;
+        case 90:
+          row = parseModel(response, row);
+          response = getResponseLedgers(response);
+          id = response.units.get(id);
+          if (
+            void 0 !== id &&
+            ((streamState = response.types.get(parseInt(row[0], 16))),
+            void 0 !== streamState)
+          )
+            switch (
+              (markUnitDirty(response, id),
+              (tag = id.cells),
+              null === tag && (id.cells = tag = new Map()),
+              (response = tag.get(streamState)),
+              void 0 === response &&
+                tag.set(
+                  streamState,
+                  (response = createLedgerCell(streamState))
+                ),
+              response.kind)
+            ) {
+              case 0:
+                response.state = !0;
+                break;
+              case 1:
+                response.state = (response.state | row[1]) >>> 0;
+                break;
+              case 2:
+                id = row[1];
+                streamState = response.state;
+                if (null === streamState || id < streamState)
+                  response.state = id;
+                break;
+              case 3:
+                id = row[1];
+                streamState = response.state;
+                if (null === streamState || id > streamState)
+                  response.state = id;
+                break;
+              default:
+                for (
+                  row = row[1],
+                    response = response.state,
+                    id.isQueued &&
+                      ((tag = id.newEntries),
+                      null === tag && (id.newEntries = tag = new Map()),
+                      (chunks = tag.get(streamState)),
+                      void 0 === chunks && tag.set(streamState, (chunks = []))),
+                    id = 0;
+                  id < row.length;
+                  id++
+                )
+                  (streamState = row[id]),
+                    void 0 === chunks
+                      ? response.add(streamState)
+                      : response.has(streamState) ||
+                        (response.add(streamState), chunks.push(streamState));
+            }
+          break;
+        case 70:
+          streamState = parseModel(response, row);
+          response = getResponseLedgers(response);
+          row = response.units.get(id);
+          if (void 0 !== row)
+            for (
+              markUnitDirty(response, row),
+                id = row.references,
+                null === id && (row.references = id = []),
+                row = 0;
+              row < streamState.length;
+              row++
+            )
+              (chunks = getOrCreateUnit(
+                response,
+                parseInt(streamState[row], 16)
+              )),
+                id.push(chunks);
+          break;
         default:
           "" === row
             ? ((streamState = response._chunks),
@@ -4952,13 +5376,13 @@
                 "pending_weak" !== row.status &&
                 "blocked" !== row.status) ||
                 haltChunk(response, row))
-            : ((tag = response._chunks),
-              (chunk = tag.get(id))
-                ? (resolveChunkDebugInfo(response, streamState, chunk),
-                  resolveModelChunk(response, chunk, row))
+            : ((chunks = response._chunks),
+              (tag = chunks.get(id))
+                ? (resolveChunkDebugInfo(response, streamState, tag),
+                  resolveModelChunk(response, tag, row))
                 : ((row = createResolvedModelChunk(response, row)),
                   resolveChunkDebugInfo(response, streamState, row),
-                  tag.set(id, row)));
+                  chunks.set(id, row)));
       }
     }
     function processBinaryChunk(weakResponse, streamState, chunk) {
@@ -5163,11 +5587,16 @@
                 : delete value[i]));
       return value;
     }
+    function resolveLedgerTotals(weakResponse) {
+      hasGCedResponse(weakResponse) ||
+        resolveLedgerTotalsAtClose(unwrapWeakResponse(weakResponse));
+    }
     function close(weakResponse) {
       if (!hasGCedResponse(weakResponse)) {
         var response = unwrapWeakResponse(weakResponse);
         response._allowPartialStream
           ? ((response._closed = !0),
+            resolveLedgerTotalsAtClose(response),
             response._chunks.forEach(function (chunk, id) {
               "pending" === chunk.status || "pending_weak" === chunk.status
                 ? (null !== response._missingChunks &&
@@ -5215,7 +5644,8 @@
               hasReadable: void 0 !== options.debugChannel.readable,
               callback: null
             }
-          : void 0
+          : void 0,
+        options ? options.unstable_requestId : void 0
       );
     }
     function startReadingFromStream$1(response, stream, onDone, debugValue) {
@@ -5362,6 +5792,8 @@
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+      REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -5449,6 +5881,9 @@
             break;
           case "resolved_module":
             initializeModuleChunk(this);
+            break;
+          case "resolved_ledger":
+            initializeLedgerChunk(this);
         }
         var resolveCallback = resolve,
           rejectCallback = reject,
@@ -5609,7 +6044,15 @@
               options.debugChannel.readable,
               handleDone
             );
-            startReadingFromStream$1(response, r.body, handleDone, r);
+            startReadingFromStream$1(
+              response,
+              r.body,
+              function () {
+                resolveLedgerTotals(response);
+                handleDone();
+              },
+              r
+            );
           } else
             startReadingFromStream$1(
               response,
@@ -5647,19 +6090,19 @@
         options && null != options.endTime ? options.endTime : void 0,
         options && void 0 !== options.debugChannel
           ? { hasReadable: !0, callback: null }
-          : void 0
+          : void 0,
+        options ? options.unstable_requestId : void 0
       );
       if (options && options.debugChannel) {
-        var streamEndedCount = 0;
-        serverConsumerManifest = function () {
-          2 === ++streamEndedCount && close(response);
-        };
-        startReadingFromStream(
-          response,
-          options.debugChannel,
-          serverConsumerManifest
-        );
-        startReadingFromStream(response, stream, serverConsumerManifest);
+        var streamEndedCount = 0,
+          handleEnd = function () {
+            2 === ++streamEndedCount && close(response);
+          };
+        startReadingFromStream(response, options.debugChannel, handleEnd);
+        startReadingFromStream(response, stream, function () {
+          resolveLedgerTotals(response);
+          handleEnd();
+        });
       } else
         startReadingFromStream(response, stream, close.bind(null, response));
       return getRoot(response);
@@ -5676,7 +6119,15 @@
           options.debugChannel.readable,
           handleDone
         );
-        startReadingFromStream$1(response, stream, handleDone, stream);
+        startReadingFromStream$1(
+          response,
+          stream,
+          function () {
+            resolveLedgerTotals(response);
+            handleDone();
+          },
+          stream
+        );
       } else
         startReadingFromStream$1(
           response,

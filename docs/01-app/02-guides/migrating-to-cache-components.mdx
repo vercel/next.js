@@ -820,9 +820,9 @@ async function Results({ searchParams }) {
 
 ## Route Handlers (`GET`)
 
-**Replace `dynamic = 'force-static'` with `use cache`.**
+**Replace `dynamic = 'force-static'` and `revalidate` with `use cache` and `cacheLife`.**
 
-Without Cache Components, a `GET` [Route Handler](/docs/app/api-reference/file-conventions/route) is dynamic unless you opt into caching with `export const dynamic = 'force-static'`. With Cache Components, `GET` handlers follow the same model as pages: they prerender when they don't access uncached or runtime data, and you cache uncached data with `use cache`. Remove the `dynamic` config and move the data access into a separate function marked with `use cache`. The directive can't be applied to the `GET` export itself, so the handler calls a cached helper.
+With Cache Components, `GET` [Route Handlers](/docs/app/api-reference/file-conventions/route) follow the same model as pages: they prerender when they don't access uncached or runtime data. Remove the `dynamic` and `revalidate` configs and move data access that should be cached into a separate function marked with `use cache`. Set its revalidation time with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). The directive can't be applied to the `GET` export itself, so the handler calls a cached helper.
 
 ```ts filename="app/api/products/route.ts" switcher
 // Before
@@ -877,6 +877,14 @@ async function getProducts() {
 ```
 
 > **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. If the `catch` block logs the error, it adds noise to the build output. Set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
+
+### Sitemaps that read the current time or random values
+
+**Add `use cache` and `cacheLife` to a `sitemap` function that sets `lastModified` with `new Date()`.**
+
+Unlike a `GET` export, the `sitemap` function in a [`sitemap.js`](/docs/app/api-reference/file-conventions/metadata/sitemap) file accepts the `use cache` directive directly, so make the function `async` and add the directive to it. See [prerendering a sitemap with Cache Components](/docs/app/api-reference/file-conventions/metadata/sitemap#prerendering-with-cache-components) for an example.
+
+Before Cache Components, a sitemap that reads the current time was prerendered at build time. With Cache Components and without the directive, the sitemap is generated on every request, and the build does not report an error. The same happens with other [random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps), such as `Math.random()` and `crypto.randomUUID()`. To confirm the result, check the route table that `next build` prints, where a prerendered sitemap is marked `○` (Static).
 
 ## `generateMetadata` and `generateViewport`
 
