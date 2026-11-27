@@ -206,7 +206,9 @@ export default function Page() {
 }
 ```
 
-Without a transition, the closest `<Suspense>` boundary above the component shows its fallback while the code loads. If there is no boundary above, the current UI stays on screen, but a boundary added later changes that.
+Without a transition, the closest `<Suspense>` boundary above the component shows its fallback while the code loads.
+
+> **Good to know**: Use a transition even when no boundary is above the component today. Without one, a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file or a `<Suspense>` boundary added higher in the tree later replaces the UI it wraps with its fallback when the user opens the component.
 
 The example sets neither `loading` nor `ssr: false`. Either option wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. React spaces these reveals apart so content doesn't appear piece by piece, which means the component can show up later than its code loads. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats) for the timing.
 
@@ -271,7 +273,7 @@ export default function Page() {
 }
 ```
 
-The same loader can run at other moments, for example when the browser is idle. You can schedule that with [`requestIdleCallback`](https://developer.mozilla.org/docs/Web/API/Window/requestIdleCallback), which is not available in every browser, so check for it and fall back to `setTimeout`.
+The same loader can run at other moments, for example shortly after the page loads. Call it from a `setTimeout`, or from [`requestIdleCallback`](https://developer.mozilla.org/docs/Web/API/Window/requestIdleCallback) in browsers that support it.
 
 ### Importing Named Exports
 
