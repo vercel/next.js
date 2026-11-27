@@ -7,65 +7,20 @@
 // - Pages that share another page's content (`source:` in the frontmatter):
 //   the shared content, resolved for the router of the file that points at it.
 // - Paired TypeScript and JavaScript samples: the TypeScript one.
-// - `<Image>`: a Markdown image with its alt text.
-// - Website-only layout (`<FixCardGrid>`, `<FixCard>`, a styled callout
-//   `<div>`, MDX comments): the text they carry, without the markup.
+// - `<Image>` and `<Video>`: a Markdown image or link.
+// - Website-only layout (`<FixCardGrid>`, `<FixCard>`, `<Check>`, `<Cross>`,
+//   a styled wrapper `<div>`, MDX comments): the text they carry.
 //
-// Code blocks are never changed, apart from the fence line of a paired sample.
+// The page is parsed as MDX and the tree is used for positions only: each
+// construct is cut out of, or replaced in, the original text. Matching these by
+// pattern goes wrong per shape (a tag inside a sentence, inside a table cell,
+// nested, or written `</PagesOnly >`), and re-serializing the tree would
+// reformat every table and list. This is the approach nextjs.org's own
+// Markdown output takes. Code blocks are never changed, apart from the fence
+// line of a paired sample.
 
-const FENCE = /^(\s*)(`{3,}|~{3,})(.*)$/
-const ROUTER_OPEN = /^\s*<(AppOnly|PagesOnly)>\s*$/
-const ROUTER_CLOSE = /^\s*<\/(AppOnly|PagesOnly)>\s*$/
 const KEPT_BY_ROUTER = { app: 'AppOnly', pages: 'PagesOnly' }
-
-/**
- * A line of prose with the router tags inside a sentence resolved:
- * "Edit the <AppOnly>`app/page.tsx`</AppOnly><PagesOnly>`pages/index.tsx`</PagesOnly> file".
- * Text in inline code is kept as written, so a page can still name the tags.
- * `state.dropping` carries a tag left open at the end of a line into the next.
- */
-function resolveInline(line, router, state) {
-  if (!state.dropping && !/<\/?(?:AppOnly|PagesOnly)>/.test(line)) return line
-  let out = ''
-  // Inline code spans, then everything between them.
-  for (const part of line.split(/(`+[^`]*`+)/)) {
-    if (/^`/.test(part)) {
-      if (!state.dropping) out += part
-      continue
-    }
-    let rest = part
-    for (let match; (match = rest.match(/<(\/?)(AppOnly|PagesOnly)>/)); ) {
-      if (!state.dropping) out += rest.slice(0, match.index)
-      rest = rest.slice(match.index + match[0].length)
-      if (match[1]) {
-        if (state.dropping === match[2]) state.dropping = null
-      } else if (
-        !state.dropping &&
-        router &&
-        KEPT_BY_ROUTER[router] !== match[2]
-      ) {
-        state.dropping = match[2]
-      }
-    }
-    if (!state.dropping) out += rest
-  }
-  return out
-}
-
-/** The website's tick and cross icons as characters, wherever they sit in a line (mostly table cells). */
-function resolveIcons(line) {
-  if (!/<(?:Check|Cross)\b/.test(line)) return line
-  return line
-    .split(/(`+[^`]*`+)/)
-    .map((part) =>
-      /^`/.test(part)
-        ? part
-        : part
-            .replace(/<Check\b[^>]*\/>/g, '✓')
-            .replace(/<Cross\b[^>]*\/>/g, '✗')
-    )
-    .join('')
-}
+const ROUTER_TAGS = new Set(['AppOnly', 'PagesOnly'])
 
 /** The router a bundled file belongs to, from its path under the docs root. */
 function routerOf(relativePath) {
@@ -73,6 +28,15 @@ function routerOf(relativePath) {
   if (/^(\d+-)?app$/.test(top)) return 'app'
   if (/^(\d+-)?pages$/.test(top)) return 'pages'
   return null
+}
+
+/** `01-app/02-guides/forms.mdx` as the path pages refer to it by: `app/guides/forms`. */
+function docsPath(relativePath) {
+  return relativePath
+    .replace(/\.mdx?$/, '')
+    .split(/[/\\]/)
+    .map((part) => part.replace(/^\d+-/, ''))
+    .join('/')
 }
 
 /** `---` frontmatter and what follows it. */
@@ -89,230 +53,303 @@ function sourceOf(frontmatter) {
   return match ? match[1] : null
 }
 
-/** A quoted JSX attribute's value, or null. */
-function attribute(block, name) {
-  const match = block.match(
-    new RegExp(
-      `\\b${name}=(?:"([^"]*)"|'([^']*)'|\\{\\s*["'\`]([^"'\`]*)["'\`]\\s*\\})`
-    )
+const isJsx = (node) =>
+  node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement'
+
+/** A JSX attribute's value when it is a plain string, or null. */
+function attribute(node, name) {
+  const found = (node.attributes ?? []).find(
+    (entry) => entry.type === 'mdxJsxAttribute' && entry.name === name
   )
-  return match ? (match[1] ?? match[2] ?? match[3]) : null
+  return found && typeof found.value === 'string' ? found.value : null
+}
+
+/** The source of a JSX attribute written as an expression: `snippets={[…]}`. */
+function expression(node, name) {
+  const found = (node.attributes ?? []).find(
+    (entry) => entry.type === 'mdxJsxAttribute' && entry.name === name
+  )
+  return found && found.value && typeof found.value === 'object'
+    ? found.value.value
+    : null
 }
 
 /**
  * A `<FixCard>` the way nextjs.org renders it as Markdown: its group and its
  * title linked to its section, then its lines of code.
  */
-function fixCard(block, indent) {
-  const title = attribute(block, 'title')
-  const href = attribute(block, 'href')
-  const group = attribute(block, 'group')
+function fixCard(node) {
+  const title = attribute(node, 'title')
+  const href = attribute(node, 'href')
+  const group = attribute(node, 'group')
+  if (!title) return ''
   const snippets = []
   const text = /text:\s*(['"`])((?:\\.|(?!\1).)*)\1/g
-  for (let match; (match = text.exec(block)); ) {
+  const source = expression(node, 'snippets') ?? ''
+  for (let match; (match = text.exec(source)); ) {
     snippets.push(match[2].replace(/\\(['"`\\])/g, '$1'))
   }
-  if (!title) return []
   const label = group ? `${group[0].toUpperCase()}${group.slice(1)}: ` : ''
-  const lines = [`${indent}${label}${href ? `[${title}](${href})` : title}`, '']
-  if (snippets.length) {
-    lines.push(`${indent}\`\`\``)
-    for (const snippet of snippets) lines.push(`${indent}${snippet}`)
-    lines.push(`${indent}\`\`\``, '')
-  }
-  return lines
-}
-
-/** A `<Video>` as a link to it, labelled with its caption. */
-function video(block, indent) {
-  const src = attribute(block, 'src')
-  const caption = attribute(block, 'caption')
-  return src && caption ? [`${indent}[${caption}](${src})`] : []
+  const lines = [`${label}${href ? `[${title}](${href})` : title}`]
+  if (snippets.length) lines.push('', '```', ...snippets, '```')
+  return lines.join('\n')
 }
 
 /** An `<Image>` as a Markdown image, with the path the page was written with. */
-function image(block, indent) {
-  const alt = attribute(block, 'alt') ?? ''
-  const src = attribute(block, 'srcLight') ?? attribute(block, 'src')
-  if (src) return [`${indent}![${alt}](${src})`]
-  return alt ? [`${indent}_${alt}_`] : []
+function image(node) {
+  const alt = attribute(node, 'alt') ?? ''
+  const src = attribute(node, 'srcLight') ?? attribute(node, 'src')
+  if (src) return `![${alt}](${src})`
+  return alt ? `_${alt}_` : ''
 }
 
-/** Lines `from..` up to and including the first one that ends the JSX tag. */
-function tagBlock(lines, from, ends) {
-  let to = from
-  while (to < lines.length - 1 && !ends.test(lines[to])) to++
-  return { block: lines.slice(from, to + 1).join('\n'), to }
+/** A `<Video>` as a link to it, labelled with its caption. */
+function video(node) {
+  const src = attribute(node, 'src')
+  const caption = attribute(node, 'caption')
+  return src && caption ? `[${caption}](${src})` : ''
 }
+
+/** A note to docs authors, written as an MDX comment. */
+const isComment = (node) =>
+  (node.type === 'mdxFlowExpression' || node.type === 'mdxTextExpression') &&
+  /^\s*\/\*[\s\S]*\*\/\s*$/.test(node.value ?? '')
+
+const isPaired = (node) =>
+  node?.type === 'code' && /(^|\s)switcher(\s|$)/.test(node.meta ?? '')
 
 /**
  * The body of a page as Markdown. `router` is `'app'`, `'pages'` or `null`
  * (a page that belongs to neither keeps both routers' content).
  */
-function convertBody(body, router) {
-  const lines = body.split(/\r?\n/)
-  const out = []
-  let fence = null
-  // A TypeScript sample of a pair was just written: its JavaScript twin follows.
-  let afterTypeScriptSample = false
-  let skippingFence = false
-  // Router blocks being dropped, and styled <div>s whose closing tag goes too.
-  let dropping = 0
-  let styledDivs = 0
-  const inline = { dropping: null }
-
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]
-    const fenceLine = raw.match(FENCE)
-
-    if (fence) {
-      const closes =
-        fenceLine &&
-        fenceLine[2][0] === fence.marker[0] &&
-        fenceLine[2].length >= fence.marker.length &&
-        fenceLine[3].trim() === ''
-      if (!skippingFence && dropping === 0) out.push(raw)
-      if (closes) {
-        fence = null
-        skippingFence = false
-      }
-      continue
-    }
-
-    if (ROUTER_OPEN.test(raw)) {
-      const name = raw.match(ROUTER_OPEN)[1]
-      if (dropping > 0 || (router && KEPT_BY_ROUTER[router] !== name))
-        dropping++
-      continue
-    }
-    if (ROUTER_CLOSE.test(raw)) {
-      if (dropping > 0) dropping--
-      continue
-    }
-
-    if (fenceLine) {
-      fence = { marker: fenceLine[2] }
-      const info = fenceLine[3]
-      const paired = /(^|\s)switcher(\s|$)/.test(info)
-      const language = info.trim().split(/\s+/)[0] ?? ''
-      if (paired && afterTypeScriptSample && /^jsx?$/.test(language)) {
-        // The JavaScript twin of the sample above: left out, with the blank line before it.
-        skippingFence = true
-        afterTypeScriptSample = false
-        if (dropping === 0 && out.at(-1) === '') out.pop()
-        continue
-      }
-      afterTypeScriptSample = paired && /^tsx?$/.test(language)
-      if (dropping === 0) {
-        out.push(
-          paired
-            ? `${fenceLine[1]}${fenceLine[2]}${info.replace(/\s+switcher(?=\s|$)/, '')}`
-            : raw
-        )
-      }
-      continue
-    }
-
-    if (dropping > 0) continue
-
-    // Router tags inside a sentence. A line they leave empty goes with them.
-    const resolved = resolveInline(lines[i], router, inline)
-    if (resolved !== lines[i]) {
-      if (resolved.trim() === '') continue
-      // A dropped tag can leave a doubled space or one before punctuation; indentation is kept.
-      const lead = resolved.match(/^\s*/)[0]
-      lines[i] =
-        lead +
-        resolved
-          .slice(lead.length)
-          .replace(/ {2,}/g, ' ')
-          .replace(/ +([.,;:])/g, '$1')
-    }
-    const line = resolveIcons(lines[i])
-    if (line.trim() !== '') afterTypeScriptSample = false
-
-    const indent = line.match(/^\s*/)[0]
-    const trimmed = line.trim()
-
-    // MDX comments are notes to docs authors.
-    if (/^\{\/\*.*\*\/\}$/.test(trimmed)) continue
-    if (trimmed.startsWith('{/*')) {
-      while (i < lines.length - 1 && !lines[i].includes('*/}')) i++
-      continue
-    }
-
-    if (/^<\/?FixCardGrid\b[^>]*>$/.test(trimmed)) continue
-    if (/^<FixCard\b/.test(trimmed)) {
-      const { block, to } = tagBlock(lines, i, /\/>\s*$/)
-      i = to
-      // Cards are indented under their grid; as list items they start the line.
-      out.push(...fixCard(block, indent.replace(/^ {1,2}/, '')))
-      continue
-    }
-    if (/^<Video\b/.test(trimmed)) {
-      const { block, to } = tagBlock(lines, i, /\/>\s*$/)
-      i = to
-      out.push(...video(block, indent))
-      continue
-    }
-    if (/^<Image\b/.test(trimmed)) {
-      const { block, to } = tagBlock(lines, i, /\/>\s*$/)
-      i = to
-      out.push(...image(block, indent))
-      continue
-    }
-    // A callout box drawn with an inline style: keep what is inside it.
-    if (/^<div\b/.test(trimmed)) {
-      const { block, to } = tagBlock(lines, i, />\s*$/)
-      if (/\bstyle=\{\{/.test(block)) {
-        i = to
-        styledDivs++
-        continue
-      }
-    }
-    if (trimmed === '</div>' && styledDivs > 0) {
-      styledDivs--
-      continue
-    }
-
-    // Text inside a removed callout was indented under its <div>.
-    out.push(styledDivs > 0 ? line.replace(/^ {1,2}/, '') : line)
+function convertBody(parse, body, router) {
+  const tree = parse(body)
+  // Cuts and replacements against `body`, by offset. They never overlap: a
+  // removed node is not walked into.
+  const edits = []
+  const start = (node) => node.position.start.offset
+  const end = (node) => node.position.end.offset
+  const lineStart = (offset) => body.lastIndexOf('\n', offset - 1) + 1
+  // From the start of the node's line, when only indentation comes before it.
+  const fromLine = (node) => {
+    const at = lineStart(start(node))
+    return /^[ \t]*$/.test(body.slice(at, start(node))) ? at : start(node)
   }
 
-  // Dropped blocks can leave runs of blank lines behind.
-  return out.join('\n').replace(/\n{3,}/g, '\n\n')
+  /** Remove a block and the blank line after it. */
+  const removeFlow = (node) => {
+    let to = end(node)
+    for (let taken = 0; taken < 2 && body[to] === '\n'; taken++) to++
+    edits.push({ start: fromLine(node), end: to, text: '' })
+  }
+  /** Remove something inside a sentence, without leaving a doubled space or one before punctuation. */
+  const removeText = (node) => {
+    let from = start(node)
+    const to = end(node)
+    const after = body[to]
+    if (
+      body[from - 1] === ' ' &&
+      (after === undefined || /[ \n.,;:)]/.test(after))
+    ) {
+      from--
+    }
+    edits.push({ start: from, end: to, text: '' })
+  }
+  /** Keep what is inside a tag and drop the tag itself. */
+  const unwrap = (node) => {
+    const children = node.children ?? []
+    if (children.length === 0) {
+      if (node.type === 'mdxJsxFlowElement') removeFlow(node)
+      else removeText(node)
+      return
+    }
+    const first = start(children[0])
+    const last = end(children.at(-1))
+    if (node.type === 'mdxJsxFlowElement') {
+      // The opening tag's lines, up to the line the content starts on.
+      const contentLine = lineStart(first)
+      edits.push({
+        start: fromLine(node),
+        end: contentLine > start(node) ? contentLine : first,
+        text: '',
+      })
+      // From the end of the content's last line through the closing tag's line.
+      let to = end(node)
+      if (body[to] === '\n') to++
+      edits.push({
+        start: body[last] === '\n' ? last + 1 : last,
+        end: to,
+        text: '',
+      })
+    } else {
+      edits.push({ start: start(node), end: first, text: '' })
+      edits.push({ start: last, end: end(node), text: '' })
+    }
+  }
+  /** Replace a block with Markdown, at the start of its line. */
+  const replaceFlow = (node, text) => {
+    if (text === '') removeFlow(node)
+    else edits.push({ start: fromLine(node), end: end(node), text })
+  }
+  const replace = (node, text) => {
+    if (node.type === 'mdxJsxFlowElement') replaceFlow(node, text)
+    else edits.push({ start: start(node), end: end(node), text })
+  }
+  /** Text that was indented under a wrapper loses that indentation with it. */
+  const dedent = (from, to) => {
+    for (
+      let at = body.indexOf('\n', from);
+      at !== -1 && at < to;
+      at = body.indexOf('\n', at + 1)
+    ) {
+      const indent = body.slice(at + 1, at + 3).match(/^ {1,2}/)
+      if (indent) {
+        edits.push({ start: at + 1, end: at + 1 + indent[0].length, text: '' })
+      }
+    }
+  }
+
+  const walk = (parent) => {
+    const children = parent.children ?? []
+    for (let i = 0; i < children.length; i++) {
+      const node = children[i]
+
+      if (isComment(node)) {
+        if (node.type === 'mdxFlowExpression') removeFlow(node)
+        else removeText(node)
+        continue
+      }
+
+      if (node.type === 'code') {
+        if (!isPaired(node)) continue
+        const previous = children[i - 1]
+        if (
+          /^jsx?$/.test(node.lang ?? '') &&
+          isPaired(previous) &&
+          /^tsx?$/.test(previous.lang ?? '')
+        ) {
+          // The JavaScript twin of the sample above, with the blank line before it.
+          edits.push({ start: end(previous), end: end(node), text: '' })
+          continue
+        }
+        // Only the fence line changes: the code is untouched.
+        const lineEnd = body.indexOf('\n', start(node))
+        const fence = body.slice(
+          start(node),
+          lineEnd === -1 ? end(node) : lineEnd
+        )
+        edits.push({
+          start: start(node),
+          end: start(node) + fence.length,
+          text: fence.replace(/\s+switcher(?=\s|$)/, ''),
+        })
+        continue
+      }
+
+      if (!isJsx(node)) {
+        walk(node)
+        continue
+      }
+
+      if (ROUTER_TAGS.has(node.name)) {
+        if (router && KEPT_BY_ROUTER[router] !== node.name) {
+          if (node.type === 'mdxJsxFlowElement') removeFlow(node)
+          else removeText(node)
+        } else {
+          unwrap(node)
+          walk(node)
+        }
+        continue
+      }
+      if (node.name === 'FixCardGrid') {
+        // Its cards are indented under it; as Markdown they start the line.
+        const cards = (node.children ?? [])
+          .filter((child) => child.name === 'FixCard')
+          .map(fixCard)
+          .filter(Boolean)
+        replaceFlow(node, cards.join('\n\n'))
+        continue
+      }
+      if (node.name === 'FixCard') {
+        replace(node, fixCard(node))
+        continue
+      }
+      if (node.name === 'Image') {
+        replace(node, image(node))
+        continue
+      }
+      if (node.name === 'Video') {
+        replace(node, video(node))
+        continue
+      }
+      if (node.name === 'Check' || node.name === 'Cross') {
+        replace(node, node.name === 'Check' ? '✓' : '✗')
+        continue
+      }
+      // A wrapper that only carries inline CSS: keep what is inside it.
+      if (
+        node.type === 'mdxJsxFlowElement' &&
+        node.name === 'div' &&
+        (node.attributes ?? []).length > 0 &&
+        node.attributes.every((entry) => entry.name === 'style')
+      ) {
+        unwrap(node)
+        if (node.children?.length) {
+          dedent(
+            lineStart(start(node.children[0])) - 1,
+            end(node.children.at(-1))
+          )
+        }
+        walk(node)
+        continue
+      }
+      walk(node)
+    }
+  }
+  walk(tree)
+
+  let out = body
+  for (const edit of edits.sort((a, b) => b.start - a.start)) {
+    out = out.slice(0, edit.start) + edit.text + out.slice(edit.end)
+  }
+  return out
 }
 
 /**
- * A docs page as the Markdown that ships in the package.
+ * Loads the MDX parser and returns `toMarkdown(source, options)`: a docs page
+ * as the Markdown that ships in the package.
  *
  * `relativePath` is the file's path under the docs root (`01-app/…`). For a
  * page that shares another page's content, `readSource(path)` returns that
  * page's MDX (`path` as written in the frontmatter, `app/guides/forms`), or
  * null when it cannot be found.
  */
-function toMarkdown(source, { relativePath = '', readSource } = {}) {
-  const router = routerOf(relativePath)
-  const { frontmatter, body } = splitFrontmatter(source)
-  const shared = sourceOf(frontmatter)
-  if (shared && readSource) {
-    const sharedSource = readSource(shared)
-    if (sharedSource != null) {
-      return (
-        frontmatter + convertBody(splitFrontmatter(sharedSource).body, router)
-      )
+async function createConverter() {
+  // ESM-only packages, used at build time and never shipped.
+  const [{ unified }, { default: remarkParse }, { default: remarkMdx }] =
+    await Promise.all([
+      import('unified'),
+      import('remark-parse'),
+      import('remark-mdx'),
+    ])
+  const parser = unified().use(remarkParse).use(remarkMdx)
+  const parse = (body) => parser.parse(body)
+
+  return function toMarkdown(source, { relativePath = '', readSource } = {}) {
+    const router = routerOf(relativePath)
+    const { frontmatter, body } = splitFrontmatter(source)
+    const shared = sourceOf(frontmatter)
+    if (shared && readSource) {
+      const sharedSource = readSource(shared)
+      if (sharedSource != null) {
+        return (
+          frontmatter +
+          convertBody(parse, splitFrontmatter(sharedSource).body, router)
+        )
+      }
     }
+    return frontmatter + convertBody(parse, body, router)
   }
-  return frontmatter + convertBody(body, router)
 }
 
-/** `01-app/02-guides/forms.mdx` as the path pages refer to it by: `app/guides/forms`. */
-function docsPath(relativePath) {
-  return relativePath
-    .replace(/\.mdx?$/, '')
-    .split(/[/\\]/)
-    .map((part) => part.replace(/^\d+-/, ''))
-    .join('/')
-}
-
-module.exports = { toMarkdown, routerOf, docsPath }
+module.exports = { createConverter, routerOf, docsPath }

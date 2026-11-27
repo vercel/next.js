@@ -1,13 +1,31 @@
-import { readFileSync } from 'fs'
-import { join, relative } from 'path'
-import glob from 'glob'
+import { join } from 'path'
 
-// The converter is plain CommonJS so the build's taskfile can require it.
-const { toMarkdown, docsPath, routerOf } = require('next/taskfile-docs')
+import { execFileSync } from 'child_process'
 
-const repoRoot = join(__dirname, '../..')
-const docsRoot = join(repoRoot, 'docs')
-const errorsRoot = join(repoRoot, 'errors')
+const { docsPath, routerOf } = require('next/taskfile-docs')
+
+// The converter loads an ESM-only MDX parser that Jest cannot import, so it
+// runs in plain Node through a small script.
+function run(input: unknown) {
+  return JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'bundled-docs-markdown-convert.js')],
+      {
+        input: JSON.stringify(input),
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+      }
+    )
+  )
+}
+const toMarkdown = (
+  source: string,
+  {
+    relativePath,
+    shared,
+  }: { relativePath: string; shared?: Record<string, string> }
+): string => run({ source, relativePath, shared })
 
 /** The lines of a Markdown file that are not inside a code block, with the fence lines. */
 function prose(markdown: string) {
@@ -111,6 +129,44 @@ describe('bundled docs as Markdown', () => {
     )
   })
 
+  it('handles the shapes that defeat pattern matching', () => {
+    const source = [
+      '<PagesOnly>',
+      '',
+      'Outer.',
+      '',
+      '<PagesOnly>',
+      '',
+      'Nested.',
+      '',
+      '</PagesOnly>',
+      '',
+      'Still outer.',
+      '',
+      '</PagesOnly >',
+      '',
+      '- Item one',
+      '',
+      '  <AppOnly>',
+      '',
+      '  Inside a list item.',
+      '',
+      '  </AppOnly>',
+      '',
+      '- Item two',
+    ].join('\n')
+    const app = toMarkdown(source, { relativePath: '01-app/page.mdx' })
+    expect(app).not.toMatch(/Outer|Nested|PagesOnly|AppOnly/)
+    expect(app).toContain('- Item one')
+    expect(app).toContain('  Inside a list item.')
+    expect(app).toContain('- Item two')
+    const pages = toMarkdown(source, { relativePath: '02-pages/page.mdx' })
+    expect(pages).toContain('Outer.')
+    expect(pages).toContain('Nested.')
+    expect(pages).toContain('Still outer.')
+    expect(pages).not.toMatch(/Inside a list item|PagesOnly|AppOnly/)
+  })
+
   it('fills a page that shares content from the page it names', () => {
     const pointer = [
       '---',
@@ -136,8 +192,7 @@ describe('bundled docs as Markdown', () => {
     ].join('\n')
     const output = toMarkdown(pointer, {
       relativePath: '02-pages/01-getting-started/06-css.mdx',
-      readSource: (path: string) =>
-        path === 'app/getting-started/css' ? shared : null,
+      shared: { 'app/getting-started/css': shared },
     })
     expect(output).toContain('title: CSS')
     expect(output).not.toContain('title: App CSS')
@@ -252,31 +307,15 @@ describe('bundled docs as Markdown', () => {
 
   // Every page the package ships, converted the way the build converts it.
   describe('every docs and error page', () => {
-    const sources = new Map<string, string>()
-    for (const file of glob.sync('**/*.mdx', { cwd: docsRoot })) {
-      sources.set(docsPath(file), readFileSync(join(docsRoot, file), 'utf8'))
-    }
-    const readSource = (path: string) =>
-      sources.get(path) ?? sources.get(`${path}/index`) ?? null
-    const pages = [
-      ...glob
-        .sync('**/*.mdx', { cwd: docsRoot })
-        .map((file) => ({ root: docsRoot, file })),
-      ...glob
-        .sync('*.mdx', { cwd: errorsRoot })
-        .map((file) => ({ root: errorsRoot, file })),
-    ].map(({ root, file }) => {
-      const source = readFileSync(join(root, file), 'utf8')
-      return {
-        // Forward slashes on every platform, as glob returns them.
-        name: relative(repoRoot, join(root, file)).split('\\').join('/'),
-        file: root === docsRoot ? file : `messages/${file}`,
-        source,
-        output: toMarkdown(source, {
-          relativePath: file,
-          readSource,
-        }) as string,
-      }
+    let pages: {
+      name: string
+      file: string
+      source: string
+      output: string
+      sharedFound: boolean | null
+    }[] = []
+    beforeAll(() => {
+      pages = run({ corpus: true })
     })
 
     it('has no website markup left outside code', () => {
@@ -340,21 +379,17 @@ describe('bundled docs as Markdown', () => {
     })
 
     it('resolves every page that shares content', () => {
-      const unresolved: string[] = []
-      for (const page of pages) {
-        // Only the frontmatter names a shared page; the contribution guide shows one as an example.
-        const frontmatter =
-          page.source.match(/^---\n[\s\S]*?\n---\n/)?.[0] ?? ''
-        const shared = frontmatter.match(/^source:\s*(\S+)\s*$/m)
-        if (!shared) continue
+      const unresolved = pages
         // The page it names exists, and its content replaced the note to docs authors.
-        if (
-          readSource(shared[1]) === null ||
-          page.output.includes('DO NOT EDIT')
-        ) {
-          unresolved.push(page.name)
-        }
-      }
+        .filter(
+          (page) =>
+            page.sharedFound === false ||
+            (page.sharedFound && page.output.includes('DO NOT EDIT'))
+        )
+        .map((page) => page.name)
+      expect(pages.filter((page) => page.sharedFound).length).toBeGreaterThan(
+        100
+      )
       expect(unresolved).toEqual([])
     })
   })

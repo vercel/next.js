@@ -1854,6 +1854,12 @@ importers:
       regenerator-runtime:
         specifier: 0.13.4
         version: 0.13.4
+      remark-mdx:
+        specifier: 3.1.1
+        version: 3.1.1(supports-color@9.4.0)
+      remark-parse:
+        specifier: 11.0.0
+        version: 11.0.0(supports-color@9.4.0)
       safe-stable-stringify:
         specifier: 2.5.0
         version: 2.5.0
@@ -1950,6 +1956,9 @@ importers:
       ua-parser-js:
         specifier: 1.0.35
         version: 1.0.35
+      unified:
+        specifier: 11.0.5
+        version: 11.0.5
       unistore:
         specifier: 3.4.1
         version: 3.4.1(react@19.3.0-canary-edae846a-20261125)
@@ -32709,6 +32718,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  mdast-util-from-markdown@2.0.2(supports-color@9.4.0):
+    dependencies:
+      '@types/mdast': 4.0.4
+      '@types/unist': 3.0.3
+      decode-named-character-reference: 1.0.2
+      devlop: 1.1.0
+      mdast-util-to-string: 4.0.0
+      micromark: 4.0.1(supports-color@9.4.0)
+      micromark-util-decode-numeric-character-reference: 2.0.2
+      micromark-util-decode-string: 2.0.1
+      micromark-util-normalize-identifier: 2.0.1
+      micromark-util-symbol: 2.0.1
+      micromark-util-types: 2.0.1
+      unist-util-stringify-position: 4.0.0
+    transitivePeerDependencies:
+      - supports-color
+
   mdast-util-mdx-expression@0.1.1:
     dependencies:
       strip-indent: 3.0.0
@@ -32740,6 +32766,17 @@ snapshots:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.2(supports-color@8.1.1)
+      mdast-util-to-markdown: 2.1.2
+    transitivePeerDependencies:
+      - supports-color
+
+  mdast-util-mdx-expression@2.0.1(supports-color@9.4.0):
+    dependencies:
+      '@types/estree-jsx': 1.0.0
+      '@types/hast': 3.0.4
+      '@types/mdast': 4.0.4
+      devlop: 1.1.0
+      mdast-util-from-markdown: 2.0.2(supports-color@9.4.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
@@ -32802,6 +32839,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  mdast-util-mdx-jsx@3.1.3(supports-color@9.4.0):
+    dependencies:
+      '@types/estree-jsx': 1.0.0
+      '@types/hast': 3.0.4
+      '@types/mdast': 4.0.4
+      '@types/unist': 3.0.3
+      ccount: 2.0.1
+      devlop: 1.1.0
+      mdast-util-from-markdown: 2.0.2(supports-color@9.4.0)
+      mdast-util-to-markdown: 2.1.2
+      parse-entities: 4.0.0
+      stringify-entities: 4.0.3
+      unist-util-stringify-position: 4.0.0
+      vfile-message: 4.0.2
+    transitivePeerDependencies:
+      - supports-color
+
   mdast-util-mdx@0.1.1:
     dependencies:
       mdast-util-mdx-expression: 0.1.1
@@ -32839,6 +32893,16 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  mdast-util-mdx@3.0.0(supports-color@9.4.0):
+    dependencies:
+      mdast-util-from-markdown: 2.0.2(supports-color@9.4.0)
+      mdast-util-mdx-expression: 2.0.1(supports-color@9.4.0)
+      mdast-util-mdx-jsx: 3.1.3(supports-color@9.4.0)
+      mdast-util-mdxjs-esm: 2.0.1(supports-color@9.4.0)
+      mdast-util-to-markdown: 2.1.2
+    transitivePeerDependencies:
+      - supports-color
+
   mdast-util-mdxjs-esm@0.1.1: {}
 
   mdast-util-mdxjs-esm@1.3.1(supports-color@8.1.1):
@@ -32868,6 +32932,17 @@ snapshots:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.2(supports-color@8.1.1)
+      mdast-util-to-markdown: 2.1.2
+    transitivePeerDependencies:
+      - supports-color
+
+  mdast-util-mdxjs-esm@2.0.1(supports-color@9.4.0):
+    dependencies:
+      '@types/estree-jsx': 1.0.0
+      '@types/hast': 3.0.4
+      '@types/mdast': 4.0.4
+      devlop: 1.1.0
+      mdast-util-from-markdown: 2.0.2(supports-color@9.4.0)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
@@ -33538,6 +33613,28 @@ snapshots:
     dependencies:
       '@types/debug': 4.1.5
       debug: 4.1.1(supports-color@8.1.1)
+      decode-named-character-reference: 1.0.2
+      devlop: 1.1.0
+      micromark-core-commonmark: 2.0.2
+      micromark-factory-space: 2.0.1
+      micromark-util-character: 2.1.1
+      micromark-util-chunked: 2.0.1
+      micromark-util-combine-extensions: 2.0.1
+      micromark-util-decode-numeric-character-reference: 2.0.2
+      micromark-util-encode: 2.0.1
+      micromark-util-normalize-identifier: 2.0.1
+      micromark-util-resolve-all: 2.0.1
+      micromark-util-sanitize-uri: 2.0.1
+      micromark-util-subtokenize: 2.0.3
+      micromark-util-symbol: 2.0.1
+      micromark-util-types: 2.0.1
+    transitivePeerDependencies:
+      - supports-color
+
+  micromark@4.0.1(supports-color@9.4.0):
+    dependencies:
+      '@types/debug': 4.1.5
+      debug: 4.1.1(supports-color@9.4.0)
       decode-named-character-reference: 1.0.2
       devlop: 1.1.0
       micromark-core-commonmark: 2.0.2
@@ -35968,6 +36065,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  remark-mdx@3.1.1(supports-color@9.4.0):
+    dependencies:
+      mdast-util-mdx: 3.0.0(supports-color@9.4.0)
+      micromark-extension-mdxjs: 3.0.0
+    transitivePeerDependencies:
+      - supports-color
+
   remark-message-control@6.0.0:
     dependencies:
       mdast-comment-marker: 1.1.2
@@ -35993,6 +36097,15 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.4
       mdast-util-from-markdown: 2.0.2(supports-color@8.1.1)
+      micromark-util-types: 2.0.1
+      unified: 11.0.5
+    transitivePeerDependencies:
+      - supports-color
+
+  remark-parse@11.0.0(supports-color@9.4.0):
+    dependencies:
+      '@types/mdast': 4.0.4
+      mdast-util-from-markdown: 2.0.2(supports-color@9.4.0)
       micromark-util-types: 2.0.1
       unified: 11.0.5
     transitivePeerDependencies:

@@ -6,7 +6,7 @@ const execa = require('execa')
 // Taskr evaluates this file without a `process` global.
 const nodeProcess = require('process')
 const recast = require('recast')
-const { toMarkdown, docsPath } = require('./taskfile-docs')
+const { createConverter, docsPath } = require('./taskfile-docs')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -49,6 +49,7 @@ export async function copy_docs(task, opts) {
     const file = docsByPath.get(path) ?? docsByPath.get(`${path}/index`)
     return file ? require('fs').readFileSync(file, 'utf8') : null
   }
+  const toMarkdown = await createConverter()
   const asMarkdown = (root) =>
     // eslint-disable-next-line require-yield
     function* (file) {
