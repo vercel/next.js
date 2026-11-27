@@ -1249,7 +1249,16 @@ jobs:
       needsGo: 'yes'
       afterBuild: |
         # `next` ships no switchyard binary yet; build one and pass it in.
-        go build -C packages/next/src/server/switchyard -trimpath -o "$RUNNER_TEMP/switchyard" .
+        # -race compiles in Go's race detector, which reports two goroutines
+        # that touch the same memory without a lock. It only sees code that
+        # runs, so the binary under the suites below is built with it.
+        go build -C packages/next/src/server/switchyard -race -trimpath -o "$RUNNER_TEMP/switchyard" .
+        # The detector logs a race and carries on unless told otherwise. This
+        # makes Switchyard exit (status 66) on the first one. Node then exits
+        # too and the running test fails, except during shutdown: Node ignores
+        # Switchyard's exit once it is closing, so a race there only shows in
+        # the job log.
+        export GORACE="halt_on_error=1"
         export __NEXT_EXPERIMENTAL_SWITCHYARD_BINARY="$RUNNER_TEMP/switchyard"
         export __NEXT_EXPERIMENTAL_SWITCHYARD=1
 
@@ -1257,8 +1266,8 @@ jobs:
         # about 2 s; building the linter takes about 20 s.
         if [ "${{ matrix.group }}" = "1/2" ]; then
           # Unit tests (request targets and headers byte for byte, timeouts,
-          # shutdown).
-          go -C packages/next/src/server/switchyard test ./...
+          # shutdown), under the race detector.
+          go -C packages/next/src/server/switchyard test -race ./...
 
           # Lint rules from packages/next/src/server/switchyard/.golangci.yml.
           # This golangci-lint needs a newer Go than the one this job
