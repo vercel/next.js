@@ -14,16 +14,6 @@ Some common approaches to this problem:
 
 Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
 
-## Choose an approach
-
-If the browser can reuse a server-generated value, [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) and use the same formatting during server rendering and hydration. For browser-specific values, choose an approach based on the initial experience you want and whether the value needs an ongoing subscription:
-
-| Goal                                                     | Approach                                                                 | Before React loads                          |
-| -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
-| Show useful content while browser-specific content loads | [`use(browser())` with `<Suspense>`](#rendering-client-specific-content) | The server-rendered fallback is visible     |
-| Apply a browser preference before the first paint        | [Inline script](#themes)                                                 | The script updates the server-rendered HTML |
-| Keep UI subscribed to an external store                  | [`useSyncExternalStore`](#subscribing-to-browser-values)                 | The shared server snapshot is visible       |
-
 ## Example
 
 The companion [demo](https://preventing-flash-before-hydration.labs.vercel.dev/) ([source](https://github.com/nextjs/preventing-flash-before-hydration)) is built with `LANG=ja_JP.UTF-8` to simulate a server/client locale mismatch. It lets you compare:
@@ -530,49 +520,35 @@ export function ThemeToggle() {
 
 ## When to use other approaches
 
-| Situation                                       | Approach                                                                                                                                                             |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date depends on request data (cookies, headers) | Use [`headers()`](/docs/app/api-reference/functions/headers) or [`cookies()`](/docs/app/api-reference/functions/cookies) to read request data and format server-side |
-| Date updates live (countdown timers, clocks)    | Use a Client Component with `useEffect` and `suppressHydrationWarning`                                                                                               |
-| Page is already fully dynamic                   | Format the date on the server using the `Accept-Language` header                                                                                                     |
-| Translating content between languages           | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering                                                 |
+If the browser can reuse a server-generated value, [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components). Use an inline script only when the browser-specific value needs to be visible before the first paint.
+
+| Situation                                                         | Approach                                                                                                                                                                                               |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Date depends on request data (cookies, headers)                   | Use [`headers()`](/docs/app/api-reference/functions/headers) or [`cookies()`](/docs/app/api-reference/functions/cookies) to read request data and format server-side                                   |
+| Date updates live (countdown timers, clocks)                      | Use the same initial value on the server and client, then [update it in an effect](/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler)                            |
+| Page is already fully dynamic                                     | Format the date on the server using the `Accept-Language` header                                                                                                                                       |
+| Translating content between languages                             | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering                                                                                   |
+| Browser-specific content can wait until hydration                 | Show a [server-rendered fallback](#rendering-client-specific-content)                                                                                                                                  |
+| UI subscribes to a changing browser value, such as network status | Use [`useSyncExternalStore` with a server snapshot](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) so hydration starts with the value the server rendered |
 
 ### Rendering client-specific content
 
-With React 19.3, call [`use(browser())` in a Client Component inside a parent `<Suspense>` boundary](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to defer its rendering to the browser. A boundary alone does not make the component browser-only: it shows its fallback when `use(browser())` suspends during server rendering. If a module reads `window` during import, or you also want to load its code separately, see [Choosing what to lazy load](/docs/app/guides/lazy-loading#choosing-what-to-lazy-load).
+If a server-formatted date is useful on first paint, show it as the fallback for a [browser-only component](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser). Compute the label once on the server:
 
-Deferring prerendering with [`io()`](/docs/app/api-reference/functions/io) still allows request-time server rendering. It does not make a component browser-only or preserve generated values for hydration. Generating a fresh timestamp or random value on both the server and browser can still cause a mismatch. State and refs alone do not transfer those values between environments.
+```jsx filename="app/page.js"
+import { LocalDate } from '@/app/components/browser-date'
 
-The following component receives a `serverLabel` prop to display as its fallback:
+export default function Page() {
+  const date = '2026-06-15T18:00:00Z'
+  const serverLabel = new Date(date).toLocaleDateString()
 
-```tsx filename="app/components/browser-date.tsx" switcher
-'use client'
-
-import { Suspense, use } from 'react'
-import { browser } from 'react-dom'
-
-function BrowserDate({ date }: { date: string }) {
-  use(browser())
-
-  return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
-}
-
-export function LocalDate({
-  date,
-  serverLabel,
-}: {
-  date: string
-  serverLabel: string
-}) {
-  return (
-    <Suspense fallback={<time dateTime={date}>{serverLabel}</time>}>
-      <BrowserDate date={date} />
-    </Suspense>
-  )
+  return <LocalDate date={date} serverLabel={serverLabel} />
 }
 ```
 
-```jsx filename="app/components/browser-date.js" switcher
+Use that label unchanged in the fallback. The browser formats its own version after `use(browser())` resolves:
+
+```jsx filename="app/components/browser-date.js"
 'use client'
 
 import { Suspense, use } from 'react'
@@ -593,117 +569,11 @@ export function LocalDate({ date, serverLabel }) {
 }
 ```
 
-Compute `serverLabel` in a Server Component and pass it to `LocalDate`:
-
-```tsx filename="app/page.tsx" switcher
-import { LocalDate } from '@/app/components/browser-date'
-
-export default function Page() {
-  const date = '2026-06-15T18:00:00Z'
-  const serverLabel = new Date(date).toLocaleDateString()
-
-  return <LocalDate date={date} serverLabel={serverLabel} />
-}
-```
-
-```jsx filename="app/page.js" switcher
-import { LocalDate } from '@/app/components/browser-date'
-
-export default function Page() {
-  const date = '2026-06-15T18:00:00Z'
-  const serverLabel = new Date(date).toLocaleDateString()
-
-  return <LocalDate date={date} serverLabel={serverLabel} />
-}
-```
-
-The fallback uses the same `serverLabel` prop on the server and during hydration, so it doesn't need `suppressHydrationWarning`. The browser formats the date only inside `BrowserDate`, after `use(browser())` allows rendering to continue.
-
-With a static import, `BrowserDate` can render in the pass that hydrates the page because `use(browser())` does not suspend in the browser. If the component also suspends for data or lazy-loaded code, its reveal follows the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats). A component that is [dynamically imported and first rendered after a click](/docs/app/guides/lazy-loading#loading-on-interaction) has no server-rendered HTML to hydrate.
-
-This avoids a hydration mismatch, but the displayed date can still change. If browser formatting must be visible before React loads, use the [inline script approach](#fixing-it-with-an-inline-script).
-
-A shared placeholder also avoids a hydration mismatch. For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
-
-### Subscribing to browser values
-
-Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) when a browser value can change and you need to subscribe to it. For example, this component updates when the browser goes online or offline:
-
-```tsx filename="app/components/network-status.tsx" switcher
-'use client'
-
-import { useSyncExternalStore } from 'react'
-
-function subscribe(callback: () => void) {
-  window.addEventListener('online', callback)
-  window.addEventListener('offline', callback)
-  return () => {
-    window.removeEventListener('online', callback)
-    window.removeEventListener('offline', callback)
-  }
-}
-
-export default function NetworkStatus() {
-  const isOnline = useSyncExternalStore(
-    subscribe,
-    () => navigator.onLine,
-    () => true
-  )
-
-  return <p>{isOnline ? 'Online' : 'Offline'}</p>
-}
-```
-
-```jsx filename="app/components/network-status.js" switcher
-'use client'
-
-import { useSyncExternalStore } from 'react'
-
-function subscribe(callback) {
-  window.addEventListener('online', callback)
-  window.addEventListener('offline', callback)
-  return () => {
-    window.removeEventListener('online', callback)
-    window.removeEventListener('offline', callback)
-  }
-}
-
-export default function NetworkStatus() {
-  const isOnline = useSyncExternalStore(
-    subscribe,
-    () => navigator.onLine,
-    () => true
-  )
-
-  return <p>{isOnline ? 'Online' : 'Offline'}</p>
-}
-```
-
-The third argument supplies `true` during server rendering and hydration, so the initial HTML says `Online`. React then reads `navigator.onLine`, which can change the label to `Offline` after hydration. `subscribe` handles subsequent changes and removes the listeners when the component unmounts.
-
-If you're using an empty subscription only to return `false` on the server and `true` in the browser, use `use(browser())` instead.
+The date can change when React replaces the fallback. If the browser-formatted date must be visible on first paint, use the [inline script](#fixing-it-with-an-inline-script). For a component [loaded and first rendered after a click](/docs/app/guides/lazy-loading#loading-on-interaction), there is no server-rendered content for that component to hydrate.
 
 ### Why not `useEffect`?
 
-For an initial client-specific value, you can render the same placeholder on the server and client, then update state in `useEffect` after hydration:
-
-```jsx filename="app/effect-example.js"
-'use client'
-
-import { useEffect, useState } from 'react'
-
-export default function App() {
-  const [isClient, setIsClient] = useState(false)
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
-}
-```
-
-This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule.
+React's [two-pass rendering example](https://react.dev/reference/react/useEffect#displaying-different-content-on-the-server-and-the-client) uses the same placeholder on the server and during hydration, then updates it in an effect. The user can see the placeholder before the effect runs. Setting state synchronously in the effect also adds a render and triggers [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect).
 
 `useLayoutEffect` runs before paint but after hydration. It prevents the flash between hydration and paint, but not the flash between the HTML arriving and React hydrating. On slow connections, the browser paints the server HTML before React has loaded. The inline script runs during HTML **parsing**, before React is involved.
 

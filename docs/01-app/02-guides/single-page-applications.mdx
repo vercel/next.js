@@ -220,7 +220,7 @@ To decide whether a component's code should load separately, see [Choosing what 
 
 React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML. A `<Suspense>` boundary alone does not disable server rendering; `use(browser())` makes the component suspend on the server.
 
-During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary. If the client-specific value needs to be visible before React loads, see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration#choose-an-approach).
+During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary. If the client-specific value needs to be visible before React loads, see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 For example, this editor reads a saved draft from `localStorage`:
 
