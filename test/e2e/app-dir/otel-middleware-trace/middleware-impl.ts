@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getActiveTraceId } from './trace-recorder'
+import { getActiveTraceId, getOpenRootSpanTraceIds } from './trace-recorder'
 
 // Shared by `proxy.ts` (Node.js runtime) and `middleware.ts` (Edge runtime).
-export function handler(request: NextRequest) {
+export async function handler(request: NextRequest) {
   // The middleware's trace, for the test to collect the request's spans.
   const traceId = getActiveTraceId()
   const { pathname } = request.nextUrl
@@ -35,6 +35,20 @@ export function handler(request: NextRequest) {
     headers.delete('x-test-traceparent')
     response = NextResponse.rewrite(new URL('/headers-echo', request.url), {
       request: { headers },
+    })
+  } else if (pathname === '/outgoing') {
+    // An outgoing request of the middleware: the `tracestate` it carries.
+    const echo = await fetch(new URL('/tracestate-echo', request.url), {
+      cache: 'no-store',
+    })
+    const { tracestate } = await echo.json()
+    response = NextResponse.next()
+    response.headers.set('x-mw-outgoing-tracestate', JSON.stringify(tracestate))
+  } else if (pathname === '/root-state') {
+    // The root spans the SDK keeps open in this process, apart from this
+    // request's.
+    response = NextResponse.json({
+      open: getOpenRootSpanTraceIds()?.filter((id) => id !== traceId),
     })
   } else {
     response = NextResponse.next()
