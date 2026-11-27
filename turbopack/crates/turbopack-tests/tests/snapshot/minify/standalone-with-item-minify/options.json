@@ -1,0 +1,7 @@
+{
+  "minifyMode": "OptimalSize",
+  "minifyBeforeChunking": true,
+  "runtime": "Browser",
+  "runtimeType": "Production",
+  "sharedRuntime": true
+}

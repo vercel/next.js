@@ -238,7 +238,7 @@ impl EcmascriptBrowserEvaluateChunk {
 
         let ecma_opts =
             EcmascriptEmitOptions::get_or_default(Vc::upcast(*this.chunking_context)).await?;
-        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+        if let Some(ref swc_opts) = ecma_opts.standalone_minify_options {
             code = minify(
                 code,
                 this.chunking_context
