@@ -153,15 +153,15 @@ async function Dashboard() {
 }
 ```
 
-Keep the session read out of a layout's top level, too. A top-level `await` on the session in a layout holds the whole segment, including `{children}`, behind that request, so push it into a component inside a boundary. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+A top-level `await` on the session in a layout holds the whole segment, including `{children}`, behind that request, so push it into a component inside a boundary. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
 
 > **Good to know:** `getCurrentUser` reads the session, checks it, and returns a narrow user. Centralizing those reads in one function is the [Data Access Layer](/docs/app/guides/authentication#creating-a-data-access-layer-dal) pattern.
 
 ## Step 3: Share the user across components
 
-You don't have to read the session again in every component that needs the user. Read it once, then hand it to as many Server and Client Components as you like from inside the same boundary.
+You don't have to read the session again in every component that needs the user. Read it once, then hand it to as many Server and Client Components as you like.
 
-Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once, pass it through context, and unwrap it with [`use()`](https://react.dev/reference/react/use). For the general pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). Because `getCurrentUser` reads the request, create its promise inside the Suspense boundary, not at the top of a layout.
+Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once, pass it through context, and unwrap it with [`use()`](https://react.dev/reference/react/use). You can create the promise at the top of a layout even when `getCurrentUser()` uses `use cache: private`. For the general pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider).
 
 ```tsx filename="app/user-provider.tsx"
 'use client'
@@ -191,7 +191,7 @@ export function useUser() {
 }
 ```
 
-The Server Component behind the boundary creates the promise and hands it to the provider without awaiting it. Each consumer then resolves it behind its own boundary, so the shared chrome renders without waiting on the session:
+The Server Component creates the promise and hands it to the provider without awaiting it. Each consumer then reads it behind a `<Suspense>` boundary, so the rest of the layout can render without waiting on the session:
 
 ```tsx filename="app/page.tsx"
 function Dashboard() {

@@ -536,13 +536,13 @@ If the browser can reuse a server-generated value, [pass it as a prop](/docs/app
 If a server-formatted date is useful on first paint, show it as the fallback for a [browser-only component](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser). Compute the label once on the server:
 
 ```jsx filename="app/page.js"
-import { LocalDate } from '@/app/components/browser-date'
+import { LocalDateWithFallback } from '@/app/components/browser-date'
 
 export default function Page() {
   const date = '2026-06-15T18:00:00Z'
   const serverLabel = new Date(date).toLocaleDateString()
 
-  return <LocalDate date={date} serverLabel={serverLabel} />
+  return <LocalDateWithFallback date={date} serverLabel={serverLabel} />
 }
 ```
 
@@ -560,7 +560,7 @@ function BrowserDate({ date }) {
   return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
 }
 
-export function LocalDate({ date, serverLabel }) {
+export function LocalDateWithFallback({ date, serverLabel }) {
   return (
     <Suspense fallback={<time dateTime={date}>{serverLabel}</time>}>
       <BrowserDate date={date} />
