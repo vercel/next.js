@@ -1,5 +1,7 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
+import { createRouterAct } from 'router-act'
+import type { Page as PlaywrightPage } from 'playwright'
 import {
   browserConfigWithFixedTime,
   createRequestsListener,
@@ -41,27 +43,39 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
 
       it('should prefetch the full page', async () => {
-        const { getRequests, clearRequests } =
-          await createRequestsListener(browser)
-        await check(() => {
-          return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/0' && !didPartialPrefetch
-          )
-            ? 'success'
-            : 'fail'
-        }, 'success')
+        // Uses a page whose only link is hidden until revealed, so `act` can
+        // control when the prefetch happens. On `/`, all links prefetch at
+        // once, and late prefetches were mistaken for navigation requests.
+        let page: PlaywrightPage
+        browser = await next.browser('/prefetch-full-page', {
+          beforePageLoad(p: PlaywrightPage) {
+            page = p
+            browserConfigWithFixedTime.beforePageLoad(p)
+          },
+        })
+        const act = createRouterAct(page)
 
-        clearRequests()
+        // The prefetch includes the page content, not only the loading
+        // boundary, so the full page was prefetched.
+        const link = await act(
+          async () => {
+            await browser
+              .elementByCss(
+                'input[data-link-accordion="/prefetch-full-page/destination"]'
+              )
+              .click()
+            return browser.elementByCss(
+              'a[href="/prefetch-full-page/destination"]'
+            )
+          },
+          { includes: 'Full page destination content' }
+        )
 
-        await browser
-          .elementByCss('[href="/0?timeout=0"]')
-          .click()
-          .waitForElementByCss('#random-number')
-
-        expect(
-          getRequests().every(([url]) => getPathname(url) !== '/0')
-        ).toEqual(true)
+        // The navigation is served from the prefetch cache.
+        await act(async () => {
+          await link.click()
+        }, 'no-requests')
+        await browser.waitForElementByCss('#prefetch-full-page-destination')
       })
       it('should re-use the cache for the full page, only for 5 mins', async () => {
         const randomNumber = await browser
