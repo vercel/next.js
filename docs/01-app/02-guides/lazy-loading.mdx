@@ -178,11 +178,7 @@ export default function Page() {
 
 ### Loading on interaction
 
-A component that renders conditionally loads its code the first time it renders, for example when a user opens a chat box. With a `loading` component or `ssr: false`, `next/dynamic` wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. React spaces these reveals apart so content doesn't appear piece by piece, which means the component can show up later than its code loads. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats) for the timing.
-
-A component that first renders after an interaction is not part of the server render, so it does not need `ssr: false`, even when it depends on a module that reads `window` or `document` when imported. If the gate can be open during prerendering, the component renders on the server like any other. To keep it out of the server render regardless of the gate, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
-
-To show the component as soon as its code loads, use `next/dynamic` without those options and update state in a [transition](https://react.dev/reference/react/useTransition). React keeps the current UI on screen until the component is ready, and `isPending` lets you show that the click registered:
+A component that renders conditionally loads its code the first time it renders, for example when a user opens a chat box. Load it with `next/dynamic` and update state in a [transition](https://react.dev/reference/react/useTransition). React keeps the current UI on screen until the component is ready, and `isPending` lets you show that the click registered:
 
 ```jsx filename="app/page.js"
 'use client'
@@ -210,7 +206,11 @@ export default function Page() {
 }
 ```
 
-Without a transition, the closest `<Suspense>` boundary above the component shows its fallback while the code loads.
+Without a transition, the closest `<Suspense>` boundary above the component shows its fallback while the code loads. If there is no boundary above, the current UI stays on screen, but a boundary added later changes that.
+
+The example sets neither `loading` nor `ssr: false`. Either option wraps the component in its own `<Suspense>` boundary. React shows that boundary's fallback right away and reveals the component with its next batch of suspended content. React spaces these reveals apart so content doesn't appear piece by piece, which means the component can show up later than its code loads. See the [Suspense caveats](https://react.dev/reference/react/Suspense#caveats) for the timing.
+
+A component that first renders after an interaction is not part of the server render, so it does not need `ssr: false`, even when it depends on a module that reads `window` or `document` when imported. If the gate can be open during prerendering, the component renders on the server like any other. To keep it out of the server render regardless of the gate, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ### Preloading before interaction
 
@@ -242,15 +242,16 @@ export default function Page() {
 
 The code downloads on every visit, shortly after the page hydrates, whether or not the user opens the component.
 
-To download the code only when a user shows intent, start the download when they hover or focus the trigger. Share one loader function between the preload and [`React.lazy()`](https://react.dev/reference/react/lazy):
+To download the code only when a user shows intent, start the download when they hover or focus the trigger. Share one loader function between the preload and `next/dynamic`:
 
 ```jsx filename="app/page.js"
 'use client'
 
-import { lazy, startTransition, useState } from 'react'
+import { startTransition, useState } from 'react'
+import dynamic from 'next/dynamic'
 
 const loadReplyBox = () => import('../components/reply-box')
-const ReplyBox = lazy(loadReplyBox)
+const ReplyBox = dynamic(loadReplyBox)
 
 export default function Page() {
   const [open, setOpen] = useState(false)
@@ -269,6 +270,8 @@ export default function Page() {
   )
 }
 ```
+
+The same loader can run at other moments, for example when the browser is idle, with [`requestIdleCallback`](https://developer.mozilla.org/docs/Web/API/Window/requestIdleCallback).
 
 ### Importing Named Exports
 
