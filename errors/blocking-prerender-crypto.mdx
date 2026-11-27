@@ -219,7 +219,26 @@ Choose this fix when the generated value belongs to the client experience. A cli
 
 Add [`use client`](/docs/app/api-reference/directives/use-client) and call the crypto API inside `useEffect`.
 
-For example, [initialize a value after mount](/docs/messages/blocking-prerender-crypto-client#use-useeffect-to-initialize-after-mount). If the value belongs to an interaction, [create it when the user starts a draft](/docs/messages/blocking-prerender-crypto-client#generate-on-user-interaction).
+```jsx filename="app/draft-key.js"
+'use client'
+
+import { startTransition, useEffect, useState } from 'react'
+
+export function DraftKey() {
+  const [key, setKey] = useState(null)
+  useEffect(() => {
+    // Wrap in startTransition so that if any component below suspends
+    // during this update, React keeps the existing UI visible instead
+    // of flashing the nearest outer <Suspense> fallback.
+    startTransition(() => {
+      setKey(crypto.randomUUID())
+    })
+  }, [])
+  return <input type="hidden" value={key ?? ''} />
+}
+```
+
+Learn more: [Initialize a value after mount](/docs/messages/blocking-prerender-crypto-client#use-useeffect-to-initialize-after-mount) or [generate an ID when the user starts a draft](/docs/messages/blocking-prerender-crypto-client#generate-on-user-interaction).
 
 ### Trade-off
 

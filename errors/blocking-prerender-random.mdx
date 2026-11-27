@@ -194,8 +194,6 @@ Choose this fix when the random value belongs to the client experience. A canvas
 
 ### Patterns
 
-[Generate a new shuffle seed on click](/docs/messages/blocking-prerender-random-client#compute-on-user-interaction).
-
 #### Compute the value inside `useEffect`
 
 Add the [`use client`](/docs/app/api-reference/directives/use-client) directive. Initialize state to a deterministic placeholder and assign the real value inside [`useEffect`](https://react.dev/reference/react/useEffect), which runs only in the browser after hydration.
@@ -218,6 +216,8 @@ export function Avatar() {
   return <div style={{ background: color }} />
 }
 ```
+
+Learn more: [Generate a new shuffle seed on click](/docs/messages/blocking-prerender-random-client#compute-on-user-interaction).
 
 #### Pass a server-generated value to the client
 
