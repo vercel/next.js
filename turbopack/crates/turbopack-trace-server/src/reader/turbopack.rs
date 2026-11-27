@@ -60,6 +60,7 @@ enum InternalRowType {
 
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
+    invalidate_caches: bool,
     id_mapping: FxHashMap<u64, SpanIndex>,
     dropped_ids: FxHashSet<u64>,
     remaining_ids_to_drop: usize,
@@ -75,12 +76,20 @@ pub struct TurbopackFormat {
 
 impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
+        Self::new_with_cache_invalidation(store, true)
+    }
+
+    pub fn new_with_cache_invalidation(
+        store: Arc<StoreContainer>,
+        invalidate_caches: bool,
+    ) -> Self {
         let drop_ids = std::env::var("DROP_SPANS")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or_default();
         Self {
             store,
+            invalidate_caches,
             id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
             dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
             remaining_ids_to_drop: drop_ids,
@@ -476,7 +485,9 @@ impl TraceFormat for TurbopackFormat {
                 for row in iter.by_ref() {
                     self.process(&mut store, row);
                 }
-                store.invalidate_outdated_spans(&self.outdated_spans);
+                if self.invalidate_caches {
+                    store.invalidate_outdated_spans(&self.outdated_spans);
+                }
                 self.outdated_spans.clear();
             }
         }
@@ -515,10 +526,10 @@ mod tests {
     };
 
     use crate::{
-        reader::{TraceFormat, turbopack::TurbopackFormat},
         span::SpanEvent,
         store_container::StoreContainer,
         timestamp::Timestamp,
+        trace::{TraceFormat, turbopack::TurbopackFormat},
     };
 
     fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static, u64> {
