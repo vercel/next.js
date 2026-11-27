@@ -14,21 +14,19 @@ use crate::{
 
 /// A rope made of inline bytes and references to [`Rope`] cells owned by other tasks.
 ///
-/// Composite outputs (e.g. a chunk made of many module factories) can be described by a
-/// `CellRope` instead of a flat [`Rope`]. When such a value is persisted, the referenced bytes are
-/// stored once, by the tasks that own them, and the `CellRope` only stores the inline bytes plus
-/// one reference per cell.
+/// This is a useful representation when the content is composed from multiple tasks since it
+/// allows persistence to represent the structure without duplicating content on disk as a
+/// [`Rope`] would.
 ///
-/// The cells can change independently of the `CellRope`, so it stores nothing derived from their
-/// contents (not even its total length). Anything derived from them (e.g. source map offsets) is
-/// computed by whoever reads the rope's bytes. A `CellRope` describes whatever the cells currently
-/// hold; consumers that need its bytes to match a value they computed earlier compare a content
-/// hash (writing a [`ComposedFile`] does).
+/// Because the cells can change independently of the `CellRope`, it stores nothing derived
+/// from their contents (not even its total length).
 ///
 /// A referenced cell's bytes can be patched when the rope is read: see
 /// [`CellRopeBuilder::push_cell_skipping`]. The patch is itself a reference to a cell, so it stays
 /// as independent of the cells' contents as the rest of the rope.
-#[turbo_tasks::value(shared)]
+///
+/// Only [`CellRopeBuilder`] creates cells of this type, see [`CellRopeBuilder::build_cell`].
+#[turbo_tasks::value]
 #[derive(Clone, Debug, Default)]
 pub struct CellRope {
     segments: Vec<CellRopeSegment>,
@@ -261,12 +259,23 @@ impl CellRopeBuilder {
         }
     }
 
+    /// Builds the rope as a value, e.g. to [`CellRopeBuilder::append`] it to another builder.
     pub fn build(mut self) -> CellRope {
         self.flush_inline();
         self.segments.shrink_to_fit();
         CellRope {
             segments: self.segments,
         }
+    }
+
+    /// Builds the rope and stores it in a new cell of the current task.
+    pub fn build_cell(self) -> Vc<CellRope> {
+        self.build().cell()
+    }
+
+    /// Like [`CellRopeBuilder::build_cell`], returning a [`ResolvedVc`].
+    pub fn build_resolved_cell(self) -> ResolvedVc<CellRope> {
+        self.build().resolved_cell()
     }
 }
 
@@ -363,7 +372,7 @@ mod tests {
         builder.push_cell(first);
         builder += "d";
         builder.push_cell(second);
-        builder.build().cell()
+        builder.build_cell()
     }
 
     #[turbo_tasks::function(operation, root)]
@@ -406,7 +415,7 @@ mod tests {
             builder.push_cell(cell);
             builder.push_static_bytes(separator.as_bytes());
         }
-        Ok(builder.build().cell())
+        Ok(builder.build_cell())
     }
 
     #[turbo_tasks::function(operation, root)]
@@ -441,7 +450,7 @@ mod tests {
         builder += "a";
         builder.push_cell_skipping(cell, skip);
         builder += "d";
-        builder.build().cell()
+        builder.build_cell()
     }
 
     /// Reads `a<"bcxyef" without range>d`, tracked and untracked, checking they agree.

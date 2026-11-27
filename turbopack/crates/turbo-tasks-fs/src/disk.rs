@@ -2123,7 +2123,7 @@ mod tests {
                 builder.push_cell(cell);
                 builder.push_static_bytes(separator.as_bytes());
             }
-            Ok(builder.build().cell())
+            Ok(builder.build_cell())
         }
 
         #[turbo_tasks::function(operation, root)]
@@ -2199,7 +2199,7 @@ mod tests {
         fn same_rope() -> Vc<CellRope> {
             let mut builder = CellRopeBuilder::default();
             builder += "same";
-            builder.build().cell()
+            builder.build_cell()
         }
 
         #[turbo_tasks::function(operation, root)]
