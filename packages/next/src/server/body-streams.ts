@@ -1,3 +1,4 @@
+import { errorMonitor } from 'events'
 import type { IncomingMessage } from 'http'
 import { PassThrough, Readable } from 'stream'
 import bytes from 'next/dist/compiled/bytes'
@@ -24,7 +25,15 @@ function replaceRequestBody<T extends IncomingMessage>(
   base: T,
   stream: Readable
 ): T {
+  if (base === stream) return base
+
+  const errorListeners = (['error', errorMonitor] as const).map((event) => ({
+    event,
+    listeners: base.rawListeners(event) as Array<(error: Error) => void>,
+  }))
+
   for (const key in stream) {
+    if (key === '_maxListeners') continue
     // TODO(as-any): pre-existing cast, not yet reviewed
     // eslint-disable-next-line @next/internal/no-as-any
     let v = stream[key as keyof Readable] as any
@@ -32,6 +41,14 @@ function replaceRequestBody<T extends IncomingMessage>(
       v = v.bind(base)
     }
     base[key as keyof T] = v
+  }
+
+  // Body listeners belong to the consumed stream. Error subscriptions remain
+  // on the request, with their original once wrappers and registration order.
+  for (const { event, listeners } of errorListeners) {
+    for (const listener of listeners) {
+      base.on(event, listener)
+    }
   }
 
   return base
@@ -54,8 +71,16 @@ export function getCloneableBody<T extends IncomingMessage>(
 
   const endPromise = new Promise<void | { error?: unknown }>(
     (resolve, reject) => {
-      readable.on('end', resolve)
-      readable.on('error', reject)
+      function onEnd() {
+        readable.off('error', onError)
+        resolve()
+      }
+      function onError(error: unknown) {
+        readable.off('end', onEnd)
+        reject(error)
+      }
+      readable.once('end', onEnd)
+      readable.once('error', onError)
     }
   ).catch((error) => {
     return { error }

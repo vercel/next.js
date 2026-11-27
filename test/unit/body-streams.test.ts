@@ -1,3 +1,4 @@
+import { errorMonitor } from 'events'
 import type { IncomingMessage } from 'http'
 import { Readable } from 'stream'
 import { getCloneableBody } from 'next/dist/server/body-streams'
@@ -84,6 +85,95 @@ describe('getCloneableBody', () => {
     await getCloneableBody(req).finalize()
     expect(getRequestMeta(req, 'replayBodySize')).toBeUndefined()
     expect((await readAll(req)).toString()).toBe('untouched')
+  })
+
+  it('delivers body events to the original listeners once', async () => {
+    const req = mockIncoming('hello')
+    const data = jest.fn()
+    const end = jest.fn()
+    req.on('data', data)
+    req.on('end', end)
+
+    const cloneable = getCloneableBody(req)
+    expect((await readAll(cloneable.cloneBodyStream())).toString()).toBe(
+      'hello'
+    )
+    await cloneable.finalize()
+
+    expect((await readAll(req)).toString()).toBe('hello')
+    expect(data.mock.calls).toEqual([[Buffer.from('hello')]])
+    expect(end).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the request error listeners, monitor and listener limit', async () => {
+    const req = mockIncoming('hello')
+    const first = new Error('first')
+    const second = new Error('second')
+    const observations: string[] = []
+    const monitor = jest.fn(() => observations.push('monitor'))
+    const listener = jest.fn(() => observations.push('listener'))
+    const onceListener = jest.fn(() => observations.push('once'))
+    const removedListener = jest.fn()
+    req.setMaxListeners(20)
+    req.on(errorMonitor, monitor)
+    req.on('error', listener)
+    req.prependOnceListener('error', onceListener)
+    req.once('error', removedListener)
+    const originalErrorListeners = req.rawListeners('error')
+
+    const cloneable = getCloneableBody(req)
+    await readAll(cloneable.cloneBodyStream())
+    await cloneable.finalize()
+
+    expect(req.getMaxListeners()).toBe(20)
+    expect(req.rawListeners('error')).toEqual(originalErrorListeners)
+    req.off('error', removedListener)
+    req.emit('error', first)
+    req.emit('error', second)
+    expect(observations).toEqual([
+      'monitor',
+      'once',
+      'listener',
+      'monitor',
+      'listener',
+    ])
+    expect(onceListener.mock.calls).toEqual([[first]])
+    expect(listener.mock.calls).toEqual([[first], [second]])
+    expect(removedListener).not.toHaveBeenCalled()
+    expect(monitor.mock.contexts).toEqual([req, req])
+    expect(listener.mock.contexts).toEqual([req, req])
+    expect(onceListener.mock.contexts).toEqual([req])
+    req.off(errorMonitor, monitor)
+    req.off('error', listener)
+    expect(req.listenerCount(errorMonitor)).toBe(0)
+    expect(req.listenerCount('error')).toBe(0)
+  })
+
+  it('keeps listeners and bound methods stable when finalizing twice', async () => {
+    const req = mockIncoming('hello')
+    const monitor = jest.fn()
+    const listener = jest.fn()
+    const onceListener = jest.fn()
+    req.on(errorMonitor, monitor)
+    req.on('error', listener)
+    req.once('error', onceListener)
+
+    const cloneable = getCloneableBody(req)
+    await readAll(cloneable.cloneBodyStream())
+    await cloneable.finalize()
+    const { emit, read } = req
+    await cloneable.finalize()
+
+    const first = new Error('first')
+    const second = new Error('second')
+    emit('error', first)
+    emit('error', second)
+    expect(monitor.mock.calls).toEqual([[first], [second]])
+    expect(listener.mock.calls).toEqual([[first], [second]])
+    expect(onceListener.mock.calls).toEqual([[first]])
+    expect(req.emit).toBe(emit)
+    expect(req.read).toBe(read)
+    expect(read()?.toString()).toBe('hello')
   })
 
   it('tracks the latest clone without double-counting or finalizing before it finishes', async () => {
