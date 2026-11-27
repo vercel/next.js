@@ -34,24 +34,21 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 When React state should reset on hide, update it in a `useLayoutEffect` cleanup. For example, this dropdown closes when Activity hides the component:
 
-```tsx highlight={8-13}
+```tsx highlight={8-10}
 'use client'
 
-import { useState, useLayoutEffect } from 'react'
+import { useLayoutEffect, useState } from 'react'
 
 function SettingsDropdown() {
   const [isOpen, setIsOpen] = useState(false)
 
-  // Close dropdown when this component becomes hidden
   useLayoutEffect(() => {
-    return () => {
-      setIsOpen(false)
-    }
+    return () => setIsOpen(false)
   }, [])
 
   return (
     <div>
-      <button onClick={() => setIsOpen((o) => !o)}>Options</button>
+      <button onClick={() => setIsOpen((open) => !open)}>Options</button>
       {isOpen && (
         <ul>
           <li>
@@ -67,7 +64,7 @@ function SettingsDropdown() {
 }
 ```
 
-The cleanup resets `isOpen` before Activity hides the component, so the dropdown is closed when the user returns.
+The cleanup resets `isOpen` before Activity hides the component, so the dropdown is closed when the user returns. Resetting `isOpen` to `false` repeatedly is safe.
 
 You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close dropdowns immediately when a navigation link is clicked.
 
@@ -101,7 +98,9 @@ function SettingsPopover() {
 }
 ```
 
-Because hidden pages remain in the DOM, reusing a hard-coded ID across pages can associate a button with the wrong popover. [`useId`](https://react.dev/reference/react/useId) gives each component instance a unique ID, keeping the button associated with its own popover. The same applies to IDs used by labels, `aria-describedby`, and the `form` attribute.
+Calling `hidePopover()` repeatedly is safe.
+
+Because hidden pages remain in the DOM, reusing a hard-coded ID across pages can associate a button with the wrong popover. [`useId`](https://react.dev/reference/react/useId) gives each component instance a unique ID, keeping the button associated with its own popover. The same applies to IDs used by labels, `aria-describedby`, and the `form` attribute. For radio groups without separate forms, give each instance its own group name.
 
 ### Dialog and initialization logic
 
@@ -292,6 +291,34 @@ React runs the previous [ref callback’s cleanup](https://react.dev/reference/r
 `form.reset()` does not reset React state. For controlled inputs, reset the state passed to `value` or `checked`, as in the examples above.
 
 </details>
+
+### State updated while hidden
+
+State can change while Activity keeps a page hidden. An unconditional reset in Effect cleanup can discard those updates if cleanup runs again on reveal. See [Tracking whether an Effect has run before](#tracking-whether-an-effect-has-run-before) for the lifecycle and development behavior.
+
+For example, an inbox uses Effect cleanup to clear its notification when the user leaves. A new notification arrives while the inbox is hidden. If cleanup runs again on return, it clears the new notification before the user sees it.
+
+Clear the previous notification from the navigation handler instead:
+
+```tsx filename="app/inbox/navigation.tsx" highlight={11}
+'use client'
+
+import Link from 'next/link'
+
+export function InboxNavigation({
+  clearNotification,
+}: {
+  clearNotification: () => void
+}) {
+  return (
+    <Link href="/settings" onNavigate={clearNotification}>
+      Settings
+    </Link>
+  )
+}
+```
+
+This clears the notification when navigating through this link. To cover browser controls and other links, [observe route changes from a shared layout](/docs/app/api-reference/functions/use-pathname#do-something-in-response-to-a-route-change) and clear the notification for the page being left.
 
 ## State and authentication
 
