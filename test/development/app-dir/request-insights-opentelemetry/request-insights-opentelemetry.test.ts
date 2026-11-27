@@ -185,9 +185,32 @@ describe.each([
         return {
           label: row?.querySelector('.request-insights-span-attribute-label')
             ?.textContent,
+          inspectorOpen:
+            root
+              ?.querySelector('.request-insights-trace')
+              ?.getAttribute('data-inspector-open') === 'true',
+          inspectorText:
+            root?.querySelector('.request-insights-trace-inspector')
+              ?.textContent ?? '',
         }
       })
       expect(state.label).toBe('GET account:123')
+      expect(state.inspectorOpen).toBe(true)
+      expect(state.inspectorText).toContain('db.pool.idle')
+      expect(state.inspectorText).toContain('GET account:123')
+    })
+
+    await browser
+      .elementByCss('.request-insights-trace-inspector-close')
+      .click()
+    await retry(async () => {
+      expect(
+        await browser.eval(() =>
+          document
+            .querySelector('nextjs-portal')
+            ?.shadowRoot?.querySelector('.request-insights-trace-inspector')
+        )
+      ).toBeNull()
     })
   })
 })

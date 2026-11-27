@@ -950,6 +950,7 @@ function getRequestOverview(request: RequestInsight) {
     statusCode,
     statusLabel: statusCode ?? request.status,
     kind: getRequestInsightSummaryTypeLabel(request),
+    fetchCount: request.fetches.length,
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',
