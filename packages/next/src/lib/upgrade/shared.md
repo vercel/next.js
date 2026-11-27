@@ -1,5 +1,11 @@
 ## Before changing files: check for duplicates
 
+For scheduled upgrades, the workflow handles duplicate checks and publication.
+Work in the checkout provided by the workflow. Complete the upgrade and
+verification below, then leave the changes in that checkout for the workflow.
+Skip this duplicate checklist and the commit and delivery checklist. Do not
+create a worktree, commit, push, or open a pull request.
+
 - [ ] Check the app for an equivalent upgrade or Future Defaults adoption already
       in progress.
 - [ ] If the app is in a Git repository, check local branches and commits. If it
