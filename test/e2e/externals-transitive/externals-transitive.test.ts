@@ -74,7 +74,7 @@ describe('externals-transitive', () => {
           }
         }
       } else {
-        // Webpack ends up bundling lodash in dep-a
+        // Webpack ends up bundling lodash in externals-transitive-dep-a
         expect(isLodashBundled).toBe(true)
       }
     }
