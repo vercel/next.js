@@ -1,0 +1,80 @@
+name: 'Warm the Go build cache for native routes'
+description: >
+  When the job will run a test suite with Go sources (a `go.mod` next to the
+  test file), restores a Go build cache holding the standard-library packages
+  that native Go routes compile. On a miss it compiles them once with the
+  flags turbopack-go uses, then saves the result. The cache is only saved
+  right after that warm-up, never after tests, so its content is the same for
+  a given key. Points GOCACHE at a fresh directory for the rest of the job, so
+  nothing compiled earlier ends up in the saved cache.
+inputs:
+  mode:
+    description: 'Test mode passed to scripts/test-new-tests.mjs (dev or start)'
+    required: true
+  group:
+    description: 'Test group passed to scripts/test-new-tests.mjs, e.g. 1/5'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Check for tests with Go sources
+      id: select
+      shell: bash
+      env:
+        TEST_MODE: ${{ inputs.mode }}
+        TEST_GROUP: ${{ inputs.group }}
+      run: |
+        set -euo pipefail
+        if ! needed=$(node "$GITHUB_ACTION_PATH/needs-go.mjs" "$TEST_MODE" "$TEST_GROUP"); then
+          # Not fatal: the tests still run, only without a warm cache.
+          echo "::warning::Could not list the tests to run, skipping the Go build cache"
+          needed=false
+        fi
+        if [ "$needed" = true ] && ! command -v go >/dev/null; then
+          echo "Go is not installed, skipping the Go build cache"
+          needed=false
+        fi
+        echo "needed=$needed" >> "$GITHUB_OUTPUT"
+
+    - name: Inspect Go toolchain
+      id: go
+      if: ${{ steps.select.outputs.needed == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        cache="$RUNNER_TEMP/go-build-native-routes"
+        mkdir -p "$cache"
+        # turbopack-go reads GOCACHE from `go env`, so later steps use it.
+        echo "GOCACHE=$cache" >> "$GITHUB_ENV"
+        # Query the toolchain the way turbopack-go does.
+        export GOENV=off GOTOOLCHAIN=local GOWORK=off
+        go version
+        go env GOROOT GOMODCACHE
+        echo "GOCACHE=$cache"
+        {
+          echo "version=$(go env GOVERSION)"
+          echo "arch=$(go env GOHOSTARCH)"
+          echo "cache=$cache"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Restore Go build cache
+      id: restore
+      if: ${{ steps.select.outputs.needed == 'true' }}
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.go.outputs.cache }}
+        key: go-build-native-routes-${{ runner.os }}-${{ steps.go.outputs.arch }}-${{ steps.go.outputs.version }}-${{ hashFiles('crates/next-api/src/templates/go_*.go', 'turbopack/crates/turbopack-go/src/lib.rs', 'turbopack/crates/turbopack-go/src/analysis.rs', 'turbopack/crates/turbopack-go/src/declarations.go', '.github/actions/warm-go-build-cache/*') }}
+
+    - name: Warm Go build cache
+      if: ${{ steps.select.outputs.needed == 'true' && steps.restore.outputs.cache-hit != 'true' }}
+      shell: bash
+      env:
+        GO_BUILD_CACHE: ${{ steps.go.outputs.cache }}
+      run: bash "$GITHUB_ACTION_PATH/warm.sh" "$GO_BUILD_CACHE"
+
+    - name: Save Go build cache
+      if: ${{ steps.select.outputs.needed == 'true' && steps.restore.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.go.outputs.cache }}
+        key: ${{ steps.restore.outputs.cache-primary-key }}
