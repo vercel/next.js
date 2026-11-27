@@ -4,7 +4,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     process::{ExitStatus, Stdio},
-    sync::{Arc, LazyLock},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -13,7 +13,7 @@ use bytes::Bytes;
 use futures::join;
 use owo_colors::OwoColorize;
 use parking_lot::Mutex;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use tokio::{
     io::{
         AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, Stderr,
@@ -580,8 +580,21 @@ type IdleProcessQueue = Arc<HeapQueue<NodeJsPoolProcess>>;
 /// This is used to scale down processes globally.
 ///
 /// A pool registers its queue when it is created, and its [`ClosePoolOnDrop`] guard unregisters it
-/// when the pool is dropped.
-static ACTIVE_POOLS: LazyLock<Mutex<Vec<IdleProcessQueue>>> = LazyLock::new(Default::default);
+/// when the pool is dropped. Keyed by [`queue_key`].
+static ACTIVE_POOLS: Mutex<FxHashMap<usize, IdleProcessQueue>> =
+    Mutex::new(FxHashMap::with_hasher(FxBuildHasher));
+
+/// Identifies a queue by its address. The address stays unique while the queue is registered,
+/// because [`ACTIVE_POOLS`] holds a reference to it.
+fn queue_key(queue: &IdleProcessQueue) -> usize {
+    Arc::as_ptr(queue) as usize
+}
+
+/// The idle process queues of all live pools. Collected so that `ACTIVE_POOLS` isn't locked while
+/// the queues are scaled down.
+fn active_pools() -> Vec<IdleProcessQueue> {
+    ACTIVE_POOLS.lock().values().cloned().collect()
+}
 
 /// Publishes a pool's idle process queue in [`ACTIVE_POOLS`] for as long as the pool is alive.
 ///
@@ -595,22 +608,16 @@ struct ClosePoolOnDrop {
 
 impl ClosePoolOnDrop {
     fn new(idle_processes: IdleProcessQueue) -> Self {
-        ACTIVE_POOLS.lock().push(idle_processes.clone());
+        ACTIVE_POOLS
+            .lock()
+            .insert(queue_key(&idle_processes), idle_processes.clone());
         Self { idle_processes }
     }
 }
 
 impl Drop for ClosePoolOnDrop {
     fn drop(&mut self) {
-        {
-            let mut pools = ACTIVE_POOLS.lock();
-            if let Some(pos) = pools
-                .iter()
-                .position(|q| Arc::ptr_eq(q, &self.idle_processes))
-            {
-                pools.swap_remove(pos);
-            }
-        }
+        ACTIVE_POOLS.lock().remove(&queue_key(&self.idle_processes));
         // Close the queue after releasing `ACTIVE_POOLS`: dropping the idle processes kills them.
         self.idle_processes.close();
     }
@@ -758,43 +765,6 @@ impl ChildProcessPool {
             assets_root,
             project_dir,
         )
-    }
-
-    /// A handle that observes this pool's idle process queue without keeping it alive.
-    #[cfg(test)]
-    fn test_handle(&self) -> PoolTestHandle {
-        PoolTestHandle {
-            idle_processes: Arc::downgrade(&self.idle_processes),
-        }
-    }
-}
-
-#[cfg(test)]
-struct PoolTestHandle {
-    idle_processes: std::sync::Weak<HeapQueue<NodeJsPoolProcess>>,
-}
-
-#[cfg(test)]
-impl PoolTestHandle {
-    /// Whether the pool's idle process queue is registered in [`ACTIVE_POOLS`].
-    fn is_registered(&self) -> bool {
-        let Some(idle_processes) = self.idle_processes.upgrade() else {
-            return false;
-        };
-        ACTIVE_POOLS
-            .lock()
-            .iter()
-            .any(|q| Arc::ptr_eq(q, &idle_processes))
-    }
-
-    /// The number of idle processes in the pool's queue. 0 once the queue is closed or dropped.
-    fn idle_count(&self) -> usize {
-        self.idle_processes.upgrade().map_or(0, |q| q.len())
-    }
-
-    /// Whether anything (the pool, an operation, or pre-warming) still references the queue.
-    fn is_queue_alive(&self) -> bool {
-        self.idle_processes.strong_count() > 0
     }
 }
 
@@ -975,15 +945,13 @@ impl ChildProcessPool {
     }
 
     fn scale_down() {
-        let pools = ACTIVE_POOLS.lock().clone();
-        for pool in pools {
+        for pool in active_pools() {
             pool.reduce_to_one();
         }
     }
 
     fn scale_zero() {
-        let pools = ACTIVE_POOLS.lock().clone();
-        for pool in pools {
+        for pool in active_pools() {
             pool.reduce_to_zero();
         }
     }

@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use tokio::sync::oneshot;
 
 use crate::pool_stats::NodeJsPoolStats;
@@ -113,13 +114,20 @@ pub(crate) type TerminateWorker<K> = fn(&K, u32);
 
 /// The states of all live worker-thread pools, so that they can be scaled down globally.
 pub(crate) struct PoolRegistry<K> {
-    pools: Mutex<Vec<(K, Arc<PoolState>)>>,
+    /// Keyed by [`state_key`].
+    pools: Mutex<FxHashMap<usize, (K, Arc<PoolState>)>>,
+}
+
+/// Identifies a pool's state by its address. The address stays unique while the pool is
+/// registered, because its [`PoolRegistry`] holds a reference to the state.
+fn state_key(state: &Arc<PoolState>) -> usize {
+    Arc::as_ptr(state) as usize
 }
 
 impl<K: Clone + Send + Sync + 'static> PoolRegistry<K> {
     pub(crate) const fn new() -> Self {
         Self {
-            pools: Mutex::new(Vec::new()),
+            pools: Mutex::new(FxHashMap::with_hasher(FxBuildHasher)),
         }
     }
 
@@ -130,7 +138,9 @@ impl<K: Clone + Send + Sync + 'static> PoolRegistry<K> {
         terminate: TerminateWorker<K>,
     ) -> PoolRegistration<K> {
         let state = Arc::new(PoolState::new());
-        self.pools.lock().push((key.clone(), state.clone()));
+        self.pools
+            .lock()
+            .insert(state_key(&state), (key.clone(), state.clone()));
         PoolRegistration {
             registry: self,
             key,
@@ -144,7 +154,7 @@ impl<K: Clone + Send + Sync + 'static> PoolRegistry<K> {
     #[must_use]
     pub(crate) fn reduce_to(&self, max_idle: usize) -> Vec<(K, u32)> {
         // Release the registry lock before locking the pools' states.
-        let pools = self.pools.lock().clone();
+        let pools: Vec<_> = self.pools.lock().values().cloned().collect();
         pools
             .into_iter()
             .flat_map(|(key, state)| {
@@ -158,7 +168,7 @@ impl<K: Clone + Send + Sync + 'static> PoolRegistry<K> {
 
     #[cfg(test)]
     fn contains(&self, state: &Arc<PoolState>) -> bool {
-        self.pools.lock().iter().any(|(_, s)| Arc::ptr_eq(s, state))
+        self.pools.lock().contains_key(&state_key(state))
     }
 }
 
@@ -183,12 +193,7 @@ impl<K: Clone + Send + Sync + 'static> PoolRegistration<K> {
 
 impl<K: Clone + Send + Sync + 'static> Drop for PoolRegistration<K> {
     fn drop(&mut self) {
-        {
-            let mut pools = self.registry.pools.lock();
-            if let Some(pos) = pools.iter().position(|(_, s)| Arc::ptr_eq(s, &self.state)) {
-                pools.swap_remove(pos);
-            }
-        }
+        self.registry.pools.lock().remove(&state_key(&self.state));
         for worker_id in self.state.close() {
             (self.terminate)(&self.key, worker_id);
         }

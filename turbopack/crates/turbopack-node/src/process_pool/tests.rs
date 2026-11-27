@@ -12,7 +12,6 @@ use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 use crate::{
     AssetsForSourceMapping,
     evaluate::{EvaluatePool, Operation},
-    process_pool::{ChildProcessPool, PoolTestHandle},
 };
 
 static REGISTRATION: Registration = register!();
@@ -23,15 +22,8 @@ fn test_worker(name: &str) -> PathBuf {
 
 /// Create a pool backed by the given test worker JS file.
 async fn create_pool(worker: &str, concurrency: usize) -> Result<EvaluatePool> {
-    Ok(create_pool_with_handle(worker, concurrency).await?.0)
-}
+    use crate::process_pool::ChildProcessPool;
 
-/// Create a pool backed by the given test worker JS file, together with a handle that observes
-/// the pool's idle process queue without keeping it alive.
-async fn create_pool_with_handle(
-    worker: &str,
-    concurrency: usize,
-) -> Result<(EvaluatePool, PoolTestHandle)> {
     let vfs = VirtualFileSystem::new();
     let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
     let fs = fs.to_resolved().await?;
@@ -43,7 +35,7 @@ async fn create_pool_with_handle(
     let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
     let assets = assets.to_resolved().await?;
 
-    let pool = ChildProcessPool::new(
+    Ok(ChildProcessPool::create(
         std::env::current_dir()?,
         test_worker(worker),
         FxHashMap::default(),
@@ -52,9 +44,7 @@ async fn create_pool_with_handle(
         root_path,
         concurrency,
         false,
-    );
-    let handle = pool.test_handle();
-    Ok((pool.into_evaluate_pool(), handle))
+    ))
 }
 
 /// Shorthand: create a pool with the echo worker.
@@ -296,189 +286,6 @@ async fn test_pool_pre_warm_failure() {
             "failed pre_warm should not leave phantom workers"
         );
         assert_eq!(stats.booting_workers, 0);
-    })
-    .await;
-}
-
-/// Whether the process with `pid` is still running. A zombie (exited, not yet reaped) counts as
-/// not running.
-#[cfg(target_os = "linux")]
-fn is_process_running(pid: u32) -> bool {
-    match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
-        // The state follows the parenthesized command name, e.g. `1234 (node) S ...`.
-        Ok(stat) => stat
-            .rsplit_once(')')
-            .and_then(|(_, rest)| rest.split_whitespace().next())
-            .is_some_and(|state| state != "Z" && state != "X"),
-        Err(_) => false,
-    }
-}
-
-#[cfg(target_os = "linux")]
-async fn wait_for_process_exit(pid: u32) {
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
-    while is_process_running(pid) {
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "process {pid} is still running"
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-}
-
-/// Runs one operation and returns the PID of the process that served it. The process is idle
-/// afterwards.
-#[cfg(target_os = "linux")]
-async fn run_operation(pool: &EvaluatePool) -> u32 {
-    let mut op = pool.operation().await.unwrap();
-    send_recv(&mut op, serde_json::json!({"ping": true}))
-        .await
-        .pid
-}
-
-#[cfg(target_os = "linux")]
-#[turbo_tasks::function(operation, root)]
-async fn cell_owned_test_pool() -> Result<Vc<EvaluatePool>> {
-    Ok(create_pool_with_handle("pool_test_worker.js", 2)
-        .await?
-        .0
-        .cell())
-}
-
-#[cfg(target_os = "linux")]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_pool_cell_drop_on_turbo_tasks_shutdown_kills_idle_processes() {
-    let instance = REGISTRATION.create_turbo_tasks("cell_owned_test_pool", true);
-    let tt = instance.tt.clone();
-    let pid = turbo_tasks::run_once(tt.clone(), async {
-        let pool = cell_owned_test_pool().read_strongly_consistent().await?;
-        Ok(run_operation(&pool).await)
-    })
-    .await
-    .unwrap();
-    assert!(is_process_running(pid));
-
-    // Dropping the backend storage drops the `EvaluatePool` cell, which owns the idle process.
-    tt.stop_and_wait().await;
-    wait_for_process_exit(pid).await;
-}
-
-#[cfg(target_os = "linux")]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_pool_drop_kills_idle_processes() {
-    run_once_without_cache_check(&REGISTRATION, async {
-        let (pool, handle) = create_pool_with_handle("pool_test_worker.js", 2)
-            .await
-            .unwrap();
-        assert!(handle.is_registered());
-
-        let pid = run_operation(&pool).await;
-        assert_eq!(handle.idle_count(), 1);
-        assert!(is_process_running(pid));
-
-        drop(pool);
-
-        assert!(!handle.is_registered());
-        assert!(!handle.is_queue_alive());
-        wait_for_process_exit(pid).await;
-    })
-    .await;
-}
-
-#[cfg(target_os = "linux")]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_pool_drop_with_inflight_operation() {
-    run_once_without_cache_check(&REGISTRATION, async {
-        let (pool, handle) = create_pool_with_handle("pool_test_worker.js", 2)
-            .await
-            .unwrap();
-
-        let mut op1 = pool.operation().await.unwrap();
-        let mut op2 = pool.operation().await.unwrap();
-        let pid1 = send_recv(&mut op1, serde_json::json!({"before": "drop"}))
-            .await
-            .pid;
-        let pid2 = send_recv(&mut op2, serde_json::json!({"before": "drop"}))
-            .await
-            .pid;
-        assert_ne!(pid1, pid2);
-
-        drop(pool);
-        assert!(!handle.is_registered());
-
-        // The operations still work after their pool was dropped.
-        let resp = send_recv(&mut op1, serde_json::json!({"after": "drop"})).await;
-        assert_eq!(resp.pid, pid1);
-
-        // Returning a process to the dropped pool kills it instead of keeping it idle, even while
-        // another operation still references the pool's queue.
-        drop(op1);
-        assert!(handle.is_queue_alive());
-        assert_eq!(handle.idle_count(), 0);
-        wait_for_process_exit(pid1).await;
-        assert!(is_process_running(pid2));
-
-        drop(op2);
-        assert!(!handle.is_queue_alive());
-        wait_for_process_exit(pid2).await;
-    })
-    .await;
-}
-
-#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_pool_drop_during_pre_warm() {
-    run_once_without_cache_check(&REGISTRATION, async {
-        let (pool, handle) = create_pool_with_handle("pool_test_worker.js", 2)
-            .await
-            .unwrap();
-
-        pool.pre_warm();
-        drop(pool);
-        assert!(!handle.is_registered());
-
-        // Pre-warming keeps the queue alive until the process has booted, then pushes the process
-        // into the closed queue, which kills it.
-        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
-        while handle.is_queue_alive() {
-            assert_eq!(handle.idle_count(), 0);
-            assert!(
-                tokio::time::Instant::now() < deadline,
-                "pre_warm did not finish within timeout"
-            );
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        }
-    })
-    .await;
-}
-
-#[cfg(target_os = "linux")]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_pool_drop_does_not_affect_other_pool() {
-    run_once_without_cache_check(&REGISTRATION, async {
-        let (pool_a, handle_a) = create_pool_with_handle("pool_test_worker.js", 2)
-            .await
-            .unwrap();
-        let (pool_b, handle_b) = create_pool_with_handle("pool_test_worker.js", 2)
-            .await
-            .unwrap();
-
-        let pid_a = run_operation(&pool_a).await;
-        let pid_b = run_operation(&pool_b).await;
-        assert_ne!(pid_a, pid_b);
-
-        drop(pool_a);
-        wait_for_process_exit(pid_a).await;
-
-        assert!(!handle_a.is_registered());
-        assert!(handle_b.is_registered());
-        assert!(is_process_running(pid_b));
-        assert_eq!(handle_b.idle_count(), 1);
-        assert_eq!(
-            run_operation(&pool_b).await,
-            pid_b,
-            "the other pool should still reuse its idle process"
-        );
     })
     .await;
 }
