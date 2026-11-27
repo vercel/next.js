@@ -34,7 +34,7 @@ use crate::{
     },
     runtime_functions::{
         TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
-        TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
+        TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE, TURBOPACK_TO_PROJECT_PATH,
     },
     utils::module_id_to_lit,
 };
@@ -87,7 +87,20 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(OrderedAutoMap<RcStr, SinglePatternMapping>),
+    Map {
+        map: OrderedAutoMap<RcStr, SinglePatternMapping>,
+        /// Set when the output runs in Node.js and the request is an absolute project path
+        /// (`/ROOT/<path>`, see [`as_abs_path`][crate::references::as_abs_path]), e.g.
+        /// `path.join(__dirname, name)`. It is the path of the chunking root path relative to
+        /// the root of its filesystem.
+        ///
+        /// The analyzer evaluates `__dirname` and `__filename` to `/ROOT/<path>` values, so the
+        /// keys of the map have that form. In Node.js they are the real absolute path at runtime
+        /// though (see
+        /// [`InputRelativeCodeGen`][crate::references::input_relative::InputRelativeCodeGen]), so
+        /// the request is translated back to a `/ROOT/<path>` key at runtime.
+        project_path_root: Option<RcStr>,
+    },
 }
 
 #[turbo_tasks::task_input]
@@ -299,16 +312,32 @@ const CONTEXT_MODE_REQUIRE: u8 = 0;
 const CONTEXT_MODE_IMPORT: u8 = 1;
 const CONTEXT_MODE_ASYNC_LOADER: u8 = 2;
 
+/// The key a context is looked up with at runtime, see [`PatternMapping::Map::project_path_root`].
+fn context_key(key_expr: Expr, project_path_root: &Option<RcStr>) -> Expr {
+    match project_path_root {
+        Some(project_path_root) => quote!(
+            "$turbopack_to_project_path($key, $root)" as Expr,
+            turbopack_to_project_path: Expr = TURBOPACK_TO_PROJECT_PATH.into(),
+            key: Expr = key_expr,
+            root: Expr = project_path_root.as_str().into(),
+        ),
+        None => key_expr,
+    }
+}
+
 impl PatternMapping {
     pub fn create_id(&self, key_expr: Expr) -> Expr {
         match self {
             PatternMapping::Single(pm) => pm.create_id(Cow::Owned(key_expr)),
-            PatternMapping::Map(map) => {
+            PatternMapping::Map {
+                map,
+                project_path_root,
+            } => {
                 let module_context = create_context(map, &key_expr, ImportMode::Require);
 
                 quote!("$module_context.resolve($key)" as Expr,
                     module_context: Expr = module_context,
-                    key: Expr = key_expr
+                    key: Expr = context_key(key_expr, project_path_root)
                 )
             }
         }
@@ -317,12 +346,15 @@ impl PatternMapping {
     pub fn create_require(&self, key_expr: Expr) -> Expr {
         match self {
             PatternMapping::Single(pm) => pm.create_require(Cow::Owned(key_expr)),
-            PatternMapping::Map(map) => {
+            PatternMapping::Map {
+                map,
+                project_path_root,
+            } => {
                 let module_context = create_context(map, &key_expr, ImportMode::Require);
 
                 quote!("$module_context($key)" as Expr,
                     module_context: Expr = module_context,
-                    key: Expr = key_expr
+                    key: Expr = context_key(key_expr, project_path_root)
                 )
             }
         }
@@ -331,12 +363,15 @@ impl PatternMapping {
     pub fn create_import(&self, key_expr: Expr) -> Expr {
         match self {
             PatternMapping::Single(pm) => pm.create_import(Cow::Owned(key_expr)),
-            PatternMapping::Map(map) => {
+            PatternMapping::Map {
+                map,
+                project_path_root,
+            } => {
                 let module_context = create_context(map, &key_expr, ImportMode::Import);
 
                 quote!("$module_context.import($key)" as Expr,
                     module_context: Expr = module_context,
-                    key: Expr = key_expr
+                    key: Expr = context_key(key_expr, project_path_root)
                 )
             }
         }
@@ -519,7 +554,20 @@ impl PatternMapping {
                     .await?;
                 // The requests are unique: duplicates were filtered out above.
                 let map = OrderedAutoMap::from_unique_iterator(map);
-                Ok(PatternMapping::Map(map).cell())
+                // Paths are only resolved at runtime when running in Node.js, see
+                // `InputRelativeCodeGen`.
+                let project_path_root = if map.keys().any(|key| key.starts_with("/ROOT/"))
+                    && *chunking_context.environment().node_externals().await?
+                {
+                    Some(chunking_context.root_path().await?.path.clone())
+                } else {
+                    None
+                };
+                Ok(PatternMapping::Map {
+                    map,
+                    project_path_root,
+                }
+                .cell())
             }
         }
     }

@@ -1,0 +1,5 @@
+{
+  "name": "my-wasm-pkg",
+  "version": "0.0.0",
+  "main": "wasm/my_wasm.js"
+}

@@ -29,7 +29,7 @@ if (process.env.NEXT_TEST_WASM || process.env.NEXT_TEST_WASM_AFTER_JEST) {
 }
 
 describe('Production Usage', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: path.join(__dirname, '../fixture'),
     dependencies: {
       nanoid: '3.1.30',
@@ -692,13 +692,18 @@ describe('Production Usage', () => {
       expect(body).toEqual('API hello works')
     })
 
-    // Today, `__dirname` usage fails because Next.js moves the source file
-    // to .next/server/pages/api but it doesn't move the asset file.
-    // In the future, it would be nice to make `__dirname` work too.
-    it('does not work with pages/api/readfile-dirname.js', async () => {
+    // With webpack, `__dirname` usage fails because Next.js moves the source
+    // file to .next/server/pages/api but it doesn't move the asset file.
+    // Turbopack resolves `__dirname` to the source location at runtime.
+    it('should work with pages/api/readfile-dirname.js with Turbopack only', async () => {
       const url = `http://localhost:${next.appPort}`
       const res = await fetchViaHTTP(url, `/api/readfile-dirname`)
-      expect(res.status).toBe(500)
+      if (isTurbopack) {
+        expect(res.status).toBe(200)
+        expect(await res.text()).toBe('item')
+      } else {
+        expect(res.status).toBe(500)
+      }
     })
 
     it('should work with pages/api/readfile-processcwd.js', async () => {
