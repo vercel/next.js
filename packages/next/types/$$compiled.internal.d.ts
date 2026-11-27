@@ -473,6 +473,7 @@ declare module 'VAR_RENDERER_RSC'
 declare module 'VAR_RENDERER_SSR'
 declare module 'VAR_ROOT_LAYOUT'
 declare module 'VAR_PAGE'
+declare module 'VAR_BRIDGE'
 
 declare module 'next/dist/server/ReactDOMServerPages' {
   export * from 'react-dom/server.edge'

@@ -22,6 +22,9 @@ const rspack = require('@rspack/core')
 // it.
 const AXES = {
   engine: ['node'],
+  // The bridge's host: what serves the request. `adapter` is any host of the deployment
+  // adapter contract, such as `next start` and Vercel.
+  host: ['adapter'],
   mode: ['prod'],
 }
 
@@ -32,6 +35,12 @@ const OUTPUTS = {
     entries: { rsc: 'entries/rsc.ts', ssr: 'entries/ssr.ts' },
     bundleTypes: [{ engine: 'node', mode: 'prod' }],
   },
+  // The bridge: owns HTTP for a host and calls the renderer interface. Only the adapter
+  // in production so far.
+  bridge: {
+    entries: { bridge: 'entries/bridge.ts' },
+    bundleTypes: [{ engine: 'node', host: 'adapter', mode: 'prod' }],
+  },
 }
 
 // The fork sets, by name, and the axis each varies on. A fork set `<name>` is imported
@@ -40,6 +49,7 @@ const OUTPUTS = {
 // set or a stray fork.
 const FORKS = {
   'engine-config': 'engine',
+  'engine-http': 'engine',
 }
 
 // The reviewed list of a bundle's externals: modules the precompile leaves as
@@ -55,10 +65,19 @@ const EXTERNALS = [
   // compiled copy with its own React (see core/document.ts).
   'next/dist/server/route-modules/app-page/vendored/ssr/react-dom-server',
   'react-server-dom-webpack/*',
+  // App Router's response helpers, for the bridge: its Cache-Control header, and the
+  // Node fork's response streaming and abort signal.
+  'next/dist/server/lib/cache-control',
+  'next/dist/server/pipe-readable',
+  'next/dist/server/web/spec-extension/adapters/next-request',
 ]
 
 function bundleName(entry, bundleType) {
-  return [entry, ...Object.keys(AXES).map((a) => bundleType[a])].join('.')
+  // A bundle type leaves out the axes it doesn't vary on, such as the renderer's
+  // `host`.
+  return [entry, ...Object.keys(AXES).flatMap((a) => bundleType[a] ?? [])].join(
+    '.'
+  )
 }
 
 // Every build: [{ entry, source, bundleType, name }].

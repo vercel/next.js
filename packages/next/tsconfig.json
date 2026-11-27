@@ -33,10 +33,19 @@
       // native-rsc-runtime's fork sets resolve to their generic types. Its
       // precompile resolves each to one fork per bundle type.
       "#engine-config": ["./src/native-rsc-runtime/forks/engine-config.d.ts"],
+      "#engine-http": ["./src/native-rsc-runtime/forks/engine-http.d.ts"],
       // The SSR layer's Fizz, as native-rsc-runtime's renderer imports it. The vendored
       // module is react-dom/server.
       "next/dist/server/route-modules/app-page/vendored/ssr/react-dom-server": [
         "./node_modules/@types/react-dom/server.d.ts"
+      ],
+      // App Router's response helpers, as native-rsc-runtime's bridge imports them.
+      "next/dist/server/lib/cache-control": [
+        "./src/server/lib/cache-control.ts"
+      ],
+      "next/dist/server/pipe-readable": ["./src/server/pipe-readable.ts"],
+      "next/dist/server/web/spec-extension/adapters/next-request": [
+        "./src/server/web/spec-extension/adapters/next-request.ts"
       ]
     }
   },

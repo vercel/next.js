@@ -27,7 +27,9 @@ use crate::{
 
 /// Computes the entry for a page on the native RSC runtime (`experimental_nativeRscRuntime =
 /// true`). Unlike [`get_app_page_entry`](super::get_app_page_entry), the entry imports nothing
-/// from App Router: only the renderer's precompiled bundles, the root layout, and the page.
+/// from App Router: only the renderer's precompiled bundles, the bridge, the root layout, and the
+/// page. Its `handler` is what the deployment adapter's launcher (and router-server, under
+/// `next start`) calls.
 ///
 /// Only a page directly inside the root layout is supported so far. Any other file structure or
 /// segment export the route uses is a build error, never a fallback to App Router.
@@ -156,6 +158,9 @@ pub async fn get_app_page_native_rsc_runtime_entry(
     // The precompiled bundles of the renderer. `next start` runs on Node, in production.
     let renderer_rsc = "next/dist/native-rsc-runtime/rsc.node.prod.js";
     let renderer_ssr = "next/dist/native-rsc-runtime/ssr.node.prod.js";
+    // The bridge for hosts of the deployment adapter contract, which owns HTTP and calls the
+    // renderer.
+    let bridge = "next/dist/native-rsc-runtime/bridge.node.adapter.prod.js";
     let inner_root_layout = rcstr!("INNER_ROOT_LAYOUT");
     let inner_page = rcstr!("INNER_PAGE");
     let source = load_next_js_template_no_imports(
@@ -164,6 +169,7 @@ pub async fn get_app_page_native_rsc_runtime_entry(
         &[
             ("VAR_RENDERER_RSC", renderer_rsc),
             ("VAR_RENDERER_SSR", renderer_ssr),
+            ("VAR_BRIDGE", bridge),
             ("VAR_ROOT_LAYOUT", &inner_root_layout),
             ("VAR_PAGE", &inner_page),
         ],

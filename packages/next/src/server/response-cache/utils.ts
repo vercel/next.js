@@ -92,7 +92,9 @@ export function routeKindToIncrementalCacheKind(
       return IncrementalCacheKind.APP_ROUTE
     case RouteKind.PAGES_API:
     case RouteKind.APP_ROUTE_GO:
-      // Pages Router API routes and Go routes are not incrementally cached.
+    case RouteKind.APP_PAGE_NATIVE_RSC_RUNTIME:
+      // Pages Router API routes, Go routes, and pages on the native RSC runtime
+      // are not incrementally cached.
       throw new Error(`Unexpected route kind ${routeKind}`)
     default:
       return routeKind satisfies never
