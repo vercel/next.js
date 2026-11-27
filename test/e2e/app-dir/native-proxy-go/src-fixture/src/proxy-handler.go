@@ -5,7 +5,7 @@ import (
 	"next/go/proxy"
 )
 
-func Proxy(w http.ResponseWriter, r *http.Request) {
+func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-src-proxy", "yes")
 	if r.URL.Path == "/native-proxy/rewrite" || r.URL.Query().Get("override") == "1" {
 		headers := r.Header.Clone()

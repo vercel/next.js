@@ -98,7 +98,7 @@ async function expectProxyGoError(
   if (isNextDev) {
     await next.start()
     try {
-      await next.fetch('/')
+      expect((await next.fetch('/')).status).toBe(500)
       await retry(() => {
         expect(next.cliOutput).toContain(message)
       })
@@ -1071,6 +1071,28 @@ describe('native-proxy-go in src with Go route handlers', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('x-src-proxy')).toBe('yes')
     expect(await response.text()).toBe('native handler: proxy')
+  })
+
+  it('requires Proxy to be declared in proxy.go instead of a sibling', async () => {
+    await next.stop()
+    const proxy = await next.readFile('src/proxy.go')
+    const helper = await next.readFile('src/proxy-handler.go')
+    try {
+      await next.patchFile('src/proxy.go', 'package proxy\n')
+      await next.patchFile(
+        'src/proxy-handler.go',
+        helper +
+          '\nfunc Proxy(w http.ResponseWriter, r *http.Request) { proxyHandler(w, r) }\n'
+      )
+      await expectProxyGoError(
+        next,
+        isNextDev,
+        'proxy.go must declare func Proxy(http.ResponseWriter, *http.Request)'
+      )
+    } finally {
+      await next.patchFile('src/proxy.go', proxy)
+      await next.patchFile('src/proxy-handler.go', helper)
+    }
   })
 
   it('rejects src/pages routes with src/proxy.go', async () => {

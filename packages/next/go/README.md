@@ -131,9 +131,10 @@ Matcher conditions and paths use the existing Next.js validation.
 
 ## Static analysis
 
-Static configuration is read only from the entrypoint file by Turbopack's Go
-parser. HTTP method handlers and the `Proxy` function can also be declared in
-compiled sibling `.go` files. Configuration values must be literals: calls,
+Turbopack's Go parser reads handlers and static configuration only from the
+entrypoint file. HTTP method handlers must be declared in `route.go`, and the
+`Proxy` function must be declared in `proxy.go`. Sibling `.go` files compile with
+the entrypoint and can provide helpers. Configuration values must be literals: calls,
 environment reads, references to other variables or constants, arithmetic, and
 other computed expressions are build errors. No application code is executed to discover
 configuration, and runtime changes to these values do not configure Next.js.
