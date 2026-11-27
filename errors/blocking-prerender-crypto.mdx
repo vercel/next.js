@@ -184,11 +184,12 @@ When you want to rotate the token on a schedule or in response to an event, tag 
 
 ```jsx filename="app/page.js"
 import { cacheTag } from 'next/cache'
+import { randomBytes } from 'node:crypto'
 
 async function getApiToken() {
   'use cache'
   cacheTag('api-token')
-  return crypto.randomBytes(32).toString('hex')
+  return randomBytes(32).toString('hex')
 }
 ```
 

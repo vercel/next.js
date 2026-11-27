@@ -212,7 +212,7 @@ export function Avatar() {
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setColor(`#${Math.random().toString(16).slice(2, 8)}`)
+      setColor(`#${Math.random().toString(16).slice(2, 8).padEnd(6, '0')}`)
     })
   }, [])
   return <div style={{ background: color }} />
