@@ -1,0 +1,7 @@
+$color: red;
+
+@layer shader-test {
+  #styled {
+    color: $color;
+  }
+}
