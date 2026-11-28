@@ -543,7 +543,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const childRef: any = legacyBehavior
-      ? child && typeof child === 'object' && child.ref
+      ? child && typeof child === 'object' && child.props.ref
       : forwardedRef
 
     const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
