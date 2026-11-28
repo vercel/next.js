@@ -1,5 +1,9 @@
 const path = require('node:path')
 const fs = require('node:fs')
+const { Module } = require('node:module')
+
+const virtualModule = new Module('virtual', module)
+virtualModule.loaded = true
 
 const loader = async function (content) {
   this.async()
@@ -15,9 +19,62 @@ const loader = async function (content) {
     )
   }
 
-  const directoryBuildDependency = this.resourcePath.endsWith(
-    'directory-build-dependency.ts'
-  )
+  const resourceName = path.basename(this.resourcePath)
+  if (resourceName === 'external-build-dependency.ts') {
+    const value = require(process.env.EXTERNAL_BUILD_DEPENDENCY)
+    return this.callback(
+      null,
+      `export const utilFn = () => ${JSON.stringify(value)};`
+    )
+  }
+  if (resourceName === 'native-build-dependency.ts') {
+    // Model a native addon already loaded by Node outside the project's watched roots.
+    const { Module } = require('node:module')
+    const filename = process.env.NATIVE_BUILD_DEPENDENCY
+    const nativeModule = new Module(filename, module)
+    nativeModule.filename = filename
+    nativeModule.loaded = true
+    require.cache[filename] = nativeModule
+    return this.callback(
+      null,
+      `export const utilFn = () => ${JSON.stringify(fs.readFileSync(filename, 'utf8'))};`
+    )
+  }
+  if (resourceName === 'dynamic-build-dependency.ts') {
+    const dependency = process.env.DYNAMIC_BUILD_DEPENDENCY
+    this.addBuildDependency(require.resolve(dependency))
+    const value = require(dependency)
+    return this.callback(
+      null,
+      `export const utilFn = () => ${JSON.stringify(`dynamic: ${value}`)};`
+    )
+  }
+  if (resourceName === 'tracking-build-dependency.ts') {
+    const cached = require('./tracking/cached')
+    this.addBuildDependency(path.join(__dirname, 'tracking', 'uncached.mjs'))
+    const uncached = fs
+      .readFileSync(
+        path.join(__dirname, 'tracking', 'uncached-value.js'),
+        'utf8'
+      )
+      .match(/'([^']+)'/)[1]
+    return this.callback(
+      null,
+      `export const utilFn = () => ${JSON.stringify(`${cached}; uncached: ${uncached}`)};`
+    )
+  }
+  if (resourceName === 'unresolved-build-dependency.ts') {
+    this.addBuildDependency('missing-build-dependency-package/')
+    this.addBuildDependency('missing-build-dependency-module')
+    return this.callback(
+      null,
+      "export const utilFn = () => 'unresolved dependency warning';"
+    )
+  }
+  const directoryBuildDependency =
+    resourceName === 'directory-build-dependency.ts'
+  const packageDirectoryBuildDependency =
+    resourceName === 'package-directory-build-dependency.ts'
   if (directoryBuildDependency) {
     const packageDirectory = path.join(__dirname, 'build-dependency-package')
     const nestedEntry = path.join(packageDirectory, 'nested', 'value.js')
@@ -58,6 +115,25 @@ const loader = async function (content) {
     return this.callback(
       null,
       `export const utilFn = () => 'ESM build dependency: ${packageValue}, generated at ${new Date().toISOString()}';`
+    )
+  }
+
+  if (packageDirectoryBuildDependency) {
+    this.addBuildDependency('directory-only-package/')
+    const value = fs
+      .readFileSync(
+        path.join(
+          __dirname,
+          'node_modules',
+          'directory-only-package',
+          'data.txt'
+        ),
+        'utf8'
+      )
+      .trim()
+    return this.callback(
+      null,
+      `export const utilFn = () => 'package directory build dependency: ${value}';`
     )
   }
 

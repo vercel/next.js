@@ -23,6 +23,7 @@ use turbo_tasks_fs::{
     rope::Rope,
     to_sys_path,
 };
+use turbo_unix_path::sys_to_unix;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::any_source_content_changed_of_module,
@@ -73,6 +74,11 @@ use crate::{
     source_map::{StackFrame, StructuredError},
     transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
 };
+
+// Webpack parses uncached .js and .mjs build dependencies as ESM. Turbopack's config tracer also
+// supports the corresponding explicit CommonJS and TypeScript extensions.
+const TRACEABLE_BUILD_DEPENDENCY_EXTENSIONS: [&str; 6] =
+    [".js", ".cjs", ".mjs", ".ts", ".cts", ".mts"];
 
 #[serde_as]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Encode, Decode)]
@@ -244,11 +250,16 @@ async fn webpack_loaders_executor(
     ))
 }
 
-async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath> {
+async fn try_loader_path(cwd: &FileSystemPath, path: &str) -> Result<Option<FileSystemPath>> {
     let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(cwd.fs)
         .context("webpack loader working directory must be on a disk filesystem")?;
     fs.await?
         .try_from_sys_path_across_roots(fs, Path::new(path), cwd)
+        .await
+}
+
+async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath> {
+    try_loader_path(cwd, path)
         .await?
         .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))
 }
@@ -277,49 +288,58 @@ async fn register_loader_stat_dependencies(cwd: &FileSystemPath, file: &str) -> 
     Ok(())
 }
 
-// TODO: This creates a task that's keyed on the list of file paths, which might churn through tasks
-// (creating more pressure for task GC).
-#[turbo_tasks::function]
-async fn build_files_changed(
-    paths: Vec<FileSystemPath>,
-    source: ResolvedVc<Box<dyn Source>>,
-) -> Result<Vc<Completion>> {
-    for path in paths {
-        let entry_type = path.get_type().await?;
-        let supported = match &*entry_type {
-            FileSystemEntryType::File => {
-                path.read().await?;
-                true
-            }
-            FileSystemEntryType::NotFound => {
-                path.read().await?;
-                false
-            }
-            FileSystemEntryType::Directory
-            | FileSystemEntryType::Symlink
-            | FileSystemEntryType::Other
-            | FileSystemEntryType::Error => false,
-        };
-        if !supported {
-            BuildDependencyIssue {
-                source: IssueSource::from_source_only(source),
-                path,
-            }
-            .resolved_cell()
-            .emit();
-        }
+async fn build_dependency_path(
+    cwd: &FileSystemPath,
+    path: &RcStr,
+) -> Result<Option<FileSystemPath>> {
+    let path = try_loader_path(cwd, path).await?;
+    if path.is_none() {
+        Completion::session_dependent().await?;
     }
+    Ok(path)
+}
+
+async fn build_dependency_paths(
+    cwd: &FileSystemPath,
+    paths: &[RcStr],
+) -> Result<Vec<FileSystemPath>> {
+    Ok(paths
+        .iter()
+        .map(|path| build_dependency_path(cwd, path))
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten()
+        .collect())
+}
+
+#[turbo_tasks::function]
+async fn build_files_changed(paths: Vec<FileSystemPath>) -> Result<Vc<Completion>> {
+    paths
+        .iter()
+        .map(async |path| {
+            let realpath = path.realpath_with_links().await?;
+            for symlink in realpath.symlinks.iter() {
+                symlink.read_link().await?;
+            }
+            match &realpath.path_result {
+                Ok(path)
+                    if matches!(
+                        &*path.get_type().await?,
+                        FileSystemEntryType::File | FileSystemEntryType::NotFound
+                    ) =>
+                {
+                    path.read().await?;
+                }
+                _ => {}
+            }
+            Ok::<_, anyhow::Error>(())
+        })
+        .try_join()
+        .await?;
     Ok(Completion::new())
 }
 
-/// Returns a completion that changes when any of the loader modules (or their
-/// transitive dependencies) change. This makes editing a loader file invalidate
-/// the cached transform of every module processed by that loader.
-///
-/// Loaders are resolved relative to the resource's directory, matching webpack
-/// semantics (`paths: [contextDir, resourceDir]` in `webpack-loaders.ts`).
-/// Loaders that fail to resolve are skipped so that the transform degrades to
-/// the previous (non-invalidating) behavior instead of breaking the build.
 #[turbo_tasks::function]
 async fn loaders_changed(
     loaders: Vc<WebpackLoaderItems>,
@@ -328,8 +348,7 @@ async fn loaders_changed(
     resolve_options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<Completion>> {
     let options = resolve_options(project_path.clone(), resolve_options_context);
-    let origin_path = project_path.clone().join("_")?;
-
+    let origin_path = project_path.join("_")?;
     let completions = loaders
         .await?
         .iter()
@@ -344,9 +363,230 @@ async fn loaders_changed(
                 .await?;
             result
                 .primary_modules_raw_iter()
-                .map(|m| any_source_content_changed_of_module(*m).to_resolved())
+                .map(|module| any_source_content_changed_of_module(*module).to_resolved())
                 .try_join()
                 .await
+        })
+        .try_flat_join()
+        .await?;
+    Ok(Vc::<Completions>::cell(completions).completed())
+}
+
+/// Tracks the build dependencies a loader evaluation reported. Paths are relative to `cwd` or
+/// absolute; webpack loaders report them relative so they stay valid task inputs across machines.
+#[turbo_tasks::function]
+async fn build_dependencies_changed(
+    cwd: FileSystemPath,
+    tracing_context: Vc<Box<dyn AssetContext>>,
+    file_paths: Vec<RcStr>,
+    module_paths: Vec<RcStr>,
+    package_lookups: Vec<(RcStr, RcStr, RcStr)>,
+) -> Result<Vc<Completion>> {
+    let file_paths = build_dependency_paths(&cwd, &file_paths).await?;
+    let files = async {
+        build_files_changed(file_paths.clone()).await?;
+        Ok::<_, anyhow::Error>(())
+    };
+    let modules = async {
+        build_modules_changed(
+            tracing_context,
+            build_dependency_paths(&cwd, &module_paths).await?,
+        )
+        .await?;
+        Ok::<_, anyhow::Error>(())
+    };
+    let lookups = async {
+        let lookups = async {
+            let package_lookups = package_lookups
+                .iter()
+                .map(async |(lookup_path, package, package_root)| {
+                    Ok::<_, anyhow::Error>(
+                        match (
+                            build_dependency_path(&cwd, lookup_path).await?,
+                            build_dependency_path(&cwd, package_root).await?,
+                        ) {
+                            (Some(directory), Some(package_root)) => Some(PackageLookup {
+                                directory,
+                                package: package.clone(),
+                                package_root,
+                            }),
+                            _ => None,
+                        },
+                    )
+                })
+                .try_flat_join()
+                .await?;
+            // Every reached file may have been loaded through a relative request.
+            build_lookups_changed(package_lookups, file_paths.clone()).await?;
+            Ok::<_, anyhow::Error>(())
+        };
+        // Lookup tracking only avoids re-evaluating after a restart. Failing to track a lookup
+        // Node itself skipped, such as an unreadable directory, must not fail the transform.
+        if lookups.await.is_err() {
+            Completion::session_dependent().await?;
+        }
+        Ok::<_, anyhow::Error>(())
+    };
+    try_join!(files, modules, lookups)?;
+    Ok(Completion::new())
+}
+
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
+struct PackageLookup {
+    directory: FileSystemPath,
+    package: RcStr,
+    package_root: FileSystemPath,
+}
+
+/// Groups the resolution tracking of cached CommonJS children, so transforms that reach the same
+/// modules share one task.
+#[turbo_tasks::function]
+async fn build_lookups_changed(
+    package_lookups: Vec<PackageLookup>,
+    relative_lookups: Vec<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    let package_lookups = package_lookups
+        .into_iter()
+        .map(async |lookup| {
+            node_modules_lookup_changed(lookup.directory, lookup.package, lookup.package_root)
+                .await?;
+            Ok::<_, anyhow::Error>(())
+        })
+        .try_join();
+    let relative_lookups = relative_lookups
+        .into_iter()
+        .map(async |path| {
+            relative_lookup_changed(path).await?;
+            Ok::<_, anyhow::Error>(())
+        })
+        .try_join();
+    try_join!(package_lookups, relative_lookups)?;
+    Ok(Completion::new())
+}
+
+/// Tracks Node's lookup of a bare `package` request from `directory` that loaded the package at
+/// `package_root`: every `node_modules/<package>` candidate before the one Node used, including
+/// symlinks, manifests, and contents. Installing a nearer copy, retargeting a link, or changing
+/// `exports`/`main` invalidates it.
+#[turbo_tasks::function]
+async fn node_modules_lookup_changed(
+    directory: FileSystemPath,
+    package: RcStr,
+    package_root: FileSystemPath,
+) -> Result<Vc<Completion>> {
+    // The name comes from the package's manifest. One that is not a plain package path cannot be
+    // looked up, so fall back to re-evaluating after a restart.
+    if package.contains('\\')
+        || package
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        Completion::session_dependent().await?;
+        return Ok(Completion::new());
+    }
+    let mut directory = directory;
+    loop {
+        if directory.file_name() != "node_modules" {
+            let candidate = directory.join(&format!("node_modules/{package}"))?;
+            let realpath = candidate.realpath_with_links().await?;
+            for symlink in realpath.symlinks.iter() {
+                symlink.read_link().await?;
+            }
+            if let Ok(path) = &realpath.path_result
+                && matches!(&*path.get_type().await?, FileSystemEntryType::Directory)
+            {
+                path.join("package.json")?.read().await?;
+                if *path == package_root {
+                    return Ok(Completion::new());
+                }
+                // Node skips a candidate that lacks the requested file.
+                path.read_dir().await?;
+            }
+        }
+        if directory.is_root() {
+            break;
+        }
+        directory = directory.parent();
+    }
+    // Node found the package somewhere this lookup does not model, such as `NODE_PATH`.
+    Completion::session_dependent().await?;
+    Ok(Completion::new())
+}
+
+/// Tracks the candidates Node tries before `path` for a relative request: the extensionless file
+/// for `./name`, and for a directory index, the directory's own file candidates and manifest.
+#[turbo_tasks::function]
+async fn relative_lookup_changed(path: FileSystemPath) -> Result<Vc<Completion>> {
+    const EXTENSIONS: [&str; 3] = [".js", ".json", ".node"];
+    let name = path.file_name();
+    if let Some(extension) = EXTENSIONS
+        .iter()
+        .find(|extension| name.ends_with(*extension))
+    {
+        let stem = &name[..name.len() - extension.len()];
+        let directory = path.parent();
+        directory.join(stem)?.get_type().await?;
+        if stem == "index" && !directory.is_root() {
+            let base = directory.parent();
+            let directory_name = directory.file_name();
+            for extension in ["", ".js", ".json", ".node"] {
+                base.join(&format!("{directory_name}{extension}"))?
+                    .get_type()
+                    .await?;
+            }
+            directory.join("package.json")?.read().await?;
+        }
+    }
+    Ok(Completion::new())
+}
+
+#[turbo_tasks::function]
+async fn build_modules_changed(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    paths: Vec<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    let completions = paths
+        .into_iter()
+        .map(async |path| {
+            let realpath = path.realpath_with_links().await?;
+            for symlink in realpath.symlinks.iter() {
+                symlink.read_link().await?;
+            }
+            let path = match &realpath.path_result {
+                Ok(realpath) => realpath.clone(),
+                Err(_) => return Ok(vec![]),
+            };
+            if !matches!(
+                &*path.get_type().await?,
+                FileSystemEntryType::File | FileSystemEntryType::NotFound
+            ) {
+                return Ok(vec![]);
+            }
+            path.read().await?;
+
+            let mut completions = vec![Completion::new().to_resolved().await?];
+            let path_string = path.to_string();
+            let trace_module = TRACEABLE_BUILD_DEPENDENCY_EXTENSIONS
+                .iter()
+                .any(|extension| path_string.ends_with(extension));
+            if trace_module
+                && matches!(&*path.get_type().await?, FileSystemEntryType::File)
+                && let Some(module) = *asset_context
+                    .process(
+                        Vc::upcast(FileSource::new(path)),
+                        ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+                    )
+                    .try_into_module()
+                    .await?
+            {
+                completions.push(
+                    any_source_content_changed_of_module(*module)
+                        .to_resolved()
+                        .await?,
+                );
+            }
+            Ok(completions)
         })
         .try_flat_join()
         .await?;
@@ -359,6 +599,8 @@ async fn build_dependency_requests_changed(
     cwd: FileSystemPath,
     requests: Vec<(RcStr, bool)>,
     source: ResolvedVc<Box<dyn Source>>,
+    tracing_context: Vc<Box<dyn AssetContext>>,
+    known_module_paths: Vec<FileSystemPath>,
 ) -> Result<Vc<Completion>> {
     for (request, is_directory) in requests {
         let request_path = cwd.join(&request)?;
@@ -375,7 +617,46 @@ async fn build_dependency_requests_changed(
             continue;
         }
         let path = if is_directory {
-            request_path.clone()
+            match &*Request::parse(Pattern::Constant(request.clone())).await? {
+                Request::Module {
+                    module: Pattern::Constant(module),
+                    path: Pattern::Constant(subpath),
+                    ..
+                } => {
+                    // Webpack's directory resolver ignores exports and does not require a module
+                    // entry. Track each candidate so a nearer package invalidates this lookup.
+                    let mut directory = cwd.clone();
+                    let path = loop {
+                        let candidate =
+                            directory.join(&format!("node_modules/{module}{subpath}"))?;
+                        let realpath = candidate.realpath_with_links().await?;
+                        for symlink in realpath.symlinks.iter() {
+                            symlink.read_link().await?;
+                        }
+                        if let Ok(path) = &realpath.path_result
+                            && matches!(&*path.get_type().await?, FileSystemEntryType::Directory)
+                        {
+                            break Some(path.clone());
+                        }
+                        if directory.is_root() {
+                            break None;
+                        }
+                        directory = directory.parent();
+                    };
+                    let Some(path) = path else {
+                        UnresolvedBuildDependencyIssue {
+                            source: IssueSource::from_source_only(source),
+                            request,
+                            error: None,
+                        }
+                        .resolved_cell()
+                        .emit();
+                        continue;
+                    };
+                    path
+                }
+                _ => request_path.clone(),
+            }
         } else {
             let parsed_request = Request::parse(Pattern::Constant(request.clone()));
             let options = if request.ends_with(".mjs") {
@@ -412,6 +693,9 @@ async fn build_dependency_requests_changed(
         let supported = match &*entry_type {
             FileSystemEntryType::File if !is_directory => {
                 path.read().await?;
+                if !known_module_paths.contains(&path) {
+                    build_modules_changed(tracing_context, vec![path.clone()]).await?;
+                }
                 true
             }
             FileSystemEntryType::Directory if is_directory => {
@@ -509,6 +793,7 @@ impl WebpackLoadersProcessedAsset {
                 context_source_for_issue: self.source,
                 chunking_context: *chunking_context,
                 evaluate_context: transform.evaluate_context,
+                build_dependency_context: transform.config_tracing_context,
                 module_graph,
                 resolve_options_context: Some(transform.resolve_options_context),
                 asset_context: self.asset_context,
@@ -624,8 +909,7 @@ pub(super) struct LogInfo {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(super) enum InfoMessage {
     // Sent to inform Turbopack about the dependencies of the task.
-    // All fields are `default` since it is ok for the client to
-    // simply omit instead of sending empty arrays.
+    // All fields are `default` so clients can omit unused dependency information.
     #[serde(rename_all = "camelCase")]
     Dependencies {
         #[serde(default)]
@@ -638,6 +922,10 @@ pub(super) enum InfoMessage {
         build_file_paths: Vec<RcStr>,
         #[serde(default)]
         build_dependency_requests: Vec<(RcStr, bool)>,
+        #[serde(default)]
+        build_module_paths: Vec<RcStr>,
+        #[serde(default)]
+        build_package_lookups: Vec<(RcStr, RcStr, RcStr)>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -666,6 +954,12 @@ pub struct WebpackResolveOptions {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(super) enum RequestMessage {
+    #[serde(rename_all = "camelCase")]
+    ResolveLoader {
+        lookup_paths: Vec<RcStr>,
+        request: RcStr,
+        resolved_path: RcStr,
+    },
     #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
@@ -719,6 +1013,7 @@ pub(super) struct WebpackLoaderContext {
     pub(super) module_graph: ResolvedVc<ModuleGraph>,
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub(super) evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub(super) build_dependency_context: ResolvedVc<Box<dyn AssetContext>>,
     pub(super) resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub(super) asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub(super) args: Vec<EvaluateArg>,
@@ -823,10 +1118,20 @@ impl EvaluateContext for WebpackLoaderContext {
                 directories,
                 build_file_paths,
                 build_dependency_requests,
+                build_module_paths,
+                build_package_lookups,
             } => {
                 // We only process these dependencies to help with tracking, so if it is disabled
                 // dont bother.
                 if turbo_tasks::turbo_tasks().is_tracking_dependencies() {
+                    // Canonicalize dependency sets so their ordering does not create new task keys.
+                    let normalize = |mut paths: Vec<RcStr>| {
+                        paths.sort_unstable();
+                        paths.dedup();
+                        paths
+                    };
+                    let build_file_paths = normalize(build_file_paths);
+
                     // Track dependencies of the loader task
                     // TODO: Because these are reported _after_ the loader actually read the
                     // dependency there is a race condition where we may miss
@@ -842,25 +1147,30 @@ impl EvaluateContext for WebpackLoaderContext {
                         .iter()
                         .map(async |p| loader_path(&self.cwd, p).await?.read().await)
                         .try_join();
-                    let build_file_subscriptions = async {
-                        // Resolve to `FileSystemPath`s before calling the task: system paths
-                        // aren't valid task inputs, as they aren't portable across machines.
-                        let build_file_paths = build_file_paths
-                            .iter()
-                            .map(|p| loader_path(&self.cwd, p))
-                            .try_join()
-                            .await?;
-                        build_files_changed(build_file_paths, *self.context_source_for_issue)
-                            .await?;
+                    // Transforms by the same loaders report the same build dependencies, so they
+                    // share one task instead of each converting every path.
+                    let build_dependency_subscriptions = async {
+                        build_dependencies_changed(
+                            self.cwd.clone(),
+                            *self.build_dependency_context,
+                            build_file_paths.clone(),
+                            normalize(build_module_paths),
+                            build_package_lookups,
+                        )
+                        .await?;
                         Ok::<_, anyhow::Error>(())
                     };
                     let build_dependency_request_subscriptions = async {
-                        build_dependency_requests_changed(
-                            self.cwd.clone(),
-                            build_dependency_requests,
-                            *self.context_source_for_issue,
-                        )
-                        .await?;
+                        if !build_dependency_requests.is_empty() {
+                            build_dependency_requests_changed(
+                                self.cwd.clone(),
+                                build_dependency_requests,
+                                *self.context_source_for_issue,
+                                *self.build_dependency_context,
+                                build_dependency_paths(&self.cwd, &build_file_paths).await?,
+                            )
+                            .await?;
+                        }
                         Ok::<_, anyhow::Error>(())
                     };
                     let directory_subscriptions = directories
@@ -875,7 +1185,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     try_join!(
                         env_subscriptions,
                         file_subscriptions,
-                        build_file_subscriptions,
+                        build_dependency_subscriptions,
                         build_dependency_request_subscriptions,
                         directory_subscriptions
                     )?;
@@ -907,6 +1217,73 @@ impl EvaluateContext for WebpackLoaderContext {
         _pool: &EvaluatePool,
     ) -> Result<Self::ResponseMessage> {
         match data {
+            RequestMessage::ResolveLoader {
+                lookup_paths,
+                request,
+                resolved_path,
+            } => {
+                let (paths, parsed_request) = if Path::new(&*request).has_root() {
+                    let Some(path) = build_dependency_path(&self.cwd, &request).await? else {
+                        return Ok(ResponseMessage::Resolve {
+                            path: resolved_path,
+                        });
+                    };
+                    let parent = path.parent();
+                    let relative = parent
+                        .get_relative_request_to(&path)
+                        .context("loader path must be on its parent's filesystem")?;
+                    (
+                        vec![parent],
+                        Request::relative(
+                            Pattern::Constant(relative),
+                            RcStr::default(),
+                            RcStr::default(),
+                            false,
+                        ),
+                    )
+                } else {
+                    (
+                        lookup_paths
+                            .iter()
+                            .map(|path| loader_path(&self.cwd, path))
+                            .try_join()
+                            .await?,
+                        Request::parse(Pattern::Constant(RcStr::from(sys_to_unix(&request)))),
+                    )
+                };
+                // Node chooses the file using its active conditions and runtime flags. Track
+                // all conditional branches so changing exports invalidates the evaluation
+                // without having to reproduce Node's version-dependent condition set.
+                let mut options = node_cjs_resolve_options().owned().await?;
+                for field in &mut options.into_package {
+                    if let ResolveIntoPackage::ExportsField {
+                        conditions,
+                        unspecified_conditions,
+                    } = field
+                    {
+                        conditions.clear();
+                        *unspecified_conditions = ConditionValue::Unknown;
+                    }
+                }
+                for field in &mut options.in_package {
+                    if let ResolveInPackage::ImportsField {
+                        conditions,
+                        unspecified_conditions,
+                    } = field
+                    {
+                        conditions.clear();
+                        *unspecified_conditions = ConditionValue::Unknown;
+                    }
+                }
+                let options = options.cell();
+                for path in paths {
+                    resolve(path, ReferenceType::Undefined, parsed_request, options).await?;
+                }
+                build_dependency_path(&self.cwd, &resolved_path).await?;
+                Ok(ResponseMessage::Resolve {
+                    path: resolved_path,
+                })
+            }
             RequestMessage::Resolve {
                 options: webpack_options,
                 lookup_path,
@@ -929,7 +1306,6 @@ impl EvaluateContext for WebpackLoaderContext {
                 );
 
                 if let Some(source) = resolved.await?.first_source() {
-                    // Always return absolute paths from the resolve function.
                     let path = to_sys_path(source.ident().await?.path.clone())
                         .await?
                         .context("resolved path is not on a disk filesystem")?;
@@ -1209,7 +1585,6 @@ async fn apply_webpack_resolve_options(
     Ok(resolve_options.cell())
 }
 
-/// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 struct BuildDependencyIssue {
     path: FileSystemPath,
@@ -1222,21 +1597,17 @@ impl Issue for BuildDependencyIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
-
     async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(rcstr!(
             "Unsupported webpack loader build dependency"
         )))
     }
-
     fn stage(&self) -> IssueStage {
         IssueStage::Unsupported
     }
-
     async fn file_path(&self) -> Result<FileSystemPath> {
         self.source.file_path().await
     }
-
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Line(vec![
             StyledString::Text(rcstr!("The path at ")),
@@ -1248,7 +1619,6 @@ impl Issue for BuildDependencyIssue {
             ),
         ])))
     }
-
     fn source(&self) -> Option<IssueSource> {
         Some(self.source)
     }
@@ -1267,21 +1637,17 @@ impl Issue for UnresolvedBuildDependencyIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
-
     async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(rcstr!(
             "Unable to resolve webpack loader build dependency"
         )))
     }
-
     fn stage(&self) -> IssueStage {
         IssueStage::Resolve
     }
-
     async fn file_path(&self) -> Result<FileSystemPath> {
         self.source.file_path().await
     }
-
     async fn description(&self) -> Result<Option<StyledString>> {
         let mut description = vec![
             StyledString::Text(rcstr!("The build dependency request ")),
@@ -1295,7 +1661,6 @@ impl Issue for UnresolvedBuildDependencyIssue {
         }
         Ok(Some(StyledString::Line(description)))
     }
-
     fn source(&self) -> Option<IssueSource> {
         Some(self.source)
     }
