@@ -161,16 +161,16 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   webServer: {
     command: 'node .next/standalone/server.js',
-    url: 'http://localhost:3000',
-    env: { PORT: '3000' },
+    url: 'http://127.0.0.1:3000',
+    env: { PORT: '3000', HOSTNAME: '127.0.0.1' },
   },
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://127.0.0.1:3000',
   },
 })
 ```
 
-Keep `PORT` and `url` in sync so Playwright waits for the port the server listens on.
+Keep `HOSTNAME` and `PORT` in sync with `url` and `baseURL` so Playwright waits for and tests the address the server listens on.
 
 ### Running Playwright on Continuous Integration (CI)
 
