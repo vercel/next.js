@@ -860,14 +860,19 @@ export class NextScript extends React.Component<OriginProps> {
     try {
       const data = JSON.stringify(__NEXT_DATA__)
 
-      if (largePageDataWarnings.has(__NEXT_DATA__.page)) {
+      if (
+        !largePageDataBytes ||
+        largePageDataWarnings.has(__NEXT_DATA__.page) ||
+        // UTF-8 uses at most 3 bytes per UTF-16 code unit
+        data.length * 3 <= largePageDataBytes
+      ) {
         return htmlEscapeJsonString(data)
       }
 
       const bytes =
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength
-          : Buffer.from(data).byteLength
+          : Buffer.byteLength(data, 'utf8')
       const prettyBytes = (
         require('../lib/pretty-bytes') as typeof import('../lib/pretty-bytes')
       ).default
