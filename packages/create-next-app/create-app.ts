@@ -214,12 +214,13 @@ export async function createApp({
       )
     }
 
-    // Copy `next-env.d.ts` to any example that is typescript
+    // Copy `next-env.d.ts` to any example that is typescript if it did not provide one
     const tsconfigPath = join(root, 'tsconfig.json')
-    if (existsSync(tsconfigPath)) {
+    const nextEnvPath = join(root, 'next-env.d.ts')
+    if (existsSync(tsconfigPath) && !existsSync(nextEnvPath)) {
       copyFileSync(
         getTemplateFile({ template, mode: 'ts', file: 'next-env.d.ts' }),
-        join(root, 'next-env.d.ts')
+        nextEnvPath
       )
     }
 
