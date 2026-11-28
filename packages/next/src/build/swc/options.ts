@@ -540,6 +540,7 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
+        ...swcEnvOptions,
       },
     }
   } else {
