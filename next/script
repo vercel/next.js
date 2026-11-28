@@ -1,0 +1,15 @@
+import Script from 'next/script';
+import { useRouteChange } from './router';
+
+export function ReloadableScript({ src, ...props }) {
+  const routeKey = useRouteChange();
+
+  return (
+    <Script
+      key={routeKey}
+      src={src}
+      strategy="afterInteractive"
+      {...props}
+    />
+  );
+}
