@@ -353,6 +353,9 @@ describe('bundled docs as Markdown', () => {
       '  </AppOnly>',
       '',
       '  Last line with a <Check size={18} /> in it.',
+      "  <span style={{ fontSize: '0.875rem', opacity: 0.7 }}>",
+      '    A caption.',
+      '  </span>',
       '</div>',
     ].join('\n')
     const output = toMarkdown(source, { relativePath: '01-app/page.mdx' })
@@ -363,7 +366,7 @@ describe('bundled docs as Markdown', () => {
     expect(output).toContain('Only for the App Router.')
     expect(output).not.toContain('Pages Router')
     expect(output).toContain('Last line with a ✓ in it.')
-    expect(output).not.toMatch(/<\/?(div|AppOnly|PagesOnly|Image)\b/)
+    expect(output).not.toMatch(/<\/?(div|span|AppOnly|PagesOnly|Image)\b/)
     // Nothing indented is left, and no line lost its first characters.
     for (const line of output.split('\n')) expect(line).not.toMatch(/^\s+\S/)
     expect(output.split('\n').filter(Boolean)).toEqual([
@@ -371,6 +374,7 @@ describe('bundled docs as Markdown', () => {
       expect.stringMatching(/^!\[Diagram\]/),
       'Only for the App Router.',
       'Last line with a ✓ in it.',
+      'A caption.',
     ])
   })
 
@@ -475,6 +479,8 @@ describe('bundled docs as Markdown', () => {
           const text = line.replace(/`+[^`]*`+/g, '')
           if (
             /\{\/\*/.test(text) ||
+            // Inline CSS, or what is left of it when a cut goes wrong.
+            /style=\{\{|^\s*\}\}\s*>?\s*$/.test(text) ||
             /<span id="[^"]*"\s*\/>/.test(text) ||
             /<\/?(AppOnly|PagesOnly|FixCardGrid|FixCard|Image|Video|Check|Cross)\b/.test(
               text
@@ -488,6 +494,32 @@ describe('bundled docs as Markdown', () => {
             left.push(`${page.name}: ${line.trim()}`)
       }
       expect(left).toEqual([])
+    })
+
+    it('keeps every sentence of a page with no router-specific content', () => {
+      // A cut at the wrong offset eats the text after it. Every plain
+      // sentence the source has on a line of its own must still be there.
+      const lost: string[] = []
+      for (const page of pages) {
+        if (
+          /<\/?(AppOnly|PagesOnly)\b/.test(page.source) ||
+          /^source:/m.test(page.source)
+        )
+          continue
+        const kept = new Set(
+          prose(page.output).lines.map((line) => line.trim())
+        )
+        for (const line of prose(page.source).lines) {
+          const text = line.trim()
+          if (
+            /^[A-Z].*[.:]$/.test(text) &&
+            !/[<>{}]/.test(text.replace(/`+[^`]*`+/g, '')) &&
+            !kept.has(text)
+          )
+            lost.push(`${page.name}: ${text}`)
+        }
+      }
+      expect(lost).toEqual([])
     })
 
     it('leaves no page without a body', () => {

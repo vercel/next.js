@@ -255,23 +255,18 @@ function convertBody(parse, body, router) {
     if (node.type === 'mdxJsxFlowElement') replaceFlow(node, text)
     else edits.push({ start: start(node), end: end(node), text })
   }
-  /** Text that was indented under a wrapper loses that indentation with it. */
+  /**
+   * Text that was indented under a wrapper loses that indentation with it:
+   * two spaces a wrapper, counted by line so nested wrappers add up.
+   */
+  const indents = new Map()
   const dedent = (from, to) => {
     for (
       let at = body.indexOf('\n', from);
       at !== -1 && at < to;
       at = body.indexOf('\n', at + 1)
     ) {
-      const indent = body.slice(at + 1, at + 3).match(/^ {1,2}/)
-      if (indent) {
-        edits.push({
-          start: at + 1,
-          end: at + 1 + indent[0].length,
-          text: '',
-          // Gives way to an edit of something on the same line (see below).
-          indent: true,
-        })
-      }
+      indents.set(at + 1, (indents.get(at + 1) ?? 0) + 2)
     }
   }
 
@@ -379,13 +374,12 @@ function convertBody(parse, body, router) {
       }
       // A wrapper that only carries inline CSS: keep what is inside it.
       if (
-        node.type === 'mdxJsxFlowElement' &&
-        node.name === 'div' &&
+        (node.name === 'div' || node.name === 'span') &&
         (node.attributes ?? []).length > 0 &&
         node.attributes.every((entry) => entry.name === 'style')
       ) {
         unwrap(node)
-        if (node.children?.length) {
+        if (node.type === 'mdxJsxFlowElement' && node.children?.length) {
           dedent(
             lineStart(start(node.children[0])) - 1,
             end(node.children.at(-1))
@@ -402,12 +396,17 @@ function convertBody(parse, body, router) {
   // A construct inside a dedented wrapper is itself cut or replaced from the
   // start of its line, indentation included, so the dedent of that line is
   // already covered: applying both would shift the text and eat characters.
-  const cuts = edits.filter((edit) => !edit.indent)
   const overlaps = (a, b) =>
     a.start === b.start || (a.start < b.end && b.start < a.end)
-  const applied = edits
-    .filter((edit) => !edit.indent || !cuts.some((cut) => overlaps(edit, cut)))
-    .sort((a, b) => b.start - a.start || b.end - a.end)
+  const dedents = []
+  for (const [at, width] of indents) {
+    const indent = body.slice(at, at + width).match(/^ */)[0].length
+    const edit = { start: at, end: at + indent, text: '' }
+    if (indent && !edits.some((cut) => overlaps(edit, cut))) dedents.push(edit)
+  }
+  const applied = [...edits, ...dedents].sort(
+    (a, b) => b.start - a.start || b.end - a.end
+  )
 
   let out = body
   let from = Infinity
