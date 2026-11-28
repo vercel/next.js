@@ -151,6 +151,8 @@ Run `npm run build` and `npm run start`, then run `npx playwright test` in anoth
 
 > **Good to know**: Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-webserver/) feature to let Playwright start the development server and wait until it's fully available.
 
+If your `next.config.js` uses [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files), `next start` logs a warning and does not run the standalone output. To test the standalone output you deploy, copy the `public` and `.next/static` folders into `.next/standalone` after `npm run build`, then start the server with `node .next/standalone/server.js` instead of `npm run start`. When Playwright's `webServer` starts the server, set the `PORT` and `HOSTNAME` environment variables to match the `url` it waits for.
+
 ### Running Playwright on Continuous Integration (CI)
 
 Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
