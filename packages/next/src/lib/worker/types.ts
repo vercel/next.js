@@ -5,6 +5,7 @@
 //   INITIALIZE  Load the worker module and optionally call its setup() function.
 //   CALL        Invoke an exported method in the worker module.
 //   END         Gracefully shut down the worker process.
+//   NOTIFY      Deliver a payload to the worker module's onNotify() export.
 //
 // Parent messages (child → parent):
 //   OK           A CALL completed successfully — carries the return value.
@@ -20,6 +21,8 @@ export const CHILD_MESSAGE_INITIALIZE = 0
 export const CHILD_MESSAGE_CALL = 1
 /** Gracefully shut down the worker process */
 export const CHILD_MESSAGE_END = 2
+/** Deliver a payload to the worker module's `onNotify()` export, if any */
+export const CHILD_MESSAGE_NOTIFY = 3
 
 /** A CALL completed successfully — carries the return value */
 export const PARENT_MESSAGE_OK = 0
@@ -50,10 +53,16 @@ export type ChildMessageCall = [
 
 export type ChildMessageEnd = [type: typeof CHILD_MESSAGE_END]
 
+export type ChildMessageNotify = [
+  type: typeof CHILD_MESSAGE_NOTIFY,
+  payload: unknown,
+]
+
 export type ChildMessage =
   | ChildMessageInitialize
   | ChildMessageCall
   | ChildMessageEnd
+  | ChildMessageNotify
 
 // Child → Parent message types
 export type ParentMessageOk = [

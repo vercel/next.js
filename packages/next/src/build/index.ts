@@ -193,6 +193,7 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
+import { waitWhileUnderMemoryPressure } from '../lib/memory/pressure'
 import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
@@ -1027,7 +1028,8 @@ const staticWorkerExposedMethods = [
   'getDefinedNamedExports',
   'exportPages',
 ] as const
-export type StaticWorker = typeof import('./worker') & Worker
+// `onNotify` is called by the worker pool, not dispatched from the parent.
+export type StaticWorker = Omit<typeof import('./worker'), 'onNotify'> & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
   options: {
@@ -1943,6 +1945,15 @@ export default async function build(
       })
 
       let shutdownPromise = Promise.resolve()
+      // Turbopack keeps shutting down (e.g. persisting its cache) while the
+      // build moves on. When memory is tight, hold off starting the next
+      // memory-hungry step until it has released its memory.
+      const waitForTurbopackShutdownUnderMemoryPressure = (nextStep: string) =>
+        waitWhileUnderMemoryPressure(shutdownPromise, () =>
+          Log.info(
+            `Memory is low, waiting for Turbopack to release its memory before ${nextStep}`
+          )
+        )
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
           if (config.experimental.goRoutes) {
@@ -2109,6 +2120,7 @@ export default async function build(
         await updateBuildDiagnostics({
           buildStage: 'type-checking',
         })
+        await waitForTurbopackShutdownUnderMemoryPressure('type checking')
         await startTypeChecking(typeCheckingOptions)
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
@@ -2403,6 +2415,7 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
+      await waitForTurbopackShutdownUnderMemoryPressure('collecting page data')
       staticWorker = createStaticWorker(config, {
         numberOfWorkers,
         // Port offset 0: export-page workers get the first debugger port after
@@ -3479,6 +3492,9 @@ export default async function build(
           }
 
           const outdir = path.join(distDir, 'export')
+          await waitForTurbopackShutdownUnderMemoryPressure(
+            'generating static pages'
+          )
           const exportResult = await exportApp(
             dir,
             {
