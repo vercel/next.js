@@ -13,6 +13,8 @@ import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import type { __ApiPreviewProps } from '../../server/api-utils'
+import { PREVIEW_PROPS_MANIFEST } from '../../shared/lib/constants'
 
 const mod = { ..._mod }
 
@@ -77,6 +79,7 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
 const internalHandler: EdgeHandler = async (opts) => {
   let emitInstrumentationSpans: (() => void) | undefined
   let requestStartTime: number | undefined
+  let previewProps = opts.previewProps
   if (process.env.NEXT_RUNTIME !== 'edge') {
     // This mirrors what `RouteModule#prepare` does for routes
     // edge runtime handles loading instrumentation at the edge adapter level
@@ -94,6 +97,18 @@ const internalHandler: EdgeHandler = async (opts) => {
     const distDir = absoluteDistDir
       ? relative(absoluteProjectDir, absoluteDistDir)
       : '.next'
+
+    if (!previewProps) {
+      const { loadManifestFromRelativePath } =
+        require('../../server/load-manifest.external') as typeof import('../../server/load-manifest.external')
+      previewProps = loadManifestFromRelativePath<__ApiPreviewProps>({
+        projectDir: absoluteProjectDir,
+        distDir,
+        manifest: `server/${PREVIEW_PROPS_MANIFEST}`,
+        shouldCache: process.env.NODE_ENV === 'production',
+        handleMissing: true,
+      }) as __ApiPreviewProps | undefined
+    }
 
     // When this request registers `instrumentation.ts`, the adapter emits its
     // lifecycle spans inside the middleware span.
@@ -113,6 +128,7 @@ const internalHandler: EdgeHandler = async (opts) => {
       handler: errorHandledHandler(handlerUserland),
       emitInstrumentationSpans,
       requestStartTime,
+      previewProps,
     })
   } catch (err) {
     // The adapter can throw before it runs the middleware and emits the
