@@ -86,6 +86,10 @@ import {
 import { getBuildDistDir } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
 import {
+  SortVendorChunksPlugin,
+  VENDOR_CHUNK_PREFIX,
+} from './webpack/plugins/sort-vendor-chunks-plugin'
+import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
@@ -1110,11 +1114,11 @@ export default async function getBaseWebpackConfig(
                     const moduleId = module.nameForCondition()!
                     const rootModule = extractRootNodeModule(moduleId)
                     if (rootModule) {
-                      return `vendor-chunks/${rootModule}`
+                      return `${VENDOR_CHUNK_PREFIX}${rootModule}`
                     } else {
                       const hash = crypto.createHash('sha1').update(moduleId)
                       hash.update(moduleId)
-                      return `vendor-chunks/${hash.digest('hex')}`
+                      return `${VENDOR_CHUNK_PREFIX}${hash.digest('hex')}`
                     }
                   },
                 },
@@ -2067,6 +2071,9 @@ export default async function getBaseWebpackConfig(
           }
         ),
       dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
+      // Keep the order of the `vendor-chunks/*` chunks stable when on-demand
+      // entries are added or disposed.
+      dev && isNodeServer && !isRspack && new SortVendorChunksPlugin(),
       dev &&
         isClient &&
         (isRspack
