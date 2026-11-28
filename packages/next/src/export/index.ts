@@ -76,6 +76,8 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 import { getBuildDistDir, getExportPathPageKey } from './utils'
+import { compareRouteSegments } from '../shared/lib/router/utils/sortable-routes'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -189,6 +191,66 @@ function buildRDCCacheByPage(
   }
 
   return renderResumeDataCachesByPage
+}
+
+/**
+ * Selects the deciding route prefetch hints from phase-1 prerenders (matching
+ * the specificity and route-order preference used when writing
+ * prefetch-hints.json) and maps them to each more generic fallback shell in
+ * phase 2. That way fallback shells make the same inlining decisions and emit
+ * the same segment files as prefetch-hints.json instead of underestimating
+ * param-dependent layouts on a suspended shell.
+ */
+function buildFallbackPrefetchHintsByPage(
+  initialPhaseExportPaths: ExportPathEntry[],
+  results: ExportPagesResult,
+  finalPhaseExportPaths: ExportPathEntry[]
+): Record<string, PrefetchHints> {
+  const exportPathByKey = new Map<string, ExportPathEntry>()
+  for (const exportPath of initialPhaseExportPaths) {
+    exportPathByKey.set(getExportPathPageKey(exportPath), exportPath)
+  }
+
+  const bestByPage = new Map<
+    string,
+    { fallbackCount: number; path: string; hints: PrefetchHints }
+  >()
+  for (const { page, path, pageKey, result } of results) {
+    if (!result || 'error' in result) continue
+    const exportPath = exportPathByKey.get(pageKey)
+    if (!exportPath || !exportPath._isAppDir || isAppRouteRoute(page)) {
+      continue
+    }
+    const hints = result.metadata?.prefetchHints
+    if (!hints) continue
+
+    const fallbackCount = exportPath._fallbackRouteParams?.length ?? 0
+    const current = bestByPage.get(page)
+    if (
+      current === undefined ||
+      fallbackCount < current.fallbackCount ||
+      (fallbackCount === current.fallbackCount &&
+        compareRouteSegments(path, current.path) < 0)
+    ) {
+      bestByPage.set(page, { fallbackCount, path, hints })
+    }
+  }
+
+  const routePrefetchHintsByPage: Record<string, PrefetchHints> = {}
+  for (const exportPath of finalPhaseExportPaths) {
+    if (!exportPath._isAppDir || isAppRouteRoute(exportPath.page)) {
+      continue
+    }
+    const fallbackCount = exportPath._fallbackRouteParams?.length ?? 0
+    if (fallbackCount === 0) continue
+
+    const best = bestByPage.get(exportPath.page)
+    if (best && best.fallbackCount < fallbackCount) {
+      routePrefetchHintsByPage[getExportPathPageKey(exportPath)] = best.hints
+    }
+  }
+
+  return routePrefetchHintsByPage
 }
 
 async function exportAppImpl(
@@ -695,7 +757,8 @@ async function exportAppImpl(
   const exportPagesInBatches = async (
     worker: StaticWorker,
     exportPaths: ExportPathEntry[],
-    renderResumeDataCachesByPage?: Record<string, string>
+    renderResumeDataCachesByPage?: Record<string, string>,
+    routePrefetchHintsByPage?: Record<string, PrefetchHints>
   ): Promise<ExportPagesResult> => {
     // Batch filtered pages into smaller batches, and call the export worker on
     // each batch. We've set a default minimum of 25 pages per batch to ensure
@@ -741,6 +804,18 @@ async function exportAppImpl(
             }
           }
 
+          let batchRoutePrefetchHints: Record<string, PrefetchHints> | undefined
+          if (routePrefetchHintsByPage) {
+            for (const exportPath of batch) {
+              const pageKey = getExportPathPageKey(exportPath)
+              if (Object.hasOwn(routePrefetchHintsByPage, pageKey)) {
+                batchRoutePrefetchHints ??= {}
+                batchRoutePrefetchHints[pageKey] =
+                  routePrefetchHintsByPage[pageKey]
+              }
+            }
+          }
+
           return worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
@@ -763,6 +838,7 @@ async function exportAppImpl(
             fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             renderResumeDataCachesByPage: batchRenderResumeDataCaches,
+            routePrefetchHintsByPage: batchRoutePrefetchHints,
           })
         })
       )
@@ -831,11 +907,19 @@ async function exportAppImpl(
         results,
         finalPhaseExportPaths
       )
+      const routePrefetchHintsByPage = nextConfig.experimental.prefetchInlining
+        ? buildFallbackPrefetchHintsByPage(
+            initialPhaseExportPaths,
+            results,
+            finalPhaseExportPaths
+          )
+        : undefined
 
       const finalPhaseResults = await exportPagesInBatches(
         worker,
         finalPhaseExportPaths,
-        renderResumeDataCachesByPage
+        renderResumeDataCachesByPage,
+        routePrefetchHintsByPage
       )
 
       results.push(...finalPhaseResults)

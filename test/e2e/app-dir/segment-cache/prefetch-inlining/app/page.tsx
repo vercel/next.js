@@ -31,6 +31,11 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/test-dynamic-fallback/unbuilt">
+            Dynamic fallback (unbuilt)
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/test-on-demand-revalidate">
             On-demand revalidate
           </LinkAccordion>

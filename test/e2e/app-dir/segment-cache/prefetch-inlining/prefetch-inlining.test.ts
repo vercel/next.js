@@ -2,7 +2,10 @@ import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
-import { PrefetchHint } from 'next/src/shared/lib/app-router-types'
+import {
+  PrefetchHint,
+  type PrefetchHints,
+} from 'next/src/shared/lib/app-router-types'
 import {
   type HintsManifest,
   getHumanReadablePrefetchHints,
@@ -528,6 +531,158 @@ describe('prefetch inlining', () => {
 
     expect(await browser.elementByCss('#page-dynamic').text()).toBe(
       'Dynamic page: hello'
+    )
+  })
+
+  if (isNextStart) {
+    it('dynamic route: fallback shells reuse the route inlining decisions and emit matching segment files', async () => {
+      type PageMeta = {
+        segmentPaths: string[]
+        prefetchHints: PrefetchHints
+      }
+
+      const inliningMask =
+        PrefetchHint.ParentInlinedIntoSelf |
+        PrefetchHint.InlinedIntoChild |
+        PrefetchHint.HeadInlinedIntoSelf |
+        PrefetchHint.HeadOutlined
+
+      const getInliningDecisions = (tree: PrefetchHints): unknown => ({
+        hints: tree.hints & inliningMask,
+        slots:
+          tree.slots === null
+            ? null
+            : Object.fromEntries(
+                Object.entries(tree.slots).map(([key, child]) => [
+                  key,
+                  getInliningDecisions(child),
+                ])
+              ),
+      })
+
+      const hintsManifest: HintsManifest = await next.readJSON(
+        '.next/server/prefetch-hints.json'
+      )
+
+      // 1. Dynamic layout awaiting params behind Suspense (non-empty fallback shell)
+      const builtFallbackMeta: PageMeta = await next.readJSON(
+        '.next/server/app/test-dynamic-fallback/built.meta'
+      )
+      const fallbackShellMeta: PageMeta = await next.readJSON(
+        '.next/server/app/test-dynamic-fallback/[slug].meta'
+      )
+      const fallbackRouteDecisions = getInliningDecisions(
+        hintsManifest['/test-dynamic-fallback/[slug]']
+      )
+      expect(getInliningDecisions(builtFallbackMeta.prefetchHints)).toEqual(
+        fallbackRouteDecisions
+      )
+      expect(getInliningDecisions(fallbackShellMeta.prefetchHints)).toEqual(
+        fallbackRouteDecisions
+      )
+      expect(fallbackShellMeta.segmentPaths).toContain(
+        '/test-dynamic-fallback/$d$slug'
+      )
+      expect([...fallbackShellMeta.segmentPaths].sort()).toEqual(
+        [...builtFallbackMeta.segmentPaths].sort()
+      )
+      expect(
+        await next.hasFile(
+          '.next/server/app/test-dynamic-fallback/[slug].segments/test-dynamic-fallback/$d$slug.segment.rsc'
+        )
+      ).toBe(true)
+
+      // 2. Dynamic layout awaiting params directly (postponed fallback shell)
+      const dynamicConcreteMeta: PageMeta = await next.readJSON(
+        '.next/server/app/test-dynamic/hello.meta'
+      )
+      const dynamicFallbackMeta: PageMeta = await next.readJSON(
+        '.next/server/app/test-dynamic/[slug].meta'
+      )
+      const dynamicRouteDecisions = getInliningDecisions(
+        hintsManifest['/test-dynamic/[slug]']
+      )
+      expect(getInliningDecisions(dynamicFallbackMeta.prefetchHints)).toEqual(
+        dynamicRouteDecisions
+      )
+      expect(dynamicFallbackMeta.segmentPaths).toContain(
+        '/test-dynamic/$d$slug'
+      )
+      expect([...dynamicFallbackMeta.segmentPaths].sort()).toEqual(
+        [...dynamicConcreteMeta.segmentPaths].sort()
+      )
+
+      // 3. Partially generated dynamic route: generic fallback shell matches
+      //    the most specific shell's inlining decisions
+      const partialSpecificMeta: PageMeta = await next.readJSON(
+        '.next/server/app/test-dynamic-partial/t1/[bottom].meta'
+      )
+      const partialGenericMeta: PageMeta = await next.readJSON(
+        '.next/server/app/test-dynamic-partial/[top]/[bottom].meta'
+      )
+      const partialRouteDecisions = getInliningDecisions(
+        hintsManifest['/test-dynamic-partial/[top]/[bottom]']
+      )
+      expect(getInliningDecisions(partialGenericMeta.prefetchHints)).toEqual(
+        partialRouteDecisions
+      )
+      expect(partialGenericMeta.segmentPaths).toContain(
+        '/test-dynamic-partial/$d$top'
+      )
+      expect([...partialGenericMeta.segmentPaths].sort()).toEqual(
+        [...partialSpecificMeta.segmentPaths].sort()
+      )
+    })
+  }
+
+  it('dynamic route: unbuilt param serves and prefetches outlined layout segment', async () => {
+    // Request the outlined layout segment directly for an unbuilt param.
+    // If the fallback shell inlined the layout instead of matching
+    // prefetch-hints.json, the deployment would not emit this segment and
+    // this request would fail or return an empty body.
+    const segmentRes = await next.fetch('/test-dynamic-fallback/unbuilt', {
+      headers: {
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-segment-prefetch': '/test-dynamic-fallback/$d$slug',
+      },
+    })
+    expect(segmentRes.status).toBe(200)
+    const segmentBody = await segmentRes.text()
+    expect(segmentBody).toContain('Loading layout...')
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    // Revealing the link prefetches the fallback shell's outlined layout and
+    // page segments without rejecting or failing on a missing layout segment.
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/test-dynamic-fallback/unbuilt"]'
+        )
+        .click()
+    }, [{ includes: 'Loading layout...' }, { includes: 'Loading page...' }])
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/test-dynamic-fallback/unbuilt"]')
+          .click()
+      },
+      { includes: 'Fallback layout for: unbuilt' }
+    )
+
+    expect(await browser.elementByCss('#fallback-layout-header').text()).toBe(
+      'Fallback layout for: unbuilt'
+    )
+    expect(await browser.elementByCss('#page-dynamic-fallback').text()).toBe(
+      'Dynamic fallback page: unbuilt'
     )
   })
 

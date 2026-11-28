@@ -397,8 +397,33 @@ export async function collectPrefetchHints(
   inlining: { maxSize: number; maxBundleSize: number } | false,
   shouldAttemptStaticShell: boolean,
   shouldAttemptStaticPrefetch: boolean,
-  shouldAttemptStaticNavigation: boolean
+  shouldAttemptStaticNavigation: boolean,
+  routeHints: PrefetchHints | null = null
 ): Promise<PrefetchHints> {
+  // The hints every node starts from. The static-prefetch-attempt hints are
+  // page-global (the tracking that creates them is), so they go on every node,
+  // non-propagating — the client reads it per segment, and the runtime
+  // hint merging walks the manifest tree node-by-node.
+  // (NOTE: if the prefetch is static, then the shell must be as well)
+  let baseHints = 0
+  if (shouldAttemptStaticShell) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticShell
+  }
+  if (shouldAttemptStaticPrefetch) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticPrefetch
+  }
+  if (shouldAttemptStaticNavigation) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticNavigation
+  }
+
+  // Fallback shells reuse the inlining decisions from a more specific
+  // prerender of the same route (the one prefetch-hints.json records), while
+  // keeping their own base hints. Measuring a suspended fallback shell would
+  // underestimate param-dependent layouts and omit their segment files.
+  if (inlining !== false && routeHints !== null) {
+    return createHintTreeFromRouteHints(routeHints, baseHints)
+  }
+
   // Warm up the module cache, same as collectSegmentData.
   try {
     await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
@@ -421,22 +446,6 @@ export async function collectPrefetchHints(
   const rootNode = transportData.t
   const buildId = initialRSCPayload.b
   const head = transportData.h.r
-
-  // The hints every node starts from. The static-prefetch-attempt hints are
-  // page-global (the tracking that creates them is), so they go on every node,
-  // non-propagating — the client reads it per segment, and the runtime
-  // hint merging walks the manifest tree node-by-node.
-  // (NOTE: if the prefetch is static, then the shell must be as well)
-  let baseHints = 0
-  if (shouldAttemptStaticShell) {
-    baseHints |= PrefetchHint.ShouldAttemptStaticShell
-  }
-  if (shouldAttemptStaticPrefetch) {
-    baseHints |= PrefetchHint.ShouldAttemptStaticPrefetch
-  }
-  if (shouldAttemptStaticNavigation) {
-    baseHints |= PrefetchHint.ShouldAttemptStaticNavigation
-  }
 
   if (inlining === false) {
     // Prefetch inlining is disabled: nothing to measure, and no inlining
@@ -850,6 +859,30 @@ function createUniformHintTree(
     }
   }
   return { hints, slots }
+}
+
+const InliningHints =
+  PrefetchHint.ParentInlinedIntoSelf |
+  PrefetchHint.InlinedIntoChild |
+  PrefetchHint.HeadInlinedIntoSelf |
+  PrefetchHint.HeadOutlined
+
+function createHintTreeFromRouteHints(
+  routeHints: PrefetchHints,
+  baseHints: number
+): PrefetchHints {
+  let slots: Record<string, PrefetchHints> | null = null
+  const routeSlots = routeHints.slots
+  if (routeSlots !== null) {
+    slots = {}
+    for (const parallelRouteKey in routeSlots) {
+      slots[parallelRouteKey] = createHintTreeFromRouteHints(
+        routeSlots[parallelRouteKey],
+        baseHints
+      )
+    }
+  }
+  return { hints: (routeHints.hints & InliningHints) | baseHints, slots }
 }
 
 // We use gzip size rather than raw size because it better reflects the actual

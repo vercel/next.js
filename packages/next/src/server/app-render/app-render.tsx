@@ -11352,7 +11352,8 @@ async function collectSegmentData(
         prefetchInlining,
         shouldAttemptStaticShell,
         shouldAttemptStaticPrefetch,
-        shouldAttemptStaticNavigation
+        shouldAttemptStaticNavigation,
+        renderOpts.routePrefetchHints ?? null
       )
       metadata.prefetchHints = hints
     } else {

@@ -17,6 +17,7 @@ import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import type { StaticWorker } from '../build'
 import type { Bundler } from '../lib/bundler'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -40,6 +41,7 @@ export interface ExportPagesInput {
   fetchCacheKeyPrefix: string | undefined
   options: ExportAppOptions
   renderResumeDataCachesByPage: Record<string, string> | undefined
+  routePrefetchHintsByPage?: Record<string, PrefetchHints>
 }
 
 export interface ExportPageInput {
@@ -65,6 +67,7 @@ export interface ExportPageInput {
   enableExperimentalReact?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined
+  routePrefetchHints?: PrefetchHints
 }
 
 export type ExportRouteResult =
