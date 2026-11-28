@@ -193,6 +193,7 @@ export const getHandler = ({
       nextFontManifest,
       serverFilesManifest,
       reactLoadableManifest,
+      dynamicCssManifest,
       prerenderManifest,
       previewProps,
       isDraftMode,
@@ -357,6 +358,9 @@ export const getHandler = ({
                     : buildManifest,
                   nextFontManifest,
                   reactLoadableManifest,
+                  // Required so ISR/runtime renders omit `data-n-p` for CSS that
+                  // is also loaded via next/dynamic (see #72959 / #96429).
+                  dynamicCssManifest,
 
                   assetPrefix: routeModule.getAssetPrefixForRender(
                     routerServerContext,
