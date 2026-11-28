@@ -107,6 +107,14 @@ Next.js generates global helpers for App Router route types. These are available
 - [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper)
 - [`RouteContext`](/docs/app/api-reference/file-conventions/route#route-context-helper)
 
+Route literals exclude [route group](/docs/app/api-reference/file-conventions/route-groups) folders and preserve dynamic segments:
+
+| File                                   | Type helper                   |
+| -------------------------------------- | ----------------------------- |
+| `app/(marketing)/blog/[slug]/page.tsx` | `PageProps<'/blog/[slug]'>`   |
+| `app/(marketing)/layout.tsx`           | `LayoutProps<'/'>`            |
+| `app/(api)/users/[id]/route.ts`        | `RouteContext<'/users/[id]'>` |
+
 </AppOnly>
 
 ## `next-env.d.ts`

@@ -2,6 +2,7 @@
 /app
 /components
 /lib
+/traced-assets
 
 # Benchmark results (scripts/bench-build.mjs --json)
 results-*.json

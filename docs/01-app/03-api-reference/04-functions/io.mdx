@@ -62,6 +62,8 @@ import { io } from 'next/cache'
 
 export function CurrentTime() {
   use(io())
+  // Runs at request time after `io()`
+  // eslint-disable-next-line react-hooks/purity
   return <div>{Date.now()}</div>
 }
 ```
@@ -73,6 +75,8 @@ import { io } from 'next/cache'
 
 export function CurrentTime() {
   use(io())
+  // Runs at request time after `io()`
+  // eslint-disable-next-line react-hooks/purity
   return <div>{Date.now()}</div>
 }
 ```

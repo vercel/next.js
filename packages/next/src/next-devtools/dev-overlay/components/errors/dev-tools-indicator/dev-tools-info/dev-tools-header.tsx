@@ -55,6 +55,9 @@ export function DevToolsHeader({
           border: 'none',
           cursor: 'pointer',
           padding: '4px',
+          // The icon is inset inside its hit area; pull the button out so the
+          // X itself ends at the header's padding, in line with the content.
+          marginRight: '-8px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

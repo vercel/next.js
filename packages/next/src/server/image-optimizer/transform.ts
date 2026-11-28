@@ -23,6 +23,8 @@ import { getImageEtag } from './extract-etag'
 import { getMaxAge } from './get-max-age'
 import { ImageError } from './image-error'
 import { getSharp, optimizeImage } from './sharp'
+import { nsioOptimizeImage } from './nsio'
+import { DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS } from '../../shared/lib/image-optimizer-constants'
 
 export { ImageError }
 export { getMaxAge }
@@ -58,7 +60,11 @@ export interface ImageOptimizerTransformOptions {
   dangerouslyAllowSVG?: boolean
   /** The minimum `maxAge` of the result, in seconds. Defaults to `0`. */
   minimumCacheTTL?: number
-  /** The sharp thread pool size. */
+  /**
+   * With sharp, the number of libvips threads used for each image. With
+   * `safeImageOptimization`, the maximum number of images optimized in
+   * parallel.
+   */
   concurrency?: number | null
   /** Enables or disables the libvips operation cache. */
   operationCache?: boolean | null
@@ -70,6 +76,19 @@ export interface ImageOptimizerTransformOptions {
   timeoutInSeconds?: number
   /** Encodes JPEG output with mozjpeg. Defaults to `true`. */
   mozjpeg?: boolean
+  /**
+   * Optimizes with `@next/safe-image-optimization` (nsio) instead of sharp.
+   * Defaults to `false`.
+   */
+  safeImageOptimization?: boolean
+  /**
+   * With `safeImageOptimization`, this stops in-progress work (killing the
+   * worker process or thread). sharp can't be interrupted.
+   *
+   * If optimization fails after `signal` aborts, the transform rejects with
+   * `signal.reason` instead of falling back to the unoptimized image.
+   */
+  signal?: AbortSignal
   logger?: ImageOptimizerTransformLogger
 }
 
@@ -80,9 +99,8 @@ export interface ImageOptimizerResult {
   etag: string
   upstreamEtag: string
   /**
-   * `true` when `buffer` was produced by sharp. `false` when the upstream
-   * image was passed through (animated, a bypassed type, or optimization
-   * failed).
+   * `true` when `buffer` was transformed. `false` when the upstream image was
+   * passed through (animated, a bypassed type, or optimization failed).
    */
   optimized: boolean
   error?: unknown
@@ -96,6 +114,9 @@ export async function imageOptimizerTransform(
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
   const { dangerouslyAllowSVG = false, minimumCacheTTL = 0 } = opts
+  // `??` instead of a destructuring default, so that `null` is also replaced
+  const timeoutInSeconds =
+    opts.timeoutInSeconds ?? DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS
   const maxAge = Math.max(
     minimumCacheTTL,
     getMaxAge(imageUpstream.cacheControl)
@@ -160,13 +181,17 @@ export async function imageOptimizerTransform(
   }
 
   try {
-    const optimizedBuffer = await optimizeImage({
+    const optimizeOpts = {
       ...opts,
       buffer: upstreamBuffer,
       contentType,
       quality,
       width,
-    })
+      timeoutInSeconds,
+    }
+    const optimizedBuffer = opts.safeImageOptimization
+      ? await nsioOptimizeImage(optimizeOpts)
+      : await optimizeImage(optimizeOpts)
     return {
       buffer: optimizedBuffer,
       contentType,
@@ -176,6 +201,11 @@ export async function imageOptimizerTransform(
       optimized: true,
     }
   } catch (error) {
+    // Only an abort rejects. Other failures still fall back, even if the signal
+    // happened to abort around the same time.
+    if (opts.signal?.aborted && error === opts.signal.reason) {
+      throw error
+    }
     // If we fail to optimize, fallback to the original image
     return {
       buffer: upstreamBuffer,

@@ -134,16 +134,17 @@ impl Module for TsConfigModuleAsset {
                 let mut all_types = Vec::new();
                 let mut current = self.source.ident().await?.path.parent();
                 loop {
+                    // DETERMINISM: Sort each directory's names while preserving ancestor order.
                     if let DirectoryContent::Entries(entries) =
                         &*current.join("node_modules/@types")?.read_dir().await?
                     {
-                        all_types.extend(entries.iter().filter_map(|(name, _)| {
-                            if name.starts_with('.') {
-                                None
-                            } else {
-                                Some((self.source, name.clone()))
-                            }
-                        }));
+                        let mut names = entries
+                            .keys()
+                            .filter(|name| !name.starts_with('.'))
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        names.sort_unstable();
+                        all_types.extend(names.into_iter().map(|name| (self.source, name)));
                     }
                     let parent = current.parent();
                     if parent == current {

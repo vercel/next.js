@@ -114,6 +114,8 @@ export class TurbopackHmr {
     }
     this.#updatedModules = new Set()
     this.#reportedHmrStart = false
+    this.#startMsSinceEpoch = undefined
+    this.#lastUpdateMsSinceEpoch = undefined
     return result
   }
 }

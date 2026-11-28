@@ -1482,7 +1482,7 @@ export function createAppPageEntrypoint({
                         // We don't have a prior entry for this param-specific shell.
                         null,
                         hasResolved,
-                        ctx.waitUntil
+                        { waitUntil: ctx.waitUntil }
                       )
                       if (result !== null && 'error' in result) {
                         throw result.error
@@ -1566,7 +1566,7 @@ export function createAppPageEntrypoint({
                   (c) => responseGenerator({ ...c, forceStaticRender: true }),
                   null,
                   hasResolved,
-                  ctx.waitUntil
+                  { waitUntil: ctx.waitUntil }
                 )
               if (result !== null && 'error' in result) {
                 return result
@@ -1651,7 +1651,7 @@ export function createAppPageEntrypoint({
                     // change this request's revalidation mode.
                     null,
                     hasResolved,
-                    ctx.waitUntil
+                    { waitUntil: ctx.waitUntil }
                   )
                   if (result !== null && 'error' in result) {
                     throw result.error
@@ -2470,17 +2470,18 @@ export function createAppPageEntrypoint({
             // Server Error" page.
             if (routeModule.isDev === true) {
               throw new Error(
-                `The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.\n\n` +
-                  `To identify why this route is blocking, refer to the Instant Navigation docs: https://preview.nextjs.org/docs/app/guides/instant-navigation`
+                `This route has no static shell to display while navigations are paused. Next.js has released the pause.\n\n` +
+                  `Reload the page without pausing navigations in the Navigation Inspector. In a Playwright test, open the route outside \`instant()\` from @next/playwright. Check the terminal or browser for details about what blocked the route.\n\n` +
+                  `Learn more: https://nextjs.org/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks`
               )
             }
 
             const recoveryHtml =
               `<!DOCTYPE html><html><head><meta charSet="utf-8"/></head><body>` +
               `<script>document.cookie="${NEXT_INSTANT_TEST_COOKIE}=; Path=/; Max-Age=0"</script>` +
-              `<p>The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.</p>` +
-              `<p>To identify why this route is blocking, refer to the ` +
-              `<a href="https://preview.nextjs.org/docs/app/guides/instant-navigation">Instant Navigation docs</a>.</p>` +
+              `<p>This route has no static shell to display while navigations are paused. Next.js has released the pause. Reload the page to continue.</p>` +
+              `<p>For help finding what blocks the route, see ` +
+              `<a href="https://nextjs.org/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks">Fixing a navigation that blocks</a>.</p>` +
               `</body></html>`
 
             return sendRenderResult({

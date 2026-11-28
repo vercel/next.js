@@ -112,7 +112,13 @@ pub trait StyleModule: Module {
 /// [`crate::chunk::ChunkingType::Async`]), never add modules to the chunk group of this module
 /// itself (like [`crate::chunk::ChunkingType::Parallel`]).
 #[turbo_tasks::value_trait]
-pub trait ActivatableModule: Module {}
+pub trait ActivatableModule: Module {
+    /// The references this module has once it is activated, whether or not it is active yet.
+    /// Graphs built with [`crate::module_graph::ModuleGraphOptions::force_activated`] use these
+    /// instead of [`Module::references`].
+    #[turbo_tasks::function]
+    fn activated_references(self: Vc<Self>) -> Vc<ModuleReferences>;
+}
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionModule(Option<ResolvedVc<Box<dyn Module>>>);

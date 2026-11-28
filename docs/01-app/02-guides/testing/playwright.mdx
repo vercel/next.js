@@ -88,7 +88,7 @@ export default function Page() {
 
 <PagesOnly>
 
-```tsx filename="pages/index.ts"
+```tsx filename="pages/index.tsx"
 import Link from 'next/link'
 
 export default function Home() {
@@ -101,7 +101,7 @@ export default function Home() {
 }
 ```
 
-```tsx filename="pages/about.ts"
+```tsx filename="pages/about.tsx"
 import Link from 'next/link'
 
 export default function About() {
@@ -171,7 +171,7 @@ If you're using [Cache Components](/docs/app/api-reference/config/next-config-js
 
 ### Installing the helper
 
-After setting up Playwright above, install `@next/playwright`:
+Add the helper to the package that runs your Playwright checks:
 
 ```bash package="pnpm"
 pnpm add -D @next/playwright
@@ -190,6 +190,8 @@ bun add -D @next/playwright
 ```
 
 With Cache Components enabled, you can use the helper in `next dev` without additional configuration. For `next build` and `next start`, enable the testing API as shown in [Production builds](#production-builds).
+
+You can also pass a `Page` from `playwright` or `playwright-core` to `instant()` in a standalone script. The `@playwright/test` runner is optional.
 
 ### Initial page loads
 
@@ -300,8 +302,18 @@ function instant<T>(
 
 The returned promise resolves with the callback's result or rejects with its error. The helper releases the pause when the callback finishes, including when an assertion fails.
 
+### Request interception in development
+
+Playwright lets you intercept network requests with [`page.route()`](https://playwright.dev/docs/api/class-page#page-route) or [`browserContext.route()`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route). For example, a test can delay a response to inspect a loading state or return an error to see how the page handles a failed request.
+
+Registering either handler disables the browser's HTTP cache, even if no request matches. Chromium then sends `Cache-Control: no-cache` on requests, including the initial page load. When `next dev` receives that header, it [bypasses server caches](/docs/messages/cache-bypass-in-dev) and skips [Instant Navigation validation](/docs/messages/instant-navigation-validation) for that request. A test can pass without reporting that the navigation blocks.
+
+- **To check a loading state during navigation**, wrap the page load or link click in [`instant()`](#testing-instant-navigations) instead of delaying a request. Assert on the loading UI inside the callback, then check the finished page after the callback returns. The [Instant Navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) shows both kinds of navigation.
+- **To simulate a failed request**, keep the route handler. To validate navigation to the same page, open it in a fresh browser context without interception. If the route blocks, the browser or the `next dev` terminal shows [what blocked it](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
+
 ### Limitations
 
+- If a route has no static shell, `instant()` cannot display it and Next.js releases the pause. Open the route outside `instant()` in `next dev` to see what blocked it. See [Fixing a navigation that blocks](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
 - These tests assume a warm cache and check which UI can render before dynamic server content arrives. They do not measure cold-cache loading time or prefetch latency.
 - The pause applies to the browser context. Nested or concurrent `instant()` calls in the same context throw an error. Use separate contexts for concurrent tests.
 - The pause holds back dynamic server content but allows hydration to continue. Client Components that do not need that content may already be visible when assertions run.

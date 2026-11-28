@@ -296,6 +296,14 @@ export const experimentalSchema = {
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
   imgOptMozjpeg: z.boolean().optional(),
+  imgOptSafeMode: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        nextImage: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -512,6 +520,9 @@ export const experimentalSchema = {
   typedEnv: z.boolean().optional(),
   serverComponentsHmrCache: z.boolean().optional(),
   serverComponentsHmrCancellation: z.boolean().optional(),
+  sequentialTaskScheduling: z
+    .enum(['unstable_timer', 'unstable_immediate', 'unstable_message-port'])
+    .optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   durableUseCacheEntries: z.boolean().optional(),

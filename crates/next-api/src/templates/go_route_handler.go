@@ -1,4 +1,4 @@
-package main
+package __NEXT_GO_PACKAGE__
 
 import (
 	"context"
@@ -82,6 +82,13 @@ func nextGoMatchParams(path string) (map[string][]string, bool, error) {
 		}
 	}
 	return params, true, nil
+}
+
+// NextInternalGoHandler is called by the entrypoint that Next.js generates. It is
+// not part of the route API. Routes ignore x-next-internal-* metadata, so they do
+// not use trustInternalHeaders.
+func NextInternalGoHandler(trustInternalHeaders bool) http.HandlerFunc {
+	return nextGoHandler()
 }
 
 func nextGoHandler() http.HandlerFunc {

@@ -136,7 +136,10 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
             }
         });
 
-    let mut value = format!("runtime: {runtime_read:#?}");
+    let mut value = format!(
+        "runtime_all: {}\nruntime: {runtime_read:#?}",
+        env_var_info.runtime_all
+    );
     if !runtime_existence.is_empty() {
         value.push_str(&format!("\nruntime_existence: {runtime_existence:#?}"));
     }

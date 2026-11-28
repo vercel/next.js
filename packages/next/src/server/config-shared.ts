@@ -17,6 +17,7 @@ import { deepFreeze } from '../shared/lib/deep-freeze'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
+import { DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS } from '../shared/lib/image-optimizer-constants'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -37,6 +38,15 @@ export interface ResolvedCacheLifeProfiles {
 export type PrefetchInliningConfig =
   | false
   | { maxSize: number; maxBundleSize: number }
+
+/**
+ * Resolved form of the `imgOptSafeMode` config after
+ * normalization in config.ts. Booleans and partial objects are converted to
+ * this shape.
+ */
+export interface ImgOptSafeModeConfig {
+  nextImage: boolean
+}
 
 export type NextConfigComplete = Required<
   Omit<
@@ -85,6 +95,9 @@ export type NextConfigComplete = Required<
       // Normalized by config.ts: `false` becomes `undefined` (GC off),
       // `true`/unset becomes `{}` (GC on with default timings)
       turbopackGcOptions: TurbopackGcOptions | undefined
+      // Normalized by config.ts: booleans and partial objects become resolved
+      // objects
+      imgOptSafeMode: ImgOptSafeModeConfig
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -659,12 +672,56 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  /**
+   * With `sharp`, this is the number of libvips threads used to process each
+   * image. The number of images processed in parallel is bounded by
+   * `UV_THREADPOOL_SIZE`. With `imgOptSafeMode`, this is the size of the
+   * worker process pool, which is the maximum number of images optimized in
+   * parallel.
+   *
+   * `null` selects a default. With `sharp`, this is a fraction of the
+   * available CPUs, depending on `NODE_ENV`. With
+   * `imgOptSafeMode`, this is the number of available CPUs.
+   */
   imgOptConcurrency?: number | null
   imgOptOperationCache?: boolean | null
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
   imgOptMozjpeg?: boolean
+  /**
+   * Uses `@next/safe-image-optimization` instead of `sharp`. This utilizes
+   * memory-safe image decoders written in Rust combined with OS-level
+   * sandboxing on Linux. It does not support some uncommon image formats, and
+   * it may sacrifice some performance.
+   *
+   * This will have no effect in production if your hosting platform (e.g.
+   * Vercel) provides image optimization as a service by overriding the
+   * `_next/image` route.
+   *
+   * This also has no effect if a custom loader is configured with
+   * `images.loader: 'custom'` and [`images.loaderFile`], as the built-in image
+   * optimizer is not used.
+   *
+   * `true` enables it everywhere. An object enables it individually per
+   * feature. Currently the only feature is `next/image` (`nextImage`). Omitted
+   * keys default to `false`.
+   *
+   * Compared to `sharp`, for `next/image`:
+   * - Output formats: Only WebP, PNG, JPEG, and GIF output are supported.
+   *   Unsupported values in `images.formats` (i.e. AVIF) generate a warning and
+   *   are ignored.
+   * - `imgOptSequentialRead` and `imgOptOperationCache` are ignored.
+   *
+   * [`images.loaderFile`]: https://nextjs.org/docs/app/api-reference/components/image#loaderfile
+   *
+   * @default false
+   */
+  imgOptSafeMode?:
+    | boolean
+    | {
+        nextImage?: boolean
+      }
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -909,7 +966,7 @@ export interface ExperimentalConfig {
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
    * Chunking then sizes modules by their minified code, see `turbopackChunking`.
-   * Defaults to true on canary releases and false on stable releases. Only applies to
+   * Defaults to true starting in Next.js 16.5; set it to false to opt out. Only applies to
    * production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
@@ -1567,6 +1624,39 @@ export interface ExperimentalConfig {
   serverComponentsHmrCancellation?: boolean
 
   /**
+   * Selects the scheduling mechanism used for sequential tasks in Cache Components.
+   *
+   * Warning: This option is highly experimental, and should be used with caution.
+   * Depending on the runtime, it may lead to non-deterministic and hard-to-debug problems,
+   * such as:
+   *
+   * - content missing from prerenders
+   * - poisoning the ISR cache with uncached data that should be omitted from a prerender
+   *
+   * It is intended for experimention by people maintaining Next.js integrations with
+   * non-Node.js runtimes. Do not change the default setting unless you fully understand the
+   * implications and your runtime's scheduling behavior.
+   *
+   * - `unstable_timer` (default): Sequential tasks will be scheduled using `setTimeout()`.
+   *   Note that this implementation relies on internals of Node.js `Timeout` objects
+   *   to ensure consistent behavior, so it may not be portable.
+   * - `unstable_immediate`: Sequential tasks will be scheduled using `setImmediate()`.
+   *   Assumes that multiple immediates queued synchronously will run without interruption
+   *   by other tasks.
+   * - `unstable_message-port`: Sequential tasks will be scheduled by queueing messages
+   *   on a `MessagePort` and then attaching a listener. Assumes Node.js-like behavior
+   *   of `MessagePort` listeners, where each message is processed in a separate task,
+   *   and queued messages are processed without interruption by other tasks (up to a
+   *   large limit).
+   *
+   * @default 'unstable_timer'
+   */
+  sequentialTaskScheduling?:
+    | 'unstable_timer'
+    | 'unstable_immediate'
+    | 'unstable_message-port'
+
+  /**
    * Render <style> tags inline in the HTML for imported CSS assets.
    * Supports app-router in production mode only.
    */
@@ -1592,7 +1682,7 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Enables durable `"use cache"` remote cache entries across deployments.
+   * Enables durable `"use cache"` remote cache entries across deployments. Enabled by default.
    * Ignored in development and when using webpack or Rspack.
    */
   durableUseCacheEntries?: boolean
@@ -2522,10 +2612,11 @@ export const defaultConfig = Object.freeze({
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
     imgOptOperationCache: null,
-    imgOptTimeoutInSeconds: 7,
+    imgOptTimeoutInSeconds: DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
     imgOptMozjpeg: true,
+    imgOptSafeMode: false,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2568,6 +2659,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     serverComponentsHmrCancellation: false,
+    sequentialTaskScheduling: 'unstable_timer',
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
@@ -2576,6 +2668,7 @@ export const defaultConfig = Object.freeze({
     prepareNavigation: false,
     inlineCss: false,
     useCache: undefined,
+    durableUseCacheEntries: true,
     useCacheStaticRootParamTracking: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
@@ -2703,6 +2796,7 @@ export interface NextConfigRuntime {
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
     | 'serverComponentsHmrCancellation'
+    | 'sequentialTaskScheduling'
     | 'caseSensitiveRoutes'
     | 'validateRSCRequestHeaders'
     | 'sri'
@@ -2716,6 +2810,7 @@ export interface NextConfigRuntime {
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
+    | 'imgOptSafeMode'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2776,6 +2871,7 @@ export function getNextConfigRuntime(
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
     serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,
+    sequentialTaskScheduling: ex.sequentialTaskScheduling,
     caseSensitiveRoutes: ex.caseSensitiveRoutes,
     validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
     sri: ex.sri,
@@ -2790,6 +2886,7 @@ export function getNextConfigRuntime(
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     imgOptMozjpeg: ex.imgOptMozjpeg,
+    imgOptSafeMode: ex.imgOptSafeMode,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,
