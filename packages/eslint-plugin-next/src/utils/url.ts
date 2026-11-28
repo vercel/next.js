@@ -1,32 +1,72 @@
 import * as path from 'path'
 import * as fs from 'fs'
+import { createRequire } from 'module'
 
-// Cache for fs.readdirSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
-const fsReadDirSyncCache = {}
+type PageExtensionMatchers = {
+  extRegex: RegExp
+  indexSourceRegex: RegExp
+  pageSourceRegex: RegExp
+  layoutSourceRegex: RegExp
+}
+
+const fsReadDirSyncCache: Record<string, fs.Dirent[]> = {}
+
+function getReadDirCacheKey(
+  directory: string,
+  pageExtensions: readonly string[]
+): string {
+  return `${directory}\u0000${pageExtensions.join('\u0000')}`
+}
+
+function buildPageExtensionMatchers(
+  pageExtensions: readonly string[]
+): PageExtensionMatchers {
+  const ordered = [...pageExtensions].sort((a, b) => b.length - a.length)
+  const escaped = ordered.map((ext) =>
+    ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  )
+  const alt = escaped.join('|')
+  return {
+    extRegex: new RegExp(`\\.(${alt})$`),
+    indexSourceRegex: new RegExp(`^index\\.(${alt})$`),
+    pageSourceRegex: new RegExp(`^page\\.(${alt})$`),
+    layoutSourceRegex: new RegExp(`^layout\\.(${alt})$`),
+  }
+}
 
 /**
  * Recursively parse directory for page URLs.
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
-  fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
+function parseUrlForPages(
+  urlprefix: string,
+  directory: string,
+  pageExtensions: readonly string[],
+  matchers: PageExtensionMatchers
+) {
+  const cacheKey = getReadDirCacheKey(directory, pageExtensions)
+  fsReadDirSyncCache[cacheKey] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
-  fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
+  fsReadDirSyncCache[cacheKey].forEach((dirent) => {
+    if (matchers.extRegex.test(dirent.name)) {
+      if (matchers.indexSourceRegex.test(dirent.name)) {
         res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
+          `${urlprefix}${dirent.name.replace(matchers.indexSourceRegex, '')}`
         )
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      res.push(`${urlprefix}${dirent.name.replace(matchers.extRegex, '')}`)
     } else {
-      const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        const dirPath = path.join(directory, dirent.name)
+        res.push(
+          ...parseUrlForPages(
+            urlprefix + dirent.name + '/',
+            dirPath,
+            pageExtensions,
+            matchers
+          )
+        )
       }
     }
   })
@@ -36,24 +76,37 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 /**
  * Recursively parse app directory for URLs.
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
-  fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
+function parseUrlForAppDir(
+  urlprefix: string,
+  directory: string,
+  pageExtensions: readonly string[],
+  matchers: PageExtensionMatchers
+) {
+  const cacheKey = getReadDirCacheKey(`${directory}\u0001app`, pageExtensions)
+  fsReadDirSyncCache[cacheKey] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
-  fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+  fsReadDirSyncCache[cacheKey].forEach((dirent) => {
+    if (matchers.extRegex.test(dirent.name)) {
+      if (matchers.pageSourceRegex.test(dirent.name)) {
+        res.push(
+          `${urlprefix}${dirent.name.replace(matchers.pageSourceRegex, '')}`
+        )
+      } else if (!matchers.layoutSourceRegex.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(matchers.extRegex, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(
+          ...parseUrlForPages(
+            urlprefix + dirent.name + '/',
+            dirPath,
+            pageExtensions,
+            matchers
+          )
+        )
       }
     }
   })
@@ -136,13 +189,17 @@ export function normalizeAppPath(route: string) {
  */
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions: readonly string[]
 ) {
+  const matchers = buildPageExtensionMatchers(pageExtensions)
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
+        .flatMap((directory) =>
+          parseUrlForPages(urlPrefix, directory, pageExtensions, matchers)
+        )
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
@@ -156,13 +213,17 @@ export function getUrlFromPagesDirectories(
 
 export function getUrlFromAppDirectory(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions: readonly string[]
 ) {
+  const matchers = buildPageExtensionMatchers(pageExtensions)
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .map((directory) =>
+          parseUrlForAppDir(urlPrefix, directory, pageExtensions, matchers)
+        )
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
@@ -196,4 +257,113 @@ function ensureLeadingSlash(route: string) {
 
 function isGroupSegment(segment: string) {
   return segment[0] === '(' && segment.endsWith(')')
+}
+
+/**
+ * Default matches `defaultConfig.pageExtensions` in Next.js config-shared.
+ */
+export const DEFAULT_PAGE_EXTENSIONS = ['tsx', 'ts', 'jsx', 'js'] as const
+
+const CONFIG_FILES = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.ts',
+  'next.config.mts',
+] as const
+
+const pageExtensionsByRoots = new Map<string, readonly string[]>()
+
+function normalizePageExtensions(exts: string[]): string[] {
+  return exts.map((e) => (e.startsWith('.') ? e.slice(1) : e))
+}
+
+function tryParsePageExtensionsFromSource(source: string): string[] | null {
+  const match = source.match(/pageExtensions\s*:\s*\[([\s\S]*?)\]/)
+  if (!match) {
+    return null
+  }
+  const inner = match[1]
+  const out: string[] = []
+  const re = /['"]([^'"]+)['"]/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(inner)) !== null) {
+    const ext = m[1]
+    out.push(ext.startsWith('.') ? ext.slice(1) : ext)
+  }
+  return out.length ? out : null
+}
+
+function tryLoadPageExtensionsFromCjsConfig(
+  configPath: string
+): string[] | null {
+  if (!configPath.endsWith('.js') && !configPath.endsWith('.cjs')) {
+    return null
+  }
+  try {
+    const req = createRequire(__filename)
+    const resolved = req.resolve(configPath)
+    delete req.cache[resolved]
+    const mod = req(configPath) as {
+      default?: { pageExtensions?: string[] }
+      pageExtensions?: string[]
+    }
+    const config = mod.default ?? mod
+    if (Array.isArray(config?.pageExtensions)) {
+      return normalizePageExtensions(config.pageExtensions)
+    }
+  } catch {
+    // User config may be ESM-only or otherwise unloadable; ignore.
+  }
+  return null
+}
+
+function tryReadPageExtensionsFromDisk(rootDir: string): string[] | null {
+  for (const file of CONFIG_FILES) {
+    const configPath = path.join(rootDir, file)
+    if (!fs.existsSync(configPath) || !fs.statSync(configPath).isFile()) {
+      continue
+    }
+    const source = fs.readFileSync(configPath, 'utf8')
+    const fromRegex = tryParsePageExtensionsFromSource(source)
+    if (fromRegex) {
+      return fromRegex
+    }
+    const fromRequire = tryLoadPageExtensionsFromCjsConfig(configPath)
+    if (fromRequire) {
+      return fromRequire
+    }
+  }
+  return null
+}
+
+/**
+ * Resolves `pageExtensions` for URL discovery: ESLint `settings.next.pageExtensions`,
+ * then the first readable `next.config.*` under a project root, otherwise Next defaults.
+ */
+export function getPageExtensions(
+  rootDirs: string[],
+  settingExtensions?: string[]
+): readonly string[] {
+  if (Array.isArray(settingExtensions) && settingExtensions.length > 0) {
+    return normalizePageExtensions(settingExtensions)
+  }
+
+  const cacheKey = rootDirs.join('\0')
+  const cached = pageExtensionsByRoots.get(cacheKey)
+  if (cached) {
+    return cached
+  }
+
+  for (const root of rootDirs) {
+    const fromDisk = tryReadPageExtensionsFromDisk(root)
+    if (fromDisk) {
+      const asTuple = Object.freeze(fromDisk.slice())
+      pageExtensionsByRoots.set(cacheKey, asTuple)
+      return asTuple
+    }
+  }
+
+  const defaults = Object.freeze([...DEFAULT_PAGE_EXTENSIONS])
+  pageExtensionsByRoots.set(cacheKey, defaults)
+  return defaults
 }
