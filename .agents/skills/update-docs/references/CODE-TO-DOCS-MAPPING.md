@@ -8,7 +8,7 @@ Maps Next.js source code directories to their corresponding documentation files.
 
 | Source Path                                      | Documentation Path                                      |
 | ------------------------------------------------ | ------------------------------------------------------- |
-| `packages/next/src/client/components/image.tsx`  | `docs/01-app/03-api-reference/02-components/image.mdx`  |
+| `packages/next/src/client/image-component.tsx`   | `docs/01-app/03-api-reference/02-components/image.mdx`  |
 | `packages/next/src/client/components/link.tsx`   | `docs/01-app/03-api-reference/02-components/link.mdx`   |
 | `packages/next/src/client/components/script.tsx` | `docs/01-app/03-api-reference/02-components/script.mdx` |
 | `packages/next/src/client/components/form.tsx`   | `docs/01-app/03-api-reference/02-components/form.mdx`   |

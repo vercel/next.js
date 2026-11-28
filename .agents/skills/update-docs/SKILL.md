@@ -47,7 +47,7 @@ Use the code-to-docs mapping in `references/CODE-TO-DOCS-MAPPING.md` to find cor
 
 Example mappings:
 
-- `src/client/components/image.tsx` → `docs/01-app/03-api-reference/02-components/image.mdx`
+- `src/client/image-component.tsx` → `docs/01-app/03-api-reference/02-components/image.mdx`
 - `src/server/config-shared.ts` → `docs/01-app/03-api-reference/05-config/`
 
 ## Workflow: Update Existing Documentation
