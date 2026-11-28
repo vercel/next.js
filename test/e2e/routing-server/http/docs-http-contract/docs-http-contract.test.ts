@@ -217,14 +217,12 @@ describe('documented HTTP contracts', () => {
     expect(directives).toEqual(['max-age=0', 'public'])
   })
 
-  // TODO: `next start` serves hashed `_next/static` assets with the
-  // Cache-Control that next.config headers() sets (`private, max-age=17`
-  // here). The docs say these assets always get `public, max-age=31536000,
-  // immutable`, which can't be overridden or set in next.config.js:
+  // The docs say hashed `_next/static` assets always get `public,
+  // max-age=31536000, immutable`, which next.config.js headers() (`private,
+  // max-age=17` here) can't override:
   // https://nextjs.org/docs/app/api-reference/config/next-config-js/headers#cache-control
   // Development bundles are intentionally mutable.
   // @force-gate !dev
-  // @gate !start
   it('immutable hashed assets override configured cache headers', async () => {
     const $ = await next.render$('/')
     const assets = $('script[src]')
