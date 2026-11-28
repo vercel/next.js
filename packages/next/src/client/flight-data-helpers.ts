@@ -175,7 +175,7 @@ function stripClientOnlyDataFromFlightRouterState(
   const [
     segment,
     parallelRoutes,
-    _refreshState, // Intentionally unused - URLs are client-only
+    refreshState, // The URL itself is client-only and is never sent
     refreshMarker,
     prefetchHints,
   ] = flightRouterState
@@ -190,10 +190,17 @@ function stripClientOnlyDataFromFlightRouterState(
       stripClientOnlyDataFromFlightRouterState(childState)
   }
 
+  // A segment with a refresh state was reused in a "default" slot from an
+  // older route, so it's stale relative to the URL being requested. If the
+  // server sees it as current, it skips rendering it when the slot becomes
+  // active again (e.g. reopening an intercepted modal), and the response has
+  // no page for the new URL. Ask the server to re-render it instead.
+  const serverRefreshMarker = refreshMarker ?? (refreshState ? 'refetch' : null)
+
   const result: FlightRouterState = [cleanedSegment, cleanedParallelRoutes]
-  if (refreshMarker) {
+  if (serverRefreshMarker) {
     result[2] = null // null slightly more compact than undefined
-    result[3] = refreshMarker
+    result[3] = serverRefreshMarker
   }
 
   // Append optional fields if present
