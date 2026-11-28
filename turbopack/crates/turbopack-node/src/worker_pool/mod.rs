@@ -26,11 +26,12 @@ use crate::{
     pool_stats::AcquiredPermits,
     worker_pool::{
         operation::{
-            PoolState, TaskChannels, WORKER_POOL_OPERATION, WorkerOperation, WorkerOptions,
-            get_pool_state,
+            TaskChannels, WORKER_POOL_OPERATION, WORKER_POOLS, WorkerOperation, WorkerOptions,
+            terminate_pool_worker, terminate_worker,
         },
         worker_thread::create_worker,
     },
+    worker_pool_state::{PoolRegistration, PoolState},
 };
 
 mod operation;
@@ -53,6 +54,10 @@ struct WorkerThreadPool {
     project_dir: FileSystemPath,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     state: Arc<PoolState>,
+    /// Keeps `state` registered in [`WORKER_POOLS`] until the pool is dropped. Each pool has its
+    /// own state, even if another pool has the same `worker_options`.
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    _registration: PoolRegistration<Arc<WorkerOptions>>,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
@@ -60,7 +65,7 @@ struct WorkerThreadPool {
 }
 
 impl WorkerThreadPool {
-    async fn create(
+    fn create(
         cwd: PathBuf,
         entrypoint: PathBuf,
         // The worker thread will inherit env from parent process, so it's not needed
@@ -74,7 +79,8 @@ impl WorkerThreadPool {
         let cwd: RcStr = cwd.to_string_lossy().into();
         let filename: RcStr = entrypoint.to_string_lossy().into();
         let worker_options = Arc::new(WorkerOptions { cwd, filename });
-        let state = get_pool_state(worker_options.clone()).await;
+        let registration = WORKER_POOLS.register(worker_options.clone(), terminate_pool_worker);
+        let state = registration.state().clone();
         EvaluatePool::new(
             Box::new(Self {
                 worker_options,
@@ -83,6 +89,7 @@ impl WorkerThreadPool {
                 assets_root: assets_root.clone(),
                 project_dir: project_dir.clone(),
                 state,
+                _registration: registration,
                 concurrency_semaphore: Arc::new(Semaphore::new(if debug {
                     1
                 } else {
@@ -99,31 +106,23 @@ impl WorkerThreadPool {
     async fn acquire_worker(&self) -> Result<(u32, AcquiredPermits)> {
         let concurrency_permit = self.concurrency_semaphore.clone().acquire_owned().await?;
 
-        {
-            let mut idle = self.state.idle_workers.lock();
-            if let Some(worker_id) = idle.pop() {
-                return Ok((
-                    worker_id,
-                    AcquiredPermits::Idle {
-                        _concurrency_permit: concurrency_permit,
-                    },
-                ));
-            }
+        if let Some(worker_id) = self.state.pop_idle() {
+            return Ok((
+                worker_id,
+                AcquiredPermits::Idle {
+                    _concurrency_permit: concurrency_permit,
+                },
+            ));
         }
 
         let (tx, rx) = oneshot::channel();
-        {
-            let mut waiters = self.state.waiters.lock();
-            let mut idle = self.state.idle_workers.lock();
-            if let Some(worker_id) = idle.pop() {
-                return Ok((
-                    worker_id,
-                    AcquiredPermits::Idle {
-                        _concurrency_permit: concurrency_permit,
-                    },
-                ));
-            }
-            waiters.push(tx);
+        if let Some(worker_id) = self.state.pop_idle_or_wait(tx) {
+            return Ok((
+                worker_id,
+                AcquiredPermits::Idle {
+                    _concurrency_permit: concurrency_permit,
+                },
+            ));
         }
 
         let bootup = async {
@@ -192,8 +191,7 @@ impl NodeBackend for WorkerThreadsBackend {
                 project_dir,
                 concurrency,
                 debug,
-            )
-            .await)
+            ))
         })
     }
 
@@ -234,6 +232,7 @@ impl EvaluateOperation for WorkerThreadPool {
             let (worker_id, permits) = self.acquire_worker().await?;
 
             let state = self.state.clone();
+            let worker_options_for_drop = worker_options.clone();
 
             // Pre-allocate channels for this task to avoid HashMap lookups during communication
             let channels = TaskChannels::new(task_id, worker_id);
@@ -243,16 +242,10 @@ impl EvaluateOperation for WorkerThreadPool {
                 worker_id,
                 state: state.clone(),
                 on_drop: Some(Box::new(move |worker_id| {
-                    let mut waiters = state.waiters.lock();
-                    loop {
-                        if let Some(tx) = waiters.pop() {
-                            if tx.send(worker_id).is_ok() {
-                                break;
-                            }
-                        } else {
-                            state.idle_workers.lock().push(worker_id);
-                            break;
-                        }
+                    // If the pool was dropped in the meantime, the worker is terminated instead of
+                    // being kept idle.
+                    if let Some(worker_id) = state.return_worker(worker_id) {
+                        let _ = terminate_worker(worker_options_for_drop, worker_id);
                     }
                 })),
                 _permits: permits,

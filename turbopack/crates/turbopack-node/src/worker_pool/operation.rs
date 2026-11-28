@@ -10,14 +10,14 @@ use rustc_hash::FxHashMap;
 use tokio::sync::{
     Mutex as AsyncMutex,
     mpsc::{self, UnboundedReceiver, UnboundedSender},
-    oneshot,
 };
 use turbo_rcstr::RcStr;
 
 use crate::{
     evaluate::Operation,
-    pool_stats::{AcquiredPermits, NodeJsPoolStats},
+    pool_stats::AcquiredPermits,
     worker_pool::worker_thread,
+    worker_pool_state::{PoolRegistry, PoolState},
 };
 
 /// A bidirectional message channel using unbounded mpsc.
@@ -58,13 +58,6 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
     }
 }
 
-#[derive(Default)]
-pub(super) struct PoolState {
-    pub(super) idle_workers: Mutex<Vec<u32>>,
-    pub(super) stats: Arc<Mutex<NodeJsPoolStats>>,
-    pub(super) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
-}
-
 #[turbo_tasks::value(cell = "new", serialization = "skip", eq = "manual", shared)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(super) struct WorkerOptions {
@@ -85,61 +78,26 @@ pub(super) struct WorkerPoolOperation {
     worker_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<(u32, Bytes)>>>>,
     #[allow(clippy::type_complexity)]
     task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
-    pub(super) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
 }
 
+/// The states of all live worker-thread pools. Each `WorkerThreadPool` registers its own state
+/// when it is created and unregisters it when it is dropped.
+pub(super) static WORKER_POOLS: PoolRegistry<Arc<WorkerOptions>> = PoolRegistry::new();
+
 impl WorkerPoolOperation {
-    async fn get_pool_state(&self, worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
-        self.pools.lock().entry(worker_options).or_default().clone()
-    }
-
     pub(super) fn scale_down(&self) -> Result<()> {
-        let mut to_terminate = Vec::new();
-
-        {
-            let pools = self.pools.lock();
-            for (worker_options, state) in pools.iter() {
-                let mut idle = state.idle_workers.lock();
-                if idle.len() > 1 {
-                    let workers = idle.split_off(1);
-                    let mut stats = state.stats.lock();
-                    for worker_id in workers {
-                        stats.remove_worker();
-                        to_terminate.push((worker_options.clone(), worker_id));
-                    }
-                }
-            }
-        }
-
-        to_terminate
-            .into_iter()
-            .map(|(worker_options, worker_id)| self.terminate_worker(worker_options, worker_id))
-            .collect::<Result<Vec<_>>>()?;
-
-        Ok(())
+        self.terminate_workers(WORKER_POOLS.reduce_to(1))
     }
 
     pub(super) fn scale_zero(&self) -> Result<()> {
-        let mut to_terminate = Vec::new();
+        self.terminate_workers(WORKER_POOLS.reduce_to(0))
+    }
 
-        {
-            let pools = self.pools.lock();
-            for (worker_options, state) in pools.iter() {
-                let mut idle = state.idle_workers.lock();
-                let workers = std::mem::take(&mut *idle);
-                let mut stats = state.stats.lock();
-                for worker_id in workers {
-                    stats.remove_worker();
-                    to_terminate.push((worker_options.clone(), worker_id));
-                }
-            }
-        }
-
-        to_terminate
+    fn terminate_workers(&self, workers: Vec<(Arc<WorkerOptions>, u32)>) -> Result<()> {
+        workers
             .into_iter()
             .map(|(worker_options, worker_id)| self.terminate_worker(worker_options, worker_id))
             .collect::<Result<Vec<_>>>()?;
-
         Ok(())
     }
 
@@ -182,12 +140,14 @@ impl WorkerPoolOperation {
 pub(super) static WORKER_POOL_OPERATION: LazyLock<WorkerPoolOperation> =
     LazyLock::new(WorkerPoolOperation::default);
 
-fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
+pub(super) fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
     WORKER_POOL_OPERATION.terminate_worker(worker_options, worker_id)
 }
 
-pub(super) async fn get_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
-    WORKER_POOL_OPERATION.get_pool_state(worker_options).await
+/// [`TerminateWorker`](crate::worker_pool_state::TerminateWorker) for [`WORKER_POOLS`].
+pub(super) fn terminate_pool_worker(worker_options: &Arc<WorkerOptions>, worker_id: u32) {
+    // Terminating a worker never fails.
+    let _ = terminate_worker(worker_options.clone(), worker_id);
 }
 
 /// Pre-allocated channels for a single task's communication.

@@ -28,6 +28,13 @@ mod source_map;
 pub mod transforms;
 #[cfg(feature = "worker_pool")]
 mod worker_pool;
+// Has no N-API dependency, so it's also tested without the `worker_pool` feature.
+#[cfg(any(
+    feature = "worker_pool",
+    all(test, feature = "process_pool", not(target_family = "wasm"))
+))]
+#[cfg_attr(not(feature = "worker_pool"), allow(dead_code))]
+mod worker_pool_state;
 
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 pub fn child_process_backend() -> Vc<Box<dyn backend::NodeBackend>> {

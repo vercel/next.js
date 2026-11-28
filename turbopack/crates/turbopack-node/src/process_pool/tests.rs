@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Weak},
+};
 
 use anyhow::Result;
 use bytes::Bytes;
@@ -12,6 +15,7 @@ use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 use crate::{
     AssetsForSourceMapping,
     evaluate::{EvaluatePool, Operation},
+    process_pool::{ChildProcessPool, HeapQueue, NodeJsPoolProcess},
 };
 
 static REGISTRATION: Registration = register!();
@@ -22,8 +26,15 @@ fn test_worker(name: &str) -> PathBuf {
 
 /// Create a pool backed by the given test worker JS file.
 async fn create_pool(worker: &str, concurrency: usize) -> Result<EvaluatePool> {
-    use crate::process_pool::ChildProcessPool;
+    Ok(create_pool_with_queue(worker, concurrency).await?.0)
+}
 
+/// Create a pool backed by the given test worker JS file, together with a weak reference to its
+/// idle process queue, which tests can use to check that nothing keeps the queue alive.
+async fn create_pool_with_queue(
+    worker: &str,
+    concurrency: usize,
+) -> Result<(EvaluatePool, Weak<HeapQueue<NodeJsPoolProcess>>)> {
     let vfs = VirtualFileSystem::new();
     let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
     let fs = fs.to_resolved().await?;
@@ -35,7 +46,7 @@ async fn create_pool(worker: &str, concurrency: usize) -> Result<EvaluatePool> {
     let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
     let assets = assets.to_resolved().await?;
 
-    Ok(ChildProcessPool::create(
+    let pool = ChildProcessPool::new(
         std::env::current_dir()?,
         test_worker(worker),
         FxHashMap::default(),
@@ -44,7 +55,9 @@ async fn create_pool(worker: &str, concurrency: usize) -> Result<EvaluatePool> {
         root_path,
         concurrency,
         false,
-    ))
+    );
+    let idle_processes = Arc::downgrade(&pool.idle_processes);
+    Ok((pool.into_evaluate_pool(), idle_processes))
 }
 
 /// Shorthand: create a pool with the echo worker.
@@ -286,6 +299,32 @@ async fn test_pool_pre_warm_failure() {
             "failed pre_warm should not leave phantom workers"
         );
         assert_eq!(stats.booting_workers, 0);
+    })
+    .await;
+}
+
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_pool_drop_during_pre_warm() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let (pool, idle_processes) = create_pool_with_queue("pool_test_worker.js", 2)
+            .await
+            .unwrap();
+
+        pool.pre_warm();
+        drop(pool);
+
+        // Pre-warming keeps the queue alive until the process has booted. It then pushes the
+        // process into the queue, which was closed when the pool was dropped, so the process is
+        // dropped (killing it) and nothing references the queue anymore.
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
+        while idle_processes.strong_count() > 0 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "the idle queue is still referenced after pre-warming"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
     })
     .await;
 }
