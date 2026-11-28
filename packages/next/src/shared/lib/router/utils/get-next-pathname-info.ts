@@ -67,11 +67,11 @@ export function getNextPathnameInfo(
   let pathnameNoDataPrefix = info.pathname
 
   if (
-    info.pathname.startsWith('/_next/data/') &&
+    info.pathname.includes('/_next/data/') &&
     info.pathname.endsWith('.json')
   ) {
     const paths = info.pathname
-      .replace(/^\/_next\/data\//, '')
+      .replace(/^.*\/_next\/data\//, '')
       .replace(/\.json$/, '')
       .split('/')
 
