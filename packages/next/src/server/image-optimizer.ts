@@ -401,6 +401,8 @@ export class ImageOptimizerCache {
     // Eagerly start LRU initialization for filesystem cache
     if (
       !cacheHandler &&
+      !nextConfig.images.unoptimized &&
+      nextConfig.images.loader === 'default' &&
       nextConfig.images.maximumDiskCacheSize !== 0 &&
       nextConfig.experimental.isrFlushToDisk
     ) {

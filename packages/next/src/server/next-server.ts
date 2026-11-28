@@ -909,6 +909,13 @@ export default class NextNodeServer extends BaseServer<
       return true
       // the `else` branch is needed for tree-shaking
     } else {
+      const imagesConfig = this.nextConfig.images
+
+      if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
+        await this.render404(req, res)
+        return true
+      }
+
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
@@ -947,12 +954,6 @@ export default class NextNodeServer extends BaseServer<
 
       if (!this.imageResponseCache) {
         throw new Error('invariant image optimizer cache was not initialized')
-      }
-      const imagesConfig = this.nextConfig.images
-
-      if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
-        await this.render404(req, res)
-        return true
       }
 
       const paramsResult = ImageOptimizerCache.validateParams(
