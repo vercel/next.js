@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -198,6 +198,38 @@ pub fn generate_js_source_map<'a>(
     let fast_path_single_original_source_map =
         original_source_maps.len() == 1 && original_source_maps_complete;
 
+    // Scope-hoisted positions encode the module index into each raw BytePos. `build_source_map`
+    // resolves that position before calling `name_for_bytepos`, so looking up a name by the
+    // resolved position loses the module index and can collide with names from another module.
+    // Keep the names in mapping order for this case, where each raw position still identifies its
+    // module.
+    let name_mappings = mappings
+        .iter()
+        .any(|(raw_pos, _)| files_map.map_raw_pos(*raw_pos) != *raw_pos)
+        .then(|| {
+            mappings
+                .iter()
+                .filter_map(|(raw_pos, line_col)| {
+                    let pos = files_map.map_raw_pos(*raw_pos);
+                    if pos.is_reserved_for_comments()
+                        || (line_col.line == 0 && line_col.col == 0 && pos.is_dummy())
+                        || pos == BytePos(u32::MAX)
+                    {
+                        return None;
+                    }
+
+                    let file = files_map.try_lookup_source_file(*raw_pos).unwrap()?;
+                    if matches!(&*file.name, FileName::Internal(..))
+                        || file.lookup_line(pos).is_none()
+                    {
+                        return None;
+                    }
+
+                    Some(names.get(raw_pos).cloned())
+                })
+                .collect()
+        });
+
     let mut new_mappings = build_source_map(
         files_map,
         mappings,
@@ -211,6 +243,8 @@ pub fn generate_js_source_map<'a>(
             // `A`, while constructing the final source map, `C`.
             inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
             names,
+            name_mappings,
+            next_name_mapping: Cell::new(0),
         },
     );
 
@@ -245,6 +279,8 @@ pub fn generate_js_source_map<'a>(
 pub struct InlineSourcesContentConfig<'a> {
     inline_sources_content: bool,
     names: &'a FxHashMap<BytePos, Atom>,
+    name_mappings: Option<Vec<Option<Atom>>>,
+    next_name_mapping: Cell<usize>,
 }
 
 impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
@@ -269,7 +305,13 @@ impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
     }
 
     fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
-        self.names.get(&pos).map(|v| &**v)
+        if let Some(name_mappings) = &self.name_mappings {
+            let index = self.next_name_mapping.get();
+            self.next_name_mapping.set(index + 1);
+            name_mappings.get(index).and_then(Option::as_deref)
+        } else {
+            self.names.get(&pos).map(|v| &**v)
+        }
     }
 }
 
