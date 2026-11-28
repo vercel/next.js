@@ -52,6 +52,7 @@ allowed-tools: [Bash, Read] # Optional. Tools allowed without permission.
 model: opus # Optional. Model override.
 context: fork # Optional. Isolated subagent execution.
 agent: Explore # Optional. Subagent type (with context: fork).
+metadata: { internal: true } # Optional. Key-value metadata.
 ---
 ```
 
@@ -73,7 +74,7 @@ description: Helps with flags.
 # Good - specific files and concepts for matching
 description: >
   How to add or modify Next.js experimental feature flags end-to-end.
-  Use when editing config-shared.ts, config-schema.ts, define-env-plugin.ts.
+  Use when editing config-shared.ts, config-schema.ts, define-env.ts.
 ```
 
 ## Content Conventions

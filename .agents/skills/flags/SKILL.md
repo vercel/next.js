@@ -2,7 +2,7 @@
 name: flags
 description: >
   How to add or modify Next.js experimental feature flags end-to-end.
-  Use when editing config-shared.ts, config-schema.ts, define-env-plugin.ts,
+  Use when editing config-shared.ts, config-schema.ts, define-env.ts,
   next-server.ts, export/worker.ts, or module.compiled.js. Covers type
   declaration, zod schema, build-time injection, runtime env plumbing,
   and the decision between runtime env-var branching vs separate bundle variants.

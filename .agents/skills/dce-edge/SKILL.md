@@ -3,7 +3,7 @@ name: dce-edge
 description: >
   DCE-safe require() patterns and edge runtime constraints. Use when writing
   conditional require() calls, guarding Node-only imports (node:stream etc.),
-  or editing define-env-plugin.ts / app-render / stream-utils for edge builds.
+  or editing define-env.ts / app-render / stream-utils for edge builds.
   Covers if/else branching for webpack DCE, TypeScript definite assignment,
   the NEXT_RUNTIME vs real feature flag distinction, and forcing flags false
   for edge in define-env.ts.
