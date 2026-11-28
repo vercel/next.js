@@ -59,6 +59,16 @@ if (process.env.NEXT_RUNTIME === 'edge') {
 const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
   api
 
+// The class of the API's noop tracer provider, which is what a proxy provider
+// without a delegate returns. `isOpenTelemetryEnabled` can't rely on the name
+// of that class alone: when a bundler minifies `@opentelemetry/api` into the
+// server bundle, the class is anonymous and its name is empty.
+let NoopTracerProviderConstructor: Function | undefined
+try {
+  NoopTracerProviderConstructor = new api.ProxyTracerProvider().getDelegate()
+    .constructor
+} catch {}
+
 export class BubbledError extends Error {
   constructor(
     public readonly bubble?: boolean,
@@ -108,6 +118,11 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
 
 interface NextTracer {
   getContext(): ContextAPI
+
+  /**
+   * Whether `trace()` may start a span right now.
+   */
+  isTracing(): boolean
 
   /**
    * Instruments a function by automatically creating a span activated on its
@@ -283,8 +298,12 @@ class NextTracerImpl implements NextTracer {
       return true
     }
 
+    const delegateConstructor = tracerProvider.getDelegate?.()?.constructor
+
     return (
-      tracerProvider.getDelegate?.()?.constructor?.name !== 'NoopTracerProvider'
+      delegateConstructor?.name !== 'NoopTracerProvider' &&
+      (NoopTracerProviderConstructor === undefined ||
+        delegateConstructor !== NoopTracerProviderConstructor)
     )
   }
 
@@ -367,6 +386,18 @@ class NextTracerImpl implements NextTracer {
 
     const remoteContext = propagation.extract(activeContext, carrier, getter)
     return context.with(remoteContext, fn)
+  }
+
+  /**
+   * Whether `trace()` may start a span right now. When it returns `false`,
+   * `trace()` only calls the function it is given.
+   */
+  public isTracing(): boolean {
+    return (
+      Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) ||
+      this.isOpenTelemetryEnabled() ||
+      (getLocalSpanRecorder()?.isLocalSpanRecordingEnabled() ?? false)
+    )
   }
 
   // Trace, wrap implementation is inspired by datadog trace implementation
