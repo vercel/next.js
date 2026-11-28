@@ -79,30 +79,40 @@ const loadScript = (props: ScriptProps): void => {
     return
   }
 
-  // Contents of this script are already loading/loaded
-  if (ScriptCache.has(src)) {
-    LoadCache.add(cacheKey)
-    // It is possible that multiple `next/script` components all have same "src", but has different "onLoad"
-    // This is to make sure the same remote script will only load once, but "onLoad" are executed in order
-    ScriptCache.get(src).then(onLoad, onError)
-    return
-  }
-
   /** Execute after the script first loaded */
   const afterLoad = () => {
+    // add cacheKey to LoadCache when load successfully
+    LoadCache.add(cacheKey)
     // Run onReady for the first time after load event
     if (onReady) {
       onReady()
     }
-    // add cacheKey to LoadCache when load successfully
-    LoadCache.add(cacheKey)
+  }
+
+  // Contents of this script are already loading/loaded
+  if (ScriptCache.has(src)) {
+    // It is possible that multiple `next/script` components all have same "src", but different
+    // "onLoad"/"onReady". This is to make sure the same remote script will only load once, but the
+    // callbacks of every component are executed in order once the shared request has settled.
+    ScriptCache.get(src).then(
+      (event: Event) => {
+        onLoad.call(event.target, event)
+        afterLoad()
+      },
+      (error: Event) => {
+        if (onError) {
+          onError(error)
+        }
+      }
+    )
+    return
   }
 
   const el = document.createElement('script')
 
-  const loadPromise = new Promise<void>((resolve, reject) => {
+  const loadPromise = new Promise<Event>((resolve, reject) => {
     el.addEventListener('load', function (e) {
-      resolve()
+      resolve(e)
       if (onLoad) {
         onLoad.call(this, e)
       }
@@ -111,7 +121,9 @@ const loadScript = (props: ScriptProps): void => {
     el.addEventListener('error', function (e) {
       reject(e)
     })
-  }).catch(function (e) {
+  })
+
+  loadPromise.catch(function (e) {
     if (onError) {
       onError(e)
     }
@@ -257,6 +269,9 @@ function Script(props: ScriptProps): JSX.Element | null {
   }, [onReady, id, src])
 
   const hasLoadScriptEffectCalled = useRef(false)
+  // `beforeInteractive` and `worker` scripts are loaded while rendering instead of in an effect, so
+  // they need their own guard to not be requested again by a re-render.
+  const hasLoadScriptRenderCalled = useRef(false)
 
   useEffect(() => {
     if (!hasLoadScriptEffectCalled.current) {
@@ -287,7 +302,8 @@ function Script(props: ScriptProps): JSX.Element | null {
     } else if (getIsSsr && getIsSsr()) {
       // Script has already loaded during SSR
       LoadCache.add(id || src)
-    } else if (getIsSsr && !getIsSsr()) {
+    } else if (getIsSsr && !getIsSsr() && !hasLoadScriptRenderCalled.current) {
+      hasLoadScriptRenderCalled.current = true
       loadScript({
         ...props,
         nonce,
