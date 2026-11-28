@@ -173,6 +173,64 @@ describe('unrecognized server actions', () => {
         }
       )
 
+      it.each([
+        {
+          description: 'without a boundary',
+          contentType: 'multipart/form-data',
+          body: 'junk',
+        },
+        {
+          description: 'without boundary delimiters',
+          contentType: 'multipart/form-data; boundary=x',
+          body: 'junk',
+        },
+        {
+          description: 'with a part without a name',
+          contentType: 'multipart/form-data; boundary=x',
+          body: '--x\r\nContent-Disposition: form-data\r\n\r\nv\r\n--x--\r\n',
+        },
+      ])(
+        'should reject a malformed multipart body $description with 400',
+        async ({ contentType, body }) => {
+          const response = await next.fetch(`/${runtime}/unrecognized-action`, {
+            method: 'POST',
+            headers: { 'content-type': contentType },
+            body,
+          })
+
+          expect(response.status).toBe(400)
+        }
+      )
+
+      it.each([
+        { description: 'a form submission', headers: {}, body: new FormData() },
+        {
+          description: 'a fetch action',
+          headers: {
+            'next-action': unrecognizedActionId,
+            'content-type': 'text/plain;charset=UTF-8',
+          },
+          body: '{}',
+        },
+      ])(
+        'should reject $description from a foreign origin with 403',
+        async ({ headers, body }) => {
+          const response = await next.fetch(`/${runtime}/unrecognized-action`, {
+            method: 'POST',
+            headers: { origin: 'https://example.invalid', ...headers },
+            body,
+          })
+
+          expect(response.status).toBe(403)
+
+          if (!isNextDeploy) {
+            await retry(async () =>
+              expect(getLogs()).toInclude('does not match `origin` header')
+            )
+          }
+        }
+      )
+
       const testUnrecognizedActionSubmission = async ({
         formId,
         disableJavaScript,
