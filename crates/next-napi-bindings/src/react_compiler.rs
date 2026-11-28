@@ -27,10 +27,17 @@ impl Task for CheckTask {
                 return Ok(false);
             };
             let mut errors = vec![];
+            // Plain `.ts`/`.mts`/`.cts` files can't contain JSX, and enabling `tsx` makes bare
+            // generics like `<T>(x: T) => x` fail to parse. Every other extension (`.tsx`, `.jsx`,
+            // `.js`, ...) may contain JSX, so keep `tsx` enabled for them.
+            let is_tsx = !matches!(
+                self.filename.extension().and_then(|e| e.to_str()),
+                Some("ts" | "mts" | "cts")
+            );
             let Ok(program) = parse_file_as_program(
                 &fm,
                 Syntax::Typescript(TsSyntax {
-                    tsx: true,
+                    tsx: is_tsx,
                     ..Default::default()
                 }),
                 EsVersion::EsNext,
