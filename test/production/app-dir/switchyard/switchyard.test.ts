@@ -312,6 +312,19 @@ describe('switchyard', () => {
       })
     })
 
+    it('passes the trailer fields of a chunked upload on', async () => {
+      const res = await rawRequest(
+        Number(next.appPort),
+        `POST /api/trailers HTTP/1.1\r\nHost: localhost:${next.appPort}\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum`,
+        Buffer.from('3\r\nabc\r\n0\r\nX-Checksum: 900150983cd24fb0\r\n\r\n')
+      )
+      expect(res.status).toBe(200)
+      expect(JSON.parse(res.body.toString())).toEqual({
+        body: 'abc',
+        trailers: { 'x-checksum': '900150983cd24fb0' },
+      })
+    })
+
     it('passes a large body with a content-length', async () => {
       const body = randomBytes(8 * 1024 * 1024)
       const res = await fetch(`${next.url}/echo`, {
