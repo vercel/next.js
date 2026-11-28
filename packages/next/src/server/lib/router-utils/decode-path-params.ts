@@ -1,6 +1,8 @@
 import escapePathDelimiters from '../../../shared/lib/router/utils/escape-path-delimiters'
 import { DecodeError } from '../../../shared/lib/utils'
 
+const ENCODED_OR_DELIMITER = /[%#?\\]/
+
 /**
  * We only encode path delimiters for path segments from
  * getStaticPaths so we need to attempt decoding the URL
@@ -9,6 +11,13 @@ import { DecodeError } from '../../../shared/lib/utils'
  * Japanese characters.
  * */
 function decodePathParams(pathname: string): string {
+  // A pathname without these characters is returned as it is by the code
+  // below: there is nothing to decode (`%`) and, between the slashes, no path
+  // delimiter to escape (`#`, `?`, `\`, or an encoded one, which needs a `%`).
+  if (!ENCODED_OR_DELIMITER.test(pathname)) {
+    return pathname
+  }
+
   // TODO: investigate adding this handling for non-SSG
   // pages so non-ascii names also work there.
   return pathname

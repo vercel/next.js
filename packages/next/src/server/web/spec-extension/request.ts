@@ -1,6 +1,6 @@
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
+import { validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
 
@@ -38,8 +38,12 @@ export class NextRequest extends Request {
     if (input instanceof Request) super(input, init)
     else super(url, init)
 
+    // `NextURL` only reads the `host` header (to detect a domain locale), so
+    // it gets that header instead of a copy of all of them. `Headers.get`
+    // returns what the copy would have held: the values joined by ", ".
+    const host = this.headers.get('host')
     const nextUrl = new NextURL(url, {
-      headers: toNodeOutgoingHttpHeaders(this.headers),
+      headers: { host: host === null ? undefined : host },
       nextConfig: init.nextConfig,
     })
     this[INTERNALS] = {
