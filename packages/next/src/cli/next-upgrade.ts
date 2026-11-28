@@ -18,6 +18,7 @@ import {
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
+import { restoreEnv } from '../lib/upgrade/original-env'
 import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
 import { resolveCanaryVersion } from '../lib/upgrade/resolve-canary-version'
@@ -143,11 +144,15 @@ async function prepareUpgradeSkill(
 }
 
 async function loadAgentUpgradeConfig(directory: string) {
+  // Loading the config also loads the app's .env files into this process.
+  // The coding agent inherits this environment, and its own `next dev` would
+  // skip .env.development if it inherited the production values.
+  const env = { ...process.env }
   // Read and normalize the app's config without validating legacy options
   // against the current Next.js schema.
   const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
     rawConfig: true,
-  })
+  }).finally(() => restoreEnv(env))
   return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }
 
