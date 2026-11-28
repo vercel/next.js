@@ -4,10 +4,13 @@ import {
   bindSnapshot,
   getOrCreateGlobalAsyncLocalStorage,
 } from '../app-render/async-local-storage'
+import { runAsIOForReactIOTracking } from '../app-render/app-render-scheduling/react-io-tracking'
 
 type Execution = {
+  isCapturing: boolean
   state: ExecutionState
   queuedImmediates: QueueItem[]
+  queuedAfterImmediates: TaskItem[]
 }
 
 enum ExecutionState {
@@ -42,7 +45,40 @@ const originals = ((globalThis as any)[FAST_SET_IMMEDIATE_ORIGINALS_KEY] ??
 let wasEnabledAtLeastOnce = false
 
 let pendingNextTicks = 0
-let currentExecution: Execution | null = null
+
+const currentExecutionStack: Execution[] = []
+
+function getCurrentExecution(): Execution | null {
+  if (currentExecutionStack.length === 0) {
+    return null
+  }
+  return currentExecutionStack[currentExecutionStack.length - 1]
+}
+
+function pushNewExecution() {
+  const execution: Execution = {
+    isCapturing: false,
+    state: ExecutionState.Waiting,
+    queuedImmediates: [],
+    queuedAfterImmediates: [],
+  }
+  currentExecutionStack.push(execution)
+  if (debug) {
+    const len = currentExecutionStack.length
+    debug?.(`execution :: pushed new execution (${len - 1} -> ${len})`)
+  }
+  return execution
+}
+
+function popCurrentExecution() {
+  const prevLen = currentExecutionStack.length
+  currentExecutionStack.pop()
+  if (debug) {
+    debug?.(
+      `execution :: popped execution stack (${prevLen} -> ${currentExecutionStack.length})`
+    )
+  }
+}
 
 const originalSetImmediate = originals.setImmediate
 const originalClearImmediate = originals.clearImmediate
@@ -183,7 +219,9 @@ export function expectNoPendingImmediates() {
       'expectNoPendingImmediates cannot be called in the edge runtime'
     )
   } else {
-    if (currentExecution !== null) {
+    debug?.('execution :: asserting that no immediates are pending')
+    const currentExecution = getCurrentExecution()
+    if (currentExecution !== null && currentExecution.isCapturing) {
       bail(
         currentExecution,
         new InvariantError(
@@ -191,6 +229,38 @@ export function expectNoPendingImmediates() {
         )
       )
     }
+  }
+}
+
+export function scheduleAfterFastImmediates(callback: () => void): () => void {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'expectNoPendingImmediates cannot be called in the edge runtime'
+    )
+  } else {
+    const currentExecution = getCurrentExecution()
+    if (currentExecution === null) {
+      throw new InvariantError(
+        'Cannot schedule a callback after fast immediates without an execution'
+      )
+    }
+
+    const callbackWithAsyncContext = bindSnapshot(
+      process.env.NODE_ENV === 'development'
+        ? runAsIOForReactIOTracking.bind(null, callback)
+        : callback
+    )
+
+    const taskItem: ActiveTaskItem = {
+      type: ItemType.Task,
+      isCleared: false,
+      callback: callbackWithAsyncContext,
+    }
+    currentExecution.queuedAfterImmediates.push(taskItem)
+
+    const cancel = clearTaskItem.bind(null, taskItem)
+
+    return cancel
   }
 }
 
@@ -310,6 +380,14 @@ export class ImmediateTracker {
   }
 }
 
+let nextScheduleAttemptId = 0
+
+function getScheduleAttemptId() {
+  const attemptId = nextScheduleAttemptId
+  nextScheduleAttemptId = (nextScheduleAttemptId % Number.MAX_SAFE_INTEGER) + 1
+  return attemptId
+}
+
 /**
  * Execute the next captured immediate once the current task is done.
  *
@@ -320,7 +398,15 @@ export class ImmediateTracker {
  * @throws {InvariantError} If the execution is not waiting.
  */
 function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
+  const attemptId = getScheduleAttemptId()
+  debug?.(`scheduler :: scheduling work attempt: ${attemptId}`)
+
   if (execution.state !== ExecutionState.Waiting) {
+    debug?.(
+      `scheduler :: cannot schedule work attempt (state: ${ExecutionState[execution.state]})`,
+      execution
+    )
+    // TODO(bail): shouldn't this be a bail?
     throw new InvariantError(
       `scheduleWorkAfterTicksAndMicrotasks can only be called while waiting (state: ${ExecutionState[execution.state]})`
     )
@@ -359,13 +445,16 @@ function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
       // Reading the source of `processTicksAndRejections` can help understand the timing here --
       // All we're really doing is strategically pushing callbacks into the two queues
       // (nextTicks and microtasks) that that function is currently looping over.
+      debug?.(`scheduler :: running work attempt: ${attemptId}`)
 
       try {
         if (
           execution.state === ExecutionState.Abandoned ||
-          currentExecution !== execution
+          getCurrentExecution() !== execution
         ) {
           debug?.(`scheduler :: the execution was abandoned`)
+          // TODO(bail): maybe we don't skip it here,
+          // and let performWork handle it?
           return
         }
         if (hadPendingNextTicks || pendingNextTicks > 0) {
@@ -377,7 +466,7 @@ function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
 
         // There's no other nextTicks, we're the last one, so we're about to move on to the next task (likely a timer).
         // Now, we can try and execute any queued immediates.
-        return performWork(execution)
+        return performWork(execution, attemptId)
       } catch (err) {
         // If this error comes from a bail() call, rethrow it.
 
@@ -405,35 +494,110 @@ function scheduleWorkAfterNextTicksAndMicrotasks(execution: Execution) {
 }
 
 /** Execute one immediate, and schedule a check for more (in case there's others in the queue) */
-function performWork(execution: Execution) {
+function performWork(execution: Execution, attemptId: number) {
   if (execution.state === ExecutionState.Abandoned) {
+    // TODO(bail): handle bail / abandoned state
     return
   }
+  const label = debug ? `work ${(attemptId + '').padEnd(4)}` : undefined
 
-  debug?.(`scheduler :: performing work`)
+  debug?.(`${label} :: performing work`)
 
   if (execution.state !== ExecutionState.Waiting) {
     throw new InvariantError(
       `performWork can only be called while waiting (state: ${ExecutionState[execution.state]})`
     )
   }
+
   execution.state = ExecutionState.Working
+  const queueItem = takeNextActiveQueueItem(execution.queuedImmediates)
+  if (queueItem !== null) {
+    debug?.(`${label} :: executing queued immediate`)
+    const { callback, args, immediateObject } = queueItem
 
-  const queueItem = takeNextActiveQueueItem(execution)
+    immediateObject[INTERNALS].queueItem = null
+    clearQueueItem(queueItem)
 
-  if (queueItem === null) {
-    debug?.(`scheduler :: no immediates queued, exiting`)
-    stopCapturingImmediates(execution)
-    return
+    executeCallback(callback, args)
+
+    // Schedule the loop again in case there's more immediates after this one.
+    // Note that we can't just check if the queue is empty now, because new immediates
+    // might still be scheduled asynchronously, from an upcoming nextTick or microtask.
+    execution.state = ExecutionState.Waiting
+    return scheduleWorkAfterNextTicksAndMicrotasks(execution)
   }
 
-  debug?.(`scheduler :: executing queued immediate`)
+  // After we've exhausted the current immediate queue, run callbacks
+  // scheduled with `scheduleAfterFastImmediates`.
+  // If one of them schedules more immediates, we'll run them before the next one.
+  const taskItem = takeNextActiveQueueItem(execution.queuedAfterImmediates)
+  if (taskItem !== null) {
+    debug?.(`${label} :: executing queued task`)
+    const { callback } = taskItem
+    clearTaskItem(taskItem)
 
-  const { immediateObject, callback, args } = queueItem
+    execution.state = ExecutionState.Waiting
 
-  immediateObject[INTERNALS].queueItem = null
-  clearQueueItem(queueItem)
+    const nestedExecution = pushNewExecution()
+    nestedExecution.state = ExecutionState.Working
+    executeCallback(callback, null)
+    // TODO(bail): handle bail / abandoned state
+    // right now, a sync bail caused by the callback will lead to:
+    // 1. uncaughtException (because `executeCallback` rethrows in a microtask)
+    // 2. scheduling work and then skipping it because it's abandoned
 
+    if (nestedExecution.isCapturing) {
+      // If the task started capturing immediates, then it has
+      // scheduled work on the new execution already.
+      debug?.(
+        `${label} :: task started capturing immediates, yielding to it (nested state: ${ExecutionState[nestedExecution.state]})`
+      )
+      return
+    } else {
+      debug?.(
+        `${label} :: task did not start capturing immediates, scheduling more work to finish it (nested state: ${ExecutionState[nestedExecution.state]})`
+      )
+      // If the task did not start capturing immediates, then we have to
+      // let ticks and microtasks from the callback run first.
+      // Then, we'll finish the new execution and return to the current one.
+      nestedExecution.state = ExecutionState.Waiting
+      return scheduleWorkAfterNextTicksAndMicrotasks(nestedExecution)
+    }
+  }
+
+  debug?.(`${label} :: no immediates or tasks queued, finishing`)
+  const parentExution = finishExecution(execution)
+  if (parentExution !== null) {
+    // We've already waited for ticks and microtasks to get here,
+    // so we can go back to the parent execution immediately.
+    debug?.(
+      `${label} :: no immediates or tasks queued, switching back to parent execution`
+    )
+    try {
+      return performWork(parentExution, getScheduleAttemptId())
+    } catch (err) {
+      if (parentExution.state === ExecutionState.Abandoned) {
+        throw err
+      }
+      bail(
+        parentExution,
+        new InvariantError(
+          'An unexpected error occurred while returning to parent execution',
+          { cause: err }
+        )
+      )
+    }
+  }
+
+  debug?.(
+    `${label} :: no immediates or tasks queued and no parent execution, done`
+  )
+}
+
+function executeCallback(
+  callback: (...args: any[]) => any,
+  args: any[] | null
+) {
   // Execute the immediate.
 
   // If a sync error was thrown in the immediate, we want to trigger a `uncaughtException`.
@@ -480,27 +644,25 @@ function performWork(execution: Execution) {
     }
   } catch (err) {
     // We'll rethrow the error in the microtask above.
+    // TODO(bail): maybe we should check for bails here?
     didThrow = true
     thrownValue = err
   }
-
-  // Schedule the loop again in case there's more immediates after this one.
-  // Note that we can't just check if the queue is empty now, because new immediates
-  // might still be scheduled asynchronously, from an upcoming nextTick or microtask.
-  execution.state = ExecutionState.Waiting
-  scheduleWorkAfterNextTicksAndMicrotasks(execution)
 }
 
-function takeNextActiveQueueItem(execution: Execution): ActiveQueueItem | null {
+function takeNextActiveQueueItem(queue: QueueItem[]): ActiveQueueItem | null
+function takeNextActiveQueueItem(queue: TaskItem[]): ActiveTaskItem | null
+function takeNextActiveQueueItem(
+  queue: QueueItem[] | TaskItem[]
+): ActiveQueueItem | ActiveTaskItem | null {
   // Find the first (if any) queued immediate that wasn't cleared.
   // We don't remove immediates from the array when they're cleared,
   // so this requires some legwork to exclude (and possibly drop) cleared items.
-  const { queuedImmediates } = execution
 
-  let firstActiveItem: ActiveQueueItem | null = null
+  let firstActiveItem: ActiveQueueItem | ActiveTaskItem | null = null
   let firstActiveItemIndex = -1
-  for (let i = 0; i < queuedImmediates.length; i++) {
-    const item = queuedImmediates[i]
+  for (let i = 0; i < queue.length; i++) {
+    const item = queue[i]
     if (!item.isCleared) {
       firstActiveItem = item
       firstActiveItemIndex = i
@@ -512,8 +674,8 @@ function takeNextActiveQueueItem(execution: Execution): ActiveQueueItem | null {
     // We didn't find an active item.
 
     // If the queue isn't empty, then it must only contain cleared items. Empty it.
-    if (queuedImmediates.length > 0) {
-      queuedImmediates.length = 0
+    if (queue.length > 0) {
+      queue.length = 0
     }
 
     return null
@@ -524,16 +686,18 @@ function takeNextActiveQueueItem(execution: Execution): ActiveQueueItem | null {
   if (firstActiveItemIndex === 0) {
     // Fast path - drop the first item
     // (`splice` creates a result array for the removed items, so this is more efficient)
-    queuedImmediates.shift()
+    queue.shift()
   } else {
-    queuedImmediates.splice(0, firstActiveItemIndex + 1)
+    queue.splice(0, firstActiveItemIndex + 1)
   }
 
   return firstActiveItem
 }
 
 function startCapturingImmediates(): Execution {
-  if (currentExecution !== null) {
+  debug?.('execution :: immediate capture was requested')
+  let currentExecution = getCurrentExecution()
+  if (currentExecution !== null && currentExecution.isCapturing) {
     bail(
       currentExecution,
       new InvariantError(
@@ -543,18 +707,21 @@ function startCapturingImmediates(): Execution {
   }
   wasEnabledAtLeastOnce = true
 
-  const execution: Execution = {
-    state: ExecutionState.Waiting,
-    queuedImmediates: [],
+  // NOTE: We may be in a nested execution pushed by performWork.
+  if (currentExecution === null) {
+    currentExecution = pushNewExecution()
   }
-  currentExecution = execution
-
-  return execution
+  currentExecution.isCapturing = true
+  currentExecution.state = ExecutionState.Waiting
+  return currentExecution
 }
 
-function stopCapturingImmediates(execution: Execution) {
+/** @returns the parent execution to return to, if any. */
+function finishExecution(execution: Execution): Execution | null {
   if (execution.state === ExecutionState.Abandoned) {
-    return
+    // TODO(bail): what do we do if a child execution was abandoned
+    // but the parent wasn't? how can that happen
+    return getCurrentExecution()
   }
 
   // This check enforces that we run performWork at least once before stopping
@@ -568,18 +735,23 @@ function stopCapturingImmediates(execution: Execution) {
 
   execution.state = ExecutionState.Finished
 
-  if (currentExecution === execution) {
-    currentExecution = null
+  if (getCurrentExecution() === execution) {
+    popCurrentExecution()
   }
+  return getCurrentExecution()
 }
 
 function bail(execution: Execution, error: Error): never {
+  debug?.('bailing', error, execution)
   // Reset the state as best we can to prevent further crashes.
   // Otherwise, any subsequent call to `DANGEROUSLY_runPendingImmediatesAfterCurrentTask`
   // would error, requiring a server restart to fix.
 
-  if (currentExecution === execution) {
-    currentExecution = null
+  // TODO(bail): does this work?
+  // Pop the execution stack up to here.
+  const executionIndex = currentExecutionStack.indexOf(execution)
+  if (executionIndex !== -1) {
+    currentExecutionStack.splice(executionIndex)
   }
 
   execution.state = ExecutionState.Abandoned
@@ -589,6 +761,8 @@ function bail(execution: Execution, error: Error): never {
   // e.g. hanging promises (for `new Promise((resolve) => setImmediate(resolve))`),
   // but we're in an inconsistent state and can't run them as fast immediates,
   // so this is the next best thing.
+
+  // TODO(bail): what about `queuedAfterImmediates`?
   for (const queueItem of execution.queuedImmediates) {
     if (queueItem.isCleared) {
       continue
@@ -605,6 +779,7 @@ function bail(execution: Execution, error: Error): never {
 
 function scheduleQueuedImmediateAsNativeImmediate(queueItem: ActiveQueueItem) {
   const { callback, args, immediateObject } = queueItem
+
   const hasRef = immediateObject[INTERNALS].hasRef
 
   clearQueueItem(queueItem)
@@ -623,18 +798,38 @@ function scheduleQueuedImmediateAsNativeImmediate(queueItem: ActiveQueueItem) {
   proxyQueuedImmediateToNativeImmediate(immediateObject, nativeImmediate)
 }
 
+const enum ItemType {
+  Immediate = 1,
+  Task = 2,
+}
+
 type QueueItem = ActiveQueueItem | ClearedQueueItem
+type TaskItem = ActiveTaskItem | ClearedTaskItem
+
 type ActiveQueueItem = {
+  type: ItemType.Immediate
   isCleared: false
   callback: (...args: any[]) => any
   args: any[] | null
   immediateObject: NextImmediate
 }
 type ClearedQueueItem = {
+  type: ItemType.Immediate
   isCleared: true
   callback: null
   args: null
   immediateObject: null
+}
+
+type ActiveTaskItem = {
+  type: ItemType.Task
+  isCleared: false
+  callback: (...args: any[]) => any
+}
+type ClearedTaskItem = {
+  type: ItemType.Task
+  isCleared: true
+  callback: null
 }
 
 function clearQueueItem(originalQueueItem: QueueItem) {
@@ -645,6 +840,12 @@ function clearQueueItem(originalQueueItem: QueueItem) {
   queueItem.immediateObject = null
 }
 
+function clearTaskItem(originalQueueItem: TaskItem) {
+  const queueItem = originalQueueItem as ClearedTaskItem
+  queueItem.isCleared = true
+  queueItem.callback = null
+}
+
 //========================================================
 
 function patchedNextTick<TArgs extends any[]>(
@@ -652,6 +853,11 @@ function patchedNextTick<TArgs extends any[]>(
   ...args: TArgs
 ): void
 function patchedNextTick() {
+  // NOTE: when running nested executions, we need to keep
+  // nextTick patched even when the current execution isn't capturing,
+  // because we need to know when to end it.
+  const currentExecution = getCurrentExecution()
+
   if (currentExecution === null) {
     return originalNextTick.apply(
       null,
@@ -727,7 +933,8 @@ function patchedSetImmediate<TArgs extends any[]>(
 ): NodeJS.Immediate
 function patchedSetImmediate(callback: (args: void) => void): NodeJS.Immediate
 function patchedSetImmediate(): NodeJS.Immediate {
-  if (currentExecution === null) {
+  const currentExecution = getCurrentExecution()
+  if (currentExecution === null || !currentExecution.isCapturing) {
     const immediate = originalSetImmediate.apply(
       null,
       // @ts-expect-error: this is valid, but typescript doesn't get it
@@ -764,6 +971,7 @@ function patchedSetImmediate(): NodeJS.Immediate {
   const immediateObject = new NextImmediate()
 
   const queueItem: ActiveQueueItem = {
+    type: ItemType.Immediate,
     isCleared: false,
     callback: callbackWithAsyncContext,
     args,
@@ -780,7 +988,8 @@ function patchedSetImmediatePromise<T = void>(
   value: T,
   options?: import('node:timers').TimerOptions
 ): Promise<T> {
-  if (currentExecution === null) {
+  const currentExecution = getCurrentExecution()
+  if (currentExecution === null || !currentExecution.isCapturing) {
     const promise = originalSetImmediatePromisify(value, options)
     immediateAsyncStorage.getStore()?.scheduleIdleCheck()
     return promise

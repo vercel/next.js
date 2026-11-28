@@ -1648,6 +1648,10 @@ export interface ExperimentalConfig {
    *   of `MessagePort` listeners, where each message is processed in a separate task,
    *   and queued messages are processed without interruption by other tasks (up to a
    *   large limit).
+   * - `unstable_next-tick`: Sequential tasks will be simulated using `process.nextTick`
+   *   and microtasks. Assumes Node.js-like behavior of
+   *   `queueMicrotask(() => process.nextTick(cb))`, which should run after the microtask
+   *   queue has been drained.
    *
    * @default 'unstable_timer'
    */
@@ -1655,6 +1659,7 @@ export interface ExperimentalConfig {
     | 'unstable_timer'
     | 'unstable_immediate'
     | 'unstable_message-port'
+    | 'unstable_next-tick'
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.

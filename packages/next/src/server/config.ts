@@ -2595,7 +2595,8 @@ function enforceExperimentalFeatures(
   if (
     (sequentialTaskScheduling === 'unstable_timer' ||
       sequentialTaskScheduling === 'unstable_immediate' ||
-      sequentialTaskScheduling === 'unstable_message-port') &&
+      sequentialTaskScheduling === 'unstable_message-port' ||
+      sequentialTaskScheduling === 'unstable_next-tick') &&
     // We do respect an explicit value in the user config.
     (config.experimental.sequentialTaskScheduling === undefined ||
       (isDefaultConfig &&

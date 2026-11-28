@@ -5,10 +5,12 @@ import {
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import * as fsPromises from 'node:fs/promises'
+import { unpatchedSetImmediate as setImmediate } from '../../node-environment-extensions/fast-set-immediate.external'
 
 import * as TimerScheduler from './timer-scheduler'
 import * as ImmediateScheduler from './immediate-scheduler'
 import * as MessagePortScheduler from './message-port-scheduler'
+import * as NextTickScheduler from './next-tick-scheduler'
 
 function createLogger() {
   const logs: string[] = []
@@ -40,6 +42,7 @@ describe.each([
   { description: 'Timer scheduler', scheduler: TimerScheduler },
   { description: 'Immediate scheduler', scheduler: ImmediateScheduler },
   { description: 'MessagePort scheduler', scheduler: MessagePortScheduler },
+  { description: 'NextTick scheduler', scheduler: NextTickScheduler },
 ])('$description', ({ scheduler }) => {
   const { scheduleSequentialTasks } = scheduler
 

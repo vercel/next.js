@@ -521,7 +521,12 @@ export const experimentalSchema = {
   serverComponentsHmrCache: z.boolean().optional(),
   serverComponentsHmrCancellation: z.boolean().optional(),
   sequentialTaskScheduling: z
-    .enum(['unstable_timer', 'unstable_immediate', 'unstable_message-port'])
+    .enum([
+      'unstable_timer',
+      'unstable_immediate',
+      'unstable_message-port',
+      'unstable_next-tick',
+    ])
     .optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
