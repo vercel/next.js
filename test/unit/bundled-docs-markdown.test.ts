@@ -378,6 +378,59 @@ describe('bundled docs as Markdown', () => {
     ])
   })
 
+  it('leaves code inside a styled wrapper with its own indentation', () => {
+    const fence = '```'
+    // Content not indented under the wrapper: nothing to take off.
+    const flat = [
+      "<div style={{ padding: '1rem' }}>",
+      '',
+      'Run this:',
+      '',
+      `${fence}py`,
+      'def f():',
+      '  return 1',
+      fence,
+      '',
+      '</div>',
+    ].join('\n')
+    expect(toMarkdown(flat, { relativePath: '01-app/page.mdx' }).trim()).toBe(
+      ['Run this:', '', `${fence}py`, 'def f():', '  return 1', fence].join(
+        '\n'
+      )
+    )
+    // Content indented under the wrapper, code included: all of it moves out.
+    const indented = [
+      "<div style={{ padding: '1rem' }}>",
+      '  Run this:',
+      '',
+      `  ${fence}py`,
+      '  def f():',
+      '    return 1',
+      `  ${fence}`,
+      '</div>',
+    ].join('\n')
+    expect(
+      toMarkdown(indented, { relativePath: '01-app/page.mdx' }).trim()
+    ).toBe(
+      ['Run this:', '', `${fence}py`, 'def f():', '  return 1', fence].join(
+        '\n'
+      )
+    )
+    // Text indented, code not: the code keeps its leading spaces.
+    const mixed = [
+      "<div style={{ padding: '1rem' }}>",
+      '  Run this:',
+      '',
+      `${fence}yaml`,
+      '  key: value',
+      fence,
+      '</div>',
+    ].join('\n')
+    expect(toMarkdown(mixed, { relativePath: '01-app/page.mdx' }).trim()).toBe(
+      ['Run this:', '', `${fence}yaml`, '  key: value', fence].join('\n')
+    )
+  })
+
   it('turns website layout into Markdown', () => {
     const source = [
       '<div',

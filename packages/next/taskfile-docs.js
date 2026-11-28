@@ -255,18 +255,43 @@ function convertBody(parse, body, router) {
     if (node.type === 'mdxJsxFlowElement') replaceFlow(node, text)
     else edits.push({ start: start(node), end: end(node), text })
   }
+  const indentOf = (offset) =>
+    body.slice(lineStart(offset)).match(/^ */)[0].length
   /**
    * Text that was indented under a wrapper loses that indentation with it:
-   * two spaces a wrapper, counted by line so nested wrappers add up.
+   * as many spaces as the wrapper's content sits in from the wrapper itself,
+   * counted by line so nested wrappers add up. A wrapper that did not indent
+   * its content changes nothing, and neither does a code block that is not
+   * indented with the rest: its leading spaces are its own.
    */
   const indents = new Map()
-  const dedent = (from, to) => {
+  const dedent = (node) => {
+    const children = node.children ?? []
+    if (children.length === 0) return
+    const base = indentOf(start(node))
+    const width = indentOf(start(children[0])) - base
+    if (width <= 0) return
+    const skipped = []
+    const findCode = (parent) => {
+      for (const child of parent.children ?? []) {
+        if (child.type !== 'code') findCode(child)
+        else if (indentOf(start(child)) < base + width) {
+          skipped.push([lineStart(start(child)), end(child)])
+        }
+      }
+    }
+    findCode(node)
+    const to = end(children.at(-1))
     for (
-      let at = body.indexOf('\n', from);
+      let at = lineStart(start(children[0])) - 1;
       at !== -1 && at < to;
       at = body.indexOf('\n', at + 1)
     ) {
-      indents.set(at + 1, (indents.get(at + 1) ?? 0) + 2)
+      const line = at + 1
+      if (skipped.some(([from, until]) => line >= from && line <= until)) {
+        continue
+      }
+      indents.set(line, (indents.get(line) ?? 0) + width)
     }
   }
 
@@ -379,12 +404,7 @@ function convertBody(parse, body, router) {
         node.attributes.every((entry) => entry.name === 'style')
       ) {
         unwrap(node)
-        if (node.type === 'mdxJsxFlowElement' && node.children?.length) {
-          dedent(
-            lineStart(start(node.children[0])) - 1,
-            end(node.children.at(-1))
-          )
-        }
+        if (node.type === 'mdxJsxFlowElement') dedent(node)
         walk(node)
         continue
       }
