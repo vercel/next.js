@@ -704,7 +704,11 @@ function makeHangingPromiseWithError<T>(
   error: Error
 ): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(error)
+    const rejectedPromise = Promise.reject<T>(error)
+    // Like below, no one has to await this promise, so it must not surface as
+    // an unhandled rejection.
+    rejectedPromise.catch(ignoreReject)
+    return rejectedPromise
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
       const boundRejection = reject.bind(null, error)
