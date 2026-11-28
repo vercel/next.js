@@ -79,6 +79,16 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
     expect(agentsContent).toContain(AGENT_RULES_MARKER)
     expect(agentsContent).toContain('\n## This is NOT the Next.js you know\n')
     expect(agentsContent).toContain('node_modules/next/dist/docs/')
+    // The bundled docs include the pages behind error and warning links, at
+    // the path the nextjs.org/docs/messages/<name> link uses.
+    expect(
+      fs.existsSync(
+        path.join(
+          next.testDir,
+          'node_modules/next/dist/docs/messages/cache-bypass-in-dev.md'
+        )
+      )
+    ).toBe(true)
   })
 })
 

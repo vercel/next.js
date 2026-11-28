@@ -966,7 +966,7 @@ export interface ExperimentalConfig {
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
    * Chunking then sizes modules by their minified code, see `turbopackChunking`.
-   * Defaults to true on canary releases and false on stable releases. Only applies to
+   * Defaults to true starting in Next.js 16.5; set it to false to opt out. Only applies to
    * production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
@@ -1622,6 +1622,39 @@ export interface ExperimentalConfig {
    * once a newer refresh supersedes it. Development only.
    */
   serverComponentsHmrCancellation?: boolean
+
+  /**
+   * Selects the scheduling mechanism used for sequential tasks in Cache Components.
+   *
+   * Warning: This option is highly experimental, and should be used with caution.
+   * Depending on the runtime, it may lead to non-deterministic and hard-to-debug problems,
+   * such as:
+   *
+   * - content missing from prerenders
+   * - poisoning the ISR cache with uncached data that should be omitted from a prerender
+   *
+   * It is intended for experimention by people maintaining Next.js integrations with
+   * non-Node.js runtimes. Do not change the default setting unless you fully understand the
+   * implications and your runtime's scheduling behavior.
+   *
+   * - `unstable_timer` (default): Sequential tasks will be scheduled using `setTimeout()`.
+   *   Note that this implementation relies on internals of Node.js `Timeout` objects
+   *   to ensure consistent behavior, so it may not be portable.
+   * - `unstable_immediate`: Sequential tasks will be scheduled using `setImmediate()`.
+   *   Assumes that multiple immediates queued synchronously will run without interruption
+   *   by other tasks.
+   * - `unstable_message-port`: Sequential tasks will be scheduled by queueing messages
+   *   on a `MessagePort` and then attaching a listener. Assumes Node.js-like behavior
+   *   of `MessagePort` listeners, where each message is processed in a separate task,
+   *   and queued messages are processed without interruption by other tasks (up to a
+   *   large limit).
+   *
+   * @default 'unstable_timer'
+   */
+  sequentialTaskScheduling?:
+    | 'unstable_timer'
+    | 'unstable_immediate'
+    | 'unstable_message-port'
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
@@ -2626,6 +2659,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     serverComponentsHmrCancellation: false,
+    sequentialTaskScheduling: 'unstable_timer',
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
@@ -2762,6 +2796,7 @@ export interface NextConfigRuntime {
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
     | 'serverComponentsHmrCancellation'
+    | 'sequentialTaskScheduling'
     | 'caseSensitiveRoutes'
     | 'validateRSCRequestHeaders'
     | 'sri'
@@ -2836,6 +2871,7 @@ export function getNextConfigRuntime(
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
     serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,
+    sequentialTaskScheduling: ex.sequentialTaskScheduling,
     caseSensitiveRoutes: ex.caseSensitiveRoutes,
     validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
     sri: ex.sri,

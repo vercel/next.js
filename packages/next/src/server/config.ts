@@ -65,7 +65,6 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { NSIO_OUTPUT_MIME_TYPES } from '../shared/lib/image-optimizer-constants'
 export type { DomainLocale, NextConfig } from './config-shared'
 
@@ -574,8 +573,8 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
 
-  // Enable per-module minification by default on canary releases.
-  result.experimental.turbopackMinifyBeforeChunking ??= !isStableBuild()
+  // Enable per-module minification by default.
+  result.experimental.turbopackMinifyBeforeChunking ??= true
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
@@ -2590,6 +2589,28 @@ function enforceExperimentalFeatures(
 
   if (process.env.__NEXT_PARTIAL_PREFETCHING === 'true') {
     config.partialPrefetching = true
+  }
+
+  const sequentialTaskScheduling = process.env.__NEXT_SEQUENTIAL_TASK_SCHEDULING
+  if (
+    (sequentialTaskScheduling === 'unstable_timer' ||
+      sequentialTaskScheduling === 'unstable_immediate' ||
+      sequentialTaskScheduling === 'unstable_message-port') &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.sequentialTaskScheduling === undefined ||
+      (isDefaultConfig &&
+        config.experimental.sequentialTaskScheduling === 'unstable_timer'))
+  ) {
+    config.experimental.sequentialTaskScheduling = sequentialTaskScheduling
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'sequentialTaskScheduling',
+        sequentialTaskScheduling,
+        'set by `__NEXT_SEQUENTIAL_TASK_SCHEDULING`'
+      )
+    }
   }
 
   // TODO: Remove this once cachedNavigations is the default.

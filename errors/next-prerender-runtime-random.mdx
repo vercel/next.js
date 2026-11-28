@@ -42,6 +42,8 @@ export const prefetch = 'partial'
 async function RandomizedProductsView({ category }) {
   'use cache'
   const products = await getCachedProducts(category)
+  // Cached, so the value is reused until revalidation
+  // eslint-disable-next-line react-hooks/purity
   const randomSeed = Math.random()
   const randomizedProducts = randomize(products, randomSeed)
   return <ProductsView products={randomizedProducts} />
@@ -96,6 +98,8 @@ export default async function Page({ params }) {
 
 async function DynamicProductsView({ products }) {
   await connection();
+  // Runs per request after `connection()`, so the new value is intended
+  // eslint-disable-next-line react-hooks/purity
   const randomSeed = Math.random()
   const randomizedProducts = randomize(products, randomSeed)
   return <ProductsView products={randomizedProducts} />

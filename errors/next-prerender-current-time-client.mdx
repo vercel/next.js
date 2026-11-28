@@ -46,6 +46,8 @@ After:
 import { Suspense } from 'react'
 
 export function RelativeTime({ timestamp }) {
+  // Renders at request time inside `<Suspense>`
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
   return <span>{computeTimeAgo({ timestamp, now })}</span>
 }
@@ -181,8 +183,11 @@ After:
 "use client"
 
 export default async function Page() {
+  // Only used for timing, not rendered
+  // eslint-disable-next-line react-hooks/purity
   const start = performance.now();
   const data = computeDataSlowly(...);
+  // eslint-disable-next-line react-hooks/purity
   const end = performance.now();
   console.log(`computeDataSlowly took ${end - start} milliseconds to complete`)
   return ...

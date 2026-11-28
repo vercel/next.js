@@ -13,7 +13,7 @@ related:
 
 Use `next upgrade --agent` to have a coding agent upgrade and verify your app. The command determines the target version from the configured policy, prepares the relevant migration guides and Skills, and hands the task to the agent.
 
-The command supports App Router and Pages Router projects. Without `--agent`, [`next upgrade`](/docs/app/api-reference/cli/next#next-upgrade-options) runs the interactive codemod workflow instead.
+The command supports App Router and Pages Router projects. Running [`next upgrade`](/docs/app/api-reference/cli/next#next-upgrade-options) on its own starts the interactive codemod workflow.
 
 ## Start an upgrade
 
@@ -113,6 +113,80 @@ Open the upgrade in a separate Git worktree?
 ```
 
 When you run the command from an existing coding agent, it provides the prepared task to that agent instead. The agent keeps the model, reasoning effort, and permissions already configured for its session.
+
+## Run scheduled upgrades on GitHub
+
+The agent upgrade can also run automatically in CI with GitHub Actions. To set up the workflow, run the upgrade CLI with `--ci` in an interactive terminal from your app's directory:
+
+```bash filename="Terminal"
+npx next@canary upgrade --ci
+```
+
+The command uses the [GitHub CLI](https://cli.github.com) to open a pull request that adds the workflow to your repository. If a setup pull request is already open or the workflow is already installed, the CLI gives you a link to it.
+
+Setup requires:
+
+- A GitHub.com `origin` and a signed-in GitHub CLI account that can push to the repository and add workflow files.
+- A single app using npm, pnpm, or Yarn 1, with one lockfile committed alongside its `package.json` on the default branch. Workspaces, Yarn 2 and later, and Bun aren't supported.
+
+The CLI asks which upgrades to check for, which hosted agent and model to use, and whether to open a setup pull request. Passing `--ci security` or `--ci latest` skips the policy question. Here's an example of what setup looks like in the terminal:
+
+```txt filename="Terminal"
+Choose the upgrade policy:
+❯ Security updates (only for security advisories)
+  Latest stable release (every new stable release)
+
+Choose the hosted agent for the scheduled GitHub workflow:
+❯ Codex with an OpenAI API key
+  Claude Code with an Anthropic API key
+
+Which Codex model should run the upgrade?
+❯ Terra
+  Sol
+
+Which reasoning effort should the upgrade use?
+❯ Model default
+  high
+
+Open a setup pull request against acme/web (main)?
+❯ Open pull request
+  Cancel
+```
+
+After opening the setup pull request, the CLI walks you through the two GitHub Actions repository secrets. For each one, it can open the page that creates the value, then reads the value you paste without showing it and stores it with the GitHub CLI. You can also skip a secret and add it later with `gh secret set` or in **Settings > Secrets and variables > Actions**.
+
+| Secret                          | Value                                                                                                             |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `NEXT_UPGRADE_AGENT_CREDENTIAL` | An OpenAI API key for Codex or an Anthropic API key for Claude Code                                               |
+| `NEXT_UPGRADE_PUBLISH_TOKEN`    | A fine-grained personal access token for this repository with read and write access to Contents and Pull requests |
+
+The setup pull request adds `.github/workflows/next-upgrade.yml`. This file pins the reusable workflow to a specific commit and records the version of the Next.js CLI used for setup. Here's an excerpt for an app using Codex with the `security` policy:
+
+```yaml filename=".github/workflows/next-upgrade.yml"
+on:
+  schedule:
+    - cron: '0 0 * * *' # daily
+  workflow_dispatch:
+
+jobs:
+  upgrade:
+    uses: vercel/next-upgrade-action/.github/workflows/next-upgrade.yml@<commit>
+    with:
+      policy: security
+      agent: codex
+      # ...
+    secrets:
+      agent-credential: ${{ secrets.NEXT_UPGRADE_AGENT_CREDENTIAL }}
+      publish-token: ${{ secrets.NEXT_UPGRADE_PUBLISH_TOKEN }}
+```
+
+Once you merge the setup pull request, the workflow runs daily by default. You can change the schedule by editing the cron expression. To start a run manually, go to **Actions > Next.js upgrade > Run workflow**.
+
+Each CI run checks whether an upgrade is needed before it starts a hosted agent:
+
+1. If an upgrade pull request from an earlier run is still open, the workflow stops.
+2. Otherwise, the workflow checks the app against the selected policy. If the app is already up to date for that policy, the workflow stops here.
+3. If an upgrade is available, the hosted agent upgrades and verifies the app. The workflow then opens a pull request with the changes for review.
 
 ## Configure upgrade reminders
 

@@ -85,6 +85,7 @@ All fields are optional.
 | `timeoutInSeconds`      | `number`          | `7`         | Per-image processing timeout.                                                                                                                                                                               |
 | `mozjpeg`               | `boolean`         | `true`      | Encodes JPEG output with mozjpeg. Much slower, but produces smaller files.                                                                                                                                  |
 | `safeImageOptimization` | `boolean`         | `false`     | Optimizes with `@next/safe-image-optimization` instead of sharp.                                                                                                                                            |
+| `signal`                | `AbortSignal`     | `undefined` | With `safeImageOptimization`, aborting stops in-progress work and rejects with `signal.reason`. sharp can't be interrupted, so with sharp the optimized image is still returned.                            |
 | `logger`                | `object`          | `undefined` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.                                                                                                                    |
 
 [`sequentialRead`]: https://sharp.pixelplumbing.com/api-constructor/#new
@@ -116,7 +117,7 @@ The function runs the following steps in order:
 5. Returns SVG, ICO, ICNS, BMP, JXL, and HEIC sources unmodified.
 6. Selects the output type: `paramsResult.mimeType` when non-empty, `image/jpeg` for WebP or AVIF sources when no type is requested, otherwise the detected source type.
 7. Resizes and re-encodes the image. The output is auto-rotated according to the EXIF orientation of the source image.
-8. On failure, returns the upstream buffer and content type with `maxAge` set to `opts.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
+8. On failure, returns the upstream buffer and content type with `maxAge` set to `opts.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw, unless `opts.signal` was aborted, which rejects with `signal.reason`.
 
 ### getMaxAge
 
@@ -165,8 +166,17 @@ The error type thrown by `imageOptimizerTransform` for invalid input. `statusCod
 - `sharp` is not used if `safeImageOptimization` is enabled.
 - The module intentionally imports very little so it loads quickly in a separate process, such as a worker or child process. Its file location and exports are a stable public contract.
 - The `contentType` field of `imageUpstream` is not used for detection. The content type is detected from the first bytes of the buffer.
-- Optimization failures do not throw. `imageOptimizerTransform` returns the upstream buffer with `error` set on the result.
+- If the transformation is not aborted and fails, `imageOptimizerTransform` returns the upstream buffer with `error` set on the result.
+- If the transformation is successfully aborted using the `AbortSignal`, the promise is rejected with `signal.reason`.
 - Animated WebP, PNG, and GIF images are returned unoptimized. SVG, ICO, ICNS, BMP, JXL, and HEIC images are always passed through without optimization.
+
+### Cancellation
+
+To stop optimizing when the client disconnects, pass in the `AbortSignal` on `request.signal` to `opts.signal`.
+
+Some platforms require [explicitly enabling request cancellation](https://vercel.com/docs/functions/functions-api-reference#cancel-requests). After a cancellation, a serverless function's execution context can be reclaimed at any time, so wrap any cache writes in [`after`](/docs/app/api-reference/functions/after).
+
+If using a cache with request coalescing, you should avoid cancellation of coalesced requests.
 
 ## Examples
 
