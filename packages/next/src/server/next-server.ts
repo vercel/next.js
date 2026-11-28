@@ -358,6 +358,14 @@ export default class NextNodeServer extends BaseServer<
         // Intentionally ignored because this is a preload step.
       }
     }
+
+    // Load the Node.js proxy (middleware) too, so its module-level work
+    // doesn't delay the first request.
+    try {
+      await this.getMiddleware()
+    } catch (_err) {
+      // Intentionally ignored because this is a preload step.
+    }
   }
 
   protected async handleUpgrade(): Promise<void> {
