@@ -36,6 +36,9 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
+import { readGoProxyConfig } from '../../build/analysis/go-config'
+import type { ProxyMatcher } from '../../build/analysis/get-page-static-info'
+import { getGoProxyMatcher } from '../lib/native-proxy-matcher'
 import {
   BLOCKED_PAGES,
   CLIENT_REFERENCE_MANIFEST,
@@ -682,8 +685,10 @@ export async function createHotReloaderTurbopack(
   }, 500)
 
   const goSdk = goSdkOptions(projectPath, distDir, nextConfig)
-  // The last written state of each Go endpoint: its descriptor, or none when
-  // compilation failed, and its issues.
+  // The last written state of each Go endpoint: its stable descriptor path, or
+  // none when compilation failed, and its issues. Executable hashes are not
+  // needed: an import that starts using next/go produces a compiler issue
+  // until the SDK requirement is synchronized.
   const goEndpointStates = new Map<EntryKey, string>()
   // Turbopack recompiles a Go endpoint when any of its tracked inputs change,
   // including imported packages outside the route directories that the dev
@@ -1308,6 +1313,60 @@ export async function createHotReloaderTurbopack(
               return clearRequireCache(id, result.value, {
                 force: forceDeleteCache,
               })
+            },
+            loadNativeMiddleware: async (entryPath) => {
+              // Turbopack records proxy.go's static Config in the descriptor it
+              // just wrote. Source-level static info has no Go matchers.
+              const proxyPath = join(
+                projectPath,
+                opts.isSrcDir ? 'src' : '',
+                'proxy.go'
+              )
+              let matchers: ProxyMatcher[]
+              try {
+                // A failed compile may leave a previous descriptor on disk. Do
+                // not reload it or keep its matchers while the proxy is invalid.
+                if (!entryPath) {
+                  throw new Error(`Failed to compile ${proxyPath}`)
+                }
+                matchers = (
+                  await readGoProxyConfig(
+                    join(distDir, 'server', 'middleware.native.json'),
+                    proxyPath,
+                    nextConfig
+                  )
+                ).matchers
+                serverFields.goProxyConfigError = undefined
+              } catch (error) {
+                // Fail requests through ensureMiddleware's ModuleBuildError until
+                // a successful compile clears the error. Match every path: matching
+                // nothing would serve routes the proxy protects, and keeping the
+                // previous matchers would run it with a configuration that no
+                // longer applies.
+                const message =
+                  error instanceof Error ? error.message : String(error)
+                // Rust compilation and static-value errors are already recorded by
+                // processMiddleware. Only Next.js descriptor/schema validation can
+                // fail here after a successful native compilation.
+                if (entryPath) Log.error(message)
+                serverFields.goProxyConfigError = message
+                matchers = [{ regexp: '^/.*$', originalSource: '/:path*' }]
+              }
+              serverFields.middleware = {
+                page: '/',
+                matchers,
+                runtime: 'go',
+                nativeEntry: 'middleware.native.json',
+              }
+              opts.fsChecker.middlewareMatcher = getGoProxyMatcher(matchers)
+              // The filesystem watcher can run before native compilation
+              // finishes. Publish the compiled matchers to the render server
+              // as well, so its middleware check uses this same configuration.
+              await propagateServerField(
+                opts,
+                'middleware',
+                serverFields.middleware
+              )
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,

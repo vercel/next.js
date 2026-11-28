@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result, bail, ensure};
 use async_trait::async_trait;
@@ -70,7 +70,10 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
-    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    resolve::{
+        FindContextFileResult, ResolveErrorMode, origin::PlainResolveOrigin, parse::Request,
+        pattern::Pattern,
+    },
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
@@ -83,6 +86,7 @@ use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::Resolv
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::FontManifest,
+    go_config::go_entry_config,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft::{EndpointTraceResult, trace_endpoint},
@@ -1209,6 +1213,67 @@ fn go_proxy_handler_source(skip_proxy_url_normalize: bool, base_path: &str) -> R
     ))
 }
 
+/// Adapter routing may skip the proxy entirely. Every native entrypoint must therefore validate
+/// the header fields its proxy conditions depend on, before Go can interpret a different value.
+/// Keep this separate from code generation so a proxy body edit does not rebuild every route.
+#[turbo_tasks::function]
+async fn go_proxy_condition_keys(
+    project: Vc<Project>,
+    session: Vc<GoBuildSession>,
+    cookies: bool,
+) -> Result<Vc<RcStr>> {
+    let middleware = project.find_middleware().await?;
+    let mut names = BTreeSet::new();
+    if let FindContextFileResult::Found(path, _) = &*middleware
+        && path.file_name() == "proxy.go"
+    {
+        let sources = go_source_set(
+            project.project_root_path().owned().await?,
+            path.parent(),
+            GoSourceSelection::Directory,
+            session,
+        );
+        let source_set = sources.await?;
+        let name = source_set
+            .root
+            .get_path_to(path)
+            .context("Go proxy outside module")?;
+        let entry = go_declarations(sources, vec![RcStr::from(name)], session).await?;
+        let config =
+            go_entry_config(&entry.functions, &entry.values, true).map_err(anyhow::Error::msg)?;
+        for matcher in config["matcher"].as_array().into_iter().flatten() {
+            for kind in ["has", "missing"] {
+                for condition in matcher[kind].as_array().into_iter().flatten() {
+                    match (condition["type"].as_str(), cookies) {
+                        (Some("header"), false) => {
+                            if let Some(key) = condition["key"].as_str() {
+                                names.insert(key.to_ascii_lowercase());
+                            }
+                        }
+                        (Some("cookie"), false) => {
+                            names.insert("cookie".to_owned());
+                        }
+                        (Some("cookie"), true) => {
+                            if let Some(key) = condition["key"].as_str() {
+                                names.insert(key.to_owned());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    Ok(Vc::cell(
+        names
+            .iter()
+            .map(|name| serde_json::to_string(name).map(|name| format!("{name},")))
+            .collect::<Result<Vec<_>, _>>()?
+            .join(" ")
+            .into(),
+    ))
+}
+
 /// proxy.go only supports App Router applications. Pages Router routing (data
 /// requests and locales) would need its own URL normalization in Go to match
 /// proxy.ts.
@@ -1496,6 +1561,21 @@ impl Issue for GoRouteIssue {
 }
 
 #[turbo_tasks::value_impl]
+impl GoEndpoint {
+    #[turbo_tasks::function]
+    fn output_paths(&self) -> Vc<EndpointOutputPaths> {
+        let output_name = match &self.kind {
+            GoEndpointKind::Route { page } => format!("app{page}"),
+            GoEndpointKind::Proxy => "middleware".to_owned(),
+        };
+        EndpointOutputPaths::Native {
+            entry_path: format!("{output_name}.native.json").into(),
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl Endpoint for GoEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
@@ -1516,7 +1596,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell());
@@ -1531,7 +1612,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell());
@@ -1581,16 +1663,19 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell());
         }
-        let analysis = go_declarations(*sources, session).await?;
+        // The entrypoint declares both handlers and static configuration. Siblings compile
+        // with it as helpers, but do not contribute handlers or configuration.
+        let entry = go_declarations(*sources, vec![RcStr::from(handler_name)], session).await?;
         // Next.js owns the program entrypoint. It imports the route directory as an ordinary
-        // package, so that directory cannot be a program itself. Only files Go selects for the
-        // package count: `//go:build ignore` generators commonly use `package main`.
-        if analysis.selected_packages.iter().any(|name| name == "main") {
+        // package, so the entrypoint cannot be a program itself. The compiler checks sibling
+        // package clauses using Go's file selection, including build constraints.
+        if entry.selected_packages.iter().any(|name| name == "main") {
             let (file, suggestion) = if is_proxy {
                 ("proxy.go", "proxy")
             } else {
@@ -1614,27 +1699,53 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: Some(build) }
-                    .resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: Some(build),
                 first_load_chunks: None,
             }
             .cell());
         }
         // Files that disagree are reported by the compiler.
-        let package = analysis
+        let package = entry
             .selected_packages
             .first()
             .map_or("route", |name| name.as_str());
-        if is_proxy {
-            ensure!(
-                analysis
-                    .selected_functions
-                    .iter()
-                    .any(|name| name == "Proxy"),
-                "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
-            );
-        }
-        let methods = analysis.selected_functions.iter().filter(|name| {
+        // Static `var Config` is read from the same syntax analysis and published in the
+        // descriptor, so Next.js never parses Go entrypoints separately.
+        let config = if is_proxy && !entry.selected_functions.iter().any(|name| name == "Proxy") {
+            Err("proxy.go must declare func Proxy(http.ResponseWriter, *http.Request)".to_owned())
+        } else {
+            go_entry_config(&entry.functions, &entry.values, is_proxy)
+        };
+        let config = match config {
+            Ok(config) => config,
+            Err(message) => {
+                // The failure depends on the entry's source, so keep the selection's inputs
+                // for request-side validation: a request right after the fix must not get
+                // this stale failure.
+                let result = go_source_failure(*sources, session, message.into()).await?;
+                if matches!(result.outcome, GoBuildOutcome::Retry) {
+                    bail!("Go route inputs changed during analysis; retry the request")
+                }
+                if let GoBuildOutcome::Failed(message) = &result.outcome {
+                    GoRouteIssue {
+                        path: this.path.clone(),
+                        message: message.clone(),
+                    }
+                    .resolved_cell()
+                    .emit();
+                }
+                return Ok(EndpointOutput {
+                    project,
+                    output_assets: OutputAssets::empty().to_resolved().await?,
+                    output_paths: self.output_paths().to_resolved().await?,
+                    native_build: Some((*result).clone()),
+                    first_load_chunks: None,
+                }
+                .cell());
+            }
+        };
+        let methods = entry.selected_functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
                 "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS"
@@ -1698,8 +1809,20 @@ impl Endpoint for GoEndpoint {
         // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
             include_str!("templates/go_route_adapter_main.go")
+                .replace(
+                    "// __NEXT_GO_PROXY_CONDITION_HEADERS__",
+                    go_proxy_condition_keys(*project, session, false)
+                        .await?
+                        .as_str(),
+                )
+                .replace(
+                    "// __NEXT_GO_PROXY_CONDITION_COOKIES__",
+                    go_proxy_condition_keys(*project, session, true)
+                        .await?
+                        .as_str(),
+                )
         } else {
-            include_str!("templates/go_route_main.go")
+            include_str!("templates/go_route_main.go").to_owned()
         }
         .replace(
             "\"__NEXT_GO_ROUTE_IMPORT__\"",
@@ -1735,10 +1858,8 @@ impl Endpoint for GoEndpoint {
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed {
-                    build: Some((*result).clone()),
-                }
-                .resolved_cell(),
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: Some((*result).clone()),
                 first_load_chunks: None,
             }
             .cell());
@@ -1755,10 +1876,8 @@ impl Endpoint for GoEndpoint {
                 return Ok(EndpointOutput {
                     project,
                     output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed {
-                        build: Some((*result).clone()),
-                    }
-                    .resolved_cell(),
+                    output_paths: self.output_paths().to_resolved().await?,
+                    native_build: Some((*result).clone()),
                     first_load_chunks: None,
                 }
                 .cell());
@@ -1780,7 +1899,7 @@ impl Endpoint for GoEndpoint {
         let entry = format!("{output_name}.native.json");
         let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
-        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
+        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch, "config": config });
         if is_proxy {
             descriptor["source"] =
                 serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
@@ -1862,11 +1981,8 @@ impl Endpoint for GoEndpoint {
         Ok(EndpointOutput {
             project,
             output_assets: Vc::<OutputAssets>::cell(assets).to_resolved().await?,
-            output_paths: EndpointOutputPaths::Native {
-                executable_path: executable.into(),
-                build: (*result).clone(),
-            }
-            .resolved_cell(),
+            output_paths: self.output_paths().to_resolved().await?,
+            native_build: Some((*result).clone()),
             first_load_chunks: None,
         }
         .cell())
@@ -3154,6 +3270,7 @@ impl Endpoint for AppEndpoint {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    native_build: None,
                     first_load_chunks,
                 }
                 .cell(),

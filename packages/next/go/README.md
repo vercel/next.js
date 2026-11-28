@@ -83,3 +83,58 @@ Other requirements and `go.sum` are left to Go. SDK discovery is offline: privat
 module and VCS settings from the shell or a user Go environment file do not enable
 fetches. Explicit Go toolchain and cache locations are preserved. Versioned
 replacements and Go workspaces are not supported.
+
+## Static configuration
+
+Next.js reads static configuration from Go entrypoints the way it reads
+`route.ts` and `proxy.ts`.
+
+### `route.go`
+
+Like `route.ts` segment config exports, a route declares separate package-level
+values. No SDK import is needed:
+
+```go
+package route
+
+const MaxDuration = 30
+```
+
+`MaxDuration` is a positive integer literal in seconds, as a `const` or `var`,
+untyped or with an integer type. `time.Duration` is rejected, because Go reads `30`
+as 30 nanoseconds there. When omitted, the deployment platform default applies. `preferredRegion` is
+deprecated for `route.ts` and not supported for `route.go`.
+
+### `proxy.go`
+
+Like `proxy.ts`'s `config` export, a proxy declares `var Config` using this
+module's `proxy.Config`, `proxy.Matcher` and `proxy.Condition` types. Only
+`Matcher` is supported; an omitted matcher matches all paths.
+
+```go
+package proxy
+
+import "next/go/proxy"
+
+var Config = proxy.Config{
+    Matcher: []proxy.Matcher{
+        {Source: "/account/:path*"},
+        {Source: "/special", Has: []proxy.Condition{{Type: "header", Key: "x-special"}}},
+    },
+}
+```
+
+`Config` must use keyed struct literals, string literals, and nested
+`[]proxy.Matcher` / `[]proxy.Condition` literals. Named import aliases work.
+`Locale: false` disables locale matching for a matcher; omit it for the default.
+Matcher conditions and paths use the existing Next.js validation.
+
+## Static analysis
+
+Turbopack's Go parser reads handlers and static configuration only from the
+entrypoint file. HTTP method handlers must be declared in `route.go`, and the
+`Proxy` function must be declared in `proxy.go`. Sibling `.go` files compile with
+the entrypoint and can provide helpers. Configuration values must be literals: calls,
+environment reads, references to other variables or constants, arithmetic, and
+other computed expressions are build errors. No application code is executed to discover
+configuration, and runtime changes to these values do not configure Next.js.

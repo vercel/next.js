@@ -46,7 +46,9 @@ function unescapeSegments(str: string) {
 }
 
 export function matchHas(
-  req: BaseNextRequest | IncomingMessage,
+  req:
+    | Pick<BaseNextRequest, 'headers' | 'cookies'>
+    | Pick<IncomingMessage, 'headers'>,
   query: Params,
   has: RouteHas[] = [],
   missing: RouteHas[] = []

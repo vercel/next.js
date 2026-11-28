@@ -1,12 +1,14 @@
 //! Cached Go syntax queries. Frameworks interpret declarations and generate their own entrypoints.
-use std::{io::Read, path::Path, sync::atomic::Ordering};
+use std::{collections::BTreeMap, io::Read, path::Path, sync::atomic::Ordering};
 
 use anyhow::{Context, Result, ensure};
+use bincode::{Decode, Encode};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, ResolvedVc, Vc, resolve_strongly_consistent_and_take_and_apply_effects,
+    Completion, NonLocalValue, ResolvedVc, Vc,
+    resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, Permissions, to_sys_path,
@@ -17,8 +19,8 @@ use crate::{GO_ACTIONS, GoBuildSession, GoSourceSet, process};
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Deserialize)]
 pub struct GoDeclarations {
-    /// All package-level functions, including unexported names such as `main`. Methods are
-    /// excluded.
+    /// All package-level functions of the analyzed files, including unexported names such as
+    /// `main`. Methods are excluded.
     pub functions: Vec<RcStr>,
     /// Package clauses recovered from parsed files, sorted and deduplicated, including files
     /// with syntax errors. The compiler reports any disagreement between package clauses.
@@ -32,14 +34,83 @@ pub struct GoDeclarations {
     /// `packages` restricted to the same selected files.
     #[serde(default)]
     pub selected_packages: Vec<RcStr>,
+    /// Exported package-level `var` and `const` declarations of the analyzed files, keyed by
+    /// name. Initializers describe syntax only; nothing is evaluated.
+    pub values: BTreeMap<RcStr, GoDeclaration>,
     /// Parsing errors are retained without preventing the compiler from emitting its normal
     /// diagnostics. Callers can still generate an entrypoint from valid declarations.
     pub syntax_errors: Vec<RcStr>,
 }
 
+/// An exported package-level value and the imports in the file declaring it.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoDeclaration {
+    pub pos: RcStr,
+    pub constant: bool,
+    /// The declared type as written, or `None` for an untyped declaration.
+    #[serde(default, rename = "type")]
+    pub type_name: Option<RcStr>,
+    pub imports: Vec<GoImport>,
+    pub value: GoValue,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoImport {
+    pub name: RcStr,
+    pub path: RcStr,
+}
+
+/// A supported initializer expression. All other Go expressions remain unsupported.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum GoValue {
+    String {
+        pos: RcStr,
+        value: RcStr,
+    },
+    Int {
+        pos: RcStr,
+        value: i64,
+    },
+    Bool {
+        pos: RcStr,
+        value: bool,
+    },
+    Composite {
+        pos: RcStr,
+        #[serde(rename = "type")]
+        type_name: Option<RcStr>,
+        elements: Vec<GoValueElement>,
+    },
+    Unsupported {
+        pos: RcStr,
+    },
+}
+
+impl GoValue {
+    pub fn pos(&self) -> &str {
+        match self {
+            Self::String { pos, .. }
+            | Self::Int { pos, .. }
+            | Self::Bool { pos, .. }
+            | Self::Composite { pos, .. }
+            | Self::Unsupported { pos } => pos,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoValueElement {
+    pub key: Option<RcStr>,
+    pub value: GoValue,
+}
+
 #[turbo_tasks::function]
 pub async fn go_declarations(
     sources: ResolvedVc<GoSourceSet>,
+    // Source names (as in `GoSourceSet::files`) to parse, typically just the entrypoint.
+    // The rest of the package is compiled but never parsed here.
+    files: Vec<RcStr>,
     host_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<GoDeclarations>> {
     let session_failure = Completion::session_dependent().to_resolved().await?;
@@ -50,7 +121,18 @@ pub async fn go_declarations(
         .await?
         .context("Go parser requires a disk filesystem")?;
     let go_context = &host_session.await?.go_context;
-    let input = serde_json::to_vec(&sources.await?.files)?;
+    let source_set = sources.await?;
+    let selected = files
+        .iter()
+        .map(|name| {
+            let source = source_set
+                .files
+                .get(name)
+                .with_context(|| format!("Go source is not in the source set: {name}"))?;
+            Ok((name, source))
+        })
+        .collect::<Result<BTreeMap<_, _>>>()?;
+    let input = serde_json::to_vec(&selected)?;
     let arguments = [
         format!("-goos={}", go_context.goos),
         format!("-goarch={}", go_context.goarch),

@@ -17,9 +17,10 @@ use turbo_tasks_fs::{
 };
 use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
-    GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
-    filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_package_bundle_from_sources, go_source_set, read_with_validated_inputs,
+    GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, GoValue,
+    filesystem, filesystem_with_poll_interval, go_bundle_from_sources,
+    go_bundle_with_generated_files, go_declarations, go_package_bundle_from_sources, go_source_set,
+    read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -1436,9 +1437,11 @@ fn selected_sources(
 fn selected_declarations(
     sources: ResolvedVc<GoSourceSet>,
     options: GoBuildOptions,
+    files: Vec<RcStr>,
 ) -> Vc<GoDeclarations> {
     go_declarations(
         *sources,
+        files,
         GoBuildSession::persistent("source-set-test".into(), options),
     )
 }
@@ -1843,7 +1846,10 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     let session = Session::new().await?;
     let directory = "app/[id]";
     for (name, source) in [
-        ("route.go", "package route\nfunc GET() {}\n"),
+        (
+            "route.go",
+            "package route\nconst MaxDuration int64 = 30\nfunc GET() {}\n",
+        ),
         (
             "gen.go",
             "//go:build ignore\n\npackage main\nfunc main() {}\n",
@@ -1873,7 +1879,8 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
             .resolve()
             .strongly_consistent()
             .await?;
-            let declarations = selected_declarations(sources, options)
+            let files = sources.await?.files.keys().cloned().collect();
+            let declarations = selected_declarations(sources, options, files)
                 .read_strongly_consistent()
                 .await?;
             Ok((sources, declarations))
@@ -1887,6 +1894,14 @@ async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     );
     assert_eq!(declarations.selected_packages, vec![rcstr!("route")]);
     assert_eq!(declarations.selected_functions, vec![rcstr!("GET")]);
+    assert!(matches!(
+        declarations.values["MaxDuration"].value,
+        GoValue::Int { value: 30, .. }
+    ));
+    assert_eq!(
+        declarations.values["MaxDuration"].type_name.as_deref(),
+        Some("int64")
+    );
     let build = |sources, package: &str| {
         let options = options.clone();
         let generated = BTreeMap::from([
@@ -1978,8 +1993,8 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
     session
         .write(
             &format!("{directory}/handler.go"),
-            "package main\nfunc GET() string { return \"v1\" }\ntype Handler struct{}\nfunc \
-             (Handler) POST() {}\n",
+            "package main\nconst Version = \"v1\"\nfunc GET() string { return \"v1\" }\ntype \
+             Handler struct{}\nfunc (Handler) POST() {}\n",
         )
         .await?;
     session
@@ -2018,13 +2033,24 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(sources, options)
-                    .read_strongly_consistent()
-                    .await
+                selected_declarations(
+                    sources,
+                    options,
+                    vec![format!("{directory}/handler.go").into()],
+                )
+                .read_strongly_consistent()
+                .await
             }
         })
         .await?;
     assert_eq!(declarations.functions, vec![rcstr!("GET")]);
+    assert_eq!(
+        declarations.values["Version"].value,
+        GoValue::String {
+            pos: format!("{directory}/handler.go:2:17").into(),
+            value: rcstr!("v1"),
+        }
+    );
     assert!(declarations.syntax_errors.is_empty());
     let generated = BTreeMap::from([(
         RcStr::from(format!("{directory}/generated.go")),
@@ -2092,9 +2118,13 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
                             .resolve()
                             .strongly_consistent()
                             .await?;
-                            let declarations = selected_declarations(sources, options.clone())
-                                .read_strongly_consistent()
-                                .await?;
+                            let declarations = selected_declarations(
+                                sources,
+                                options.clone(),
+                                vec![format!("{directory}/handler.go").into()],
+                            )
+                            .read_strongly_consistent()
+                            .await?;
                             assert_eq!(declarations.functions, vec![rcstr!("GET")]);
                             selected_bundle(sources, options.clone(), generated.clone())
                                 .read_strongly_consistent()
@@ -2139,21 +2169,32 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         })
         .await?;
     let current = capture().await?;
-    let declarations = session
+    let (both, entrypoint) = session
         .tt
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(current, options)
+                let analyze = |files: &[&str]| {
+                    selected_declarations(
+                        current,
+                        options.clone(),
+                        files
+                            .iter()
+                            .map(|file| format!("{directory}/{file}").into())
+                            .collect(),
+                    )
                     .read_strongly_consistent()
-                    .await
+                };
+                anyhow::Ok((
+                    analyze(&["handler.go", "other_windows.go"]).await?,
+                    analyze(&["handler.go"]).await?,
+                ))
             }
         })
         .await?;
-    assert_eq!(
-        declarations.functions,
-        vec![rcstr!("DELETE"), rcstr!("GET")]
-    );
+    assert_eq!(both.functions, vec![rcstr!("DELETE"), rcstr!("GET")]);
+    // Selected siblings are compiled but only the requested files are parsed.
+    assert_eq!(entrypoint.functions, vec![rcstr!("GET")]);
     // Creating a nearer go.mod must reselect the module even though no source bytes changed.
     session
         .write(

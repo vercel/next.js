@@ -1927,6 +1927,7 @@ impl Endpoint for PageEndpoint {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    native_build: None,
                     first_load_chunks,
                 }
                 .cell(),

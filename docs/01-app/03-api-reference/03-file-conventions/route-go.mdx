@@ -56,7 +56,7 @@ Both commands refresh the replacement when the installed SDK moves, including af
 
 ### HTTP Methods
 
-Define top-level functions named `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, or `OPTIONS`. Each function handles the corresponding HTTP method, following the same method conventions as [`route.ts`](/docs/app/api-reference/file-conventions/route#http-methods).
+Define top-level functions named `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, or `OPTIONS` in `route.go`. Each function handles the corresponding HTTP method, following the same method conventions as [`route.ts`](/docs/app/api-reference/file-conventions/route#http-methods).
 
 Each function must accept `http.ResponseWriter` and `*http.Request`, in that order, and return no value. The Go compiler validates the signatures when compiling the route.
 
@@ -127,9 +127,9 @@ Use `ParamValues` when you need to distinguish an encoded slash within a segment
 
 ### Handler Convention
 
-Each route directory is an ordinary Go package, such as `package route`. It cannot be `package main`: Next.js generates the program entrypoint and imports the route directory as a package. Method functions can be declared in `route.go` or a compiled sibling `.go` file. Next.js generates method dispatch in the route package. Do not create `zz_next_route_*.go` files, which are reserved for generated code.
+Each route directory is an ordinary Go package, such as `package route`. It cannot be `package main`: Next.js generates the program entrypoint and imports the route directory as a package. HTTP method functions must be declared in `route.go`; functions declared only in sibling `.go` files are not registered as handlers. Next.js generates method dispatch in the route package. Do not create `zz_next_route_*.go` files, which are reserved for generated code.
 
-Sibling `.go` files compile together with `route.go` and must use the same package name. Go applies its normal file selection to the route package, including build constraints, platform filename suffixes, and excluding `_test.go` files. Files that Go excludes, such as a `//go:build ignore` generator, can use any package name, including `main`. Declare method functions in files that are always compiled. Shared packages can use ordinary module imports, including `internal` packages that are visible from the route directory, such as `<module>/internal/...` or `<module>/app/internal/...` for a route under `app`.
+Sibling `.go` files compile together with `route.go` and must use the same package name. Handlers in `route.go` can call helpers declared in those files. Go applies its normal file selection to the route package, including build constraints, platform filename suffixes, and excluding `_test.go` files. Files that Go excludes, such as a `//go:build ignore` generator, can use any package name, including `main`. Shared packages can use ordinary module imports, including `internal` packages that are visible from the route directory, such as `<module>/internal/...` or `<module>/app/internal/...` for a route under `app`.
 
 Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper. Run the route through Next.js to test its integration. Brackets, parentheses, and other characters in route directory names do not need to form valid Go import paths: Next.js compiles the route package from a virtual directory and reports errors and stack traces against the original files. For the same reason, embedding a `.go` file from the route directory itself with `go:embed` yields its source preceded by a `//line` directive. A route without a `go.mod` in its directory or a parent directory within the project uses the language version of the installed Go toolchain.
 
@@ -458,13 +458,21 @@ func writeUser(w http.ResponseWriter, r *http.Request, status int) {
 
 ### Segment Config Options
 
+Like the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration) export in `route.ts`, `route.go` can declare a package-level `MaxDuration`:
+
+```go filename="app/api/route.go"
+const MaxDuration = 30
+```
+
+`MaxDuration` is a positive integer literal in seconds, declared as a `const` or `var`, untyped or with an integer type such as `int`. A `time.Duration` type is a build error, because Go reads `30` as 30 nanoseconds there. Only `route.go` itself is read, statically: calls, references to other values, arithmetic, and environment reads are build errors. The deprecated `preferredRegion` option is not supported.
+
 Go Route Handlers always execute dynamically. JavaScript exports such as `dynamic`, `revalidate`, `fetchCache`, and `runtime` do not configure Go handlers. ISR, `generateStaticParams`, Server Actions, and React execution are unsupported for Go routes.
 
 ## Deployment
 
 For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable.
 
-[`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) copies each Go executable into `.next/standalone` with its permissions, so `node .next/standalone/server.js` serves Go routes without a Go toolchain. The standalone output targets the build host's operating system and architecture.
+[`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output) copies each Go executable into `.next/standalone` with its permissions, so `node .next/standalone/server.js` serves Go routes without a Go toolchain. The standalone output targets the operating system and architecture of the build machine.
 
 Go Route Handlers have no build-time prerendering mode, so they cannot produce static response files for [`output: 'export'`](/docs/app/guides/static-exports#route-handlers).
 

@@ -197,6 +197,7 @@ describe('native-route-go', () => {
       const options = await next.fetch('/native/options', { method: 'OPTIONS' })
       expect(options.status).toBe(204)
       expect(options.headers.get('allow')).toBe('GET, HEAD, OPTIONS, POST')
+      // helper.go declares DELETE, but only route.go declares HTTP handlers.
       expect(
         (await next.fetch('/native/method', { method: 'DELETE' })).status
       ).toBe(405)
@@ -1056,6 +1057,7 @@ describe('native-route-go', () => {
         )
         expect(options.status).toBe(204)
         expect(options.headers.get('allow')).toBe('GET, HEAD, OPTIONS, POST')
+        // The emitted adapter must also ignore DELETE from helper.go.
         expect(
           (
             await fetchViaHTTP(

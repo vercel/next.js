@@ -31,6 +31,10 @@ func GET(w http.ResponseWriter, r *http.Request) {
 	serveNative(w, r)
 }
 
+func POST(w http.ResponseWriter, r *http.Request) {
+	post(w, r)
+}
+
 func serveNative(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("crash") == "1" {
 		os.Exit(2)

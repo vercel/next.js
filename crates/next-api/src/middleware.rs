@@ -333,6 +333,7 @@ impl Endpoint for MiddlewareEndpoint {
                 .resolved_cell(),
                 output_assets: output_assets.to_resolved().await?,
                 project: this.project,
+                native_build: None,
                 first_load_chunks: None,
             }
             .cell())
