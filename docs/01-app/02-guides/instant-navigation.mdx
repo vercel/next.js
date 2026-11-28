@@ -106,7 +106,7 @@ With Partial Prefetching enabled, `prefetch={true}` also opts the link into [per
 
 By **default** (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. Validation surfaces what would keep navigations into a segment from being instant — which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
 
-To read a finding for a specific path, an agent can [query the running dev server with `check_route`](/docs/app/guides/ai-agents/debugging#2-observe-what-happens).
+To read a finding for a specific path, an agent can [query the running dev server with `check_route`](/docs/app/guides/mcp#check-a-route).
 
 To opt out of automatic validation and only validate segments that explicitly export `instant`, set [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
 
@@ -534,7 +534,7 @@ Give your agent a specific link and describe what you expect before and after th
 > Open `/store/shoes` and click Hats. I want to see the hat's name and price immediately. Show “Checking availability...” until the current stock count arrives.
 
 1. **Inspect the click in development.** On the running dev server, use the [Navigation Inspector](#visualize-loading-states-with-the-nextjs-devtools) or [Playwright’s `instant()`](#inspect-loading-states-with-browser-automation). While navigation is paused, check that the destination shows the product name, price, and inventory fallback. Resume, then check the stock count. In Playwright, the first set of assertions belongs **inside** the callback; the stock count assertion belongs **after** it returns.
-2. **Find out why the expected content is missing.** If the navigation blocks, [check what the dev server reports for the destination with `check_route`](/docs/app/guides/ai-agents/debugging#2-observe-what-happens). If validation passes but the product name is missing, inspect the link's [prefetch configuration](/docs/app/guides/optimizing-prefetching). The [`next-dev-loop` skill](/docs/app/guides/ai-agents#next-dev-loop) can also show which Suspense boundary is still pending in Agent Browser. Keep data that must be fresh, such as inventory, behind its own fallback.
+2. **Find out why the expected content is missing.** If the navigation blocks, [check what the dev server reports for the destination with `check_route`](/docs/app/guides/mcp#check-a-route). If validation passes but the product name is missing, inspect the link's [prefetch configuration](/docs/app/guides/optimizing-prefetching). The [`next-dev-loop` skill](/docs/app/guides/ai-agents#next-dev-loop) can also show which Suspense boundary is still pending in Agent Browser. Keep data that must be fresh, such as inventory, behind its own fallback.
 3. **Repeat the same click after the change.** If you want a [regression test](#prevent-regressions-with-e2e-tests), run those assertions against a production build. The [`next-cache-components-optimizer` skill](/docs/app/guides/ai-agents#next-cache-components-optimizer) does this by showing the test failing before the fix and passing afterward.
 
 `instant()` waits for the link's prefetch. If your question is whether the prefetch **finishes before a user clicks**, observe that click in a production build without pausing navigation.

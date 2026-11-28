@@ -75,10 +75,21 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_server_action_by_id`**: Look up a Server Action by its ID to find its source file and export name.
 - **`get_compilation_issues`**: Build the module graph for all routes and return compilation issues such as resolve errors, missing modules, and transform errors. Doesn't require a browser session. Turbopack only.
 - **`compile_route`**: Compile a specific route without making an HTTP request to it. Accepts either a `routeSpecifier` (for example, `/blog/[slug]`, as returned by `get_routes`) or a `path` (for example, `/blog/hello-world`), which is resolved to the matching route. Returns any compilation issues for the route. Turbopack only.
-- **`check_route`**: Check a route without a browser. Pass its `path` (for example, `/blog/hello-world`) to get compilation diagnostics and, with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, route validation results. These can include [Instant Navigation Insights](/docs/app/guides/instant-navigation#validate-instant-navigation) even when the page renders. The request does not use browser cookies. For an issue that depends on sign-in, reproduce it in the signed-in browser.
+- [**`check_route`**](#check-a-route): Request a route and read its compilation and validation results without opening a browser.
 - **`get_request_insights`**: Get recent App Router request timelines, server fetches, and cache behavior captured by the local span recorder. Requires `experimental.requestInsights`.
 
 With the compilation tools, agents can check whether code compiles from the running dev server instead of running `next build` while they are still editing.
+
+#### Check a route
+
+[Call `check_route`](#calling-the-dev-server-directly) with a concrete path, such as `{"path":"/blog/hello-world"}`. Include the query string if it changes what the page renders. The dev server makes a fresh request without browser cookies. To reproduce a problem that depends on signing in, use the signed-in browser.
+
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, read `validation.status`:
+
+- `validated`: Validation ran. Inspect `validation.errors` for findings and source locations. After a fix, check the same path again.
+- `not-run`: Read `validation.reason` to see why the server could not validate the route. An HTTP 200 alone does not mean validation ran.
+
+For an error that only appears during a production build, see [Debug prerender errors](/docs/app/guides/building#debug-prerender-errors).
 
 ## Development workflow
 
