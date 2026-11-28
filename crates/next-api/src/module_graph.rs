@@ -255,7 +255,7 @@ impl NextDynamicGraph {
                             });
 
                             state_map.insert(module, parent_state);
-                            GraphTraversalAction::Skip
+                            GraphTraversalAction::Continue
                         }
                         Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
                             // The client reference has its own chunk group.
