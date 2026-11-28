@@ -398,9 +398,17 @@ export class ImageOptimizerCache {
     this.nextConfig = nextConfig
     this.cacheHandler = cacheHandler
 
-    // Eagerly start LRU initialization for filesystem cache
+    // Eagerly start LRU initialization for filesystem cache.
+    // Skip initialization entirely for unoptimized images and custom loaders —
+    // those code paths never read or write the disk cache, so starting a
+    // background mkdir/statfs is both wasteful and a source of unhandled
+    // rejections if the server cannot write to the cache directory
+    // (e.g. running as a non-root user in a Docker container where .next is
+    // owned by root).  See https://github.com/vercel/next.js/issues/102133
     if (
       !cacheHandler &&
+      !nextConfig.images.unoptimized &&
+      nextConfig.images.loader === 'default' &&
       nextConfig.images.maximumDiskCacheSize !== 0 &&
       nextConfig.experimental.isrFlushToDisk
     ) {
@@ -411,6 +419,10 @@ export class ImageOptimizerCache {
         initCacheEntries,
         deleteFromCacheDir
       )
+      // Suppress unhandled-rejection on the eager init promise.  Any real
+      // error (e.g. EACCES on the cache directory) will still be surfaced as
+      // a thrown error when a cache read or write actually awaits the promise.
+      this.cacheDiskLRU.catch(() => {})
     }
   }
 
