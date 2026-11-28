@@ -29,7 +29,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset},
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
-    ident::AssetIdent,
+    ident::{AssetIdent, is_redundant_rename},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
@@ -154,19 +154,6 @@ impl SourceTransform for WebpackLoaders {
             .cell(),
         )
     }
-}
-
-/// Returns `true` if applying the `rename_as` pattern to `path` would only append an extension the
-/// path already has, e.g. `*.css` on `foo.css` or `foo.module.css`.
-///
-/// [`AssetIdent::rename_as`] replaces `*` with the full path, so without this check `*.css` would
-/// rename `foo.module.css` to `foo.module.css.css`. The renamed path no longer ends in
-/// `.module.css`, so the loader output would be processed as global CSS instead of as a CSS module.
-/// Keeping the original ident makes such a rule behave like one without a rename.
-fn is_redundant_rename(rename_as: &str, path: &str) -> bool {
-    rename_as
-        .strip_prefix('*')
-        .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('*') && path.ends_with(suffix))
 }
 
 #[turbo_tasks::value]

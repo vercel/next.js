@@ -10,6 +10,19 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_
 
 use crate::resolve::ModulePart;
 
+/// Returns `true` if applying the `rename_as` pattern to `path` would only append an extension the
+/// path already has, e.g. `*.css` on `foo.css` or `foo.module.css`.
+///
+/// [`AssetIdent::rename_as`] replaces `*` with the full path, so without this check `*.css` would
+/// rename `foo.module.css` to `foo.module.css.css`. The renamed path no longer ends in
+/// `.module.css`, so the source would be processed as global CSS instead of as a CSS module.
+/// Keeping the original ident makes such a rename behave like no rename.
+pub fn is_redundant_rename(rename_as: &str, path: &str) -> bool {
+    rename_as
+        .strip_prefix('*')
+        .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('*') && path.ends_with(suffix))
+}
+
 /// A layer identifies a distinct part of the module graph.
 #[turbo_tasks::task_input]
 #[derive(Clone, Hash, Debug, DeterministicHash, Eq, PartialEq, Encode, Decode)]
@@ -133,6 +146,8 @@ impl AssetIdent {
         self
     }
 
+    /// Replaces the path with `pattern`, where `*` stands for the current path. See
+    /// [`is_redundant_rename`] for patterns that should keep the path as is.
     pub fn rename_as(mut self, pattern: &str) -> Self {
         self.path = FileSystemPath::new_normalized_unchecked(
             self.path.fs,
