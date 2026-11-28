@@ -3,10 +3,14 @@ import { join } from 'path'
 import { promises } from 'fs'
 import { tmpdir } from 'os'
 import { setTimeout } from 'timers/promises'
+import { execFileSync } from 'child_process'
 import {
   getOrInitDiskLRU,
   resetDiskLRU,
 } from 'next/dist/server/lib/disk-lru-cache.external'
+import { ImageOptimizerCache } from 'next/dist/server/image-optimizer'
+import { CachedRouteKind } from 'next/dist/server/response-cache'
+import type { NextConfigRuntime } from 'next/dist/server/config-shared'
 
 async function writeEntry(
   cacheDir: string,
@@ -18,6 +22,23 @@ async function writeEntry(
   const buffer = Buffer.alloc(sizeInBytes, 0x42) // Fill with dummy data
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(join(dir, `${expireAt}.bin`), buffer)
+}
+
+// Writes one entry in the real on-disk format used by ImageOptimizerCache:
+// `<cacheDir>/<key>/<maxAge>.<expireAt>.<etag>.<upstreamEtag>.<extension>`
+async function writeImageCacheEntry(
+  cacheDir: string,
+  key: string,
+  buffer: Buffer,
+  expireAt: number,
+  maxAge: number = 60
+) {
+  const dir = join(cacheDir, key)
+  await promises.mkdir(dir, { recursive: true })
+  await promises.writeFile(
+    join(dir, `${maxAge}.${expireAt}.etag.upstreamEtag.png`),
+    buffer
+  )
 }
 
 async function readEntry(cacheDir: string, key: string) {
@@ -180,5 +201,83 @@ describe('LRU disk eviction', () => {
     expect(lru.has('empty')).toBe(false)
     expect(lru.has('valid-a')).toBe(true)
     expect(lru.has('valid-b')).toBe(true)
+  })
+
+  it('should return a cache HIT without waiting for the full disk scan', async () => {
+    // Regression test for vercel/next.js#100179: after a server restart,
+    // every /_next/image cache HIT waited for the full `.next/cache/images`
+    // scan that builds the disk LRU, because `ImageOptimizerCache.get()`
+    // awaited the LRU promise just to mark the entry as recently used.
+    // A HIT must be returned as soon as it has been read from disk.
+    //
+    // A FIFO stands in for a cache entry whose full read is arbitrarily
+    // slow (e.g. a very large file on a slow disk): the old init read
+    // every file's contents, so opening the FIFO blocked the scan — and
+    // therefore every `get()` — forever. The fixed init only stats files
+    // (which never blocks on a FIFO), and `get()` no longer awaits init.
+    if (process.platform === 'win32') {
+      // `mkfifo` is not available on Windows.
+      return
+    }
+    const distDir = await promises.mkdtemp(
+      join(tmpdir(), 'next-image-hit-test-')
+    )
+    try {
+      const imagesDir = join(distDir, 'cache', 'images')
+      await promises.mkdir(imagesDir, { recursive: true })
+
+      const expireAt = Date.now() + 60_000
+      const buffer = Buffer.alloc(1024, 0x42)
+      await writeImageCacheEntry(imagesDir, 'hit-key', buffer, expireAt)
+
+      const fifoDir = join(imagesDir, 'fifo-key')
+      await promises.mkdir(fifoDir, { recursive: true })
+      execFileSync('mkfifo', [
+        join(fifoDir, `60.${expireAt}.etag.upstreamEtag.png`),
+      ])
+
+      const nextConfig = {
+        images: {
+          maximumDiskCacheSize: 1_000_000_000,
+          minimumCacheTTL: 60,
+        },
+        experimental: { isrFlushToDisk: true },
+      } as unknown as NextConfigRuntime
+
+      const cache = new ImageOptimizerCache({
+        distDir,
+        nextConfig,
+        cacheHandler: undefined,
+      })
+
+      // The FIFO blocks any full-content scan, so this only resolves
+      // promptly if `get()` does not wait for LRU initialization.
+      const abort = new AbortController()
+      const timeoutPromise = setTimeout(5000, undefined, {
+        signal: abort.signal,
+      })
+        .then(() => 'TIMEOUT' as const)
+        .catch(() => 'ABORTED' as const)
+      const result = await Promise.race([cache.get('hit-key'), timeoutPromise])
+      abort.abort()
+
+      expect(result).not.toBe('TIMEOUT')
+      expect(result).not.toBe('ABORTED')
+      expect(result).not.toBeNull()
+      if (result !== null && typeof result === 'object') {
+        expect(result.value.kind).toBe(CachedRouteKind.IMAGE)
+        if (result.value.kind === CachedRouteKind.IMAGE) {
+          expect(result.value.buffer).toEqual(buffer)
+        }
+      }
+    } finally {
+      resetDiskLRU()
+      await promises.rm(distDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+        retryDelay: 500,
+      })
+    }
   })
 })
