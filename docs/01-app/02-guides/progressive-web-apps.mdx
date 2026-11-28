@@ -136,7 +136,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 ```
 
-Let’s now add a component to manage subscribing, unsubscribing, and sending push notifications.
+Add a component to manage subscribing, unsubscribing, and sending push notifications. Pass the service worker's module URL to `register()` so Turbopack can bundle it.
 
 ```tsx switcher
 function PushNotificationManager() {
@@ -606,7 +606,9 @@ To ensure you can view notifications locally, ensure that:
 
 ### 8. Securing your application
 
-Security is a crucial aspect of any web application, especially for PWAs. Next.js allows you to configure security headers using the `next.config.js` file. For example:
+Turbopack bundles `lib/service-worker.js` and serves it at `/_next/static/service-worker/sw.js` for the `scope: '/'` registration in step 2. Browsers normally limit a worker's scope to the directory containing its script. Next.js sends `Service-Worker-Allowed: /` on the script response so the worker can control pages across the app. If you set a [`basePath`](/docs/app/api-reference/config/next-config-js/basePath), Next.js prefixes the script URL with that path and uses it as the allowed scope.
+
+Use [`headers`](/docs/app/api-reference/config/next-config-js/headers) to set a Content Security Policy on the worker's script URL. Next.js already serves the bundled worker as JavaScript and sets `Cache-Control` to require revalidation.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -630,16 +632,8 @@ module.exports = {
         ],
       },
       {
-        source: '/sw.js',
+        source: '/_next/static/service-worker/sw.js',
         headers: [
-          {
-            key: 'Content-Type',
-            value: 'application/javascript; charset=utf-8',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
           {
             key: 'Content-Security-Policy',
             value: "default-src 'self'; script-src 'self'",
@@ -657,17 +651,14 @@ Let’s go over each of these options:
    1. `X-Content-Type-Options: nosniff`: Prevents MIME type sniffing, reducing the risk of malicious file uploads.
    2. `X-Frame-Options: DENY`: Protects against clickjacking attacks by preventing your site from being embedded in iframes.
    3. `Referrer-Policy: strict-origin-when-cross-origin`: Controls how much referrer information is included with requests, balancing security and functionality.
-2. Service Worker Specific Headers:
-   1. `Content-Type: application/javascript; charset=utf-8`: Ensures the service worker is interpreted correctly as JavaScript.
-   2. `Cache-Control: no-cache, no-store, must-revalidate`: Prevents caching of the service worker, ensuring users always get the latest version.
-   3. `Content-Security-Policy: default-src 'self'; script-src 'self'`: Implements a strict Content Security Policy for the service worker, only allowing scripts from the same origin.
+2. Service worker header: `Content-Security-Policy: default-src 'self'; script-src 'self'` limits the scripts the worker can load to its own origin.
 
 Learn more about defining [Content Security Policies](/docs/app/guides/content-security-policy) with Next.js.
 
 ## Extending your PWA
 
 1. **Exploring PWA Capabilities**: PWAs can leverage various web APIs to provide advanced functionality. Consider exploring features like background sync, periodic background sync, or the File System Access API to enhance your application. For inspiration and up-to-date information on PWA capabilities, you can refer to resources like [What PWA Can Do Today](https://whatpwacando.today/).
-2. **Static Exports:** If your application requires not running a server, and instead using a static export of files, you can update the Next.js configuration to enable this change. Learn more in the [Next.js Static Export documentation](/docs/app/guides/static-exports). However, you will need to move from Server Actions to calling an external API, as well as moving your defined headers to your proxy.
+2. **Static Exports:** To use a [static export](/docs/app/guides/static-exports), replace the Server Actions with calls to an external API. Configure the [response headers from step 8](#8-securing-your-application) on your static host, including `Service-Worker-Allowed: /` on the worker script for root scope.
 3. **Offline Support**: Next.js provides an experimental [`useOffline`](/docs/app/api-reference/functions/use-offline) hook and matching [`experimental.useOffline`](/docs/app/api-reference/config/next-config-js/useOffline) config for connectivity-aware UI and automatic retries of failed navigation and Server Action requests. For full service-worker-based offline caching, one option is [Serwist](https://github.com/serwist/serwist), which provides Next.js integration examples for both [Turbopack](https://github.com/serwist/serwist/tree/main/examples/next-turbo-basic) and [webpack](https://github.com/serwist/serwist/tree/main/examples/next-basic).
 4. **Security Considerations**: Ensure that your service worker is properly secured. This includes using HTTPS, validating the source of push messages, and implementing proper error handling.
 5. **User Experience**: Consider implementing progressive enhancement techniques to ensure your app works well even when certain PWA features are not supported by the user's browser.

@@ -45,7 +45,7 @@ export default (phase) => {
 }
 ```
 
-Next.js will automatically use your asset prefix for the JavaScript and CSS files it loads from the `/_next/` path (`.next/static/` folder). For example, with the above configuration, the following request for a JS chunk:
+Next.js automatically uses your asset prefix for the JavaScript and CSS chunks it loads from the `/_next/` path (`.next/static/` folder). For example, with the above configuration, the following request for a JS chunk:
 
 ```
 /_next/static/chunks/4b9b41aaa062cbbfeff4add70f256968c51ece5d.4d708494b3aed70c04f0.js
@@ -59,7 +59,9 @@ https://cdn.mydomain.com/_next/static/chunks/4b9b41aaa062cbbfeff4add70f256968c51
 
 The exact configuration for uploading your files to a given CDN will depend on your CDN of choice. The only folder you need to host on your CDN is the contents of `.next/static/`, which should be uploaded as `_next/static/` as the above URL request indicates. **Do not upload the rest of your `.next/` folder**, as you should not expose your server code and other configuration to the public.
 
-While `assetPrefix` covers requests to `_next/static`, it does not influence the following paths:
+`assetPrefix` does not apply to the following paths:
+
+- [Service workers bundled by Turbopack](/docs/app/guides/progressive-web-apps#8-securing-your-application) under `/_next/static/service-worker/`. Keep these scripts available on your app's origin so the browser can register them.
 
 <AppOnly>
 
