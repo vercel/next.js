@@ -53,6 +53,11 @@ export interface RequestMeta {
   /** Server-owned identity for the development Request Insights timeline. */
   requestInsightsIdentity?: RequestInsightsIdentity
   /**
+   * The basePath configured in next.config.js.
+   */
+  basePath?: string
+
+  /**
    * The query that was used to make the request.
    */
   initQuery?: ParsedUrlQuery
