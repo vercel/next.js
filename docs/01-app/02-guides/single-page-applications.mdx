@@ -204,7 +204,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/use-context) and i
 
 ### Rendering components only in the browser
 
-Client Components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and render it only in the browser, call `use(browser())` in the component and wrap the component in a `<Suspense>` boundary.
+Client Components can render on the server during [prerendering](/docs/app/glossary#prerendering) and request-time rendering. If you want to disable prerendering for a Client Component and render it only in the browser, call `use(browser())` in the component and wrap the component in a `<Suspense>` boundary.
 
 Which API to use depends on what else the component needs:
 
@@ -218,9 +218,9 @@ A component that renders only after an interaction is already left out of preren
 
 To decide whether a component's code should load separately, see [Choosing what to lazy load](/docs/app/guides/lazy-loading#choosing-what-to-lazy-load).
 
-React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
+React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML. A `<Suspense>` boundary alone does not disable server rendering; `use(browser())` makes the component suspend on the server.
 
-During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary.
+During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary. If the client-specific value needs to be visible before React loads, see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 For example, this editor reads a saved draft from `localStorage`:
 
