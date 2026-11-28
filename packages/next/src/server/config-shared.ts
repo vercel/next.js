@@ -965,7 +965,8 @@ export interface ExperimentalConfig {
   /**
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
-   * Chunking then sizes modules by their minified code, see `turbopackChunking`.
+   * Chunking then sizes modules by their minified code, see `turbopackChunking`; when disabled,
+   * the default chunking sizes are multiplied by 2.5 to account for unminified code.
    * Defaults to true starting in Next.js 16.5; set it to false to opt out. Only applies to
    * production builds.
    */
@@ -982,9 +983,10 @@ export interface ExperimentalConfig {
    * (`next --turbopack` only) These options change the assumptions Turbopack makes when
    * making chunk merging decisions and the raw size thresholds it uses.
    *
-   * Sizes are measured on unminified code, or on minified code when
-   * `turbopackMinifyBeforeChunking` applies. In that case the default sizes and request cost
-   * below are scaled down to match; values set here are used as-is.
+   * Sizes are measured on minified code by default (`turbopackMinifyBeforeChunking`). When it
+   * doesn't apply (disabled, or minification is off), sizes are measured on unminified code and
+   * the default sizes and request cost below are multiplied by 2.5; values set here are used
+   * as-is.
    */
   turbopackChunking?: {
     /**
@@ -1020,15 +1022,15 @@ export interface ExperimentalConfig {
      */
     priorityBoost?: number
     /**
-     * Estimated cost of an additional request, in bytes (uncompressed
-     * and unminfified bytes of code, default is 200 KB), used by the chunker to
-     * trade off request count against preventing double-fetching. Uncompressed and unminfified code
-     * is approximately 5x the size of compressed and minified code.
+     * Estimated cost of an additional request, in bytes (uncompressed code, minified by default;
+     * default is 80 KB, or 200 KB when sizes are measured unminified), used by the chunker to
+     * trade off request count against preventing double-fetching.
      */
     requestCost?: number
     /**
      * Avoid creating more than one client-side chunk smaller than this size, in bytes. Smaller
-     * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
+     * chunks are merged into bigger ones to avoid that. Defaults to `20000` (20 KB), or `50000`
+     * when sizes are measured unminified.
      */
     minChunkSize?: number
     /**
@@ -1038,28 +1040,28 @@ export interface ExperimentalConfig {
     maxChunkCountPerGroup?: number
     /**
      * Never merge client-side chunks bigger than this size, in bytes, with other chunks. This
-     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `200000`
-     * (200 KB).
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `80000`
+     * (80 KB), or `200000` when sizes are measured unminified.
      */
     maxMergeChunkSize?: number
     /**
      * Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
-     * (minified when `turbopackMinifyBeforeChunking` applies). Chunks are never merged into bigger
+     * (minified by default, see `turbopackMinifyBeforeChunking`). Chunks are never merged into bigger
      * chunks, and chunks that are bigger on their own are split deterministically (by module
      * identifier) into smaller chunks. This can create chunks smaller than `minChunkSize` or
      * exceed `maxChunkCountPerGroup`. Must be at
      * least 3 times `minChunkSize`, and not smaller than `maxMergeChunkSize`; otherwise the values
-     * are adjusted with a warning. Set to `0` to disable the limit. Defaults to `1000000` (1 MB),
-     * or `400000` (400 KB) when minifying before chunking. Explicit values are not scaled.
+     * are adjusted with a warning. Set to `0` to disable the limit. Defaults to `400000` (400 KB),
+     * or `1000000` (1 MB) when sizes are measured unminified. Explicit values are not scaled.
      */
     maxChunkSize?: number
     /**
      * Like `maxChunkSize`, but for server (Node.js and edge) JavaScript chunks. For Node.js,
      * must be at least 3 times `minServerChunkSize`, and not smaller than `maxMergeServerChunkSize`;
-     * otherwise the values are adjusted with a warning. Edge uses a minimum of 20 KB (8 KB when
-     * minifying before chunking) and the effective maximum as its merge limit.
-     * Set to `0` to disable the maximum size limit. Defaults to `10000000` (10 MB), or `4000000`
-     * (4 MB) when minifying before chunking. Explicit values are not scaled.
+     * otherwise the values are adjusted with a warning. Edge uses a minimum of 8 KB (20 KB when
+     * sizes are measured unminified) and the effective maximum as its merge limit.
+     * Set to `0` to disable the maximum size limit. Defaults to `4000000` (4 MB), or `10000000`
+     * (10 MB) when sizes are measured unminified. Explicit values are not scaled.
      */
     maxServerChunkSize?: number
     /**
@@ -1070,19 +1072,22 @@ export interface ExperimentalConfig {
     /**
      * Minimum size, in bytes, for a component chunk to be emitted on its own when
      * `generateComponentChunks` is enabled. Component chunks smaller than this are folded into a
-     * single remainder chunk. Defaults to `20000` (20 KB).
+     * single remainder chunk. Defaults to `8000` (8 KB), or `20000` when sizes are measured
+     * unminified.
      */
     minComponentChunkSize?: number
     /**
      * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
      * Smaller chunks are merged into bigger ones to avoid that, unless `maxServerChunkSize` takes
-     * precedence. Defaults to `4000` (4 KB). Doesn't apply to Edge runtime chunks.
+     * precedence. Defaults to `1600` (1.6 KB), or `4000` when sizes are measured unminified.
+     * Doesn't apply to Edge runtime chunks.
      */
     minServerChunkSize?: number
     /**
      * Never merge Node.js server chunks bigger than this size, in bytes, with other chunks. This
-     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `100000`
-     * (100 KB). Doesn't apply to Edge runtime chunks.
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `40000`
+     * (40 KB), or `100000` when sizes are measured unminified. Doesn't apply to Edge runtime
+     * chunks.
      */
     maxMergeServerChunkSize?: number
   }

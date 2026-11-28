@@ -45,7 +45,9 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 
 use crate::{
     app_structure::CollectedRootParams,
-    chunk_size_defaults::ChunkSizeDefaults,
+    chunk_size_defaults::{
+        ChunkSizeDefaults, SERVER_MAX_MERGE_CHUNK_SIZE, SERVER_MIN_CHUNK_SIZE, SERVER_REQUEST_COST,
+    },
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_config::{
@@ -1141,12 +1143,13 @@ pub async fn get_server_chunking_context_with_client_assets(
         let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
         let ecmascript_chunking_config = ChunkingConfig {
             // Server chunks are loaded with require(), not fetched over the network.
-            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            min_chunk_size: chunking_min_chunk_size
+                .unwrap_or_else(|| defaults.size(SERVER_MIN_CHUNK_SIZE)),
             max_chunk_count_per_group: 0,
             max_merge_chunk_size: chunking_max_merge_chunk_size
-                .unwrap_or_else(|| defaults.size(100_000)),
+                .unwrap_or_else(|| defaults.size(SERVER_MAX_MERGE_CHUNK_SIZE)),
             max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
-            request_cost: Some(defaults.request_cost(10_000)),
+            request_cost: Some(defaults.request_cost(SERVER_REQUEST_COST)),
             ..Default::default()
         };
         warn_on_adjusted_chunking_config(
@@ -1264,12 +1267,13 @@ pub async fn get_server_chunking_context(
         let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
         let ecmascript_chunking_config = ChunkingConfig {
             // Server chunks are loaded with require(), not fetched over the network.
-            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            min_chunk_size: chunking_min_chunk_size
+                .unwrap_or_else(|| defaults.size(SERVER_MIN_CHUNK_SIZE)),
             max_chunk_count_per_group: 0,
             max_merge_chunk_size: chunking_max_merge_chunk_size
-                .unwrap_or_else(|| defaults.size(100_000)),
+                .unwrap_or_else(|| defaults.size(SERVER_MAX_MERGE_CHUNK_SIZE)),
             max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
-            request_cost: Some(defaults.request_cost(10_000)),
+            request_cost: Some(defaults.request_cost(SERVER_REQUEST_COST)),
             ..Default::default()
         };
         warn_on_adjusted_chunking_config(

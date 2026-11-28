@@ -25,7 +25,7 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 
 use crate::{
     app_structure::CollectedRootParams,
-    chunk_size_defaults::ChunkSizeDefaults,
+    chunk_size_defaults::{ChunkSizeDefaults, EDGE_MIN_CHUNK_SIZE},
     mode::NextMode,
     next_config::{
         EDGE_CHUNKING_CONFIG_OPTION_NAMES, NextConfig, warn_on_adjusted_chunking_config,
@@ -279,8 +279,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
         let mut ecmascript_chunking_config = ChunkingConfig {
-            min_chunk_size: defaults.size(20_000),
-            request_cost: defaults.default_request_cost(),
+            min_chunk_size: defaults.size(EDGE_MIN_CHUNK_SIZE),
+            request_cost: Some(defaults.default_request_cost()),
             max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
             ..Default::default()
         };
@@ -405,8 +405,8 @@ pub async fn get_edge_chunking_context(
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
         let mut ecmascript_chunking_config = ChunkingConfig {
-            min_chunk_size: defaults.size(20_000),
-            request_cost: defaults.default_request_cost(),
+            min_chunk_size: defaults.size(EDGE_MIN_CHUNK_SIZE),
+            request_cost: Some(defaults.default_request_cost()),
             max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
             ..Default::default()
         };

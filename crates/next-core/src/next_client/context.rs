@@ -41,7 +41,10 @@ use turbopack_node::{
 use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
 use crate::{
-    chunk_size_defaults::ChunkSizeDefaults,
+    chunk_size_defaults::{
+        CLIENT_MAX_MERGE_CHUNK_SIZE, CLIENT_MIN_CHUNK_SIZE, CLIENT_MIN_COMPONENT_CHUNK_SIZE,
+        ChunkSizeDefaults,
+    },
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_client::{
@@ -640,19 +643,22 @@ pub async fn get_client_chunking_context(
     } else {
         let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
         let ecmascript_chunking_config = ChunkingConfig {
-            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(50_000)),
+            min_chunk_size: chunking_min_chunk_size
+                .unwrap_or_else(|| defaults.size(CLIENT_MIN_CHUNK_SIZE)),
             max_chunk_count_per_group: chunking_max_chunk_count_per_group.unwrap_or(40),
             max_merge_chunk_size: chunking_max_merge_chunk_size
-                .unwrap_or_else(|| defaults.size(200_000)),
+                .unwrap_or_else(|| defaults.size(CLIENT_MAX_MERGE_CHUNK_SIZE)),
             max_chunk_size: defaults.client_max_chunk_size(chunking_max_chunk_size),
             first_page_load_priority: chunking_first_page_load_priority,
             priority_boost_percent: chunking_priority_boost_percent,
-            request_cost: chunking_request_cost.or_else(|| defaults.default_request_cost()),
+            request_cost: Some(
+                chunking_request_cost.unwrap_or_else(|| defaults.default_request_cost()),
+            ),
             // Generate component chunks alongside the merged chunk so that the browser
             // runtime can fetch an already-cached one instead of the whole merged chunk.
             generate_component_chunks: *generate_component_chunks.await?,
             min_component_chunk_size: chunking_min_component_chunk_size
-                .unwrap_or_else(|| defaults.size(20_000)),
+                .unwrap_or_else(|| defaults.size(CLIENT_MIN_COMPONENT_CHUNK_SIZE)),
             ..Default::default()
         };
         warn_on_adjusted_chunking_config(

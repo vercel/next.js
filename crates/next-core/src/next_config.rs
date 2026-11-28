@@ -924,8 +924,8 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 ///
-/// The default sizes and request cost are scaled down when chunk items are minified before
-/// chunking, see `ChunkSizeDefaults`.
+/// The default sizes and request cost are in minified bytes and are multiplied by 2.5 when chunk
+/// items are measured by their unminified code, see `ChunkSizeDefaults`.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -945,39 +945,42 @@ pub struct TurbopackChunkingConfig {
     /// Multiplier applied to the single-request probability of `priority_routes` routes
     /// (default `1.5`). Higher values merge their client-side bundles more eagerly.
     priority_boost: Option<f64>,
-    /// Estimated cost of an additional request, in bytes (uncompressed and unminified
-    /// bytes of code, default is 200 KB), used by the chunker to trade off request
-    /// count against preventing double-fetching.
+    /// Estimated cost of an additional request, in bytes (uncompressed code, minified by default;
+    /// default is 80 KB, or 200 KB when sizes are measured unminified), used by the chunker to
+    /// trade off request count against preventing double-fetching.
     request_cost: Option<u64>,
-    /// Avoid creating more than one chunk smaller than this size, in bytes (default `50000`).
-    /// Smaller chunks are merged into larger chunks.
+    /// Avoid creating more than one chunk smaller than this size, in bytes (default `20000`, or
+    /// `50000` when sizes are measured unminified). Smaller chunks are merged into larger chunks.
     min_chunk_size: Option<usize>,
     /// Avoid creating more than this number of chunks per chunk group (default `40`).
     max_chunk_count_per_group: Option<usize>,
-    /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
-    /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
+    /// Don't merge chunks bigger than this size, in bytes (default `80000`, or `200000` when sizes
+    /// are measured unminified), with other chunks. This keeps code in big chunks from being
+    /// duplicated across multiple chunks.
     max_merge_chunk_size: Option<usize>,
     /// Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
-    /// (default `1000000`, or `400000` when minifying before chunking). Chunks are never merged
-    /// into bigger chunks, and chunks that are bigger on their own are split deterministically
-    /// into smaller chunks, which may be smaller than `min_chunk_size` or exceed
+    /// (default `400000`, or `1000000` when sizes are measured unminified). Chunks are never
+    /// merged into bigger chunks, and chunks that are bigger on their own are split
+    /// deterministically into smaller chunks, which may be smaller than `min_chunk_size` or exceed
     /// `max_chunk_count_per_group`. Inconsistent values (smaller than 3 times `min_chunk_size`, or
     /// than `max_merge_chunk_size`) are adjusted with a warning. `0` disables the limit.
     max_chunk_size: Option<usize>,
     /// Like `max_chunk_size`, but for Node.js server and edge JavaScript chunks (default
-    /// `10000000`, or `4000000` when minifying before chunking). `0` disables the limit.
+    /// `4000000`, or `10000000` when sizes are measured unminified). `0` disables the limit.
     max_server_chunk_size: Option<usize>,
     /// Emit each merged production chunk's constituent component chunks alongside it, so the
     /// browser runtime can load only the chunks it doesn't already have (default `false`).
     generate_component_chunks: Option<bool>,
-    /// Minimum size, in bytes (default `20000`), for a component chunk to be emitted on its
-    /// own when `generate_component_chunks` is enabled.
+    /// Minimum size, in bytes (default `8000`, or `20000` when sizes are measured unminified), for
+    /// a component chunk to be emitted on its own when `generate_component_chunks` is enabled.
     min_component_chunk_size: Option<usize>,
     /// Avoid creating more than one Node.js server chunk smaller than this size, in bytes
-    /// (default `4000`). Doesn't apply to edge chunks.
+    /// (default `1600`, or `4000` when sizes are measured unminified). Doesn't apply to edge
+    /// chunks.
     min_server_chunk_size: Option<usize>,
     /// Don't merge Node.js server chunks bigger than this size, in bytes, with other chunks
-    /// (default `100000`). Doesn't apply to edge chunks.
+    /// (default `40000`, or `100000` when sizes are measured unminified). Doesn't apply to edge
+    /// chunks.
     max_merge_server_chunk_size: Option<usize>,
 }
 
