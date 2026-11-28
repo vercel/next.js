@@ -53,6 +53,7 @@ describe('native route worker events', () => {
     jest.spyOn(fs, 'readFile').mockImplementation(async (file) =>
       JSON.stringify({
         executable: String(file).endsWith('b.native.json') ? 'b' : 'a',
+        route: String(file).endsWith('b.native.json') ? '/b' : '/a',
         goos: process.platform === 'win32' ? 'windows' : process.platform,
         goarch:
           process.arch === 'x64'

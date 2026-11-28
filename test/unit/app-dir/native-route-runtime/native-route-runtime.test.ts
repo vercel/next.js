@@ -5,7 +5,11 @@ import http from 'http'
 import { Socket } from 'net'
 import { PassThrough } from 'stream'
 import { brotliCompressSync, deflateSync, gzipSync } from 'zlib'
-import { NativeRouteManager } from 'next/dist/server/lib/native-route.external'
+import {
+  NativeRouteManager,
+  observeNativeRouteWorkers,
+  type NativeRouteWorkerEvent,
+} from 'next/dist/server/lib/native-route.external'
 import { filterInternalHeaders } from 'next/dist/server/lib/server-ipc/utils'
 
 describe('native route runtime', () => {
@@ -36,6 +40,7 @@ describe('native route runtime', () => {
         JSON.stringify({
           version: 1,
           executable: 'worker',
+          route: '/',
           goos: process.platform === 'win32' ? 'windows' : process.platform,
           goarch:
             process.arch === 'x64'
@@ -129,6 +134,7 @@ describe('native route runtime', () => {
       JSON.stringify({
         version: 1,
         executable: 'worker',
+        route: '/route',
         goos: process.platform === 'win32' ? 'windows' : process.platform,
         goarch:
           process.arch === 'x64'
@@ -171,6 +177,191 @@ describe('native route runtime', () => {
       req.destroy()
       res.destroy()
       await manager.close()
+    }
+  })
+
+  it('serves every route of a shared executable from one worker and names the route', async () => {
+    let token = ''
+    const received: Array<{ route: string[]; url?: string }> = []
+    const worker = http.createServer((req, res) => {
+      expect(req.headers['x-next-internal-go-token']).toBe(token)
+      // Every x-matched-path field line in any letter case, as the UTF-8
+      // text of its bytes.
+      const route: string[] = []
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        if (req.rawHeaders[i].toLowerCase() === 'x-matched-path') {
+          route.push(
+            Buffer.from(req.rawHeaders[i + 1], 'latin1').toString('utf8')
+          )
+        }
+        expect(req.rawHeaders[i].toLowerCase()).not.toBe(
+          'x-next-internal-go-route'
+        )
+      }
+      received.push({ route, url: req.url })
+      res.end('ok')
+    })
+    await new Promise<void>((resolve) => worker.listen(0, '127.0.0.1', resolve))
+    const port = (worker.address() as import('net').AddressInfo).port
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stdin: new PassThrough(),
+      exitCode: null as number | null,
+      kill: jest.fn(),
+    })
+    const spawn = jest
+      .spyOn(childProcess, 'spawn')
+      .mockImplementation((_, __, options) => {
+        token = options!.env!.__NEXT_GO_TOKEN!
+        setImmediate(() =>
+          child.stdout.write(`\x1eNEXT_GO_READY:${token}:${port}\n`)
+        )
+        return child as unknown as childProcess.ChildProcess
+      })
+    // A production build's descriptors all name the same executable, and each
+    // carries the route ID the compiler assigned to its route.
+    const routes: Record<string, [page: string, route: string]> = {
+      '/users/1': ['/(group)/users/[id]/route', '/users/[id]'],
+      '/health': ['/health/route', '/health'],
+      '/catch/one/two': ['/catch/[...slug]/route', '/catch/[...slug]'],
+      '/': ['/route', '/'],
+      // Route IDs that are not valid header values as is.
+      '/%E6%97%A5%E6%9C%AC%E8%AA%9E': ['/日本語/route', '/日本語'],
+      // A literal folder named %5Bid%5D beside a dynamic [id] folder. Its ID is
+      // the dynamic route's ID percent-encoded, so each must keep one spelling.
+      '/users/%255Bid%255D': ['/users/%5Bid%5D/route', '/users/%5Bid%5D'],
+    }
+    const events: NativeRouteWorkerEvent[] = []
+    observeNativeRouteWorkers((event) => events.push(event))
+    jest.spyOn(fs, 'readFile').mockImplementation((async (file: string) => {
+      // The manager joins the descriptor path with the platform separator.
+      const descriptorPath = String(file).replace(/\\/g, '/')
+      const [, route] = Object.values(routes).find(([page]) =>
+        descriptorPath.endsWith(`app${page}.native.json`)
+      )!
+      return JSON.stringify({
+        executable: 'go-routes-0123',
+        route,
+        goos: process.platform === 'win32' ? 'windows' : process.platform,
+        goarch:
+          process.arch === 'x64'
+            ? 'amd64'
+            : process.arch === 'ia32'
+              ? '386'
+              : process.arch,
+      })
+    }) as typeof fs.readFile)
+    const manager = new NativeRouteManager(__dirname, false)
+    const front = http.createServer((req, res) => {
+      const [page] = routes[req.url!]
+      manager
+        .invoke(page, `app${page}.native.json`, req, res, req.url!)
+        .catch((error) => {
+          res.statusCode = 500
+          res.end(String(error))
+        })
+    })
+    await new Promise<void>((resolve) => front.listen(0, '127.0.0.1', resolve))
+    const frontPort = (front.address() as import('net').AddressInfo).port
+    try {
+      for (const pathname of [
+        '/users/1',
+        '/health',
+        '/users/1',
+        '/catch/one/two',
+        '/',
+        '/%E6%97%A5%E6%9C%AC%E8%AA%9E',
+        '/users/%255Bid%255D',
+      ]) {
+        const response = await fetch(
+          `http://127.0.0.1:${frontPort}${pathname}`,
+          {
+            // A client cannot choose the route.
+            headers: {
+              'x-matched-path': '/health, /health',
+              'x-next-internal-go-route': '/health',
+            },
+          }
+        )
+        expect(response.status).toBe(200)
+        await response.text()
+      }
+      // Repeated field lines in other letter cases are replaced too.
+      await new Promise<void>((resolve, reject) => {
+        const req = http.request(
+          {
+            host: '127.0.0.1',
+            port: frontPort,
+            path: '/users/1',
+            // A raw header list keeps repeated fields and their letter case,
+            // and replaces Node's defaults, including Host. Node accepts it,
+            // though its types only list a header object.
+            headers: [
+              'Host',
+              `127.0.0.1:${frontPort}`,
+              'X-Matched-Path',
+              '/health',
+              'x-matched-path',
+              '/health',
+              'X-MATCHED-PATH',
+              '/health',
+            ] as unknown as http.OutgoingHttpHeaders,
+          },
+          (res) => {
+            let body = ''
+            res.on('data', (chunk) => (body += chunk))
+            res.on('end', () => {
+              try {
+                expect([res.statusCode, body]).toEqual([200, 'ok'])
+                resolve()
+              } catch (error) {
+                reject(error)
+              }
+            })
+          }
+        )
+        req.on('error', reject)
+        req.end()
+      })
+      expect(spawn).toHaveBeenCalledTimes(1)
+      // Next.js names the routed handler's exact route ID in x-matched-path,
+      // once, as its UTF-8 bytes, as Vercel's routing does.
+      expect(received).toEqual([
+        { route: ['/users/[id]'], url: '/users/1' },
+        { route: ['/health'], url: '/health' },
+        { route: ['/users/[id]'], url: '/users/1' },
+        { route: ['/catch/[...slug]'], url: '/catch/one/two' },
+        { route: ['/'], url: '/' },
+        { route: ['/日本語'], url: '/%E6%97%A5%E6%9C%AC%E8%AA%9E' },
+        { route: ['/users/%5Bid%5D'], url: '/users/%255Bid%255D' },
+        { route: ['/users/[id]'], url: '/users/1' },
+      ])
+      // Each routed page is announced once, even when pages share a worker.
+      expect(
+        events.flatMap((event) =>
+          event.event === 'worker' ? [event.page] : []
+        )
+      ).toEqual([
+        '/(group)/users/[id]/route',
+        '/health/route',
+        '/catch/[...slug]/route',
+        '/route',
+        '/日本語/route',
+        '/users/%5Bid%5D/route',
+      ])
+    } finally {
+      observeNativeRouteWorkers(() => {})
+      child.exitCode = 0
+      child.emit('exit', 0)
+      child.stdout.destroy()
+      child.stdin.destroy()
+      await manager.close()
+      for (const server of [front, worker]) {
+        server.closeAllConnections()
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve()))
+        )
+      }
     }
   })
 

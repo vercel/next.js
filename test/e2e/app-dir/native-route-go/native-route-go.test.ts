@@ -16,6 +16,8 @@ import { createHash } from 'crypto'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { getRouteMatcher } from 'next/dist/shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
+import { resolveRoutes } from '../../../../packages/next-routing/src'
+import matchedPathCases from './matched-path-cases.json'
 
 async function expectParameterParity(
   pattern: string,
@@ -402,6 +404,54 @@ describe('native-route-go', () => {
     })
   })
   if (isNextDev) {
+    it('warns about mixed Go modules while continuing to serve in development', async () => {
+      const outputStart = next.cliOutput.length
+      await next.patchFile(
+        'app/methods/go.mod',
+        'module example.com/nested-methods\n\ngo 1.24\n',
+        async () => {
+          const response = await next.fetch('/methods')
+          expect(response.status).toBe(200)
+          expect(await response.text()).toBe('GET')
+          await retry(() => {
+            const output = next.cliOutput.slice(outputStart)
+            expect(output).toContain('route.go fails production builds')
+            expect(output).toContain('must belong to one Go module')
+            expect(output).toContain('app/methods/go.mod')
+            expect(output).toContain('./go.mod')
+          })
+        }
+      )
+    })
+    it('warns about adapter-incompatible IDs while serving them in development', async () => {
+      const outputStart = next.cliOutput.length
+      try {
+        await next.patchFile(
+          'app/index/dev-warning/route.go',
+          `package route
+
+import "net/http"
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tw.Write([]byte("dev warning route"))
+}
+`
+        )
+        const response = await next.fetch('/index/dev-warning')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe('dev warning route')
+        await retry(() => {
+          const output = next.cliOutput.slice(outputStart)
+          expect(output).toContain(
+            'route.go cannot be selected in adapter deployments'
+          )
+          expect(output).toContain('reads /index/dev-warning as /dev-warning')
+          expect(output).toContain('Rename the folder')
+        })
+      } finally {
+        await next.deleteFile('app/index')
+      }
+    })
     it.each(['delete', 'rename', 'replace'])(
       'retires the Go worker after route %s',
       async (change) => {
@@ -796,6 +846,123 @@ describe('native-route-go', () => {
     })
   }
   if (isNextStart) {
+    it('serves every Go route from one production worker', async () => {
+      const manifest: Record<string, string> = JSON.parse(
+        await next.readFile('.next/server/app-paths-manifest.json')
+      )
+      const executables = new Set<string>()
+      for (const [page, entry] of Object.entries(manifest)) {
+        if (!entry.endsWith('.native.json')) continue
+        const descriptor = JSON.parse(
+          await next.readFile('.next/server/' + entry)
+        )
+        executables.add(descriptor.executable)
+        // The compiler records the route ID that selects this handler.
+        if (page === '/(group)/native/[id]/route') {
+          expect(descriptor.route).toBe('/native/[id]')
+        }
+        if (page === '/adapter-special/café a 100%/route') {
+          expect(descriptor.route).toBe('/adapter-special/café a 100%')
+        }
+      }
+      expect([...executables]).toEqual([expect.stringMatching(/^go-routes-/)])
+      // Next.js names the routed handler; the shared process serves both.
+      expect(await lifecyclePid()).toBe((await data()).pid)
+    })
+
+    // Next.js names the routed handler's ID in x-matched-path and replaces
+    // every value the client sent, in any letter case, so a client cannot
+    // choose another handler compiled into the shared executable.
+    async function expectForgedRoutingIgnored() {
+      const url = new URL(next.url)
+      const forged = [
+        'X-Matched-Path',
+        '/adapter-static',
+        'x-matched-path',
+        '/catch/[...slug]',
+        'X-MATCHED-PATH',
+        '/native/[id]',
+      ]
+      const get = (path: string) =>
+        new Promise<{ status: number; body: string }>((resolve, reject) => {
+          const req = request(
+            {
+              host: url.hostname,
+              port: url.port,
+              path,
+              // A raw header list keeps repeated fields and their letter case.
+              // Node accepts it, though its types only list a header object.
+              headers: ['Host', url.host, ...forged] as unknown as Record<
+                string,
+                string
+              >,
+            },
+            (res) => {
+              let body = ''
+              res.setEncoding('utf8')
+              res.on('data', (chunk) => (body += chunk))
+              res.on('end', () => resolve({ status: res.statusCode!, body }))
+            }
+          )
+          req.on('error', reject)
+          req.end()
+        })
+      for (const [path, status, expected] of [
+        ['/adapter-static', 200, { path: '/adapter-static' }],
+        ['/native/one', 201, { id: 'one', privateMetadata: false }],
+        ['/catch/one/two', 200, ['one', 'two']],
+        ['/adapter-optional', 200, { params: null }],
+        ['/adapter-optional/one/two', 200, { params: ['one', 'two'] }],
+      ] as const) {
+        const response = await get(path)
+        expect(response.status).toBe(status)
+        const body = JSON.parse(response.body)
+        if (Array.isArray(expected)) {
+          expect(body).toEqual(expected)
+        } else {
+          expect(body).toMatchObject(expected)
+        }
+      }
+    }
+
+    it('selects the routed Go handler and ignores client x-matched-path values', async () => {
+      await expectForgedRoutingIgnored()
+    })
+
+    it('ignores client x-matched-path values when the router keeps internal headers', async () => {
+      // With NEXT_PRIVATE_TEST_HEADERS, router-server keeps internal headers
+      // such as x-matched-path, so only the route.go proxy (proxyNativeRequest)
+      // stands between the client and the executable's route selection.
+      // Hosted ingress strips those client headers before they reach Next.js,
+      // so a deployment cannot exercise this inner proxy boundary in isolation.
+      await next.stop()
+      try {
+        await next.start({
+          skipBuild: true,
+          env: { NEXT_PRIVATE_TEST_HEADERS: '1' },
+        })
+        await expectForgedRoutingIgnored()
+      } finally {
+        await next.stop()
+        await next.start({ skipBuild: true })
+      }
+    })
+
+    // Node routing returns 404 before this encoded pathname reaches Go. The
+    // adapter test below verifies that the Go executable serves it directly.
+    // Keep running this assertion so the gate becomes stale when Node routes it.
+    // @gate FIXME
+    it('serves a Go route whose path needs decoding under next start', async () => {
+      const response = await next.fetch(
+        '/adapter-special/caf%C3%A9%20a%20100%25',
+        { headers: { 'x-matched-path': '/native/[id]' } }
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        path: '/adapter-special/caf%C3%A9%20a%20100%25',
+      })
+    })
+
     it('retries a transient worker startup failure in production', async () => {
       const trace = await next.readJSON('.next/next-server.js.nft.json')
       for (const filename of [
@@ -839,7 +1006,7 @@ describe('native-route-go', () => {
         await next.readFile('.next/server/' + entry + '.nft.json')
       )
       expect(trace.files).toHaveLength(1)
-      expect(trace.files[0]).toContain('route-')
+      expect(trace.files[0]).toContain('go-routes-')
       const metadata = await fs.stat(
         join(next.testDir, '.next/server', descriptor.executable)
       )
@@ -861,7 +1028,7 @@ describe('native-route-go', () => {
       })
       expect((await data()).id).toBe('example')
     })
-    // This exercises host builds and startup checks for packaged servers.
+    // This exercises host builds and standalone execution of packaged servers.
     it('emits standalone Go adapter outputs alongside existing Node outputs', async () => {
       await next.stop()
       await next.patchFile('next.config.ts', (config) =>
@@ -869,6 +1036,74 @@ describe('native-route-go', () => {
           'experimental:',
           `basePath: '/adapter-base',\n  adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
         )
+      )
+      // These outputs share one executable, but the adapter selects and
+      // authorizes an output before invoking its process.
+      const additionalRoutes = Array.from(
+        { length: 32 },
+        (_, index) => `app/large-route-table/route-${index}`
+      )
+      // One corpus crosses both implementations: next-api must accept these
+      // IDs at build time, and the emitted Go selector must select that same
+      // handler for its own ID and each supported header spelling below.
+      additionalRoutes.push(
+        ...matchedPathCases.accepted.map(({ id }) => `app${id}`)
+      )
+      for (const directory of [
+        'app/catch/static',
+        'app/catch/[id]',
+        'app/adapter-optional/fixed',
+        ...additionalRoutes,
+      ]) {
+        await next.patchFile(
+          `${directory}/route.go`,
+          `package route
+
+import (
+\t"encoding/json"
+\t"net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tjson.NewEncoder(w).Encode(map[string]string{"route": ${JSON.stringify(directory)}, "id": r.PathValue("id")})
+}
+`
+        )
+      }
+      // A root route.go, which x-matched-path names as / (or /index). It
+      // replaces the root page, since both cannot serve /.
+      await next.deleteFile('app/page.tsx')
+      await next.patchFile(
+        'app/route.go',
+        `package route
+
+import (
+\t"encoding/json"
+\t"net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tjson.NewEncoder(w).Encode(map[string]string{"route": "app"})
+}
+`
+      )
+      // A route below app/internal is only importable from below app, so the
+      // shared executable must still reach it. It imports app/internal too.
+      await next.patchFile(
+        'app/internal/health/route.go',
+        `package route
+
+import (
+\t"encoding/json"
+\t"net/http"
+
+\t"example.com/native-route/app/internal/visibility"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tjson.NewEncoder(w).Encode(map[string]string{"route": "app/internal/health", "visibility": visibility.Name})
+}
+`
       )
       const result = await next.build()
       expect(result.exitCode).toBe(0)
@@ -895,16 +1130,36 @@ describe('native-route-go', () => {
       expect(
         context.outputs.pages.every((output) => output.runtime === 'nodejs')
       ).toBe(true)
-      expect(goOutputs.map((output) => output.pathname).sort()).toEqual([
-        '/adapter-base/adapter-optional/[[...slug]]',
-        '/adapter-base/adapter-special/café a 100%',
-        '/adapter-base/adapter-static',
-        '/adapter-base/catch/[...slug]',
-        '/adapter-base/explicit-methods',
-        '/adapter-base/lifecycle',
-        '/adapter-base/methods',
-        '/adapter-base/native/[id]',
-      ])
+      expect(goOutputs.map((output) => output.pathname).sort()).toEqual(
+        [
+          '/adapter-base',
+          '/adapter-base/adapter-optional/[[...slug]]',
+          '/adapter-base/adapter-optional/fixed',
+          '/adapter-base/adapter-special/café a 100%',
+          '/adapter-base/adapter-static',
+          '/adapter-base/catch/[...slug]',
+          '/adapter-base/catch/[id]',
+          '/adapter-base/catch/static',
+          '/adapter-base/explicit-methods',
+          '/adapter-base/internal/health',
+          '/adapter-base/lifecycle',
+          '/adapter-base/methods',
+          '/adapter-base/native/[id]',
+          ...additionalRoutes.map(
+            (directory) => `/adapter-base${directory.slice(3)}`
+          ),
+        ].sort()
+      )
+      // Every Go route output shares one executable, with identical assets,
+      // while keeping its own route identity.
+      expect(new Set(goOutputs.map((output) => output.filePath)).size).toBe(1)
+      expect(new Set(goOutputs.map((output) => output.id)).size).toBe(
+        goOutputs.length
+      )
+      for (const output of goOutputs) {
+        expect(output.assets).toEqual(goOutputs[0].assets)
+        expect(output.assetsHashes).toEqual(goOutputs[0].assetsHashes)
+      }
       for (const output of goOutputs) {
         expect(output.type).toBe('APP_ROUTE')
         // Go changes the runtime value without adding producer metadata keys.
@@ -954,9 +1209,11 @@ describe('native-route-go', () => {
         )
       ).toBe(false)
 
-      async function withStandaloneRoute(
+      async function withStandaloneRoute<T>(
         output: AdapterOutput['APP_ROUTE'],
-        run: (port: number) => Promise<void>
+        run: (port: number) => Promise<T>,
+        routeId: string | null = output.id,
+        extraEnv: Readonly<Record<string, string>> = {}
       ) {
         const directory = await fs.mkdtemp(join(tmpdir(), 'go-adapter-route-'))
         let child: ReturnType<typeof spawn> | undefined
@@ -977,6 +1234,8 @@ describe('native-route-go', () => {
           const env: NodeJS.ProcessEnv = {
             ...process.env,
             PORT: String(port),
+            __NEXT_GO_ROUTE: routeId ?? undefined,
+            ...extraEnv,
           }
           delete env.__NEXT_GO_TOKEN
           child = spawn(executable, [], {
@@ -1007,7 +1266,7 @@ describe('native-route-go', () => {
             )
             expect(response.status).toBe(404)
           })
-          await run(port)
+          return await run(port)
         } finally {
           if (child) {
             child.kill()
@@ -1086,6 +1345,307 @@ describe('native-route-go', () => {
           req.end()
         })
       })
+      for (const [id, path, expected] of [
+        [
+          '/catch/static',
+          '/adapter-base/catch/static',
+          { route: 'app/catch/static' },
+        ],
+        [
+          '/catch/[id]',
+          '/adapter-base/catch/one',
+          { route: 'app/catch/[id]', id: 'one' },
+        ],
+        [
+          '/catch/[id]',
+          '/adapter-base/catch/a%2Fb',
+          { route: 'app/catch/[id]', id: 'a/b' },
+        ],
+        [
+          '/catch/[...slug]',
+          '/adapter-base/catch/static/two',
+          ['static', 'two'],
+        ],
+        ['/catch/[...slug]', '/adapter-base/catch/one/two', ['one', 'two']],
+        [
+          '/adapter-optional/fixed',
+          '/adapter-base/adapter-optional/fixed',
+          { route: 'app/adapter-optional/fixed' },
+        ],
+        [
+          '/adapter-optional/[[...slug]]',
+          '/adapter-base/adapter-optional/fixed/two',
+          { params: ['fixed', 'two'] },
+        ],
+        [
+          '/adapter-optional/[[...slug]]',
+          '/adapter-base/adapter-optional',
+          { params: null },
+        ],
+        ['/native/[id]', '/adapter-base/native/one', { id: 'one' }],
+        ['/', '/adapter-base', { route: 'app' }],
+        [
+          '/internal/health',
+          '/adapter-base/internal/health',
+          { route: 'app/internal/health', visibility: 'app-internal' },
+        ],
+      ] as const) {
+        await withStandaloneRoute(
+          goOutputs.find((output) => output.id === id)!,
+          async (port) => {
+            const response = await fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              path
+            )
+            expect(response.status).toBeLessThan(300)
+            const body = await response.json()
+            if (Array.isArray(expected)) {
+              expect(body).toEqual(expected)
+            } else {
+              expect(body).toMatchObject(expected)
+            }
+          }
+        )
+      }
+      await withStandaloneRoute(nativeOutput, async (port) => {
+        // Other handlers are compiled into the executable but cannot be selected
+        // by the request path or by client-supplied routing metadata.
+        for (const path of [
+          '/adapter-base',
+          '/adapter-base/catch/static',
+          '/adapter-base/native',
+          '/adapter-base/native/one/two',
+          '/adapter-base/js',
+        ]) {
+          expect(
+            (
+              await fetchViaHTTP(`http://127.0.0.1:${port}`, path, undefined, {
+                headers: { 'x-matched-path': '/catch/static' },
+              })
+            ).status
+          ).toBe(404)
+        }
+        expect(
+          (
+            await fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              '/adapter-base/native/%FF'
+            )
+          ).status
+        ).toBe(400)
+      })
+      await expect(
+        withStandaloneRoute(nativeOutput, async () => {}, '/not-a-go-output')
+      ).rejects.toThrow(
+        'requires __NEXT_GO_ROUTE to be the output.id of a Go output'
+      )
+      for (const [routeId, legacyHeader] of [
+        [null, 'X-Authorized-Go-Output'],
+        [nativeOutput.id, ''],
+      ] as const) {
+        await expect(
+          withStandaloneRoute(nativeOutput, async () => {}, routeId, {
+            __NEXT_GO_ROUTE_HEADER: legacyHeader,
+          })
+        ).rejects.toThrow('does not support __NEXT_GO_ROUTE_HEADER')
+      }
+
+      // Without configuration, one process serves every Go output and selects
+      // each request's output from x-matched-path, which the platform sets
+      // from its routing decision and clients cannot set (Vercel's proxy drops
+      // client values). It is read as the Next.js server reads it: the
+      // pathname's UTF-8 bytes without basePath, not percent-encoded, with
+      // /index read as /.
+      await withStandaloneRoute(
+        nativeOutput,
+        async (port) => {
+          const invoke = (path: string, matched?: string | readonly string[]) =>
+            fetchViaHTTP(`http://127.0.0.1:${port}`, path, undefined, {
+              headers: {
+                ...(matched === undefined
+                  ? {}
+                  : {
+                      // Send the UTF-8 bytes, as the platform does.
+                      'x-matched-path': (typeof matched === 'string'
+                        ? [matched]
+                        : matched
+                      )
+                        .map((value) =>
+                          Buffer.from(value, 'utf8').toString('latin1')
+                        )
+                        .join(', '),
+                    }),
+                // Client-supplied private metadata never selects an output.
+                'x-next-internal-go-token': 'forged',
+              },
+            })
+          for (const { id, path, headers } of matchedPathCases.accepted) {
+            expect(goOutputs.find((output) => output.id === id)).toBeDefined()
+            for (const header of headers) {
+              const response = await invoke(`/adapter-base${path}`, header)
+              expect(response.status).toBe(200)
+              expect(await response.json()).toMatchObject({ route: `app${id}` })
+            }
+          }
+          for (const [matched, path, expected] of [
+            [
+              '/catch/static',
+              '/adapter-base/catch/static',
+              { route: 'app/catch/static' },
+            ],
+            [
+              '/catch/[id]',
+              '/adapter-base/catch/one',
+              { route: 'app/catch/[id]', id: 'one' },
+            ],
+            // The routing decision wins over the pathname.
+            [
+              '/catch/[id]',
+              '/adapter-base/catch/%73tatic',
+              { route: 'app/catch/[id]', id: 'static' },
+            ],
+            ['/catch/[...slug]', '/adapter-base/catch/one/two', ['one', 'two']],
+            ['/', '/adapter-base', { route: 'app' }],
+            ['/index', '/adapter-base', { route: 'app' }],
+            [
+              '/index/catch/static',
+              '/adapter-base/catch/static',
+              { route: 'app/catch/static' },
+            ],
+            ['/native/[id]', '/adapter-base/native/one', { id: 'one' }],
+            // Non-ASCII characters and a literal % in the route ID, raw or
+            // percent-encoded, as the Next.js server accepts both.
+            [
+              '/adapter-special/café a 100%',
+              '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+              { path: '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25' },
+            ],
+            [
+              '/adapter-special/caf%C3%A9%20a%20100%25',
+              '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+              { path: '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25' },
+            ],
+            [
+              '/catch/%5Bid%5D',
+              '/adapter-base/catch/one',
+              { route: 'app/catch/[id]', id: 'one' },
+            ],
+          ] as const) {
+            const response = await invoke(path, matched)
+            expect(response.status).toBeLessThan(300)
+            const body = await response.json()
+            if (Array.isArray(expected)) {
+              expect(body).toEqual(expected)
+            } else {
+              expect(body).toMatchObject(expected)
+            }
+          }
+          for (const [matched, path] of [
+            // No header, or a combined repeated value, selects nothing; the
+            // pathname never selects a handler.
+            [undefined, '/adapter-base/catch/static'],
+            [['/catch/static', '/catch/static'], '/adapter-base/catch/static'],
+            // basePath is not part of x-matched-path.
+            ['/adapter-base/catch/static', '/adapter-base/catch/static'],
+            // An escaped slash is never decoded, ? and # end the value, and
+            // the value is decoded at most once.
+            ['/catch%2Fstatic', '/adapter-base/catch/static'],
+            ['/catch/static?x=1', '/adapter-base/catch/static'],
+            ['/catch/static#x', '/adapter-base/catch/static'],
+            ['/catch/%255Bid%255D', '/adapter-base/catch/one'],
+            ['/not-a-go-output', '/adapter-base/catch/static'],
+            // The selected handler still requires its own pathname.
+            ['/catch/static', '/adapter-base/catch/one'],
+          ] as const) {
+            expect((await invoke(path, matched)).status).toBe(404)
+          }
+          // Bytes that are not UTF-8 select nothing.
+          expect(
+            (
+              await fetchViaHTTP(
+                `http://127.0.0.1:${port}`,
+                '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+                undefined,
+                {
+                  headers: {
+                    'x-matched-path': '/adapter-special/caf\u00e9 a 100%',
+                  },
+                }
+              )
+            ).status
+          ).toBe(404)
+        },
+        null
+      )
+
+      // Model an adapter that requires authorization for the static output and
+      // allows the dynamic output. Its routing decision must survive invocation,
+      // including encoded spellings that Go decodes to the static pathname.
+      async function invokeAuthorized(path: string) {
+        const resolved = await resolveRoutes({
+          url: new URL(path, 'https://example.com'),
+          buildId: context.buildId,
+          basePath: context.config.basePath,
+          requestBody: new ReadableStream({
+            start(controller) {
+              controller.close()
+            },
+          }),
+          headers: new Headers(),
+          pathnames: goOutputs.map((output) => output.pathname),
+          routes: context.routing,
+          invokeMiddleware: async () => ({}),
+        })
+        const output = goOutputs.find(
+          (candidate) => candidate.pathname === resolved.resolvedPathname
+        )
+        if (!output)
+          throw new Error(`No Go output for ${resolved.resolvedPathname}`)
+        if (output.id === '/catch/static') return { status: 403, body: null }
+        expect(output.id).toBe('/catch/[id]')
+        expect(resolved.invocationTarget?.pathname).toBe(path)
+        return withStandaloneRoute(output, async (port) => {
+          const response = await fetchViaHTTP(
+            `http://127.0.0.1:${port}`,
+            path,
+            undefined,
+            {
+              headers: { 'x-matched-path': '/catch/static' },
+            }
+          )
+          return { status: response.status, body: await response.json() }
+        })
+      }
+      expect(
+        (await invokeAuthorized('/adapter-base/catch/static')).status
+      ).toBe(403)
+      for (const path of [
+        '/adapter-base/catch/%73tatic',
+        '/adapter-base/catch/st%61tic',
+      ]) {
+        const response = await invokeAuthorized(path)
+        expect(response.status).toBe(200)
+        expect(response.body).toMatchObject({
+          route: 'app/catch/[id]',
+          id: 'static',
+        })
+      }
+      // A long catch-all path is parsed only for its bound handler, regardless
+      // of how many other route packages are present in the executable.
+      await withStandaloneRoute(
+        goOutputs.find((output) => output.id === '/catch/[...slug]')!,
+        async (port) => {
+          const segments = Array.from({ length: 1024 }, (_, index) =>
+            String(index)
+          )
+          const response = await fetchViaHTTP(
+            `http://127.0.0.1:${port}`,
+            `/adapter-base/catch/${segments.join('/')}`
+          )
+          expect(response.status).toBe(200)
+          expect(await response.json()).toEqual(segments)
+        }
+      )
       await withStandaloneRoute(
         goOutputs.find(
           (output) => output.pathname === '/adapter-base/methods'
@@ -1242,7 +1802,17 @@ describe('native-route-go with standalone output', () => {
     await next.patchFile('next.config.ts', (config) =>
       config.replace('experimental:', "output: 'standalone',\n  experimental:")
     )
-    const result = await next.build()
+    // Package initialization needs runtime configuration, which is absent during the build.
+    await next.patchFile('app/(group)/native/[id]/route.go', (source) =>
+      source.replace(
+        'func init() {',
+        `func init() {
+\tif os.Getenv("NATIVE_ROUTE_RUNTIME_ONLY") == "" {
+\t\tpanic("NATIVE_ROUTE_RUNTIME_ONLY is not set")
+\t}`
+      )
+    )
+    const result = await next.build({ env: { NATIVE_ROUTE_RUNTIME_ONLY: '' } })
     expect(result.exitCode).toBe(0)
     expect(result.cliOutput).not.toContain('Failed to copy traced files')
 
@@ -1274,6 +1844,7 @@ describe('native-route-go with standalone output', () => {
         PORT: String(port),
         HOSTNAME: '127.0.0.1',
         TURBOPACK_GO: '/missing-go-toolchain',
+        NATIVE_ROUTE_RUNTIME_ONLY: '1',
       },
       undefined,
       {
@@ -1354,8 +1925,8 @@ describe('native route diagnostics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // These assertions invoke local failing builds, which cannot be deployed.
-    // See README.md; HTTP adapter behavior is exercised by the start-mode cases.
+    // These CLI checks mutate the fixture and run multiple build commands.
+    // The deployment harness also lacks a Go adapter; see README.md.
     skipDeployment: true,
   })
   it('reports Go routes without the experiment before invoking the compiler', async () => {
@@ -1473,6 +2044,111 @@ describe('native route diagnostics', () => {
         expect(output).toContain('http.HandlerFunc')
       }
     )
+  })
+  it.each(matchedPathCases.rejected)(
+    'rejects $name in adapter builds',
+    async ({ ids, diagnostic, adapterOnly }) => {
+      // Adapter executables read x-matched-path as the Next.js server does,
+      // which drops a leading /index from a static path, so /index/collide/docs
+      // would select /collide/docs, a different handler than the one the
+      // platform routed to. next start looks up the exact ID instead.
+      const config = await next.readFile('next.config.ts')
+      const source = `package route
+
+import "net/http"
+
+func GET(w http.ResponseWriter, r *http.Request) {}
+`
+      const build = () =>
+        next.runCommand(['build', '--turbopack'], {
+          env: {
+            IS_WEBPACK_TEST: '',
+            IS_TURBOPACK_TEST: '1',
+            NEXT_RSPACK: '',
+            NEXT_TEST_USE_RSPACK: '',
+          },
+        })
+      try {
+        for (const id of ids) await next.patchFile(`app${id}/route.go`, source)
+        const selfHosted = await build()
+        if (adapterOnly) {
+          if (selfHosted.exitCode !== 0) throw new Error(selfHosted.cliOutput)
+          expect(selfHosted.exitCode).toBe(0)
+        } else {
+          // General route validation rejects encoded dynamic-segment aliases
+          // before next-api's Go-specific adapter checks, in either mode.
+          expect(selfHosted.exitCode).not.toBe(0)
+          expect(selfHosted.cliOutput).toContain(diagnostic)
+        }
+        await next.patchFile(
+          'next.config.ts',
+          config.replace(
+            'experimental:',
+            `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
+          )
+        )
+        const result = await build()
+        expect(result.exitCode).not.toBe(0)
+        if (adapterOnly) {
+          expect(result.cliOutput).toContain(
+            'cannot be selected in adapter deployments'
+          )
+        }
+        expect(result.cliOutput).toContain(diagnostic)
+      } finally {
+        await next.patchFile('next.config.ts', config)
+        await next.deleteFile('app/collide')
+        await next.deleteFile('app/index')
+        await next.deleteFile('app/%69ndex')
+      }
+    }
+  )
+  it('rejects routes from different Go modules with an actionable diagnostic', async () => {
+    await next.patchFile(
+      'app/methods/go.mod',
+      'module example.com/nested-methods\n\ngo 1.24\n',
+      async () => {
+        const result = await next.runCommand(['build', '--turbopack'], {
+          env: { IS_TURBOPACK_TEST: '1', IS_WEBPACK_TEST: '' },
+        })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.cliOutput).toContain('must belong to one Go module')
+        expect(result.cliOutput).toContain('app/methods/go.mod')
+        expect(result.cliOutput).toContain('./go.mod')
+        expect(result.cliOutput).toContain(
+          'using a single go.mod at the project root'
+        )
+      }
+    )
+  })
+  it('rejects duplicate generated Go package aliases instead of replacing a handler', async () => {
+    // These directories have the same sanitized name and truncated xxh3 hash
+    // (86c6fa2a) in go_package_alias. Keep them literal so this exercises the
+    // next-api collision diagnostic without mocking the compiler or hasher.
+    const directories = [
+      'app/(alias-collision)/a_a_a_a_a-a-a-a_a-a-a_a_a_a-a_a_a-a_a_a_a_a_a',
+      'app/(alias-collision)/a-a_a_a-a_a-a_a-a_a-a-a-a_a_a-a-a-a_a_a_a_a_a',
+    ]
+    try {
+      for (const directory of directories) {
+        await next.patchFile(
+          `${directory}/route.go`,
+          'package route\n\nimport "net/http"\n\nfunc GET(w http.ResponseWriter, r *http.Request) {}\n'
+        )
+      }
+      const result = await next.runCommand(['build', '--turbopack'], {
+        env: { IS_TURBOPACK_TEST: '1', IS_WEBPACK_TEST: '' },
+      })
+      expect(result.exitCode).not.toBe(0)
+      expect(result.cliOutput).toContain('map to the same Go package path')
+      expect(result.cliOutput).toContain('86c6fa2a')
+      expect(result.cliOutput).toContain('Rename one of the route directories')
+      for (const directory of directories) {
+        expect(result.cliOutput).toContain(directory)
+      }
+    } finally {
+      await next.deleteFile('app/(alias-collision)')
+    }
   })
   it('diagnoses conflicting Go and TS handlers', async () => {
     await next.patchFile(
