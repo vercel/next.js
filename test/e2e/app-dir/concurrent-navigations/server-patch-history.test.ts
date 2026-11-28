@@ -45,4 +45,35 @@ describe('server patch - history entry', () => {
       expect(new URL(url).pathname).toBe('/push-search-params')
     })
   })
+
+  it('does not leave useTransition pending forever when pushState lands during streaming refresh', async () => {
+    const browser = await next.browser('/pushstate-action-refresh')
+
+    await retry(async () => {
+      expect(await browser.elementById('pending-status').text()).toBe('idle')
+      expect(await browser.elementById('slow-content').text()).toBe(
+        'slow resolved'
+      )
+    })
+
+    // Click run action to begin transition
+    await browser.elementById('run-btn').click()
+    expect(await browser.elementById('pending-status').text()).toBe('pending')
+
+    // PushState tab b while action is in flight
+    await new Promise((r) => setTimeout(r, 200))
+    await browser.elementById('tab-b').click()
+
+    // Wait for action to finish and refresh GET to begin streaming, then pushState tab a
+    await new Promise((r) => setTimeout(r, 900))
+    await browser.elementById('tab-a').click()
+
+    // Pending should settle back to idle once all streaming finishes
+    await retry(
+      async () => {
+        expect(await browser.elementById('pending-status').text()).toBe('idle')
+      },
+      { timeout: 10000 }
+    )
+  })
 })
