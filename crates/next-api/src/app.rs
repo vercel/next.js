@@ -52,12 +52,14 @@ use turbopack::{
     module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
+use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::{AssetContent, no_hash_salt},
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
         HmrChunkListSource, availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
@@ -69,17 +71,22 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
-    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
+    reference_type::{
+        CommonJsReferenceSubType, CssReferenceSubType, EntryReferenceSubType, ReferenceType,
+        ReferenceTypeCondition,
+    },
     resolve::{
         FindContextFileResult, ResolveErrorMode, origin::PlainResolveOrigin, parse::Request,
         pattern::Pattern,
     },
     virtual_output::VirtualOutputAsset,
+    virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
-    GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_declarations, go_package_bundle_from_sources, go_source_failure, go_source_set,
+    GoBrowserEntry, GoBuildOutcome, GoBuildSession, GoDeclarations, GoSessionPool,
+    GoSourceSelection, GoSourceSet, GoToolchainOptions, go_declarations,
+    go_declarations_with_assets, go_package_bundle_from_sources, go_source_failure, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
@@ -1560,6 +1567,228 @@ impl Issue for GoRouteIssue {
     }
 }
 
+#[turbo_tasks::value(shared)]
+struct GoRouteAnalysis {
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    declarations: ResolvedVc<GoDeclarations>,
+}
+
+#[turbo_tasks::value(shared)]
+struct GoBrowserEntries {
+    entries: Vec<(GoBrowserEntry, ResolvedVc<Box<dyn Module>>)>,
+    valid: bool,
+}
+
+#[turbo_tasks::function]
+async fn go_browser_context(project: Vc<Project>) -> Result<Vc<ModuleAssetContext>> {
+    Ok(ModuleAssetContext::new(
+        TransitionOptions::default().cell(),
+        project.client_compile_time_info(),
+        get_client_module_options_context(
+            project.project_path().owned().await?,
+            project.execution_context(),
+            project.client_compile_time_info().environment(),
+            ClientContextType::Fallback,
+            project.next_mode(),
+            project.next_config(),
+            project.encryption_key(),
+            project.client_source_map_generation_options(),
+        ),
+        get_client_resolve_options_context(
+            project.project_path().owned().await?,
+            ClientContextType::Fallback,
+            project.next_mode(),
+            project.next_config(),
+            project.execution_context(),
+        ),
+        Layer::new_with_user_friendly_name(rcstr!("go-browser"), rcstr!("Go Route Browser")),
+    ))
+}
+
+#[turbo_tasks::value_impl]
+impl GoEndpoint {
+    #[turbo_tasks::function]
+    async fn analysis(self: Vc<Self>) -> Result<Vc<GoRouteAnalysis>> {
+        let this = self.await?;
+        let project = this.project;
+        let source_root = project.project_root_path().owned().await?;
+        let directory = this.path.parent();
+        let owner = project
+            .await?
+            .go_sessions
+            .context("native Go compilation is not enabled")?;
+        let scope = to_sys_path(source_root.clone())
+            .await?
+            .context("native Go compilation requires a disk filesystem")?;
+        let scope: RcStr = scope.to_str().context("non-UTF8 Go project")?.into();
+        let options = GoToolchainOptions {
+            go: std::env::var("TURBOPACK_GO")
+                .unwrap_or_else(|_| "go".into())
+                .into(),
+            tags: rcstr!(""),
+            poll_interval_ms: *project.watch_poll_interval_ms().await?,
+        };
+        let watch = *project.is_watch_enabled().await?;
+        let session = managed_session(scope, *owner, options, watch);
+        let sources = go_source_set(
+            source_root,
+            directory,
+            GoSourceSelection::Directory,
+            session,
+        )
+        .to_resolved()
+        .await?;
+        // Handlers, static config, and `Browser` declarations share one entrypoint analysis.
+        // Sibling files compile as helpers without contributing declarations here.
+        let source_set = sources.await?;
+        let entrypoint: RcStr = source_set
+            .root
+            .get_path_to(&this.path)
+            .context("Go entrypoint outside module")?
+            .into();
+        // A removed entry must not be parsed. output() publishes nothing for it;
+        // retaining the source selection here tracks its later recreation.
+        let files = if source_set.files.contains_key(&entrypoint) {
+            vec![entrypoint]
+        } else {
+            vec![]
+        };
+        // Browser assets are a route feature; proxies render no documents.
+        let (asset_package, asset_package_name) = match this.kind {
+            GoEndpointKind::Route { .. } => (rcstr!("next/go/assets"), rcstr!("assets")),
+            GoEndpointKind::Proxy => (rcstr!(""), rcstr!("")),
+        };
+        let declarations = go_declarations_with_assets(
+            *sources,
+            files,
+            session,
+            asset_package,
+            asset_package_name,
+        )
+        .to_resolved()
+        .await?;
+        Ok(GoRouteAnalysis {
+            sources,
+            session: session.to_resolved().await?,
+            declarations,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn browser_entries(self: Vc<Self>) -> Result<Vc<GoBrowserEntries>> {
+        let this = self.await?;
+        let project = self.project();
+        let prepared = self.analysis().await?;
+        let declarations = prepared.declarations.await?;
+        let root = project.project_path().owned().await?;
+        let asset_context = go_browser_context(project);
+        let mut entries = vec![];
+        let mut valid = true;
+        for entry in &declarations.browser_entries {
+            let path = entry.path.as_str();
+            let supported = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".mts", ".cjs", ".cts"]
+                .iter()
+                .any(|extension| path.ends_with(extension));
+            let clean = !path.is_empty()
+                && !path.contains('\\')
+                && !path.contains(':')
+                && path.split('/').all(|part| !matches!(part, "" | "." | ".."));
+            let source = if clean && supported {
+                Some(root.join(path)?)
+            } else {
+                None
+            };
+            let message = if let Some(source) = &source {
+                if source.read().await?.is_content() {
+                    None
+                } else {
+                    Some(format!("browser entry {:?} does not exist", path))
+                }
+            } else {
+                Some(format!(
+                    "browser entry {:?} must be a project-root-relative JavaScript or TypeScript \
+                     path without traversal",
+                    path
+                ))
+            };
+            if let Some(message) = message {
+                GoRouteIssue {
+                    path: this.path.clone(),
+                    message: format!(
+                        "{}:{}:{}: {}",
+                        entry.file, entry.line, entry.column, message
+                    )
+                    .into(),
+                }
+                .resolved_cell()
+                .emit();
+                valid = false;
+                continue;
+            }
+            let source = source.context("missing browser source")?;
+            let module_source = if project.next_mode().await?.is_development() {
+                let filename = source.file_name();
+                Vc::upcast(VirtualSource::new(
+                    source.append(".go-browser.ts")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(format!(
+                            "import \"next/dist/compiled/@next/react-refresh-utils/dist/runtime\";\
+                             \nimport \"next/dist/client/go-assets-dev.js\";\nimport {};\n",
+                            serde_json::to_string(&format!("./{filename}"))?
+                        )))
+                        .cell(),
+                    ),
+                ))
+            } else {
+                Vc::upcast(FileSource::new(source))
+            };
+            let module = asset_context
+                .process(
+                    module_source,
+                    ReferenceType::Entry(EntryReferenceSubType::default()),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            if ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).is_none() {
+                GoRouteIssue {
+                    path: this.path.clone(),
+                    message: format!(
+                        "{}:{}:{}: browser entry {:?} is not executable JavaScript",
+                        entry.file, entry.line, entry.column, path
+                    )
+                    .into(),
+                }
+                .resolved_cell()
+                .emit();
+                valid = false;
+            } else {
+                entries.push((entry.clone(), module));
+            }
+        }
+        Ok(GoBrowserEntries { entries, valid }.cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn browser_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
+        let project = self.project();
+        Ok(if *project.per_page_module_graph().await? {
+            ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entries(
+                    self.entries().to_resolved().await?,
+                    project.module_graph_options().await?,
+                )],
+                None,
+            )
+            .connect()
+        } else {
+            *project.whole_app_module_graphs().await?.full
+        })
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl GoEndpoint {
     #[turbo_tasks::function]
@@ -1618,34 +1847,12 @@ impl Endpoint for GoEndpoint {
             }
             .cell());
         }
-        let source_root = project.project_root_path().owned().await?;
-        let directory = this.path.parent();
-        let owner = project
-            .await?
-            .go_sessions
-            .context("native Go compilation is not enabled")?;
-        let scope = to_sys_path(source_root.clone())
-            .await?
-            .context("native Go compilation requires a disk filesystem")?;
-        let scope: RcStr = scope.to_str().context("non-UTF8 Go project")?.into();
-        let options = GoToolchainOptions {
-            go: std::env::var("TURBOPACK_GO")
-                .unwrap_or_else(|_| "go".into())
-                .into(),
-            tags: rcstr!(""),
-            poll_interval_ms: *project.watch_poll_interval_ms().await?,
-        };
-        let watch = *project.is_watch_enabled().await?;
-        let session = managed_session(scope, *owner, options, watch);
+        let prepared = self.analysis().await?;
+        let sources = prepared.sources;
+        let session = prepared.session;
         let go_session = session.await?;
-        let sources = go_source_set(
-            source_root,
-            directory.clone(),
-            GoSourceSelection::Directory,
-            session,
-        )
-        .to_resolved()
-        .await?;
+        let directory = this.path.parent();
+        let watch = *project.is_watch_enabled().await?;
         let source_set = sources.await?;
         let module_root = source_set.root.clone();
         // The generated `main`, dispatch and handler files below still form a valid program when
@@ -1671,7 +1878,7 @@ impl Endpoint for GoEndpoint {
         }
         // The entrypoint declares both handlers and static configuration. Siblings compile
         // with it as helpers, but do not contribute handlers or configuration.
-        let entry = go_declarations(*sources, vec![RcStr::from(handler_name)], session).await?;
+        let entry = prepared.declarations.await?;
         // Next.js owns the program entrypoint. It imports the route directory as an ordinary
         // package, so the entrypoint cannot be a program itself. The compiler checks sibling
         // package clauses using Go's file selection, including build constraints.
@@ -1695,7 +1902,7 @@ impl Endpoint for GoEndpoint {
             .emit();
             // Carry the source selection's inputs so request-time validation notices when the
             // package is renamed, rather than relying only on the file watcher.
-            let build = (*go_source_failure(*sources, session, message.clone()).await?).clone();
+            let build = (*go_source_failure(*sources, *session, message.clone()).await?).clone();
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
@@ -1723,7 +1930,7 @@ impl Endpoint for GoEndpoint {
                 // The failure depends on the entry's source, so keep the selection's inputs
                 // for request-side validation: a request right after the fix must not get
                 // this stale failure.
-                let result = go_source_failure(*sources, session, message.into()).await?;
+                let result = go_source_failure(*sources, *session, message.into()).await?;
                 if matches!(result.outcome, GoBuildOutcome::Retry) {
                     bail!("Go route inputs changed during analysis; retry the request")
                 }
@@ -1745,6 +1952,33 @@ impl Endpoint for GoEndpoint {
                 .cell());
             }
         };
+        let browser = self.browser_entries().await?;
+        if !entry.asset_errors.is_empty() || !browser.valid {
+            for message in &entry.asset_errors {
+                GoRouteIssue {
+                    path: this.path.clone(),
+                    message: message.clone(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: self.output_paths().to_resolved().await?,
+                native_build: None,
+                first_load_chunks: None,
+            }
+            .cell());
+        }
+        ensure!(
+            browser
+                .entries
+                .iter()
+                .map(|(entry, _)| entry)
+                .eq(entry.browser_entries.iter()),
+            "Go browser declarations changed during compilation; retry the request"
+        );
         let methods = entry.selected_functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
@@ -1766,7 +2000,7 @@ impl Endpoint for GoEndpoint {
         };
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
-        let handler = if is_proxy {
+        let mut handler = if is_proxy {
             go_proxy_handler_source(
                 *project.next_config().skip_proxy_url_normalize().await?,
                 base_path.as_deref().unwrap_or(""),
@@ -1811,13 +2045,13 @@ impl Endpoint for GoEndpoint {
             include_str!("templates/go_route_adapter_main.go")
                 .replace(
                     "// __NEXT_GO_PROXY_CONDITION_HEADERS__",
-                    go_proxy_condition_keys(*project, session, false)
+                    go_proxy_condition_keys(*project, *session, false)
                         .await?
                         .as_str(),
                 )
                 .replace(
                     "// __NEXT_GO_PROXY_CONDITION_COOKIES__",
-                    go_proxy_condition_keys(*project, session, true)
+                    go_proxy_condition_keys(*project, *session, true)
                         .await?
                         .as_str(),
                 )
@@ -1831,7 +2065,7 @@ impl Endpoint for GoEndpoint {
         generated.extend([
             (
                 RcStr::from(format!("{alias}/zz_next_route_handler.go")),
-                RcStr::from(handler),
+                RcStr::from(handler.clone()),
             ),
             (
                 RcStr::from(format!("{alias}/zz_next_route_dispatch.go")),
@@ -1842,8 +2076,32 @@ impl Endpoint for GoEndpoint {
                 RcStr::from(wrapper),
             ),
         ]);
+        if !browser.entries.is_empty() {
+            handler = handler.replace(
+                "\t\thandler(w, r)",
+                "\t\tvar assetErr error\n\t\tw, assetErr = nextGoAssetsWriter(w, r)\n\t\tif \
+                 assetErr != nil { http.Error(w, assetErr.Error(), \
+                 http.StatusInternalServerError); return }\n\t\thandler(w, r)",
+            );
+            generated.insert(
+                RcStr::from(format!("{alias}/zz_next_route_handler.go")),
+                handler.into(),
+            );
+            let transport = if is_adapter_build(project).await? {
+                "data, err = nextGoReadAssets()"
+            } else {
+                "data, err = nextGoDecodeAssets(r.Header.Get(\"x-next-internal-go-assets\"))"
+            };
+            generated.insert(
+                RcStr::from(format!("{alias}/zz_next_route_assets.go")),
+                include_str!("templates/go_route_assets.go")
+                    .replace("__NEXT_GO_PACKAGE__", package)
+                    .replace("// __NEXT_GO_ASSET_TRANSPORT__", transport)
+                    .into(),
+            );
+        }
         let result =
-            go_package_bundle_from_sources(*sources, session, alias.into(), generated).await?;
+            go_package_bundle_from_sources(*sources, *session, alias.into(), generated).await?;
         // Inputs that changed while compiling invalidate this task, which recomputes. Until
         // then, publish nothing and leave the retry to request-side validation, instead of
         // failing change subscriptions with an internal error. Editing files next to a Go
@@ -1899,7 +2157,81 @@ impl Endpoint for GoEndpoint {
         let entry = format!("{output_name}.native.json");
         let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
+        let mut browser_assets = vec![];
+        let mut manifest = BTreeMap::new();
+        if !browser.entries.is_empty() {
+            let graph = self.browser_graph();
+            let chunking = project.client_chunking_context().to_resolved().await?;
+            let browser_chunking =
+                ResolvedVc::try_downcast_type::<BrowserChunkingContext>(chunking)
+                    .context("Go browser entries require a browser chunking context")?;
+            for (entry, module) in &browser.entries {
+                let group = chunking.evaluated_chunk_group(
+                    module.ident(),
+                    ChunkGroupKey::Entry(vec![*module]),
+                    graph,
+                    OutputAssets::empty(),
+                    AvailabilityInfo::root(),
+                );
+                let mut initial_assets = group
+                    .await?
+                    .assets
+                    .await?
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>();
+                // Shared-runtime chunk groups expose registration metadata instead of an
+                // evaluate file. Native documents use an external bootstrap so rendering
+                // needs no inline script or JavaScript execution on the Go side.
+                if let Some(params) = &group.await?.chunk_group_bootstrap_params {
+                    let global = browser_chunking.chunk_loading_global().owned().await?;
+                    let global = serde_json::to_string(&global)?;
+                    let code = format!(
+                        "(globalThis[{global}] || (globalThis[{global}] = \
+                         [])).push([document.currentScript, {}]);",
+                        params.get()
+                    );
+                    let content = AssetContent::file(FileContent::Content(File::from(code)).cell());
+                    let hash = content
+                        .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
+                        .await?;
+                    let bootstrap = VirtualOutputAsset::new(
+                        project
+                            .client_relative_path()
+                            .await?
+                            .join(&format!("static/chunks/go/{hash}.js"))?,
+                        content,
+                    )
+                    .to_resolved()
+                    .await?;
+                    // The shared runtime must remain last; registrations precede it.
+                    initial_assets.insert(
+                        initial_assets.len().saturating_sub(1),
+                        ResolvedVc::upcast(bootstrap),
+                    );
+                }
+                let mut resources = vec![];
+                for asset in &initial_assets {
+                    let path = asset.path().owned().await?;
+                    let kind = if path.extension() == Some("css") {
+                        "stylesheet"
+                    } else if path.extension() == Some("js") {
+                        "script"
+                    } else {
+                        continue;
+                    };
+                    let url = chunking.asset_url(path, None).owned().await?;
+                    resources.push(serde_json::json!({ "kind": kind, "url": url }));
+                }
+                browser_assets.extend(initial_assets);
+                manifest.insert(entry.path.clone(), resources);
+                browser_assets.extend(group.all_assets().await?.iter().copied());
+            }
+        }
         let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch, "config": config });
+        if !manifest.is_empty() {
+            descriptor["assets"] = serde_json::to_value(&manifest)?;
+        }
         if is_proxy {
             descriptor["source"] =
                 serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
@@ -1911,6 +2243,7 @@ impl Endpoint for GoEndpoint {
             format!("server/{executable}"),
             format!("server/{entry}"),
             format!("server/{entry}.nft.json"),
+            format!("server/{executable}.assets.json"),
             format!("server/app{original_name}/app-paths-manifest.json"),
         ] {
             ensure!(
@@ -1920,7 +2253,22 @@ impl Endpoint for GoEndpoint {
         }
         let descriptor_path = node_root.join(&format!("server/{entry}"))?;
         let executable_path = node_root.join(&format!("server/{executable}"))?;
-        let trace = serde_json::json!({ "version": 1, "files": [descriptor_path.parent().get_path_to(&executable_path).context("native executable outside descriptor directory")?] });
+        let asset_manifest_path = node_root.join(&format!("server/{executable}.assets.json"))?;
+        let mut traced_files = vec![
+            descriptor_path
+                .parent()
+                .get_path_to(&executable_path)
+                .context("native executable outside descriptor directory")?,
+        ];
+        if !manifest.is_empty() {
+            traced_files.push(
+                descriptor_path
+                    .parent()
+                    .get_path_to(&asset_manifest_path)
+                    .context("native manifest outside descriptor directory")?,
+            );
+        }
+        let trace = serde_json::json!({ "version": 1, "files": traced_files });
         let mut assets = vec![
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
@@ -1973,6 +2321,19 @@ impl Endpoint for GoEndpoint {
         } else {
             assets.push(create_app_paths_manifest(node_root, &original_name, entry.into()).await?);
         }
+        if !manifest.is_empty() {
+            assets.push(ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    asset_manifest_path,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string(&manifest)?)).cell(),
+                    ),
+                )
+                .to_resolved()
+                .await?,
+            ));
+        }
+        assets.extend(browser_assets);
         // Validate again before these assets are offered to the output writer.
         ensure!(
             result.is_current().await?,
@@ -1989,21 +2350,40 @@ impl Endpoint for GoEndpoint {
     }
     #[turbo_tasks::function]
     async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        let assets = self.output().await?.output_assets;
+        // Native documents subscribe through the route's server endpoint. Browser
+        // dependency edits must also wake it when the Go executable is unchanged.
+        self.project().server_changed(*assets).await?;
+        self.project().client_changed(*assets).await?;
+        Ok(Completion::new())
+    }
+    #[turbo_tasks::function]
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         Ok(self
             .project()
-            .server_changed(*self.output().await?.output_assets))
+            .client_changed(*self.output().await?.output_assets))
     }
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        Completion::immutable()
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+        if !*self.project().next_config().go_routes().await? {
+            return Ok(GraphEntries::empty());
+        }
+        Ok(GraphEntries::from_chunk_groups(
+            self.browser_entries()
+                .await?
+                .entries
+                .iter()
+                .map(|(_, module)| ChunkGroupEntry::Entry {
+                    modules: vec![*module],
+                    heuristics: EntryHeuristics::default(),
+                })
+                .collect(),
+        )
+        .cell())
     }
     #[turbo_tasks::function]
-    fn entries(self: Vc<Self>) -> Vc<GraphEntries> {
-        GraphEntries::empty()
-    }
-    #[turbo_tasks::function]
-    fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs> {
-        Vc::cell(vec![])
+    async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
+        Ok(Vc::cell(vec![self.browser_graph().to_resolved().await?]))
     }
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {

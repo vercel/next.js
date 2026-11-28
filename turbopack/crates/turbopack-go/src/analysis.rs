@@ -40,6 +40,18 @@ pub struct GoDeclarations {
     /// Parsing errors are retained without preventing the compiler from emitting its normal
     /// diagnostics. Callers can still generate an entrypoint from valid declarations.
     pub syntax_errors: Vec<RcStr>,
+    /// `Browser` declarations from the asset SDK, when one was requested.
+    pub browser_entries: Vec<GoBrowserEntry>,
+    pub asset_errors: Vec<RcStr>,
+}
+
+/// A syntactically declared browser entry. The consumer resolves and compiles it.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoBrowserEntry {
+    pub path: RcStr,
+    pub file: RcStr,
+    pub line: u32,
+    pub column: u32,
 }
 
 /// An exported package-level value and the imports in the file declaring it.
@@ -106,12 +118,25 @@ pub struct GoValueElement {
 }
 
 #[turbo_tasks::function]
-pub async fn go_declarations(
+pub fn go_declarations(
     sources: ResolvedVc<GoSourceSet>,
     // Source names (as in `GoSourceSet::files`) to parse, typically just the entrypoint.
     // The rest of the package is compiled but never parsed here.
     files: Vec<RcStr>,
     host_session: ResolvedVc<GoBuildSession>,
+) -> Vc<GoDeclarations> {
+    go_declarations_with_assets(*sources, files, *host_session, rcstr!(""), rcstr!(""))
+}
+
+/// Like `go_declarations`, and also discovers browser entries declared with `Browser` from
+/// the supplied SDK import in the parsed files. It never loads dependencies.
+#[turbo_tasks::function]
+pub async fn go_declarations_with_assets(
+    sources: ResolvedVc<GoSourceSet>,
+    files: Vec<RcStr>,
+    host_session: ResolvedVc<GoBuildSession>,
+    asset_package: RcStr,
+    asset_package_name: RcStr,
 ) -> Result<Vc<GoDeclarations>> {
     let session_failure = Completion::session_dependent().to_resolved().await?;
     let executable = create_parser_operation(host_session)
@@ -132,7 +157,11 @@ pub async fn go_declarations(
             Ok((name, source))
         })
         .collect::<Result<BTreeMap<_, _>>>()?;
-    let input = serde_json::to_vec(&selected)?;
+    let input = serde_json::to_vec(&serde_json::json!({
+        "sources": selected,
+        "asset_package": asset_package,
+        "asset_package_name": asset_package_name,
+    }))?;
     let arguments = [
         format!("-goos={}", go_context.goos),
         format!("-goarch={}", go_context.goarch),

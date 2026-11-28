@@ -23,7 +23,8 @@ export function proxyNativeRequest(
   req: IncomingMessage,
   res: ServerResponse,
   url: string,
-  target: { port: number; agent: Agent; token: string }
+  target: { port: number; agent: Agent; token: string },
+  assets?: string
 ): Promise<void> {
   const { headers, hasBody } = prepareNativeRequestHeaders(req)
   // Header overrides can remove Content-Length. Transfer-Encoding is hop-by-hop,
@@ -33,6 +34,7 @@ export function proxyNativeRequest(
     headers['transfer-encoding'] = 'chunked'
   }
   headers['x-next-internal-go-token'] = target.token
+  if (assets) headers['x-next-internal-go-assets'] = assets
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
       hostname: '127.0.0.1',
