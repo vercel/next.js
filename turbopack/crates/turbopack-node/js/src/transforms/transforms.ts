@@ -42,6 +42,10 @@ export type IpcRequestMessage =
       file: string
     }
   | {
+      type: 'trackDirectoryRead'
+      directory: string
+    }
+  | {
       type: 'trackFileStat'
       file: string
     }
