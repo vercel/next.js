@@ -316,6 +316,13 @@ export function getResolveRoutes(
         }
         curPathname = curPathname?.substring(config.basePath.length) || '/'
       }
+
+      // Static assets that were not found on disk should not fall through
+      // to dynamic routes, but instead yield to the static 404 handler.
+      if (pathHasPrefix(curPathname || '', '/_next/static')) {
+        return
+      }
+
       const localeResult = fsChecker.handleLocale(curPathname || '')
 
       for (const route of dynamicRoutes) {
@@ -336,6 +343,7 @@ export function getResolveRoutes(
           isAppRoute && !localePathWasInferred
             ? curPathname || '/'
             : localeResult.pathname
+
         const params = route.match(routePathname)
 
         if (params) {
