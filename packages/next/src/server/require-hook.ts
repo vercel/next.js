@@ -82,5 +82,18 @@ mod.prototype.require = function (request: string) {
     )
   }
 
+  if (
+    process.env.NODE_ENV === 'development' &&
+    this.filename?.endsWith('[turbopack]_runtime.js') &&
+    path.isAbsolute(request)
+  ) {
+    // Shared chunks can outlive the runtime that first loads them. Node keeps
+    // private parent links even after module.parent is cleared, so requiring
+    // them from a reloadable runtime would retain its entire module graph.
+    const { requireChunk } =
+      require('./dev/turbopack-require.external') as typeof import('./dev/turbopack-require.external')
+    return requireChunk(request)
+  }
+
   return originalRequire.call(this, request)
 }
