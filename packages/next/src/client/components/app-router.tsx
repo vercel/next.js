@@ -50,10 +50,7 @@ import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
-
-const globalMutable: {
-  pendingMpaPath?: string
-} = {}
+import { pendingMpaNavigation } from './pending-mpa-navigation'
 
 // A Back/Forward press before the router's popstate listener exists moves the
 // browser to a different history entry than the one the document was activated
@@ -274,10 +271,10 @@ function Router({
         return
       }
 
-      // Clear the pendingMpaPath value so that a subsequent MPA navigation to the same URL can be triggered.
-      // This is necessary because if the browser restored from bfcache, the pendingMpaPath would still be set to the value
+      // Clear the pending MPA path so that a subsequent MPA navigation to the same URL can be triggered.
+      // This is necessary because if the browser restored from bfcache, the pending MPA path would still be set to the value
       // of the last MPA navigation.
-      globalMutable.pendingMpaPath = undefined
+      pendingMpaNavigation.path = undefined
 
       restore(
         new URL(window.location.href),
@@ -334,7 +331,7 @@ function Router({
   const { pushRef } = state
   if (pushRef.mpaNavigation) {
     // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
-    if (globalMutable.pendingMpaPath !== canonicalUrl) {
+    if (pendingMpaNavigation.path !== canonicalUrl) {
       const location = window.location
       if (pushRef.pendingPush) {
         location.assign(canonicalUrl)
@@ -342,11 +339,13 @@ function Router({
         location.replace(canonicalUrl)
       }
 
-      globalMutable.pendingMpaPath = canonicalUrl
+      pendingMpaNavigation.path = canonicalUrl
     }
-    // TODO-APP: Should we listen to navigateerror here to catch failed
-    // navigations somehow? And should we call window.stop() if a SPA navigation
-    // should interrupt an MPA one?
+    // The browser may abandon this navigation and keep the current document
+    // (e.g. a 204 response), without telling the page. A new navigation clears
+    // the pending path (see dispatchNavigation), so a retry is not skipped.
+    // TODO-APP: Should we call window.stop() if a SPA navigation should
+    // interrupt an MPA one?
     // NOTE: This is intentionally using `throw` instead of `use` because we're
     // inside an externally mutable condition (pushRef.mpaNavigation), which
     // violates the rules of hooks.
