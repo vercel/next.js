@@ -36,4 +36,45 @@ describe('use-cache-with-server-function-props', () => {
       expect(await browser.elementById('random').text()).toMatch(randomRegExp)
     })
   })
+
+  it('can invoke a nested cache function passed before its declaration', async () => {
+    const $ = await next.render$('/hoisted-cache')
+    expect($('#missing-greet-action').text()).toBe('')
+
+    const browser = await next.browser('/hoisted-cache')
+    await browser.elementById('submit-greeting').click()
+    await retry(async () => {
+      expect(await browser.elementById('greeting').text()).toBe('Hello, Ada!')
+    })
+  })
+
+  it('supports hoisted nested cache and server action declarations across scopes', async () => {
+    const browser = await next.browser('/hoisted-nested')
+
+    expect(await browser.elementById('no-closure').text()).toBe('1234')
+
+    await browser.elementById('btn-label-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('res-label-action').text()).toBe(
+        'updated'
+      )
+    })
+
+    await browser.elementById('btn-bound-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('res-bound-action').text()).toBe(
+        'updated:extra'
+      )
+    })
+
+    await browser.elementById('btn-loop-0').click()
+    await retry(async () => {
+      expect(await browser.elementById('res-loop-0').text()).toBe('item-0')
+    })
+
+    await browser.elementById('btn-loop-1').click()
+    await retry(async () => {
+      expect(await browser.elementById('res-loop-1').text()).toBe('item-1')
+    })
+  })
 })

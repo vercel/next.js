@@ -152,6 +152,7 @@ export function getDeterministicOutput(
 
       line = line
         .replace(/at (.+?) \((.*?\/)?.next[^)]+\)/, replaceNextDistStackFrame)
+        .replace(/at (?:file:\/\/)?(?:.*?\/)?\.next\S+/, 'at <next-dist-dir>')
         .replace(
           // Single-letter lower-case names are likely minified.
           /at [a-z] \((?!(<next-dist-dir>|<anonymous>))/,

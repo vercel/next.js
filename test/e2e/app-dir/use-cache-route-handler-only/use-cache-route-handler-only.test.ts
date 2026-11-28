@@ -18,6 +18,13 @@ describe('use-cache-route-handler-only', () => {
     expect(date1).toBe(date2)
   })
 
+  it('can reference a cached function before its declaration', async () => {
+    const response = await next.fetch('/hoisted-cache-declaration')
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('Hello, Ada!')
+  })
+
   if (!isNextDeploy) {
     // In deploy mode, concurrent requests could hit different lambdas.
     it('should dedupe concurrent cache invocations in route handlers', async () => {

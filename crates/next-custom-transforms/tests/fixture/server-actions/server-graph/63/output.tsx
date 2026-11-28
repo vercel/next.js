@@ -3,6 +3,13 @@ import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 // @ts-ignore
 import { getStuff, wrap, type Stuff } from './foo';
+const $$RSC_SERVER_CACHE_1_INNER = async function staticallyKnownFunction() {};
+export var $$RSC_SERVER_CACHE_1 = /*#__PURE__*/ Object["defineProperty"](/*#__PURE__*/ registerServerReference(/*#__PURE__*/ $$reactCache__(function staticallyKnownFunction() {
+    return $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, []);
+}), "80951c375b4a6a6e89d67b743ec5808127cfde405d", null), "name", {
+    value: "staticallyKnownFunction"
+});
+var staticallyKnownFunction = $$RSC_SERVER_CACHE_1;
 export { type Data } from './data';
 import { getData } from './data';
 const $$RSC_SERVER_CACHE_0_INNER = async function getCachedData() {
@@ -23,13 +30,6 @@ const Other = wrap(async ()=><div>Other</div>);
 const Sync = wrap(()=><div>Sync</div>);
 const wrapped = wrap(async ()=>'foo', async ()=>'bar', async ()=>async ()=>'baz', ()=>'sync');
 export { staticallyKnownFunction };
-const $$RSC_SERVER_CACHE_1_INNER = async function staticallyKnownFunction() {};
-export var $$RSC_SERVER_CACHE_1 = /*#__PURE__*/ Object["defineProperty"](/*#__PURE__*/ registerServerReference(/*#__PURE__*/ $$reactCache__(function staticallyKnownFunction() {
-    return $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, []);
-}), "80951c375b4a6a6e89d67b743ec5808127cfde405d", null), "name", {
-    value: "staticallyKnownFunction"
-});
-var staticallyKnownFunction = $$RSC_SERVER_CACHE_1;
 let $$RSC_SERVER_CACHE_getData = getData;
 if (typeof getData === "function") {
     $$RSC_SERVER_CACHE_getData = /*#__PURE__*/ Object["defineProperty"](/*#__PURE__*/ registerServerReference(/*#__PURE__*/ $$reactCache__(function() {

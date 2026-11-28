@@ -1,0 +1,8 @@
+  x Server Action `deleteItem` is referenced before its declaration and captures `id1`, which is reassigned here. Move `deleteItem` after `id1` is reassigned so it captures the updated value.
+  | 
+   ,-[input.js:7:1]
+ 6 |   return (() => {
+ 7 |     id1++
+   :     ^^^
+ 8 |     return <Button action={deleteItem}>Delete</Button>
+   `----

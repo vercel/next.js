@@ -2,7 +2,6 @@ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 /* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"}} */ import { Button } from 'components';
 import deleteFromDb from 'db';
-const v1 = 'v1';
 export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async function deleteItem($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3] = await decryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
@@ -13,6 +12,7 @@ export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async
     });
     await deleteFromDb($$ACTION_ARG_3);
 }, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
+const v1 = 'v1';
 export function Item({ id1, id2, id3, id4 }) {
     const v2 = id2;
     var deleteItem = $$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", id1, v2, id3, id4.x));

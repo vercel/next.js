@@ -27,7 +27,8 @@ export var $$RSC_SERVER_CACHE_2 = /*#__PURE__*/ Object["defineProperty"](/*#__PU
 }), "c069348c79fce073bae2f70f139565a2fda1c74c74", null), "name", {
     value: "Cached"
 });
-export default $$RSC_SERVER_CACHE_2;
+var Cached = $$RSC_SERVER_CACHE_2;
+export default Cached;
 const $$RSC_SERVER_CACHE_3_INNER = async function baz() {
     return 'data C';
 };
