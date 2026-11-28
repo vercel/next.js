@@ -293,13 +293,11 @@ describe('bundled docs as Markdown', () => {
       [
         '---',
         `title: ${title}`,
-        description && `description: ${description}`,
+        ...(description ? [`description: ${description}`] : []),
         '---',
         '',
         'Body.',
-      ]
-        .filter((line) => line !== undefined && line !== false)
-        .join('\n')
+      ].join('\n')
     const files = {
       '01-app/02-guides/index.mdx': page('Guides'),
       '01-app/02-guides/10-forms.mdx': page('Forms', '"Build forms."'),
