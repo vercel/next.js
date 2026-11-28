@@ -1402,22 +1402,27 @@ func TestAbsoluteFormTargetReachesNodeAsAPathWithTheTargetsHost(t *testing.T) {
 	}
 }
 
-// When Node answers before the client has finished its upload, the rest of
-// the body is still on the connection. Switchyard must close the connection
-// after the answer, so those bytes are never read as another request.
-func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T) {
-	done := make(chan struct{})
-	t.Cleanup(func() { close(done) })
+// When Node answers before the client has finished its upload, it reads and
+// discards the rest of the body and keeps the connection. Switchyard must do
+// the same, and never read those bytes as another request.
+func TestKeepsTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T) {
 	seen := make(chan string, 4)
 	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		seen <- r.RequestURI
-		// Answer the way Node does for /_next/static/ misses, without reading
-		// the body, and keep the connection open.
-		conn, buf, _ := w.(http.Hijacker).Hijack()
-		defer conn.Close()
-		io.WriteString(buf, "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found")
-		buf.Flush()
-		<-done
+		if r.Method == http.MethodPost {
+			// Answer the way Node does for /_next/static/ misses, before
+			// reading the body. Go's server, like Node, then discards the rest;
+			// in full-duplex mode it sends the answer first, as Node does.
+			http.NewResponseController(w).EnableFullDuplex()
+			// A length, so the answer is complete before Go's server reads
+			// the rest of the body (it would hold back a chunked ending).
+			w.Header().Set("Content-Length", "9")
+			w.WriteHeader(http.StatusNotFound)
+			io.WriteString(w, "Not Found")
+			w.(http.Flusher).Flush()
+			return
+		}
+		io.WriteString(w, "second")
 	})
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -1433,24 +1438,200 @@ func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T
 		t.Fatalf("no answer: %v", err)
 	}
 	io.Copy(io.Discard, res.Body)
-	if res.StatusCode != http.StatusNotFound || !res.Close {
-		t.Errorf("got %d with Close=%v, want 404 with Connection: close", res.StatusCode, res.Close)
+	if res.StatusCode != http.StatusNotFound || res.Close {
+		t.Errorf("got %d with Close=%v, want 404 keeping the connection", res.StatusCode, res.Close)
 	}
-	// What the client sends next must not reach Node as a request.
-	io.WriteString(conn, "0\r\n\r\nGET /second HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
-	if _, err := reader.ReadByte(); err != io.EOF {
-		t.Errorf("connection still open after the answer: err = %v", err)
+	// The rest of the body, then the next request on the same connection.
+	io.WriteString(conn, "6\r\n world\r\n0\r\n\r\nGET /second HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	second, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		t.Fatalf("no answer to the second request: %v", err)
 	}
-	<-seen
+	body, _ := io.ReadAll(second.Body)
+	if second.StatusCode != http.StatusOK || string(body) != "second" {
+		t.Errorf("second request: got %d %q, want 200 %q", second.StatusCode, body, "second")
+	}
+	for _, want := range []string{"/_next/static/x", "/second"} {
+		if got := <-seen; got != want {
+			t.Errorf("Node got %q, want %q", got, want)
+		}
+	}
 	select {
 	case uri := <-seen:
-		t.Errorf("Node got a second request %q from the same connection", uri)
+		t.Errorf("Node got an extra request %q", uri)
 	case <-time.After(200 * time.Millisecond):
 	}
 }
 
-// An upload Node has read in full doesn't need the connection closed; it
-// stays open for the next request, as without Switchyard.
+// earlyAnswer runs Switchyard, with a 3 s request timeout, in front of an
+// upstream that answers a 403 before reading the request body, with extra
+// response headers. It sends a POST announcing 10 bytes of body but only
+// sends 1. It returns the response body and how long it took to arrive, and,
+// when untilClose is set, how long until the connection closed instead.
+func earlyAnswer(t *testing.T, headers map[string]string, untilClose bool) (string, time.Duration) {
+	t.Helper()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NewResponseController(w).EnableFullDuplex()
+		for name, value := range headers {
+			w.Header().Set(name, value)
+		}
+		w.WriteHeader(http.StatusForbidden)
+		io.WriteString(w, "no")
+		w.(http.Flusher).Flush()
+	}))
+	t.Cleanup(upstream.Close)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken), 4*time.Second, time.Minute, 3*time.Second, 16<<10, testHeaderLines)
+	go srv.Serve(clientListener{ln})
+	t.Cleanup(func() { srv.Close() })
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(10 * time.Second))
+	io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\na")
+	start := time.Now()
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, &http.Request{Method: http.MethodPost})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("body %q: %v", body, err)
+	}
+	if untilClose {
+		if _, err := io.Copy(io.Discard, reader); err != nil {
+			t.Fatalf("connection not closed: %v", err)
+		}
+	}
+	return string(body), time.Since(start)
+}
+
+// After an early answer that keeps the connection, an upload whose chunked
+// framing then turns out broken must close the connection: the bytes after
+// the broken chunk must not be read as another request.
+func TestClosesTheConnectionWhenAnUploadBreaksAfterAnEarlyAnswer(t *testing.T) {
+	seen := make(chan string, 4)
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.RequestURI
+		if r.Method == http.MethodPost {
+			http.NewResponseController(w).EnableFullDuplex()
+			w.Header().Set("Content-Length", "2")
+			w.WriteHeader(http.StatusForbidden)
+			io.WriteString(w, "no")
+			w.(http.Flusher).Flush()
+			io.Copy(io.Discard, r.Body) // keeps reading, as Node does
+			return
+		}
+		io.WriteString(w, "second")
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		t.Fatalf("no answer: %v", err)
+	}
+	io.Copy(io.Discard, res.Body)
+	// "zz" isn't a chunk size; what follows looks like a request.
+	io.WriteString(conn, "zz\r\n\r\nGET /second HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	rest, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("connection not closed: %v (got %q)", err, rest)
+	}
+	if len(rest) != 0 {
+		t.Errorf("got %q after the broken upload, want the connection closed", rest)
+	}
+	if got := <-seen; got != "/upload" {
+		t.Errorf("Node got %q first, want /upload", got)
+	}
+	select {
+	case uri := <-seen:
+		t.Errorf("Node got %q from the broken upload's leftovers", uri)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// Node ends a response of unknown length as soon as its handler does, even
+// while the upload is still coming.
+func TestAChunkedAnswerSentMidUploadEndsAtOnce(t *testing.T) {
+	body, elapsed := earlyAnswer(t, nil, false)
+	if body != "no" {
+		t.Errorf("body %q, want %q", body, "no")
+	}
+	if elapsed > time.Second {
+		t.Errorf("response ended after %v, want at once, not at the 3 s request timeout", elapsed)
+	}
+}
+
+// After such an answer nothing may still read the upload: Go's server would
+// cut that read off, then wait for more of the upload with no deadline, and
+// the connection would hang or end with a reset. It must close cleanly, right
+// after the answer, every time.
+func TestClosesCleanlyAfterAChunkedAnswerSentMidUpload(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		body, elapsed := earlyAnswer(t, nil, true)
+		if body != "no" {
+			t.Fatalf("run %d: body %q, want %q", i, body, "no")
+		}
+		if elapsed > 2*time.Second {
+			t.Fatalf("run %d: connection closed after %v, want right after the answer", i, elapsed)
+		}
+	}
+}
+
+// When Node goes away partway through an answer sent before the upload
+// ended, the client's connection must close then too, not hang on the rest of
+// the upload.
+func TestClosesTheConnectionWhenAnEarlyAnswerBreaksOff(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			return
+		}
+		// 3 of the 10 bytes announced, then the connection drops.
+		buf.WriteString("HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nabc")
+		buf.Flush()
+		conn.Close()
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, "POST / HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\nx")
+	start := time.Now()
+	if _, err := io.ReadAll(conn); err != nil && !errors.Is(err, syscall.ECONNRESET) {
+		t.Fatalf("connection not closed: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("connection closed after %v, want right after the answer broke off", elapsed)
+	}
+}
+
+// Node closes the connection right after an answer that says so, even while
+// the upload is still coming.
+func TestClosesTheConnectionRightAfterAnEarlyAnswerThatSaysSo(t *testing.T) {
+	body, elapsed := earlyAnswer(t, map[string]string{"Content-Length": "2", "Connection": "close"}, true)
+	if body != "no" {
+		t.Errorf("body %q, want %q", body, "no")
+	}
+	if elapsed > time.Second {
+		t.Errorf("connection closed after %v, want at once, not at the 3 s request timeout", elapsed)
+	}
+}
+
 func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
 	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		io.Copy(io.Discard, r.Body)

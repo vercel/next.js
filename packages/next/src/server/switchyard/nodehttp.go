@@ -131,6 +131,14 @@ func (c *clientConn) CloseWrite() error {
 	return nil
 }
 
+// CloseRead shuts down reading on the connection (finishRequestBody).
+func (c *clientConn) CloseRead() error {
+	if cr, ok := c.Conn.(interface{ CloseRead() error }); ok {
+		return cr.CloseRead()
+	}
+	return nil
+}
+
 // endWithClient makes the Node request in r outlive a client that stops
 // sending. Any other end of the client's connection, or of the request, still
 // cancels it. The returned func releases the request once the response is
