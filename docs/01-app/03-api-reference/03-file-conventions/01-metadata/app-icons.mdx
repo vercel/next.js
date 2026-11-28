@@ -66,6 +66,7 @@ Add an `apple-icon.(jpg|jpeg|png)` image file.
 > - The appropriate `<link>` tags and attributes such as `rel`, `href`, `type`, and `sizes` are determined by the icon type and metadata of the evaluated file.
 > - For example, a 32 by 32px `.png` file will have `type="image/png"` and `sizes="32x32"` attributes.
 > - `sizes="any"` is added to icons when the extension is `.svg` or the image size of the file is not determined. More details in this [favicon handbook](https://evilmartians.com/chronicles/how-to-favicon-in-2021-six-files-that-fit-most-needs).
+> - Inside a [route group](/docs/app/api-reference/file-conventions/route-groups) or a [parallel route](/docs/app/api-reference/file-conventions/parallel-routes), Next.js adds a [suffix to the icon URL](/docs/app/api-reference/file-conventions/metadata#route-groups-and-parallel-routes).
 
 ## Generate icons using code (.js, .ts, .tsx)
 
@@ -170,6 +171,7 @@ export default function Icon() {
 > - You can generate multiple icons in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - You cannot generate a `favicon` icon. Use [`icon`](#icon) or a [favicon.ico](#favicon) file instead.
 > - App icons are special Route Handlers that are cached by default unless they use a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option.
+> - Inside a [route group](/docs/app/api-reference/file-conventions/route-groups) or a [parallel route](/docs/app/api-reference/file-conventions/parallel-routes), Next.js adds a [suffix to the icon URL](/docs/app/api-reference/file-conventions/metadata#route-groups-and-parallel-routes).
 
 ### Props
 
