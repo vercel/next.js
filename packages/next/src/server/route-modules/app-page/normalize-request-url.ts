@@ -8,8 +8,10 @@ import {
 } from '../../../client/components/app-router-headers'
 import type { BaseNextRequest } from '../../base-http'
 import { isRSCRequestHeader } from '../../lib/is-rsc-request'
-import { parseReqUrl } from '../../../lib/url'
-import { formatUrl } from '../../../shared/lib/router/utils/format-url'
+import {
+  tryParseRequestURL,
+  formatRelativeURL,
+} from '../../../shared/lib/router/utils/relative-url'
 import { addRequestMeta } from '../../request-meta'
 
 function getHeaderValue(
@@ -60,11 +62,11 @@ export function normalizeAppPageRequestUrl(
     return
   }
 
-  const normalizedUrl = parseReqUrl(req.url)
+  const normalizedUrl = tryParseRequestURL(req.url)
   if (!normalizedUrl) {
     return
   }
 
   normalizedUrl.pathname = pathname
-  req.url = formatUrl(normalizedUrl)
+  req.url = formatRelativeURL(normalizedUrl)
 }
