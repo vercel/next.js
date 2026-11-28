@@ -245,6 +245,14 @@ export function unmountPrefetchableInstance(element: Element) {
   }
 }
 
+// A click on a link with a `download` attribute is left to the browser (see
+// `linkClicked` in app-dir/link.tsx), so it never becomes a client-side
+// navigation and there is nothing to prefetch. Its target is usually a Route
+// Handler, which a prefetch request would run.
+function isDownloadLink(element: Element): boolean {
+  return element.hasAttribute('download')
+}
+
 function handleIntersect(entries: Array<IntersectionObserverEntry>) {
   // Process the entries in reverse order. The prefetch scheduler assigns the
   // highest priority to the most recently scheduled task, so whichever link we
@@ -277,8 +285,8 @@ export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
     return
   }
 
-  instance.isVisible = isVisible
-  if (isVisible) {
+  instance.isVisible = isVisible && !isDownloadLink(element)
+  if (instance.isVisible) {
     prefetchableAndVisible.add(instance)
   } else {
     prefetchableAndVisible.delete(instance)
@@ -291,7 +299,7 @@ export function onNavigationIntent(
   unstable_upgradeToDynamicPrefetch: boolean
 ) {
   const instance = prefetchable.get(element)
-  if (instance === undefined) {
+  if (instance === undefined || isDownloadLink(element)) {
     return
   }
   // Prefetch the link on hover/touchstart.
