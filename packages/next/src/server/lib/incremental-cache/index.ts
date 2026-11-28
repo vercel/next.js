@@ -50,8 +50,13 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
-  _requestHeaders: IncrementalCache['requestHeaders']
+  _requestHeaders: IncrementalCacheRequestHeaders
 }
+
+export type IncrementalCacheRequestHeaders = Record<
+  string,
+  undefined | string | string[]
+>
 
 export interface CacheHandlerValue {
   lastModified: number
@@ -172,7 +177,6 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly hasCustomCacheHandler: boolean
   readonly previewProps: DeepReadonly<__ApiPreviewProps>
   readonly prerenderManifest: DeepReadonly<PrerenderManifest>
-  readonly requestHeaders: Record<string, undefined | string | string[]>
   readonly allowedRevalidateHeaderKeys?: string[]
   readonly minimalMode?: boolean
   readonly fetchCacheKeyPrefix?: string
@@ -189,6 +193,11 @@ export class IncrementalCache implements IncrementalCacheType {
    */
   private readonly cacheControls: SharedCacheControls
   private readonly locales?: readonly string[]
+
+  /**
+   * In development, whether the request asked for `cache-control: no-cache`.
+   */
+  private readonly isNoCacheRequest: boolean
 
   constructor({
     fs,
@@ -212,7 +221,7 @@ export class IncrementalCache implements IncrementalCacheType {
     flushToDisk?: boolean
     allowedRevalidateHeaderKeys?: string[]
     locales?: readonly string[]
-    requestHeaders: IncrementalCache['requestHeaders']
+    requestHeaders: IncrementalCacheRequestHeaders
     maxMemoryCacheSize?: number
     previewProps: DeepReadonly<__ApiPreviewProps>
     prerenderManifest: DeepReadonly<PrerenderManifest>
@@ -262,7 +271,6 @@ export class IncrementalCache implements IncrementalCacheType {
     // because we replace this.minimalMode to true in production bundles.
     const minimalModeKey = 'minimalMode'
     this[minimalModeKey] = minimalMode
-    this.requestHeaders = requestHeaders
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.previewProps = previewProps
     this.prerenderManifest = prerenderManifest
@@ -272,6 +280,14 @@ export class IncrementalCache implements IncrementalCacheType {
       locales
     )
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
+
+    // `requestHeaders` can be the request's own headers object, which other
+    // code may change after this constructor returns. They are read only
+    // here, during construction: anything kept beyond construction is a copy
+    // or a value read now, never the object itself.
+    this.isNoCacheRequest =
+      dev && requestHeaders['cache-control'] === 'no-cache'
+
     let revalidatedTags: string[] = []
 
     if (
@@ -289,6 +305,9 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     if (CurCacheHandler) {
+      // A cache handler other than the built-in one may keep
+      // `_requestHeaders`, so it gets a copy. FileSystemCache does not read
+      // them.
       this.cacheHandler = new CurCacheHandler({
         dev,
         fs,
@@ -296,7 +315,10 @@ export class IncrementalCache implements IncrementalCacheType {
         serverDistDir,
         revalidatedTags,
         maxMemoryCacheSize,
-        _requestHeaders: requestHeaders,
+        _requestHeaders:
+          CurCacheHandler === FileSystemCache
+            ? requestHeaders
+            : Object.assign({}, requestHeaders),
         fetchCacheKeyPrefix,
       })
     }
@@ -593,8 +615,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (
       this.disableForTestmode ||
       (this.dev &&
-        (ctx.kind !== IncrementalCacheKind.FETCH ||
-          this.requestHeaders['cache-control'] === 'no-cache'))
+        (ctx.kind !== IncrementalCacheKind.FETCH || this.isNoCacheRequest))
     ) {
       return null
     }

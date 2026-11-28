@@ -95,6 +95,7 @@ import ResponseCache, {
 import {
   IncrementalCache,
   type CacheHandler as ICacheHandler,
+  type IncrementalCacheRequestHeaders,
 } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -437,7 +438,7 @@ export default class NextNodeServer extends BaseServer<
   protected async getIncrementalCache({
     requestHeaders,
   }: {
-    requestHeaders: IncrementalCache['requestHeaders']
+    requestHeaders: IncrementalCacheRequestHeaders
   }) {
     const dev = !!this.dev
     let CacheHandler: any
