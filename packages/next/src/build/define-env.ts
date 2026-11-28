@@ -153,7 +153,9 @@ export function getDefineEnv({
       : process.env.NEXT_RSPACK
         ? 'Rspack'
         : 'Webpack',
-    // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
+    // Unless development builds are explicitly allowed, `next build` fails
+    // early when the runtime `process.env.NODE_ENV` is set to anything other
+    // than 'production' or 'test'.
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'

@@ -196,7 +196,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
           err.code === 'BUILD_OPTIMIZATION_FAILED' ||
           err.code === 'NEXT_EXPORT_ERROR' ||
           err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
-          err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
+          err.code === 'EDGE_RUNTIME_UNSUPPORTED_API' ||
+          err.code === 'NON_STANDARD_NODE_ENV_BUILD')
       ) {
         printAndExit(`> ${err.message}`)
       } else {
