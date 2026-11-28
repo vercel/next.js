@@ -11,6 +11,8 @@ import {
 
 export type { StackFrame }
 
+const basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
+
 interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
   error: false
   reason: null
@@ -94,7 +96,7 @@ export async function getOriginalStackFrames(
   let res: Response | undefined = undefined
   let reason: string | undefined = undefined
   try {
-    res = await fetch('/__nextjs_original-stack-frames', {
+    res = await fetch(`${basePath}/__nextjs_original-stack-frames`, {
       method: 'POST',
       body: JSON.stringify(req),
     })
