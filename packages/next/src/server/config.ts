@@ -2591,6 +2591,27 @@ function enforceExperimentalFeatures(
     config.partialPrefetching = true
   }
 
+  const sequentialTaskScheduling = process.env.__NEXT_SEQUENTIAL_TASK_SCHEDULING
+  if (
+    (sequentialTaskScheduling === 'unstable_timer' ||
+      sequentialTaskScheduling === 'unstable_immediate') &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.sequentialTaskScheduling === undefined ||
+      (isDefaultConfig &&
+        config.experimental.sequentialTaskScheduling === 'unstable_timer'))
+  ) {
+    config.experimental.sequentialTaskScheduling = sequentialTaskScheduling
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'sequentialTaskScheduling',
+        sequentialTaskScheduling,
+        'set by `__NEXT_SEQUENTIAL_TASK_SCHEDULING`'
+      )
+    }
+  }
+
   // TODO: Remove this once cachedNavigations is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&

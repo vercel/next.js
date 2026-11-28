@@ -11,6 +11,7 @@ import {
 } from './fast-set-immediate.external'
 
 import * as TimerScheduler from '../app-render/app-render-scheduling/timer-scheduler'
+import * as ImmediateScheduler from '../app-render/app-render-scheduling/immediate-scheduler'
 
 function createLogger() {
   const logs: string[] = []
@@ -33,7 +34,7 @@ function createLogger() {
 
 describe.each([
   { description: 'Timer scheduler', scheduler: TimerScheduler },
-  // (more coming soon)
+  { description: 'Immediate scheduler', scheduler: ImmediateScheduler },
 ])('$description', ({ scheduler }) => {
   const { scheduleSequentialTasks } = scheduler
 

@@ -520,6 +520,9 @@ export const experimentalSchema = {
   typedEnv: z.boolean().optional(),
   serverComponentsHmrCache: z.boolean().optional(),
   serverComponentsHmrCancellation: z.boolean().optional(),
+  sequentialTaskScheduling: z
+    .enum(['unstable_timer', 'unstable_immediate'])
+    .optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   durableUseCacheEntries: z.boolean().optional(),

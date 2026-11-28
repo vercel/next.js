@@ -1624,6 +1624,31 @@ export interface ExperimentalConfig {
   serverComponentsHmrCancellation?: boolean
 
   /**
+   * Selects the scheduling mechanism used for sequential tasks in Cache Components.
+   *
+   * Warning: This option is highly experimental, and should be used with caution.
+   * Depending on the runtime, it may lead to non-deterministic and hard-to-debug problems,
+   * such as:
+   *
+   * - content missing from prerenders
+   * - poisoning the ISR cache with uncached data that should be omitted from a prerender
+   *
+   * It is intended for experimention by people maintaining Next.js integrations with
+   * non-Node.js runtimes. Do not change the default setting unless you fully understand the
+   * implications and your runtime's scheduling behavior.
+   *
+   * - `unstable_timer` (default): Sequential tasks will be scheduled using `setTimeout()`.
+   *   Note that this implementation relies on internals of Node.js `Timeout` objects
+   *   to ensure consistent behavior, so it may not be portable.
+   * - `unstable_immediate`: Sequential tasks will be scheduled using `setImmediate()`.
+   *   Assumes that multiple immediates queued synchronously will run without interruption
+   *   by other tasks.
+   *
+   * @default 'unstable_timer'
+   */
+  sequentialTaskScheduling?: 'unstable_timer' | 'unstable_immediate'
+
+  /**
    * Render <style> tags inline in the HTML for imported CSS assets.
    * Supports app-router in production mode only.
    */
@@ -2626,6 +2651,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     serverComponentsHmrCancellation: false,
+    sequentialTaskScheduling: 'unstable_timer',
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
@@ -2762,6 +2788,7 @@ export interface NextConfigRuntime {
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
     | 'serverComponentsHmrCancellation'
+    | 'sequentialTaskScheduling'
     | 'caseSensitiveRoutes'
     | 'validateRSCRequestHeaders'
     | 'sri'
@@ -2836,6 +2863,7 @@ export function getNextConfigRuntime(
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
     serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,
+    sequentialTaskScheduling: ex.sequentialTaskScheduling,
     caseSensitiveRoutes: ex.caseSensitiveRoutes,
     validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
     sri: ex.sri,

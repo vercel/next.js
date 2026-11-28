@@ -60,7 +60,7 @@ describe.each([
       )
       // We should not see warnings related to setTimeout.
       expect(next.cliOutput).not.toContain(
-        "Next.js cannot guarantee that Cache Components will run as expected due to the current runtime's implementation of `setTimeout()`"
+        'Next.js cannot guarantee that Cache Components will run as expected'
       )
     }
 
