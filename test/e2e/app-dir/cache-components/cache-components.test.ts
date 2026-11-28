@@ -77,6 +77,17 @@ describe('cache-components', () => {
     )
   })
 
+  it('should apply a not-found status before resuming an empty shell', async () => {
+    const notFoundResponse = await next.fetch(
+      '/cases/empty-shell-not-found/bad'
+    )
+    expect(notFoundResponse.status).toBe(404)
+
+    const validResponse = await next.fetch('/cases/empty-shell-not-found/good')
+    expect(validResponse.status).toBe(200)
+    expect(await validResponse.text()).toContain('A report')
+  })
+
   it('should prerender pages that render in a microtask', async () => {
     let $ = await next.render$('/cases/microtask', {})
     if (isNextDev) {
