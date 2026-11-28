@@ -118,7 +118,8 @@ export function createInitialRouterState({
       null, // No pending entry
       initialRoot,
       initialCouldBeIntercepted,
-      canonicalUrl,
+      // The cached route is shared by navigations with different fragments.
+      createHrefFromUrl(location, false),
       initialSeed.renderedSearch,
       initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
