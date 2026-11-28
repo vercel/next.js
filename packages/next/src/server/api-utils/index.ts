@@ -101,7 +101,8 @@ export function checkIsOnDemandRevalidate(
   const previewModeId = headers[PRERENDER_REVALIDATE_HEADER]
   const isOnDemandRevalidate = previewModeId === previewProps.previewModeId
 
-  const revalidateOnlyGenerated = headers.hasOwnProperty(
+  const revalidateOnlyGenerated = Object.hasOwn(
+    headers,
     PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER
   )
 
