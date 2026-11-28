@@ -376,7 +376,11 @@ export function RequestInsightsPanel() {
       </div>
 
       {selectedRequest ? (
-        <RequestDetails request={selectedRequest} verbose={verbose} />
+        <RequestDetails
+          key={getRequestInsightKey(selectedRequest)}
+          request={selectedRequest}
+          verbose={verbose}
+        />
       ) : selectedListItem ? (
         <div className="request-insights-details-loading">
           Loading request details…
@@ -945,6 +949,10 @@ function RequestDetails({
   request: RequestInsight
   verbose: boolean
 }) {
+  const [activeTab, setActiveTab] = useState<'trace' | 'fetches'>('trace')
+  const traceTabRef = useRef<HTMLButtonElement>(null)
+  const fetchesTabRef = useRef<HTMLButtonElement>(null)
+  const tabsId = useId()
   const traceItems = useMemo(
     () =>
       getTraceItems(
@@ -957,6 +965,25 @@ function RequestDetails({
   const overview = useMemo(() => getRequestOverview(request), [request])
   const diagnosis = verbose ? getDiagnosis(request, traceItems) : null
   const requestUrl = getRequestDisplayUrl(request)
+  const selectTabFromKeyboard = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    tab: 'trace' | 'fetches'
+  ) => {
+    let nextTab: 'trace' | 'fetches' | undefined
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      nextTab = tab === 'trace' ? 'fetches' : 'trace'
+    } else if (event.key === 'Home') {
+      nextTab = 'trace'
+    } else if (event.key === 'End') {
+      nextTab = 'fetches'
+    }
+    if (nextTab) {
+      event.preventDefault()
+      const nextTabRef = nextTab === 'trace' ? traceTabRef : fetchesTabRef
+      setActiveTab(nextTab)
+      nextTabRef.current?.focus()
+    }
+  }
 
   return (
     <div className="request-insights-details">
@@ -981,7 +1008,10 @@ function RequestDetails({
         </div>
       </div>
 
-      <RequestOverview overview={overview} />
+      <RequestOverview
+        onShowFetches={() => setActiveTab('fetches')}
+        overview={overview}
+      />
       {overview.errorSummary ? (
         <div className="request-insights-error">{overview.errorSummary}</div>
       ) : null}
@@ -989,20 +1019,72 @@ function RequestDetails({
         <div className="request-insights-diagnosis">{diagnosis}</div>
       ) : null}
 
-      <Trace
-        items={traceItems}
-        key={getRequestInsightKey(request)}
-        request={request}
-      />
-
-      <FetchTable fetches={request.fetches} />
+      <div
+        aria-label="Request details"
+        className="request-insights-tabs"
+        role="tablist"
+      >
+        <button
+          aria-controls={
+            activeTab === 'trace' ? `${tabsId}-trace-panel` : undefined
+          }
+          aria-selected={activeTab === 'trace'}
+          className="request-insights-tab"
+          id={`${tabsId}-trace-tab`}
+          onClick={() => setActiveTab('trace')}
+          onKeyDown={(event) => selectTabFromKeyboard(event, 'trace')}
+          ref={traceTabRef}
+          role="tab"
+          tabIndex={activeTab === 'trace' ? 0 : -1}
+          type="button"
+        >
+          Trace · {traceItems.length}
+        </button>
+        <button
+          aria-controls={
+            activeTab === 'fetches' ? `${tabsId}-fetches-panel` : undefined
+          }
+          aria-selected={activeTab === 'fetches'}
+          className="request-insights-tab"
+          id={`${tabsId}-fetches-tab`}
+          onClick={() => setActiveTab('fetches')}
+          onKeyDown={(event) => selectTabFromKeyboard(event, 'fetches')}
+          ref={fetchesTabRef}
+          role="tab"
+          tabIndex={activeTab === 'fetches' ? 0 : -1}
+          type="button"
+        >
+          Fetches · {request.fetches.length}
+        </button>
+      </div>
+      {activeTab === 'trace' ? (
+        <div
+          aria-labelledby={`${tabsId}-trace-tab`}
+          className="request-insights-tab-panel request-insights-trace-panel"
+          id={`${tabsId}-trace-panel`}
+          role="tabpanel"
+        >
+          <Trace items={traceItems} request={request} />
+        </div>
+      ) : (
+        <div
+          aria-labelledby={`${tabsId}-fetches-tab`}
+          className="request-insights-tab-panel"
+          id={`${tabsId}-fetches-panel`}
+          role="tabpanel"
+        >
+          <FetchTable fetches={request.fetches} />
+        </div>
+      )}
     </div>
   )
 }
 
 function RequestOverview({
+  onShowFetches,
   overview,
 }: {
+  onShowFetches: () => void
   overview: ReturnType<typeof getRequestOverview>
 }) {
   return (
@@ -1010,7 +1092,14 @@ function RequestOverview({
       {overview.method ? <span>Method {overview.method}</span> : null}
       <span>Status {overview.statusLabel}</span>
       <span>{overview.kind}</span>
-      <span>{overview.fetchSummary}</span>
+      <button
+        className="request-insights-overview-chip"
+        disabled={overview.fetchCount === 0}
+        onClick={onShowFetches}
+        type="button"
+      >
+        {overview.fetchSummary}
+      </button>
       <span>{overview.cacheSummary}</span>
       <span>{overview.spanSummary}</span>
       {overview.route ? (
@@ -1153,9 +1242,7 @@ function Trace({
   return (
     <div className="request-insights-section">
       <div className="request-insights-section-heading">
-        <div className="request-insights-section-title">Trace</div>
         <div className="request-insights-section-note">
-          {items.length} span{items.length === 1 ? '' : 's'} ·{' '}
           {formatDuration(range.durationMs)}
         </div>
       </div>
@@ -1375,7 +1462,6 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
 
   return (
     <div className="request-insights-section">
-      <div className="request-insights-section-title">Fetches</div>
       {fetches.length === 0 ? (
         <div className="request-insights-muted">
           No server fetches captured.
@@ -1470,6 +1556,7 @@ function getRequestOverview(request: RequestInsight) {
     statusCode,
     statusLabel: statusCode ?? request.status,
     kind: getRequestInsightSummaryTypeLabel(request),
+    fetchCount: request.fetches.length,
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',
