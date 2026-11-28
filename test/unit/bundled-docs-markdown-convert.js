@@ -9,6 +9,7 @@ const { join } = require('path')
 const glob = require('glob')
 const {
   createConverter,
+  childPages,
   docsPath,
 } = require('../../packages/next/taskfile-docs.js')
 
@@ -22,13 +23,20 @@ async function main() {
 
   if (!input.corpus) {
     const shared = input.shared ?? {}
+    const files = input.files ?? {}
     return toMarkdown(input.source, {
       relativePath: input.relativePath,
       readSource: (path) => shared[path] ?? null,
+      children: childPages(
+        input.relativePath,
+        Object.keys(files),
+        (file) => files[file]
+      ),
     })
   }
 
   const sources = new Map()
+  const docsFiles = glob.sync('**/*.mdx', { cwd: docsRoot })
   for (const file of glob.sync('**/*.mdx', { cwd: docsRoot })) {
     sources.set(docsPath(file), readFileSync(join(docsRoot, file), 'utf8'))
   }
@@ -56,7 +64,16 @@ async function main() {
       name,
       file,
       source,
-      output: toMarkdown(source, { relativePath: file, readSource }),
+      output: toMarkdown(source, {
+        relativePath: file,
+        readSource,
+        children:
+          root === docsRoot
+            ? childPages(file, docsFiles, (child) =>
+                readFileSync(join(docsRoot, child), 'utf8')
+              )
+            : [],
+      }),
       // Whether a page that shares content found the page it names.
       sharedFound: shared ? readSource(shared[1]) !== null : null,
     }

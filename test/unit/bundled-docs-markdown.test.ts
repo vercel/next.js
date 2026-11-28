@@ -24,8 +24,13 @@ const toMarkdown = (
   {
     relativePath,
     shared,
-  }: { relativePath: string; shared?: Record<string, string> }
-): string => run({ source, relativePath, shared })
+    files,
+  }: {
+    relativePath: string
+    shared?: Record<string, string>
+    files?: Record<string, string>
+  }
+): string => run({ source, relativePath, shared, files })
 
 /** The lines of a Markdown file that are not inside a code block, with the fence lines. */
 function prose(markdown: string) {
@@ -226,6 +231,107 @@ describe('bundled docs as Markdown', () => {
     )
   })
 
+  it('drops each JavaScript twin when two TypeScript samples come before their twins', () => {
+    const sample = (lang: string, file: string, body: string) =>
+      [`\`\`\`${lang} filename="${file}" switcher`, body, '```'].join('\n')
+    const source = [
+      sample('tsx', 'app/page.tsx', 'const page = 1'),
+      sample('tsx', 'app/search.tsx', 'const search = 1'),
+      sample('jsx', 'app/page.js', 'const pageJs = 1'),
+      sample('jsx', 'app/search.js', 'const searchJs = 1'),
+      // A JavaScript sample with no TypeScript one above it stays.
+      sample('jsx', 'app/alone.js', 'const alone = 1'),
+    ].join('\n\n')
+    const output = toMarkdown(source, { relativePath: '01-app/page.mdx' })
+    expect(output).toContain('const page = 1')
+    expect(output).toContain('const search = 1')
+    expect(output).not.toContain('pageJs')
+    expect(output).not.toContain('searchJs')
+    expect(output).toContain('```jsx filename="app/alone.js"\nconst alone = 1')
+    expect(output).not.toContain('switcher')
+  })
+
+  it('leaves blank lines inside a code block as written', () => {
+    const source = [
+      'Before.',
+      '',
+      '```txt',
+      'one',
+      '',
+      '',
+      '',
+      'two',
+      '```',
+    ].join('\n')
+    expect(toMarkdown(source, { relativePath: '01-app/page.mdx' })).toBe(source)
+  })
+
+  it('removes a note to docs authors after text on the same line, and an empty anchor', () => {
+    const source = [
+      '- Prerendering is the default. {/* TODO: update later */}',
+      '',
+      '<span id="old-anchor" />',
+      '',
+      '## Heading',
+      '',
+      'A <span>kept</span> word.',
+    ].join('\n')
+    const output = toMarkdown(source, { relativePath: '01-app/page.mdx' })
+    expect(output).toBe(
+      [
+        '- Prerendering is the default.',
+        '',
+        '## Heading',
+        '',
+        'A <span>kept</span> word.',
+      ].join('\n')
+    )
+  })
+
+  it('lists the pages under a section page that has no body', () => {
+    const page = (title: string, description?: string) =>
+      [
+        '---',
+        `title: ${title}`,
+        description && `description: ${description}`,
+        '---',
+        '',
+        'Body.',
+      ]
+        .filter((line) => line !== undefined && line !== false)
+        .join('\n')
+    const files = {
+      '01-app/02-guides/index.mdx': page('Guides'),
+      '01-app/02-guides/10-forms.mdx': page('Forms', '"Build forms."'),
+      '01-app/02-guides/2-caching.mdx': page('Caching', 'Cache data.'),
+      '01-app/02-guides/testing/index.mdx': page('Testing'),
+      '01-app/02-guides/testing/playwright.mdx': page('Playwright'),
+      '01-app/03-api-reference/index.mdx': page('API Reference'),
+    }
+    const index = '---\ntitle: Guides\n---\n'
+    expect(
+      toMarkdown(index, { relativePath: '01-app/02-guides/index.mdx', files })
+    ).toBe(
+      [
+        '---',
+        'title: Guides',
+        '---',
+        '',
+        '- [Caching](/docs/app/guides/caching): Cache data.',
+        '- [Forms](/docs/app/guides/forms): Build forms.',
+        '- [Testing](/docs/app/guides/testing)',
+        '',
+      ].join('\n')
+    )
+    // A section page with its own content keeps it, without a list.
+    expect(
+      toMarkdown(index + '\nIntro.\n', {
+        relativePath: '01-app/02-guides/index.mdx',
+        files,
+      })
+    ).toBe(index + '\nIntro.\n')
+  })
+
   it('turns website layout into Markdown', () => {
     const source = [
       '<div',
@@ -323,11 +429,13 @@ describe('bundled docs as Markdown', () => {
       for (const page of pages) {
         const { lines, fences } = prose(page.output)
         for (const line of lines) {
+          // Anywhere in a line, except where a page names a tag in inline code.
+          const text = line.replace(/`+[^`]*`+/g, '')
           if (
-            /^\s*\{\/\*/.test(line) ||
-            // Anywhere in a line, except where a page names a tag in inline code.
+            /\{\/\*/.test(text) ||
+            /<span id="[^"]*"\s*\/>/.test(text) ||
             /<\/?(AppOnly|PagesOnly|FixCardGrid|FixCard|Image|Video|Check|Cross)\b/.test(
-              line.replace(/`+[^`]*`+/g, '')
+              text
             )
           ) {
             left.push(`${page.name}: ${line.trim()}`)
@@ -338,6 +446,41 @@ describe('bundled docs as Markdown', () => {
             left.push(`${page.name}: ${line.trim()}`)
       }
       expect(left).toEqual([])
+    })
+
+    it('leaves no page without a body', () => {
+      const empty = pages
+        .filter(
+          (page) =>
+            page.output.replace(/^---\n[\s\S]*?\n---\n?/, '').trim() === ''
+        )
+        .map((page) => page.name)
+      expect(empty).toEqual([])
+    })
+
+    it('keeps no JavaScript sample that repeats a TypeScript one', () => {
+      // A paired JavaScript sample survives only where the page has no
+      // TypeScript one to pair it with.
+      const kept: string[] = []
+      const isJs = (fence: string) => /^\s*`+jsx?\b/.test(fence)
+      const isTs = (fence: string) => /^\s*`+tsx?\b/.test(fence)
+      const paired = (fence: string) => /\sswitcher(\s|$)/.test(fence)
+      for (const page of pages) {
+        if (page.source.includes('\nsource:')) continue
+        const source = prose(page.source).fences.filter(paired)
+        const unmatched = Math.max(
+          0,
+          source.filter(isJs).length - source.filter(isTs).length
+        )
+        const before = prose(page.source).fences.filter(isJs).length
+        const after = prose(page.output).fences.filter(isJs).length
+        const dropped = before - after
+        if (dropped < source.filter(isJs).length - unmatched)
+          kept.push(
+            `${page.name}: ${source.filter(isJs).length - dropped} left`
+          )
+      }
+      expect(kept).toEqual([])
     })
 
     it('keeps every heading that is not for the other router', () => {

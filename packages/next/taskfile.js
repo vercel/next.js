@@ -6,7 +6,7 @@ const execa = require('execa')
 // Taskr evaluates this file without a `process` global.
 const nodeProcess = require('process')
 const recast = require('recast')
-const { createConverter, docsPath } = require('./taskfile-docs')
+const { createConverter, childPages, docsPath } = require('./taskfile-docs')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -42,9 +42,12 @@ export async function copy_docs(task, opts) {
 
   // Pages that share another page's content name it as `app/guides/forms`.
   const docsByPath = new Map()
-  for (const file of glob.sync('**/*.mdx', { cwd: docsSource })) {
+  const docsFiles = glob.sync('**/*.mdx', { cwd: docsSource })
+  for (const file of docsFiles) {
     docsByPath.set(docsPath(file), join(docsSource, file))
   }
+  const readDoc = (file) =>
+    require('fs').readFileSync(join(docsSource, file), 'utf8')
   const readSource = (path) => {
     const file = docsByPath.get(path) ?? docsByPath.get(`${path}/index`)
     return file ? require('fs').readFileSync(file, 'utf8') : null
@@ -57,7 +60,15 @@ export async function copy_docs(task, opts) {
       const relativePath = relative(root, join(file.dir, file.base))
       // Taskr evaluates this file without a `Buffer` global.
       file.data = require('buffer').Buffer.from(
-        toMarkdown(file.data.toString('utf8'), { relativePath, readSource })
+        toMarkdown(file.data.toString('utf8'), {
+          relativePath,
+          readSource,
+          // A section page with no body lists the pages under it.
+          children:
+            root === docsSource
+              ? childPages(relativePath, docsFiles, readDoc)
+              : [],
+        })
       )
       file.base = file.base.replace(/\.mdx$/, '.md')
     }

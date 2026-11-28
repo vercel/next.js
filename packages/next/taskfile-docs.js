@@ -9,7 +9,10 @@
 // - Paired TypeScript and JavaScript samples: the TypeScript one.
 // - `<Image>` and `<Video>`: a Markdown image or link.
 // - Website-only layout (`<FixCardGrid>`, `<FixCard>`, `<Check>`, `<Cross>`,
-//   a styled wrapper `<div>`, MDX comments): the text they carry.
+//   a styled wrapper `<div>`, an empty anchor `<span>`, MDX comments): the
+//   text they carry.
+// - A section page with no body, which the website fills with its child
+//   pages: a list of links to them.
 //
 // The page is parsed as MDX and the tree is used for positions only: each
 // construct is cut out of, or replaced in, the original text. Matching these by
@@ -127,6 +130,54 @@ const isComment = (node) =>
 const isPaired = (node) =>
   node?.type === 'code' && /(^|\s)switcher(\s|$)/.test(node.meta ?? '')
 
+/** A value from a page's frontmatter, when it is written on one line. */
+function field(frontmatter, name) {
+  const match = frontmatter.match(new RegExp(`^${name}:[ \\t]*(.*)$`, 'm'))
+  const value = match ? match[1].trim().replace(/^(["'])(.*)\1$/, '$2') : ''
+  return /^[>|][+-]?$/.test(value) ? '' : value
+}
+
+/**
+ * The pages directly under a section page (`…/index.mdx`), in the order they
+ * sit on disk, as `{ title, description, href }`. `files` is every docs file's
+ * path under the docs root, and `read(file)` returns its source. Empty for a
+ * file that is not a section page.
+ */
+function childPages(relativePath, files, read) {
+  const parts = relativePath.split(/[/\\]/)
+  if (!/^index\.mdx?$/.test(parts.pop())) return []
+  const depth = parts.length
+  const inSection = (file) => {
+    const other = file.split(/[/\\]/)
+    if (!parts.every((part, i) => other[i] === part)) return false
+    const rest = other.slice(depth)
+    return rest.length === 1
+      ? !/^index\.mdx?$/.test(rest[0]) && /\.mdx?$/.test(rest[0])
+      : rest.length === 2 && /^index\.mdx?$/.test(rest[1])
+  }
+  return files
+    .filter(inSection)
+    .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+    .map((file) => {
+      const { frontmatter } = splitFrontmatter(read(file) ?? '')
+      return {
+        title: field(frontmatter, 'title'),
+        description: field(frontmatter, 'description'),
+        href: `/docs/${docsPath(file).replace(/\/index$/, '')}`,
+      }
+    })
+    .filter((page) => page.title)
+}
+
+/** Child pages as nextjs.org lists them in a section page's Markdown. */
+const childList = (children) =>
+  children
+    .map(
+      ({ title, description, href }) =>
+        `- [${title}](${href})${description ? `: ${description}` : ''}`
+    )
+    .join('\n')
+
 /**
  * The body of a page as Markdown. `router` is `'app'`, `'pages'` or `null`
  * (a page that belongs to neither keeps both routers' content).
@@ -218,6 +269,8 @@ function convertBody(parse, body, router) {
     }
   }
 
+  // TypeScript samples whose JavaScript twin has been dropped.
+  const taken = new Set()
   const walk = (parent) => {
     const children = parent.children ?? []
     for (let i = 0; i < children.length; i++) {
@@ -231,15 +284,28 @@ function convertBody(parse, body, router) {
 
       if (node.type === 'code') {
         if (!isPaired(node)) continue
-        const previous = children[i - 1]
-        if (
-          /^jsx?$/.test(node.lang ?? '') &&
-          isPaired(previous) &&
-          /^tsx?$/.test(previous.lang ?? '')
-        ) {
-          // The JavaScript twin of the sample above, with the blank line before it.
-          edits.push({ start: end(previous), end: end(node), text: '' })
-          continue
+        if (/^jsx?$/.test(node.lang ?? '')) {
+          // The TypeScript sample this one repeats: the nearest one in the
+          // samples directly above that has no twin yet. Pairs are usually
+          // written ts, js; some pages write ts, ts, js, js.
+          let twin = null
+          for (let j = i - 1; j >= 0 && isPaired(children[j]); j--) {
+            const above = children[j]
+            if (/^tsx?$/.test(above.lang ?? '') && !taken.has(above)) {
+              twin = above
+              break
+            }
+          }
+          if (twin) {
+            taken.add(twin)
+            // With the blank line before it.
+            edits.push({
+              start: end(children[i - 1]),
+              end: end(node),
+              text: '',
+            })
+            continue
+          }
         }
         // Only the fence line changes: the code is untouched.
         const lineEnd = body.indexOf('\n', start(node))
@@ -295,6 +361,16 @@ function convertBody(parse, body, router) {
         replace(node, node.name === 'Check' ? '✓' : '✗')
         continue
       }
+      // An anchor the website keeps for old links: nothing to read.
+      if (
+        node.name === 'span' &&
+        (node.children ?? []).length === 0 &&
+        (node.attributes ?? []).every((entry) => entry.name === 'id')
+      ) {
+        if (node.type === 'mdxJsxFlowElement') removeFlow(node)
+        else removeText(node)
+        continue
+      }
       // A wrapper that only carries inline CSS: keep what is inside it.
       if (
         node.type === 'mdxJsxFlowElement' &&
@@ -331,7 +407,8 @@ function convertBody(parse, body, router) {
  * `relativePath` is the file's path under the docs root (`01-app/…`). For a
  * page that shares another page's content, `readSource(path)` returns that
  * page's MDX (`path` as written in the frontmatter, `app/guides/forms`), or
- * null when it cannot be found.
+ * null when it cannot be found. `children` are the pages under a section page
+ * (see `childPages`), listed when the page has no body of its own.
  */
 async function createConverter() {
   // ESM-only packages, used at build time and never shipped.
@@ -344,21 +421,24 @@ async function createConverter() {
   const parser = unified().use(remarkParse).use(remarkMdx)
   const parse = (body) => parser.parse(body)
 
-  return function toMarkdown(source, { relativePath = '', readSource } = {}) {
+  return function toMarkdown(
+    source,
+    { relativePath = '', readSource, children = [] } = {}
+  ) {
     const router = routerOf(relativePath)
     const { frontmatter, body } = splitFrontmatter(source)
     const shared = sourceOf(frontmatter)
-    if (shared && readSource) {
-      const sharedSource = readSource(shared)
-      if (sharedSource != null) {
-        return (
-          frontmatter +
-          convertBody(parse, splitFrontmatter(sharedSource).body, router)
-        )
-      }
+    const sharedSource = shared && readSource ? readSource(shared) : null
+    const converted = convertBody(
+      parse,
+      sharedSource != null ? splitFrontmatter(sharedSource).body : body,
+      router
+    )
+    if (converted.trim() === '' && children.length) {
+      return `${frontmatter}\n${childList(children)}\n`
     }
-    return frontmatter + convertBody(parse, body, router)
+    return frontmatter + converted
   }
 }
 
-module.exports = { createConverter, routerOf, docsPath }
+module.exports = { createConverter, childPages, routerOf, docsPath }
