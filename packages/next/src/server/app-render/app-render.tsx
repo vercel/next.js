@@ -848,7 +848,8 @@ async function generateDynamicFlightRenderResult(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
-    onFlightDataRenderError
+    onFlightDataRenderError,
+    ctx.componentMod.captureOwnerStack
   )
 
   // With Server Components HMR cancellation enabled, a superseded HMR refresh
@@ -1311,7 +1312,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
-    onFlightDataRenderError
+    onFlightDataRenderError,
+    ctx.componentMod.captureOwnerStack
   )
 
   // We validate RSC requests for HMR refreshes and client navigations when
@@ -3727,6 +3729,7 @@ async function renderToStream(
       isBuildTimePrerendering,
       reactServerErrorsByDigest,
       onHTMLRenderRSCError,
+      ctx.componentMod.captureOwnerStack,
       renderSpan
     )
 
@@ -8835,7 +8838,8 @@ async function validateInstantConfigInBuildWithSample(
       true, // shouldFormatError
       true, // isBuildTimePrerendering - disables tracing
       workStore.reactServerErrorsByDigest,
-      () => {} // Don't report anything here. If needed, it will be reported in the client render.
+      () => {}, // Don't report anything here. If needed, it will be reported in the client render.
+      validationCtx.componentMod.captureOwnerStack
     )
 
     const {
@@ -9214,6 +9218,7 @@ async function prerenderToStream(
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
     onHTMLRenderRSCError,
+    ctx.componentMod.captureOwnerStack,
     undefined,
     renderErrorsByDigest
   )
