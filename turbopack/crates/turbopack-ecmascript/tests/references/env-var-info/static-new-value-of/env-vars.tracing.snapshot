@@ -1,4 +1,0 @@
-runtime_all: false
-runtime: [
-    "valueOf",
-]
