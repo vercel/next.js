@@ -44,10 +44,9 @@ const optionalNextjsPackages = [
  * @example loadHighestNPMVersionMatching("react@^18.3.0 || ^19.0.0") === Promise<"19.0.0">
  */
 async function loadHighestNPMVersionMatching(query: string) {
-  const versionsJSON = execSync(
-    `npm --silent view "${query}" --json --field version`,
-    { encoding: 'utf-8' }
-  )
+  const versionsJSON = execSync(`npm --silent view "${query}" version --json`, {
+    encoding: 'utf-8',
+  })
   const versionOrVersions = JSON.parse(versionsJSON)
   if (versionOrVersions.length < 1) {
     throw new Error(
@@ -62,6 +61,16 @@ async function loadHighestNPMVersionMatching(query: string) {
     return versionOrVersions[versionOrVersions.length - 1]
   }
   return versionOrVersions
+}
+
+/**
+ * Parses the output of `npm view <exact-spec> --json`.
+ * npm >= 12 always returns an array, while older versions return the object
+ * itself when there is a single match.
+ */
+function unwrapNpmViewResult(json: string) {
+  const parsed = JSON.parse(json)
+  return Array.isArray(parsed) ? parsed[0] : parsed
 }
 
 function endMessage(targetNextVersion: string) {
@@ -151,7 +160,7 @@ export async function runUpgrade(
   try {
     // First, find the highest matching version
     const versionsJSON = execSync(
-      `npm --silent view "next@${resolvedRevision}" --json --field version`,
+      `npm --silent view "next@${resolvedRevision}" version --json`,
       { encoding: 'utf-8' }
     )
     const versionOrVersions = JSON.parse(versionsJSON)
@@ -172,7 +181,7 @@ export async function runUpgrade(
       `npm --silent view "next@${targetVersion}" --json`,
       { encoding: 'utf-8' }
     )
-    targetNextPackageJson = JSON.parse(targetNextPackage)
+    targetNextPackageJson = unwrapNpmViewResult(targetNextPackage)
   } catch (e) {
     if (options.verbose) {
       console.error('  Error fetching package info:', e)
@@ -414,7 +423,7 @@ export async function runUpgrade(
       const eslintConfigNextPeerDeps =
         eslintConfigNextPeerDepsJSON.trim() === ''
           ? {}
-          : JSON.parse(eslintConfigNextPeerDepsJSON)
+          : unwrapNpmViewResult(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
         // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
