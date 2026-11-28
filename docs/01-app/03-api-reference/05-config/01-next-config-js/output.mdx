@@ -46,6 +46,8 @@ This will create a folder at `.next/standalone` which can then be deployed on it
 
 On Windows, creating directory symlinks [can require elevated privileges or Developer Mode](https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/). If standalone generation must fall back to a junction point, Windows stores an absolute target and that particular output is not relocatable.
 
+### Running standalone output
+
 Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
 
 To copy these manually, you can use the `cp` command-line tool after you `next build`:
