@@ -77,7 +77,7 @@ Refresh the current route. Making a new request to the server, re-fetching data 
 router.prefetch(
   href: string,
   options?: {
-    kind?: 'auto' | 'full'
+    kind?: 'auto' | 'shell' | 'full' | 'prefetch' | 'navigation'
     onInvalidate?: () => void
   }
 )
@@ -89,17 +89,20 @@ With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partial
 
 <div style={{ overflowX: 'auto', width: '100%' }}>
 
-| `router.prefetch()` call                  | Equivalent `<Link>`                  |
-| ----------------------------------------- | ------------------------------------ |
-| `router.prefetch(href)`                   | `<Link href={href}>`                 |
-| `router.prefetch(href, { kind: 'auto' })` | `<Link href={href}>`                 |
-| `router.prefetch(href, { kind: 'full' })` | `<Link href={href} prefetch={true}>` |
+| `router.prefetch()` call                        | Equivalent `<Link>`                        |
+| ----------------------------------------------- | ------------------------------------------ |
+| `router.prefetch(href)`                         | `<Link href={href}>`                       |
+| `router.prefetch(href, { kind: 'auto' })`       | `<Link href={href}>`                       |
+| `router.prefetch(href, { kind: 'shell' })`      | `<Link href={href} prefetch="shell">`      |
+| `router.prefetch(href, { kind: 'full' })`       | `<Link href={href} prefetch={true}>`       |
+| `router.prefetch(href, { kind: 'prefetch' })`   | `<Link href={href} prefetch="prefetch">`   |
+| `router.prefetch(href, { kind: 'navigation' })` | `<Link href={href} prefetch="navigation">` |
 
 </div>
 
-The default and `'auto'` options prefetch the route's [App Shell](/docs/app/glossary#app-shell). The `'full'` option also prefetches the per-link stage, including content below [`await prefetch()`](/docs/app/api-reference/functions/prefetch).
+The default, `'auto'`, and `'shell'` options prefetch the route's [App Shell](/docs/app/glossary#app-shell). The `'full'` and `'prefetch'` options also prefetch the per-link stage, including content below [`await prefetch()`](/docs/app/api-reference/functions/prefetch).
 
-Neither value includes content deferred with [`await navigation()`](/docs/app/api-reference/functions/navigation). That content renders when navigation begins.
+The `'navigation'` option also prefetches content deferred with [`await navigation()`](/docs/app/api-reference/functions/navigation), rendered with the user's cookies and headers. See [Prefetching deferred content for a likely navigation](/docs/app/api-reference/functions/navigation#prefetching-deferred-content-for-a-likely-navigation).
 
 ### `router.back()`
 
