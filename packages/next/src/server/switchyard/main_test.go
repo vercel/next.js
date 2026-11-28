@@ -311,6 +311,38 @@ func TestDatesItsOwnErrorAnswers(t *testing.T) {
 	}
 }
 
+func TestClosesAnHTTP10ConnectionAfterTheResponse(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "2")
+		io.WriteString(w, "ok")
+	})
+	for _, request := range []string{
+		"GET / HTTP/1.0\r\nHost: shop.example.com\r\nConnection: keep-alive\r\n\r\n",
+		"GET / HTTP/1.0\r\nHost: shop.example.com\r\n\r\n",
+	} {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Close()
+		if _, err := io.WriteString(conn, request); err != nil {
+			t.Fatal(err)
+		}
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		raw, err := io.ReadAll(conn) // returns once the connection closes
+		if err != nil {
+			t.Fatalf("%q: %v", request, err)
+		}
+		res, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(raw)), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := res.Header.Get("Connection"); got != "close" {
+			t.Errorf("%q: Connection = %q, want close", request, got)
+		}
+	}
+}
+
 func TestForwardsAResponseBeforeTheUploadFinishes(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusForbidden} {
 		t.Run(http.StatusText(status), func(t *testing.T) {

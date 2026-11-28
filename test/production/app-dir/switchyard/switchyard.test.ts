@@ -352,6 +352,53 @@ describe('switchyard', () => {
     })
   })
 
+  describe('HTTP/1.0 clients', () => {
+    // Sends a raw HTTP/1.0 request asking for keep-alive and reports what came
+    // back, and whether the server closed the connection within a second.
+    function keepAliveRequest(pathname: string) {
+      return new Promise<{ text: string; closed: boolean }>(
+        (resolve, reject) => {
+          const socket = net.connect(Number(next.appPort), '127.0.0.1')
+          let text = ''
+          const timer = setTimeout(() => {
+            socket.destroy()
+            resolve({ text, closed: false })
+          }, 1000)
+          socket.on('data', (chunk) => (text += chunk.toString('latin1')))
+          socket.on('error', reject)
+          socket.on('end', () => {
+            clearTimeout(timer)
+            resolve({ text, closed: true })
+          })
+          socket.write(
+            `GET ${pathname} HTTP/1.0\r\nHost: localhost:${next.appPort}\r\nConnection: keep-alive\r\n\r\n`
+          )
+        }
+      )
+    }
+
+    it('closes the connection after a response of unknown length', async () => {
+      const { text, closed } = await keepAliveRequest('/api/no-date')
+      expect(text).toMatch(/\r\nconnection: close\r\n/i)
+      expect(text.endsWith('no date')).toBe(true)
+      expect(closed).toBe(true)
+    })
+
+    // Switchyard closes after every HTTP/1.0 response; Node keeps the
+    // connection when the app set the length.
+    it('keeps the connection after a response the app sized only without Switchyard', async () => {
+      const { text, closed } = await keepAliveRequest('/api/sized')
+      expect(text.endsWith('sized')).toBe(true)
+      if (process.env[SWITCHYARD_ENV] === '1') {
+        expect(text).toMatch(/\r\nconnection: close\r\n/i)
+        expect(closed).toBe(true)
+      } else {
+        expect(text).toMatch(/\r\nconnection: keep-alive\r\n/i)
+        expect(closed).toBe(false)
+      }
+    })
+  })
+
   describe('status line', () => {
     it.each([
       {
