@@ -14,7 +14,7 @@ import {
 } from './hot-reloader-app'
 import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
-import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
+import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../shared/lib/constants-browser'
 import { assetPrefix } from './asset-prefix'
 
 let reconnections = 0

@@ -1,6 +1,6 @@
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { CACHE_ONE_YEAR_SECONDS } from '../../../lib/constants'
+import { CACHE_ONE_YEAR_SECONDS } from '../../../shared/lib/constants-browser'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import { encodeHeaderSafe } from '../../lib/encode-header-safe'
 import {

@@ -17,7 +17,7 @@ import {
 } from '../../lib/constants'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
-import { isEdgeRuntime } from '../../lib/is-edge-runtime'
+import { isEdgeRuntime } from '../is-edge-runtime'
 import {
   warnAboutEdgeRuntime,
   warnAboutPreferredRegion,

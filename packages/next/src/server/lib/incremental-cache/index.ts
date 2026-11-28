@@ -23,11 +23,11 @@ import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import FileSystemCache from './file-system-cache'
 
 import {
-  CACHE_ONE_YEAR_SECONDS,
   FETCH_CACHE_KEY_EXCLUDED_HEADERS,
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
+import { CACHE_ONE_YEAR_SECONDS } from '../../../shared/lib/constants-browser'
 import { SharedCacheControls } from './shared-cache-controls.external'
 import {
   getResumeDataCache,
