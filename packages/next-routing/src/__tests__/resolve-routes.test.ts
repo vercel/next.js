@@ -1304,3 +1304,237 @@ describe('resolveRoutes - dynamic routes', () => {
     })
   })
 })
+
+describe('resolveRoutes - trailing slash', () => {
+  function createRoutes(
+    overrides: Partial<ResolveRoutesParams['routes']> = {}
+  ): ResolveRoutesParams['routes'] {
+    return {
+      beforeMiddleware: [],
+      beforeFiles: [],
+      afterFiles: [],
+      dynamicRoutes: [],
+      onMatch: [],
+      fallback: [],
+      ...overrides,
+    }
+  }
+
+  // With `skipTrailingSlashRedirect`, there is no redirect for a trailing
+  // slash, so the request reaches the pathname check with it.
+  it('should resolve a pathname with a trailing slash to the output without it', async () => {
+    const result = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/another/'),
+        pathnames: ['/', '/another'],
+      })
+    )
+
+    expect(result.resolvedPathname).toBe('/another')
+    expect(result.invocationTarget?.pathname).toBe('/another/')
+  })
+
+  it('should resolve the base path with a trailing slash to its index', async () => {
+    const pathnames = ['/docs', '/docs/another']
+
+    const index = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/docs/'),
+        basePath: '/docs',
+        pathnames,
+      })
+    )
+    const another = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/docs/another/'),
+        basePath: '/docs',
+        pathnames,
+      })
+    )
+
+    expect(index.resolvedPathname).toBe('/docs')
+    expect(another.resolvedPathname).toBe('/docs/another')
+  })
+
+  it('should resolve a localized pathname with a trailing slash', async () => {
+    const pathnames = ['/en', '/ja-jp', '/en/another', '/ja-jp/another']
+    const i18n = { locales: ['en', 'ja-jp'], defaultLocale: 'en' }
+
+    const defaultLocale = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/another/'),
+        pathnames,
+        i18n,
+      })
+    )
+    const explicitLocale = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/ja-jp/another/'),
+        pathnames,
+        i18n,
+      })
+    )
+
+    expect(defaultLocale.resolvedPathname).toBe('/en/another')
+    expect(explicitLocale.resolvedPathname).toBe('/ja-jp/another')
+  })
+
+  it('should prefer a pathname that is provided with the trailing slash', async () => {
+    const result = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/another/'),
+        pathnames: ['/another', '/another/'],
+      })
+    )
+
+    expect(result.resolvedPathname).toBe('/another/')
+  })
+
+  it('should only drop a single trailing slash', async () => {
+    const pathnames = ['/', '/another']
+
+    const doubled = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/another//'),
+        pathnames,
+      })
+    )
+    const root = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com//'),
+        pathnames,
+      })
+    )
+
+    expect(doubled.resolvedPathname).toBeUndefined()
+    expect(root.resolvedPathname).toBeUndefined()
+  })
+
+  it('should resolve a rewrite destination with a trailing slash', async () => {
+    const result = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/rewrite-me'),
+        pathnames: ['/another'],
+        routes: createRoutes({
+          afterFiles: [
+            {
+              sourceRegex: '^/rewrite-me(?:/)?$',
+              destination: '/another/',
+            },
+          ],
+        }),
+      })
+    )
+
+    expect(result.resolvedPathname).toBe('/another')
+  })
+
+  // The matcher Next.js generates for `matcher: '/another'` ends in
+  // `[\/#\?]?$`, so it matches the pathname with and without the slash.
+  it.each(['/another', '/another/'])(
+    'should run the middleware for %s',
+    async (pathname) => {
+      const middlewareMock = jest.fn().mockResolvedValue({})
+
+      const result = await resolveRoutes(
+        createBaseParams({
+          url: new URL(`https://example.com${pathname}`),
+          pathnames: ['/another'],
+          invokeMiddleware: middlewareMock,
+          routes: createRoutes({
+            middlewareMatchers: [
+              {
+                sourceRegex:
+                  '^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/another(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$',
+              },
+            ],
+          }),
+        })
+      )
+
+      expect(middlewareMock).toHaveBeenCalledTimes(1)
+      expect(middlewareMock.mock.calls[0][0].url.pathname).toBe(pathname)
+      expect(result.resolvedPathname).toBe('/another')
+    }
+  )
+
+  // The redirect Next.js adds by default (`trailingSlash: false`).
+  it('should still redirect a trailing slash away by default', async () => {
+    const result = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/another/'),
+        pathnames: ['/another'],
+        routes: createRoutes({
+          beforeMiddleware: [
+            {
+              sourceRegex: '^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$',
+              status: 308,
+              headers: {
+                Location: '/$1',
+              },
+            },
+          ],
+        }),
+      })
+    )
+
+    expect(result.status).toBe(308)
+    expect(result.resolvedHeaders?.get('location')).toBe('/another')
+    expect(result.resolvedPathname).toBeUndefined()
+  })
+
+  // The redirects Next.js adds for `trailingSlash: true`.
+  describe('with trailingSlash: true', () => {
+    const routes = createRoutes({
+      beforeMiddleware: [
+        {
+          sourceRegex:
+            '^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+))/$',
+          status: 308,
+          headers: {
+            Location: '/$1',
+          },
+          missing: [
+            {
+              type: 'header',
+              key: 'x-nextjs-data',
+            },
+          ],
+        },
+        {
+          sourceRegex: '^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+))$',
+          status: 308,
+          headers: {
+            Location: '/$1/',
+          },
+        },
+      ],
+    })
+
+    it('should still redirect to the pathname with a trailing slash', async () => {
+      const result = await resolveRoutes(
+        createBaseParams({
+          url: new URL('https://example.com/another'),
+          pathnames: ['/another'],
+          routes,
+        })
+      )
+
+      expect(result.status).toBe(308)
+      expect(result.resolvedHeaders?.get('location')).toBe('/another/')
+      expect(result.resolvedPathname).toBeUndefined()
+    })
+
+    it('should resolve the pathname with a trailing slash', async () => {
+      const result = await resolveRoutes(
+        createBaseParams({
+          url: new URL('https://example.com/another/'),
+          pathnames: ['/another'],
+          routes,
+        })
+      )
+
+      expect(result.resolvedPathname).toBe('/another')
+    })
+  })
+})
