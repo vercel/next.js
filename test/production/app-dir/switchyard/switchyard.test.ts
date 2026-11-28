@@ -134,6 +134,27 @@ describe('switchyard', () => {
     })
   })
 
+  it('passes hop-by-hop request headers on to the app', async () => {
+    const res = await rawRequest(
+      Number(next.appPort),
+      `GET /api/request-headers HTTP/1.1\r\nHost: localhost:${next.appPort}\r\n` +
+        'Connection: keep-alive, X-Named\r\nX-Named: named\r\n' +
+        'Keep-Alive: timeout=9\r\nProxy-Authorization: Basic eA==\r\n' +
+        'Proxy-Connection: keep-alive\r\nTE: trailers, gzip\r\nUpgrade: example/1'
+    )
+    expect(res.status).toBe(200)
+    expect(JSON.parse(res.body.toString())).toMatchObject({
+      // rawRequest adds its own Connection: close.
+      connection: 'keep-alive, X-Named, close',
+      'x-named': 'named',
+      'keep-alive': 'timeout=9',
+      'proxy-authorization': 'Basic eA==',
+      'proxy-connection': 'keep-alive',
+      te: 'trailers, gzip',
+      upgrade: 'example/1',
+    })
+  })
+
   describe('client identity', () => {
     function peerRequest(
       hostname: string,

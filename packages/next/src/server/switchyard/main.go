@@ -342,6 +342,11 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			// Transport writes the trailers from pr.Out.Trailer after the body.
 			// Sharing the map sends the values Go's server read.
 			pr.Out.Trailer = pr.In.Trailer
+			// Go's proxy also deletes the client's hop-by-hop headers; put
+			// them back too. This runs before the connection metadata below is
+			// set, so a client can't bring back a value of its own for that
+			// header by naming it in Connection.
+			restoreHopHeaders(pr.Out.Header, pr.In.Header)
 			// With Rewrite, Go deletes the client's forwarded headers before
 			// this function runs; put them back, so Node sees them as before.
 			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
