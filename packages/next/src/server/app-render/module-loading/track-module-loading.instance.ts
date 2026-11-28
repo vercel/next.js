@@ -28,6 +28,14 @@ export function trackPendingImport(exportsOrPromise: unknown) {
 }
 
 /**
+ * Whether an async import or a chunk load is in flight right now, in any
+ * render of this process.
+ */
+export function hasPendingModules(): boolean {
+  return getModuleLoadingSignal().hasPendingReads()
+}
+
+/**
  * A top-level dynamic import (or chunk load):
  *
  *   1. delays a prerender (potentially for a task or longer)
