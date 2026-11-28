@@ -2337,8 +2337,12 @@ describe('upgrade model discovery protocol', () => {
     })
     expect(crossSpawn).toHaveBeenCalledWith('/agents/codex', ['app-server'], {
       cwd: '/project',
+      env: expect.anything(),
       stdio: 'pipe',
     })
+    // Without an environment the CLI inherits this one. Compared by identity,
+    // so a failure never prints the environment.
+    expect(crossSpawn.mock.calls[0][2].env === process.env).toBe(true)
     expect(child.stdin.end).toHaveBeenCalled()
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
   })
@@ -2411,9 +2415,35 @@ describe('upgrade model discovery protocol', () => {
         '--verbose',
         '--no-session-persistence',
       ],
-      { cwd: '/project', stdio: 'pipe' }
+      {
+        cwd: '/project',
+        env: expect.anything(),
+        stdio: 'pipe',
+      }
     )
+    expect(crossSpawn.mock.calls[0][2].env === process.env).toBe(true)
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+  })
+
+  it('starts the CLI with the given environment', async () => {
+    probe((message, respond) => {
+      if (message.method === 'initialize') {
+        respond({ id: message.id, result: {} })
+      } else if (message.method === 'model/list') {
+        respond({ id: message.id, result: { data: [], nextCursor: null } })
+      }
+    })
+    const env: NodeJS.ProcessEnv = {
+      NODE_ENV: 'production',
+      HOME: '/fresh',
+      CODEX_HOME: '/fresh/codex',
+    }
+    await discover('codex', '/agents/codex', '/project', undefined, env)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      '/agents/codex',
+      ['app-server'],
+      expect.objectContaining({ env })
+    )
   })
 
   it.each(['codex', 'claude'] as const)(

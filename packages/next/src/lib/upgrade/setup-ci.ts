@@ -3,24 +3,34 @@ import {
   accessSync,
   constants,
   existsSync,
+  mkdirSync,
+  mkdtempSync,
   readFileSync,
   realpathSync,
+  rmSync,
   statSync,
 } from 'fs'
+import { tmpdir } from 'os'
 import { realpath } from 'fs/promises'
 import { delimiter, dirname, isAbsolute, join, relative, sep } from 'path'
 
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
-import { bold, cyan } from '../picocolors'
+import { bold, cyan, dim } from '../picocolors'
 import { Telemetry } from '../../telemetry/storage'
 import { chooseOption } from './choose-option'
+import { getHarnessDisplayName } from './harness'
+import { getHarnessModels, type UpgradeModel } from './model-discovery'
 import { remainingSteps, setupSecrets, type AgentAuth } from './setup-secrets'
 
 const WORKFLOW = '.github/workflows/next-upgrade.yml'
 const TEMPLATE = 'templates/next-upgrade.yml'
 const SOURCE = 'vercel/next-upgrade-action'
+const WORKFLOW_EFFORTS = {
+  codex: ['minimal', 'low', 'medium', 'high', 'xhigh'],
+  claude: ['low', 'medium', 'high', 'xhigh', 'max'],
+}
 const SETUP_BRANCH = 'next-upgrade/setup'
 const REFRESH_SCOPE = 'gh auth refresh -h github.com -s workflow'
 const SECRET = 'NEXT_UPGRADE_AGENT_CREDENTIAL'
@@ -90,52 +100,15 @@ function findCommand({
   cwd: string
   env: NodeJS.ProcessEnv
 }) {
-  const pathKey = Object.keys(env).find((key) => key.toUpperCase() === 'PATH')
-  const path = pathKey === undefined ? undefined : env[pathKey]
   const extensions =
     process.platform === 'win32'
       ? (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
       : ['']
-  for (const entry of path === undefined ? [] : path.split(delimiter)) {
-    // Reject project directories before touching the filesystem, so a
-    // checkout-controlled link is never followed (on Windows, to an SMB share).
-    if (!isAbsolute(entry) || entry.split(sep).includes('node_modules')) {
-      continue
-    }
-
-    const fromCwdEntry = relative(cwd, entry)
-    if (
-      fromCwdEntry !== '..' &&
-      !fromCwdEntry.startsWith(`..${sep}`) &&
-      !isAbsolute(fromCwdEntry)
-    ) {
-      continue
-    }
-
-    let directory: string
-    try {
-      directory = realpathSync(entry)
-    } catch (error) {
-      if (unusable.has((error as NodeJS.ErrnoException).code ?? '')) {
-        continue
-      }
-
-      throw error
-    }
-
-    if (directory.split(sep).includes('node_modules')) {
-      continue
-    }
-
-    const fromCwd = relative(cwd, directory)
-    if (
-      fromCwd !== '..' &&
-      !fromCwd.startsWith(`..${sep}`) &&
-      !isAbsolute(fromCwd)
-    ) {
-      continue
-    }
-
+  // An empty trusted PATH splits into '', which would name the bare command
+  // in the working directory.
+  for (const directory of trustedPath({ root: cwd, env })
+    .split(delimiter)
+    .filter(Boolean)) {
     for (const extension of extensions) {
       const file = join(directory, name + extension)
       try {
@@ -157,6 +130,46 @@ function findCommand({
   }
 
   return null
+}
+
+// Setup also hands this PATH to children that search PATH themselves, like an
+// agent CLI whose shebang runs `env node`.
+function trustedPath({ root, env }: { root: string; env: NodeJS.ProcessEnv }) {
+  const outside = (path: string) => {
+    const fromRoot = relative(root, path)
+    return (
+      !path.split(sep).includes('node_modules') &&
+      (fromRoot === '..' ||
+        fromRoot.startsWith(`..${sep}`) ||
+        isAbsolute(fromRoot))
+    )
+  }
+
+  const pathKey = Object.keys(env).find((key) => key.toUpperCase() === 'PATH')
+  const path = pathKey === undefined ? undefined : env[pathKey]
+  return (path ?? '')
+    .split(delimiter)
+    .flatMap((entry) => {
+      // Reject project directories before touching the filesystem, so a
+      // checkout-controlled link is never followed (on Windows, to an SMB share).
+      if (!isAbsolute(entry) || !outside(entry)) {
+        return []
+      }
+
+      let directory: string
+      try {
+        directory = realpathSync(entry)
+      } catch (error) {
+        if (unusable.has((error as NodeJS.ErrnoException).code ?? '')) {
+          return []
+        }
+
+        throw error
+      }
+
+      return outside(directory) ? [directory] : []
+    })
+    .join(delimiter)
 }
 
 function commandNotFound(command: string): SpawnSyncReturns<string> {
@@ -787,14 +800,205 @@ export async function setupUpgradeCI({
       selectedPolicy = id
     }
 
-    const auth = (await chooseOption({
-      question: 'Choose the hosted agent for the scheduled GitHub workflow:',
-      values: AUTH_OPTIONS,
-      defaultValue: 0,
-      firstPrompt: true,
-    })) as AgentAuth | null
-    if (typeof auth !== 'string' || !Object.hasOwn(AUTH_OPTIONS, auth)) {
+    // Never run an agent CLI from the checkout, because package runners put
+    // the project's node_modules/.bin on PATH.
+    const installed = (['codex', 'claude'] as const).flatMap((name) => {
+      const path = findCommand({ name, cwd: root, env: process.env })
+      return path ? [{ name, path }] : []
+    })
+    // The workflow's agent starts from a fresh configuration, so read the
+    // models a fresh install offers, not those from this user's agent setup.
+    let discoveryHome: string | undefined
+    // Read every catalog before the first menu, so no agent CLI runs while a
+    // menu reads the terminal.
+    if (installed.length > 0) {
+      Log.info(dim('Reading the models of the installed agent CLIs...'))
+    }
+
+    const discovered = await Promise.all(
+      installed.map(async (harness) => {
+        discoveryHome ??= mkdtempSync(join(tmpdir(), 'next-upgrade-models-'))
+        for (const name of ['codex', 'claude', 'config']) {
+          mkdirSync(join(discoveryHome, name), { recursive: true })
+        }
+
+        // Run discovery in the private directory, not the checkout, so the
+        // project's agent settings and hooks never load.
+        return [
+          harness.name,
+          await getHarnessModels(
+            harness.name,
+            harness.path,
+            discoveryHome,
+            undefined,
+            {
+              NODE_ENV: process.env.NODE_ENV,
+              PATH: trustedPath({ root, env: process.env }),
+              SystemRoot: process.env.SystemRoot,
+              TMPDIR: process.env.TMPDIR,
+              HOME: discoveryHome,
+              USERPROFILE: discoveryHome,
+              CODEX_HOME: join(discoveryHome, 'codex'),
+              CLAUDE_CONFIG_DIR: join(discoveryHome, 'claude'),
+              XDG_CONFIG_HOME: join(discoveryHome, 'config'),
+            }
+          ),
+        ] as const
+      })
+    )
+    // Ctrl+C during discovery resolves null.
+    if (discovered.some(([, models]) => models === null)) {
+      if (discoveryHome) {
+        rmSync(discoveryHome, { recursive: true, force: true })
+      }
+
       return { status: 'cancelled' }
+    }
+
+    const catalogs = new Map<string, UpgradeModel[]>(
+      discovered.map(([name, models]) => [name, models ?? []])
+    )
+    // Esc goes back one question and Ctrl+C cancels, like `next upgrade --agent`.
+    let stage: 'agent' | 'model' | 'effort' = 'agent'
+    let auth: AgentAuth | undefined
+    let chosenModel: UpgradeModel | undefined
+    let effort = 'default'
+    try {
+      while (true) {
+        if (stage === 'agent') {
+          const id = await chooseOption({
+            question:
+              'Choose the hosted agent for the scheduled GitHub workflow:',
+            values: AUTH_OPTIONS,
+            defaultValue: Math.max(
+              0,
+              Object.keys(AUTH_OPTIONS).indexOf(auth ?? '')
+            ),
+            firstPrompt: true,
+          })
+          if (typeof id !== 'string' || !Object.hasOwn(AUTH_OPTIONS, id)) {
+            return { status: 'cancelled' }
+          }
+
+          auth = id as AgentAuth
+          stage = 'model'
+          continue
+        }
+
+        const harnessName = auth === 'codex-openai-api-key' ? 'codex' : 'claude'
+        const displayName = getHarnessDisplayName(harnessName)
+        if (stage === 'model') {
+          const models = catalogs.get(harnessName) ?? []
+          if (models.length === 0) {
+            chosenModel = undefined
+            Log.info(
+              installed.some(({ name }) => name === harnessName)
+                ? `Could not read the ${displayName} models here, so the workflow uses the default model of its ${displayName} CLI.`
+                : `The workflow uses the default model of its ${displayName} CLI. Install ${displayName} here to choose another model.`
+            )
+            break
+          }
+
+          const chosenId =
+            chosenModel === undefined ? undefined : chosenModel.id
+          const previous = models.some(({ id }) => id === chosenId)
+            ? chosenId
+            : undefined
+          const modelId = await chooseOption({
+            question: `Which ${displayName} model should run the upgrade?`,
+            values: Object.fromEntries(
+              models.map(({ id, label, description }) => [
+                id,
+                description ? `${label} — ${description}` : label,
+              ])
+            ),
+            defaultValue: Math.max(
+              0,
+              models.findIndex(({ id, isDefault }) =>
+                previous ? id === previous : isDefault
+              )
+            ),
+            firstPrompt: false,
+          })
+          if (modelId === null) {
+            return { status: 'cancelled' }
+          }
+
+          if (modelId === undefined) {
+            stage = 'agent'
+            continue
+          }
+
+          chosenModel = models.find(({ id }) => id === modelId)
+          if (!chosenModel) {
+            throw new SetupError('The model choice is invalid.')
+          }
+
+          stage = 'effort'
+          continue
+        }
+
+        const efforts = [
+          'default',
+          ...(chosenModel ? chosenModel.efforts : []).filter((value) =>
+            WORKFLOW_EFFORTS[harnessName].includes(value)
+          ),
+        ]
+        if (efforts.length === 1) {
+          break
+        }
+
+        const selectedEffort = await chooseOption({
+          question: 'Which reasoning effort should the upgrade use?',
+          values: Object.fromEntries(
+            efforts.map((value) => [
+              value,
+              value === 'default' ? 'Model default' : value,
+            ])
+          ),
+          defaultValue: 0,
+          firstPrompt: false,
+        })
+        if (selectedEffort === null) {
+          return { status: 'cancelled' }
+        }
+
+        if (selectedEffort === undefined) {
+          stage = 'model'
+          continue
+        }
+
+        if (!efforts.includes(selectedEffort)) {
+          throw new SetupError('The reasoning effort choice is invalid.')
+        }
+
+        effort = selectedEffort
+        break
+      }
+    } finally {
+      if (discoveryHome) {
+        rmSync(discoveryHome, { recursive: true, force: true })
+      }
+    }
+
+    if (!auth) {
+      return { status: 'cancelled' }
+    }
+
+    let model = ''
+    // Codex lists its default as a concrete model, which the workflow's pinned
+    // Codex may not default to, so only Claude's default alias stays implicit.
+    if (
+      chosenModel &&
+      !(chosenModel.isDefault && auth === 'claude-anthropic-api-key')
+    ) {
+      if (/^[\w.:/[\]-]+$/.test(chosenModel.id)) {
+        model = chosenModel.id
+      } else {
+        Log.warn(
+          `The workflow cannot pass the model ${JSON.stringify(chosenModel.id)}, so it uses the default model of its ${getHarnessDisplayName(auth === 'codex-openai-api-key' ? 'codex' : 'claude')} CLI.`
+        )
+      }
     }
 
     // The workflow installs the Next.js version that runs setup from npm.
@@ -868,7 +1072,7 @@ export async function setupUpgradeCI({
     // A single-quoted YAML scalar; the app path check already rejects line
     // breaks.
     const scalar = (value: string) => "'" + value.replaceAll("'", "''") + "'"
-    // Empty model and effort keep the agent CLI's defaults.
+    // An empty model or effort keeps the agent CLI's default.
     const substitutions = [
       [
         `    uses: ${SOURCE}/${WORKFLOW}@__NEXT_UPGRADE_WORKFLOW_SHA__`,
@@ -891,8 +1095,11 @@ export async function setupUpgradeCI({
         `      agent: ${auth === 'codex-openai-api-key' ? 'codex' : 'claude'}`,
       ],
       ['      auth: __NEXT_UPGRADE_AUTH__', '      auth: api-key'],
-      ['      model: __NEXT_UPGRADE_MODEL__', `      model: ''`],
-      ['      effort: __NEXT_UPGRADE_EFFORT__', `      effort: ''`],
+      ['      model: __NEXT_UPGRADE_MODEL__', `      model: ${scalar(model)}`],
+      [
+        '      effort: __NEXT_UPGRADE_EFFORT__',
+        `      effort: ${scalar(effort === 'default' ? '' : effort)}`,
+      ],
       [
         '      telemetry-disabled: __NEXT_UPGRADE_TELEMETRY_DISABLED__',
         `      telemetry-disabled: ${!new Telemetry({ distDir: process.cwd(), skipNotify: true }).isEnabled}`,

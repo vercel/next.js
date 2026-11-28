@@ -129,7 +129,7 @@ Setup requires:
 - A GitHub.com `origin` and a signed-in GitHub CLI account that can push to the repository and add workflow files.
 - A single app using npm, pnpm, or Yarn 1, with one lockfile committed alongside its `package.json` on the default branch. Workspaces, Yarn 2 and later, and Bun aren't supported.
 
-The CLI asks which upgrades to check for, which hosted agent to use, and whether to open a setup pull request. Passing `--ci security` or `--ci latest` skips the policy question. Here's an example of what setup looks like in the terminal:
+The CLI asks which upgrades to check for, which hosted agent and model to use, and whether to open a setup pull request. Passing `--ci security` or `--ci latest` skips the policy question. Here's an example of what setup looks like in the terminal:
 
 ```txt filename="Terminal"
 Choose the upgrade policy:
@@ -139,6 +139,14 @@ Choose the upgrade policy:
 Choose the hosted agent for the scheduled GitHub workflow:
 ❯ Codex with an OpenAI API key
   Claude Code with an Anthropic API key
+
+Which Codex model should run the upgrade?
+❯ Terra
+  Sol
+
+Which reasoning effort should the upgrade use?
+❯ Model default
+  high
 
 Open a setup pull request against acme/web (main)?
 ❯ Open pull request
