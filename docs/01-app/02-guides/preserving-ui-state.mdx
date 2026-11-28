@@ -172,7 +172,7 @@ function ProductDialog() {
 }
 ```
 
-Keeping the button outside the [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#prerendering) lets it prerender while the dialog reads search parameters. If a parent already provides a suitable boundary, omit the boundary in this example.
+Keeping the button outside the [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#prerendering) lets it prerender while the dialog reads search parameters. The [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) avoids showing editor loading UI on URLs that don't open the dialog. If a parent already provides a suitable boundary, omit the boundary in this example.
 
 Returning through a link without `?edit=true` closes the dialog. Browser back and forward navigation restore the URL for that history entry, so returning to a URL with `?edit=true` opens it again.
 

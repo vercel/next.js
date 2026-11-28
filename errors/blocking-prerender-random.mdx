@@ -22,7 +22,7 @@ kind: error
   come back here for the specific fix.
 </div>
 
-During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the value so it's stable, defer the call with [`io()`](/docs/app/api-reference/functions/io) or [`connection()`](/docs/app/api-reference/functions/connection) inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, or move it to the client.
+During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, a random value captured in the prerendered HTML would be shared across requests.
 
 Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Date.now()`](/docs/messages/blocking-prerender-current-time) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
 
@@ -63,13 +63,13 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
 
 ## Generate on every request
 
-Choose this fix when each request genuinely needs a different value. A [unique session ID](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy), a single-use nonce, an A/B test bucket: anything that has to be fresh per visitor. Add [`await connection()`](/docs/app/api-reference/functions/connection) before the call to tell Next.js the surrounding component is request-bound. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+Choose this fix when each request needs a fresh random value, such as a trace ID for logging.
 
 ### Patterns
 
-#### Use `await connection()` before the random call
+#### Use `await io()` before the random call
 
-Call [`connection()`](/docs/app/api-reference/functions/connection) before [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random). Everything after the `await` is request-time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
+Await [`io()`](/docs/app/api-reference/functions/io) before [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random). Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
 
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the random read as possible. If the parent has cached content (a header, stats, navigation), isolate the random read in its own component so only that piece falls behind the boundary.
 
@@ -89,30 +89,38 @@ export default function Page() {
 ```
 
 ```jsx filename="app/dashboard/request-trace.js"
-import { connection } from 'next/server'
-
-export async function RequestTrace() {
-  await connection()
-  const traceId = Math.random().toString(16).slice(2)
-  return <small>trace: {traceId}</small>
-}
-```
-
-#### Alternative: `await io()`
-
-Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` works inside `"use cache"` scopes and Client Components.
-
-```jsx filename="app/dashboard/request-trace.js"
 import { io } from 'next/cache'
 
 export async function RequestTrace() {
-  await io()
-  const traceId = Math.random().toString(16).slice(2)
+  const traceId = await getTraceId()
   return <small>trace: {traceId}</small>
+}
+
+async function getTraceId() {
+  await io()
+  return Math.random().toString(16).slice(2)
 }
 ```
 
-Learn more: [`connection`](/docs/app/api-reference/functions/connection), [`io`](/docs/app/api-reference/functions/io), [Streaming](/docs/app/guides/streaming).
+#### Alternative: `await connection()`
+
+Use [`await connection()`](/docs/app/api-reference/functions/connection) to wait for an incoming request under the same parent `<Suspense>` boundary.
+
+```jsx filename="app/dashboard/request-trace.js"
+import { connection } from 'next/server'
+
+export async function RequestTrace() {
+  const traceId = await getTraceId()
+  return <small>trace: {traceId}</small>
+}
+
+async function getTraceId() {
+  await connection()
+  return Math.random().toString(16).slice(2)
+}
+```
+
+Learn more: [How `io()` differs from `connection()`](/docs/app/api-reference/functions/io#how-io-differs-from-connection), [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
@@ -124,6 +132,7 @@ The route renders on every request. The shell still ships instantly because of t
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) or [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
 - If [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) is being used as a unique ID for logging or correlation, consider an incrementing integer or [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage) request scope. Those don't trigger the error at all because they aren't unpredictable from Next.js's point of view.
 - Random values produced inside third-party packages will surface this error in your project code. The same fixes apply at the call site that consumes the value.
+- If a component calls `Math.random()` directly after `await io()` or `await connection()`, [`react-hooks/purity`](https://react.dev/reference/eslint-plugin-react-hooks/lints/purity) still flags it. Disable the rule for that line.
 
 ## Cache the random value
 
@@ -184,7 +193,7 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the random value belongs to the client experience. A canvas seed for a confetti animation, a random color for an avatar placeholder, a UI nonce that only matters in the browser. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration, not during prerender.
+Choose this fix when the random value belongs to the client experience. A canvas seed for a confetti animation, a random color for an avatar placeholder, a UI nonce that only matters in the browser. Read the value after mount or in an event handler. [Client Components also render on the server](/docs/app/getting-started/server-and-client-components#on-the-server).
 
 ### Patterns
 
@@ -204,32 +213,36 @@ export function Avatar() {
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setColor(`#${Math.random().toString(16).slice(2, 8)}`)
+      setColor(`#${Math.random().toString(16).slice(2, 8).padEnd(6, '0')}`)
     })
   }, [])
   return <div style={{ background: color }} />
 }
 ```
 
-#### Inline render with a parent `<Suspense>` boundary
+#### Pass a server-generated value to the client
 
-If the random value needs to be part of the server-rendered HTML (not deferred to after hydration), the component can call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) during render as long as a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary wraps it from the parent. Next.js prerenders the fallback and fills in the real component at request time. See [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) for the full recipe.
+If the random value needs to appear in the server-rendered HTML, [generate it on the server](#generate-on-every-request) and [pass it as a prop](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components) so the first browser render uses the same value.
 
-Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components), [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
 
 ### Trade-off
 
-The first paint shows the SSR fallback or initial state, and the random value appears only after the browser hydrates the component. That's fine for UI flourishes but wrong for content that has to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+When you read the value in an effect, the first paint shows the initial state until the effect runs. Passing a server-generated value as a prop lets the server and the browser render the same value from the start. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that produces a random value inline during render still trips this error during SSR. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- If a Client Component calls `Math.random()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
+
+## When the read comes from an external library
+
+If everyone should see the same result, such as a daily shuffle, [cache the server function that calls the library](#cache-the-random-value). If each request needs a new result, [defer the library call to request time](#generate-on-every-request). For browser-only work, see [Render on the client](#render-on-the-client).
 
 ## Verifying the fix
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Use [`--debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for more detailed stack traces or [`--debug-build-paths`](/docs/app/guides/building#build-specific-routes) to build specific routes.
 
 ## Why `instant = false` doesn't clear this error
 

@@ -43,8 +43,11 @@ export const prefetch = 'partial'
 
 export default async function Page({ params }) {
   const { id } = await params
+  // Only used for timing, not rendered
+  // eslint-disable-next-line react-hooks/purity
   const start = performance.now();
   const data = computeDataSlowly(id, ...);
+  // eslint-disable-next-line react-hooks/purity
   const end = performance.now();
   console.log(`somethingSlow took ${end - start} milliseconds to complete`)
   return ...
@@ -141,7 +144,7 @@ export default async function Page({ params }) {
   return (
     <main>
       ...
-      <Suspense>
+      <Suspense fallback={<span>Loading time...</span>}>
         <RelativeTime when={data.createdAt} />
       </Suspense>
     </main>
@@ -193,7 +196,7 @@ export default async function Page({ params }) {
   return (
     <main>
       ...
-      <Suspense>
+      <Suspense fallback={<span>Loading time...</span>}>
         <RelativeTime when={data.createdAt} />
       </Suspense>
     </main>
@@ -248,6 +251,8 @@ export default async function Page() {
 async function DynamicBanner() {
   await connection();
   const lastImpressionTime = (await cookies()).get('last-impression-time')?.value
+  // Runs per request after `connection()`, so the new value is intended
+  // eslint-disable-next-line react-hooks/purity
   const currentTime = Date.now()
   if (currentTime > lastImpressionTime + SOME_INTERVAL) {
     return <SpecialBanner />

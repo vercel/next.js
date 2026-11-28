@@ -53,6 +53,7 @@ export async function nsioOptimizeImage({
   maxInputPixels,
   timeoutInSeconds,
   mozjpeg = true,
+  signal,
   logger,
 }: {
   buffer: Buffer
@@ -63,6 +64,7 @@ export async function nsioOptimizeImage({
   maxInputPixels?: number
   timeoutInSeconds: number
   mozjpeg?: boolean
+  signal?: AbortSignal
   logger?: { warnOnce(message: string): void }
 }): Promise<Buffer> {
   if (!NSIO_OUTPUT_MIME_TYPES.includes(contentType)) {
@@ -101,5 +103,5 @@ export async function nsioOptimizeImage({
     )
   }
 
-  return pipeline.toBuffer()
+  return pipeline.toBuffer({ signal })
 }
