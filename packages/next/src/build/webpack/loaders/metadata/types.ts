@@ -9,6 +9,7 @@ export type CollectingMetadata = {
   apple: string[]
   twitter: string[]
   openGraph: string[]
+  openGraphVideo: string[]
   manifest?: string
 }
 
@@ -18,6 +19,7 @@ export type CollectedMetadata = {
   apple: ModuleGetter[]
   twitter: ModuleGetter[] | null
   openGraph: ModuleGetter[] | null
+  openGraphVideo: ModuleGetter[] | null
   manifest?: string
 }
 
@@ -40,6 +42,9 @@ export type PossibleImageFileNameConvention =
   | 'twitter'
   | 'openGraph'
 
+export type PossibleVideoFileNameConvention = 'openGraphVideo'
+
 export type PossibleStaticMetadataFileNameConvention =
   | PossibleImageFileNameConvention
+  | PossibleVideoFileNameConvention
   | 'manifest'

@@ -287,6 +287,9 @@ function cloneStaticMetadata(metadata: StaticMetadata): StaticMetadata {
     apple: metadata.apple ? [...metadata.apple] : undefined,
     openGraph: metadata.openGraph ? [...metadata.openGraph] : undefined,
     twitter: metadata.twitter ? [...metadata.twitter] : undefined,
+    openGraphVideo: metadata.openGraphVideo
+      ? [...metadata.openGraphVideo]
+      : undefined,
   }
 }
 
@@ -625,6 +628,7 @@ function hasStaticMetadataFiles(tree: LoaderTree): boolean {
         (metadata.apple?.length ?? 0) > 0 ||
         (metadata.openGraph?.length ?? 0) > 0 ||
         (metadata.twitter?.length ?? 0) > 0 ||
+        (metadata.openGraphVideo?.length ?? 0) > 0 ||
         metadata.manifest !== undefined)
   )
 }

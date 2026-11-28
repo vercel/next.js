@@ -108,6 +108,26 @@ describe('isMetadataRouteFile', () => {
         isMetadataRouteFile('/foo/icon.tsx', ['js', 'jsx', 'tsx', 'ts'], true)
       ).toBe(true)
     })
+
+    it('should only match static opengraph-video files', () => {
+      expect(isMetadataRouteFile('/foo/opengraph-video.mp4', [], true)).toBe(
+        true
+      )
+      expect(isMetadataRouteFile('/foo/opengraph-video.webm', [], true)).toBe(
+        true
+      )
+      expect(isMetadataRouteFile('/foo/opengraph-video.mov', [], true)).toBe(
+        false
+      )
+      // no numeric variants
+      expect(isMetadataRouteFile('/foo/opengraph-video1.mp4', [], true)).toBe(
+        false
+      )
+      // no dynamic routes
+      expect(
+        isMetadataRouteFile('/foo/opengraph-video.tsx', ['tsx', 'ts'], true)
+      ).toBe(false)
+    })
   })
 })
 
@@ -130,6 +150,13 @@ describe('isMetadataRoute', () => {
   it('should match grouped metadata routes', () => {
     expect(isMetadataRoute('/opengraph-image-1ow20b/route')).toBe(true)
     expect(isMetadataRoute('/foo/icon2-1ow20b/route')).toBe(true)
+    expect(isMetadataRoute('/opengraph-video-1ow20b.mp4/route')).toBe(true)
+  })
+
+  it('should match opengraph-video routes', () => {
+    expect(isMetadataRoute('/opengraph-video.mp4/route')).toBe(true)
+    expect(isMetadataRoute('/foo/opengraph-video.webm/route')).toBe(true)
+    expect(isMetadataRoute('/opengraph-video1.mp4/route')).toBe(false)
   })
 
   it('should support metadata variant numeric suffix', () => {
