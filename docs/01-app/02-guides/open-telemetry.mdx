@@ -173,6 +173,28 @@ sdk.start()
 
 Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend some features that are not exposed by the `@vercel/otel`. If edge runtime support is necessary, you will have to use `@vercel/otel`.
 
+#### Instrumenting Node.js core modules
+
+Instrumentations that patch Node.js core modules, such as [`@opentelemetry/instrumentation-http`](https://www.npmjs.com/package/@opentelemetry/instrumentation-http), apply their patch the next time the module is loaded. Next.js loads `http` and `https` while it starts the server, before `register` is called, so those modules are already in the module cache when the instrumentation registers its hook and nothing triggers the patch. Incoming requests are then left uninstrumented, without an error being reported.
+
+Load the core modules you rely on again after starting the SDK so the pending patches are applied:
+
+```ts filename="instrumentation.node.ts" switcher
+sdk.start()
+
+process.getBuiltinModule('http')
+process.getBuiltinModule('https')
+```
+
+```js filename="instrumentation.node.js" switcher
+sdk.start()
+
+process.getBuiltinModule('http')
+process.getBuiltinModule('https')
+```
+
+> **Good to know**: [`process.getBuiltinModule`](https://nodejs.org/api/process.html#processgetbuiltinmoduleid) is available in Node.js 20.16 and later. It is used here instead of `require('http')` because a bundled `require` call is compiled into the bundler's own module runtime and never reaches the instrumentation hook.
+
 ## Testing your instrumentation
 
 You need an OpenTelemetry collector with a compatible backend to test OpenTelemetry traces locally.
