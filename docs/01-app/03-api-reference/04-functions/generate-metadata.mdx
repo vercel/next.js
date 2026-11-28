@@ -527,6 +527,8 @@ All Open Graph types accept these fields. See the [Open Graph protocol](https://
 | `ttl`                                                     | `number`                                                         |
 | `images`, `audio`, `videos`                               | URL string, `URL`, media descriptor, or an array of these values |
 
+> **Good to know**: The `og:url` tag comes only from `openGraph.url`. Setting [`alternates.canonical`](#alternates) does not add it, so set both when you want both tags. A relative `openGraph.url` resolves against `metadataBase`.
+
 #### Open Graph media descriptors
 
 Media descriptors accept a required `url` and optional [structured properties](https://ogp.me/#structured):
