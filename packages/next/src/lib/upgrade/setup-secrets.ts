@@ -8,6 +8,7 @@ export type AgentAuth =
   | 'claude-anthropic-api-key'
   | 'codex-ai-gateway-api-key'
   | 'claude-ai-gateway-api-key'
+  | 'claude-subscription'
 
 type Secret = {
   name: string
@@ -71,11 +72,30 @@ export function setupSecrets({
         'A Vercel AI Gateway API key for the hosted Claude Code agent.',
       ],
     },
+    'claude-subscription': {
+      name: agentSecret,
+      title: 'Claude subscription token',
+      description: [
+        'A long-lived token that lets the hosted Claude Code agent use your',
+        'Claude subscription.',
+      ],
+      label: 'Token',
+      createUrl:
+        'https://code.claude.com/docs/en/authentication#generate-a-long-lived-token',
+      createSteps: [
+        'In another terminal, run claude setup-token, then paste the token below.',
+      ],
+      // The workflow cannot check a subscription token before the agent runs,
+      // so catch a cut or mistyped paste here.
+      problem: (value) =>
+        /^[\x21-\x7e]+$/.test(value)
+          ? null
+          : 'This is not a token. It should be one line with no spaces.',
+    },
   }
   return [
-    // The agent credential is not checked here: what each provider issues can
-    // change, and the workflow checks the credential with the provider before
-    // the agent runs.
+    // An API key is not checked here: what each provider issues can change,
+    // and the workflow checks it with the provider before the agent runs.
     agentSecrets[auth],
     {
       name: publishSecret,

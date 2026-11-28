@@ -51,6 +51,14 @@ describe('hidden setup input', () => {
     expect(rawModes).toEqual([true, false])
   })
 
+  it('joins a token pasted with the line breaks of a wrapped terminal', async () => {
+    const { input, streams } = terminal()
+    typed(input, 'sk-ant-oat01-abc\r\ndef\r')
+    await expect(
+      withHiddenInput({ task: (read: Read) => read('Key'), ...streams })
+    ).resolves.toBe('sk-ant-oat01-abcdef')
+  })
+
   it('drops key sequences, also when they arrive in pieces', async () => {
     const { input, streams } = terminal()
     typed(
