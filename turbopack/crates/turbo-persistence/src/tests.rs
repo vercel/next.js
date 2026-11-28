@@ -4404,3 +4404,365 @@ fn open_names_unparseable_files() -> Result<()> {
     );
     Ok(())
 }
+
+/// Pseudo-random bytes from a xorshift generator. Blocks made of them don't compress, so they are
+/// stored uncompressed and read straight out of the mmap.
+fn incompressible_bytes(seed: u64, len: usize) -> Vec<u8> {
+    let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+    (0..len)
+        .map(|_| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state as u8
+        })
+        .collect()
+}
+
+/// The entries written by the corruption tests: keys of `key_len(i)` bytes and values of
+/// `value_len` bytes, all incompressible.
+fn corruption_entries(
+    count: usize,
+    key_len: impl Fn(usize) -> usize,
+    value_len: usize,
+) -> Vec<(Vec<u8>, Vec<u8>)> {
+    (0..count)
+        .map(|i| {
+            (
+                incompressible_bytes(i as u64 + 1, key_len(i)),
+                incompressible_bytes(i as u64 + 1000, value_len),
+            )
+        })
+        .collect()
+}
+
+/// Writes `entries` into family 0 of a new database in `path` and returns the names of its SST
+/// files.
+fn write_entries(path: &Path, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<Vec<String>> {
+    let db = open_lazy_db(path, false)?;
+    let batch = db.write_batch()?;
+    for (key, value) in entries {
+        batch.put(0, key.clone(), value.clone().into())?;
+    }
+    db.commit_write_batch(batch)?;
+    db.shutdown();
+    let mut names = fs::read_dir(path)?
+        .map(|entry| Ok(entry?.file_name().to_string_lossy().into_owned()))
+        .filter(|name: &Result<String>| name.as_ref().map_or(true, |name| name.ends_with(".sst")))
+        .collect::<Result<Vec<_>>>()?;
+    names.sort();
+    assert!(!names.is_empty(), "no .sst file was written");
+    Ok(names)
+}
+
+/// The byte ranges (header included) of the blocks of every SST file in `path`, by file name.
+fn sst_block_ranges(path: &Path) -> Result<Vec<(String, Vec<std::ops::Range<usize>>)>> {
+    let mut result = Vec::new();
+    for entry in fs::read_dir(path)? {
+        let name = entry?.file_name().to_string_lossy().into_owned();
+        let Some(stem) = name.strip_suffix(".meta") else {
+            continue;
+        };
+        let meta = crate::meta_file::MetaFile::open(path, stem.parse()?, None, AccessMode::File)?;
+        for entry in meta.entries() {
+            let sst = format!("{:08}.sst", entry.sequence_number());
+            let bytes = fs::read(path.join(&sst))?;
+            let block_count = entry.block_count() as usize;
+            let table_start = bytes.len() - block_count * 4;
+            let mut start = 0;
+            let ranges = (0..block_count)
+                .map(|i| {
+                    let at = table_start + i * 4;
+                    let end = u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+                    let range = start..end;
+                    start = end;
+                    range
+                })
+                .collect();
+            result.push((sst, ranges));
+        }
+    }
+    result.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(result)
+}
+
+/// One entry of an uncompressed variable-size key block, as file offsets.
+struct VariableKeyEntry {
+    /// File offset of the entry's type/offset word in the block's offset table.
+    word_at: usize,
+    /// The entry's type byte.
+    ty: u8,
+    /// The entry's bytes in the file: the key followed by the value (reference).
+    range: std::ops::Range<usize>,
+}
+
+/// The entries of every uncompressed variable-size key block in `bytes`, an SST file with blocks at
+/// `blocks`. Also returns the file offset of each such block's header.
+fn variable_key_entries(
+    bytes: &[u8],
+    blocks: &[std::ops::Range<usize>],
+) -> (Vec<usize>, Vec<VariableKeyEntry>) {
+    use crate::static_sorted_file::{BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH};
+
+    let mut headers = Vec::new();
+    let mut result = Vec::new();
+    for block in blocks {
+        let uncompressed_length =
+            u32::from_be_bytes(bytes[block.start..block.start + 4].try_into().unwrap());
+        let data = block.start + 8;
+        let hash_len = match bytes[data] {
+            BLOCK_TYPE_KEY_WITH_HASH => 8,
+            BLOCK_TYPE_KEY_NO_HASH => 0,
+            _ => continue,
+        };
+        assert_eq!(uncompressed_length, 0, "the key block is compressed");
+        headers.push(block.start);
+        let entry_count =
+            u32::from_be_bytes([0, bytes[data + 1], bytes[data + 2], bytes[data + 3]]) as usize;
+        let stride = 4 + hash_len;
+        let table = data + 4;
+        let entries = table + entry_count * stride;
+        let word = |i: usize| {
+            let at = table + i * stride + hash_len;
+            (
+                at,
+                u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()),
+            )
+        };
+        for i in 0..entry_count {
+            let (word_at, value) = word(i);
+            let end = if i + 1 == entry_count {
+                block.end
+            } else {
+                entries + (word(i + 1).1 & 0xFF_FFFF) as usize
+            };
+            result.push(VariableKeyEntry {
+                word_at,
+                ty: (value >> 24) as u8,
+                range: entries + (value & 0xFF_FFFF) as usize..end,
+            });
+        }
+    }
+    (headers, result)
+}
+
+/// Overwrites bytes of the file at `path` in place, keeping its length.
+fn patch_file(path: &Path, patches: &[(usize, Vec<u8>)]) -> Result<()> {
+    use std::io::{Seek, SeekFrom, Write};
+
+    let mut file = fs::OpenOptions::new().write(true).open(path)?;
+    let len = file.metadata()?.len();
+    for (at, bytes) in patches {
+        file.seek(SeekFrom::Start(*at as u64))?;
+        file.write_all(bytes)?;
+    }
+    file.sync_all()?;
+    assert_eq!(file.metadata()?.len(), len);
+    Ok(())
+}
+
+/// Writes `entries`, then modifies their SST files in place with the patches `corrupt` returns for
+/// each file's bytes and blocks, and checks that reading any key reports the SST as unreadable
+/// instead of panicking.
+///
+/// With mmap, every key is read before the files are modified, so the blocks have already passed
+/// their checksum and are read from the mapping without checking it again. Without mmap, blocks
+/// would be served from the block cache after a first read, so the files are modified before they
+/// are first read, and the checksum catches it. Builds without mmap support always use file reads.
+fn assert_corruption_after_read_is_unreadable(
+    mmap: bool,
+    entries: &[(Vec<u8>, Vec<u8>)],
+    corrupt: impl Fn(&[u8], &[std::ops::Range<usize>]) -> Vec<(usize, Vec<u8>)>,
+) -> Result<()> {
+    let mmap = mmap && cfg!(feature = "mmap");
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let ssts = write_entries(path, entries)?;
+
+    let db = open_db::<1>(path, mmap)?;
+    if mmap {
+        for (key, value) in entries {
+            assert_eq!(db.get(0, key)?.as_deref(), Some(&value[..]));
+        }
+    }
+    let mut patched = false;
+    for (sst, blocks) in sst_block_ranges(path)? {
+        let sst_path = path.join(&sst);
+        let patches = corrupt(&fs::read(&sst_path)?, &blocks);
+        patched |= !patches.is_empty();
+        patch_file(&sst_path, &patches)?;
+    }
+    assert!(patched, "nothing to corrupt was found");
+
+    for (key, _) in entries {
+        assert_unreadable(db.get(0, key), &ssts);
+    }
+    let keys = entries
+        .iter()
+        .map(|(key, _)| key.clone())
+        .collect::<Vec<_>>();
+    assert_unreadable(batch_get_vec(&db, 0, &keys), &ssts);
+    Ok(())
+}
+
+/// Entries whose keys differ in length, so they are stored in a variable-size key block, with
+/// values of `value_len` bytes.
+fn variable_key_entries_with_values(value_len: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
+    corruption_entries(24, |i| 4 + i % 7, value_len)
+}
+
+/// Offsets in a variable-size key block that point past the end of the block, as written by
+/// another process after the block was verified, are reported as unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_key_offsets_corrupted_after_read_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let entries = variable_key_entries_with_values(MAX_INLINE_VALUE_SIZE);
+    assert_corruption_after_read_is_unreadable(mmap, &entries, |bytes, blocks| {
+        variable_key_entries(bytes, blocks)
+            .1
+            .iter()
+            .map(|entry| {
+                let word = (entry.ty as u32) << 24 | 0xFF_FFFF;
+                (entry.word_at, word.to_be_bytes().to_vec())
+            })
+            .collect()
+    })
+}
+
+/// The small value references of the entries of the variable-size key blocks of an SST file:
+/// `(file offset of the reference, block index, size, position)`.
+fn small_value_refs(
+    bytes: &[u8],
+    blocks: &[std::ops::Range<usize>],
+) -> Vec<(usize, u16, u16, u32)> {
+    use crate::static_sorted_file::KEY_BLOCK_ENTRY_TYPE_SMALL;
+
+    variable_key_entries(bytes, blocks)
+        .1
+        .iter()
+        .filter(|entry| entry.ty == KEY_BLOCK_ENTRY_TYPE_SMALL)
+        .map(|entry| {
+            let at = entry.range.end - 8;
+            let r = &bytes[at..entry.range.end];
+            (
+                at,
+                u16::from_be_bytes([r[0], r[1]]),
+                u16::from_be_bytes([r[2], r[3]]),
+                u32::from_be_bytes([r[4], r[5], r[6], r[7]]),
+            )
+        })
+        .collect()
+}
+
+/// A small value reference pointing past the end of its value block is reported as unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_small_value_ref_corrupted_after_read_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let entries = variable_key_entries_with_values(100);
+    assert_corruption_after_read_is_unreadable(mmap, &entries, |bytes, blocks| {
+        small_value_refs(bytes, blocks)
+            .into_iter()
+            .map(|(at, block, size, _)| {
+                let mut r = block.to_be_bytes().to_vec();
+                r.extend_from_slice(&size.to_be_bytes());
+                r.extend_from_slice(&0xFFFF_FFF0u32.to_be_bytes());
+                (at, r)
+            })
+            .collect()
+    })
+}
+
+/// A small value reference naming a block the SST file doesn't have is reported as unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_value_block_index_corrupted_after_read_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let entries = variable_key_entries_with_values(100);
+    assert_corruption_after_read_is_unreadable(mmap, &entries, |bytes, blocks| {
+        small_value_refs(bytes, blocks)
+            .into_iter()
+            .map(|(at, ..)| (at, 0xFFFFu16.to_be_bytes().to_vec()))
+            .collect()
+    })
+}
+
+/// A block header claiming that a verified uncompressed block is compressed is reported as
+/// unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_block_header_corrupted_after_read_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let entries = variable_key_entries_with_values(MAX_INLINE_VALUE_SIZE);
+    assert_corruption_after_read_is_unreadable(mmap, &entries, |bytes, blocks| {
+        variable_key_entries(bytes, blocks)
+            .0
+            .into_iter()
+            .map(|at| (at, (1u32 << 20).to_be_bytes().to_vec()))
+            .collect()
+    })
+}
+
+/// Flipping any single byte of an SST file whose blocks were already verified through the mmap
+/// never makes a read panic: each read either still succeeds (the byte isn't read again, or
+/// decodes to another valid value) or reports the SST as unreadable.
+///
+/// The uncompressed length in each block header is skipped: on a later read of a verified block it
+/// isn't checked again, so a flipped high byte makes the block decompress into an allocation of
+/// gigabytes, which may fail and abort rather than panic.
+// Opens a database per byte of the SST file, which is too slow under Miri.
+#[cfg(all(not(miri), feature = "mmap"))]
+#[rstest]
+#[case::variable_keys(variable_key_entries_with_values(100))]
+#[case::variable_keys_inline_values(variable_key_entries_with_values(MAX_INLINE_VALUE_SIZE))]
+#[case::fixed_keys(corruption_entries(24, |_| 6, 100))]
+#[case::fixed_keys_inline_values(corruption_entries(24, |_| 6, MAX_INLINE_VALUE_SIZE))]
+fn sst_byte_flips_after_read_never_panic(#[case] entries: Vec<(Vec<u8>, Vec<u8>)>) -> Result<()> {
+    let pristine = tempfile::tempdir()?;
+    let ssts = write_entries(pristine.path(), &entries)?;
+    let files = fs::read_dir(pristine.path())?
+        .map(|entry| Ok(entry?.file_name()))
+        .collect::<Result<Vec<_>>>()?;
+    let keys = entries
+        .iter()
+        .map(|(key, _)| key.clone())
+        .collect::<Vec<_>>();
+
+    for (sst, blocks) in sst_block_ranges(pristine.path())? {
+        let len = fs::metadata(pristine.path().join(&sst))?.len() as usize;
+        let uncompressed_lengths = blocks
+            .iter()
+            .map(|block| block.start..block.start + 4)
+            .collect::<Vec<_>>();
+        for at in (0..len).filter(|at| !uncompressed_lengths.iter().any(|r| r.contains(at))) {
+            let tempdir = tempfile::tempdir()?;
+            let path = tempdir.path();
+            for file in &files {
+                fs::copy(pristine.path().join(file), path.join(file))?;
+            }
+            let db = open_db::<1>(path, true)?;
+            for (key, value) in &entries {
+                assert_eq!(db.get(0, key)?.as_deref(), Some(&value[..]));
+            }
+            let sst_path = path.join(&sst);
+            let byte = fs::read(&sst_path)?[at];
+            patch_file(&sst_path, &[(at, vec![!byte])])?;
+
+            let reads = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut results: Vec<Result<()>> =
+                    keys.iter().map(|key| db.get(0, key).map(|_| ())).collect();
+                results.push(batch_get_vec(&db, 0, &keys).map(|_| ()));
+                results
+            }));
+            let reads = reads
+                .unwrap_or_else(|_| panic!("a read panicked after flipping byte {at} of {sst}"));
+            for read in reads {
+                if read.is_err() {
+                    assert_unreadable(read, &ssts);
+                }
+            }
+        }
+    }
+    Ok(())
+}
