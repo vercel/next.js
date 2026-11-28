@@ -17,6 +17,8 @@ module.exports = {
 
 See the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) for a working implementation, and [Configuring Caching](/docs/app/guides/self-hosting#configuring-caching) for what a handler backed by a shared store needs.
 
+Note that Next.js constructs the cache handler once per request. Keep anything that should outlive a request, such as a Redis client, at module scope: creating it in the constructor opens a new connection on every request.
+
 ## API Reference
 
 The cache handler can implement the following methods: `get`, `set`, `revalidateTag`, and `resetRequestCache`.
