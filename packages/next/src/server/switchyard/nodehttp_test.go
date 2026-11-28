@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -223,6 +225,36 @@ func TestKeepsTheConnectionToNodeOpenWhenTheClientStopsSending(t *testing.T) {
 	}
 	if !strings.HasPrefix(got, "HTTP/1.1 200 OK\r\n") || !strings.HasSuffix(got, "late") {
 		t.Errorf("got %q, want the late answer", got)
+	}
+}
+
+// Node drops the connection while the client's upload is still coming and
+// the client then pauses. Without Switchyard the client's connection closes at
+// once; it must not wait for the rest of the upload or the request timeout.
+func TestClosesTheConnectionWhenNodeDropsItMidUpload(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
+			conn.Close()
+		}
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	// 10 bytes announced, 1 sent.
+	io.WriteString(conn, "POST / HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\nx")
+	start := time.Now()
+	got, err := io.ReadAll(conn)
+	if err != nil && !errors.Is(err, syscall.ECONNRESET) {
+		t.Fatalf("connection not closed: %v (got %q)", err, got)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %q, want the connection closed without an answer", got)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("connection closed after %v, want at once", elapsed)
 	}
 }
 

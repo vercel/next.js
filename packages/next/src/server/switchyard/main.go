@@ -435,8 +435,10 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			// failed read (a broken upload, or one that hit the request
 			// timeout) isn't Node's doing, and gets the answers below. And a
 			// panic with the upload still coming would make Go's server read
-			// up to 256 KB more of it, with no deadline, before closing.
-			if node, ok := r.Context().Value(nodeResponseKey{}).(*nodeResponse); ok && node.connected.Load() && r.Context().Err() == nil && !bodyUnfinished(r) {
+			// up to 256 KB more of it, with no deadline, before closing. Also
+			// when Switchyard cut the upload off because Node dropped the
+			// connection (cutUpload): reads of it end at once then.
+			if node, ok := r.Context().Value(nodeResponseKey{}).(*nodeResponse); ok && node.connected.Load() && r.Context().Err() == nil && (!bodyUnfinished(r) || node.cutUpload.Load()) {
 				panic(http.ErrAbortHandler)
 			}
 			// When the request was cancelled on the client's side (the client
@@ -500,8 +502,11 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			body = newRequestBody(r.Body)
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
+			node.onUpstreamClose = cutUpload(body, node, r)
 		}
 		r = r.WithContext(context.WithValue(r.Context(), nodeResponseKey{}, node))
+		// The request is done with its connection to Node after this.
+		defer node.answered()
 		r, release := endWithClient(r)
 		defer release()
 		if body != nil {
@@ -630,14 +635,50 @@ type nodeResponse struct {
 	// of it, given up writing it, or failed (finishRequestBody).
 	requestDone chan struct{}
 	doneOnce    sync.Once
+
+	// The connection to Node the request went out on, set by the Transport
+	// on its own goroutine.
+	upstreamMu sync.Mutex
+	upstream   *keptConn
+	// Set by the handler for a request with a body: run if the connection
+	// to Node closes while the request is on it (keptConn.onClose).
+	onUpstreamClose func()
+	// Whether that cut off the client's upload (cutUpload in the handler).
+	cutUpload atomic.Bool
 }
 
 func newNodeResponse() *nodeResponse {
-	return &nodeResponse{hopHeaders: nil, connection: nil, connected: atomic.Bool{}, requestDone: make(chan struct{}), doneOnce: sync.Once{}}
+	return &nodeResponse{hopHeaders: nil, connection: nil, connected: atomic.Bool{}, requestDone: make(chan struct{}), doneOnce: sync.Once{}, upstreamMu: sync.Mutex{}, upstream: nil, onUpstreamClose: nil, cutUpload: atomic.Bool{}}
 }
 
 func (n *nodeResponse) finishedRequest() {
 	n.doneOnce.Do(func() { close(n.requestDone) })
+}
+
+// gotConn records the connection to Node the request goes out on, and has it
+// report its close to the request (onUpstreamClose).
+func (n *nodeResponse) gotConn(conn net.Conn) {
+	n.connected.Store(true)
+	kept, ok := conn.(*keptConn)
+	if !ok {
+		return // the shared transport, used only without newServer
+	}
+	if n.onUpstreamClose != nil {
+		kept.onClose.Store(&n.onUpstreamClose)
+	}
+	n.upstreamMu.Lock()
+	defer n.upstreamMu.Unlock()
+	n.upstream = kept
+}
+
+// answered stops the connection to Node from reporting its close to this
+// request.
+func (n *nodeResponse) answered() {
+	n.upstreamMu.Lock()
+	defer n.upstreamMu.Unlock()
+	if n.upstream != nil {
+		n.upstream.onClose.CompareAndSwap(&n.onUpstreamClose, nil)
+	}
 }
 
 // nodeResponseTransport keeps, in the request's nodeResponse, the parts of
@@ -658,13 +699,17 @@ func (t nodeResponseTransport) RoundTrip(r *http.Request) (*http.Response, error
 	}
 	// httptrace adds this hook to any the context already has.
 	r = r.WithContext(httptrace.WithClientTrace(r.Context(), &httptrace.ClientTrace{
-		GotConn:      func(httptrace.GotConnInfo) { node.connected.Store(true) },
+		GotConn:      func(info httptrace.GotConnInfo) { node.gotConn(info.Conn) },
 		WroteRequest: func(httptrace.WroteRequestInfo) { node.finishedRequest() },
 	}))
 	res, err := t.next.RoundTrip(r)
 	if err != nil {
 		node.finishedRequest()
 	} else {
+		// Node answered, so a close of its connection from now on isn't a
+		// drop without an answer: the Transport closes it itself when the
+		// upload is still coming after the response (cutUpload).
+		node.answered()
 		node.hopHeaders = keepHopHeaders(res.Header)
 		node.connection = res.Header["Connection"]
 		// The Transport takes "Connection: close" out of the header map and
@@ -777,6 +822,30 @@ func finishRequestBody(body *requestBody, node *nodeResponse, w http.ResponseWri
 // the server's own ResponseWriter, not a wrapper around it.
 func closeAfterResponse(w http.ResponseWriter) {
 	_, _ = io.Copy(io.Discard, http.MaxBytesReader(w, io.NopCloser(strings.NewReader("x")), 0))
+}
+
+// cutUpload returns what to do when the connection to Node closes while r,
+// whose client body is body, is on it.
+//
+// Node parity: when Node drops a connection (the app destroys the socket, or
+// Node goes away), the client's connection closes at once, because it is the
+// same socket. Through Switchyard, Go's Transport reports the drop only once
+// its write of the request is done, and while the client's upload is still
+// coming that write waits for the client. Shutting down reading on the
+// client's connection ends that wait, so the client's connection closes then
+// too, without an answer, as Node's would.
+func cutUpload(body *requestBody, node *nodeResponse, r *http.Request) func() {
+	return func() {
+		select {
+		case <-body.ended:
+			return
+		default:
+		}
+		if conn, ok := r.Context().Value(clientConnKey{}).(*clientConn); ok {
+			node.cutUpload.Store(true)
+			conn.CloseRead()
+		}
+	}
 }
 
 // stopReadingBody shuts down reading on the client's connection, which ends
@@ -901,10 +970,13 @@ type keptConn struct {
 	once     sync.Once
 	slotted  atomic.Bool
 	upgraded atomic.Bool
+	// Called once if the connection closes while a request is on it, then
+	// cleared (see nodeResponse.onUpstreamClose).
+	onClose atomic.Pointer[func()]
 }
 
 func newKeptConn(conn net.Conn, kept *keptUpstreams) *keptConn {
-	c := &keptConn{Conn: conn, kept: kept, once: sync.Once{}, slotted: atomic.Bool{}, upgraded: atomic.Bool{}}
+	c := &keptConn{Conn: conn, kept: kept, once: sync.Once{}, slotted: atomic.Bool{}, upgraded: atomic.Bool{}, onClose: atomic.Pointer[func()]{}}
 	c.slotted.Store(kept.take())
 	return c
 }
@@ -942,6 +1014,9 @@ func (c *keptConn) release() {
 // exception: the reset could drop the last bytes the client sent through the
 // tunnel, so it closes as usual.
 func (c *keptConn) Close() error {
+	if onClose := c.onClose.Swap(nil); onClose != nil {
+		(*onClose)()
+	}
 	c.release()
 	if tcp, ok := c.Conn.(*net.TCPConn); ok && !c.upgraded.Load() {
 		// An error leaves the default close, which is still correct.
