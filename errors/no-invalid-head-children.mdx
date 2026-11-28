@@ -1,0 +1,48 @@
+---
+title: No Invalid Elements in Head Component
+---
+
+> Prevent invalid HTML elements from being used in `next/head` component.
+
+## Why This Error Occurred
+
+An HTML element that is not valid inside `<head>` was used in the `next/head` component, for example `<html>`, `<div>` or `<body>`.
+
+Invalid elements inside `next/head` cause the misleading `next-head-count is missing` error at runtime, and the contents of `next/head` can end up rendered in the `<body>` instead of the `<head>`.
+
+## Possible Ways to Fix It
+
+Remove the invalid element from `next/head`. Only the following elements are valid children of `next/head`: `<title>`, `<meta>`, `<link>`, `<style>`, `<script>`, `<base>`, `<noscript>` and `<template>`.
+
+**Before**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Index() {
+  return (
+    <Head>
+      <html lang="en" />
+      <title>Demo Page</title>
+    </Head>
+  )
+}
+```
+
+**After**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Index() {
+  return (
+    <Head>
+      <title>Demo Page</title>
+    </Head>
+  )
+}
+```
+
+## Useful Links
+
+- [next/head](/docs/pages/api-reference/components/head)

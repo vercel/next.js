@@ -14,6 +14,7 @@ import noHeadElement from './rules/no-head-element'
 import noHeadImportInDocument from './rules/no-head-import-in-document'
 import noHtmlLinkForPages from './rules/no-html-link-for-pages'
 import noImgElement from './rules/no-img-element'
+import noInvalidHeadChildren from './rules/no-invalid-head-children'
 import noLocationAssign from './rules/no-location-assign-relative-destination'
 import noPageCustomFont from './rules/no-page-custom-font'
 import noScriptComponentInHead from './rules/no-script-component-in-head'
@@ -47,6 +48,7 @@ const recommendedRules = {
   '@next/next/no-document-import-in-page': 'error',
   '@next/next/no-duplicate-head': 'error',
   '@next/next/no-head-import-in-document': 'error',
+  '@next/next/no-invalid-head-children': 'error',
   '@next/next/no-script-component-in-head': 'error',
 } satisfies Linter.RulesRecord
 
@@ -75,6 +77,7 @@ const plugin = {
     'no-head-import-in-document': noHeadImportInDocument,
     'no-html-link-for-pages': noHtmlLinkForPages,
     'no-img-element': noImgElement,
+    'no-invalid-head-children': noInvalidHeadChildren,
     'no-location-assign-relative-destination': noLocationAssign,
     'no-page-custom-font': noPageCustomFont,
     'no-script-component-in-head': noScriptComponentInHead,
