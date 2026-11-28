@@ -298,8 +298,16 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       }
     } else {
       if (isCss(chunkUrl)) {
+        const decodedChunkUrl = decodeURI(chunkUrl)
         const previousLinks = findChunkStylesheets(chunkUrl)
-        if (previousLinks.length > 0) {
+        const alreadyInlined = Array.from(
+          document.getElementsByTagName('style')
+        ).some((style) =>
+          style.dataset.href
+            ?.split(/\s+/)
+            .some((href) => matchesChunkUrl(href, chunkUrl, decodedChunkUrl))
+        )
+        if (previousLinks.length > 0 || alreadyInlined) {
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
           resolver.resolve()
