@@ -849,6 +849,40 @@ pub(crate) fn execute_read_target_inline(
     turbo_tasks.try_execute_scheduled_task_inline(key)
 }
 
+/// The update that [`TurboTasks::aggregated_update_info`] reports next.
+#[derive(Default)]
+struct AggregatedUpdate {
+    /// Total foreground time and task count, or `None` while no foreground job has finished.
+    update: Option<(Duration, usize)>,
+    reasons: InvalidationReasonSet,
+    /// When the last invalidation with a reason happened. The aggregation window is counted from
+    /// it.
+    last_invalidation: Option<Instant>,
+}
+
+impl AggregatedUpdate {
+    fn record_invalidation(
+        &mut self,
+        reasons: impl IntoIterator<Item = StaticOrArc<dyn InvalidationReason>>,
+    ) {
+        for reason in reasons {
+            self.reasons.insert(reason);
+        }
+        self.last_invalidation = Some(Instant::now());
+    }
+
+    fn take_update_info(&mut self) -> Option<UpdateInfo> {
+        let (duration, tasks) = self.update.take()?;
+        self.last_invalidation = None;
+        Some(UpdateInfo {
+            duration,
+            tasks,
+            reasons: take(&mut self.reasons),
+            placeholder_for_future_fields: (),
+        })
+    }
+}
+
 pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
@@ -863,7 +897,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     priority_runner:
         Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
     start: Mutex<Option<Instant>>,
-    aggregated_update: Mutex<(Option<(Duration, usize)>, InvalidationReasonSet)>,
+    aggregated_update: Mutex<AggregatedUpdate>,
     /// Event that is triggered when currently_scheduled_foreground_jobs becomes non-zero
     event_foreground_start: Event,
     /// Event that is triggered when all foreground jobs are done
@@ -1562,7 +1596,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             let total = self.scheduled_tasks.load(Ordering::Acquire);
             self.scheduled_tasks.store(0, Ordering::Release);
             if let Some(start) = *self.start.lock().unwrap() {
-                let (update, _) = &mut *self.aggregated_update.lock().unwrap();
+                let update = &mut self.aggregated_update.lock().unwrap().update;
                 if let Some(update) = update.as_mut() {
                     update.0 += start.elapsed();
                     update.1 += total;
@@ -1648,9 +1682,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
-    /// (`aggregation`): the update ends once no foreground job has been running for
-    /// that long. Will only return None when the timeout is reached while
-    /// waiting for the first update.
+    /// (`aggregation`): the update ends once no foreground job is running and `aggregation` has
+    /// passed since the last invalidation with a reason (e.g. a file change). Without such an
+    /// invalidation, `aggregation` is counted from when the last foreground job finished. Will
+    /// only return None when the timeout is reached while waiting for the first update.
     pub async fn aggregated_update_info(
         &self,
         aggregation: Duration,
@@ -1660,20 +1695,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
             .event_foreground_done
             .listen_with_note(|| || "wait for update info".to_string());
         let wait_for_finish = {
-            let (update, reason_set) = &mut *self.aggregated_update.lock().unwrap();
+            let aggregated_update = &mut *self.aggregated_update.lock().unwrap();
             if aggregation.is_zero() {
-                if let Some((duration, tasks)) = update.take() {
-                    return Some(UpdateInfo {
-                        duration,
-                        tasks,
-                        reasons: take(reason_set),
-                        placeholder_for_future_fields: (),
-                    });
+                if let Some(update_info) = aggregated_update.take_update_info() {
+                    return Some(update_info);
                 } else {
                     true
                 }
             } else {
-                update.is_none()
+                aggregated_update.update.is_none()
             }
         };
         if wait_for_finish {
@@ -1701,39 +1731,50 @@ impl<B: Backend + 'static> TurboTasks<B> {
             }
         }
         if !aggregation.is_zero() {
+            // When the last foreground job finished, as far as we know.
+            let mut foreground_done = Instant::now();
             loop {
+                let listener = self
+                    .event_foreground_done
+                    .listen_with_note(|| || "wait for update info".to_string());
+                // Only end the update once no foreground job is running. Work that starts within
+                // the aggregation window and outlasts it would otherwise be reported partly in
+                // this update and partly in the next one.
+                if self
+                    .currently_scheduled_foreground_jobs
+                    .load(Ordering::Acquire)
+                    != 0
+                {
+                    listener.await;
+                    foreground_done = Instant::now();
+                    continue;
+                }
+                // Count the window from the last file change rather than from the end of the
+                // compilation it caused: a compilation that takes longer than the window
+                // shouldn't wait for it again. The window still batches changes that arrive in
+                // quick succession.
+                let window_start = self
+                    .aggregated_update
+                    .lock()
+                    .unwrap()
+                    .last_invalidation
+                    .unwrap_or(foreground_done);
+                let window_end = window_start + aggregation;
+                if Instant::now() >= window_end {
+                    break;
+                }
                 select! {
-                    () = tokio::time::sleep(aggregation) => {
-                        // Only end the update once no foreground job is running. Work that
-                        // starts within the aggregation window and outlasts it would otherwise
-                        // be reported partly in this update and partly in the next one.
-                        let listener = self
-                            .event_foreground_done
-                            .listen_with_note(|| || "wait for update info".to_string());
-                        if self
-                            .currently_scheduled_foreground_jobs
-                            .load(Ordering::Acquire)
-                            == 0
-                        {
-                            break;
-                        }
-                        listener.await;
-                        // Restarts the sleep
+                    () = tokio::time::sleep_until(window_end.into()) => {
+                        // A later invalidation may have moved the window, check again
                     }
-                    () = self.event_foreground_done.listen_with_note(|| || "wait for update info".to_string()) => {
-                        // Resets the sleep
+                    () = listener => {
+                        foreground_done = Instant::now();
                     }
                 }
             }
         }
-        let (update, reason_set) = &mut *self.aggregated_update.lock().unwrap();
-        if let Some((duration, tasks)) = update.take() {
-            Some(UpdateInfo {
-                duration,
-                tasks,
-                reasons: take(reason_set),
-                placeholder_for_future_fields: (),
-            })
+        if let Some(update_info) = self.aggregated_update.lock().unwrap().take_update_info() {
+            Some(update_info)
         } else {
             panic!("aggregated_update_info must not called concurrently")
         }
@@ -2178,10 +2219,10 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         reason: StaticOrArc<dyn InvalidationReason>,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
-        {
-            let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
-            reason_set.insert(reason);
-        }
+        self.aggregated_update
+            .lock()
+            .unwrap()
+            .record_invalidation([reason]);
         let this = self.pin();
         Box::pin(async move { this.run_once(future).await })
     }
@@ -2210,10 +2251,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     #[instrument(level = "info", skip_all, name = "invalidate", fields(name = display(&reason)))]
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>) {
-        {
-            let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
-            reason_set.insert(reason);
-        }
+        self.aggregated_update
+            .lock()
+            .unwrap()
+            .record_invalidation([reason]);
         self.backend.invalidate_task(task, self);
     }
 
@@ -2235,12 +2276,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             return;
         }
         // Recorded once, before any task is invalidated.
-        {
-            let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
-            for reason in reasons {
-                reason_set.insert(reason);
-            }
-        }
+        self.aggregated_update
+            .lock()
+            .unwrap()
+            .record_invalidation(reasons);
         self.backend.invalidate_tasks(tasks, self);
     }
 
