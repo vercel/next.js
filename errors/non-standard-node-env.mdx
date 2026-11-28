@@ -20,6 +20,17 @@ The greater React ecosystem treats `NODE_ENV` as a convention, only permitting t
 
 Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpectedly, or worse, **break dead code elimination**.
 
+### Running `next build` with `NODE_ENV=development`
+
+`next build` compiles your application for production. Setting `NODE_ENV=development` during the build can make prerendering fail with errors that do not mention `NODE_ENV`, for example:
+
+```txt
+Error occurred prerendering page "/_global-error". Read more: https://nextjs.org/docs/messages/prerender-error
+TypeError: Cannot read properties of null (reading 'useContext')
+```
+
+Unset `NODE_ENV` (or set it to `production`) when running `next build`. Check your shell, CI configuration, and `.env*` files for a `NODE_ENV=development` entry. To debug prerender errors with development builds of React and Next.js, use `next build --debug-prerender` instead.
+
 ## Possible Ways to Fix It
 
 To fix this error, identify the source of the erroneous `NODE_ENV` value and get rid of it: Next.js automatically sets the correct value for you.
