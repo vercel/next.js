@@ -2017,9 +2017,6 @@ importers:
       is-git-clean:
         specifier: 1.1.0
         version: 1.1.0
-      js-yaml:
-        specifier: 4.2.0
-        version: 4.2.0
       jscodeshift:
         specifier: 17.0.0
         version: 17.0.0(@babel/preset-env@7.26.9(@babel/core@7.26.10(supports-color@9.4.0))(supports-color@9.4.0))(supports-color@9.4.0)
@@ -2035,13 +2032,13 @@ importers:
       strip-ansi:
         specifier: 6.0.0
         version: 6.0.0
+      yaml:
+        specifier: 2.3.4
+        version: 2.3.4
     devDependencies:
       '@types/find-up':
         specifier: 4.0.0
         version: 4.0.0
-      '@types/js-yaml':
-        specifier: 4.0.9
-        version: 4.0.9
       '@types/jscodeshift':
         specifier: 0.11.0
         version: 0.11.0

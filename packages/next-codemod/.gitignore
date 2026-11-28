@@ -4,3 +4,4 @@
 !transforms/__tests__/**/*.js
 !transforms/__testfixtures__/**/*.js
 !lib/__tests__/**/*.js
+!bin/__tests__/**/*.js
