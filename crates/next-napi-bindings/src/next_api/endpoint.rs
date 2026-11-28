@@ -12,20 +12,20 @@ use next_api::{
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
-        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
-        read_with_validated_endpoint,
+        endpoint_lazy_changed_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation, read_with_validated_endpoint,
     },
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
+    Effects, FixintU64, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
 };
 use turbopack_core::issue::{IssueFilter, IssueSeverity, PlainIssue};
 
 use crate::next_api::utils::{
     DetachedVc, NapiIssue, SubscriptionTask, TurbopackResult, get_issues,
-    strongly_consistent_catch_collectables, subscribe,
+    strongly_consistent_catch_collectables, subscribe_to_changes,
 };
 
 #[napi(object)]
@@ -212,7 +212,7 @@ pub fn endpoint_server_changed_subscribe(
 ) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ****endpoint;
-    subscribe(
+    subscribe_to_changes(
         turbopack_ctx,
         &env,
         &func,
@@ -243,18 +243,14 @@ pub fn endpoint_server_changed_subscribe(
 
 #[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 struct EndpointIssuesAndDiags {
-    changed: Option<ReadRef<Completion>>,
+    changed: Option<u64>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
 
 impl PartialEq for EndpointIssuesAndDiags {
     fn eq(&self, other: &Self) -> bool {
-        (match (&self.changed, &other.changed) {
-            (Some(a), Some(b)) => ReadRef::ptr_eq(a, b),
-            (None, None) => true,
-            (None, Some(_)) | (Some(_), None) => false,
-        }) && self.issues == other.issues
+        self.changed == other.changed && self.issues == other.issues
     }
 }
 
@@ -276,7 +272,7 @@ async fn subscribe_issues_and_diags_operation(
     let (changed_value, issues, effects) =
         strongly_consistent_catch_collectables(changed_op, &filter).await?;
     Ok(EndpointIssuesAndDiags {
-        changed: changed_value,
+        changed: changed_value.map(|changed| *changed),
         issues: if should_include_issues {
             issues
         } else {
@@ -292,13 +288,13 @@ async fn subscribe_issues_and_diags_operation(
 ///
 /// Transient build-graph errors (e.g. missing `node_modules/next` during a concurrent install) come
 /// with an Issue. The server subscription (`subscribe_issues_and_diags_operation`) already reports
-/// that Issue, so such an error is turned into a completion here instead of a
+/// that Issue, so such an error is turned into a change here instead of a
 /// `TurbopackInternalError`. Issues are only read on this failure path, so the success path keeps
 /// not depending on them: we don't want to be notified when they change.
 #[turbo_tasks::function(operation, root)]
 async fn endpoint_client_changed_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
-) -> Result<Vc<Completion>> {
+) -> Result<Vc<FixintU64>> {
     let changed_op = endpoint_client_changed_operation(endpoint_op);
     // Collectibles are only stable after a strongly consistent read of their source.
     let err = match changed_op.resolve().strongly_consistent().await {
@@ -308,10 +304,44 @@ async fn endpoint_client_changed_with_issues_operation(
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let issues = get_issues(changed_op, &filter).await?;
     if issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
-        Ok(Completion::new())
+        Ok(Vc::cell(u64::MAX))
     } else {
         Err(err)
     }
+}
+
+#[tracing::instrument(level = "info", name = "get lazy endpoint changes", skip_all)]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn endpoint_lazy_changed_subscribe(
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    server: bool,
+    key: RcStr,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<undefined>) => void")]
+    func: FunctionRef<TurbopackResult<()>, ()>,
+) -> napi::Result<External<SubscriptionTask>> {
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
+    let endpoint_op = ****endpoint;
+    subscribe_to_changes(
+        turbopack_ctx,
+        &env,
+        &func,
+        move || {
+            let key = key.clone();
+            async move {
+                Ok(*endpoint_lazy_changed_operation(endpoint_op, server, key)
+                    .read_strongly_consistent()
+                    .await?)
+            }
+            .instrument(tracing::info_span!("lazy changes subscription"))
+        },
+        |_| {
+            Ok(TurbopackResult {
+                result: (),
+                issues: vec![],
+            })
+        },
+    )
 }
 
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
@@ -324,18 +354,14 @@ pub fn endpoint_client_changed_subscribe(
 ) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ****endpoint;
-    subscribe(
+    subscribe_to_changes(
         turbopack_ctx,
         &env,
         &func,
         move || {
             async move {
                 let changed_op = endpoint_client_changed_with_issues_operation(endpoint_op);
-                // This must be a *read*, not just a resolve, because we need the root task created
-                // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
-                // even if the cell id doesn't change.
-                changed_op.read_strongly_consistent().await?;
-                Ok(())
+                Ok(*changed_op.read_strongly_consistent().await?)
             }
             .instrument(tracing::info_span!("client changes subscription"))
         },

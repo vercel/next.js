@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
+import { getRedboxSource, retry, waitFor, waitForRedbox } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'lazy-dynamic-imports',
   () => {
@@ -328,6 +328,98 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       } finally {
         await next.patchFile(targetPath, originalTarget)
       }
+    })
+
+    it('does not reload a page whose render activates a dynamic import, and refreshes it after editing the target', async () => {
+      const valuePath = path.join('app', 'server-import-reload', 'value.ts')
+      // Documents and RSC requests for the page. A reload, or a refresh for the activation that
+      // the page's own render caused, would request it again.
+      const pageRequests: string[] = []
+      let documentRequests = 0
+      const browser = await next.browser('/server-import-reload', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            if (new URL(request.url()).pathname === '/server-import-reload') {
+              pageRequests.push(request.url())
+              if (request.resourceType() === 'document') {
+                documentRequests++
+              }
+            }
+          })
+        },
+      })
+      expect(await browser.elementByCss('#server-import-reload').text()).toBe(
+        'server-import-reload-marker'
+      )
+      await retry(async () => {
+        expect(
+          (await browser.log()).some(({ message }) =>
+            message.includes('[HMR] connected')
+          )
+        ).toBe(true)
+      })
+      // A reload or refresh follows the HMR subscription and the end of the activation's update.
+      await waitFor(1000)
+      expect(pageRequests).toHaveLength(1)
+
+      await next.patchFile(
+        valuePath,
+        (content) => content.replace('reload-marker', 'reload-updated'),
+        async () => {
+          await retry(async () => {
+            expect(
+              await browser.elementByCss('#server-import-reload').text()
+            ).toBe('server-import-reload-updated')
+          })
+        }
+      )
+      expect(documentRequests).toBe(1)
+    })
+
+    it('updates a Pages page after editing a target that only getServerSideProps imports', async () => {
+      const targetPath = path.join('lib', 'lazy-gssp-reload-target.ts')
+      let loads = 0
+      const browser = await next.browser('/lazy-gssp-reload', {
+        beforePageLoad(page) {
+          page.on('load', () => {
+            loads++
+          })
+        },
+      })
+      expect(await browser.elementByCss('#lazy-gssp-reload').text()).toBe(
+        'lazy-gssp-reload-marker'
+      )
+
+      await next.patchFile(
+        targetPath,
+        (content) => content.replace('reload-marker', 'reload-updated'),
+        async () => {
+          await retry(async () => {
+            expect(await browser.elementByCss('#lazy-gssp-reload').text()).toBe(
+              'lazy-gssp-reload-updated'
+            )
+          })
+        }
+      )
+      expect(loads).toBe(1)
+    })
+
+    it('refreshes a page after editing the target of a nested lazy import', async () => {
+      const browser = await next.browser('/nested-server-edit')
+      expect(await browser.elementByCss('#nested-server-edit').text()).toBe(
+        'nested-inner-marker'
+      )
+      await next.patchFile(
+        path.join('app', 'nested-server-edit', 'inner.ts'),
+        (content) => content.replace('inner-marker', 'inner-updated'),
+        async () => {
+          await retry(async () => {
+            expect(
+              await browser.elementByCss('#nested-server-edit').text()
+            ).toBe('nested-inner-updated')
+          })
+        }
+      )
     })
 
     it('does not compile a server component dynamic import before it is reached', async () => {

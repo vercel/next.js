@@ -454,6 +454,17 @@ export interface Endpoint {
   serverChanged(
     includeIssues: boolean
   ): Promise<AsyncIterableIterator<TurbopackResult<void>>>
+
+  /**
+   * Listen to changes to the output of the lazily compiled dynamic import
+   * `key`, which serverChanged() and clientChanged() don't include.
+   * After lazyChanged() has been awaited it will listen to changes.
+   * The async iterator will yield for each change.
+   */
+  lazyChanged(
+    server: boolean,
+    key: string
+  ): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 }
 
 interface EndpointConfig {

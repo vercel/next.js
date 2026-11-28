@@ -34,7 +34,7 @@ use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, OrderedAutoMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexset,
+    FixintU64, FxIndexMap, OrderedAutoMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexset,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -1938,7 +1938,7 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .await?
             .pages_project
@@ -1947,12 +1947,30 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .await?
             .pages_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn lazy_server_changed(self: Vc<Self>, key: RcStr) -> Result<Vc<FixintU64>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .lazy_server_changed(self.output().server_assets(), key))
+    }
+
+    #[turbo_tasks::function]
+    async fn lazy_client_changed(self: Vc<Self>, key: RcStr) -> Result<Vc<FixintU64>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .lazy_client_changed(self.output().client_assets(), key))
     }
 
     #[turbo_tasks::function]

@@ -201,6 +201,24 @@ impl AvailabilityInfo {
         })
     }
 
+    /// Like [`AvailabilityInfo::ident`], but identifies the available modules instead of the
+    /// available chunk groups. See [`AvailableChunkGroups::modules_hash`].
+    pub async fn modules_ident(&self) -> Result<Option<RcStr>> {
+        Ok(
+            if let Some(available_chunk_groups) = self.available_chunk_groups {
+                Some(
+                    available_chunk_groups
+                        .modules_hash()
+                        .await?
+                        .to_string()
+                        .into(),
+                )
+            } else {
+                None
+            },
+        )
+    }
+
     pub async fn ident(&self) -> Result<Option<RcStr>> {
         Ok(
             if let Some(available_chunk_groups) = self.available_chunk_groups {

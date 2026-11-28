@@ -237,7 +237,7 @@ impl OutputAssetsWithReferenced {
 }
 
 /// Computes the list of all chunk children of a given chunk.
-async fn get_referenced_assets(
+pub async fn get_referenced_assets(
     inner_output_assets: bool,
     input: ExpandOutputAssetsInput,
 ) -> Result<impl Iterator<Item = ExpandOutputAssetsInput>> {

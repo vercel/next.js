@@ -1,7 +1,7 @@
 use std::{
     future::Future,
     ops::Deref,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Mutex},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -453,6 +453,63 @@ pub fn subscribe<
                 let result = handler()
                     .or_else(|e| ctx.throw_turbopack_internal_result(&e))
                     .await;
+
+                let status = func.call(result, ThreadsafeFunctionCallMode::NonBlocking);
+                if !matches!(status, Status::Ok) {
+                    let error = anyhow!("Error calling JS function: {}", status);
+                    eprintln!("{error}");
+                    return Err::<Vc<()>, _>(error);
+                }
+                Ok(Default::default())
+            }
+        }
+    });
+    Ok(External::new(SubscriptionTask {
+        turbopack_ctx: ctx,
+        task_id: Some(task_id),
+    }))
+}
+
+/// Like [`subscribe`], but only calls `func` when `handler` returns a value different from the
+/// last one it was called with. The root task also reruns when what it read changed and changed
+/// back while it was recomputed, which is not a change.
+pub fn subscribe_to_changes<
+    T: 'static + Send + Sync + PartialEq + Clone,
+    F: Future<Output = Result<T>> + Send,
+    V: 'static + ToNapiValue,
+>(
+    ctx: NextTurbopackContext,
+    env: &Env,
+    func: &FunctionRef<V, ()>,
+    handler: impl 'static + Sync + Send + Clone + Fn() -> F,
+    mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
+) -> napi::Result<External<SubscriptionTask>> {
+    let last = Arc::new(Mutex::new(None::<T>));
+    let js_func = func.borrow_back(env)?;
+    let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
+        .build_threadsafe_function::<T>()
+        .callee_handled::<true>()
+        .build_callback(mapper)?;
+    let func = Arc::new(func);
+    let task_id = ctx.turbo_tasks().spawn_root_task({
+        let ctx = ctx.clone();
+        move || {
+            let ctx = ctx.clone();
+            let handler = handler.clone();
+            let func = func.clone();
+            let last = last.clone();
+            async move {
+                let result = handler()
+                    .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+                    .await;
+
+                if let Ok(value) = &result {
+                    let mut last = last.lock().unwrap();
+                    if last.as_ref() == Some(value) {
+                        return Ok(Default::default());
+                    }
+                    *last = Some(value.clone());
+                }
 
                 let status = func.call(result, ThreadsafeFunctionCallMode::NonBlocking);
                 if !matches!(status, Status::Ok) {

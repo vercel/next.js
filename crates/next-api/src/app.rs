@@ -42,7 +42,7 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FixintU64, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
@@ -1872,14 +1872,20 @@ impl Endpoint for GoEndpoint {
         .cell())
     }
     #[turbo_tasks::function]
-    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .project()
             .server_changed(*self.output().await?.output_assets))
     }
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        Completion::immutable()
+    async fn lazy_server_changed(self: Vc<Self>, key: RcStr) -> Result<Vc<FixintU64>> {
+        Ok(self
+            .project()
+            .lazy_server_changed(*self.output().await?.output_assets, key))
+    }
+    #[turbo_tasks::function]
+    fn client_changed(self: Vc<Self>) -> Vc<FixintU64> {
+        Vc::cell(0)
     }
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries> {
@@ -2408,6 +2414,7 @@ impl AppEndpoint {
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
 
+        let mut dynamic_import_hmr_chunk_list = None;
         if runtime == NextRuntime::NodeJs
             && *project
                 .next_config()
@@ -2447,6 +2454,7 @@ impl AppEndpoint {
                 .to_resolved()
                 .await?;
             server_assets.insert(dynamic_import_hmr_chunks);
+            dynamic_import_hmr_chunk_list = Some(dynamic_import_hmr_chunks);
         }
 
         // these references are important for turbotrace
@@ -2756,6 +2764,7 @@ impl AppEndpoint {
                     rsc_chunk,
                     server_assets,
                     client_assets,
+                    dynamic_import_hmr_chunk_list,
                     first_load_chunks,
                 }
             }
@@ -3165,21 +3174,39 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .await?
             .app_project
             .project()
-            .server_changed(self.output().server_assets()))
+            .server_changed(self.output().changed_server_assets()))
     }
 
     #[turbo_tasks::function]
-    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<FixintU64>> {
         Ok(self
             .await?
             .app_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn lazy_server_changed(self: Vc<Self>, key: RcStr) -> Result<Vc<FixintU64>> {
+        Ok(self
+            .await?
+            .app_project
+            .project()
+            .lazy_server_changed(self.output().changed_server_assets(), key))
+    }
+
+    #[turbo_tasks::function]
+    async fn lazy_client_changed(self: Vc<Self>, key: RcStr) -> Result<Vc<FixintU64>> {
+        Ok(self
+            .await?
+            .app_project
+            .project()
+            .lazy_client_changed(self.output().client_assets(), key))
     }
 
     #[turbo_tasks::function]
@@ -3428,6 +3455,9 @@ enum AppEndpointOutput {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// The server HMR chunk list of the dynamic imports, which lists the chunks of activated
+        /// lazily compiled imports. It is in `server_assets`.
+        dynamic_import_hmr_chunk_list: Option<ResolvedVc<Box<dyn OutputAsset>>>,
         /// Only set for pages in production builds.
         first_load_chunks: Option<FirstLoadChunks>,
     },
@@ -3461,6 +3491,30 @@ impl AppEndpointOutput {
             AppEndpointOutput::NodeJs { server_assets, .. }
             | AppEndpointOutput::Edge { server_assets, .. } => *server_assets,
         }
+    }
+
+    /// [`AppEndpointOutput::server_assets`] without the server HMR chunk list of the dynamic
+    /// imports. Every chunk it lists is reachable from the other assets, but it also lists the
+    /// chunks of lazily compiled imports without going through their manifest chunks, so changes
+    /// to those would be reported as changes to the endpoint.
+    #[turbo_tasks::function]
+    pub async fn changed_server_assets(&self) -> Result<Vc<OutputAssets>> {
+        Ok(match *self {
+            AppEndpointOutput::NodeJs {
+                server_assets,
+                dynamic_import_hmr_chunk_list: Some(chunk_list),
+                ..
+            } => Vc::cell(
+                server_assets
+                    .await?
+                    .iter()
+                    .copied()
+                    .filter(|asset| *asset != chunk_list)
+                    .collect(),
+            ),
+            AppEndpointOutput::NodeJs { server_assets, .. }
+            | AppEndpointOutput::Edge { server_assets, .. } => *server_assets,
+        })
     }
 
     #[turbo_tasks::function]

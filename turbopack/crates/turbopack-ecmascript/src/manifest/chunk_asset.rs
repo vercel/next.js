@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
@@ -119,7 +119,7 @@ impl ManifestAsyncModule {
         // The same import can have different chunks depending on which modules its parent
         // already provides. Keep those chunk lists distinct without hashing their contents,
         // so their paths remain stable when chunks are added or removed during HMR.
-        let ident = if let Some(availability_ident) = this.availability_info.ident().await? {
+        let ident = if let Some(availability_ident) = self.availability_ident().owned().await? {
             ident
                 .owned()
                 .await?
@@ -132,6 +132,22 @@ impl ManifestAsyncModule {
             ident,
             *self.chunk_group().await?.assets,
             HmrChunkListSource::Dynamic,
+        ))
+    }
+
+    /// Distinguishes the chunks and chunk lists of the same import with different availability.
+    /// For a lazily compiled import it identifies the available modules rather than the available
+    /// chunk groups: activating any import changes the module graph, which can change the
+    /// identity of the parent's chunk groups, and the manifest chunk's name is referenced from the
+    /// parent's chunks.
+    #[turbo_tasks::function]
+    async fn availability_ident(&self) -> Result<Vc<Option<RcStr>>> {
+        Ok(Vc::cell(
+            if ResolvedVc::try_downcast_type::<LazyCompilationProxyModule>(self.inner).is_some() {
+                self.availability_info.modules_ident().await?
+            } else {
+                self.availability_info.ident().await?
+            },
         ))
     }
 
@@ -149,7 +165,7 @@ impl ManifestAsyncModule {
     pub async fn content_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let ident = self.ident();
         Ok(
-            if let Some(availability_ident) = self.await?.availability_info.ident().await? {
+            if let Some(availability_ident) = self.availability_ident().owned().await? {
                 ident
                     .owned()
                     .await?
