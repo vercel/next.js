@@ -339,9 +339,9 @@ describe('build-output-prerender', () => {
            This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
-             - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+             - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value on the client with \`"use client"\`
+             - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (app/server/page.tsx:13:27)
@@ -387,9 +387,9 @@ describe('build-output-prerender', () => {
            This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
-             - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+             - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value on the client with \`"use client"\`
+             - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)

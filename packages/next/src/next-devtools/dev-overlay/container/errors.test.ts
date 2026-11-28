@@ -691,6 +691,48 @@ describe('card sets for all error families', () => {
     ])
   })
 
+  it.each<[SyncIOApiType, string]>([
+    ['time', 'Date.now()'],
+    ['random', 'Math.random()'],
+    ['crypto', 'crypto.randomUUID()'],
+  ])('distinguishes server and client sync IO fixes for %s', (type, cause) => {
+    const serverCards = getCards('sync-io', 'runtime', cause)
+    expect(serverCards[0].snippets).toContainEqual({
+      text: 'await io()',
+      highlight: true,
+    })
+    const clientExample = serverCards
+      .find((card) => card.group === 'client')
+      ?.snippets.map(({ text }) => text)
+      .join('\n')
+    expect(clientExample).toMatch(
+      /<Suspense fallback=.*>\s+<\w+ \/>\s+<\/Suspense>/
+    )
+
+    for (const factory of [createSyncIOError, createSyncIORuntimeError]) {
+      const message = factory(ROUTE, cause, type).message
+      expect(message).toContain('`await io()` before this read')
+      expect(message).toContain(
+        'Client Component and wrap it in a parent `<Suspense>` boundary'
+      )
+    }
+
+    const clientCards = getCards('sync-io-client', 'runtime', cause)
+    expect(clientCards[0]).toMatchObject({
+      id: 'wrap-in-or-move-into-suspense',
+      group: 'stream',
+    })
+    const handler = clientCards
+      .find((card) => card.group === 'defer')
+      ?.snippets.map(({ text }) => text)
+      .join('\n')
+      .match(/onClick=\{\(\) => \{([^}]+)\}/)?.[1]
+    expect(handler).toContain(cause)
+    expect(createSyncIOClientError(ROUTE, cause, type).message).toContain(
+      '[stream] Wrap the Client Component in `<Suspense fallback={...}>`'
+    )
+  })
+
   it('sync-io math', () => {
     expect(
       getCards('sync-io', 'runtime', 'Math.random()').map((card) => card.id)

@@ -34,9 +34,9 @@ function createSyncIOErrorImpl(
     `Route "${route}": Next.js encountered the unstable value ${expression} while prerendering.\n\n` +
       `This value can change between renders, so it must be either prerendered or computed later.\n\n` +
       `Ways to fix this:\n` +
-      `  - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
+      `  - [dynamic] Render at request time by calling \`await io()\` before this read inside a parent \`<Suspense>\` boundary\n` +
       `  - [cache] Prerender and cache the value with \`"use cache"\`\n` +
-      `  - [client] Render the value on the client with \`"use client"\`` +
+      `  - [client] Move the read into a Client Component and wrap it in a parent \`<Suspense>\` boundary` +
       elapsedTimeBullet(type) +
       `\n\nLearn more: ${docsUrl}`
   )

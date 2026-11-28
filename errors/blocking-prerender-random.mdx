@@ -34,9 +34,8 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     title="Generate on every request"
     href="#generate-on-every-request"
     snippets={[
-      { text: 'await connection()', highlight: true },
-      { text: 'const id = Math.random()' },
-      { text: 'return <Item id={id} />' },
+      { text: 'await io()', highlight: true },
+      { text: 'return Math.random()' },
     ]}
   />
   <FixCard
@@ -44,9 +43,8 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     title="Cache the random value"
     href="#cache-the-random-value"
     snippets={[
-      { text: 'function RandomId() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return String(Math.random())' },
+      { text: '"use cache"', highlight: true },
+      { text: 'return Math.random()' },
     ]}
   />
   <FixCard
@@ -54,9 +52,9 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = Math.random()' },
+      { text: '<Suspense fallback={initials}>', highlight: true },
+      { text: '  <Avatar />' },
+      { text: '</Suspense>' },
     ]}
   />
 </FixCardGrid>
@@ -193,9 +191,21 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the random value belongs to the client experience. A canvas seed for a confetti animation, a random color for an avatar placeholder, a UI nonce that only matters in the browser. Read the value after mount or in an event handler. [Client Components also render on the server](/docs/app/getting-started/server-and-client-components#on-the-server).
+Choose this fix when the random value is part of the client UI, such as an avatar color. Move the read into a [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) and wrap it in a parent `<Suspense>` boundary.
 
 ### Patterns
+
+#### Move the component to the client
+
+If `Avatar` calls `Math.random()` during render, add `'use client'` to its file. In the parent, wrap just `<Avatar />` so the rest of the page can prerender:
+
+```jsx filename="app/page.js"
+<Suspense fallback={initials}>
+  <Avatar />
+</Suspense>
+```
+
+Learn more: [Place Suspense above the Client Component](/docs/messages/blocking-prerender-random-client#place-suspense-above-the-client-component).
 
 #### Compute the value inside `useEffect`
 
@@ -209,9 +219,7 @@ import { startTransition, useEffect, useState } from 'react'
 export function Avatar() {
   const [color, setColor] = useState('#888')
   useEffect(() => {
-    // Wrap in startTransition so that if any component below suspends
-    // during this update, React keeps the existing UI visible instead
-    // of flashing the nearest outer <Suspense> fallback.
+    // Keep the current UI visible if this update suspends.
     startTransition(() => {
       setColor(`#${Math.random().toString(16).slice(2, 8).padEnd(6, '0')}`)
     })
@@ -219,6 +227,8 @@ export function Avatar() {
   return <div style={{ background: color }} />
 }
 ```
+
+Learn more: [Generate a new shuffle seed on click](/docs/messages/blocking-prerender-random-client#compute-on-user-interaction).
 
 #### Pass a server-generated value to the client
 
@@ -228,11 +238,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-When you read the value in an effect, the first paint shows the initial state until the effect runs. Passing a server-generated value as a prop lets the server and the browser render the same value from the start. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The prerendered page shows the fallback. If you generate the color in an effect, it shows the initial color until the effect runs. Passing a server-generated value as a prop lets the server and the browser render the same value from the start. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- If a Client Component calls `Math.random()` during render, [wrap the component in `<Suspense>`](/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense). The boundary gives the prerender a fallback.
+- [Client Components can still render on the server](/docs/app/getting-started/server-and-client-components#on-the-server). A Suspense boundary alone does not make an API browser-only.
 
 ## When the read comes from an external library
 

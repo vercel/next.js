@@ -75,6 +75,13 @@ describe('dev indicator - Hide DevTools Button', () => {
     const browser = await next.browser('/')
     await toggleDevToolsIndicatorPopover(browser)
     await browser.elementByCss('[data-preferences]').click()
+    // The outgoing menu keeps its outside-click handler during its exit
+    // animation. Wait for it to unmount before clicking inside Preferences.
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('[data-preferences]')).toBe(
+        false
+      )
+    })
     expect(
       await browser.elementByCss('.indicator-preference').text()
     ).toContain('Shortcut')
