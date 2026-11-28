@@ -17,7 +17,6 @@ async function fetchAPI(query, { variables, preview } = {}) {
   const json = await res.json();
 
   if (json.errors) {
-    console.log(process.env.NEXT_EXAMPLE_CMS_GCMS_PROJECT_ID);
     console.error(json.errors);
     throw new Error("Failed to fetch API");
   }
