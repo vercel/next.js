@@ -1,0 +1,13 @@
+import type { Payload } from './type-only'
+
+enum Offset {
+  Base = 40,
+}
+
+export function typedValue(input: number): string {
+  const payload: Payload = {
+    label: 'custom-before',
+    value: input + Offset.Base,
+  }
+  return `${payload.label}:${payload.value}`
+}
