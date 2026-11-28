@@ -196,6 +196,7 @@ export function checkCustomRoutes(
     if (
       type === 'rewrite' &&
       (route as Rewrite).basePath === false &&
+      typeof (route as Rewrite).destination === 'string' &&
       !(
         (route as Rewrite).destination.startsWith('http://') ||
         (route as Rewrite).destination.startsWith('https://')
