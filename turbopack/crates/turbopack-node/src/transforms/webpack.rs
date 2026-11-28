@@ -95,6 +95,15 @@ struct WebpackLoadersProcessingResult {
 
 use turbopack_core::loader::WebpackLoaderItems;
 
+/// Serialize a loader chain once for all modules that use the same configuration.
+///
+/// The task key is the shared `WebpackLoaderItems` value, so distinct loader chains
+/// remain distinct and changes to the chain produce a new serialization.
+#[turbo_tasks::function]
+async fn webpack_loader_options(loaders: Vc<WebpackLoaderItems>) -> Result<Vc<JsonValue>> {
+    Ok(Vc::cell(json!(*loaders.await?)))
+}
+
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -487,6 +496,7 @@ impl WebpackLoadersProcessedAsset {
             let source_ident = self.source.ident().await?;
             let resource_fs_path = &source_ident.path;
             let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
+            let loader_options = webpack_loader_options(*transform.loaders);
 
             // TODO pass this into additional_invalidation again once we have proper pool handling
             //
@@ -521,7 +531,7 @@ impl WebpackLoadersProcessedAsset {
                     EvaluateArg::Path(resource_fs_path.clone()),
                     // We need to pass the query string to the loader
                     EvaluateArg::Vc(ResolvedVc::cell(source_ident.query.to_string().into())),
-                    EvaluateArg::Vc(ResolvedVc::cell(json!(*loaders))),
+                    EvaluateArg::Vc(loader_options.to_resolved().await?),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.target.await?.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.mode.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.source_maps.into())),
@@ -727,6 +737,88 @@ pub(super) struct WebpackLoaderContext {
     /// Used to enrich error messages and issue details so users know which
     /// loader chain was running when an error occurred.
     pub(super) loader_names: Vec<RcStr>,
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use serde_json::Value as JsonValue;
+    use turbo_tasks::{OrderedJsonMap, ResolvedVc, Vc};
+    use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
+    use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
+
+    use super::webpack_loader_options;
+
+    static REGISTRATION: Registration = register!();
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn webpack_loader_options_are_shared_by_configuration() {
+        run_once_without_cache_check(&REGISTRATION, async {
+            #[turbo_tasks::function(operation, root)]
+            async fn read_loader_options(
+                loaders: ResolvedVc<WebpackLoaderItems>,
+            ) -> Result<Vc<JsonValue>> {
+                Ok(webpack_loader_options(*loaders))
+            }
+
+            let first_options: OrderedJsonMap =
+                serde_json::from_str(r#"{"first":1,"second":2}"#).unwrap();
+            let first_loaders = WebpackLoaderItems(vec![
+                WebpackLoaderItem {
+                    loader: "loader-a".into(),
+                    options: first_options,
+                },
+                WebpackLoaderItem {
+                    loader: "loader-b".into(),
+                    options: OrderedJsonMap::new(),
+                },
+            ])
+            .cell();
+            let first = webpack_loader_options(first_loaders);
+            let same_configuration = webpack_loader_options(first_loaders);
+
+            assert_eq!(
+                Vc::into_raw(first),
+                Vc::into_raw(same_configuration),
+                "the same loader configuration should reuse its serialized task output"
+            );
+            assert_eq!(
+                &*read_loader_options(first_loaders.to_resolved().await?)
+                    .read_strongly_consistent()
+                    .await?,
+                &serde_json::json!([
+                    {"loader":"loader-a","options":{"first":1,"second":2}},
+                    {"loader":"loader-b","options":{}}
+                ])
+            );
+
+            let second_loaders = WebpackLoaderItems(vec![
+                WebpackLoaderItem {
+                    loader: "loader-a".into(),
+                    options: serde_json::from_str(r#"{"first":3,"second":2}"#).unwrap(),
+                },
+                WebpackLoaderItem {
+                    loader: "loader-b".into(),
+                    options: OrderedJsonMap::new(),
+                },
+            ])
+            .cell();
+            let second = webpack_loader_options(second_loaders);
+            assert_ne!(Vc::into_raw(first), Vc::into_raw(second));
+            assert_eq!(
+                &*read_loader_options(second_loaders.to_resolved().await?)
+                    .read_strongly_consistent()
+                    .await?,
+                &serde_json::json!([
+                    {"loader":"loader-a","options":{"first":3,"second":2}},
+                    {"loader":"loader-b","options":{}}
+                ])
+            );
+            Ok::<(), anyhow::Error>(())
+        })
+        .await
+        .unwrap();
+    }
 }
 
 impl WebpackLoaderContext {
