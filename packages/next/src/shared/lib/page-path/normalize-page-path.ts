@@ -1,5 +1,5 @@
 import { ensureLeadingSlash } from './ensure-leading-slash'
-import { isDynamicRoute } from '../router/utils'
+import { isDynamicRoute } from '../router/utils/is-dynamic'
 import { NormalizeError } from '../utils'
 
 /**

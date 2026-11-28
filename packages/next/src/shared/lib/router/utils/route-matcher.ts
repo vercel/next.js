@@ -1,7 +1,7 @@
 import type { Group } from './route-regex'
 import { DecodeError } from '../../utils'
 import type { Params } from '../../../../server/request/params'
-import { safeRouteMatcher } from './route-match-utils'
+import { stripParameterSeparators } from '../../../../lib/route-pattern-normalizer'
 
 export interface RouteMatchFn {
   (pathname: string): false | Params
@@ -18,7 +18,7 @@ export function getRouteMatcher({
   re,
   groups,
 }: RouteMatcherOptions): RouteMatchFn {
-  const rawMatcher = (pathname: string) => {
+  return (pathname: string) => {
     const routeMatch = re.exec(pathname)
     if (!routeMatch) return false
 
@@ -42,9 +42,8 @@ export function getRouteMatcher({
       }
     }
 
-    return params
+    // Remove the separators that route pattern normalization inserts between
+    // adjacent parameters.
+    return stripParameterSeparators(params)
   }
-
-  // Wrap with safe matcher to handle parameter cleaning
-  return safeRouteMatcher(rawMatcher)
 }
