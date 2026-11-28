@@ -2,6 +2,7 @@ import type { Linter, Rule } from 'eslint'
 
 import googleFontDisplay from './rules/google-font-display'
 import googleFontPreconnect from './rules/google-font-preconnect'
+import imageAltText from './rules/image-alt-text'
 import inlineScriptId from './rules/inline-script-id'
 import nextScriptForGa from './rules/next-script-for-ga'
 import noAssignModuleVariable from './rules/no-assign-module-variable'
@@ -27,6 +28,7 @@ const recommendedRules = {
   // warnings
   '@next/next/google-font-display': 'warn',
   '@next/next/google-font-preconnect': 'warn',
+  '@next/next/image-alt-text': 'warn',
   '@next/next/next-script-for-ga': 'warn',
   '@next/next/no-async-client-component': 'warn',
   '@next/next/no-before-interactive-script-outside-document': 'warn',
@@ -62,6 +64,7 @@ const plugin = {
   rules: {
     'google-font-display': googleFontDisplay,
     'google-font-preconnect': googleFontPreconnect,
+    'image-alt-text': imageAltText,
     'inline-script-id': inlineScriptId,
     'next-script-for-ga': nextScriptForGa,
     'no-assign-module-variable': noAssignModuleVariable,

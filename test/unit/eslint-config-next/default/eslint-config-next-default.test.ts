@@ -55,6 +55,9 @@ describe('eslint-config-next', () => {
          "@next/next/google-font-preconnect": [
            1,
          ],
+         "@next/next/image-alt-text": [
+           1,
+         ],
          "@next/next/inline-script-id": [
            2,
          ],
@@ -123,9 +126,6 @@ describe('eslint-config-next', () => {
            {
              "elements": [
                "img",
-             ],
-             "img": [
-               "Image",
              ],
            },
          ],
