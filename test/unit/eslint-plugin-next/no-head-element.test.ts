@@ -57,6 +57,21 @@ const tests = {
     `,
       filename: './app/layout.js',
     },
+    {
+      code: `
+      export default function Layout({ children }) {
+        return (
+          <html>
+            <head>
+              <title>layout</title>
+            </head>
+            <body>{children}</body>
+          </html>
+        );
+      }
+    `,
+      filename: './src/app/layout.js',
+    },
   ],
   invalid: [
     {
@@ -98,6 +113,63 @@ const tests = {
         }
       }`,
       filename: 'pages/index.ts',
+      errors: [
+        {
+          message,
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      export default function Home() {
+        return (
+          <html>
+            <head>
+              <title>Home</title>
+            </head>
+          </html>
+        );
+      }`,
+      filename: '/tmp/repro/webapp/pages/index.jsx',
+      errors: [
+        {
+          message,
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      export default function Home() {
+        return (
+          <html>
+            <head>
+              <title>Home</title>
+            </head>
+          </html>
+        );
+      }`,
+      filename: '/srv/app/monorepo/apps/manager/pages/index.jsx',
+      errors: [
+        {
+          message,
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      export default function Home() {
+        return (
+          <html>
+            <head>
+              <title>Home</title>
+            </head>
+          </html>
+        );
+      }`,
+      filename: 'pages/app/index.jsx',
       errors: [
         {
           message,
