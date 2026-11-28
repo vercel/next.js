@@ -52,11 +52,20 @@ Internal refactors still get listed and linked, but kept short.
    - The script prints the resolved window, e.g. `2026-11-10 to 2026-11-17`.
      Pass it back as `--since`/`--until` on re-runs, so the window doesn't
      move.
+   - **Run it right after the window ends:** GitHub finds open PRs by their
+     latest update, so a later run misses open PRs that were updated again
+     after the window.
    - The script writes these files:
-     - `prs.json`: window, counts and PRs.
+     - `prs.json`: window, counts, PRs and skipped PRs.
      - `index.md`: one line per PR, with 📊 when the description contains
-       numbers.
+       numbers, and the skipped PRs at the end.
      - `bodies/NN.md`: descriptions in chunks.
+   - **Rebase-only updates are skipped:** an open or draft PR created before
+     the window is left out when its commits were re-committed in the window
+     (committer date) but none was authored in it (author date). PRs updated
+     only by comments, reviews or edits are kept. Checking costs one `gh api`
+     request per open PR created before the window. A commit amended in the
+     window keeps its old author date, so it counts as a rebase too.
    - **Permissions:** `gh` needs read access to the repo's pull requests. An
      HTTP 403 means that permission is missing; get it, then re-run.
    - **Output directory:** the script never deletes anything and refuses a
@@ -125,8 +134,10 @@ Internal refactors still get listed and linked, but kept short.
    ```
 
    - The checker verifies the following:
-     - every PR has exactly one status item;
-     - status emojis, links and owners match `prs.json`;
+     - every PR has exactly one status item, and skipped PRs have none;
+     - statuses, links and owners match `prs.json`;
+     - each category lists merged, then open, then draft items;
+     - each PR link comes right after its own description;
      - the title window and the totals match `prs.json`;
      - the structure follows the format below;
      - every 📊 line belongs to a PR of the item above it;
@@ -144,25 +155,29 @@ placeholder PRs and owners:
 ```markdown
 # <Team> PRs: <since>–<until>
 
-Legend: ✅ merged · 🔄 open · 📝 draft · 💥 breaking · ❓ decision needed · ☑️ decided · 📊 benchmark
-**Totals:** <n> ✅ · <n> 🔄 · <n> 📝
+Legend: :merged: merged · :pull-request: open · :pr-draft: draft · 💥 breaking · ❓ decision needed · ☑️ decided · 📊 benchmark
+**Totals:** <n> :merged: · <n> :pull-request: · <n> :pr-draft:
 
 - **Config** (@owner-a)
-  - 🔄 💥 Removes the deprecated `foo` option; apps using it must switch to `bar` [#10001](https://github.com/vercel/next.js/pull/10001)
-    - ❓ Ship in the next minor, or wait for the major?
-  - ✅ New opt-in `baz` option [#10002](…)
+  - :merged: New opt-in `baz` option [#10002](…)
     - ☑️ Off by default, as agreed in review
+  - :pull-request: 💥 Removes the deprecated `foo` option; apps using it must switch to `bar` [#10001](https://github.com/vercel/next.js/pull/10001)
+    - ❓ Ship in the next minor, or wait for the major?
 - **Dev server** (@owner-b)
-  - 📝 Faster first request after startup [#10003](…) [#10004](…)
+  - :merged: Internal: cache cleanup [#10005](…), loader cleanup [#10006](…)
+  - :pr-draft: Faster first request after startup [#10003](…), fewer reloads [#10004](…)
     - 📊 #10003: first response −0.5 s (large app, cold, 16 CPUs)
-  - ✅ Internal: cache and loader cleanup [#10005](…) [#10006](…)
 ```
 
 - **Category:** a top-level item `- **<Category>** (@owner)`, or
   `(@a, @b)` for two owners who share a PR.
-- **PR item:** nested two spaces, written `- <status> [💥] <change> <links>`:
-  - The status emoji comes first: ✅ merged, 🔄 open, 📝 draft. The PRs in one
-    item must share a status.
+- **PR item:** nested two spaces, written
+  `- <status> [💥] <change> <link>, <change> <link>`:
+  - The status comes first: `:merged:`, `:pull-request:` (open) or
+    `:pr-draft:`. The PRs in one item must share a status.
+  - Put each PR link right after the description of that PR, never several
+    descriptions followed by several links. Several PRs that do the same
+    thing may share an item, each with its own short description.
   - Describe the change as a user sees it. Prefix internal-only items with
     "Internal:" and merge them into few items.
   - Add 💥 only for breaking changes as defined above, and say what breaks
@@ -173,8 +188,9 @@ Legend: ✅ merged · 🔄 open · 📝 draft · 💥 breaking · ❓ decision n
   - `📊 #N: <benchmark>`: one line per measured PR, where `#N` is one of the
     PRs of the item above. Include the setup and any regression or caveat.
     Mentioning another PR inside the line, e.g. a stacked base, is fine.
-- **Order:** within a category, list breaking changes and decisions first,
-  then user-visible changes, then internal ones.
+- **Order:** within a category, list merged items first, then open, then
+  draft. Within each status, list breaking changes and decisions first, then
+  user-visible changes, then internal ones.
 - **Links:** link every PR number as `[#N](https://github.com/<repo>/pull/N)`.
 - **Users:** put `@` in front of every GitHub user name.
 - **Length:** at most 200 lines, including the title and legend. To save

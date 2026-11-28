@@ -8,13 +8,20 @@
 // still open and was updated in the window. The window is a range of whole
 // UTC calendar days and both ends are inclusive. By default it ends today
 // (UTC) and starts `--days` days earlier. Pass `--since`/`--until` to pin it,
-// so that re-running gives the same window. Then it writes:
+// so that re-running gives the same window.
 //
-//   <out>/prs.json      { window, repo, authors, counts, prs[] }, where each
-//                       PR has number, url, title, author, status
+// Open and draft PRs whose only update in the window was a rebase are skipped:
+// they were created before the window, and their commits were re-committed in
+// the window (committer date) but none was authored in it (author date).
+// Checking costs one `gh api` request per open PR created before the window.
+//
+// Then it writes:
+//
+//   <out>/prs.json      { window, repo, authors, counts, prs[], skipped[] },
+//                       where each PR has number, url, title, author, status
 //                       (merged | open | draft), hasNumbers and body
-//   <out>/index.md      one line per PR, sorted by author then number. Use it
-//                       to pick categories and owners.
+//   <out>/index.md      one line per PR, sorted by author then number, and
+//                       the skipped PRs. Use it to pick categories and owners.
 //   <out>/bodies/NN.md  PR descriptions in chunks of --chunk PRs, used to extract
 //                       user-visible changes, decisions and benchmarks.
 //
@@ -22,7 +29,8 @@
 // deleted. Without `--out`, a fresh temporary directory is created.
 //
 // Needs an authenticated `gh` CLI with read access to the repo's pull
-// requests. Each author costs two `gh search prs` requests.
+// requests. Each author costs two `gh search prs` requests, plus the commit
+// checks above.
 import { execFileSync } from 'child_process'
 import fs from 'fs'
 import os from 'os'
@@ -107,7 +115,7 @@ export function parseArgs(argv, now = Date.now()) {
   return { authors, repo, chunk, since, until, out: raw['--out'] ?? null }
 }
 
-const FIELDS = 'number,title,body,author,isDraft,state,url'
+const FIELDS = 'number,title,body,author,isDraft,state,url,createdAt'
 
 // One search per author and kind. `runGh` takes the gh arguments and returns
 // stdout. Tests pass a fake.
@@ -136,6 +144,35 @@ export function searchArgs(repo, author, kind, since, until) {
 const NUMBERS_RE =
   /\d(\.\d+)?\s?(%|×|x\b|ms\b|µs\b|ns\b|s\b|MiB|GiB|MB|GB|KB|KiB)|→|->\s*\d/
 
+// The window covers whole UTC days, both ends inclusive.
+export function inWindow(iso, since, until) {
+  const t = Date.parse(iso)
+  return (
+    t >= Date.parse(`${since}T00:00:00Z`) &&
+    t < Date.parse(`${until}T00:00:00Z`) + DAY_MS
+  )
+}
+
+export function commitsArgs(repo, number) {
+  return [
+    'api',
+    '--paginate',
+    `repos/${repo}/pulls/${number}/commits?per_page=100`,
+    '--jq',
+    '.[] | [.commit.author.date, .commit.committer.date] | @tsv',
+  ]
+}
+
+// `commits` is a list of { authored, committed } ISO dates. A rebase keeps
+// the author date of each commit and only changes the committer date.
+export function isRebaseOnly(pr, commits, since, until) {
+  if (inWindow(pr.createdAt, since, until)) return false
+  return (
+    commits.some((c) => inWindow(c.committed, since, until)) &&
+    !commits.some((c) => inWindow(c.authored, since, until))
+  )
+}
+
 export function collectPrs(args, runGh) {
   const byNumber = new Map()
   for (const author of args.authors) {
@@ -153,12 +190,17 @@ export function collectPrs(args, runGh) {
       for (const pr of results) {
         const status =
           kind === 'merged' ? 'merged' : pr.isDraft ? 'draft' : 'open'
+        // A PR found by both searches was merged in the window.
+        if (byNumber.get(pr.number)?.status === 'merged') continue
         byNumber.set(pr.number, { ...pr, status })
       }
     }
   }
-  return [...byNumber.values()]
-    .map((pr) => ({
+
+  const prs = []
+  const skipped = []
+  for (const pr of byNumber.values()) {
+    const entry = {
       number: pr.number,
       url: pr.url,
       title: pr.title.trim(),
@@ -166,12 +208,31 @@ export function collectPrs(args, runGh) {
       status: pr.status,
       hasNumbers: NUMBERS_RE.test(pr.body || ''),
       body: pr.body || '',
-    }))
-    .sort((a, b) =>
-      a.author === b.author
-        ? a.number - b.number
-        : a.author.localeCompare(b.author)
-    )
+    }
+    if (
+      pr.status !== 'merged' &&
+      !inWindow(pr.createdAt, args.since, args.until)
+    ) {
+      const commits = runGh(commitsArgs(args.repo, pr.number))
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const [authored, committed] = line.split('\t')
+          return { authored, committed }
+        })
+      if (isRebaseOnly(pr, commits, args.since, args.until)) {
+        const { body, hasNumbers, ...rest } = entry
+        skipped.push({ ...rest, reason: 'rebase only' })
+        continue
+      }
+    }
+    prs.push(entry)
+  }
+  const byAuthor = (a, b) =>
+    a.author === b.author
+      ? a.number - b.number
+      : a.author.localeCompare(b.author)
+  return { prs: prs.sort(byAuthor), skipped: skipped.sort(byAuthor) }
 }
 
 // Never deletes anything: refuses a non-empty existing directory.
@@ -194,7 +255,7 @@ export function prepareOutDir(out) {
   return out
 }
 
-export function writeOutput(args, prs, out) {
+export function writeOutput(args, { prs, skipped }, out) {
   fs.mkdirSync(path.join(out, 'bodies'))
   const counts = { merged: 0, open: 0, draft: 0 }
   for (const pr of prs) counts[pr.status]++
@@ -202,7 +263,7 @@ export function writeOutput(args, prs, out) {
   fs.writeFileSync(
     path.join(out, 'prs.json'),
     JSON.stringify(
-      { window, repo: args.repo, authors: args.authors, counts, prs },
+      { window, repo: args.repo, authors: args.authors, counts, prs, skipped },
       null,
       2
     ) + '\n'
@@ -213,6 +274,7 @@ export function writeOutput(args, prs, out) {
     '',
     `Window: ${args.since} to ${args.until} (UTC days, inclusive)`,
     `Totals: ${counts.merged} merged, ${counts.open} open, ${counts.draft} draft`,
+    `Skipped: ${skipped.length} open or draft PRs whose only update was a rebase`,
   ]
   const index = [
     ...header,
@@ -221,6 +283,16 @@ export function writeOutput(args, prs, out) {
       (pr) =>
         `- ${pr.status}\t#${pr.number}\t@${pr.author}\t${pr.hasNumbers ? '📊' : ''}\t${pr.title}`
     ),
+    ...(skipped.length
+      ? [
+          '',
+          '## Skipped (rebase only, leave out of the summary)',
+          '',
+          ...skipped.map(
+            (pr) => `- ${pr.status}\t#${pr.number}\t@${pr.author}\t${pr.title}`
+          ),
+        ]
+      : []),
     '',
   ].join('\n')
   fs.writeFileSync(path.join(out, 'index.md'), index)
@@ -269,10 +341,10 @@ function main() {
   // Check the output directory before spending any GitHub requests. A failed
   // query leaves at most an empty directory behind.
   const out = prepareOutDir(args.out)
-  const prs = collectPrs(args, runGh)
-  const { header } = writeOutput(args, prs, out)
+  const result = collectPrs(args, runGh)
+  const { header } = writeOutput(args, result, out)
   console.log(header.join('\n'))
-  console.log(`Wrote ${prs.length} PRs to ${out}`)
+  console.log(`Wrote ${result.prs.length} PRs to ${out}`)
 }
 
 if (

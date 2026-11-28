@@ -10,11 +10,15 @@
 //
 //   # <Team> PRs: <since>–<until>              title with the window
 //   Legend: …                                  free text before the first category
-//   **Totals:** <n> ✅ · <n> 🔄 · <n> 📝         must match prs.json
+//   **Totals:** <n> :merged: · <n> :pull-request: · <n> :pr-draft:
+//                                              must match prs.json
 //
 //   - **<Category>** (@owner)                  category: top level, 1–2 owners
-//     - ✅ <change> [#123](<url>) …             PR item: status emoji, then links
-//       - 📊 #123: <benchmark>                  details: 📊 / ❓ / ☑️ / free text
+//     - :merged: <change> [#1](<url>), <change> [#2](<url>)
+//                                              PR item: status, then each change
+//                                              followed by its own link; merged,
+//                                              then open, then draft items
+//       - 📊 #1: <benchmark>                    details: 📊 / ❓ / ☑️ / free text
 //
 // The checker can't verify judgement calls: whether something is really
 // breaking, whether a decision is real, or whether two owners share a PR.
@@ -23,13 +27,21 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 
 export const HARD_MAX_LINES = 200
-const STATUS = { '✅': 'merged', '🔄': 'open', '📝': 'draft' }
+const STATUS = {
+  ':merged:': 'merged',
+  ':pull-request:': 'open',
+  ':pr-draft:': 'draft',
+}
+const RANK = { merged: 0, open: 1, draft: 2 }
 const CATEGORY_RE = /^- \*\*(.+?)\*\* \((@[\w-]+(?:, @[\w-]+)?)\)\s*$/
-const PR_ITEM_RE = /^ {2}- (✅|🔄|📝) \S/
+const PR_ITEM_RE = /^ {2}- (:merged:|:pull-request:|:pr-draft:) (.*)$/
 const DETAIL_RE = /^ {4}- \S/
 const LINK_RE = /\[#(\d+)\]\(([^)\s]+)\)/g
 const BENCH_RE = /^ {4}- 📊 \[?#(\d+)\b/
-const TOTALS_RE = /\*\*Totals:\*\* (\d+) ✅ · (\d+) 🔄 · (\d+) 📝/
+const TOTALS_RE =
+  /\*\*Totals:\*\* (\d+) :merged: · (\d+) :pull-request: · (\d+) :pr-draft:/
+// Two PR links with nothing but punctuation between them.
+const LINK_RUN_RE = /\]\([^)\s]+\)[\s,;·&]*(?:and\s+)?\[#\d+\]\(/
 
 export const USAGE =
   'Usage: node check-summary.mjs --prs <prs.json> --doc <summary.md> [--max-lines 200]'
@@ -47,6 +59,7 @@ export function checkSummary(data, doc, { maxLines = HARD_MAX_LINES } = {}) {
   const errors = []
   const warnings = []
   const prs = new Map(data.prs.map((pr) => [pr.number, pr]))
+  const skipped = new Set((data.skipped ?? []).map((pr) => pr.number))
   const lines = doc.replace(/\n$/, '').split('\n')
 
   if (lines.length > maxLines) {
@@ -69,7 +82,9 @@ export function checkSummary(data, doc, { maxLines = HARD_MAX_LINES } = {}) {
   }
   const totalsLine = lines.find((l) => TOTALS_RE.test(l))
   if (!totalsLine) {
-    errors.push('missing "**Totals:** <n> ✅ · <n> 🔄 · <n> 📝" line')
+    errors.push(
+      'missing "**Totals:** <n> :merged: · <n> :pull-request: · <n> :pr-draft:" line'
+    )
   } else {
     const [, merged, open, draft] = totalsLine.match(TOTALS_RE).map(Number)
     const actual = { merged: 0, open: 0, draft: 0 }
@@ -89,6 +104,7 @@ export function checkSummary(data, doc, { maxLines = HARD_MAX_LINES } = {}) {
   const seen = new Set()
   const benchmarked = new Set()
   let owners = null // owners of the current category
+  let rank = 0 // highest status rank seen so far in the current category
   let item = null // PR numbers of the current PR item
   let inBody = false // past the first category
 
@@ -122,6 +138,7 @@ export function checkSummary(data, doc, { maxLines = HARD_MAX_LINES } = {}) {
     if (line.startsWith('- ')) {
       inBody = true
       item = null
+      rank = 0
       const m = line.match(CATEGORY_RE)
       if (!m) {
         errors.push(
@@ -139,7 +156,7 @@ export function checkSummary(data, doc, { maxLines = HARD_MAX_LINES } = {}) {
       const status = line.match(PR_ITEM_RE)
       if (!status) {
         errors.push(
-          `${at}: PR items must start with ✅, 🔄 or 📝: ${line.slice(0, 80)}`
+          `${at}: PR items must start with :merged:, :pull-request: or :pr-draft:, got: ${line.slice(0, 80)}`
         )
         return
       }
@@ -147,17 +164,33 @@ export function checkSummary(data, doc, { maxLines = HARD_MAX_LINES } = {}) {
         errors.push(`${at}: PR item outside of a category`)
         return
       }
+      const itemRank = RANK[STATUS[status[1]]]
+      if (itemRank < rank) {
+        errors.push(
+          `${at}: list merged, then open, then draft items in each category`
+        )
+      }
+      rank = Math.max(rank, itemRank)
       const links = [...line.matchAll(LINK_RE)]
       if (links.length === 0) {
         errors.push(`${at}: PR item without a PR link`)
         return
+      }
+      if (/^(?:💥\s*)?\[#\d+\]/.test(status[2]) || LINK_RUN_RE.test(line)) {
+        errors.push(
+          `${at}: put each PR link right after the description of that PR`
+        )
       }
       item = new Set()
       for (const [, n, url] of links) {
         const num = Number(n)
         const pr = checkLink(at, num, url)
         if (!pr) {
-          errors.push(`${at}: #${num} is not in prs.json`)
+          errors.push(
+            skipped.has(num)
+              ? `${at}: #${num} was skipped as a rebase-only update; leave it out`
+              : `${at}: #${num} is not in prs.json`
+          )
           continue
         }
         item.add(num)
