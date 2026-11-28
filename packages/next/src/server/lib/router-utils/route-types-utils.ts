@@ -32,7 +32,7 @@ import type {
 // Internal route info with extracted params for the manifest
 interface ManifestRouteInfo {
   path: string
-  groups: { [groupName: string]: Group }
+  routeParams: { [paramName: string]: Group }
 }
 
 export interface RouteTypesManifest {
@@ -58,7 +58,7 @@ export interface RouteTypesManifest {
 
 // Convert a custom-route source string (`/blog/:slug`, `/docs/:path*`, ...)
 // into the bracket-syntax used by other Next.js route helpers so that we can
-// reuse `getRouteRegex()` to extract groups.
+// reuse `getRouteRegex()` to extract route params.
 export function convertCustomRouteSource(source: string): string[] {
   const parseResult = tryToParsePath(source)
 
@@ -129,9 +129,10 @@ export function convertCustomRouteSource(source: string): string[] {
 /**
  * Extracts route parameters from a route pattern
  */
-export function extractRouteParams(route: string) {
-  const regex = getRouteRegex(route)
-  return regex.groups
+export function extractRouteParams(
+  route: string
+): ManifestRouteInfo['routeParams'] {
+  return getRouteRegex(route).groups
 }
 
 /**
@@ -155,7 +156,7 @@ function resolveInterceptingRoute(route: string): string {
  * A root layout is the shallowest layout in each branch — no ancestor layout above it.
  * A param is "universal" if it appears in ALL root layouts.
  *
- * Uses the already-extracted `groups` from `manifest.layoutRoutes` (via `getRouteRegex`)
+ * Uses the already-extracted `routeParams` from `manifest.layoutRoutes` (via `getRouteRegex`)
  * rather than re-parsing segments.
  */
 function collectRootParamsFromLayouts(
@@ -183,7 +184,9 @@ function collectRootParamsFromLayouts(
   const rootParams = new Map<string, RootParamInfo>()
 
   for (const route of rootLayoutRoutes) {
-    for (const [name, group] of Object.entries(layoutRoutes[route].groups)) {
+    for (const [name, group] of Object.entries(
+      layoutRoutes[route].routeParams
+    )) {
       const info = rootParams.get(name) ?? new Set<RootParamValueType>()
 
       info.add(group.repeat ? 'string[]' : 'string')
@@ -198,7 +201,9 @@ function collectRootParamsFromLayouts(
   // Any param missing from a root layout can be undefined.
   for (const [name, info] of rootParams) {
     if (
-      rootLayoutRoutes.some((route) => !(name in layoutRoutes[route].groups))
+      rootLayoutRoutes.some(
+        (route) => !(name in layoutRoutes[route].routeParams)
+      )
     ) {
       info.add('undefined')
     }
@@ -306,7 +311,7 @@ export async function createRouteTypesManifest({
   for (const { route, filePath } of pageRoutes) {
     manifest.pageRoutes[route] = {
       path: getRelativePath(filePath),
-      groups: extractRouteParams(route),
+      routeParams: extractRouteParams(route),
     }
   }
 
@@ -322,7 +327,7 @@ export async function createRouteTypesManifest({
     if (!manifest.layoutRoutes[resolvedRoute]) {
       manifest.layoutRoutes[resolvedRoute] = {
         path: getRelativePath(filePath),
-        groups: extractRouteParams(resolvedRoute),
+        routeParams: extractRouteParams(resolvedRoute),
         slots: [],
       }
     }
@@ -358,7 +363,7 @@ export async function createRouteTypesManifest({
     if (!manifest.appRoutes[resolvedRoute]) {
       manifest.appRoutes[resolvedRoute] = {
         path: getRelativePath(filePath),
-        groups: extractRouteParams(resolvedRoute),
+        routeParams: extractRouteParams(resolvedRoute),
       }
     }
   }
@@ -371,7 +376,7 @@ export async function createRouteTypesManifest({
     if (!manifest.appRouteHandlerRoutes[resolvedRoute]) {
       manifest.appRouteHandlerRoutes[resolvedRoute] = {
         path: getRelativePath(filePath),
-        groups: extractRouteParams(resolvedRoute),
+        routeParams: extractRouteParams(resolvedRoute),
       }
     }
   }
@@ -385,7 +390,7 @@ export async function createRouteTypesManifest({
       for (const route of possibleRoutes) {
         manifest.redirectRoutes[route] = {
           path: route,
-          groups: extractRouteParams(route),
+          routeParams: extractRouteParams(route),
         }
       }
     }
@@ -408,7 +413,7 @@ export async function createRouteTypesManifest({
       for (const route of possibleRoutes) {
         manifest.rewriteRoutes[route] = {
           path: route,
-          groups: extractRouteParams(route),
+          routeParams: extractRouteParams(route),
         }
       }
     }
