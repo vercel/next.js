@@ -7,9 +7,10 @@ title: Prerender Error with Next.js
 While prerendering a page during `next build`, an error occurred. This can happen for various reasons, including:
 
 1. Incorrect file structure or non-page files in the `pages/` directory
-2. Expecting props to be populated which are not available during prerendering
-3. Using browser-only APIs in components without proper checks
-4. Incorrect configuration in `getStaticProps` or `getStaticPaths`
+2. Colocating generic components named after reserved metadata file conventions in the `app/` directory (such as `icon.tsx` or `apple-icon.tsx`)
+3. Expecting props to be populated which are not available during prerendering
+4. Using browser-only APIs in components without proper checks
+5. Incorrect configuration in `getStaticProps` or `getStaticPaths`
 
 ## Possible Ways to Fix It
 
@@ -49,6 +50,27 @@ Example folder structure:
       ├── layout.tsx
       └── page.tsx
 ```
+
+##### Avoid naming generic components after reserved metadata file conventions
+
+While the App Router supports [colocation](/docs/app/getting-started/project-structure#colocation), certain file names within the `app` directory are reserved for [metadata file conventions](/docs/app/api-reference/file-conventions/metadata), such as `icon.js` / `icon.tsx` and `apple-icon.js` / `apple-icon.tsx`.
+
+If you colocate a generic UI component with one of these reserved names (for example, creating `app/icon.tsx` or `app/shop/icon.tsx` for an SVG icon component):
+
+- Pages will render in `next dev`, but requesting the `/icon` route returns an error (HTTP 500), and `next build` fails during prerendering with an error such as:
+
+  ```txt
+  Error occurred prerendering page "/icon".
+  No response is returned from route handler '[project]/app/icon--route-entry.js'. Expected a Response object but received 'Object'
+  ```
+
+- This happens because Next.js treats the file as a dynamic app icon route rather than a standard UI component. During the build, it expects the default export to return a `Response` (such as `ImageResponse`, or types like `Blob`, `ArrayBuffer`, or `ReadableStream`). Returning a plain React JSX element instead of a valid Response causes this prerender failure.
+
+**How to fix:**
+
+- Rename your component to something that does not conflict with metadata conventions (for example, `IconComponent.tsx` or `LogoIcon.tsx`).
+- Or place reusable UI components outside the `app/` directory in a dedicated root `components/` folder.
+- If you intentionally want to generate a dynamic icon, ensure the file exports a default function returning a valid `Response` (such as an `ImageResponse`, or other supported types like `Blob`, `ArrayBuffer`, or `ReadableStream`) as documented in [favicon, icon, and apple-icon](/docs/app/api-reference/file-conventions/metadata/app-icons).
 
 ### 2. Handle undefined props and missing data
 
@@ -146,5 +168,6 @@ This provides unminified stack traces with source maps, making it easier to pinp
 - [Handling Errors in Next.js](/docs/app/getting-started/error-handling)
 - [Data Fetching in Next.js](/docs/app/getting-started/fetching-data)
 - [Debugging prerender errors](/docs/app/api-reference/cli/next#debugging-prerender-errors)
+- [favicon, icon, and apple-icon](/docs/app/api-reference/file-conventions/metadata/app-icons)
 
 If you continue to experience issues after trying these solutions, consider checking your server logs for more detailed error messages or reaching out to the Next.js community for support.
