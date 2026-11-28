@@ -228,6 +228,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: {
     default: 'Acme',
+    template: '%s | Acme',
   },
 }
 ```
@@ -300,6 +301,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: {
     template: '%s | Acme',
+    default: 'Acme', // a default is required when creating a template
   },
 }
 ```
@@ -308,6 +310,7 @@ export const metadata: Metadata = {
 export const metadata = {
   title: {
     template: '%s | Acme',
+    default: 'Acme', // a default is required when creating a template
   },
 }
 ```
