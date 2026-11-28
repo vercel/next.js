@@ -108,6 +108,7 @@ describe('next-lint-to-eslint-cli', () => {
         "{
           "scripts": {
             "lint": "next lint --fix --dir src --dir pages",
+            "lint:fix": "next lint --fix .",
             "lint:strict": "next lint --strict",
             "lint:ci": "next lint --quiet --output-file lint-results.json",
             "precommit": "next lint --fix && npm test",
@@ -173,6 +174,7 @@ describe('next-lint-to-eslint-cli', () => {
        "{
          "scripts": {
            "lint": "eslint --fix src pages",
+           "lint:fix": "eslint --fix .",
            "lint:strict": "eslint --max-warnings 0 .",
            "lint:ci": "eslint --quiet --output-file lint-results.json .",
            "precommit": "eslint --fix . && npm test",
