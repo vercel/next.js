@@ -45,6 +45,30 @@ function unescapeSegments(str: string) {
   return str.replace(/__ESC_COLON_/gi, ':')
 }
 
+/**
+ * The compiled patterns of the values of `has` and `missing` items, by their
+ * source. The values come from the configuration, so there are as many
+ * entries as it has distinct values. Without this a `RegExp` was compiled for
+ * every item whose key is present, on every request.
+ *
+ * Only the server keeps them. This module is also bundled for the browser
+ * when a Pages Router app has rewrites or a middleware, and there a rule is
+ * matched once per navigation: the call below is removed from that bundle at
+ * build time, which leaves it unchanged.
+ */
+let hasValueMatchers: Map<string, RegExp> | undefined
+
+function getHasValueMatcher(value: string | undefined): RegExp {
+  const source = `^${value}$`
+  hasValueMatchers ??= new Map()
+  let matcher = hasValueMatchers.get(source)
+  if (matcher === undefined) {
+    matcher = new RegExp(source)
+    hasValueMatchers.set(source, matcher)
+  }
+  return matcher
+}
+
 export function matchHas(
   req: BaseNextRequest | IncomingMessage,
   query: Params,
@@ -93,7 +117,10 @@ export function matchHas(
       params[getSafeParamName(key!)] = value
       return true
     } else if (value) {
-      const matcher = new RegExp(`^${hasItem.value}$`)
+      const matcher =
+        typeof window === 'undefined'
+          ? getHasValueMatcher(hasItem.value)
+          : new RegExp(`^${hasItem.value}$`)
       const matches = Array.isArray(value)
         ? value.slice(-1)[0].match(matcher)
         : value.match(matcher)
