@@ -118,7 +118,9 @@ export function createInitialRouterState({
       null, // No pending entry
       initialRoot,
       initialCouldBeIntercepted,
-      canonicalUrl,
+      // Store a hashless canonical URL: the entry is shared across hashes, and
+      // a later same-route hash nav appends `url.hash` to it.
+      createHrefFromUrl(location, false),
       initialSeed.renderedSearch,
       initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
