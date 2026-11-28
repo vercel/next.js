@@ -119,6 +119,17 @@ describe('app-dir action handling', () => {
     })
   })
 
+  it('should not evaluate guarded member expression when captured object is null', async () => {
+    const browser = await next.browser('/guarded')
+
+    await browser.elementByCss('#guarded-btn').click()
+    await retry(async () => {
+      expect(await browser.elementById('guarded-result').text()).toBe(
+        'hello guest'
+      )
+    })
+  })
+
   it('should report errors with bad inputs correctly', async () => {
     const browser = await next.browser('/error-handling', {
       pushErrorAsConsoleLog: true,
