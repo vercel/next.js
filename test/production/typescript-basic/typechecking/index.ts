@@ -19,5 +19,15 @@ import 'next/og'
 import 'next/router'
 import 'next/script'
 import 'next/server'
-// FIXME
-// import 'next/web-vitals';
+import type { useReportWebVitals } from 'next/web-vitals'
+
+type ReportWebVitalsCallback = Parameters<typeof useReportWebVitals>[0]
+type WebVitalsMetric = Parameters<ReportWebVitalsCallback>[0]
+type WebVitalsMetricName = WebVitalsMetric['name']
+
+const webVitalsMetricName: WebVitalsMetricName = 'CLS'
+// @ts-expect-error - metric.name should not allow arbitrary strings.
+const invalidWebVitalsMetricName: WebVitalsMetricName = 'custom'
+
+void webVitalsMetricName
+void invalidWebVitalsMetricName
