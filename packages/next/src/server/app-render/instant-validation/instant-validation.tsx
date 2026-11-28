@@ -1296,12 +1296,13 @@ export async function createCombinedPayloadAtDepth(
       // When the default validation level is active and this is a page or
       // default segment without an explicit config, treat it as if
       // instant = true was exported. Framework-synthesized error
-      // routes are excluded — see isFrameworkErrorRoute.
+      // routes and built-in defaults are excluded — see
+      // isFrameworkErrorRoute and isImplicitValidationSegment.
       if (
         instantConfig === null &&
         validationLevel !== 'manual-warning' &&
         validationLevel !== 'experimental-manual-error' &&
-        isImplicitValidationSegment(segment) &&
+        isImplicitValidationSegment(segment, lt) &&
         !isFrameworkErrorRoute(route)
       ) {
         instantConfig = true
