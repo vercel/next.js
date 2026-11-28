@@ -134,6 +134,22 @@ describe('resolveAbsoluteUrlWithPathname', () => {
         'https://example.com/foo.html'
       )
     })
+
+    it('should add trailing slash to url with a dot in a directory segment', () => {
+      expect(resolver('/v1.2/docs')).toBe('https://example.com/v1.2/docs/')
+      expect(resolver('/@john.doe/posts')).toBe(
+        'https://example.com/@john.doe/posts/'
+      )
+      expect(resolver(new URL('/v1.2/docs', metadataBase))).toBe(
+        'https://example.com/v1.2/docs/'
+      )
+      expect(resolver('/v1.2/feed.xml')).toBe(
+        'https://example.com/v1.2/feed.xml'
+      )
+      expect(resolver('/blog/node.js-tips')).toBe(
+        'https://example.com/blog/node.js-tips'
+      )
+    })
   })
 })
 
