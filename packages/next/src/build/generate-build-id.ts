@@ -18,5 +18,14 @@ export async function generateBuildId(
     )
   }
 
-  return buildId.trim()
+  buildId = buildId.trim()
+
+  // The build ID is a single segment of /_next/data/<buildId>/ URLs
+  if (buildId.includes('/')) {
+    throw new Error(
+      `generateBuildId returned "${buildId}", which contains a "/". https://nextjs.org/docs/messages/generatebuildid-contains-slash`
+    )
+  }
+
+  return buildId
 }

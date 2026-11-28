@@ -24,6 +24,23 @@ describe('Production Config Usage', () => {
 
     // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
     // @force-gate !deploy
+    describe('with generateBuildId containing a slash', () => {
+      const { next } = nextTestSetup({
+        files: __dirname + '/fixture-generateBuildId-slash',
+        skipStart: true,
+      })
+
+      it('should fail the build', async () => {
+        const start = next.cliOutput.length
+        await next.build().catch(() => {})
+        expect(next.cliOutput.slice(start)).toMatch(
+          /generateBuildId returned "release\/v1", which contains a "\/"/
+        )
+      })
+    })
+
+    // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+    // @force-gate !deploy
     describe('env', () => {
       const { next } = nextTestSetup({
         files: __dirname,
