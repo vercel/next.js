@@ -62,7 +62,7 @@ To start your minimal `server.js` file locally, run the following command:
 node .next/standalone/server.js
 ```
 
-Use `server.js` instead of `next start` to run standalone output, including when you test it locally. `next start` is not the supported way to run standalone output and logs a warning when `output: 'standalone'` is set. It runs from your project directory, using its `.next` folder and `node_modules`, so it does not exercise the `.next/standalone` folder you deploy.
+Use `server.js` instead of `next start` to run standalone output, including when you test it locally. `next start` is not the supported way to run standalone output and logs a warning when `output: 'standalone'` is set. It runs from your project directory, using its `.next` folder and `node_modules`, so it does not exercise the `.next/standalone` folder you deploy. To run end-to-end tests against standalone output, see the [Playwright guide](/docs/app/guides/testing/playwright#testing-standalone-output).
 
 <AppOnly>
 
