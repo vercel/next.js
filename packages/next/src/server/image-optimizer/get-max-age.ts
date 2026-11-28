@@ -1,3 +1,5 @@
+const MAX_DELTA_SECONDS = 2 ** 31 // RFC 9111, Section 1.2.2
+
 function parseCacheControl(
   str: string | null | undefined
 ): Map<string, string> {
@@ -25,7 +27,7 @@ export function getMaxAge(str: string | null | undefined): number {
     }
     const n = parseInt(age, 10)
     if (!isNaN(n)) {
-      return n
+      return Math.min(n, MAX_DELTA_SECONDS)
     }
   }
   return 0
