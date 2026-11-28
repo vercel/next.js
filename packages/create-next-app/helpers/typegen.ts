@@ -27,6 +27,10 @@ export async function runTypegen(
         command = 'pnpm'
         args = ['exec', 'next', '--', 'typegen']
         break
+      case 'nub':
+        command = 'nub'
+        args = ['exec', 'next', '--', 'typegen']
+        break
       case 'bun':
         command = 'bun'
         // Bun only has `bun x` which is not the same thing.
