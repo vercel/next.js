@@ -6895,6 +6895,7 @@ function buildDevValidationWorkStore(
     shouldTrackFetchMetrics: false,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
+    resolvedPromises: undefined,
     afterContext: noopAfterContext,
     // Dev validation only ever runs under Cache Components.
     cacheComponentsEnabled: true,
@@ -8741,6 +8742,7 @@ async function validateInstantConfigInBuildWithSample(
     shouldTrackFetchMetrics: false,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
+    resolvedPromises: undefined,
   }
 
   return workAsyncStorage.run(workStore, async () => {

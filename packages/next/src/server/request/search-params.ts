@@ -34,6 +34,7 @@ import {
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
+import { getResolvedPromise } from './resolved-promise'
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
@@ -82,7 +83,7 @@ export function createSearchParamsFromClient(
             workUnitStore
           )
         }
-        return makeUntrackedSearchParams(underlyingSearchParams)
+        return makeUntrackedSearchParams(workStore, underlyingSearchParams)
       }
       case 'request':
         return createRenderSearchParams(
@@ -254,7 +255,7 @@ function createRuntimePrerenderSearchParams(
     if (workUnitStore.finalStage < searchParamsStage) {
       return makeHangingSearchParams(workStore, workUnitStore)
     } else {
-      return makeUntrackedSearchParams(userspaceSearchParams)
+      return makeUntrackedSearchParams(workStore, userspaceSearchParams)
     }
   }
 
@@ -316,7 +317,7 @@ function createRenderSearchParams(
       requestStore
     )
   } else {
-    return makeUntrackedSearchParams(underlyingSearchParams)
+    return makeUntrackedSearchParams(workStore, underlyingSearchParams)
   }
 }
 
@@ -550,17 +551,10 @@ export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
 }
 
 function makeUntrackedSearchParams(
+  workStore: WorkStore,
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
-  if (cachedSearchParams) {
-    return cachedSearchParams
-  }
-
-  const promise = Promise.resolve(underlyingSearchParams)
-  CachedSearchParams.set(underlyingSearchParams, promise)
-
-  return promise
+  return getResolvedPromise(workStore, underlyingSearchParams)
 }
 
 function makeUntrackedSearchParamsWithDevWarnings(

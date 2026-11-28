@@ -24,6 +24,7 @@ import {
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { getResolvedPromise } from './resolved-promise'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -54,9 +55,9 @@ export function headers(): Promise<ReadonlyHeaders> {
 
     if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
-      // headers object without tracking
-      const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
-      return makeUntrackedHeaders(underlyingHeaders)
+      // headers object without tracking. It is a new object for every call, so
+      // there is no promise to share between calls.
+      return Promise.resolve(HeadersAdapter.seal(new Headers({})))
     }
 
     if (workUnitStore) {
@@ -122,13 +123,13 @@ export function headers(): Promise<ReadonlyHeaders> {
               workUnitStore.headers
             )
           } else {
-            return makeUntrackedHeaders(workUnitStore.headers)
+            return makeUntrackedHeaders(workStore, workUnitStore.headers)
           }
         }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
-          return makeUntrackedHeaders(workUnitStore.headers)
+          return makeUntrackedHeaders(workStore, workUnitStore.headers)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -144,7 +145,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           } else if (workUnitStore.asyncApiPromises) {
             return workUnitStore.asyncApiPromises.headers
           } else {
-            return makeUntrackedHeaders(workUnitStore.headers)
+            return makeUntrackedHeaders(workStore, workUnitStore.headers)
           }
           break
         default:
@@ -181,17 +182,10 @@ function makeHangingHeaders(
 }
 
 function makeUntrackedHeaders(
+  workStore: WorkStore,
   underlyingHeaders: ReadonlyHeaders
 ): Promise<ReadonlyHeaders> {
-  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
-  if (cachedHeaders) {
-    return cachedHeaders
-  }
-
-  const promise = Promise.resolve(underlyingHeaders)
-  CachedHeaders.set(underlyingHeaders, promise)
-
-  return promise
+  return getResolvedPromise(workStore, underlyingHeaders)
 }
 
 function makeUntrackedHeadersWithDevWarnings(
