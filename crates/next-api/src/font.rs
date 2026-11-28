@@ -1,7 +1,7 @@
 use anyhow::Result;
 use next_core::next_manifests::NextFontManifest;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc, turbofmt};
+use turbo_tasks::{ResolvedVc, ValueToStringRef, Vc, turbofmt};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -17,6 +17,10 @@ pub struct FontManifest {
     pub node_root: FileSystemPath,
     pub dir: FileSystemPath,
     pub original_name: RcStr,
+    /// The module that keys the app manifest in place of `{dir}{original_name}`, for an app page
+    /// none of whose layouts or page is at that path (the app-render looks fonts up by the path of
+    /// each layout and page it renders).
+    pub app_lookup_module: Option<FileSystemPath>,
     pub manifest_path_prefix: RcStr,
     pub pathname: RcStr,
     pub client_assets: ResolvedVc<OutputAssets>,
@@ -49,6 +53,7 @@ impl Asset for FontManifest {
             client_root,
             dir,
             original_name,
+            app_lookup_module,
             pathname,
             client_assets,
             app_dir,
@@ -77,7 +82,10 @@ impl Asset for FontManifest {
         let next_font_manifest = if !has_fonts {
             Default::default()
         } else if *app_dir {
-            let page_path = turbofmt!("{dir}{original_name}").await?;
+            let page_path = match app_lookup_module {
+                Some(module) => module.with_extension("").to_string_ref().await?,
+                None => turbofmt!("{dir}{original_name}").await?,
+            };
 
             NextFontManifest {
                 app: [(page_path, font_paths)].into_iter().collect(),
