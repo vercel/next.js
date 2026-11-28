@@ -265,12 +265,22 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
+    const serverDeploymentId = res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER)
+    if (
+      serverDeploymentId !== null &&
+      serverDeploymentId !== getNavigationBuildId()
+    ) {
+      // The server build does not match the client build.
+      // Trigger an MPA navigation immediately without awaiting
+      // or decoding the Flight response. decodeNavigationResponse owns
+      // the response body and cancels it upon detecting version skew.
+      flightResponsePromise.catch(() => {})
+      return doMpaNavigation(res.url)
+    }
+
     const flightResponse = await flightResponsePromise
 
-    if (
-      (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==
-      getNavigationBuildId()
-    ) {
+    if ((serverDeploymentId ?? flightResponse.b) !== getNavigationBuildId()) {
       // The server build does not match the client build.
       return doMpaNavigation(res.url)
     }
@@ -515,6 +525,23 @@ function decodeNavigationResponse<T>(
           controller.close()
           return
         }
+        const serverDeploymentId = response.headers.get(
+          NEXT_NAV_DEPLOYMENT_ID_HEADER
+        )
+        if (
+          serverDeploymentId !== null &&
+          serverDeploymentId !== getNavigationBuildId()
+        ) {
+          // Version skew detected: do not read or enqueue any Flight chunks
+          // to prevent loading client chunks from a foreign deployment.
+          if (!body.locked) {
+            try {
+              body.cancel().catch(() => {})
+            } catch {}
+          }
+          controller.close()
+          return
+        }
         reader = body.getReader()
         chunks = response.isPartial ? null : responseChunks
       }
@@ -573,6 +600,13 @@ export async function stripIsPartialByte(
   const { done, value } = await reader.read()
 
   if (done || !value || value.byteLength === 0) {
+    // If the stream has not completed naturally (i.e. an unclosed zero-byte
+    // chunk was received), eagerly cancel the underlying reader to release
+    // network resources. If it already reached EOF (done === true), the stream
+    // completed naturally and needs no further cancellation.
+    if (!done) {
+      reader.cancel().catch(() => {})
+    }
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
       isPartial: defaultIsPartial,
@@ -603,6 +637,13 @@ export async function stripIsPartialByte(
           controller.close()
         } else {
           controller.enqueue(result.value)
+        }
+      },
+      cancel(reason) {
+        try {
+          return reader.cancel(reason).catch(() => {})
+        } catch {
+          return Promise.resolve()
         }
       },
     }),
