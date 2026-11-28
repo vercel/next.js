@@ -21,6 +21,7 @@ import { normalizePath } from '../../lib/normalize-path'
 import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
+import { serializeCompressForNativeBindings } from '../../server/lib/compression'
 
 export async function turbopackBuild(telemetry: Telemetry): Promise<{
   duration: number
@@ -73,7 +74,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     rootPath,
     projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
     distDir,
-    nextConfig: config,
+    nextConfig: serializeCompressForNativeBindings(config),
     ensureShallowSourceMaps: NextBuildContext.analyze,
     watch: {
       enable: false,

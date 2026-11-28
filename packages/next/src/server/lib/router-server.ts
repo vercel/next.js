@@ -11,7 +11,7 @@ import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
-import { serveStatic } from '../serve-static'
+import { serveStaticPrecompressed } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
 import {
@@ -29,6 +29,11 @@ import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
+import {
+  normalizeCompressConfig,
+  setupMultiEncodingCompression,
+  staticSidecarOrder,
+} from './compression'
 import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
@@ -190,11 +195,34 @@ export async function initialize(opts: {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
 
-  let compress: ReturnType<typeof setupCompression> | undefined
+  let compress:
+    | ReturnType<typeof setupCompression>
+    | ReturnType<typeof setupMultiEncodingCompression>
+    | undefined
 
-  if (config?.compress !== false) {
-    compress = setupCompression()
+  const compressionConfig = normalizeCompressConfig(config?.compress)
+
+  if (compressionConfig) {
+    // Keep the historical gzip-only path bit-for-bit whenever no additional
+    // algorithm was opted into, and use the negotiating middleware otherwise.
+    const gzipOnly =
+      compressionConfig.algorithms.length === 1 &&
+      compressionConfig.algorithms[0] === 'gzip'
+    compress = gzipOnly
+      ? setupCompression({
+          threshold: compressionConfig.threshold,
+          level: compressionConfig.gzipLevel,
+        })
+      : setupMultiEncodingCompression(compressionConfig)
   }
+
+  // Sidecars are only ever written by a build with `staticPrecompress`, so
+  // every other app keeps serving static files exactly as before. When they
+  // exist they are served straight from disk based on `Accept-Encoding`, and
+  // an absent variant falls back to normal serving plus the middleware above.
+  const compressionSidecarOrder = compressionConfig?.staticPrecompress
+    ? staticSidecarOrder(compressionConfig.algorithms)
+    : []
 
   const fsChecker = await setupFsCheck({
     dev: opts.dev,
@@ -886,11 +914,22 @@ export async function initialize(opts: {
               recordRequestInsightSource(requestInsightsIdentity, 'asset')
             }
           }
-          return await serveStatic(req, res, matchedOutput.itemPath, {
-            root: matchedOutput.itemsRoot,
-            // Ensures that etags are not generated for static files when disabled.
-            etag: config.generateEtags,
-          })
+          return await serveStaticPrecompressed(
+            req,
+            res,
+            matchedOutput.itemPath,
+            // Only used to probe for pre-compressed sidecars; a missing
+            // root simply means no variant, falling back to normal serving.
+            matchedOutput.itemsRoot
+              ? path.join(matchedOutput.itemsRoot, matchedOutput.itemPath)
+              : '',
+            {
+              root: matchedOutput.itemsRoot,
+              // Ensures that etags are not generated for static files when disabled.
+              etag: config.generateEtags,
+            },
+            compressionSidecarOrder
+          )
         } catch (err: any) {
           /**
            * Hardcoded every possible error status code that could be thrown by "serveStatic" method

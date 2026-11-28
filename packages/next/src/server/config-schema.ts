@@ -670,7 +670,21 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
       })
       .optional(),
-    compress: z.boolean().optional(),
+    compress: z
+      .union([
+        z.boolean(),
+        z.strictObject({
+          gzip: z.boolean().optional(),
+          brotli: z.boolean().optional(),
+          zstd: z.boolean().optional(),
+          threshold: z.number().optional(),
+          gzipLevel: z.number().min(0).max(9).optional(),
+          brotliQuality: z.number().min(0).max(11).optional(),
+          zstdLevel: z.number().min(1).max(22).optional(),
+          staticPrecompress: z.boolean().optional(),
+        }),
+      ])
+      .optional(),
     configOrigin: z.string().optional(),
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])

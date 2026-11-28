@@ -109,6 +109,54 @@ export type NextConfigComplete = Required<
 
 export type I18NDomains = readonly DomainLocale[]
 
+/**
+ * Opt-in response compression options for the `compress` config. Passing
+ * `compress: true` (or leaving it unset) keeps the historical gzip-only
+ * behavior; brotli and zstd must be enabled explicitly.
+ */
+export interface CompressOptions {
+  /**
+   * Compress responses with gzip. Defaults to `true`.
+   */
+  gzip?: boolean
+  /**
+   * Compress responses with brotli (`Content-Encoding: br`).
+   * Defaults to `false`.
+   */
+  brotli?: boolean
+  /**
+   * Compress responses with zstd (`Content-Encoding: zstd`). Requires
+   * Node.js >= 22.15, which ships zstd in `zlib`. Defaults to `false`.
+   */
+  zstd?: boolean
+  /**
+   * Only compress responses known to be at least this many bytes.
+   * Defaults to `1024`.
+   */
+  threshold?: number
+  /**
+   * gzip compression level (0-9).
+   */
+  gzipLevel?: number
+  /**
+   * brotli compression quality (0-11). Defaults to `11` for responses
+   * compressed at build time and while serving, tune down on CPU-bound
+   * dynamic routes.
+   */
+  brotliQuality?: number
+  /**
+   * zstd compression level (1-22). Defaults to `3`.
+   */
+  zstdLevel?: number
+  /**
+   * Additionally compress static build assets (`/_next/static/**`) at build
+   * time, storing `.br`/`.gz`/`.zst` variants next to the originals so they
+   * are served pre-compressed based on the request's `Accept-Encoding`,
+   * instead of being compressed per request. Defaults to `false`.
+   */
+  staticPrecompress?: boolean
+}
+
 export interface I18NConfig {
   defaultLocale: string
   domains?: I18NDomains
@@ -2119,7 +2167,7 @@ export interface NextConfig {
   instrumentationInject?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
-  compress?: boolean
+  compress?: boolean | CompressOptions
 
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/app/api-reference/config/next-config-js/poweredByHeader) */
   poweredByHeader?: boolean

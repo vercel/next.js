@@ -1,7 +1,67 @@
 ---
 title: compress
-description: Next.js provides gzip compression to compress rendered content and static files, it only works with the server target. Learn more about it here.
-source: app/api-reference/config/next-config-js/compress
+description: Next.js provides gzip compression to compress rendered content and static files, with opt-in brotli and zstd support. It only works with the server target. Learn more about it here.
 ---
 
-{/* DO NOT EDIT. The content of this doc is generated from the source above. To edit the content of this page, navigate to the source page in your editor. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+By default, Next.js uses `gzip` to compress rendered content and static files when using `next start` or a custom server. This is an optimization for applications that do not have compression configured. If compression is _already_ configured in your application via a custom server, Next.js will not add compression.
+
+You can check if compression is enabled and which algorithm is used by looking at the [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) (browser accepted options) and [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) (currently used) headers in the response.
+
+## Opting into brotli and zstd
+
+Pass an object to `compress` to additionally enable `brotli` (`Content-Encoding: br`) and/or `zstd` (`Content-Encoding: zstd`) for responses served by `next start`. Every algorithm is opted into explicitly, so the default `gzip`-only behavior is unchanged:
+
+```js filename="next.config.js"
+module.exports = {
+  compress: {
+    // gzip stays enabled by default; set false to turn it off
+    gzip: true,
+    brotli: true,
+    // requires Node.js >= 22.15 (zstd in zlib); silently ignored below that
+    zstd: true,
+  },
+}
+```
+
+Responses are negotiated with the request's `Accept-Encoding` header and its quality values, preferring `zstd` over `brotli` over `gzip`, since zstd decompresses significantly faster on the client and compresses faster on the server for a comparable ratio.
+
+| Option              | Default | Description                                                                                  |
+| ------------------- | ------- | -------------------------------------------------------------------------------------------- |
+| `gzip`              | `true`  | Compress responses with gzip.                                                                |
+| `brotli`            | `false` | Compress responses with brotli.                                                              |
+| `zstd`              | `false` | Compress responses with zstd. Requires Node.js >= 22.15.                                     |
+| `threshold`         | `1024`  | Only compress responses known to be at least this many bytes.                                |
+| `gzipLevel`         | zlib    | gzip compression level (`0-9`).                                                              |
+| `brotliQuality`     | `11`    | brotli quality (`0-11`). Lower it on CPU-bound dynamic routes.                               |
+| `zstdLevel`         | `3`     | zstd compression level (`1-22`).                                                             |
+| `staticPrecompress` | `false` | Additionally store pre-compressed variants of static build assets at build time (see below). |
+
+## Pre-compressing static assets
+
+`gzip`-only compression costs CPU on every request. With `staticPrecompress: true`, `next build` additionally compresses the static assets served under `/_next/static/**` once, storing `.br`, `.gz` (and `.zst` when zstd is enabled) variants next to the original files. At request time the server picks the best variant the client accepts and streams it straight from disk — brotli's better ratio for static assets costs nothing per request:
+
+```js filename="next.config.js"
+module.exports = {
+  compress: {
+    brotli: true,
+    zstd: true,
+    staticPrecompress: true,
+  },
+}
+```
+
+Variants that would be larger than the original are not stored. The uncompressed file is always kept, so clients without `Accept-Encoding`, `HEAD` requests, and builds without variants keep working exactly as before.
+
+## Disabling compression
+
+To disable **compression**, set the `compress` config option to `false`:
+
+```js filename="next.config.js"
+module.exports = {
+  compress: false,
+}
+```
+
+We **do not recommend disabling compression** unless you have compression configured on your server, as compression reduces bandwidth usage and improves the performance of your application. For example, you're using [nginx](https://nginx.org/) and want to switch to `brotli`, set the `compress` option to `false` to allow nginx to handle compression.

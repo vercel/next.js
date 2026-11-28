@@ -104,6 +104,7 @@ import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
+import { serializeCompressForNativeBindings } from '../lib/compression'
 import {
   formatIssue,
   getIssueKey,
@@ -491,7 +492,7 @@ export async function createHotReloaderTurbopack(
       rootPath,
       projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
       distDir,
-      nextConfig: opts.nextConfig,
+      nextConfig: serializeCompressForNativeBindings(opts.nextConfig),
       watch: {
         enable: dev,
         pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
