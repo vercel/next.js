@@ -84,7 +84,7 @@ export class NextRequest extends Request {
   /**
    * @deprecated
    * `page` has been deprecated in favour of `URLPattern`.
-   * Read more: https://nextjs.org/docs/messages/middleware-request-page
+   * Read more: https://nextjs.org/docs/messages/proxy-request-page
    */
   public get page() {
     throw new RemovedPageError()
@@ -93,7 +93,7 @@ export class NextRequest extends Request {
   /**
    * @deprecated
    * `ua` has been removed in favour of \`userAgent\` function.
-   * Read more: https://nextjs.org/docs/messages/middleware-parse-user-agent
+   * Read more: https://nextjs.org/docs/messages/proxy-parse-user-agent
    */
   public get ua() {
     throw new RemovedUAError()
