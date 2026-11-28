@@ -59,12 +59,15 @@ export function getMaybePagePath(
   const checkManifest = (manifest: PagesManifest) => {
     let curPath = manifest[page]
 
-    if (!manifest[curPath] && locales) {
+    // Only build the locale-stripped lookup when the direct lookup missed —
+    // and read values from the manifest being checked, not the pages
+    // manifest (which would mismatch when checking the app paths manifest).
+    if (!curPath && locales) {
       const manifestNoLocales: typeof pagesManifest = {}
 
       for (const key of Object.keys(manifest)) {
         manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
-          pagesManifest[key]
+          manifest[key]
       }
       curPath = manifestNoLocales[page]
     }
