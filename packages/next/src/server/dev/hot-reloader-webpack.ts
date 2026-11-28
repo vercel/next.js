@@ -1503,21 +1503,24 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         const { compilation } = stats
 
         // We only watch `_document` for changes on the server compilation
-        // the rest of the files will be triggered by the client compilation
-        const documentChunk = compilation.namedChunks.get('pages/_document')
-        // If the document chunk can't be found we do nothing
-        if (!documentChunk) {
+        // the rest of the files will be triggered by the client compilation.
+        // Use the hash of its modules tracked on emit, not the chunk hash: the
+        // chunk hash also changes when another entry being added or disposed
+        // reorders the vendor chunks `_document` loads.
+        const documentHash = prevServerPageHashes.get('pages/_document')
+        // If _document hasn't been emitted yet we do nothing
+        if (!documentHash) {
           return
         }
 
         // Initial value
         if (this.serverPrevDocumentHash === null) {
-          this.serverPrevDocumentHash = documentChunk.hash || null
+          this.serverPrevDocumentHash = documentHash
           return
         }
 
         // If _document.js didn't change we don't trigger a reload.
-        if (documentChunk.hash === this.serverPrevDocumentHash) {
+        if (documentHash === this.serverPrevDocumentHash) {
           return
         }
 
@@ -1541,7 +1544,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           this.serverChunkNames = chunkNames
         }
 
-        this.serverPrevDocumentHash = documentChunk.hash || null
+        this.serverPrevDocumentHash = documentHash
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send({
