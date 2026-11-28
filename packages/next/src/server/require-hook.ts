@@ -84,3 +84,8 @@ mod.prototype.require = function (request: string) {
 
   return originalRequire.call(this, request)
 }
+
+// See `build/adapter/setup-node-env.external`.
+;(globalThis as Record<symbol, unknown>)[
+  Symbol.for('next.server.require-hook')
+] = true
