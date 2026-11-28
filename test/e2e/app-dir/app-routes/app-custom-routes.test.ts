@@ -540,6 +540,20 @@ describe('app-custom-routes', () => {
         expect(res.headers.get('location')).toEqual('https://nextjs.org/')
         expect(await res.text()).toBeEmpty()
       })
+
+      it.each(['', '/edge'])(
+        'adds the basePath to a relative redirect (%s)',
+        async (runtimeSuffix) => {
+          const res = await next.fetch(
+            basePath + '/hooks/redirect/relative' + runtimeSuffix,
+            { redirect: 'manual' }
+          )
+
+          expect(res.status).toEqual(307)
+          expect(res.headers.get('location')).toEqual(basePath + '/hooks/json')
+          expect(await res.text()).toBeEmpty()
+        }
+      )
     })
 
     describe('permanentRedirect', () => {
