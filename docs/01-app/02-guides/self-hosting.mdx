@@ -204,7 +204,7 @@ module.exports = {
 
 When using [immutable static assets](/docs/app/api-reference/config/next-config-js/supportsImmutableAssets), preventing version skew becomes much easier:
 
-Assets can be shared across deployments, so if you just keep adding them to your existing static file folder (or CDN bucket), there will be no version skew (without having to track deployment ids in the reverse proxy/do green-blue deployments).
+Assets can be shared across deployments, so if you just keep adding them to your existing static file folder (or CDN bucket), there will be no version skew (without having to track deployment ids in the reverse proxy/do blue-green deployments).
 
 <AppOnly>
 
@@ -254,7 +254,7 @@ For a detailed explanation of the tag architecture, see [How Revalidation Works]
 
 ## Usage with CDNs
 
-When using a CDN in front of your Next.js application, the page will include `Cache-Control: private` response header when dynamic APIs are accessed. This ensures that the resulting HTML page is marked as non-cacheable. If the page is fully prerendered to static, it will include `Cache-Control: public` to allow the page to be cached on the CDN.
+When using a CDN in front of your Next.js application, the page will include a `Cache-Control: private` response header when dynamic APIs are accessed. This ensures that the resulting HTML page is marked as non-cacheable. If the page is fully prerendered to static, it will include `Cache-Control: public` to allow the page to be cached on the CDN.
 
 If you don't need a mix of both static and dynamic components, you can make your entire route static and cache the output HTML on a CDN. This Automatic Static Optimization is the default behavior when running `next build` if dynamic APIs are not used.
 
