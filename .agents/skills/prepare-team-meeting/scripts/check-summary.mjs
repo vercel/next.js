@@ -22,6 +22,8 @@
 //
 // The checker can't verify judgement calls: whether something is really
 // breaking, whether a decision is real, or whether two owners share a PR.
+// The link check is structural only: it sees that every link has text in
+// front of it, not whether that text describes the linked PR.
 import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
@@ -188,7 +190,7 @@ export function checkSummary(data, doc, { maxLines = HARD_MAX_LINES } = {}) {
         if (!pr) {
           errors.push(
             skipped.has(num)
-              ? `${at}: #${num} was skipped as a rebase-only update; leave it out`
+              ? `${at}: #${num} was skipped as likely rebase-only (date heuristic); leave it out, or re-check it by hand and report a wrong skip`
               : `${at}: #${num} is not in prs.json`
           )
           continue

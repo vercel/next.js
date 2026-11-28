@@ -60,18 +60,20 @@ Internal refactors still get listed and linked, but kept short.
      - `index.md`: one line per PR, with 📊 when the description contains
        numbers, and the skipped PRs at the end.
      - `bodies/NN.md`: descriptions in chunks.
-   - **Rebase-only updates are skipped:** an open or draft PR created before
-     the window is left out when its commits were re-committed in the window
-     (committer date), none was authored in it (author date), and it got no
-     comment, review or review comment in the window. The check is a
-     heuristic based on dates:
-     - A commit amended in the window keeps its old author date, so an
-       amended change without discussion is skipped too.
+   - **Likely rebase-only updates are skipped**, by a heuristic based on
+     dates: an open or draft PR created before the window is left out when
+     its commits were re-committed in the window (committer date), none was
+     authored in it (author date), and it got no comment, review or review
+     comment in the window.
+     - Dates can't tell a rebase from an amended commit, which keeps its old
+       author date. An amended change without discussion is skipped too.
      - A PR with 250 or more commits (GitHub lists at most 250) or an
        unreadable author date is kept.
      - Checking costs one `gh api` request per open PR created before the
-       window, plus up to three per PR that looks rebased. Look at the
-       skipped list in `index.md` before writing the summary.
+       window, plus up to three per PR that looks rebased.
+     - The skipped PRs are listed at the end of `index.md` and in
+       `prs.json` under `skipped`. Look at the list before writing the
+       summary, and name the skipped PRs when you share it.
    - **Permissions:** `gh` needs read access to the repo's pull requests. An
      HTTP 403 means that permission is missing; get it, then re-run.
    - **Output directory:** the script never deletes anything and refuses a
@@ -143,15 +145,17 @@ Internal refactors still get listed and linked, but kept short.
      - every PR has exactly one status item, and skipped PRs have none;
      - statuses, links and owners match `prs.json`;
      - each category lists merged, then open, then draft items;
-     - each PR link comes right after its own description;
+     - each PR link has text in front of it (a structural check: it can't
+       tell whether that text describes the linked PR);
      - the title window and the totals match `prs.json`;
      - the structure follows the format below;
      - every 📊 line belongs to a PR of the item above it;
      - the document is no more than 200 lines.
    - It warns about PRs whose description has numbers but no 📊 line. Review
      each warning. Many of these numbers aren't performance measurements.
-   - **Not checked:** whether 💥, ❓ and ☑️ are justified, and whether two
-     owners really share a PR. Check those by hand.
+   - **Not checked:** whether 💥, ❓ and ☑️ are justified, whether each
+     description matches its PR, and whether two owners really share a PR.
+     Check those by hand.
 
 ## Document format
 

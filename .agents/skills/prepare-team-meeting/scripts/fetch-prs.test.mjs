@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import {
   COMMITS_CAP,
   SEARCH_CAP,
+  SKIP_REASON,
   activityArgs,
   collectPrs,
   commitsArgs,
@@ -322,7 +323,7 @@ test('collectPrs: skips open PRs whose only update was a rebase', () => {
       title: 'PR 2',
       author: 'a',
       status: 'open',
-      reason: 'rebase only',
+      reason: SKIP_REASON,
     },
     {
       number: 8,
@@ -330,7 +331,7 @@ test('collectPrs: skips open PRs whose only update was a rebase', () => {
       title: 'PR 8',
       author: 'a',
       status: 'draft',
-      reason: 'rebase only',
+      reason: SKIP_REASON,
     },
   ])
 })
@@ -401,7 +402,7 @@ test('writeOutput: writes window, counts, index and chunks', () => {
     title: 'Rebased',
     author: 'a',
     status: 'open',
-    reason: 'rebase only',
+    reason: SKIP_REASON,
   })
   const out = prepareOutDir(path.join(tmpDir(), 'out'))
   writeOutput(args, result, out)
@@ -415,8 +416,11 @@ test('writeOutput: writes window, counts, index and chunks', () => {
   const index = fs.readFileSync(path.join(out, 'index.md'), 'utf8')
   assert.match(index, /Window: 2026-11-09 to 2026-11-16/)
   assert.match(index, /Totals: 2 merged, 0 open, 1 draft/)
-  assert.match(index, /Skipped: 1 open or draft PRs/)
-  assert.match(index, /## Skipped[^\n]*\n\n- open\t#9\t@a\tRebased/)
+  assert.match(index, /Skipped: 1 open or draft PRs that look rebase-only/)
+  assert.match(
+    index,
+    /## Skipped: likely rebase-only \(date heuristic\)[^\n]*\n\n- open\t#9\t@a\tRebased/
+  )
   assert.deepEqual(fs.readdirSync(path.join(out, 'bodies')), ['01.md', '02.md'])
   fs.rmSync(path.dirname(out), { recursive: true })
 })

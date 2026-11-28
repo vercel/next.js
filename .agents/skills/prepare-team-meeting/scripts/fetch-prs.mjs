@@ -10,13 +10,13 @@
 // (UTC) and starts `--days` days earlier. Pass `--since`/`--until` to pin it,
 // so that re-running gives the same window.
 //
-// Open and draft PRs whose only update in the window was a rebase are skipped:
+// Open and draft PRs that look rebase-only are skipped, by a date heuristic:
 // they were created before the window, their commits were re-committed in
 // the window (committer date) but none was authored in it (author date), and
 // they got no comment, review or review comment in the window. Checking costs
 // one `gh api` request per open PR created before the window, plus three for
 // each PR that looks rebased. Dates can't tell a rebase from an amended
-// commit, which keeps its author date too.
+// commit, which keeps its author date too, so the skipped list is a guess.
 //
 // Then it writes:
 //
@@ -156,6 +156,9 @@ export function inWindow(iso, since, until) {
   )
 }
 
+// Reason recorded for PRs the date heuristic below leaves out.
+export const SKIP_REASON = 'likely rebase-only (date heuristic)'
+
 // GitHub lists at most this many commits of a pull request.
 export const COMMITS_CAP = 250
 
@@ -267,7 +270,7 @@ export function collectPrs(args, runGh) {
         )
         if (!discussed) {
           const { body, hasNumbers, ...rest } = entry
-          skipped.push({ ...rest, reason: 'rebase only' })
+          skipped.push({ ...rest, reason: SKIP_REASON })
           continue
         }
       }
@@ -320,7 +323,7 @@ export function writeOutput(args, { prs, skipped }, out) {
     '',
     `Window: ${args.since} to ${args.until} (UTC days, inclusive)`,
     `Totals: ${counts.merged} merged, ${counts.open} open, ${counts.draft} draft`,
-    `Skipped: ${skipped.length} open or draft PRs whose only update was a rebase`,
+    `Skipped: ${skipped.length} open or draft PRs that look rebase-only (date heuristic)`,
   ]
   const index = [
     ...header,
@@ -332,7 +335,7 @@ export function writeOutput(args, { prs, skipped }, out) {
     ...(skipped.length
       ? [
           '',
-          '## Skipped (rebase only, leave out of the summary)',
+          '## Skipped: likely rebase-only (date heuristic), leave out of the summary',
           '',
           ...skipped.map(
             (pr) => `- ${pr.status}\t#${pr.number}\t@${pr.author}\t${pr.title}`

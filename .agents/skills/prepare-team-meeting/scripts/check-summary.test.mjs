@@ -26,7 +26,7 @@ const data = {
       author: 'a',
       status: 'open',
       url: url(8),
-      reason: 'rebase only',
+      reason: 'likely rebase-only (date heuristic)',
     },
   ],
 }
@@ -74,7 +74,7 @@ test('reports missing PRs, wrong status, wrong owner, duplicates and bad links',
   assert.match(text, /#1 is merged, flagged :pull-request:/)
   assert.match(text, /#1 is by @a, listed under @b/)
   assert.match(text, /#9 is not in prs.json/)
-  assert.match(text, /#8 was skipped as a rebase-only update/)
+  assert.match(text, /#8 was skipped as likely rebase-only \(date heuristic\)/)
   assert.match(text, /#4 links to https:\/\/example.com\/4/)
   assert.match(text, /#4 is listed twice/)
   assert.match(text, /#2 .* is missing/)
