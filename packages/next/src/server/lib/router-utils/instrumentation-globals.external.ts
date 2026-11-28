@@ -7,7 +7,11 @@ import type {
 } from '../../instrumentation/types'
 import { interopDefault } from '../../../lib/interop-default'
 import { afterRegistration as extendInstrumentationAfterRegistration } from './instrumentation-node-extensions'
-import { getTracer, SpanStatusCode } from '../trace/tracer'
+import {
+  getTracer,
+  preloadOpenTelemetryApi,
+  SpanStatusCode,
+} from '../trace/tracer'
 import { InstrumentationSpan } from '../trace/constants'
 
 let cachedInstrumentationModule: InstrumentationModule
@@ -154,6 +158,10 @@ async function registerInstrumentation(
     throw err
   }
   if (instrumentation?.register) {
+    // The extensions load the OpenTelemetry API after `register()`, and a
+    // `register()` that sets up OpenTelemetry loads it too. Loaded before the
+    // timed region so that the span below doesn't include it.
+    preloadOpenTelemetryApi()
     const startTime = getInstrumentationTimestamp()
     let error: unknown
     let registered = false
