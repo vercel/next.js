@@ -388,6 +388,9 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			if r.ContentLength != 0 {
 				w.Header().Set("Connection", "close")
 			}
+			// This answer is Switchyard's own, so it gets the Date header Go's
+			// server adds, as Node's own answers have one.
+			delete(w.Header(), "Date")
 			// When the client's upload hit the request timeout, answer as Node
 			// does: 408 Request Timeout. Every other failure is a 502.
 			status := http.StatusBadGateway
@@ -400,12 +403,9 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Go's server guesses a type from the body ("sniffs") when a response
-		// has no Content-Type, and Node never does. Marking Content-Type as
-		// present but empty stops the guess, so a response without one stays
-		// without one. When Node sends one, the proxy's copyHeader adds
-		// Node's value to this entry before the headers are written.
-		w.Header()["Content-Type"] = nil
+		// Go's server fills in two headers a response doesn't have, and Node
+		// doesn't (markHeadersAbsent).
+		markHeadersAbsent(w.Header())
 		// Go's HTTP/1 server reads the rest of the request body before it
 		// sends any of the response. Node doesn't: it can answer (a 403, or a
 		// streamed response) while the client is still uploading. Full-duplex
@@ -419,7 +419,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
-		proxy.ServeHTTP(&clientWriter{w}, r)
+		proxy.ServeHTTP(&clientWriter{ResponseWriter: w, sentInformational: false}, r)
 	})
 }
 
@@ -451,16 +451,37 @@ func (b *bufferPool) Put(buf []byte) {
 // clientWriter is the client's ResponseWriter as the proxy sees it.
 type clientWriter struct {
 	http.ResponseWriter
+	// Whether a 1xx response has gone out before the final one.
+	sentInformational bool
 }
 
-// WriteHeader puts back the marker that stops Go from guessing a
-// Content-Type (see the handler above): the proxy clears the header map after
-// each 1xx response it passes on, such as 103 Early Hints.
+// WriteHeader puts back the markers markHeadersAbsent set: the proxy clears
+// the header map after each 1xx response it passes on, such as 103 Early
+// Hints.
 func (c *clientWriter) WriteHeader(code int) {
-	if _, ok := c.Header()["Content-Type"]; !ok && code >= 200 {
-		c.Header()["Content-Type"] = nil
+	if code < 200 {
+		c.sentInformational = true
+	} else if c.sentInformational {
+		markHeadersAbsent(c.Header())
 	}
 	c.ResponseWriter.WriteHeader(code)
+}
+
+// Node parity: Go's server adds two headers to a response that lacks them,
+// and Node adds neither when the app left them out.
+//   - Content-Type: Go guesses one from the body ("sniffs"); Node never does.
+//   - Date: Go always adds one; Node adds it unless the app turned it off
+//     (res.sendDate = false).
+//
+// A header that is present with no values stops Go from adding it, and Go
+// writes no line for it. When Node's response has the header, the proxy's
+// copyHeader adds Node's value to the entry before the headers are written.
+func markHeadersAbsent(h http.Header) {
+	for _, name := range [...]string{"Content-Type", "Date"} {
+		if _, ok := h[name]; !ok {
+			h[name] = nil
+		}
+	}
 }
 
 func (c *clientWriter) Unwrap() http.ResponseWriter { return c.ResponseWriter }

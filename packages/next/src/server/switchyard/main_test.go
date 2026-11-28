@@ -272,6 +272,45 @@ func TestAddsNoContentTypeNodeDidNotSend(t *testing.T) {
 	}
 }
 
+func TestAddsNoDateNodeDidNotSend(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		// What Node sends when the app sets res.sendDate = false.
+		w.Header()["Date"] = nil
+		io.WriteString(w, "no date")
+	})
+	res := rawRoundTrip(t, addr, get("/"))
+	if values, ok := res.Header["Date"]; ok {
+		t.Errorf("Date = %q, want none", values)
+	}
+}
+
+func TestKeepsTheDateNodeSent(t *testing.T) {
+	const date = "Tue, 01 Dec 2026 10:00:00 GMT"
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Date", date)
+		io.WriteString(w, "dated")
+	})
+	res := rawRoundTrip(t, addr, get("/"))
+	if got := res.Header.Values("Date"); len(got) != 1 || got[0] != date {
+		t.Errorf("Date = %q, want [%q]", got, date)
+	}
+}
+
+func TestDatesItsOwnErrorAnswers(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	addr := upstream.Listener.Addr().String()
+	upstream.Close() // nothing listens there now: every request fails
+	proxy := httptest.NewServer(newProxy(addr, &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}, 4*time.Second, testToken))
+	t.Cleanup(proxy.Close)
+	res := rawRoundTrip(t, proxy.Listener.Addr().String(), get("/"))
+	if res.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", res.StatusCode, http.StatusBadGateway)
+	}
+	if res.Header.Get("Date") == "" {
+		t.Error("the 502 has no Date header")
+	}
+}
+
 func TestForwardsAResponseBeforeTheUploadFinishes(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusForbidden} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
