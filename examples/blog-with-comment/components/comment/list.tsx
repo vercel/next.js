@@ -19,11 +19,11 @@ export default function CommentList({ comments, onDelete }: CommentListProps) {
             user && user.email === process.env.NEXT_PUBLIC_AUTH0_ADMIN_EMAIL;
 
           return (
-            <div key={comment.created_at} className="flex space-x-4">
+            <div key={comment.id} className="flex space-x-4">
               <div className="flex-shrink-0">
                 <img
                   src={comment.user.picture}
-                  alt={comment.user.name}
+                  alt={comment.user.name ?? "User avatar"}
                   width={40}
                   height={40}
                   className="rounded-full"
@@ -40,7 +40,7 @@ export default function CommentList({ comments, onDelete }: CommentListProps) {
                     <button
                       className="text-gray-400 hover:text-red-500"
                       onClick={() => onDelete(comment)}
-                      aria-label="Close"
+                      aria-label="Delete comment"
                     >
                       x
                     </button>
