@@ -26,24 +26,27 @@ use crate::{
 #[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct EsmModuleItem {
     pub path: AstPathId,
-    pub supports_block_scoping: bool,
 }
 
 impl EsmModuleItem {
-    pub fn new(path: AstPathId, supports_block_scoping: bool) -> Self {
-        EsmModuleItem {
-            path,
-            supports_block_scoping,
-        }
+    pub fn new(path: AstPathId) -> Self {
+        EsmModuleItem { path }
     }
 
     pub async fn code_generation(
         &self,
         trie: &AstPathTrie,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
-        let supports_block_scoping = self.supports_block_scoping;
+        // Whether we may codegen `const` or should fall back to `var` (at the cost of slightly
+        // less correct circular import errors). Only read here, so that module analysis doesn't
+        // depend on the target environment.
+        let supports_block_scoping = *chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_block_scoping()
+            .await?;
 
         visitors.push(create_visitor!(
             trie,

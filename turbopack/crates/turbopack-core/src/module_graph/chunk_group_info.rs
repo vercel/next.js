@@ -10,8 +10,8 @@ use tracing::Instrument;
 use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, OrderedAutoSet, ReadRef, ResolvedVc, TryJoinIterExt,
+    ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -27,7 +27,7 @@ pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>);
 
 /// See [`ChunkGroupInfo::chunk_group_ident_hashes`].
 #[turbo_tasks::value(transparent)]
-pub struct ChunkGroupIdentHashes(Vec<u64>);
+pub struct ChunkGroupIdentHashes(#[bincode(fixint)] Vec<u64>);
 
 /// The hash of a [`ChunkGroupKey::ident_str`], i.e. of the identity of one chunk group.
 pub fn chunk_group_ident_hash(ident: &str) -> u64 {
@@ -36,17 +36,96 @@ pub fn chunk_group_ident_hash(ident: &str) -> u64 {
     hasher.finish()
 }
 
+/// A chunk group of a [`ChunkGroupInfo`], without its entry modules.
+///
+/// The lookups of [`ChunkGroupInfo`] return these instead of [`ChunkGroup`]s: their callers only
+/// need to know which kind of chunk group it is, and a module that is part of many chunk groups
+/// would otherwise hold a copy of the entries of each of them. Read the full [`ChunkGroup`] with
+/// [`ChunkGroupInfo::chunk_groups`] and the index.
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
+pub enum ChunkGroupKind {
+    /// See [`ChunkGroup::Entry`].
+    Entry,
+    /// See [`ChunkGroup::Async`].
+    Async(ResolvedVc<Box<dyn Module>>),
+    /// See [`ChunkGroup::Isolated`].
+    Isolated(ResolvedVc<Box<dyn Module>>),
+    /// See [`ChunkGroup::IsolatedMerged`].
+    IsolatedMerged { parent: usize, merge_tag: RcStr },
+    /// See [`ChunkGroup::Shared`].
+    Shared(ResolvedVc<Box<dyn Module>>),
+    /// See [`ChunkGroup::SharedMultiple`].
+    SharedMultiple,
+    /// See [`ChunkGroup::SharedMerged`].
+    SharedMerged { parent: usize, merge_tag: RcStr },
+    /// See [`ChunkGroup::Collected`].
+    Collected(ResolvedVc<Box<dyn Module>>),
+}
+
+impl ChunkGroupKind {
+    /// The [`ChunkGroup::key`] of the chunk group, unless that key consists of its entries
+    /// ([`ChunkGroupKind::Entry`] and [`ChunkGroupKind::SharedMultiple`]).
+    pub fn key(&self) -> Option<ChunkGroupKey> {
+        Some(match self {
+            ChunkGroupKind::Entry | ChunkGroupKind::SharedMultiple => return None,
+            ChunkGroupKind::Async(module) => ChunkGroupKey::Async(*module),
+            ChunkGroupKind::Isolated(module) => ChunkGroupKey::Isolated(*module),
+            ChunkGroupKind::IsolatedMerged { parent, merge_tag } => ChunkGroupKey::IsolatedMerged {
+                parent: ChunkGroupId::from(*parent),
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroupKind::Shared(module) => ChunkGroupKey::Shared(*module),
+            ChunkGroupKind::SharedMerged { parent, merge_tag } => ChunkGroupKey::SharedMerged {
+                parent: ChunkGroupId::from(*parent),
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroupKind::Collected(module) => ChunkGroupKey::Collected(*module),
+        })
+    }
+}
+
+impl From<&ChunkGroup> for ChunkGroupKind {
+    fn from(chunk_group: &ChunkGroup) -> Self {
+        match chunk_group {
+            ChunkGroup::Entry(_) => ChunkGroupKind::Entry,
+            ChunkGroup::Async(module) => ChunkGroupKind::Async(*module),
+            ChunkGroup::Isolated(module) => ChunkGroupKind::Isolated(*module),
+            ChunkGroup::IsolatedMerged {
+                parent, merge_tag, ..
+            } => ChunkGroupKind::IsolatedMerged {
+                parent: *parent,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroup::Shared(module) => ChunkGroupKind::Shared(*module),
+            ChunkGroup::SharedMultiple(_) => ChunkGroupKind::SharedMultiple,
+            ChunkGroup::SharedMerged {
+                parent, merge_tag, ..
+            } => ChunkGroupKind::SharedMerged {
+                parent: *parent,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroup::Collected(module) => ChunkGroupKind::Collected(*module),
+        }
+    }
+}
+
+/// The index of a chunk group in [`ChunkGroupInfo::chunk_groups`] and its kind.
 #[turbo_tasks::value]
-pub struct ChunkGroupWithIndex {
+pub struct ChunkGroupSummary {
     pub index: u32,
-    pub chunk_group: ChunkGroup,
+    pub kind: ChunkGroupKind,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkGroups(Vec<ChunkGroupWithIndex>);
+pub struct ChunkGroupSummaries(Vec<ChunkGroupSummary>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionChunkGroupWithIndex(Option<ChunkGroupWithIndex>);
+pub struct OptionChunkGroupSummary(Option<ChunkGroupSummary>);
+
+/// Indices of chunk groups in [`ChunkGroupInfo::chunk_groups`].
+#[turbo_tasks::value(transparent)]
+pub struct ChunkGroupIndices(Vec<u32>);
 
 /// Maps each [`ChunkGroupKey`] to its index in [`ChunkGroupInfo::chunk_groups`], as a keyed cell so
 /// [`ChunkGroupInfo::get_index_of`] depends only on the key it looks up.
@@ -127,6 +206,32 @@ pub struct AsyncLoaderRelevantChunkGroupsMap(
     FxHashMap<ResolvedVc<Box<dyn Module>>, AsyncLoaderRelevantChunkGroups>,
 );
 
+/// The chunk groups by index, in index order. A keyed cell, so a reader of one chunk group (e.g.
+/// chunking that group) only depends on that entry: adding or changing another chunk group doesn't
+/// invalidate it. Keyed by index, so renumbering the chunk groups changes the affected keys.
+///
+/// Indexed like every other chunk-group index ([`ChunkGroupInfo::module_chunk_groups`],
+/// [`ChunkGroupInfo::chunk_group_indices`], ...). A keyed `Vec`: read one chunk group with
+/// `get(&index)`, where `index` is a `usize`.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ChunkGroupsByIndex(Vec<ChunkGroup>);
+
+/// Returns the chunk group at `index` of the [`ChunkGroupsByIndex`] `chunk_groups`, for an index
+/// read from another cell of the same [`ChunkGroupInfo`].
+///
+/// [`compute_chunk_group_info`] creates all of these cells in one execution, but an eventually
+/// consistent reader can pair this cell with another one from a newer execution while it
+/// recomputes, so the index can be out of range. The reader depends on both and is recomputed once
+/// both are updated, so an error here is transient, but indexing would panic.
+pub fn chunk_group_at(chunk_groups: &[ChunkGroup], index: usize) -> Result<&ChunkGroup> {
+    chunk_groups.get(index).with_context(|| {
+        format!(
+            "chunk group index {index} is out of range ({} chunk groups)",
+            chunk_groups.len()
+        )
+    })
+}
+
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
@@ -135,21 +240,30 @@ pub struct ChunkGroupInfo {
     /// For each async module, the parts of an availability that chunking its async chunk group
     /// can observe. See [`AsyncLoaderRelevantChunkGroups`].
     pub async_loader_relevant_chunk_groups: ResolvedVc<AsyncLoaderRelevantChunkGroupsMap>,
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub chunk_groups: FxIndexSet<ChunkGroup>,
+    /// The chunk groups by index, see [`ChunkGroupsByIndex`]. Read one chunk group with
+    /// [`Vc::get`] (or [`ChunkGroupInfo::get_chunk_group`]) to depend only on that group.
+    pub chunk_groups: ResolvedVc<ChunkGroupsByIndex>,
+    /// The key of each chunk group, indexed like `chunk_groups`. Ordered, so that equality is
+    /// order-sensitive: a recomputation that only renumbers the chunk groups must not compare
+    /// equal and keep the old order, while the bitsets in `module_chunk_groups` and the indices in
+    /// `chunk_group_indices` use the new numbering. It is also what makes the whole
+    /// `ChunkGroupInfo` compare unequal when the set or the numbering of chunk groups changes (the
+    /// other fields are cells of the same task, which keep their identity).
     #[turbo_tasks(unsafe_ignore)]
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    pub chunk_group_keys: OrderedAutoSet<ChunkGroupKey>,
     /// The same keys as `chunk_group_keys`, mapped to their index, in a keyed cell so a single
     /// index lookup does not depend on the whole `ChunkGroupInfo`. See [`ChunkGroupKeyToIndex`].
     pub chunk_group_indices: ResolvedVc<ChunkGroupKeyToIndex>,
-    pub chunking_heuristics: ChunkingHeuristicsInfo,
+    /// In its own cell, so chunking, which only needs the heuristics, doesn't depend on the whole
+    /// `ChunkGroupInfo`.
+    pub chunking_heuristics: ResolvedVc<ChunkingHeuristicsInfo>,
 }
 
 /// Chunking heuristics computed by [`compute_chunk_group_info`]. `clusters` is indexed by
 /// chunk-group index (same length and order as [`ChunkGroupInfo::chunk_groups`]); `priority_routes`
 /// is a set of those indices.
-#[derive(Debug, Default, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[turbo_tasks::value]
+#[derive(Debug, Default, Clone)]
 pub struct ChunkingHeuristicsInfo {
     /// For each chunk group (by index), the set of cluster IDs it belongs to. A cluster ID is the
     /// index of a configured cluster. A route's chunk group carries that route's clusters; chunk
@@ -170,6 +284,26 @@ impl ChunkGroupInfo {
     #[turbo_tasks::function]
     pub fn module_chunk_groups(&self) -> Vc<ModuleToChunkGroups> {
         *self.module_chunk_groups
+    }
+
+    /// The keyed async module -> chunk groups containing its loader map. Read a single entry
+    /// from it with [`Vc::get`] to depend only on that module rather than on all of
+    /// [`ChunkGroupInfo`].
+    #[turbo_tasks::function]
+    pub fn async_loader_chunk_groups(&self) -> Vc<ModuleToChunkGroups> {
+        *self.async_loader_chunk_groups
+    }
+
+    /// The chunk groups as a keyed `Vec` (keyed by index), see [`ChunkGroupsByIndex`].
+    #[turbo_tasks::function]
+    pub fn chunk_groups(&self) -> Vc<ChunkGroupsByIndex> {
+        *self.chunk_groups
+    }
+
+    /// The chunking heuristics, without depending on the rest of [`ChunkGroupInfo`].
+    #[turbo_tasks::function]
+    pub fn chunking_heuristics(&self) -> Vc<ChunkingHeuristicsInfo> {
+        *self.chunking_heuristics
     }
 
     /// The keyed `ChunkGroupKey` -> index map. Read a single entry from it with [`Vc::get`] to
@@ -206,24 +340,65 @@ impl ChunkGroupInfo {
 
     /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
     /// graph.
+    ///
+    /// Only depends on the entries of `module` and of its chunk groups, not on the whole
+    /// [`ChunkGroupInfo`].
     #[turbo_tasks::function]
     pub async fn get_chunk_groups_for_module(
-        &self,
+        self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Vc<ChunkGroups>> {
-        let module_chunk_groups = self.module_chunk_groups.await?;
-        let Some(groups) = module_chunk_groups.get(&module) else {
+    ) -> Result<Vc<ChunkGroupSummaries>> {
+        let Some(groups) = self.module_chunk_groups().get(&module).await? else {
             return Ok(Vc::cell(Vec::new()));
         };
-        Ok(Vc::cell(
-            groups
-                .iter()
-                .map(|index| ChunkGroupWithIndex {
+        let chunk_groups = self.chunk_groups().keyed_reader().await?;
+        let result = groups
+            .iter()
+            .map(|index| {
+                Ok(ChunkGroupSummary {
                     index,
-                    chunk_group: self.chunk_groups[index as usize].clone(),
+                    kind: keyed_chunk_group_at(&chunk_groups, index as usize)?.into(),
                 })
-                .collect(),
-        ))
+            })
+            .collect::<Result<_>>()?;
+        drop(chunk_groups);
+        Ok(Vc::cell(result))
+    }
+
+    /// Returns the indices of the chunk groups containing loaders of `module`, including their
+    /// transitive importers across async boundaries. Non-async groups terminate a path; an async
+    /// cycle is visited only once.
+    ///
+    /// Only depends on the entries it visits, not on the whole [`ChunkGroupInfo`].
+    #[turbo_tasks::function]
+    pub async fn get_async_loader_ancestor_chunk_groups(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroupIndices>> {
+        let loaders = self.async_loader_chunk_groups().keyed_reader().await?;
+        let chunk_groups = self.chunk_groups().keyed_reader().await?;
+        let mut pending = vec![module];
+        let mut visited = FxHashSet::default();
+        let mut groups = FxIndexSet::default();
+        while let Some(module) = pending.pop() {
+            if !visited.insert(module) {
+                continue;
+            }
+            if let Some(indices) = loaders.get(&module) {
+                for index in indices.iter() {
+                    if !groups.insert(index) {
+                        continue;
+                    }
+                    let chunk_group = keyed_chunk_group_at(&chunk_groups, index as usize)?;
+                    if let ChunkGroup::Async(parent_module) = chunk_group {
+                        pending.push(*parent_module);
+                    }
+                }
+            }
+        }
+        drop(chunk_groups);
+        drop(loaders);
+        Ok(Vc::cell(groups.into_iter().collect()))
     }
 
     /// Returns the shared merged chunk group with `merge_tag` that `parent` is the parent of, if
@@ -231,25 +406,46 @@ impl ChunkGroupInfo {
     ///
     /// A merge tag collects everything reachable through the tagged shared references of one
     /// parent group into a single group, so there is at most one such group per parent and tag.
+    ///
+    /// Only depends on the entries of that key and that chunk group.
     #[turbo_tasks::function]
-    pub fn get_shared_merged_chunk_group(
-        &self,
+    pub async fn get_shared_merged_chunk_group(
+        self: Vc<Self>,
         parent: usize,
         merge_tag: RcStr,
-    ) -> Vc<OptionChunkGroupWithIndex> {
+    ) -> Result<Vc<OptionChunkGroupSummary>> {
         let key = ChunkGroupKey::SharedMerged {
             parent: ChunkGroupId::from(parent),
             merge_tag,
         };
-        Vc::cell(
-            self.chunk_group_keys
-                .get_index_of(&key)
-                .map(|index| ChunkGroupWithIndex {
-                    index: index as u32,
-                    chunk_group: self.chunk_groups[index].clone(),
-                }),
-        )
+        let Some(index) = self
+            .chunk_group_indices()
+            .get(&key)
+            .await?
+            .map(|index| *index)
+        else {
+            return Ok(Vc::cell(None));
+        };
+        let chunk_group = self
+            .chunk_groups()
+            .get(&(index as usize))
+            .await?
+            .with_context(|| format!("chunk group index {index} is out of range"))?;
+        Ok(Vc::cell(Some(ChunkGroupSummary {
+            index,
+            kind: (&*chunk_group).into(),
+        })))
     }
+}
+
+/// Like [`chunk_group_at`], for a keyed reader (which only depends on the entries it reads).
+fn keyed_chunk_group_at(
+    chunk_groups: &turbo_tasks::KeyedReadRef<ChunkGroupsByIndex>,
+    index: usize,
+) -> Result<&ChunkGroup> {
+    chunk_groups
+        .get(&index)
+        .with_context(|| format!("chunk group index {index} is out of range"))
 }
 
 impl ChunkGroupInfo {
@@ -269,12 +465,13 @@ impl ChunkGroupInfo {
         } else if cfg!(debug_assertions) {
             // Only taken on the failure path, so the happy path keeps its narrow dependency.
             let this = self.await?;
+            let chunk_groups = this.chunk_groups.await?;
             bail!(
                 "Couldn't find chunk group index for {} in {}",
                 key.debug_str(&this.chunk_group_keys).await?,
-                this.chunk_groups
+                chunk_groups
                     .iter()
-                    .map(|c| c.debug_str(&this))
+                    .map(|c| c.debug_str(&chunk_groups))
                     .try_join()
                     .await?
                     .join(", ")
@@ -288,9 +485,17 @@ impl ChunkGroupInfo {
     ///
     /// Chunking takes a [`ChunkGroupKey`] and resolves the group here, so a group's contents (e.g.
     /// the entries of a merged group) always come from the module graph rather than the caller.
+    ///
+    /// Only depends on the entries of that key and that chunk group, not on the whole
+    /// `ChunkGroupInfo`.
     pub async fn get_chunk_group(self: Vc<Self>, key: ChunkGroupKey) -> Result<ChunkGroup> {
         let index = self.get_index_of(key).await?;
-        Ok(self.await?.chunk_groups[index].clone())
+        Ok((*self
+            .chunk_groups()
+            .get(&index)
+            .await?
+            .with_context(|| format!("chunk group index {index} is out of range"))?)
+        .clone())
     }
 }
 
@@ -456,7 +661,7 @@ impl ChunkGroup {
         }
     }
 
-    pub async fn debug_str(&self, chunk_group_info: &ChunkGroupInfo) -> Result<String> {
+    pub async fn debug_str(&self, chunk_groups: &[ChunkGroup]) -> Result<String> {
         Ok(match self {
             ChunkGroup::Entry(entries) => format!(
                 "ChunkGroup::Entry({:?})",
@@ -493,7 +698,7 @@ impl ChunkGroup {
             } => {
                 format!(
                     "ChunkGroup::IsolatedMerged({}, {}, {:?})",
-                    Box::pin(chunk_group_info.chunk_groups[*parent].debug_str(chunk_group_info))
+                    Box::pin(chunk_group_at(chunk_groups, *parent)?.debug_str(chunk_groups))
                         .await?,
                     merge_tag,
                     entries
@@ -510,7 +715,7 @@ impl ChunkGroup {
             } => {
                 format!(
                     "ChunkGroup::SharedMerged({}, {}, {:?})",
-                    Box::pin(chunk_group_info.chunk_groups[*parent].debug_str(chunk_group_info))
+                    Box::pin(chunk_group_at(chunk_groups, *parent)?.debug_str(chunk_groups))
                         .await?,
                     merge_tag,
                     entries
@@ -557,10 +762,11 @@ impl ChunkGroupKey {
     /// names from this (through [`ChunkGroupInfo::chunk_group_ident_hashes`]), so two chunk groups
     /// must render equally exactly when they are the same chunk group. Changing the rendering
     /// renames assets; adding anything graph-local to it is a correctness bug.
-    pub async fn ident_str(
-        &self,
-        keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
-    ) -> Result<String> {
+    ///
+    /// Errors when the parent of a merged chunk group is not in `keys`. That happens when the
+    /// key comes from a different (e.g. newer) [`ChunkGroupInfo`] than `keys`, which is transient
+    /// with eventual consistency.
+    pub async fn ident_str(&self, keys: &OrderedAutoSet<ChunkGroupKey>) -> Result<String> {
         Ok(match self {
             ChunkGroupKey::Entry(entries) => format!(
                 "Entry({:?})",
@@ -582,7 +788,7 @@ impl ChunkGroupKey {
             ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                 format!(
                     "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
-                    Box::pin(keys.index(parent.0 as usize).ident_str(keys)).await?,
+                    Box::pin(Self::merged_parent(keys, parent.0 as usize)?.ident_str(keys)).await?,
                     merge_tag
                 )
             }
@@ -600,7 +806,7 @@ impl ChunkGroupKey {
             ChunkGroupKey::SharedMerged { parent, merge_tag } => {
                 format!(
                     "SharedMerged {{ parent: {}, merge_tag: {:?} }}",
-                    Box::pin(keys.index(parent.0 as usize).ident_str(keys)).await?,
+                    Box::pin(Self::merged_parent(keys, parent.0 as usize)?.ident_str(keys)).await?,
                     merge_tag
                 )
             }
@@ -612,11 +818,23 @@ impl ChunkGroupKey {
     /// Delegates to [`Self::ident_str`], which already renders the chunk group unambiguously.
     /// Debug output is free to diverge from it, but note that `ident_str` must stay stable because
     /// asset idents are derived from it -- change this wrapper rather than `ident_str` itself.
-    pub async fn debug_str(
-        &self,
-        keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
-    ) -> Result<String> {
+    pub async fn debug_str(&self, keys: &OrderedAutoSet<ChunkGroupKey>) -> Result<String> {
         self.ident_str(keys).await
+    }
+
+    /// The parent key of a merged chunk group. `parent` can be out of range when the merged key
+    /// comes from a different [`ChunkGroupInfo`] than `keys`, so this is an error, not a panic.
+    fn merged_parent(
+        keys: &OrderedAutoSet<ChunkGroupKey>,
+        parent: usize,
+    ) -> Result<&ChunkGroupKey> {
+        keys.get_index(parent).with_context(|| {
+            format!(
+                "parent chunk group {parent} of a merged chunk group is not a known chunk group \
+                 ({} chunk groups)",
+                keys.len()
+            )
+        })
     }
 }
 
@@ -988,18 +1206,18 @@ pub async fn compute_chunk_group_info(
                     buckets
                         .entry(key.iter().collect::<Vec<_>>())
                         .or_insert(BTreeSet::new())
-                        .insert(module.ident().to_string().await?);
+                        .insert(module.ident_string().await?);
                 }
             }
 
             let mut result = vec![];
             result.push("Chunk Groups:".to_string());
-            for (i, (key, _)) in chunk_groups_map.iter().enumerate() {
-                result.push(format!(
-                    "  {:?}: {}",
-                    i,
-                    key.debug_str(&chunk_groups_map.keys()).await?
-                ));
+            let keys = chunk_groups_map
+                .keys()
+                .cloned()
+                .collect::<OrderedAutoSet<_>>();
+            for (i, key) in keys.iter().enumerate() {
+                result.push(format!("  {:?}: {}", i, key.debug_str(&keys).await?));
             }
             result.push("# Module buckets:".to_string());
             for (key, modules) in buckets.iter() {
@@ -1099,30 +1317,37 @@ pub async fn compute_chunk_group_info(
             chunking_heuristics: ChunkingHeuristicsInfo {
                 clusters: chunk_group_clusters,
                 priority_routes: chunk_group_priority_routes,
-            },
-            chunk_groups: chunk_groups_map
-                .into_iter()
-                .map(|(k, merged_entries)| match k {
-                    ChunkGroupKey::Entry(entries) => ChunkGroup::Entry(entries),
-                    ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
-                    ChunkGroupKey::Collected(module) => ChunkGroup::Collected(module),
-                    ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
-                    ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
-                        ChunkGroup::IsolatedMerged {
-                            parent: parent.0 as usize,
-                            merge_tag,
-                            entries: merged_entries.into_iter().collect(),
+            }
+            .resolved_cell(),
+            chunk_groups: ResolvedVc::cell(
+                chunk_groups_map
+                    .into_iter()
+                    .map(|(k, merged_entries)| match k {
+                        ChunkGroupKey::Entry(entries) => ChunkGroup::Entry(entries),
+                        ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
+                        ChunkGroupKey::Collected(module) => ChunkGroup::Collected(module),
+                        ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
+                        ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
+                            ChunkGroup::IsolatedMerged {
+                                parent: parent.0 as usize,
+                                merge_tag,
+                                entries: merged_entries.into_iter().collect(),
+                            }
                         }
-                    }
-                    ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
-                    ChunkGroupKey::SharedMultiple(entries) => ChunkGroup::SharedMultiple(entries),
-                    ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
-                        parent: parent.0 as usize,
-                        merge_tag,
-                        entries: merged_entries.into_iter().collect(),
-                    },
-                })
-                .collect(),
+                        ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
+                        ChunkGroupKey::SharedMultiple(entries) => {
+                            ChunkGroup::SharedMultiple(entries)
+                        }
+                        ChunkGroupKey::SharedMerged { parent, merge_tag } => {
+                            ChunkGroup::SharedMerged {
+                                parent: parent.0 as usize,
+                                merge_tag,
+                                entries: merged_entries.into_iter().collect(),
+                            }
+                        }
+                    })
+                    .collect(),
+            ),
         }
         .cell())
     }

@@ -30,6 +30,10 @@ module.exports = {
     }
     lookupRetryState.writeStarted = true
     await lookupRetryState.pendingWrite
+    if (lookupRetryState.failWrite) {
+      lookupRetryState.writeFailed = true
+      throw new Error('expected retained cache write failure')
+    }
     await cacheHandler.set(cacheKey, pendingEntry)
     lookupRetryState.writeCompleted = true
   },

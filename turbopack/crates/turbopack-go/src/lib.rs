@@ -1,0 +1,1970 @@
+#![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+
+//! Native Go file inputs. Discovery and compilation run in the original project; Turbo Tasks
+//! records their filesystem dependencies and validates inputs across each external command.
+mod analysis;
+mod inputs;
+mod paths;
+mod process;
+mod session;
+mod sources;
+
+use std::{
+    collections::BTreeMap,
+    future::Future,
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+    sync::{
+        LazyLock,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::Duration,
+};
+
+use anyhow::{Context, Result, ensure};
+use bincode::{Decode, Encode};
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
+use tokio::sync::Semaphore;
+use tokio_util::sync::CancellationToken;
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{
+    Completion, Invalidator, NonLocalValue, ResolvedVc, TransientInstance, Vc, get_invalidator,
+    turbo_tasks,
+};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystemPath,
+    Permissions, to_sys_path,
+};
+
+pub use crate::{
+    analysis::{GoDeclarations, go_declarations},
+    paths::{paths_refer_to_same_file, validate_source_path},
+    session::{GoSessionPool, GoTarget, GoToolchainOptions},
+    sources::{
+        GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_package_bundle_from_sources,
+        go_source_failure, go_source_set,
+    },
+};
+use crate::{
+    inputs::{CompilerInputs, FileInput, Inputs, Tracker, embed_matcher},
+    process::Command,
+};
+
+#[derive(Debug)]
+pub struct Cancellation {
+    token: CancellationToken,
+
+    module_cache_watching: tokio::sync::Mutex<bool>,
+
+    lists: AtomicUsize,
+
+    builds: AtomicUsize,
+
+    module_configs: AtomicUsize,
+}
+// Session cancellation and counters contain no task values or references.
+unsafe impl NonLocalValue for Cancellation {}
+
+/// Resolved host toolchain and build options. Changing the installed toolchain requires a new
+/// session. Versioned modules use the normal Go module cache, with downloads disabled during
+/// builds.
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+pub struct GoBuildOptions {
+    pub go: RcStr,
+    pub goroot: RcStr,
+    pub version: RcStr,
+    pub toolchain_fingerprint: Vec<u8>,
+    pub goos: RcStr,
+    pub goarch: RcStr,
+    pub exe_suffix: RcStr,
+    pub cache: RcStr,
+    pub module_cache: RcStr,
+    pub gopath: RcStr,
+    pub path: RcStr,
+    pub tags: RcStr,
+    /// Poll source/module-cache watchers when native filesystem events are unavailable.
+    pub poll_interval_ms: Option<u64>,
+}
+
+/// Process-local lifecycle state. Root CLI tasks intentionally remain transient; persistent
+/// consumers use a session whose identity contains only the resolved build options.
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+pub struct GoBuildContext {
+    pub options: GoBuildOptions,
+    #[bincode(skip, default = "fresh_cancellation")]
+    pub cancellation: TransientInstance<Cancellation>,
+}
+
+fn fresh_cancellation() -> TransientInstance<Cancellation> {
+    TransientInstance::new(Cancellation {
+        token: CancellationToken::new(),
+        module_cache_watching: Default::default(),
+        lists: AtomicUsize::new(0),
+        builds: AtomicUsize::new(0),
+        module_configs: AtomicUsize::new(0),
+    })
+}
+
+impl Deref for GoBuildContext {
+    type Target = GoBuildOptions;
+    fn deref(&self) -> &Self::Target {
+        &self.options
+    }
+}
+impl DerefMut for GoBuildContext {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.options
+    }
+}
+
+// Installed toolchains are immutable within a session. Hash their contents once when resolving
+// the host, so restoring an identical SDK copy keeps its identity despite new timestamps/inodes.
+// pkg/mod may hold an independently changing module cache and is deliberately excluded.
+fn toolchain_fingerprint(go: &Path, goroot: &Path) -> Result<Vec<u8>> {
+    let mut digest = Sha256::new();
+    digest.update(std::fs::read(go)?);
+    // GOENV=off disables user configuration, but Go still reads SDK defaults from go.env.
+    // read() follows file symlinks, so the consumed target contents participate too.
+    match std::fs::read(goroot.join("go.env")) {
+        Ok(contents) => {
+            digest.update([1]);
+            digest.update((contents.len() as u64).to_le_bytes());
+            digest.update(contents);
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => digest.update([0]),
+        Err(error) => return Err(error).context("fingerprinting GOROOT/go.env"),
+    }
+    let mut pending = vec![
+        goroot.join("src"),
+        goroot.join("pkg/include"),
+        goroot.join("pkg/tool"),
+    ];
+    let mut visited_directories = std::collections::BTreeSet::new();
+    let mut buffer = [0u8; 64 * 1024];
+    while let Some(path) = pending.pop() {
+        // Follow toolchain symlinks and hash the consumed bytes; the Go installation can
+        // legitimately contain links even though application-source symlinks are unsupported.
+        let metadata = std::fs::metadata(&path)?;
+        let relative = path.strip_prefix(goroot)?.to_string_lossy();
+        digest.update((relative.len() as u64).to_le_bytes());
+        digest.update(relative.as_bytes());
+        if metadata.is_dir() {
+            digest.update([0]);
+            if !visited_directories.insert(std::fs::canonicalize(&path)?) {
+                continue;
+            }
+            let mut entries = std::fs::read_dir(path)?
+                .map(|entry| Ok(entry?.path()))
+                .collect::<Result<Vec<_>>>()?;
+            entries.sort();
+            pending.extend(entries);
+        } else {
+            ensure!(
+                metadata.is_file(),
+                "unsupported Go toolchain input: {}",
+                path.display()
+            );
+            digest.update([1]);
+            digest.update(metadata.len().to_le_bytes());
+            let mut file = std::fs::File::open(path)?;
+            loop {
+                let len = std::io::Read::read(&mut file, &mut buffer)?;
+                if len == 0 {
+                    break;
+                }
+                digest.update(&buffer[..len]);
+            }
+        }
+    }
+    Ok(digest.finalize().to_vec())
+}
+
+impl GoBuildContext {
+    pub async fn host(go: &Path, cache: Option<&Path>, tags: &str) -> Result<Self> {
+        let go = if go.components().count() == 1 && !go.is_absolute() {
+            let name = if go.extension().is_none() {
+                PathBuf::from(format!("{}{}", go.display(), std::env::consts::EXE_SUFFIX))
+            } else {
+                go.to_owned()
+            };
+            std::env::var_os("PATH")
+                .into_iter()
+                .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+                .map(|directory| directory.join(&name))
+                .find(|candidate| candidate.is_file())
+                .context("Go not found on PATH; install Go 1.24 or newer or use --go")?
+        } else {
+            go.to_owned()
+        };
+        let go = std::fs::canonicalize(go).context("resolving the Go executable")?;
+        let token = CancellationToken::new();
+        let mut command = Command::new(&go);
+        command
+            .env("GOENV", "off")
+            .env("GOTOOLCHAIN", "local")
+            .env("GOWORK", "off")
+            .args([
+                "env",
+                "-json",
+                "GOROOT",
+                "GOVERSION",
+                "GOHOSTOS",
+                "GOHOSTARCH",
+                "GOEXE",
+                "GOCACHE",
+                "GOMODCACHE",
+                "GOPATH",
+            ]);
+        let report = process::output(command, &token).await?;
+        ensure!(
+            report.status.success(),
+            "unable to query Go: {}",
+            String::from_utf8_lossy(&report.stderr)
+        );
+        let env: BTreeMap<String, String> = serde_json::from_slice(&report.stdout)?;
+        let version = env
+            .get("GOVERSION")
+            .context("Go did not report its version")?;
+        let minor = version
+            .strip_prefix("go1.")
+            .and_then(|v| v.split('.').next())
+            .and_then(|v| v.parse::<u32>().ok());
+        ensure!(
+            minor.is_some_and(|v| v >= 24),
+            "Go 1.24 or newer is required (found {version})"
+        );
+        let goroot = std::fs::canonicalize(env.get("GOROOT").context("Go did not report GOROOT")?)?;
+        let custom_cache = cache.is_some();
+        let cache = match cache {
+            Some(cache) => cache.to_owned(),
+            None => PathBuf::from(env.get("GOCACHE").context("Go did not report GOCACHE")?),
+        };
+        let module_cache = PathBuf::from(
+            env.get("GOMODCACHE")
+                .context("Go did not report GOMODCACHE")?,
+        );
+        let goos = env.get("GOHOSTOS").context("Go did not report GOHOSTOS")?;
+        let goarch = env
+            .get("GOHOSTARCH")
+            .context("Go did not report GOHOSTARCH")?;
+        let gopath = env.get("GOPATH").context("Go did not report GOPATH")?;
+        ensure!(
+            !custom_cache
+                || !std::fs::symlink_metadata(&cache)
+                    .is_ok_and(|metadata| metadata.file_type().is_symlink()),
+            "Go build cache symlinks are unsupported: {}",
+            cache.display()
+        );
+        std::fs::create_dir_all(&module_cache)?;
+        let mut path = vec![goroot.join("bin")];
+        path.extend(
+            std::env::var_os("PATH")
+                .into_iter()
+                .flat_map(|p| std::env::split_paths(&p).collect::<Vec<_>>()),
+        );
+        Ok(Self {
+            options: GoBuildOptions {
+                go: go.to_str().context("non-UTF8 Go executable")?.into(),
+                goroot: goroot.to_str().context("non-UTF8 GOROOT")?.into(),
+                version: version.as_str().into(),
+                toolchain_fingerprint: toolchain_fingerprint(&go, &goroot)?,
+                goos: goos.as_str().into(),
+                goarch: goarch.as_str().into(),
+                exe_suffix: if goos == "windows" {
+                    rcstr!(".exe")
+                } else {
+                    rcstr!("")
+                },
+                cache: paths::resolve_directory(&cache)?
+                    .to_str()
+                    .context("non-UTF8 Go cache")?
+                    .into(),
+                module_cache: std::fs::canonicalize(module_cache)?
+                    .to_str()
+                    .context("non-UTF8 module cache")?
+                    .into(),
+                gopath: gopath.as_str().into(),
+                path: std::env::join_paths(path)?
+                    .to_str()
+                    .context("non-UTF8 PATH")?
+                    .into(),
+                tags: tags.into(),
+                poll_interval_ms: None,
+            },
+            cancellation: fresh_cancellation(),
+        })
+    }
+
+    pub fn cancel(&self) {
+        self.cancellation.token.cancel();
+    }
+    pub async fn cancelled(&self) {
+        self.cancellation.token.cancelled().await;
+    }
+    pub fn is_cancelled(&self) -> bool {
+        self.cancellation.token.is_cancelled()
+    }
+
+    /// Run a host executable with the same concurrency limit and process-tree
+    /// cancellation as compiler commands. Callers own tracking its inputs and caching its output.
+    pub async fn run_executable(
+        &self,
+        executable: &Path,
+        arguments: &[&Path],
+    ) -> Result<std::process::Output> {
+        self.run_executable_with_input(executable, arguments, None)
+            .await
+    }
+
+    async fn run_executable_with_input(
+        &self,
+        executable: &Path,
+        arguments: &[&Path],
+        input: Option<&[u8]>,
+    ) -> Result<std::process::Output> {
+        let _permit = tokio::select! {
+            permit = GO_ACTIONS.acquire() => permit?,
+            _ = self.cancelled() => anyhow::bail!("Go build cancelled"),
+        };
+        let mut command = Command::new(executable);
+        command.env_clear().args(arguments);
+        #[cfg(windows)]
+        for name in ["SystemRoot", "TEMP", "TMP"] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        process::output_with_input(command, &self.cancellation.token, input).await
+    }
+
+    fn command(&self, directory: &Path) -> Command {
+        let mut command = Command::new(self.go.as_str());
+        command
+            .current_dir(directory)
+            .env_clear()
+            .env("PATH", self.path.as_str())
+            .env("GOROOT", self.goroot.as_str())
+            .env("GOOS", self.goos.as_str())
+            .env("GOARCH", self.goarch.as_str())
+            .env("CGO_ENABLED", "0")
+            .env("GOENV", "off")
+            .env("GOTOOLCHAIN", "local")
+            .env("GOWORK", "off")
+            .env("GOPROXY", "off")
+            .env("GOSUMDB", "off")
+            .env("GOVCS", "*:off")
+            .env("GOCACHE", self.cache.as_str())
+            .env("GOMODCACHE", self.module_cache.as_str())
+            .env("GOPATH", self.gopath.as_str())
+            .env("GOTELEMETRY", "off");
+        #[cfg(windows)]
+        for name in ["SystemRoot", "TEMP", "TMP"] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        command
+    }
+
+    /// Discovery/compiler invocation attempts in this session, including retries.
+    /// These counters do not write files or affect task memoization.
+    pub fn invocation_counts(&self) -> (usize, usize) {
+        (
+            self.cancellation.lists.load(Ordering::Relaxed),
+            self.cancellation.builds.load(Ordering::Relaxed),
+        )
+    }
+
+    /// Go module-configuration subprocess attempts, excluding standalone inputs without go.mod.
+    pub fn module_configuration_invocations(&self) -> usize {
+        self.cancellation.module_configs.load(Ordering::Relaxed)
+    }
+}
+
+/// Serializable compiler identity with process-local cancellation and counters. Keep this value
+/// resident so restoring other task data cannot replace an active session's lifecycle state.
+#[turbo_tasks::value(evict = "never")]
+pub struct GoBuildSession {
+    pub go_context: GoBuildContext,
+}
+impl GoBuildSession {
+    pub fn new(go_context: GoBuildContext) -> Vc<Self> {
+        Self { go_context }.cell()
+    }
+
+    /// Scope must identify the lifecycle owner consistently across restarts. The caller must
+    /// retain the returned value's context for cancellation, rather than the probe's context.
+    pub fn persistent(scope: RcStr, options: GoBuildOptions) -> Vc<Self> {
+        persistent_session(scope, options)
+    }
+}
+
+#[turbo_tasks::function]
+fn persistent_session(scope: RcStr, options: GoBuildOptions) -> Vc<GoBuildSession> {
+    // Leading-underscore arguments are excluded from task identity by Turbo Tasks.
+    // Keep this namespace in the key even though Go commands do not consume it.
+    let _ = scope;
+    GoBuildSession::new(GoBuildContext {
+        options,
+        cancellation: fresh_cancellation(),
+    })
+}
+
+#[turbo_tasks::function]
+fn shared_session(go_context: GoBuildContext) -> Vc<GoBuildSession> {
+    GoBuildSession::new(go_context)
+}
+
+#[turbo_tasks::function(operation, root)]
+pub fn filesystem(path: RcStr) -> Vc<DiskFileSystem> {
+    disk_filesystem(path, None)
+}
+
+/// Use one configured filesystem identity for module-cache reads, watching and invalidation.
+#[turbo_tasks::function(operation, root)]
+pub fn filesystem_with_poll_interval(
+    path: RcStr,
+    poll_interval_ms: Option<u64>,
+) -> Vc<DiskFileSystem> {
+    disk_filesystem(path, poll_interval_ms)
+}
+
+#[turbo_tasks::function]
+fn disk_filesystem(path: RcStr, poll_interval_ms: Option<u64>) -> Vc<DiskFileSystem> {
+    DiskFileSystem::new_with_options(
+        rcstr!("go"),
+        Vc::cell(path),
+        Vec::new(),
+        DiskWatcherConfig {
+            poll_interval: poll_interval_ms.map(Duration::from_millis),
+            ..Default::default()
+        },
+        DiskFileSystemMap::empty(),
+    )
+}
+
+#[derive(Deserialize, Default, Debug, PartialEq, Eq)]
+#[serde(rename_all = "PascalCase")]
+struct Package {
+    #[serde(default)]
+    dir: String,
+    #[serde(default)]
+    import_path: String,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    standard: bool,
+    module: Option<Module>,
+    #[serde(default)]
+    go_files: Vec<String>,
+    #[serde(default)]
+    ignored_go_files: Vec<String>,
+    #[serde(default)]
+    invalid_go_files: Vec<String>,
+    #[serde(default)]
+    embed_files: Vec<String>,
+    #[serde(default)]
+    embed_patterns: Vec<String>,
+    #[serde(default)]
+    imports: Vec<String>,
+    #[serde(default)]
+    cgo_files: Vec<String>,
+    #[serde(default)]
+    s_files: Vec<String>,
+    #[serde(default)]
+    h_files: Vec<String>,
+    #[serde(default)]
+    syso_files: Vec<String>,
+    error: Option<serde_json::Value>,
+    #[serde(default)]
+    deps_errors: Vec<serde_json::Value>,
+    #[serde(default)]
+    incomplete: bool,
+    #[serde(default)]
+    dep_only: bool,
+}
+
+#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "PascalCase")]
+struct Module {
+    #[serde(default)]
+    path: String,
+    #[serde(default)]
+    main: bool,
+    #[serde(default)]
+    go_mod: String,
+    #[serde(default)]
+    version: String,
+    replace: Option<Box<Module>>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "PascalCase")]
+struct ModuleConfig {
+    module: Option<Module>,
+    replace: Option<Vec<ModuleReplacement>>,
+    #[serde(default)]
+    // Go 1.24 emits null for an empty requirement slice.
+    require: Option<Vec<Requirement>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct Requirement {
+    path: String,
+    #[serde(default)]
+    version: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct ModuleReplacement {
+    old: Requirement,
+    new: Requirement,
+}
+
+/// Resolves a directory replacement's target, relative to the main module, inside the source
+/// boundary. In a monorepo the boundary is the workspace root, so a module in an application
+/// directory can map a package installed in the workspace's `node_modules`. Only directory
+/// replacements are supported: they are tracked like module sources and need no download.
+fn replacement_directory(
+    boundary: &Path,
+    project: &Path,
+    replacement: &ModuleReplacement,
+) -> Result<PathBuf> {
+    ensure!(
+        replacement.new.version.is_empty(),
+        "versioned Go module replacements are not supported in this release: {}",
+        replacement.old.path
+    );
+    // Normalize lexically; source path validation rejects symlinks when inputs are tracked.
+    let mut directory = PathBuf::new();
+    for part in project.join(&replacement.new.path).components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                directory.pop();
+            }
+            part => directory.push(part),
+        }
+    }
+    // An application can depend on a module at a workspace ancestor. Contain
+    // it within the source boundary, but do not map another module onto the
+    // main module's own directory.
+    ensure!(
+        directory.starts_with(boundary) && directory != project,
+        "Go module replacements must point to a directory inside the project root: {} => {}",
+        replacement.old.path,
+        replacement.new.path
+    );
+    Ok(directory)
+}
+
+// Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
+fn module_escape(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        if ch.is_ascii_uppercase() {
+            escaped.push('!');
+            escaped.push(ch.to_ascii_lowercase());
+        } else {
+            escaped.push(ch);
+        }
+    }
+    escaped
+}
+
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+struct BuildPlan {
+    files: Vec<RcStr>,
+    inputs: CompilerInputs,
+    assembly_flags: BTreeMap<RcStr, RcStr>,
+    generated: BTreeMap<RcStr, RcStr>,
+    aliases: BTreeMap<RcStr, RcStr>,
+    /// Overlay entries for aliased package directories, from virtual to source paths. Both are
+    /// module-relative. Discovery selects them; compilation reuses the same view.
+    mirrored: BTreeMap<RcStr, RcStr>,
+}
+
+#[turbo_tasks::value(shared)]
+struct Discovery {
+    outcome: DiscoveryOutcome,
+    inputs: Inputs,
+}
+
+#[turbo_tasks::value(shared)]
+enum DiscoveryOutcome {
+    Ready(BuildPlan),
+    Failed(RcStr),
+    Retry,
+    Cancelled,
+}
+
+static GO_ACTIONS: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
+
+fn validate_build_cache(project: &Path, go_context: &GoBuildContext) -> Result<()> {
+    let cache = Path::new(go_context.cache.as_str());
+    ensure!(
+        !paths::directories_overlap(cache, project)?
+            && !paths::directories_overlap(cache, Path::new(go_context.module_cache.as_str()))?,
+        "Go build cache must be outside the source project and module cache; choose another \
+         GOCACHE path"
+    );
+    std::fs::create_dir_all(cache)?;
+    Ok(())
+}
+
+/// Go parses module configuration. Key the subprocess by go.mod's recorded fingerprint so
+/// unrelated source edits reuse its result. Including live stamps also lets discovery retry
+/// this query if go.mod changes while the command runs, even if its contents are restored.
+#[turbo_tasks::function]
+async fn module_configuration(
+    project: RcStr,
+    input: FileInput,
+    go_session: ResolvedVc<GoBuildSession>,
+) -> Result<Vc<RcStr>> {
+    let go_context = go_session.await?.go_context.clone();
+    if !input.exists() {
+        return Ok(Vc::cell(rcstr!("{}")));
+    }
+    let mut command = go_context.command(Path::new(project.as_str()));
+    go_context
+        .cancellation
+        .module_configs
+        .fetch_add(1, Ordering::Relaxed);
+    command.args(["mod", "edit", "-json"]);
+    let report = process::output(command, &go_context.cancellation.token).await?;
+    ensure!(
+        report.status.success(),
+        "{}",
+        diagnostic(&report.stderr, Path::new(project.as_str()))
+    );
+    Ok(Vc::cell(String::from_utf8(report.stdout)?.into()))
+}
+
+/// Named-file arguments relative to the module root, where Go commands run.
+fn arguments(files: &[RcStr]) -> Vec<String> {
+    files.iter().map(|file| format!("./{file}")).collect()
+}
+
+fn entry_directory(project: &Path, files: &[RcStr]) -> Result<PathBuf> {
+    ensure!(!files.is_empty(), "supply at least one .go input file");
+    let directory = Path::new(files[0].as_str())
+        .parent()
+        .context("input has no directory")?;
+    for file in files {
+        let path = Path::new(file.as_str());
+        ensure!(
+            !path.is_absolute()
+                && path
+                    .components()
+                    .all(|p| matches!(p, std::path::Component::Normal(_)))
+                && path.extension().is_some_and(|ext| ext == "go"),
+            "Go inputs must be project-relative .go filenames: {file}"
+        );
+        ensure!(
+            path.parent() == Some(directory),
+            "Go input files must share one directory"
+        );
+    }
+    Ok(project.join(directory).components().collect())
+}
+
+/// Join a `/`-separated module-relative path using native separators, without producing a
+/// trailing separator for the module root.
+fn module_path(project: &Path, relative: &str) -> PathBuf {
+    relative
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .fold(project.to_owned(), |path, part| path.join(part))
+}
+
+fn join_relative(directory: &str, name: &str) -> RcStr {
+    if directory.is_empty() {
+        name.into()
+    } else {
+        format!("{directory}/{name}").into()
+    }
+}
+
+/// Map a path inside an aliased package directory back to its source directory.
+fn source_path(project: &Path, aliases: &BTreeMap<RcStr, RcStr>, path: &Path) -> PathBuf {
+    for (virtual_directory, source_directory) in aliases {
+        if let Ok(rest) = path.strip_prefix(module_path(project, virtual_directory)) {
+            let source = module_path(project, source_directory);
+            return if rest.as_os_str().is_empty() {
+                source
+            } else {
+                source.join(rest)
+            };
+        }
+    }
+    path.to_owned()
+}
+
+/// Report diagnostics against source files rather than their virtual package paths.
+fn source_diagnostic(message: &str, project: &Path, aliases: &BTreeMap<RcStr, RcStr>) -> String {
+    let mut message = message.to_owned();
+    for (virtual_directory, source_directory) in aliases {
+        message = message.replace(
+            &module_path(project, virtual_directory)
+                .to_string_lossy()
+                .into_owned(),
+            &module_path(project, source_directory).to_string_lossy(),
+        );
+        let source = if source_directory.is_empty() {
+            String::new()
+        } else {
+            format!("{source_directory}/")
+        };
+        message = message.replace(&format!("{virtual_directory}/"), &source);
+        // Go reports relative paths with native separators.
+        if std::path::MAIN_SEPARATOR != '/' {
+            let native = |path: &str| path.replace('/', std::path::MAIN_SEPARATOR_STR);
+            message = message.replace(&native(&format!("{virtual_directory}/")), &native(&source));
+        }
+        // Package headers name the virtual import path, such as `# example.com/m/<alias>`.
+        let source = if source_directory.is_empty() {
+            String::new()
+        } else {
+            format!("/{source_directory}")
+        };
+        message = message.replace(&format!("/{virtual_directory}"), &source);
+    }
+    message
+        .lines()
+        .map(|line| {
+            if let Some(end) = line.find(".go:") {
+                let name = &line[..end + 3];
+                // Line directives already name the source directory. Unlike `diagnostic`,
+                // this can recognize paths containing spaces without treating prose as a path.
+                if aliases.values().any(|directory| {
+                    !directory.is_empty()
+                        && Path::new(name).starts_with(module_path(Path::new(""), directory))
+                }) {
+                    return format!("{}{}", project.join(name).display(), &line[end + 3..]);
+                }
+            }
+            line.to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// List and track the directory at `/`-separated `relative` below `root`. Entries map names to
+/// the kinds recorded by [`Tracker::dir`]; a missing directory has no entries.
+async fn tracked_entries(
+    tracker: &mut Tracker<'_>,
+    root: &Path,
+    relative: &str,
+) -> Result<BTreeMap<String, u8>> {
+    let path = module_path(root, relative);
+    tracker.dir(&path).await?;
+    Ok(
+        tracker.inputs.directories[path.to_str().context("non-UTF8 Go path")?]
+            .1
+            .names
+            .clone()
+            .unwrap_or_default(),
+    )
+}
+
+/// Mirror the regular files of a source directory into its virtual package directory. Go
+/// applies its normal file selection to the overlay view.
+///
+/// A go.mod in the package directory itself is not mirrored: the package directory is then the
+/// module root, and a copy would make the virtual directory a separate nested module.
+async fn mirror_directory(
+    tracker: &mut Tracker<'_>,
+    project: &Path,
+    virtual_directory: &str,
+    source_directory: &str,
+    mirrored: &mut BTreeMap<RcStr, RcStr>,
+) -> Result<()> {
+    for (name, kind) in tracked_entries(tracker, project, source_directory).await? {
+        // Symlinks are unsupported Go inputs and other entries cannot be compiled.
+        if kind == 0 && name != "go.mod" {
+            mirrored.insert(
+                join_relative(virtual_directory, &name),
+                join_relative(source_directory, &name),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Names Go skips while walking a directory an embed pattern names. This mirrors
+/// `isBadEmbedName` and the hidden-file rule in cmd/go; `all:` only keeps `.` and `_` names.
+fn skipped_embed_name(name: &str, all: bool) -> bool {
+    matches!(name, ".bzr" | ".git" | ".hg" | ".svn") || (!all && name.starts_with(['.', '_']))
+}
+
+/// Files an embed pattern can select below the package directory `root`, relative to it with
+/// `/` separators. Only directories along the pattern and the subtrees of matched directories
+/// are listed. Each listing is tracked, so new matches invalidate discovery without observing
+/// unrelated subtrees, such as `node_modules` beside a package at the project root.
+///
+/// This follows Go's `//go:embed` resolution: each path element is matched against one
+/// directory listing, a matched file is selected by itself, and a matched directory selects its
+/// subtree except names Go skips, stopping at nested modules. The go.mod files of nested
+/// modules are selected too, so an overlay shows Go the same module boundaries. Go validates
+/// the pattern itself; invalid patterns select nothing here.
+async fn embed_pattern_files(
+    tracker: &mut Tracker<'_>,
+    root: &Path,
+    pattern: &str,
+) -> Result<Vec<RcStr>> {
+    let (all, pattern) = match pattern.strip_prefix("all:") {
+        Some(pattern) => (true, pattern),
+        None => (false, pattern),
+    };
+    let parts = pattern.split('/').collect::<Vec<_>>();
+    if parts
+        .iter()
+        .any(|part| part.is_empty() || matches!(*part, "." | ".."))
+    {
+        return Ok(vec![]);
+    }
+    let Ok(matchers) = parts
+        .iter()
+        .map(|part| embed_matcher(part))
+        .collect::<Result<Vec<_>>>()
+    else {
+        return Ok(vec![]);
+    };
+    let mut files = vec![];
+    let mut trees = vec![];
+    let mut pending = vec![(rcstr!(""), 0)];
+    while let Some((directory, index)) = pending.pop() {
+        let entries = tracked_entries(tracker, root, &directory).await?;
+        if index > 0 && entries.get("go.mod") == Some(&0) {
+            files.push(join_relative(&directory, "go.mod"));
+        }
+        let last = index + 1 == matchers.len();
+        for (name, kind) in entries {
+            if !matchers[index].is_match(&name) {
+                continue;
+            }
+            let path = join_relative(&directory, &name);
+            match kind {
+                // The package directory's own go.mod is never embedded into its module.
+                0 if last && !(index == 0 && name == "go.mod") => files.push(path),
+                1 if last => trees.push(path),
+                1 => pending.push((path, index + 1)),
+                // Symlinks and irregular files are rejected by Go itself.
+                _ => {}
+            }
+        }
+    }
+    while let Some(directory) = trees.pop() {
+        let entries = tracked_entries(tracker, root, &directory).await?;
+        if entries.get("go.mod") == Some(&0) {
+            files.push(join_relative(&directory, "go.mod"));
+            continue;
+        }
+        for (name, kind) in entries {
+            if skipped_embed_name(&name, all) {
+                continue;
+            }
+            let path = join_relative(&directory, &name);
+            match kind {
+                0 => files.push(path),
+                1 => trees.push(path),
+                _ => {}
+            }
+        }
+    }
+    Ok(files)
+}
+
+/// Materialize generated source bytes outside the project. The virtual paths remain in the
+/// original package directory; neither source files nor module metadata are modified.
+///
+/// Mirrored Go files directly in an aliased package directory start with a line directive, so
+/// compiler diagnostics and stack traces name the source file instead of its virtual package
+/// path. Other mirrored files, such as `.go` files below an embed pattern, keep their bytes.
+fn overlay(
+    project: &Path,
+    generated: &BTreeMap<RcStr, RcStr>,
+    mirrored: &BTreeMap<RcStr, RcStr>,
+    aliases: &BTreeMap<RcStr, RcStr>,
+) -> Result<tempfile::TempDir> {
+    let temp = tempfile::Builder::new()
+        .prefix("turbopack-go-overlay-")
+        .tempdir()?;
+    let mut replacements = BTreeMap::new();
+    for (index, (path, content)) in generated.iter().enumerate() {
+        let virtual_path = project.join(path.as_str());
+        ensure!(
+            !virtual_path.exists(),
+            "generated Go input already exists: {}",
+            virtual_path.display()
+        );
+        let source = temp.path().join(format!("{index}.go"));
+        std::fs::write(&source, content.as_str())?;
+        replacements.insert(virtual_path, source);
+    }
+    for (index, (path, source)) in mirrored.iter().enumerate() {
+        let virtual_path = project.join(path.as_str());
+        ensure!(
+            !virtual_path.exists(),
+            "generated Go input already exists: {}",
+            virtual_path.display()
+        );
+        let source_path = project.join(source.as_str());
+        ensure!(
+            !replacements.contains_key(&virtual_path),
+            "{} is reserved for generated code",
+            source_path.display()
+        );
+        let in_package_directory = path.ends_with(".go")
+            && aliases.contains_key(path.rsplit_once('/').map_or("", |(directory, _)| directory));
+        if !in_package_directory {
+            replacements.insert(virtual_path, source_path);
+            continue;
+        }
+        let content = std::fs::read(&source_path)
+            .with_context(|| format!("reading Go source: {}", source_path.display()))?;
+        // Go accepts a byte order mark only at the start of a file.
+        let content = content.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&content);
+        let mut bytes = format!("//line {source}:1:1\n").into_bytes();
+        bytes.extend_from_slice(content);
+        let replacement = temp.path().join(format!("mirrored-{index}.go"));
+        std::fs::write(&replacement, bytes)?;
+        replacements.insert(virtual_path, replacement);
+    }
+    std::fs::write(
+        temp.path().join("overlay.json"),
+        serde_json::to_vec(&serde_json::json!({ "Replace": replacements }))?,
+    )?;
+    Ok(temp)
+}
+
+async fn list(
+    files: &[RcStr],
+    go_context: &GoBuildContext,
+    project: &Path,
+    generated: &BTreeMap<RcStr, RcStr>,
+    mirrored: &BTreeMap<RcStr, RcStr>,
+    aliases: &BTreeMap<RcStr, RcStr>,
+) -> Result<Vec<Package>> {
+    go_context
+        .cancellation
+        .lists
+        .fetch_add(1, Ordering::Relaxed);
+    let overlay = overlay(project, generated, mirrored, aliases)?;
+    // Run from the module root: named files may live in a virtual directory.
+    let mut command = go_context.command(project);
+    command
+        .arg("list")
+        .arg(format!(
+            "-overlay={}",
+            overlay.path().join("overlay.json").display()
+        ))
+        .args([
+            "-deps",
+            "-json=Dir,ImportPath,Name,Standard,Module,GoFiles,IgnoredGoFiles,InvalidGoFiles,\
+             EmbedFiles,EmbedPatterns,Imports,CgoFiles,SFiles,HFiles,SysoFiles,Error,DepsErrors,\
+             Incomplete,DepOnly",
+            "-e",
+            "-mod=readonly",
+            "-buildvcs=false",
+            "-trimpath",
+        ])
+        .arg(format!("-tags={}", go_context.tags))
+        .args(arguments(files));
+    let report = process::output(command, &go_context.cancellation.token).await?;
+    ensure!(
+        report.status.success(),
+        "{}",
+        diagnostic(&report.stderr, project)
+    );
+    Ok(serde_json::Deserializer::from_slice(&report.stdout)
+        .into_iter::<Package>()
+        .collect::<std::result::Result<_, _>>()?)
+}
+
+fn diagnostic(bytes: &[u8], directory: &Path) -> String {
+    String::from_utf8_lossy(bytes)
+        .lines()
+        .map(|line| {
+            if let Some(end) = line.find(".go:") {
+                let name = &line[..end + 3];
+                if !Path::new(name).is_absolute() && !name.contains(' ') {
+                    return format!("{}{}", directory.join(name).display(), &line[end + 3..]);
+                }
+            }
+            line.to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Track assembly include candidates conservatively, without interpreting Go's preprocessor
+/// conditions. Its include search starts in the package directory, even for nested headers;
+/// toolchain headers and the generated go_asm.h are resolved by Go when no local file exists.
+async fn observe_assembly_includes(
+    tracker: &mut Tracker<'_>,
+    directory: &Path,
+    assembly: &[String],
+    headers: &[String],
+    goroot: &Path,
+) -> Result<Vec<RcStr>> {
+    static INCLUDES: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r#"(?m)^\s*#\s*include\s+("(?:\\.|[^"\\])*")"#).unwrap()
+    });
+    let mut pending: Vec<_> = assembly
+        .iter()
+        .chain(headers)
+        .map(|name| directory.join(name))
+        .collect();
+    let mut seen = std::collections::BTreeSet::new();
+    while let Some(path) = pending.pop() {
+        if !seen.insert(path.clone()) {
+            continue;
+        }
+        tracker.file(&path).await?;
+        let content = match std::fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("reading assembly source: {}", path.display()));
+            }
+        };
+        for capture in INCLUDES.captures_iter(&content) {
+            let name: String = serde_json::from_str(&capture[1])
+                .context("assembly include names must use JSON-compatible quoted strings")?;
+            let mut include = directory.to_owned();
+            for part in Path::new(&name).components() {
+                match part {
+                    std::path::Component::CurDir => {}
+                    std::path::Component::ParentDir => {
+                        // Check before normalizing parent components so a symlink cannot hide
+                        // behind a/../b and change which file Go actually opens.
+                        ensure!(
+                            !std::fs::symlink_metadata(&include)
+                                .is_ok_and(|metadata| metadata.file_type().is_symlink()),
+                            "Go source symlinks are unsupported: {}",
+                            include.display()
+                        );
+                        include.pop();
+                    }
+                    part => include.push(part.as_os_str()),
+                }
+            }
+            if ["src", "pkg/include", "pkg/tool"]
+                .iter()
+                .any(|root| include.starts_with(goroot.join(root)))
+            {
+                // These absolute toolchain includes are guarded by the session fingerprint.
+                continue;
+            }
+            tracker
+                .parents(include.parent().context("assembly include has no parent")?)
+                .await?;
+            pending.push(include);
+        }
+    }
+    Ok(seen
+        .into_iter()
+        .map(|path| path.to_string_lossy().into_owned().into())
+        .collect())
+}
+
+/// `roots` maps the main module and each directory-replaced module to its directory.
+async fn observe_packages(
+    tracker: &mut Tracker<'_>,
+    packages: &[Package],
+    project: &Path,
+    roots: &[(&str, PathBuf)],
+    goroot: &Path,
+    aliases: &BTreeMap<RcStr, RcStr>,
+) -> Result<BTreeMap<RcStr, RcStr>> {
+    let mut assembly_flags = BTreeMap::new();
+    for pkg in packages {
+        if pkg.standard {
+            continue;
+        }
+        // Track unresolved local imports and their nearest existing ancestors, so creation of a
+        // previously missing package invalidates discovery without walking unrelated subtrees.
+        for import in pkg.imports.iter().chain(std::iter::once(&pkg.import_path)) {
+            for (module, root) in roots {
+                if let Some(relative) = import
+                    .strip_prefix(module)
+                    .and_then(|path| {
+                        // An import equal to the module path refers to its root package.
+                        // Missing packages have no Dir in go list's output, so this is also
+                        // needed to watch for the first source file appearing there.
+                        if path.is_empty() {
+                            Some(path)
+                        } else {
+                            path.strip_prefix('/')
+                        }
+                    })
+                    .filter(|_| !module.is_empty())
+                {
+                    tracker
+                        .parents(&source_path(project, aliases, &root.join(relative)))
+                        .await?;
+                }
+            }
+        }
+        if pkg.dir.is_empty() {
+            continue;
+        }
+        // Aliased packages report their virtual directory. Observe the source files instead.
+        let dir: &Path = &source_path(project, aliases, Path::new(&pkg.dir));
+        tracker.dir(dir).await?;
+        if let Some(module) = &pkg.module {
+            if let Some(replacement) = &module.replace {
+                // The module configuration already admitted only directory replacements.
+                ensure!(
+                    replacement.version.is_empty(),
+                    "versioned Go module replacements are not supported in this release"
+                );
+                if !replacement.go_mod.is_empty() {
+                    tracker.file(Path::new(&replacement.go_mod)).await?;
+                }
+            }
+            if !module.go_mod.is_empty() {
+                tracker.file(Path::new(&module.go_mod)).await?;
+            }
+        }
+        for file in pkg
+            .go_files
+            .iter()
+            .chain(&pkg.embed_files)
+            .chain(&pkg.ignored_go_files)
+            .chain(&pkg.invalid_go_files)
+            .chain(&pkg.s_files)
+            .chain(&pkg.h_files)
+            .chain(&pkg.syso_files)
+        {
+            tracker.file(&dir.join(file)).await?;
+        }
+        // Go list reports package headers, but not quoted includes in subdirectories.
+        // Observe these recursively too, including missing paths so a later repair invalidates
+        // discovery. Go still owns preprocessing, assembly selection and compilation.
+        let assembly_inputs =
+            observe_assembly_includes(tracker, dir, &pkg.s_files, &pkg.h_files, goroot).await?;
+        if !pkg.s_files.is_empty() {
+            // Go's own cache omits nested includes from HFiles. Salt only this imported
+            // package's assembler action, so Go cannot reuse an object with stale headers.
+            let inputs: BTreeMap<_, _> = assembly_inputs
+                .into_iter()
+                .map(|path| {
+                    let input = tracker.inputs.files[&path].1.content_digest().clone();
+                    (path, input)
+                })
+                .collect();
+            let digest =
+                Sha256::digest(bincode::encode_to_vec(inputs, bincode::config::standard())?);
+            assembly_flags.insert(
+                pkg.import_path.as_str().into(),
+                format!("-D=__TURBOPACK_GO_ASSEMBLY_INPUT_HASH__=0x{digest:x}").into(),
+            );
+        }
+        // Go embed patterns may gain matches in directories not yet containing a selected file.
+        // Observe only the directory inventories each pattern is matched against.
+        tracker
+            .inputs
+            .embed_patterns
+            .entry(dir.to_str().context("non-UTF8 Go path")?.into())
+            .or_default()
+            .extend(
+                pkg.embed_patterns
+                    .iter()
+                    .map(|pattern| pattern.as_str().into()),
+            );
+        for pattern in &pkg.embed_patterns {
+            embed_pattern_files(tracker, dir, pattern).await?;
+        }
+    }
+    Ok(assembly_flags)
+}
+
+// Re-register filesystem observations and validate live stamps in every process. Compilation
+// remains persistent: an unchanged build plan restores its executable without invoking Go build.
+#[turbo_tasks::function(session_dependent)]
+async fn discover(
+    root: FileSystemPath,
+    boundary: FileSystemPath,
+    files: Vec<RcStr>,
+    go_session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
+    aliases: BTreeMap<RcStr, RcStr>,
+) -> Result<Vc<Discovery>> {
+    let go_context = go_session.await?.go_context.clone();
+    let _permit = tokio::select! {
+        permit = GO_ACTIONS.acquire() => permit?,
+        _ = go_context.cancellation.token.cancelled() => return Ok(Discovery { outcome: DiscoveryOutcome::Cancelled, inputs: Inputs::default() }.cell()),
+    };
+    let project = to_sys_path(root.clone())
+        .await?
+        .context("Go inputs require a disk filesystem")?;
+    // Directory replacements may live outside the module but inside the boundary, so inputs
+    // are tracked relative to the boundary. The module itself is always inside it.
+    let boundary_path = to_sys_path(boundary.clone())
+        .await?
+        .context("Go inputs require a disk filesystem")?;
+    ensure!(
+        project.starts_with(&boundary_path),
+        "Go module is outside its boundary: {}",
+        project.display()
+    );
+    let mut tracker = Tracker::new(&boundary, &boundary_path, &go_context);
+    let run = async {
+        validate_build_cache(&project, &go_context)?;
+        let directory = entry_directory(&project, &files)?;
+        tracker.parents(&directory).await?;
+        for file in &files {
+            tracker.file(&project.join(file.as_str())).await?;
+        }
+        for file in ["go.mod", "go.sum", "go.work", "go.work.sum"] {
+            tracker.file(&project.join(file)).await?;
+        }
+        if tracker.dirty || !tracker.inputs.is_current().await? {
+            return Ok(None);
+        }
+        ensure!(
+            !project.join("go.work").exists(),
+            "Go workspaces are not supported in this release"
+        );
+        let config = module_configuration(
+            project.to_str().context("non-UTF8 Go project")?.into(),
+            tracker.inputs.files[project.join("go.mod").to_str().unwrap()]
+                .1
+                .clone(),
+            *go_session,
+        )
+        .await?;
+        let config: ModuleConfig = serde_json::from_str(&config)?;
+        let replacements = config.replace.as_deref().unwrap_or_default();
+        let module = config.module.as_ref().map_or("", |m| m.path.as_str());
+        let mut roots = vec![(module, project.clone())];
+        // Even an unresolved dependency needs cache dependencies. Downloading a module can
+        // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
+        let cache = Path::new(go_context.module_cache.as_str());
+        for requirement in config.require.iter().flatten() {
+            // Go applies a version-specific replacement before a path-wide one, and ignores
+            // replacements of modules that are not required.
+            let replacement = replacements
+                .iter()
+                .find(|replacement| {
+                    replacement.old.path == requirement.path
+                        && replacement.old.version == requirement.version
+                })
+                .or_else(|| {
+                    replacements.iter().find(|replacement| {
+                        replacement.old.path == requirement.path
+                            && replacement.old.version.is_empty()
+                    })
+                });
+            if let Some(replacement) = replacement {
+                // A directory replacement resolves from its own go.mod and sources, never the
+                // module cache. Observe its go.mod so creating or editing it invalidates
+                // discovery; its packages are tracked like module sources below.
+                let directory = replacement_directory(&boundary_path, &project, replacement)?;
+                tracker.file(&directory.join("go.mod")).await?;
+                roots.push((requirement.path.as_str(), directory));
+                continue;
+            }
+            ensure!(
+                Path::new(&requirement.path)
+                    .components()
+                    .all(|part| matches!(part, std::path::Component::Normal(_)))
+                    && !requirement.version.contains(['/', '\\']),
+                "invalid Go module requirement path"
+            );
+            let path = module_escape(&requirement.path);
+            let version = module_escape(&requirement.version);
+            tracker
+                .parents(&cache.join(format!("{path}@{version}")))
+                .await?;
+            let download = cache.join("cache/download").join(path).join("@v");
+            tracker
+                .file(&download.join(format!("{version}.mod")))
+                .await?;
+            tracker
+                .file(&download.join(format!("{version}.ziphash")))
+                .await?;
+        }
+        let mut mirrored = BTreeMap::new();
+        for (virtual_directory, source_directory) in &aliases {
+            mirror_directory(
+                &mut tracker,
+                &project,
+                virtual_directory,
+                source_directory,
+                &mut mirrored,
+            )
+            .await?;
+        }
+        let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
+        let mut packages = list(
+            &files,
+            &go_context,
+            &project,
+            &generated,
+            &mirrored,
+            &aliases,
+        )
+        .await?;
+        // Embed patterns are relative to the package directory, which is virtual for aliased
+        // packages. Go reports the patterns even when they match nothing, so mirror the source
+        // entries each pattern can match and let Go match again.
+        for _ in 0..4 {
+            let mirrored_before = mirrored.len();
+            for pkg in &packages {
+                let Some((virtual_directory, source_directory)) =
+                    aliases.iter().find(|(virtual_directory, _)| {
+                        Path::new(&pkg.dir) == module_path(&project, virtual_directory)
+                    })
+                else {
+                    continue;
+                };
+                let source_root = module_path(&project, source_directory);
+                for pattern in &pkg.embed_patterns {
+                    for file in embed_pattern_files(&mut tracker, &source_root, pattern).await? {
+                        mirrored.insert(
+                            join_relative(virtual_directory, &file),
+                            join_relative(source_directory, &file),
+                        );
+                    }
+                }
+            }
+            if mirrored.len() == mirrored_before {
+                break;
+            }
+            packages = list(
+                &files,
+                &go_context,
+                &project,
+                &generated,
+                &mirrored,
+                &aliases,
+            )
+            .await?;
+        }
+        let assembly_flags = observe_packages(
+            &mut tracker,
+            &packages,
+            &project,
+            &roots,
+            Path::new(go_context.goroot.as_str()),
+            &aliases,
+        )
+        .await?;
+        // Newly discovered files/directories were not guarded during the first command.
+        // Only that registration window needs a second Go scan. For named files importing
+        // only standard packages, all mutable inputs were already registered above.
+        let added_inputs =
+            registered != (tracker.inputs.files.len(), tracker.inputs.directories.len());
+        let structure_changed = !tracker.dirty
+            && added_inputs
+            && packages
+                != list(
+                    &files,
+                    &go_context,
+                    &project,
+                    &generated,
+                    &mirrored,
+                    &aliases,
+                )
+                .await?;
+        if tracker.dirty || structure_changed || !tracker.inputs.is_current().await? {
+            return Ok(None);
+        }
+        let mut main = false;
+        for pkg in &packages {
+            ensure!(
+                pkg.error.is_none() && pkg.deps_errors.is_empty() && !pkg.incomplete,
+                "{}",
+                pkg.error
+                    .as_ref()
+                    .or_else(|| pkg.deps_errors.first())
+                    .map_or_else(
+                        || format!("incomplete Go package: {}", pkg.import_path),
+                        |e| {
+                            e.get("Err")
+                                .and_then(serde_json::Value::as_str)
+                                .unwrap_or("Go dependency discovery failed")
+                                .to_owned()
+                        }
+                    )
+            );
+            if pkg.standard {
+                continue;
+            }
+            ensure!(
+                pkg.cgo_files.is_empty(),
+                "CGO dependencies are unsupported: {}",
+                pkg.import_path
+            );
+            if !pkg.dep_only {
+                ensure!(
+                    pkg.name == "main" && !main,
+                    "Go inputs must form one package main"
+                );
+                main = true;
+            }
+        }
+        ensure!(main, "Go inputs must define package main");
+        Ok::<_, anyhow::Error>(Some(BuildPlan {
+            files: files.clone(),
+            generated,
+            inputs: tracker.inputs.compiler_inputs(),
+            assembly_flags,
+            aliases: aliases.clone(),
+            mirrored,
+        }))
+    }
+    .await;
+    let outcome = match run {
+        Ok(None) => {
+            tracker.invalidate().await?;
+            if let Some(invalidator) = get_invalidator() {
+                invalidator.invalidate(&*turbo_tasks());
+            }
+            DiscoveryOutcome::Retry
+        }
+        Ok(Some(plan)) => DiscoveryOutcome::Ready(plan),
+        Err(_) if go_context.is_cancelled() => DiscoveryOutcome::Cancelled,
+        Err(error) => DiscoveryOutcome::Failed(
+            source_diagnostic(&format!("{error:#}"), &project, &aliases).into(),
+        ),
+    };
+    Ok(Discovery {
+        outcome,
+        inputs: tracker.inputs,
+    }
+    .cell())
+}
+
+#[turbo_tasks::value(shared)]
+enum Compilation {
+    // FileContent persists only its hash; keep the full executable bytes in this task.
+    Success(ResolvedVc<File>),
+    Failed(RcStr),
+    Retry(Option<Invalidator>),
+    Cancelled,
+}
+
+#[turbo_tasks::function]
+async fn compile(
+    project: RcStr,
+    plan: BuildPlan,
+    go_session: ResolvedVc<GoBuildSession>,
+) -> Result<Vc<Compilation>> {
+    // Resolve only the marker's output now, without depending on its changing cell.
+    // Failed/cancelled attempts read the cell below. Preparing it before the process
+    // starts avoids scheduling a new task after engine shutdown has begun, while
+    // successful compiler results can still persist across sessions.
+    let session_failure = Completion::session_dependent().to_resolved().await?;
+    let go_context = go_session.await?.go_context.clone();
+    let _permit = tokio::select! {
+        permit = GO_ACTIONS.acquire() => permit?,
+        _ = go_context.cancellation.token.cancelled() => {
+            session_failure.await?;
+            return Ok(Compilation::Cancelled.cell());
+        },
+    };
+    let project_path = Path::new(project.as_str());
+    entry_directory(project_path, &plan.files)?;
+    // Capture live metadata only when compilation runs, after verifying that the current bytes
+    // match the persistent plan. These stamps guard this command without becoming its cache key.
+    let Some(before) = plan.inputs.snapshot().await? else {
+        return Ok(Compilation::Retry(get_invalidator()).cell());
+    };
+    let temp = tempfile::Builder::new()
+        .prefix("turbopack-go-output-")
+        .tempdir()?;
+    let executable = temp
+        .path()
+        .join(format!("program{}", go_context.exe_suffix));
+    go_context
+        .cancellation
+        .builds
+        .fetch_add(1, Ordering::Relaxed);
+    let overlay = overlay(project_path, &plan.generated, &plan.mirrored, &plan.aliases)?;
+    // Run from the module root: named files may live in a virtual directory.
+    let mut command = go_context.command(project_path);
+    command
+        .arg("build")
+        .arg(format!(
+            "-overlay={}",
+            overlay.path().join("overlay.json").display()
+        ))
+        .args(["-mod=readonly", "-buildvcs=false", "-trimpath"])
+        .arg(format!("-tags={}", go_context.tags))
+        .arg("-o")
+        .arg(&executable);
+    for (package, flags) in &plan.assembly_flags {
+        command.arg(format!("-asmflags={package}={flags}"));
+    }
+    command.args(arguments(&plan.files));
+    let report = match process::output(command, &go_context.cancellation.token).await {
+        Err(_) if go_context.is_cancelled() => {
+            session_failure.await?;
+            return Ok(Compilation::Cancelled.cell());
+        }
+        Err(error) => {
+            session_failure.await?;
+            return Ok(Compilation::Failed(format!("{error:#}").into()).cell());
+        }
+        Ok(report) => report,
+    };
+    if !before.is_current().await? {
+        return Ok(Compilation::Retry(get_invalidator()).cell());
+    }
+    let outcome = if report.status.success() {
+        Compilation::Success(
+            File::from(std::fs::read(&executable)?)
+                .with_permissions(Permissions::Executable)
+                .cell()
+                .to_resolved()
+                .await?,
+        )
+    } else {
+        // A nonzero exit may reflect transient host/cache failures as well as source errors.
+        // Keep failure memoization within this process, and retry after a restart.
+        session_failure.await?;
+        Compilation::Failed(
+            source_diagnostic(
+                &diagnostic(&report.stderr, project_path),
+                project_path,
+                &plan.aliases,
+            )
+            .into(),
+        )
+    };
+    Ok(outcome.cell())
+}
+
+// Reconstructing hash-only FileContent after a cache restore must not rerun the compiler.
+#[turbo_tasks::function]
+async fn executable_content(file: ResolvedVc<File>) -> Result<Vc<FileContent>> {
+    Ok(FileContent::Content((*file.await?).clone()).cell())
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct GoBundleResult {
+    pub outcome: GoBuildOutcome,
+    inputs: Inputs,
+    root: FileSystemPath,
+    session: ResolvedVc<GoBuildSession>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub enum GoBuildOutcome {
+    Success(ResolvedVc<FileContent>),
+    Failed(RcStr),
+    Retry,
+    Cancelled,
+}
+
+/// Read a consumer's operation and validate its Go inputs before accepting the result.
+///
+/// `read` must perform a strongly consistent graph read on every attempt, including source
+/// selection and generated-source analysis. It may also apply the consumer's publication
+/// effects. Keep this call outside memoized tasks when accepting cached output in a new request.
+/// `get_build` returns `None` for results without a Go build, which are accepted immediately.
+pub async fn read_with_validated_inputs<T, F: Future<Output = Result<T>>>(
+    mut read: impl FnMut() -> F,
+    get_build: impl Fn(&T) -> Option<&GoBundleResult>,
+) -> Result<T> {
+    const MAX_INPUT_READS: usize = 8;
+    for _ in 0..MAX_INPUT_READS {
+        let value = read().await?;
+        let Some(build) = get_build(&value) else {
+            return Ok(value);
+        };
+        if matches!(build.outcome, GoBuildOutcome::Cancelled) {
+            return Ok(value);
+        }
+        ensure!(
+            !build.session.await?.go_context.is_cancelled(),
+            "Go build cancelled"
+        );
+        if build.validate().await? && !matches!(build.outcome, GoBuildOutcome::Retry) {
+            return Ok(value);
+        }
+    }
+    anyhow::bail!("Go inputs changed repeatedly during compilation; retry the operation")
+}
+
+impl GoBundleResult {
+    pub fn is_input(&self, path: &Path) -> Result<bool> {
+        self.inputs.contains_input(path)
+    }
+
+    pub async fn is_current(&self) -> Result<bool> {
+        self.inputs.is_current().await
+    }
+
+    /// Live publication-boundary check. Invalidate compiler observations before the caller
+    /// retries its graph read. This must run outside a memoized task at that boundary.
+    pub async fn validate(&self) -> Result<bool> {
+        let go_context = &self.session.await?.go_context;
+        if !go_context.is_cancelled() && self.is_current().await? {
+            return Ok(true);
+        }
+        let project = to_sys_path(self.root.clone())
+            .await?
+            .context("Go inputs require a disk filesystem")?;
+        Tracker::new(&self.root, &project, go_context)
+            .invalidate()
+            .await?;
+        Ok(false)
+    }
+}
+
+#[turbo_tasks::function]
+async fn bundle(
+    root: FileSystemPath,
+    boundary: FileSystemPath,
+    mut files: Vec<RcStr>,
+    go_session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
+    aliases: BTreeMap<RcStr, RcStr>,
+) -> Result<Vc<GoBundleResult>> {
+    let go_context = go_session.await?.go_context.clone();
+    // Generated files inside an aliased package belong to that package. Other generated
+    // non-Go files, such as a go.mod, only participate through the overlay.
+    files.extend(
+        generated
+            .keys()
+            .filter(|path| {
+                path.ends_with(".go")
+                    && !aliases
+                        .keys()
+                        .any(|alias| Path::new(path.as_str()).starts_with(alias.as_str()))
+            })
+            .cloned(),
+    );
+    files.sort();
+    files.dedup();
+    let discovery = discover(
+        root.clone(),
+        boundary,
+        files,
+        *go_session,
+        generated,
+        aliases,
+    )
+    .await?;
+    let outcome = match &discovery.outcome {
+        DiscoveryOutcome::Ready(plan) => {
+            let project = to_sys_path(root.clone())
+                .await?
+                .context("Go inputs require a disk filesystem")?;
+            let compiled = compile(
+                project.to_str().context("non-UTF8 project")?.into(),
+                plan.clone(),
+                *go_session,
+            )
+            .await?;
+            match &*compiled {
+                Compilation::Success(file) => {
+                    GoBuildOutcome::Success(executable_content(**file).to_resolved().await?)
+                }
+                Compilation::Failed(message) => GoBuildOutcome::Failed(message.clone()),
+                Compilation::Cancelled => GoBuildOutcome::Cancelled,
+                Compilation::Retry(retry) => {
+                    if let Some(retry) = retry {
+                        retry.invalidate(&*turbo_tasks());
+                    }
+                    Tracker::new(&root, &project, &go_context)
+                        .invalidate()
+                        .await?;
+                    if let Some(invalidator) = get_invalidator() {
+                        invalidator.invalidate(&*turbo_tasks());
+                    }
+                    GoBuildOutcome::Retry
+                }
+            }
+        }
+        DiscoveryOutcome::Failed(message) => GoBuildOutcome::Failed(message.clone()),
+        DiscoveryOutcome::Retry => GoBuildOutcome::Retry,
+        DiscoveryOutcome::Cancelled => GoBuildOutcome::Cancelled,
+    };
+    Ok(GoBundleResult {
+        outcome,
+        inputs: discovery.inputs.clone(),
+        root,
+        session: go_session,
+    }
+    .cell())
+}
+
+/// Named files form one native executable. Imported packages retain normal Go file selection.
+#[turbo_tasks::function(operation, root)]
+pub fn go_bundle(
+    root: FileSystemPath,
+    files: Vec<RcStr>,
+    go_context: GoBuildContext,
+) -> Vc<GoBundleResult> {
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    )
+}
+
+/// Compile named sources with additional generated files in the same directory. Generated
+/// source bytes are part of task identity, and original project inputs retain normal tracking.
+#[turbo_tasks::function(operation, root)]
+pub fn go_bundle_with_generated_files(
+    root: FileSystemPath,
+    files: Vec<RcStr>,
+    go_context: GoBuildContext,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        generated,
+        BTreeMap::new(),
+    )
+}
+
+/// Session-valued entrypoint for persistent compiler consumers. Generated source
+/// content is task input; the resolved toolchain stays a value dependency of compiler tasks.
+#[turbo_tasks::function]
+pub fn go_bundle_with_session(
+    root: FileSystemPath,
+    files: Vec<RcStr>,
+    session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    bundle(
+        root.clone(),
+        root,
+        files,
+        *session,
+        generated,
+        BTreeMap::new(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toolchain_identity_survives_sdk_copies_and_excludes_module_caches() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let original = temp.path().join("original");
+        let restored = temp.path().join("restored");
+        let files = [
+            ("bin/go", "go executable"),
+            ("src/runtime/source.go", "runtime source"),
+            ("pkg/include/textflag.h", "assembler header"),
+            ("pkg/tool/host/compile", "compiler"),
+        ];
+        for root in [&original, &restored] {
+            for (path, content) in files {
+                let path = root.join(path);
+                std::fs::create_dir_all(path.parent().unwrap())?;
+                std::fs::write(path, content)?;
+            }
+        }
+        let fingerprint = toolchain_fingerprint(&original.join("bin/go"), &original)?;
+        let restored_fingerprint = || toolchain_fingerprint(&restored.join("bin/go"), &restored);
+        assert_eq!(fingerprint, restored_fingerprint()?);
+        let modules = restored.join("pkg/mod/example.com/library@v1.0.0");
+        std::fs::create_dir_all(&modules)?;
+        std::fs::write(modules.join("library.go"), "module cache contents")?;
+        assert_eq!(fingerprint, restored_fingerprint()?);
+        for (path, content) in files {
+            std::fs::write(restored.join(path), format!("{content} changed"))?;
+            assert_ne!(fingerprint, restored_fingerprint()?, "{path}");
+            std::fs::write(restored.join(path), content)?;
+            assert_eq!(fingerprint, restored_fingerprint()?);
+        }
+        let settings = "GOEXPERIMENT=default-experiment\n";
+        std::fs::write(original.join("go.env"), settings)?;
+        let with_settings = toolchain_fingerprint(&original.join("bin/go"), &original)?;
+        assert_ne!(fingerprint, with_settings);
+        let go_env = restored.join("go.env");
+        std::fs::write(&go_env, settings)?;
+        assert_eq!(with_settings, restored_fingerprint()?);
+        std::fs::write(&go_env, "GOEXPERIMENT=changed-experiment\n")?;
+        assert_ne!(with_settings, restored_fingerprint()?);
+        std::fs::write(&go_env, "")?;
+        assert_ne!(
+            fingerprint,
+            restored_fingerprint()?,
+            "an empty go.env is present"
+        );
+        std::fs::remove_file(&go_env)?;
+        assert_eq!(fingerprint, restored_fingerprint()?);
+        #[cfg(unix)]
+        {
+            let target = temp.path().join("sdk-settings");
+            std::fs::write(&target, settings)?;
+            std::os::unix::fs::symlink(&target, &go_env)?;
+            assert_eq!(with_settings, restored_fingerprint()?);
+            std::fs::write(&target, "GOEXPERIMENT=changed-symlink-target\n")?;
+            assert_ne!(with_settings, restored_fingerprint()?);
+            std::fs::remove_file(go_env)?;
+            assert_eq!(fingerprint, restored_fingerprint()?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn overlay_adds_line_directives_only_to_package_files() -> Result<()> {
+        let project = tempfile::tempdir()?;
+        let source = project.path().join("app/[id]");
+        std::fs::create_dir_all(source.join("templates"))?;
+        std::fs::write(source.join("route.go"), "\u{feff}package route\n")?;
+        std::fs::write(source.join("templates/page.go"), "\u{feff}package tmpl\n")?;
+        std::fs::write(source.join("data.txt"), "data")?;
+        let alias = "app/_next_go_route_id";
+        let mirrored = BTreeMap::from([
+            (
+                rcstr!("app/_next_go_route_id/route.go"),
+                rcstr!("app/[id]/route.go"),
+            ),
+            (
+                rcstr!("app/_next_go_route_id/templates/page.go"),
+                rcstr!("app/[id]/templates/page.go"),
+            ),
+            (
+                rcstr!("app/_next_go_route_id/data.txt"),
+                rcstr!("app/[id]/data.txt"),
+            ),
+        ]);
+        let aliases = BTreeMap::from([(RcStr::from(alias), rcstr!("app/[id]"))]);
+        let temp = overlay(project.path(), &BTreeMap::new(), &mirrored, &aliases)?;
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(temp.path().join("overlay.json"))?)?;
+        let replacement = |path: &str| {
+            PathBuf::from(
+                manifest["Replace"][project.path().join(path).to_str().unwrap()]
+                    .as_str()
+                    .unwrap(),
+            )
+        };
+        assert_eq!(
+            std::fs::read_to_string(replacement("app/_next_go_route_id/route.go"))?,
+            "//line app/[id]/route.go:1:1\npackage route\n"
+        );
+        // Files below embed patterns are mirrored byte for byte from their source.
+        assert_eq!(
+            replacement("app/_next_go_route_id/templates/page.go"),
+            source.join("templates/page.go")
+        );
+        assert_eq!(
+            replacement("app/_next_go_route_id/data.txt"),
+            source.join("data.txt")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn aliased_paths_and_diagnostics_map_to_sources() {
+        let project = Path::new("/project");
+        let aliases = BTreeMap::from([
+            (rcstr!("_next_go/app_id"), rcstr!("app/[id]")),
+            (rcstr!("_next_go/proxy"), rcstr!("")),
+        ]);
+        assert_eq!(
+            source_path(project, &aliases, Path::new("/project/_next_go/app_id")),
+            Path::new("/project/app/[id]")
+        );
+        assert_eq!(
+            source_path(
+                project,
+                &aliases,
+                Path::new("/project/_next_go/app_id/assets/a")
+            ),
+            Path::new("/project/app/[id]/assets/a")
+        );
+        assert_eq!(
+            source_path(
+                project,
+                &aliases,
+                Path::new("/project/_next_go/proxy/proxy.go")
+            ),
+            Path::new("/project/proxy.go")
+        );
+        assert_eq!(
+            source_path(project, &aliases, Path::new("/project/internal")),
+            Path::new("/project/internal")
+        );
+        assert_eq!(
+            source_diagnostic(
+                "/project/_next_go/app_id/route.go:3: x\n_next_go/proxy/proxy.go:1: y",
+                project,
+                &aliases
+            ),
+            "/project/app/[id]/route.go:3: x\nproxy.go:1: y"
+        );
+        assert_eq!(
+            source_diagnostic(
+                "# example.com/m/_next_go/app_id\n# example.com/m/_next_go/proxy",
+                project,
+                &aliases
+            ),
+            "# example.com/m/app/[id]\n# example.com/m"
+        );
+        let directory = "app/café a 100%";
+        let aliases = BTreeMap::from([(rcstr!("app/_next_go_route"), RcStr::from(directory))]);
+        let expected = format!(
+            "{}:2:14: undefined: missing",
+            project.join(directory).join("route.go").display()
+        );
+        for name in [
+            format!("{directory}/route.go"),
+            module_path(Path::new(""), directory)
+                .join("route.go")
+                .display()
+                .to_string(),
+            "app/_next_go_route/route.go".to_owned(),
+        ] {
+            assert_eq!(
+                source_diagnostic(
+                    &format!("{name}:2:14: undefined: missing"),
+                    project,
+                    &aliases
+                )
+                .replace('\\', "/"),
+                expected.replace('\\', "/")
+            );
+        }
+        let message = format!("cannot compile {directory}/route.go: invalid input");
+        assert_eq!(source_diagnostic(&message, project, &aliases), message);
+    }
+
+    #[test]
+    fn module_configuration_accepts_absent_null_and_empty_requirements() {
+        for json in [r#"{}"#, r#"{"Require":null}"#, r#"{"Require":[]}"#] {
+            let config: ModuleConfig = serde_json::from_str(json).unwrap();
+            assert!(config.require.unwrap_or_default().is_empty());
+        }
+        let config: ModuleConfig = serde_json::from_str(
+            r#"{"Require":[{"Path":"example.com/dependency","Version":"v1.2.3"}]}"#,
+        )
+        .unwrap();
+        let requirements = config.require.unwrap();
+        assert_eq!(requirements.len(), 1);
+        assert_eq!(requirements[0].path, "example.com/dependency");
+        assert_eq!(requirements[0].version, "v1.2.3");
+        assert!(serde_json::from_str::<ModuleConfig>(r#"{"Require":{}}"#).is_err());
+    }
+}

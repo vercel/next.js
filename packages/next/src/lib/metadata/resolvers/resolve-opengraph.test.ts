@@ -38,6 +38,46 @@ describe('resolveImages', () => {
 })
 
 describe('resolveOpenGraph', () => {
+  it.each(['music.album', 'music.playlist'] as const)(
+    'should normalize scalar and array songs for %s',
+    async (type) => {
+      const url = 'https://example.com/song'
+      const descriptor = { url, disc: 1, track: 2 }
+      for (const songs of [url, new URL(url), descriptor, [url, descriptor]]) {
+        const resolved = await resolveOpenGraph(
+          { type, songs },
+          null,
+          Promise.resolve('/'),
+          { trailingSlash: false, isStaticMetadataRouteFile: false },
+          null
+        )
+
+        expect(resolved).toMatchObject({
+          type,
+          songs: Array.isArray(songs) ? songs : [songs],
+        })
+      }
+    }
+  )
+
+  it('should normalize scalar and array playlist creators', async () => {
+    const url = 'https://example.com/creator'
+    for (const creators of [url, new URL(url), [url]]) {
+      const resolved = await resolveOpenGraph(
+        { type: 'music.playlist', creators },
+        null,
+        Promise.resolve('/'),
+        { trailingSlash: false, isStaticMetadataRouteFile: false },
+        null
+      )
+
+      expect(resolved).toMatchObject({
+        type: 'music.playlist',
+        creators: Array.isArray(creators) ? creators : [creators],
+      })
+    }
+  })
+
   it('should return null if the value is an empty string', async () => {
     const pathname = Promise.resolve('')
     expect(

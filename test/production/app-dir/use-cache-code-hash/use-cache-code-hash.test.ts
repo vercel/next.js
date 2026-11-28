@@ -28,14 +28,22 @@ async function getCodeHashes(
   }[] = []
   for (const [actionId, entry] of Object.entries<any>(manifest.node)) {
     for (const [workerKey, worker] of Object.entries<any>(entry.workers)) {
+      // Durability values are keyed per action by a hash of the value.
+      const durability =
+        worker.durability !== undefined
+          ? entry.durability[worker.durability]
+          : undefined
+      if (worker.durability !== undefined) {
+        expect(durability).toBeDefined()
+      }
       if (!pages || pages.includes(workerKey)) {
         hashes.push({
           id: actionId,
           page: workerKey,
-          codeHash: worker?.durability?.codeHash,
+          codeHash: durability?.codeHash,
           rootParamDependencies: worker.rootParamDependencies,
-          runtimeEnvVarsRead: worker?.durability?.runtimeEnvVarsRead,
-          runtimeEnvVarsExistence: worker?.durability?.runtimeEnvVarsExistence,
+          runtimeEnvVarsRead: durability?.runtimeEnvVarsRead,
+          runtimeEnvVarsExistence: durability?.runtimeEnvVarsExistence,
         })
       }
     }
@@ -60,9 +68,28 @@ async function getCodeHashes(
         )
         expect(valuesWithoutCodeHash.map((v) => v.page)).toMatchInlineSnapshot(`
          [
+           "app/env-dynamic/page",
            "app/use-server/page",
          ]
         `)
+      })
+
+      it('omits durability when process.env is accessed dynamically', async () => {
+        // `app/env-dynamic/logic.tsx` passes `process.env` to a function, so any
+        // env var could be read and the runtime env var list would be incomplete.
+        const manifest = await next.readJSON(
+          '.next/server/server-reference-manifest.json'
+        )
+        const entries = Object.values<any>(manifest.node).filter(
+          (entry) => entry.workers['app/env-dynamic/page'] !== undefined
+        )
+        expect(entries).toHaveLength(1)
+        const [entry] = entries
+        const worker = entry.workers['app/env-dynamic/page']
+        expect(worker.durability).toBeUndefined()
+        expect(entry.durability).toBeUndefined()
+        // Root param tracking doesn't depend on env vars, so it's still emitted.
+        expect(worker.rootParamDependencies).toBeDefined()
       })
 
       it('emits root dependencies alongside durability', async () => {
@@ -71,11 +98,15 @@ async function getCodeHashes(
         )
         let cacheWorkers = 0
         for (const entry of Object.values<any>(manifest.node)) {
-          for (const worker of Object.values<any>(entry.workers)) {
-            if (worker.durability) {
+          for (const [workerKey, worker] of Object.entries<any>(
+            entry.workers
+          )) {
+            if (worker.durability !== undefined) {
               cacheWorkers++
               expect(worker.rootParamDependencies).toBeDefined()
-            } else {
+            } else if (workerKey !== 'app/env-dynamic/page') {
+              // `app/env-dynamic/page` is a use-cache function without
+              // durability (dynamic `process.env` access).
               expect(worker.rootParamDependencies).toBeUndefined()
             }
           }
@@ -94,6 +125,19 @@ async function getCodeHashes(
         expect($('p').text()).toBe('node-worker-v1')
       })
 
+      it('tracks both branches when an env var condition is only known at runtime', async () => {
+        const hashes = await getCodeHashes(next, ['app/env-conditional/page'])
+        expect(hashes).toHaveLength(1)
+        expect(hashes[0].codeHash).toEqual(expect.any(String))
+        expect(hashes[0].runtimeEnvVarsRead).toEqual(
+          expect.arrayContaining([
+            'TEST_CONDITIONAL',
+            'TEST_OTHER_VALUE',
+            'TEST_VALUE',
+          ])
+        )
+      })
+
       it('lists non-inlined runtime env vars', async () => {
         const data = await getCodeHashes(next)
         expect(
@@ -110,10 +154,13 @@ async function getCodeHashes(
           )
         ).toMatchInlineSnapshot(`
          {
-           "app/env-dynamic/page": [
+           "app/env-conditional/page": [
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
              "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "TEST_CONDITIONAL",
+             "TEST_OTHER_VALUE",
+             "TEST_VALUE",
              "exist NEXT_PRIVATE_DEBUG_CACHE",
              "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
              "exist NEXT_PRIVATE_DEBUG_VALIDATION",
@@ -281,6 +328,29 @@ export function generateStaticParams() {
         files: __dirname,
         skipStart: true,
       })
+
+      it.each(['disabled', 'enabled'])(
+        'tracks both branches when TEST_CONDITIONAL is %s at runtime',
+        async (conditional) => {
+          next.env.TEST_CONDITIONAL = conditional
+          try {
+            expect((await next.build()).exitCode).toBe(0)
+            const hashes = await getCodeHashes(next, [
+              'app/env-conditional/page',
+            ])
+            expect(hashes).toHaveLength(1)
+            expect(hashes[0].runtimeEnvVarsRead).toEqual(
+              expect.arrayContaining([
+                'TEST_CONDITIONAL',
+                'TEST_OTHER_VALUE',
+                'TEST_VALUE',
+              ])
+            )
+          } finally {
+            delete next.env.TEST_CONDITIONAL
+          }
+        }
+      )
 
       it('codeHash stays stable across identical rebuilds', async () => {
         await next.build()

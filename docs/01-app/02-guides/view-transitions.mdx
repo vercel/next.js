@@ -58,7 +58,7 @@ Import the `ViewTransition` component from React:
 import { ViewTransition } from 'react'
 ```
 
-`<ViewTransition>` animations are activated by [Transitions](https://react.dev/reference/react/useTransition), [`<Suspense>`](https://react.dev/reference/react/Suspense), and [`useDeferredValue`](https://react.dev/reference/react/useDeferredValue). Regular `setState` calls do not trigger them. In Next.js, route navigations are transitions, so `<ViewTransition>` animations activate automatically during navigation.
+`<ViewTransition>` animations are activated by [Transitions](https://react.dev/reference/react/useTransition), [`<Suspense>`](https://react.dev/reference/react/Suspense), and [`useDeferredValue`](https://react.dev/reference/react/useDeferredValue). Regular `setState` calls do not trigger them. In Next.js, navigations with `<Link>`, `router.push()`, and `router.replace()` are transitions, so `<ViewTransition>` animations activate automatically. [Browser history navigation](#browser-history-navigation) does not trigger these animations.
 
 ### Step 1: Morph a thumbnail into a hero image
 
@@ -107,7 +107,7 @@ async function PhotoContent({ id }) {
 
 The `name` prop creates identity. React finds elements with the same name on the old and new pages, then animates between their size and position automatically. No additional props are needed for the morph to work.
 
-If we click a thumbnail now, the image scales and repositions from its grid cell to the hero slot. Navigating back reverses the morph. The user sees one object moving, not two objects swapping.
+If we click a thumbnail now, the image scales and repositions from its grid cell to the hero slot. Returning to the gallery with a `<Link href="/">` reverses the morph. The user sees one object moving, not two objects swapping.
 
 The morph plays when the destination content renders in the same commit as the navigation, which is the case with prefetched (cached) pages. If the destination suspends into a fallback first, no pair forms, and the content animates with its enter animation instead when it arrives.
 
@@ -231,7 +231,7 @@ Use the `transitionTypes` prop on `<Link>` to tag forward navigations:
 </Link>
 ```
 
-The same pattern works for any navigation within the app. For example, previous/next arrows on a photo detail page can use `nav-back` and `nav-forward` to animate in the corresponding direction.
+The same pattern works for other links within the app. For example, previous/next arrows on a photo detail page can use `nav-back` and `nav-forward` to animate in the corresponding direction.
 
 For links that return the user to a previous page, use `nav-back`:
 
@@ -263,7 +263,7 @@ Then wrap page content in a `ViewTransition` that maps transition types to direc
 </ViewTransition>
 ```
 
-The `enter` and `exit` props accept an object keyed by transition type. When a navigation carries the `nav-forward` type, the exit animation slides old content left and the enter animation slides new content in from the right. The `default: "none"` ensures that transitions without a type (browser back/forward, `router.refresh()`, Suspense reveals) produce no directional animation.
+The `enter` and `exit` props accept an object keyed by transition type. When a navigation carries the `nav-forward` type, the exit animation slides old content left and the enter animation slides new content in from the right. The `default: "none"` ensures that transitions without a type (`router.refresh()`, Suspense reveals) produce no directional animation.
 
 Wrap every participating page the same way. For the gallery to slide out on forward navigation and back in on `nav-back`, its page needs the same wrapper. Put the wrapper in each `page.tsx`, not the layout. Layouts persist across navigations, so enter and exit never fire there:
 
@@ -355,7 +355,11 @@ The `display: none` on the old snapshot prevents a flash where both old and new 
 
 If we navigate forward to a photo, content slides left. If we click the "← Gallery" link (tagged with `nav-back`), content slides right. The header stays fixed throughout both transitions.
 
-Browser-initiated back navigations (the back button or swipe gestures) do not carry a transition type, so the directional slide does not play. The shared element morph from Step 1 still applies if both pages have matching `name` props.
+#### Browser history navigation
+
+Browser Back and Forward buttons, history swipe gestures, `router.back()`, and `router.forward()` do not trigger view transition animations, including shared element morphs. Next.js handles these navigations through `popstate`, for which [React skips view transition animations](https://react.dev/reference/react/ViewTransition#building-view-transition-enabled-routers) to preserve scroll and form restoration. Matching `name` props do not change this behavior.
+
+To animate a return to the gallery, use the `<Link href="/">` above. It starts a new navigation rather than traversing browser history. Matching `name` props enable the shared element morph, and `transitionTypes={['nav-back']}` selects the directional slide.
 
 #### Keeping the page interactive
 

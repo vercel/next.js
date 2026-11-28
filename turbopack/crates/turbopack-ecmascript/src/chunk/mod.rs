@@ -4,6 +4,8 @@ pub(crate) mod code_module_ids_and_paths;
 pub(crate) mod content;
 pub(crate) mod content_entry;
 pub(crate) mod data;
+#[cfg(test)]
+mod factory_content_tests;
 pub(crate) mod factory_group;
 pub(crate) mod item;
 pub(crate) mod placeable;
@@ -34,8 +36,9 @@ pub use self::{
     code_module_ids_and_paths::{
         BatchGroupCodeModuleIdsAndPaths, CodeModuleIdAndPath, CodeModuleIdsAndPaths,
         batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
+        minified_module_factory,
     },
-    content::EcmascriptChunkContent,
+    content::{ChunkMinification, EcmascriptChunkContent},
     content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
     data::EcmascriptChunkData,
     factory_group::{
@@ -53,7 +56,7 @@ pub use self::{
 pub struct EcmascriptChunk {
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub content: ResolvedVc<EcmascriptChunkContent>,
-    pub component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    pub component_chunks: Box<[ResolvedVc<Box<dyn Chunk>>]>,
 }
 
 #[turbo_tasks::value_impl]
@@ -62,7 +65,7 @@ impl EcmascriptChunk {
     pub fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         content: ResolvedVc<EcmascriptChunkContent>,
-        component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+        component_chunks: Box<[ResolvedVc<Box<dyn Chunk>>]>,
     ) -> Vc<Self> {
         EcmascriptChunk {
             chunking_context,
@@ -74,7 +77,7 @@ impl EcmascriptChunk {
 
     #[turbo_tasks::function]
     pub fn component_chunks(&self) -> Vc<Chunks> {
-        Vc::cell(self.component_chunks.clone())
+        Vc::cell(self.component_chunks.to_vec())
     }
 
     #[turbo_tasks::function]

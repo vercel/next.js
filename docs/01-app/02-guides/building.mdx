@@ -414,9 +414,9 @@ export default async function Page({ params }) {
 }
 ```
 
-With the `loading` boundary removed, no fallback can render while the page awaits `params` and the product lookup. Removing `use cache` means the lookup also runs for each request. The server waits for both before returning the product page or a `404`. During a client navigation, the destination has no fallback to show until this work completes.
+With the `loading` boundary removed, no fallback can render while the page awaits `params` and the product lookup. Removing `use cache` means the lookup also runs for each request. During a client navigation, the current page stays visible until the product page or not-found UI is ready.
 
-[`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) disables instant-navigation validation for this route, including the check that its static shell is non-empty. It does not change the rendering model or prevent prerendering.
+[`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) disables instant-navigation validation for this route, including the non-empty static shell check. This lets the navigation wait for the product page or not-found UI, while the route can still prerender.
 
 The build output now shows:
 

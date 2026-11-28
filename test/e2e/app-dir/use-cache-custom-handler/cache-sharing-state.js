@@ -24,6 +24,9 @@
  * @property {Promise<void> | null} pendingRouteLookupResult
  * Pauses route B's `get()` before it returns.
  * @property {(() => void) | null} releaseRouteLookupResult
+ * @property {Promise<void> | null} pendingSelectedEntry
+ * @property {(() => void) | null} releaseSelectedEntry
+ * @property {string[][]} selectedEntrySoftTags
  */
 
 /**
@@ -43,4 +46,7 @@ module.exports = reference.cacheSharingState ??= {
   releaseFill: null,
   pendingRouteLookupResult: null,
   releaseRouteLookupResult: null,
+  pendingSelectedEntry: null,
+  releaseSelectedEntry: null,
+  selectedEntrySoftTags: [],
 }

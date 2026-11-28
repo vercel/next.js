@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
+use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, OperationVc, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
@@ -31,8 +32,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, EmitOption, EvaluatableAsset,
+        EvaluatableAssetExt, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{
@@ -47,16 +48,18 @@ use turbopack_core::{
     issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
+use turbopack_css::emit_options::CssEmitOptions;
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
     chunk::EcmascriptChunkType,
+    emit_options::EcmascriptEmitOptions,
     transform::{ReactCompilerCompilationMode, ReactCompilerTransformOptions},
 };
 use turbopack_ecmascript_plugins::transform::{
@@ -78,8 +81,11 @@ struct SnapshotOptions {
     browserslist: String,
     #[serde(default = "default_entry")]
     entry: String,
-    #[serde(default = "default_minify_type")]
-    minify_type: MinifyType,
+    #[serde(default)]
+    minify_mode: MinifyMode,
+    /// EXPERIMENTAL: minify each chunk item before assembling the chunk.
+    #[serde(default)]
+    minify_before_chunking: bool,
     #[serde(default)]
     runtime: Runtime,
     #[serde(default = "default_runtime_type")]
@@ -127,6 +133,50 @@ enum Runtime {
     NodeJs,
 }
 
+/// Minification mode for snapshot tests.
+#[derive(Debug, Deserialize, Default)]
+enum MinifyMode {
+    /// No minification (default).
+    #[default]
+    #[serde(rename = "NoMinify")]
+    None,
+    /// Minify with optimal-size mangling (char-freq enabled).
+    OptimalSize,
+    /// Minify with deterministic mangling.
+    Deterministic,
+    /// Minify without mangling (compress only).
+    NoMangle,
+}
+
+impl MinifyMode {
+    /// Returns JS and CSS minification emit options for this mode.
+    /// Returns an empty vec for `MinifyMode::None`.
+    fn emit_options(&self) -> SmallVec<[ResolvedVc<Box<dyn EmitOption>>; 2]> {
+        match self {
+            MinifyMode::None => SmallVec::new(),
+            mode => {
+                let ecma_opts = match mode {
+                    MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
+                        .preset_minify_optimal_size()
+                        .build(),
+                    MinifyMode::Deterministic => EcmascriptEmitOptions::builder()
+                        .preset_minify_deterministic()
+                        .build(),
+                    MinifyMode::NoMangle => EcmascriptEmitOptions::builder()
+                        .preset_minify_no_mangle()
+                        .build(),
+                    MinifyMode::None => unreachable!(),
+                };
+                let css_opts = CssEmitOptions::builder().preset_minify().build();
+                smallvec![
+                    ResolvedVc::upcast(ecma_opts.resolved_cell()),
+                    ResolvedVc::upcast(css_opts.resolved_cell()),
+                ]
+            }
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 enum SnapshotEnvironment {
     #[default]
@@ -139,7 +189,8 @@ impl Default for SnapshotOptions {
         SnapshotOptions {
             browserslist: default_browserslist(),
             entry: default_entry(),
-            minify_type: default_minify_type(),
+            minify_mode: MinifyMode::default(),
+            minify_before_chunking: false,
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -181,10 +232,6 @@ fn default_runtime_type() -> RuntimeType {
     RuntimeType::Dummy
 }
 
-fn default_minify_type() -> MinifyType {
-    MinifyType::NoMinify
-}
-
 fn default_chunk_loading_global() -> String {
     "TURBOPACK".to_owned()
 }
@@ -201,9 +248,11 @@ fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEnt
     true
 }
 
-#[testing::fixture("tests/snapshot/*/*/input/index.js", exclude("node_modules"))]
+// Match each fixture's `input` directory rather than a specific entry file, so that fixtures
+// configuring a custom `entry` in `options.json` are discovered too.
+#[testing::fixture("tests/snapshot/*/*/input", exclude("node_modules"))]
 fn test(resource: PathBuf) {
-    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
+    let resource = resource.parent().unwrap().to_path_buf();
     let resource = canonicalize(resource).unwrap();
 
     let mut has_output_dir = false;
@@ -400,14 +449,19 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(emotion_transform_plugin().to_resolved().await?),
-                EcmascriptInputTransform::Plugin(
-                    styled_components_transform_plugin().to_resolved().await?,
-                ),
-            ]),
-            postprocess: ResolvedVc::cell(vec![]),
+            preprocess: ResolvedVc::cell(Box::default()),
+            main: ResolvedVc::cell(
+                vec![
+                    EcmascriptInputTransform::Plugin(
+                        emotion_transform_plugin().to_resolved().await?,
+                    ),
+                    EcmascriptInputTransform::Plugin(
+                        styled_components_transform_plugin().to_resolved().await?,
+                    ),
+                ]
+                .into_boxed_slice(),
+            ),
+            postprocess: ResolvedVc::cell(Box::default()),
         }],
     );
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -480,7 +534,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let entry_module = asset_context
         .process(
             Vc::upcast(FileSource::new(entry_asset)),
-            ReferenceType::Entry(EntryReferenceSubType::Undefined),
+            ReferenceType::Entry(EntryReferenceSubType::default()),
         )
         .module()
         .to_resolved()
@@ -500,8 +554,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             heuristics: EntryHeuristics::default(),
         }])
         .resolved_cell(),
-        false,
-        true,
+        ModuleGraphOptions {
+            include_binding_usage: true,
+            // `compute_side_effect_free_module_info` (run below via `compute_binding_usage_info`
+            // when removing unused imports) reads `side_effects` from the graph node.
+            include_side_effects: options.remove_unused_imports,
+            // Module merging (driven by `scope_hoisting` in the chunking context below) reads
+            // `is_mergeable` from the graph node and bails if absent.
+            include_mergeable: options.scope_hoisting,
+            ..Default::default()
+        },
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
@@ -509,6 +571,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Some(compute_binding_usage_info(
             module_graph,
             options.remove_unused_imports,
+            /* drop_unused_module_data */ false,
         ))
     } else {
         None
@@ -540,7 +603,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_type(options.minify_type)
+            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
@@ -550,7 +613,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
-            .chunk_loading_global(options.chunk_loading_global.into());
+            .chunk_loading_global(options.chunk_loading_global.into())
+            .emit_options(options.minify_mode.emit_options());
 
             if options.single_chunk {
                 builder = builder.single_chunk().await?;
@@ -593,7 +657,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_type(options.minify_type)
+            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -601,7 +665,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 None
             })
             .debug_ids(options.enable_debug_ids)
-            .source_map_source_type(options.source_map_source_type);
+            .source_map_source_type(options.source_map_source_type)
+            .emit_options(options.minify_mode.emit_options());
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(
@@ -758,4 +823,115 @@ fn styled_components_transform_plugin() -> Vc<TransformPlugin> {
     Vc::cell(Box::new(StyledComponentsTransformer::new(
         &StyledComponentsTransformConfig::default(),
     )) as Box<dyn CustomTransformer + Send + Sync>)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn runtime_source_map_generation_requests() -> Result<()> {
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions::default(),
+        noop_backing_storage(),
+    ));
+    tt.run_once(async {
+        runtime_source_map_generation_operation()
+            .read_strongly_consistent()
+            .await?;
+        anyhow::Ok(())
+    })
+    .await
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
+    use turbopack_core::source_map::{
+        SourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps, Token,
+    };
+    use turbopack_ecmascript::StaticEcmascriptCode;
+    use turbopack_ecmascript_runtime::embed_file_path;
+
+    fn has_sources_content(map: &serde_json::Value) -> bool {
+        map["sourcesContent"]
+            .as_array()
+            .is_some_and(|contents| contents.iter().any(serde_json::Value::is_string))
+            || map["sections"].as_array().is_some_and(|sections| {
+                sections
+                    .iter()
+                    .any(|section| has_sources_content(&section["map"]))
+            })
+    }
+
+    let environment = Environment::new(ExecutionEnvironment::Browser(
+        BrowserEnvironment {
+            dom: true,
+            web_worker: false,
+            service_worker: false,
+            browserslist_query: rcstr!("last 1 Chrome version"),
+        }
+        .resolved_cell(),
+    ));
+    for generation in [
+        SourceMapGenerationOptions::NONE,
+        SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Full)),
+        SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Shallow)),
+        SourceMapGenerationOptions {
+            full: false,
+            shallow: true,
+            shallow_sources_content: false,
+        },
+        SourceMapGenerationOptions {
+            full: true,
+            shallow: true,
+            shallow_sources_content: false,
+        },
+        SourceMapGenerationOptions {
+            full: true,
+            shallow: true,
+            shallow_sources_content: true,
+        },
+    ] {
+        let asset_context = turbopack::get_runtime_asset_context(environment, generation);
+        let code = StaticEcmascriptCode::new(
+            asset_context,
+            embed_file_path(rcstr!("shared/runtime/runtime-utils.ts"))
+                .owned()
+                .await?,
+        )
+        .code()
+        .await?;
+        assert_eq!(
+            code.has_source_map(),
+            generation.should_generate_any_source_maps()
+        );
+        assert_eq!(
+            code.has_source_map_for(SourceMapType::Full),
+            generation.full && generation.should_generate_any_source_maps()
+        );
+        assert_eq!(
+            code.has_source_map_for(SourceMapType::Shallow),
+            generation.shallow && generation.should_generate_any_source_maps()
+        );
+        let maps = code.source_maps()?;
+        for ty in [SourceMapType::Full, SourceMapType::Shallow] {
+            if let Some(map) = maps.get(ty) {
+                let bytes = map.to_bytes();
+                let decoded = SourceMap::new_from_rope(map)?.expect("valid runtime map");
+                assert!(
+                    decoded
+                        .tokens()
+                        .any(|token| matches!(token, Token::Original(_)))
+                );
+                let map = serde_json::from_slice(&bytes)?;
+                assert_eq!(
+                    has_sources_content(&map),
+                    ty == SourceMapType::Full || generation.shallow_sources_content,
+                );
+            }
+        }
+        if generation.full && generation.shallow {
+            assert_eq!(
+                matches!(maps, SourceMaps::Shared(_)),
+                generation.shallow_sources_content,
+            );
+        }
+    }
+    Ok(Vc::cell(()))
 }

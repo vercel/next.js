@@ -12,7 +12,11 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
   const promise = Promise.resolve(underlyingParams)
   // Mark it as fulfilled the way React does once it has tracked it, so `use()`
   // can unwrap it without suspending.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(promise as any).status = 'fulfilled'
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(promise as any).value = underlyingParams
   CachedParams.set(underlyingParams, promise)
 

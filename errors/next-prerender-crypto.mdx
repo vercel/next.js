@@ -19,13 +19,13 @@ If you are generating a token to talk to a database that itself should be cached
 Before:
 
 ```jsx filename="app/page.js"
-async function getCachedData(token: string) {
+async function getCachedData(token) {
   "use cache"
   return db.query(token, ...)
 }
 
 export default async function Page() {
-  const token = crypto.getRandomUUID()
+  const token = crypto.randomUUID()
   const data = await getCachedData(token);
   return ...
 }
@@ -36,7 +36,7 @@ After:
 ```jsx filename="app/page.js"
 async function getCachedData() {
   "use cache"
-  const token = crypto.getRandomUUID()
+  const token = crypto.randomUUID()
   return db.query(token, ...)
 }
 

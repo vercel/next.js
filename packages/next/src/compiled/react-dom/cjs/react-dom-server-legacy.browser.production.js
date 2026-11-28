@@ -323,6 +323,7 @@ function createResumableState(
     idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
     nextFormID: 0,
     streamingFormat: 0,
+    externalRuntimeConfig: externalRuntimeConfig,
     bootstrapScriptContent: bootstrapScriptContent,
     bootstrapScripts: bootstrapScripts,
     bootstrapModules: bootstrapModules,
@@ -3527,7 +3528,8 @@ var HooksDispatcher = {
     },
     cacheSignal: function () {
       throw Error(formatProdErrorMessage(248));
-    }
+    },
+    units: null
   },
   prefix,
   suffix;
@@ -6973,7 +6975,10 @@ function renderToStringImpl(
     fatalError = null,
     result = "",
     readyToStream = !1;
-  options = createResumableState(options ? options.identifierPrefix : void 0);
+  options = createResumableState(
+    options ? options.identifierPrefix : void 0,
+    void 0
+  );
   children = createRequest(
     children,
     options,
@@ -7026,4 +7031,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.3.0-canary-dc9aed36-20261027";
+exports.version = "19.3.0-canary-edae846a-20261125";

@@ -1,5 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_dynamic-request_very-dynamic_input_index_045hiyc-eq2av.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_dynamic-request_very-dynamic_input_index_045hiyc-eq2av.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -39,7 +38,6 @@ Promise.resolve().then(()=>{
 __TURBOPACK__url__external__node$3a$fs__["default"].readFileSync(unknown);
 (0, __TURBOPACK__url__external__node$3a$fs__["readFileSync"])(unknown);
 new URL(unknown, __TURBOPACK__import$2e$meta__.url);
-}),
-]);
+})]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_dynamic-request_very-dynamic_input_index_045hiyc-eq2av.js.map

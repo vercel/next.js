@@ -11,7 +11,7 @@ import {
   Option,
 } from 'next/dist/compiled/commander'
 
-import { warn } from '../build/output/log'
+import { info, warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
@@ -38,6 +38,11 @@ import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
+import { captureOriginalEnv } from '../lib/upgrade/original-env'
+
+// Before anything below changes process.env, so agent upgrades can hand the
+// coding agent the user's environment.
+captureOriginalEnv()
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
@@ -110,6 +115,8 @@ class NextRootCommand extends Command {
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
       if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         process.env.NEXT_RUNTIME = 'nodejs'
       }
@@ -198,6 +205,14 @@ program
   )
   .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
   .addOption(new Option('--experimental-analyze').hideHelp())
+  .addOption(new Option('--no-lint').hideHelp())
+  .on('option:no-lint', () => {
+    program.error(
+      'error: The --no-lint option has been removed in Next.js 16. next build no longer runs linting.\n' +
+        'Remove --no-lint from your build command and run ESLint or Biome directly if needed.\n' +
+        'Read more: https://nextjs.org/docs/app/guides/upgrading/version-16#next-lint-command'
+    )
+  })
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -664,9 +679,36 @@ program
       'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
   )
+  .addOption(
+    new Option(
+      '--ci [policy]',
+      'Set up scheduled GitHub upgrades with the security or latest policy.'
+    ).conflicts(['agent', 'revision', 'internalNudgeId'])
+  )
   // Keep nudge attribution available to agents without exposing it in public help.
   .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
+    if (options.ci !== undefined) {
+      const { setupUpgradeCI } = await import('../lib/upgrade/setup-ci.js')
+      const result = await setupUpgradeCI({
+        directory: directory ?? '.',
+        policy: options.ci,
+      })
+      if (result.status === 'cancelled') {
+        info('Setup cancelled.')
+      }
+
+      if (
+        result.status === 'blocked' ||
+        result.status === 'failed' ||
+        result.status === 'cancelled'
+      ) {
+        process.exitCode = 1
+      }
+
+      return
+    }
+
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(
       directory,
@@ -917,7 +959,7 @@ internal
 internal
   .command('static-routes-info')
   .description(
-    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories.'
+    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories. Loads executable build manifests. Only analyze builds you trust.'
   )
   .argument(
     '[directory]',

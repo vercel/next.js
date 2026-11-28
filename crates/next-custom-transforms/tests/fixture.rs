@@ -43,6 +43,7 @@ use swc_core::{
 };
 use swc_relay::{RelayLanguageConfig, relay};
 use testing::fixture;
+use turbo_rcstr::RcStr;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsSyntax {
@@ -505,8 +506,8 @@ fn react_server_components_fixture(input: PathBuf) {
                         is_react_server_layer,
                         is_development: true,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::default(),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::default().into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
@@ -579,8 +580,8 @@ fn server_actions_fixture(input: PathBuf) {
                         is_react_server_layer,
                         is_development,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::from_iter(["x".into()]),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into()]).into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
@@ -619,8 +620,8 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         is_react_server_layer: true,
                         is_development: true,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::default(),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::default().into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
@@ -969,8 +970,8 @@ fn test_source_maps(input: PathBuf) {
                         is_react_server_layer,
                         is_development,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::from_iter([]),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::default().into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,

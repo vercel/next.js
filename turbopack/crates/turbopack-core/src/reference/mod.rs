@@ -12,7 +12,7 @@ use turbo_tasks::{
 use crate::{
     chunk::{ChunkingType, TracedMode},
     issue::IssueSource,
-    module::{Module, Modules},
+    module::{ActivatableModule, Module, Modules},
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
         expand_output_assets,
@@ -235,15 +235,25 @@ pub struct ModulesWithRefData(Vec<(ResolvedVc<Box<dyn ModuleReference>>, Resolve
 /// non-empty chunking_type. This does not include transitively referenced [Module]s, only primary
 /// [Module]s referenced.
 ///
+/// With `activated`, an [ActivatableModule] contributes its activated references instead.
+///
 /// [Module]: crate::module::Module
+/// [ActivatableModule]: crate::module::ActivatableModule
 #[turbo_tasks::function]
 pub async fn primary_chunkable_referenced_modules(
     module: ResolvedVc<Box<dyn Module>>,
     include_traced: bool,
     include_binding_usage: bool,
+    activated: bool,
 ) -> Result<Vc<ModulesWithRefData>> {
-    let modules = module
-        .references()
+    let references = if activated
+        && let Some(module) = ResolvedVc::try_sidecast::<Box<dyn ActivatableModule>>(module)
+    {
+        module.activated_references()
+    } else {
+        module.references()
+    };
+    let modules = references
         .await?
         .iter()
         .map(async |reference| {

@@ -34,7 +34,6 @@ import type {
   RawEntrypoints,
   Route,
   ServerHmrUpdate,
-  ServerHmrVersion,
   TurboEngineOptions,
   TurbopackResult,
   TurbopackStackFrame,
@@ -550,7 +549,7 @@ function bindingToApi(
         }[]
       }
     | {
-        type: 'app-route'
+        type: 'app-route' | 'app-route-go'
         originalName: string
         hasActionManifest: boolean
         endpoint: NapiEndpoint
@@ -775,15 +774,17 @@ function bindingToApi(
     }
 
     async getServerHmrUpdate(
-      from: ServerHmrVersion | undefined,
       entryPaths: string[]
     ): Promise<TurbopackResult<ServerHmrUpdate>> {
       // napi cannot express the field correlation.
       return binding.projectGetServerHmrUpdate(
         this._nativeProject,
-        from,
         entryPaths
       ) as Promise<TurbopackResult<ServerHmrUpdate>>
+    }
+
+    async resetServerHmrState(entryPaths?: string[]): Promise<void> {
+      await binding.projectResetServerHmrState(this._nativeProject, entryPaths)
     }
 
     clientHmrEvents(
@@ -987,6 +988,17 @@ function bindingToApi(
             ]
           })
       )
+    }
+
+    // Turbopack resolves a leading `/` from the project root, so make absolute
+    // instrumentationInject entries relative. Package names stay as they are.
+    if (nextConfigSerializable.instrumentationInject?.length) {
+      nextConfigSerializable.instrumentationInject =
+        nextConfigSerializable.instrumentationInject.map((entry: string) =>
+          path.isAbsolute(entry)
+            ? './' + normalizePathOnWindows(path.relative(projectPath, entry))
+            : entry
+        )
     }
 
     if (nextConfigSerializable.turbopack != null) {
@@ -1243,8 +1255,9 @@ function bindingToApi(
           }
           break
         case 'app-route':
+        case 'app-route-go':
           route = {
-            type: 'app-route',
+            type: nativeRoute.type,
             originalName: nativeRoute.originalName,
             hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),

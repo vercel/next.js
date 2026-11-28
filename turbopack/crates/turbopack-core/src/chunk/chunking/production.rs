@@ -1,24 +1,30 @@
 use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use rustc_hash::{FxHashMap, FxHasher};
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use tracing::{Instrument, field::Empty};
 use turbo_bitset::Bitset;
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+};
 
 use crate::{
     chunk::{
-        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
-        ChunkingConfig,
-        chunking::{ChunkItemOrBatchWithInfo, ComponentChunkItems, SplitContext, make_chunk},
+        ChunkItem, ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+        ChunkItemWithAsyncModuleInfo, ChunkingConfig, ChunkingContext,
+        chunking::{
+            ChunkComponent, ChunkItemOrBatchWithInfo, SplitContext,
+            deterministic_grouping::deterministic_grouping, dev::expand_batches, make_chunk,
+        },
     },
     module_graph::{ModuleGraph, chunk_group_info::ModuleToChunkGroups},
 };
 
 /// Default estimated cost of an additional request, in bytes (200 KB).
-const DEFAULT_ESTIMATED_REQUEST_COST_BYTES: u64 = 200_000;
+pub const DEFAULT_ESTIMATED_REQUEST_COST_BYTES: u64 = 200_000;
 
 /// Probability that a navigation stays within a cluster.
 const CLUSTER_NAVIGATION_PROBABILITY: f64 = 0.6;
@@ -41,9 +47,26 @@ pub async fn make_production_chunks(
     let span = span_outer.clone();
     async move {
         let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
-        let chunk_group_info = module_graph.chunk_group_info().await?;
-        let heuristics = &chunk_group_info.chunking_heuristics;
-        let merged_modules = module_graph.merged_modules().await?;
+        // Only the heuristics, so this doesn't depend on the whole `ChunkGroupInfo` (which
+        // changes with every change of the set of chunk groups).
+        let heuristics = module_graph
+            .chunk_group_info()
+            .chunking_heuristics()
+            .await?;
+        let heuristics = &*heuristics;
+        // Merged modules only exist when module merging is enabled; computing `merged_modules()`
+        // otherwise would force the (potentially expensive) merge analysis — and the module graph
+        // isn't even built to support it (it only collects `is_mergeable` when merging is on). So
+        // only resolve it when merging is enabled; the lookup below is only reached for modules
+        // that were merged away, which can't happen when merging is off.
+        let merged_modules = if *(*split_context.chunking_context)
+            .is_module_merging_enabled()
+            .await?
+        {
+            Some(module_graph.merged_modules().await?)
+        } else {
+            None
+        };
 
         #[derive(Default)]
         struct GroupedChunkItems<'l> {
@@ -77,8 +100,16 @@ pub async fn make_production_chunks(
                             module_chunk_groups
                         } else {
                             // Merged modules don't have a chunk group in chunk_group_info, so
-                            // lookup using the original module.
+                            // lookup using the original module. A module can only be missing here
+                            // if it was merged away, which only happens
+                            // when merging is enabled (so
+                            // `merged_modules` is `Some`).
                             let original_module = merged_modules
+                                .as_ref()
+                                .context(
+                                    "module has no chunk group and module merging is disabled, so \
+                                     it cannot have been merged away",
+                                )?
                                 .get_original_module(module)
                                 .await?
                                 .context("every module should have a chunk group")?;
@@ -123,26 +154,35 @@ pub async fn make_production_chunks(
             grouped_chunk_items.entry(key).or_default().batch_group = Some(batch_group);
         }
 
-        let &ChunkingConfig {
+        // Size limits are made consistent first, e.g. `max_merge_chunk_size` is limited to
+        // `max_chunk_size`, so chunks bigger than `max_chunk_size` never become merge candidates.
+        let chunking_config = chunking_config.normalized();
+        let ChunkingConfig {
             min_chunk_size,
             max_chunk_count_per_group,
             max_merge_chunk_size,
+            max_chunk_size,
             first_page_load_priority,
             priority_boost_percent,
             request_cost,
-            generate_component_chunks,
-            min_component_chunk_size,
             ..
         } = chunking_config;
 
         if min_chunk_size == 0 && max_chunk_count_per_group == 0 {
             span.record("chunks", grouped_chunk_items.len());
             for group in grouped_chunk_items.into_values() {
-                make_chunk(
+                let size = group
+                    .chunk_items
+                    .iter()
+                    .map(|chunk_item| chunk_item.size())
+                    .sum::<usize>();
+                make_size_limited_chunk(
                     group.chunk_items,
                     group.batch_group.into_iter().collect(),
                     Vec::new(),
-                    &mut String::new(),
+                    size,
+                    min_chunk_size,
+                    max_chunk_size,
                     &mut split_context,
                 )
                 .await?;
@@ -186,6 +226,8 @@ pub async fn make_production_chunks(
                 // Determine chunk to merge
                 loop {
                     if let Some(smallest) = heap.peek() {
+                        // Chunks bigger than `max_chunk_size` are also bigger than
+                        // `max_merge_chunk_size` (normalized), so they are never merged.
                         let chunk_over_limit =
                             max_merge_chunk_size != 0 && smallest.size > max_merge_chunk_size;
                         if chunk_over_limit {
@@ -291,6 +333,10 @@ pub async fn make_production_chunks(
                             let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
                             // It need to have at least one chunk group in common
                             if overlap < 1 {
+                                continue;
+                            }
+                            // Merging must not create chunks bigger than `max_chunk_size`
+                            if max_chunk_size != 0 && candidate.size + other.size > max_chunk_size {
                                 continue;
                             }
                             // If the candidate is already big enough, avoid shrinking the sharing
@@ -547,19 +593,16 @@ pub async fn make_production_chunks(
                 }
                 span.record("merge_iterations", iterations);
 
-                let mut remained_size = 0;
-                let mut remained_chunk_items = Vec::new();
-                let mut remained_batch_groups = FxIndexSet::default();
-                let mut remained_components = Vec::new();
-                for MergeCandidate {
-                    size,
-                    chunk_items,
-                    batch_groups,
-                    chunk_groups,
-                    components,
-                } in chunks_to_merge.into_iter()
-                {
-                    if size > merge_threshold {
+                let mut remained = Vec::new();
+                for candidate in chunks_to_merge.into_iter() {
+                    if candidate.size > merge_threshold {
+                        let MergeCandidate {
+                            size,
+                            chunk_items,
+                            batch_groups,
+                            chunk_groups,
+                            components,
+                        } = candidate;
                         heap.push(ChunkCandidate {
                             size,
                             chunk_items,
@@ -568,16 +611,36 @@ pub async fn make_production_chunks(
                             components,
                         });
                     } else {
+                        remained.push(candidate);
+                    }
+                }
+
+                // Left-over chunks are merged together forming the remained chunk(s), which include
+                // all modules that are not sharable. When they are bigger than `max_chunk_size`
+                // together, they are grouped deterministically into multiple remained chunks.
+                for group in
+                    group_remained_candidates(remained, min_chunk_size, max_chunk_size).await?
+                {
+                    let mut remained_size = 0;
+                    let mut remained_chunk_items = Vec::new();
+                    let mut remained_batch_groups = FxIndexSet::default();
+                    let mut remained_components = Vec::new();
+                    for MergeCandidate {
+                        size,
+                        chunk_items,
+                        batch_groups,
+                        components,
+                        ..
+                    } in group
+                    {
                         remained_size += size;
                         remained_chunk_items.extend(chunk_items);
                         remained_batch_groups.extend(batch_groups);
                         remained_components.extend(components);
                     }
-                }
-
-                // Left-over chunks are merged together forming the remained chunk, which includes
-                // all modules that are not sharable
-                if !remained_chunk_items.is_empty() {
+                    if remained_chunk_items.is_empty() {
+                        continue;
+                    }
                     heap.push(ChunkCandidate {
                         size: remained_size,
                         chunk_items: remained_chunk_items,
@@ -600,18 +663,16 @@ pub async fn make_production_chunks(
             } in heap.into_iter()
             {
                 total_size += size;
-                // Merged chunks also emit their constituent components as referenced "module
-                // chunks" for cache-aware loading; a plain chunk passes no
-                // components.
-                let components = generate_component_chunks
-                    .then(|| split_into_component_chunks(components, min_component_chunk_size))
-                    .flatten()
-                    .unwrap_or_default();
-                make_chunk(
+                // Only chunks that were not merged can be bigger than `max_chunk_size`, since
+                // merging respects it. Merged chunks also emit their components as component
+                // chunks when enabled.
+                make_size_limited_chunk(
                     chunk_items,
                     batch_groups.into_vec(),
                     components,
-                    &mut String::new(),
+                    size,
+                    min_chunk_size,
+                    max_chunk_size,
                     &mut split_context,
                 )
                 .await?;
@@ -625,13 +686,123 @@ pub async fn make_production_chunks(
     .await
 }
 
-/// One original (pre-merge) atomic chunk group. A [`ChunkCandidate`]/[`MergeCandidate`] tracks the
-/// components it was merged from so the emitted merged chunk can also expose them as individual
-/// "module chunks" for cache-aware loading at runtime.
-struct ChunkComponent<'l> {
-    size: usize,
+/// Groups the left-over merge candidates that form the remained chunk(s). This is a single group,
+/// unless they are bigger than `max_chunk_size` together. Then they are grouped deterministically,
+/// keyed by the smallest module identifier of each candidate, see [`deterministic_grouping`].
+/// Candidates are never split, so their components are kept.
+async fn group_remained_candidates<'l>(
+    remained: Vec<MergeCandidate<'l>>,
+    min_chunk_size: usize,
+    max_chunk_size: usize,
+) -> Result<SmallVec<[Vec<MergeCandidate<'l>>; 1]>> {
+    let total_size = remained
+        .iter()
+        .map(|candidate| candidate.size)
+        .sum::<usize>();
+    if remained.is_empty() {
+        return Ok(SmallVec::new());
+    }
+    if max_chunk_size == 0 || total_size <= max_chunk_size {
+        return Ok(smallvec![remained]);
+    }
+    let keyed = remained
+        .into_iter()
+        .map(async |candidate| {
+            let key = smallest_module_identifier(&candidate.chunk_items).await?;
+            let size = candidate.size;
+            Ok((candidate, key, size))
+        })
+        .try_join()
+        .await?;
+    Ok(deterministic_grouping(
+        keyed,
+        min_chunk_size,
+        max_chunk_size,
+    ))
+}
+
+/// Returns the smallest module identifier of the chunk items, including the chunk items in batches.
+async fn smallest_module_identifier(chunk_items: &[&ChunkItemOrBatchWithInfo]) -> Result<RcStr> {
+    let mut smallest: Option<RcStr> = None;
+    for item in chunk_items {
+        match item {
+            ChunkItemOrBatchWithInfo::ChunkItem { asset_ident, .. } => {
+                if smallest
+                    .as_ref()
+                    .is_none_or(|smallest| asset_ident < smallest)
+                {
+                    smallest = Some(asset_ident.clone());
+                }
+            }
+            ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
+                for chunk_item in &batch.await?.chunk_items {
+                    let asset_ident = chunk_item.chunk_item.asset_ident().to_string().await?;
+                    if smallest
+                        .as_ref()
+                        .is_none_or(|smallest| &*asset_ident < smallest)
+                    {
+                        smallest = Some((*asset_ident).clone());
+                    }
+                }
+            }
+        }
+    }
+    Ok(smallest.unwrap_or_default())
+}
+
+/// Creates a chunk from `chunk_items` (with a total size of `size`), or several chunks when `size`
+/// is bigger than `max_chunk_size` (unless that is `0`).
+///
+/// Oversized chunks are split deterministically by the module identifiers of their chunk items,
+/// preferring chunks of at least `min_chunk_size`, see [`deterministic_grouping`]. Batches are
+/// expanded into their chunk items for that. Since only chunks that were not merged are oversized,
+/// they have no components. The split chunks get no batch groups, which are only an optimization.
+async fn make_size_limited_chunk<'l>(
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
-    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
+    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+    components: Vec<ChunkComponent<'l>>,
+    size: usize,
+    min_chunk_size: usize,
+    max_chunk_size: usize,
+    split_context: &mut SplitContext<'_>,
+) -> Result<()> {
+    if max_chunk_size == 0 || size <= max_chunk_size {
+        return make_chunk(
+            chunk_items,
+            batch_groups,
+            components,
+            &mut String::new(),
+            split_context,
+        )
+        .await;
+    }
+
+    let expanded = expand_batches(
+        chunk_items,
+        split_context.ty,
+        split_context.chunking_context,
+    )
+    .await?;
+    let keyed_items = expanded
+        .iter()
+        .map(|item| match item {
+            ChunkItemOrBatchWithInfo::ChunkItem {
+                asset_ident, size, ..
+            } => Ok((item, asset_ident, *size)),
+            ChunkItemOrBatchWithInfo::Batch { .. } => bail!("batches should have been expanded"),
+        })
+        .collect::<Result<Vec<_>>>()?;
+    for part in deterministic_grouping(keyed_items, min_chunk_size, max_chunk_size) {
+        make_chunk(
+            part,
+            Vec::new(),
+            Vec::new(),
+            &mut String::new(),
+            split_context,
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 struct ChunkCandidate<'l> {
@@ -699,45 +870,6 @@ impl Eq for MergeCandidate<'_> {}
 impl PartialEq for MergeCandidate<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.size == other.size
-    }
-}
-
-fn split_into_component_chunks<'l>(
-    components: Vec<ChunkComponent<'l>>,
-    min_component_chunk_size: usize,
-) -> Option<Vec<ComponentChunkItems<'l>>> {
-    // A single original part can't benefit from splitting.
-    if components.len() <= 1 {
-        return None;
-    }
-    let mut component_chunks: Vec<ComponentChunkItems<'l>> = Vec::new();
-    let mut remainder_items: Vec<&'l ChunkItemOrBatchWithInfo> = Vec::new();
-    let mut remainder_batch_groups = FxIndexSet::default();
-    for part in components {
-        if part.size >= min_component_chunk_size {
-            component_chunks.push((part.chunk_items, part.batch_groups.into_vec()));
-        } else {
-            // we create a "remainder" chunk with smaller component chunks so that
-            // an entire chunk can be loaded by loading all of its component chunks
-            remainder_items.extend(part.chunk_items);
-            remainder_batch_groups.extend(part.batch_groups);
-        }
-    }
-
-    // TODO (@sampoder): handle the case where there are many the component chunks
-    // that are only slightly smaller than the min_component_chunk_size. this may
-    // mean that there is no benefit to component chunking.
-    if !remainder_items.is_empty() {
-        component_chunks.push((
-            remainder_items,
-            remainder_batch_groups.into_iter().collect(),
-        ));
-    }
-    // A split is only worthwhile if it yields more than one component chunk.
-    if component_chunks.len() <= 1 {
-        None
-    } else {
-        Some(component_chunks)
     }
 }
 

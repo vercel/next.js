@@ -1,25 +1,23 @@
 import { headers } from 'next/headers'
 import { Suspense } from 'react'
-import { getRenderSpans } from '../../trace-recorder'
-import { markMetadataGenerated, metadataGenerated } from '../../metadata-ready'
+import { getActiveTraceId } from '../../trace-recorder'
 
-async function Spans() {
+async function TraceId() {
   // Reading request headers also makes this run at request time, so the
-  // reported spans belong to the request.
+  // reported trace is the request's.
   await headers()
-  await metadataGenerated()
-  return <pre id="spans">{JSON.stringify(getRenderSpans())}</pre>
+  return <pre id="trace-id">{getActiveTraceId()}</pre>
 }
 
 export default function Page() {
   return (
     <Suspense>
-      <Spans />
+      <TraceId />
     </Suspense>
   )
 }
 
+// Traced as a `generateMetadata` span in the render.
 export async function generateMetadata() {
-  markMetadataGenerated('page')
   return {}
 }

@@ -67,6 +67,10 @@
           if (isArrayImpl(value)) return "[...]";
           if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
             return "client";
+          if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
+            return "LedgerData";
+          if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+            return "LedgerTotal";
           value = objectName(value);
           return "Object" === value ? "{...}" : value;
         case "function":
@@ -154,6 +158,10 @@
         objKind = "<" + describeElementType(objectOrArray.type) + "/>";
       else {
         if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
+        if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE)
+          return "LedgerData";
+        if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+          return "LedgerTotal";
         if (jsxPropsParents.has(objectOrArray)) {
           objKind = jsxPropsParents.get(objectOrArray);
           objKind = "<" + (describeElementType(objKind) || "...");
@@ -1036,6 +1044,16 @@
             bootstrapChunks.push(endAsyncScript);
       return onHeaders;
     }
+    function resumeRenderState(resumableState, nonce) {
+      return createRenderState(
+        resumableState,
+        nonce,
+        resumableState.externalRuntimeConfig,
+        void 0,
+        void 0,
+        void 0
+      );
+    }
     function createResumableState(
       identifierPrefix,
       externalRuntimeConfig,
@@ -1047,6 +1065,7 @@
         idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
         nextFormID: 0,
         streamingFormat: 0,
+        externalRuntimeConfig: externalRuntimeConfig,
         bootstrapScriptContent: bootstrapScriptContent,
         bootstrapScripts: bootstrapScripts,
         bootstrapModules: bootstrapModules,
@@ -9502,11 +9521,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-dc9aed36-20261027" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-edae846a-20261125" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-dc9aed36-20261027\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-edae846a-20261125\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -9529,6 +9548,8 @@
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable"),
+      REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+      REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
@@ -10995,6 +11016,7 @@
         cacheSignal: function () {
           throw Error("Not implemented.");
         },
+        units: null,
         getOwner: function () {
           return null === currentTaskInDEV
             ? null
@@ -11209,13 +11231,9 @@
           request = resumeRequest(
             children,
             postponedState,
-            createRenderState(
+            resumeRenderState(
               postponedState.resumableState,
-              options ? options.nonce : void 0,
-              void 0,
-              void 0,
-              void 0,
-              void 0
+              options ? options.nonce : void 0
             ),
             options ? options.onError : void 0,
             options ? options.onBrowserBailout : void 0,
@@ -11252,14 +11270,7 @@
         var request = resumeAndPrerenderRequest(
           children,
           postponedState,
-          createRenderState(
-            postponedState.resumableState,
-            void 0,
-            void 0,
-            void 0,
-            void 0,
-            void 0
-          ),
+          resumeRenderState(postponedState.resumableState, void 0),
           options ? options.onError : void 0,
           options ? options.onBrowserBailout : void 0,
           function () {
@@ -11287,5 +11298,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-dc9aed36-20261027";
+    exports.version = "19.3.0-canary-edae846a-20261125";
   })();

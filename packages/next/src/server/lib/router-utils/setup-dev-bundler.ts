@@ -1,13 +1,13 @@
+import type { MiddlewareRoutingItem } from '../../base-server'
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { PrerenderManifest, RoutesManifest } from '../../../build'
-import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
+import type { AppGoRouteRouteDefinition } from '../../route-definitions/app-go-route-route-definition'
 import type { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
 
 import { createDefineEnv } from '../../../build/swc'
@@ -59,9 +59,11 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { ensureGoSdkQueued, goSdkOptions } from '../../../lib/go-sdk'
 
 import {
   isMiddlewareFile,
+  isProxyFile,
   NestedMiddlewareError,
   isInstrumentationHookFile,
   getPossibleMiddlewareFilenames,
@@ -80,6 +82,7 @@ import {
   fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
+import { initializeRequestInsightsJournal } from '../trace/request-insights-journal'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -91,6 +94,7 @@ import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-e
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
+  INSTRUMENTATION_HOOK_FILENAME,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
@@ -160,19 +164,35 @@ export type ServerFields = {
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>
-  middleware?:
-    | {
-        page: string
-        match: MiddlewareRouteMatch
-        matchers?: ProxyMatcher[]
-      }
-    | undefined
+  middleware?: MiddlewareRoutingItem
   hasAppNotFound?: boolean
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   resetFetch?: () => void
+}
+
+/**
+ * Whether a route has a segment after a catch-all segment, e.g.
+ * `/blog/[...slug]/opengraph-image`. A catch-all segment must be the last
+ * segment of a route, so such a route can never be matched.
+ */
+function isNestedInCatchAllSegment(route: string): boolean {
+  const segments = route
+    .split('/')
+    .filter(
+      (segment) =>
+        segment !== '' &&
+        !(segment.startsWith('(') && segment.endsWith(')')) &&
+        !segment.startsWith('@')
+    )
+  const catchAllIndex = segments.findIndex(
+    (segment) =>
+      (segment.startsWith('[[...') && segment.endsWith(']]')) ||
+      (segment.startsWith('[...') && segment.endsWith(']'))
+  )
+  return catchAllIndex !== -1 && catchAllIndex < segments.length - 1
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -218,30 +238,37 @@ async function startWatcher(
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-  let lockfile
-  if (opts.nextConfig.experimental.lockDistDir) {
-    fs.mkdirSync(distDir, { recursive: true })
+  fs.mkdirSync(distDir, { recursive: true })
 
-    // Create server info to store in the lockfile itself
-    // This allows other processes to discover the running server
-    const appUrl =
-      process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
-    const serverInfo: DevServerInfo = {
-      pid: process.pid,
-      port: opts.port,
-      hostname: new URL(appUrl).hostname,
-      appUrl,
-      startedAt: Date.now(),
+  const goSdk = goSdkOptions(dir, distDir, nextConfig)
+  if (nextConfig.experimental.goRoutes) {
+    await ensureGoSdkQueued(goSdk)
+  }
+
+  // Create server info to store in the lockfile itself
+  // This allows other processes to discover the running server
+  const appUrl =
+    process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
+  const serverInfo: DevServerInfo = {
+    pid: process.pid,
+    port: opts.port,
+    hostname: new URL(appUrl).hostname,
+    appUrl,
+    startedAt: Date.now(),
+  }
+
+  const lockfile = await Lockfile.acquireWithRetriesOrExit(
+    path.join(distDir, 'lock'),
+    'next dev',
+    {
+      content: JSON.stringify(serverInfo),
+      projectDir: opts.dir,
+      relativeDistDir: opts.nextConfig.distDir,
     }
+  )
 
-    lockfile = await Lockfile.acquireWithRetriesOrExit(
-      path.join(distDir, 'lock'),
-      'next dev',
-      true,
-      JSON.stringify(serverInfo),
-      opts.dir,
-      opts.nextConfig.distDir
-    )
+  if (nextConfig.experimental.requestInsights) {
+    await initializeRequestInsightsJournal(distDir)
   }
 
   const validFileMatcher = createValidFileMatcher(
@@ -255,6 +282,14 @@ async function startWatcher(
   consoleStore.setState({
     logging: nextConfig.logging !== false,
   })
+
+  const hasInstrumentationInject =
+    (nextConfig.instrumentationInject?.length ?? 0) > 0
+  // Turbopack reports instrumentation through its entrypoints
+  // (turbopack-utils.ts). Webpack has no such list.
+  if (hasInstrumentationInject && !opts.turbo) {
+    serverFields.actualInstrumentationHookFile = `/${INSTRUMENTATION_HOOK_FILENAME}`
+  }
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await (async () => {
@@ -296,6 +331,7 @@ async function startWatcher(
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
           hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
+          hasInstrumentationInject,
         })
       })()
 
@@ -424,7 +460,8 @@ async function startWatcher(
     const files = [
       ...getPossibleMiddlewareFilenames(
         path.join(rootDir!, '..'),
-        nextConfig.pageExtensions
+        nextConfig.pageExtensions,
+        !!nextConfig.experimental.goRoutes
       ),
       ...getPossibleInstrumentationHookFilenames(
         path.join(rootDir!, '..'),
@@ -480,7 +517,7 @@ async function startWatcher(
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
-      let middlewareMatchers: ProxyMatcher[] | undefined
+      let middlewareEntry: MiddlewareRoutingItem | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
 
@@ -516,6 +553,7 @@ async function startWatcher(
       const slots: SlotInfo[] = []
 
       let envFileChange = false
+      let goFileChange = false
       let clientRouterFiltersChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
@@ -553,6 +591,15 @@ async function startWatcher(
           middlewareFilePath = fileName
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          // A Go proxy cannot be combined with a JavaScript one. Multiple
+          // JavaScript Proxy files keep resolving to the last one.
+          if (
+            proxyFilePath &&
+            (proxyFilePath.endsWith('.go') || fileName.endsWith('.go'))
+          )
+            throw new Error(
+              `Multiple Proxy files detected: "./${normalizePathSep(path.relative(dir, proxyFilePath))}" and "./${normalizePathSep(path.relative(dir, fileName))}". Remove one of these files; Next.js supports a single Proxy file.`
+            )
           proxyFilePath = fileName
         }
 
@@ -588,6 +635,10 @@ async function startWatcher(
           (watchTime && watchTime !== nextWatchTime)
         fileWatchTimes.set(fileName, nextWatchTime)
 
+        if (fileChanged && fileName.endsWith('.go')) {
+          goFileChange = true
+        }
+
         if (envFiles.includes(fileName)) {
           if (fileChanged) {
             envFileChange = true
@@ -607,7 +658,8 @@ async function startWatcher(
 
         const fileExists = fs.existsSync(fileName)
         if (
-          !validFileMatcher.isPageFile(fileName) ||
+          (!validFileMatcher.isPageFile(fileName) &&
+            !(isAtConventionLevel && fileBase === 'proxy.go')) ||
           (meta?.accuracy === undefined && !fileExists)
         ) {
           continue
@@ -637,7 +689,8 @@ async function startWatcher(
 
         const rootFile = absolutePathToPage(fileName, {
           dir: dir,
-          extensions: nextConfig.pageExtensions,
+          extensions:
+            fileBase === 'proxy.go' ? ['go'] : nextConfig.pageExtensions,
           keepIndex: false,
           pagesType: PAGE_TYPES.ROOT,
         })
@@ -668,9 +721,23 @@ async function startWatcher(
             'actualMiddlewareFile',
             serverFields.actualMiddlewareFile
           )
-          middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '^/.*$', originalSource: '/:path*' },
-          ]
+          middlewareEntry = {
+            page: '/',
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            match: null as any,
+            matchers: staticInfo.middleware?.matchers || [
+              { regexp: '^/.*$', originalSource: '/:path*' },
+            ],
+            ...(fileBase === 'proxy.go'
+              ? { runtime: 'go', nativeEntry: 'middleware.native.json' }
+              : {
+                  runtime:
+                    staticInfo.runtime === 'nodejs' || isProxyFile(rootFile)
+                      ? 'nodejs'
+                      : 'edge',
+                }),
+          }
           continue
         }
         if (isInstrumentationHookFile(rootFile)) {
@@ -696,7 +763,10 @@ async function startWatcher(
 
         let pageName = absolutePathToPage(fileName, {
           dir: isAppPath ? appDir! : pagesDir!,
-          extensions: nextConfig.pageExtensions,
+          extensions:
+            fileName.endsWith('route.go') && isAppPath
+              ? ['go']
+              : nextConfig.pageExtensions,
           keepIndex: isAppPath,
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
@@ -919,6 +989,14 @@ async function startWatcher(
           clientRouterFiltersChange = true
           previousClientRouterFilters = clientRouterFilters
         }
+      }
+
+      // A Go route or Proxy file can start importing next/go after startup.
+      // Add the go.mod requirement before it is compiled; Turbopack tracks
+      // go.mod. Other Go sources are covered when Turbopack recompiles the
+      // endpoints that import them (see the hot reloader).
+      if (goFileChange && nextConfig.experimental.goRoutes) {
+        void ensureGoSdkQueued(goSdk)
       }
 
       // Also set on the initial scan, so that typed env definitions exist
@@ -1223,26 +1301,33 @@ async function startWatcher(
         }),
         ...appRouteHandlers.map(({ route, page, filePath }) => {
           return {
-            kind: RouteKind.APP_ROUTE,
+            kind: filePath.endsWith('.go')
+              ? RouteKind.APP_ROUTE_GO
+              : RouteKind.APP_ROUTE,
             pathname: route,
             page,
             bundlePath: path.posix.join('app', normalizePagePath(page)),
             filename: filePath,
-          } satisfies AppRouteRouteDefinition
+          } satisfies AppRouteRouteDefinition | AppGoRouteRouteDefinition
         }),
-      ] satisfies Array<AppPageRouteDefinition | AppRouteRouteDefinition>
+      ] satisfies Array<
+        | AppPageRouteDefinition
+        | AppRouteRouteDefinition
+        | AppGoRouteRouteDefinition
+      >
 
       opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
 
+      const routeKinds = new Map(
+        [...pageRouteDefinitions, ...appRouteDefinitions].map((definition) => [
+          definition.pathname,
+          definition.kind,
+        ])
+      )
+
       // TODO: pass this to fsChecker/next-dev-server?
-      serverFields.middleware = middlewareMatchers
-        ? {
-            match: null as any,
-            page: '/',
-            matchers: middlewareMatchers,
-          }
-        : undefined
+      serverFields.middleware = middlewareEntry
 
       await propagateServerField(opts, 'middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
@@ -1302,7 +1387,14 @@ async function startWatcher(
         // we serve a separate manifest with all pages for the client in
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
-        const sortedRoutes = getSortedRoutes(routedPages)
+        const sortedRoutes = getSortedRoutes(
+          // Turbopack reports routes nested inside a catch-all segment as an
+          // error and doesn't create entrypoints for them. Leave them out here
+          // so they don't stop the dev server from starting.
+          opts.turbo
+            ? routedPages.filter((page) => !isNestedInCatchAllSegment(page))
+            : routedPages
+        )
 
         opts.fsChecker.dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
@@ -1317,6 +1409,9 @@ async function startWatcher(
               routeKeys: regex.routeKeys,
               match: getRouteMatcher(regex),
               page,
+              kind:
+                routeKinds.get(page) ??
+                (isAPIRoute(page) ? RouteKind.PAGES_API : RouteKind.PAGES),
             }
           }
         )
@@ -1346,6 +1441,9 @@ async function startWatcher(
                 : new RegExp(route.dataRouteRegex),
               groups: routeRegex.groups,
             }),
+            kind: isAPIRoute(route.page)
+              ? RouteKind.PAGES_API
+              : RouteKind.PAGES,
           })
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
@@ -1600,13 +1698,24 @@ export async function setupDevBundler(opts: SetupOpts) {
   )
 
   // Track build features for dev server here:
-  opts.telemetry.record({
-    eventName: EVENT_BUILD_FEATURE_USAGE,
-    payload: {
-      featureName: 'turbopackFileSystemCache',
-      invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig) ? 1 : 0,
+  opts.telemetry.record([
+    {
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: {
+        featureName: 'turbopackFileSystemCache',
+        invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig)
+          ? 1
+          : 0,
+      },
     },
-  })
+    {
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: {
+        featureName: 'experimental/goRoutes',
+        invocationCount: opts.nextConfig.experimental.goRoutes ? 1 : 0,
+      },
+    },
+  ])
 
   return result
 }

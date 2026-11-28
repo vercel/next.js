@@ -55,7 +55,7 @@ export default function RootLayout({ children }) {
 
 #### `children` (required)
 
-Layout components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the layout is wrapping. These will primarily be the component of a child [Layout](/docs/app/api-reference/file-conventions/page) (if it exists) or [Page](/docs/app/api-reference/file-conventions/page), but could also be other special files like [Loading](/docs/app/api-reference/file-conventions/loading) or [Error](/docs/app/getting-started/error-handling) when applicable.
+Layout components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the layout is wrapping. These will primarily be the component of a child [Layout](/docs/app/api-reference/file-conventions/layout) (if it exists) or [Page](/docs/app/api-reference/file-conventions/page), but could also be other special files like [Loading](/docs/app/api-reference/file-conventions/loading) or [Error](/docs/app/getting-started/error-handling) when applicable.
 
 #### `params` (optional)
 
@@ -108,6 +108,7 @@ export default function Layout(props: LayoutProps<'/dashboard'>) {
 >
 > - Types are generated during `next dev`, `next build` or `next typegen`.
 > - After type generation, the `LayoutProps` helper is globally available. It doesn't need to be imported.
+> - The route literal excludes [route group](/docs/app/api-reference/file-conventions/route-groups) folders. Type a layout at `app/(marketing)/layout.tsx` as `LayoutProps<'/'>`, and a layout at `app/dashboard/(details)/layout.tsx` as `LayoutProps<'/dashboard'>`.
 
 ### Root Layout
 
@@ -480,7 +481,7 @@ export default function NavLink({
 import Link from 'next/link'
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default function NavLinks({ slug, children }) {
+export default function NavLink({ slug, children }) {
   const segment = useSelectedLayoutSegment()
   const isActive = slug === segment
 
@@ -496,7 +497,7 @@ export default function NavLinks({ slug, children }) {
 ```
 
 ```tsx filename="app/blog/layout.tsx" switcher
-import { NavLink } from './nav-link'
+import NavLink from '@/app/ui/nav-link'
 import getPosts from './get-posts'
 
 export default async function Layout({
@@ -519,7 +520,7 @@ export default async function Layout({
 ```
 
 ```jsx filename="app/blog/layout.js" switcher
-import { NavLink } from './nav-link'
+import NavLink from '@/app/ui/nav-link'
 import getPosts from './get-posts'
 
 export default async function Layout({ children }) {
@@ -605,7 +606,7 @@ export function NavLinks() {
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
-export function Links() {
+export function NavLinks() {
   const pathname = usePathname()
 
   return (

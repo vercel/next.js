@@ -16,7 +16,7 @@ use crate::{
         MergeableModulesExposed,
     },
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphNode},
     resolve::ExportUsage,
 };
 
@@ -197,6 +197,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
     async move {
         let async_module_info = module_graph.async_module_info();
         let chunk_group_info = module_graph.chunk_group_info().await?;
+        let all_chunk_groups = chunk_group_info.chunk_groups.await?;
         let module_graph = module_graph.await?;
 
         let graphs = &module_graph.graphs;
@@ -227,15 +228,26 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         let inner_span = tracing::info_span!("collect mergeable modules");
         let mergeable = module_graph
-            .iter_reachable_modules()?
-            .map(async |module| {
-                if let Some(mergeable) =
-                    ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
-                    && *mergeable.is_mergeable().await?
-                {
-                    return Ok(Some(module));
+            .iter_reachable_nodes()?
+            .map(async |(idx, node)| {
+                match node {
+                    SingleModuleGraphNode::Module(module) => {
+                        // Read the eagerly-resolved `is_mergeable` from the graph. The graph must
+                        // be built with `ModuleGraphOptions::include_mergeable` (we enable it
+                        // wherever the chunking context merges modules), so a missing value is a
+                        // misconfigured graph; `node_is_mergeable` bails rather than silently
+                        // treating everything as non-mergeable.
+                        // Tracked read: the producing task was resolved at graph construction, so
+                        // this is cheap while still depending on the value correctly.
+                        let is_mergeable = module_graph
+                            .node_is_mergeable(idx)?
+                            .context("Module nodes always have mergeability when collected")?;
+                        Ok(is_mergeable.await?.then_some(*module))
+                    }
+                    // VisitedModule nodes belong to a parent graph; their mergeability was already
+                    // accounted for there.
+                    SingleModuleGraphNode::VisitedModule { .. } => Ok(None),
                 }
-                Ok(None)
             })
             .try_flat_join()
             .instrument(inner_span)
@@ -433,7 +445,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
             let result = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 // TODO without collect
-                chunk_group_info.chunk_groups.iter().enumerate().collect(),
+                all_chunk_groups.iter().enumerate().collect(),
                 |chunk| {
                     let mut list_lists = vec![];
                     let mut lists_reverse_indices: FxIndexMap<
@@ -458,7 +470,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // Keyed by bitmap id.
                         let mut chunk_lists: FxHashMap<u32, usize> =
                             FxHashMap::with_capacity_and_hasher(
-                                module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
+                                module_merged_groups.len() / all_chunk_groups.len(),
                                 Default::default(),
                             );
 
@@ -552,7 +564,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             drop(span);
             let _span = tracing::info_span!("merging chunk group lists").entered();
 
-            lists = vec![Default::default(); chunk_group_info.chunk_groups.len() + 1];
+            lists = vec![Default::default(); all_chunk_groups.len() + 1];
             LISTS_COMMON_IDX = result.len();
             let mut reverse_index_parts = Vec::with_capacity(result.len());
             let mut intra_group_references_rev_parts = Vec::with_capacity(result.len());
@@ -821,8 +833,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             .get(&ResolvedVc::upcast(**m))
                             .is_none_or(|refs| refs.is_disjoint(&list_set))
                     })
-                    .map(|m| **m)
-                    .collect::<Vec<_>>();
+                    .copied()
+                    .collect::<Box<[_]>>();
                 debug_assert_ne!(entry_points.len(), 0);
 
                 let list_exposed = list
@@ -839,7 +851,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             },
                         )
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Box<[_]>>();
 
                 let entry = *list.last().unwrap();
                 let result = entry

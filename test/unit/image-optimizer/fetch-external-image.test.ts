@@ -99,6 +99,8 @@ describe('fetchExternalImage', () => {
     it('should reject a hostname that resolves to a private IP', async () => {
       jest
         .mocked(lookupMock)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         .mockResolvedValueOnce([{ address: '10.0.0.1', family: 4 }] as any)
 
       const error = await fetchExternalImage(
@@ -143,6 +145,8 @@ describe('fetchExternalImage', () => {
       // socket uses the address that `isPrivateIp()` already approved
       jest
         .mocked(lookupMock)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         .mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as any)
       jest.mocked(isPrivateIpMock).mockReturnValueOnce(false)
 
@@ -164,6 +168,8 @@ describe('fetchExternalImage', () => {
     it('should send the original hostname in the Host header', async () => {
       jest
         .mocked(lookupMock)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         .mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as any)
       jest.mocked(isPrivateIpMock).mockReturnValueOnce(false)
 
@@ -230,6 +236,8 @@ describe('fetchExternalImage', () => {
       }
       jest
         .mocked(lookupMock)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         .mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as any)
       jest.mocked(isPrivateIpMock).mockReturnValue(false)
 
@@ -244,6 +252,8 @@ describe('fetchExternalImage', () => {
     it('should reject a private DNS answer before reusing a protected socket', async () => {
       jest
         .mocked(lookupMock)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         .mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as any)
       jest
         .mocked(isPrivateIpMock)
@@ -272,10 +282,14 @@ describe('fetchExternalImage', () => {
       }
       jest
         .mocked(lookupMock)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         .mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as any)
         .mockResolvedValueOnce([
           { address: '127.0.0.1', family: 4 },
           { address: '127.0.0.2', family: 4 },
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         ] as any)
       jest.mocked(isPrivateIpMock).mockReturnValue(false)
 
@@ -640,6 +654,43 @@ describe('fetchExternalImage', () => {
         duringBody: summarize(duringBody),
       }).toEqual({ beforeHeaders: timedOut, duringBody: timedOut })
     }, 20_000)
+  })
+
+  describe('abort signal', () => {
+    it('should reject with the abort reason before the headers and during the body', async () => {
+      let received = 0
+      let allReceived!: () => void
+      const bothReceived = new Promise<void>((resolve) => {
+        allReceived = resolve
+      })
+      handler = (req, res) => {
+        if (req.url === '/stalled-body.jpg') {
+          res.writeHead(200, { 'content-type': 'image/jpeg' })
+          res.write(Buffer.from([0xff, 0xd8]))
+        }
+        if (++received === 2) allReceived()
+      }
+
+      const controller = new AbortController()
+      const fetches = Promise.all(
+        ['/stalled-headers.jpg', '/stalled-body.jpg'].map((path) =>
+          fetchExternalImage(
+            `${origin()}${path}`,
+            true,
+            MAXIMUM_RESPONSE_BODY,
+            undefined,
+            controller.signal
+          ).catch((e) => e)
+        )
+      )
+      await bothReceived
+      // Give the stalled body's headers time to reach the client
+      await new Promise((resolve) => setImmediate(resolve))
+      const reason = new Error('client disconnected')
+      controller.abort(reason)
+
+      expect(await fetches).toEqual([reason, reason])
+    })
   })
 
   describe('response size limit', () => {

@@ -75,7 +75,7 @@ export class NextDevInstance extends NextInstance {
       )
     }
 
-    return new Promise<{
+    const result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
@@ -97,7 +97,9 @@ export class NextDevInstance extends NextInstance {
         })
       })
 
-      this.childProcess.on('exit', (code, signal) => {
+      // Unlike `exit`, `close` fires after the stdio streams have closed, so
+      // the output (and the Rust panic check below) is complete.
+      this.childProcess.on('close', (code, signal) => {
         this.childProcess = undefined
         resolve({
           exitCode: signal || code,
@@ -105,6 +107,8 @@ export class NextDevInstance extends NextInstance {
         })
       })
     })
+    this.throwOnRustPanics('next build')
+    return result
   }
 
   public async start(options: { env?: Record<string, string> } = {}) {
@@ -115,6 +119,8 @@ export class NextDevInstance extends NextInstance {
     const useTurbo =
       !process.env.NEXT_TEST_WASM &&
       !process.env.NEXT_TEST_WASM_AFTER_JEST &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
@@ -149,6 +155,8 @@ export class NextDevInstance extends NextInstance {
             ...process.env,
             ...this.env,
             ...options.env,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             NODE_ENV: this.env.NODE_ENV || ('' as any),
             PORT: this.forcedPort || '0',
             __NEXT_TEST_MODE: 'e2e',
@@ -156,6 +164,7 @@ export class NextDevInstance extends NextInstance {
         })
 
         this._cliOutput = ''
+        this.rustPanicCheckedLength = 0
 
         this.childProcess.stdout!.on('data', (chunk) => {
           const msg = chunk.toString()

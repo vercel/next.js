@@ -39,6 +39,5 @@ export interface InstallTemplateArgs {
 
 export enum Bundler {
   Turbopack = "turbopack",
-  Webpack = "webpack",
   Rspack = "rspack",
 }

@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -215,15 +215,17 @@ async fn resolve_reference_from_dir(
         match pat_match {
             PatternMatch::File(matched_path, file) => {
                 let realpath = file.realpath_with_links().await?;
+                let path: FileSystemPath = match &realpath.path_result {
+                    Ok(path) => path.clone(),
+                    // A match whose symlinks can't be resolved (e.g. a dangling symlink) can't be
+                    // read at runtime either. Skip it like a missing file instead of failing.
+                    Err(_) => continue,
+                };
                 for symlink in &realpath.symlinks {
                     affecting_sources.push(ResolvedVc::upcast(
                         FileSource::new(symlink.clone()).to_resolved().await?,
                     ));
                 }
-                let path: FileSystemPath = match &realpath.path_result {
-                    Ok(path) => path.clone(),
-                    Err(error) => bail!(error.clone()),
-                };
                 results.push((
                     RequestKey::new(matched_path.clone()),
                     ResolvedVc::upcast(

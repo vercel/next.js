@@ -4,14 +4,18 @@ import { getDeploymentTestEnvAssignments } from '../../lib/e2e-utils/deployment-
 describe.each([
   '__NEXT_CACHE_COMPONENTS',
   '__NEXT_PARTIAL_PREFETCHING',
+  '__NEXT_SEQUENTIAL_TASK_SCHEDULING',
   '__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS',
+  '__NEXT_TEST_AXIS',
 ])('deployment capture of %s', (flag) => {
   beforeEach(() => {
     jest.replaceProperty(process, 'env', {
       ...process.env,
       __NEXT_CACHE_COMPONENTS: '',
       __NEXT_PARTIAL_PREFETCHING: '',
+      __NEXT_SEQUENTIAL_TASK_SCHEDULING: '',
       __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS: '',
+      __NEXT_TEST_AXIS: '',
     })
   })
 

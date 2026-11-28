@@ -364,6 +364,8 @@ describe('instant-navigation-testing-api', () => {
       // client-side. Releasing before hydration completes intentionally falls
       // back to a hard reload (see refreshOnInstantNavigationUnlock).
       await page.waitForFunction(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         () => (globalThis as any).__NEXT_HYDRATED === true
       )
     })
@@ -1173,9 +1175,11 @@ describe('instant-navigation-testing-api', () => {
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.
+         "description": "This route has no static shell to display while navigations are paused. Next.js has released the pause.
 
-       To identify why this route is blocking, refer to the Instant Navigation docs: https://preview.nextjs.org/docs/app/guides/instant-navigation",
+       Reload the page without pausing navigations in the Navigation Inspector. In a Playwright test, open the route outside \`instant()\` from @next/playwright. Check the terminal or browser for details about what blocked the route.
+
+       Learn more: https://nextjs.org/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,

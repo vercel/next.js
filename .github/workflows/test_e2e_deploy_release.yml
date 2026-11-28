@@ -18,10 +18,16 @@ on:
         description: Version of Vercel CLI to use
         default: 'vercel@latest'
         type: string
-      overrideProxyAddress:
-        description: Override the proxy address to use for the test
-        default: ''
-        type: string
+      stagingProxyRegion:
+        description: Use dedicated deploy test projects whose preview hostnames resolve to this staging Proxy
+        type: choice
+        default: 'none'
+        options:
+          - 'none'
+          - 'iad1'
+          - 'dub1'
+          - 'sfo1'
+          - 'cle1'
       forceBuildInHive:
         description: Hive ID to force the build onto
         default: ''
@@ -114,7 +120,7 @@ jobs:
         run: pnpm install
 
       - name: Fetch test timings
-        run: node run-tests.js --timings --write-timings -g 1/1
+        run: exec node run-tests.js --timings --write-timings -g 1/1
         continue-on-error: true
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
@@ -199,14 +205,14 @@ jobs:
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+        exec node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-webpack-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
-      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+      stagingProxyRegion: ${{ inputs.stagingProxyRegion || 'none' }}
 
   test-deploy-turbopack:
     name: Run Deploy Tests (Turbopack)
@@ -251,14 +257,14 @@ jobs:
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+        exec node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-turbopack-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
-      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+      stagingProxyRegion: ${{ inputs.stagingProxyRegion || 'none' }}
 
   test-deploy-adapter:
     name: Run Deploy Adapter Tests (Turbopack)
@@ -300,7 +306,7 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
         VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+        exec node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
@@ -308,7 +314,7 @@ jobs:
       testReportsArtifactPrefix: 'adapter-test-reports'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
-      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+      stagingProxyRegion: ${{ inputs.stagingProxyRegion || 'none' }}
 
   report-test-results-to-datadog:
     needs: [test-deploy-turbopack, test-deploy-webpack]

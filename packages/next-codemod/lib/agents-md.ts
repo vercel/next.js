@@ -325,7 +325,10 @@ export function collectDocFiles(dir: string): { relativePath: string }[] {
         (f.endsWith('.mdx') || f.endsWith('.md')) &&
         !/[/\\]index\.mdx$/.test(f) &&
         !/[/\\]index\.md$/.test(f) &&
-        !f.startsWith('index.')
+        !f.startsWith('index.') &&
+        // Error pages are opened by name from the link in a message, not
+        // browsed. Listing all of them would nearly double the index.
+        !/^messages[/\\]/.test(f)
     )
     .sort()
     .map((f) => ({ relativePath: f.replace(/\\/g, '/') }))

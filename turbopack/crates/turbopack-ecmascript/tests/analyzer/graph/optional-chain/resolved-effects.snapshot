@@ -1,0 +1,25 @@
+0 -> 1 free var = FreeVar(require)
+
+0 -> 2 call = require*0*(???*1*)
+- *0* require: The require method from CommonJS
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+0 -> 4 free var = FreeVar(URL)
+
+0 -> 5 call = new URL*0*(???*1*, import.meta*2*["url"])
+- *0* URL: The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* import.meta: The import.meta object
+
+9 -> 10 free var = FreeVar(console)
+
+0 -> 11 member call = ???*0*["log"](???*1*)
+- *0* FreeVar(console)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+13 -> 14 free var = FreeVar(process)

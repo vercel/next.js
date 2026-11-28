@@ -8,6 +8,7 @@ use std::{
     env,
     fs::{self, File, Metadata},
     io::{self, BufReader, Read, Seek, SeekFrom, Write},
+    ops::ControlFlow,
     path::{Path, PathBuf},
     sync::Arc,
     thread::{self, JoinHandle},
@@ -16,6 +17,7 @@ use std::{
 
 use anyhow::Result;
 use flate2::bufread::GzDecoder;
+use lzma_rust2::XzReader;
 use turbopack_trace_utils::tracing::{TRACE_HEADER, TRACE_HEADER_PREFIX, check_trace_header};
 
 use crate::{
@@ -123,7 +125,7 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
 #[derive(Default)]
 enum TraceFile {
     Raw(BufReader<File>),
-    /// A zstd or gzip compressed file, decompressed on a background thread.
+    /// A zstd, gzip or xz compressed file, decompressed on a background thread.
     Compressed {
         decoder: threaded::ThreadedDecoder,
         /// Handle to the compressed file, used for size queries.
@@ -216,12 +218,35 @@ impl TraceReader {
     }
 
     pub fn run(&mut self) {
-        let mut file_warning_printed = false;
+        // Failures are retried every 500ms, so only report when the error changes
+        let mut last_open_error = None;
+        let mut last_read_error = None;
         loop {
-            let read_success = self.try_read();
-            if !file_warning_printed && !read_success {
-                println!("Unable to read trace file at {:?}, waiting...", self.path);
-                file_warning_printed = true;
+            match File::open(&self.path) {
+                Ok(file) => {
+                    last_open_error = None;
+                    match self.try_read(file) {
+                        Ok(()) => last_read_error = None,
+                        Err(err) => {
+                            if last_read_error != Some(err.kind()) {
+                                println!(
+                                    "Unable to read trace file at {:?}: {err}, waiting...",
+                                    self.path
+                                );
+                                last_read_error = Some(err.kind());
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    if last_open_error != Some(err.kind()) {
+                        println!(
+                            "Unable to open trace file at {:?}: {err}, waiting...",
+                            self.path
+                        );
+                        last_open_error = Some(err.kind());
+                    }
+                }
             }
             thread::sleep(Duration::from_millis(500));
         }
@@ -234,10 +259,11 @@ impl TraceReader {
             (1 << 17) + 7,
             file,
         );
-        let magic_bytes = file.peek(4)?;
-        let is_zstd = path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd];
-        let is_gz = path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]);
-        if !is_zstd && !is_gz {
+        let magic_bytes = file.peek(6)?;
+        let is_zstd = path.ends_with(".zst") || magic_bytes.starts_with(&[0x28, 0xb5, 0x2f, 0xfd]);
+        let is_gz = path.ends_with(".gz") || magic_bytes.starts_with(&[0x1f, 0x8b]);
+        let is_xz = path.ends_with(".xz") || magic_bytes == [0xfd, b'7', b'z', b'X', b'Z', 0x00];
+        if !is_zstd && !is_gz && !is_xz {
             return Ok(TraceFile::Raw(file));
         }
         // Keep a handle to the compressed file for size queries, since the decoder (and the
@@ -249,6 +275,15 @@ impl TraceReader {
                 BATCH_SIZE,
                 |decoder: &mut zstd::Decoder<'static, BufReader<File>>| {
                     decoder.get_mut().stream_position().unwrap_or(0)
+                },
+            )
+        } else if is_xz {
+            threaded::ThreadedDecoder::new(
+                // Allow concatenated streams, e.g. as written by parallel compressors.
+                XzReader::new(file, true),
+                BATCH_SIZE,
+                |decoder: &mut XzReader<BufReader<File>>| {
+                    decoder.inner_mut().stream_position().unwrap_or(0)
                 },
             )
         } else {
@@ -266,10 +301,9 @@ impl TraceReader {
         })
     }
 
-    fn try_read(&mut self) -> bool {
-        let Ok(mut file) = File::open(&self.path) else {
-            return false;
-        };
+    /// Reads the trace file until it is replaced or removed. Returns an error if the file couldn't
+    /// be read.
+    fn try_read(&mut self, mut file: File) -> io::Result<()> {
         println!("Trace file opened");
         let stop_at = env::var("STOP_AT")
             .unwrap_or_default()
@@ -291,16 +325,8 @@ impl TraceReader {
             .seek(SeekFrom::End(0))
             .ok()
             .map(|total| (total, Instant::now()));
-        if file.seek(SeekFrom::Start(0)).is_err() {
-            return false;
-        }
-        let mut file = match self.trace_file_from_file(file) {
-            Ok(f) => f,
-            Err(err) => {
-                println!("Error opening trace file for reading: {err}");
-                return false;
-            }
-        };
+        file.seek(SeekFrom::Start(0))?;
+        let mut file = self.trace_file_from_file(file)?;
 
         let mut buffer = Vec::new();
         let mut index = 0;
@@ -311,12 +337,15 @@ impl TraceReader {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
                         self.store.write().optimize();
-                        if let Some(value) = self.wait_for_more_data(
-                            &mut file,
-                            &mut initial_read,
-                            format.as_ref().map(|(f, _)| f),
-                        ) {
-                            return value;
+                        if self
+                            .wait_for_more_data(
+                                &mut file,
+                                &mut initial_read,
+                                format.as_ref().map(|(f, _)| f),
+                            )
+                            .is_break()
+                        {
+                            return Ok(());
                         }
                     } else {
                         // If we have partially consumed some data, and we are at buffer capacity,
@@ -332,9 +361,9 @@ impl TraceReader {
                                 // Not enough data yet
                                 Ok(None) => continue,
                                 Err(err) => {
-                                    println!("Trace file error: {err}");
+                                    println!("Trace file error: {err:?}");
                                     self.wait_for_file_change(&file);
-                                    return true;
+                                    return Ok(());
                                 }
                             };
                             let erased_format = match kind {
@@ -360,9 +389,9 @@ impl TraceReader {
                                     index += bytes_read;
                                 }
                                 Err(err) => {
-                                    println!("Trace file error: {err}");
+                                    println!("Trace file error: {err:?}");
                                     self.wait_for_file_change(&file);
-                                    return true;
+                                    return Ok(());
                                 }
                             }
                             if self.store.want_to_read() {
@@ -411,7 +440,7 @@ impl TraceReader {
                                      Waiting for new file..."
                                 );
                                 self.wait_for_new_file(&mut file);
-                                return true;
+                                return Ok(());
                             }
                         }
                     }
@@ -421,31 +450,35 @@ impl TraceReader {
                         || err.kind() == io::ErrorKind::InvalidInput
                     {
                         self.store.write().optimize();
-                        if let Some(value) = self.wait_for_more_data(
-                            &mut file,
-                            &mut initial_read,
-                            format.as_ref().map(|(f, _)| f),
-                        ) {
-                            return value;
+                        if self
+                            .wait_for_more_data(
+                                &mut file,
+                                &mut initial_read,
+                                format.as_ref().map(|(f, _)| f),
+                            )
+                            .is_break()
+                        {
+                            return Ok(());
                         }
                     } else {
                         // Error reading file, maybe it was removed
-                        println!("Error reading trace file: {err:?}");
-                        return true;
+                        return Err(err);
                     }
                 }
             }
         }
     }
 
+    /// Waits until the file has more data ([`ControlFlow::Continue`]) or was replaced or removed
+    /// ([`ControlFlow::Break`]).
     fn wait_for_more_data(
         &mut self,
         file: &mut TraceFile,
         initial_read: &mut Option<(u64, Instant)>,
         format: Option<&ErasedTraceFormat>,
-    ) -> Option<bool> {
+    ) -> ControlFlow<()> {
         let Ok(pos) = file.stream_position() else {
-            return Some(true);
+            return ControlFlow::Break(());
         };
         if let Some((total, start)) = initial_read.take() {
             // Erase the in-place progress line (printed with a leading `\r` and
@@ -470,17 +503,17 @@ impl TraceReader {
             // No more data to read, sleep for a while to wait for more data
             thread::sleep(Duration::from_millis(100));
             let Ok(mut real_file) = File::open(&self.path) else {
-                return Some(true);
+                return ControlFlow::Break(());
             };
             let Ok(end) = real_file.seek(SeekFrom::End(0)) else {
-                return Some(true);
+                return ControlFlow::Break(());
             };
             if end < pos {
                 // new file
-                return Some(true);
+                return ControlFlow::Break(());
             } else if end != pos {
                 // file has more data
-                return None;
+                return ControlFlow::Continue(());
             }
         }
     }
@@ -593,6 +626,13 @@ mod tests {
         zstd::encode_all(data, 3).unwrap()
     }
 
+    fn xz(data: &[u8]) -> Vec<u8> {
+        let mut encoder =
+            lzma_rust2::XzWriter::new(Vec::new(), lzma_rust2::XzOptions::with_preset(1)).unwrap();
+        encoder.write_all(data).unwrap();
+        encoder.finish().unwrap()
+    }
+
     /// Reads one trace file with a [`TraceReader`] on a background thread, like the server
     /// does, but only for a single [`TraceReader::try_read`] pass. Dropping it deletes the file,
     /// which makes the reader stop waiting for more data, and joins the reader thread.
@@ -600,7 +640,7 @@ mod tests {
         dir: PathBuf,
         path: PathBuf,
         store: Arc<StoreContainer>,
-        thread: Option<JoinHandle<bool>>,
+        thread: Option<JoinHandle<io::Result<()>>>,
     }
 
     impl ReaderFixture {
@@ -615,7 +655,8 @@ mod tests {
                 store: store.clone(),
                 path: path.clone(),
             };
-            let thread = thread::spawn(move || reader.try_read());
+            let file = File::open(&path).unwrap();
+            let thread = thread::spawn(move || reader.try_read(file));
             Self {
                 dir,
                 path,
@@ -638,12 +679,13 @@ mod tests {
                 assert!(start.elapsed() < TIMEOUT, "reader did not return");
                 thread::sleep(Duration::from_millis(20));
             }
-            self.thread.take().unwrap().join().unwrap();
+            self.thread.take().unwrap().join().unwrap().unwrap();
             let mut reader = TraceReader {
                 store: self.store.clone(),
                 path: self.path.clone(),
             };
-            self.thread = Some(thread::spawn(move || reader.try_read()));
+            let file = File::open(&self.path).unwrap();
+            self.thread = Some(thread::spawn(move || reader.try_read(file)));
         }
 
         fn append(&self, data: &[u8]) {
@@ -679,7 +721,9 @@ mod tests {
             if let Some(thread) = self.thread.take() {
                 let result = thread.join();
                 if !thread::panicking() {
-                    result.expect("reader thread panicked");
+                    result
+                        .expect("reader thread panicked")
+                        .expect("reader failed");
                 }
             }
             let _ = std::fs::remove_dir_all(&self.dir);
@@ -687,7 +731,7 @@ mod tests {
     }
 
     #[test]
-    fn loads_raw_zstd_gzip_identically() {
+    fn loads_raw_and_compressed_identically() {
         // Multiple batches worth of data.
         let spans = 100_000;
         let raw = trace(spans);
@@ -696,10 +740,22 @@ mod tests {
             ("identical.trace", raw.clone()),
             ("identical.trace.zst", zstd(&raw)),
             ("identical.trace.gz", gzip(&raw)),
+            ("identical.trace.xz", xz(&raw)),
+            // Detected by magic bytes, without a file extension.
+            ("identical-xz.trace", xz(&raw)),
         ] {
             let reader = ReaderFixture::new(name, &data);
             reader.wait_for_span_count(spans as usize);
         }
+    }
+
+    #[test]
+    fn loads_concatenated_xz_streams() {
+        // Parallel compressors and `cat a.xz b.xz` produce multiple xz streams in one file.
+        let mut data = xz(&trace(50_000));
+        data.extend(xz(&span_rows(50_001, 50_000)));
+        let reader = ReaderFixture::new("concatenated.trace.xz", &data);
+        reader.wait_for_span_count(100_000);
     }
 
     #[test]
@@ -716,6 +772,7 @@ mod tests {
         for (name, mut data) in [
             ("truncated.trace.zst", zstd(&raw)),
             ("truncated.trace.gz", gzip(&raw)),
+            ("truncated.trace.xz", xz(&raw)),
         ] {
             data.truncate(data.len() / 2);
             let reader = ReaderFixture::new(name, &data);

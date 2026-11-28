@@ -206,7 +206,7 @@ declare module 'react-server-dom-webpack/server.edge' {
     reference: T,
     id: string,
     exportName: string | null
-  ): unknown
+  ): T
 
   export function createClientModuleProxy(moduleId: string): unknown
 }
@@ -493,10 +493,6 @@ declare module 'next/dist/compiled/node-html-parser' {
 
 declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
-}
-
-declare module 'next/dist/compiled/jest-worker' {
-  export * from 'jest-worker'
 }
 
 // TODO: Use tsconfig#paths instead

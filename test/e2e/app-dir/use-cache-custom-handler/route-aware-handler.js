@@ -41,6 +41,13 @@ const routeAwareCacheHandler = {
       return undefined
     }
 
+    if (cacheKey.includes('same-route-')) {
+      cacheSharingState.selectedEntrySoftTags.push([...softTags])
+      // This entry already passed expiration checks. Later invalidation must
+      // cause another request to read the handler independently.
+      await cacheSharingState.pendingSelectedEntry
+    }
+
     return entry
   },
 

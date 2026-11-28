@@ -232,6 +232,14 @@ async function CachedForm({ action }: { action: () => Promise<void> }) {
 }
 ```
 
+### Thrown errors
+
+Errors thrown inside a cached function cross a serialization boundary, even when caught by another function on the server. The caller receives a reconstructed error. Custom error classes and properties, such as `code` or `status`, are not preserved, so checks like `error instanceof CustomError` fail.
+
+In development, the error retains its original `name`, `message`, and stack for debugging. In production, the original name and message are replaced with a generic error, and a `digest` is included to correlate it with the original error in server logs.
+
+For [expected failures](/docs/app/getting-started/error-handling#handling-expected-errors), return a serializable value, such as `{ ok: false, code: 'NOT_FOUND' }`, and branch on the returned value in the caller.
+
 ## Constraints
 
 Cached functions execute in an isolated environment. The following constraints ensure cache behavior remains predictable and secure.
@@ -253,7 +261,11 @@ With the default in-memory handler, runtime cache behavior depends on your hosti
 
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
-If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+For tag invalidation across server instances, see [Distributed Tag Coordination](/docs/app/api-reference/config/next-config-js/cacheHandlers#distributed-tag-coordination).
+
+Hosting providers can replace the default cache handler, and some do not store `use cache` output at runtime. Values computed during prerendering are still reused by later requests, but values computed at request time are not. Check your hosting provider's documentation for its runtime caching behavior.
+
+If the default in-memory cache isn't enough, or your provider does not store runtime output, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
 
 > [!NOTE]
 > With the default in-memory handler, serverless instances are ephemeral, so entries may not be reused between requests, unlike with `use cache: remote`. Neither caching directive carries over to a new deploy, because the [cache key](#cache-keys) includes the build (or `deploymentId`) ID.
@@ -416,6 +428,10 @@ export async function getData() {
   return data
 }
 ```
+
+[Proxy](/docs/app/api-reference/file-conventions/proxy) does not apply [directive transforms](/docs/app/api-reference/directives), so `use cache` has no effect in Proxy. A function that is cached elsewhere in your application runs as an ordinary function when Proxy imports it.
+
+Calling [`cacheLife`](/docs/app/api-reference/functions/cacheLife) or [`cacheTag`](/docs/app/api-reference/functions/cacheTag) in that function throws because Proxy does not create a cache scope.
 
 ### Caching a component's output with `use cache`
 

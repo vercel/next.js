@@ -2,6 +2,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as url from 'url'
 import { SourceMap } from 'module'
+import sourceMapLib from 'next/dist/compiled/source-map'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import WebSocket from 'ws'
@@ -425,7 +426,9 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           script.sourceMapURL,
           scriptURLToFileURL(script.url)
         )
-        for (const source of sourceMap.sources as string[]) {
+        // Handles index maps, whose sources are listed in `sections`.
+        const consumer = new sourceMapLib.SourceMapConsumer(sourceMap)
+        for (const source of consumer.sources) {
           const resolved = new URL(source, mapURL).href
           expectWellFormedSource(resolved)
           resolvedSources.add(resolved)

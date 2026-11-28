@@ -1,10 +1,20 @@
+/// Runs turbo-persistence's CPU-parallel work.
+///
+/// Every method except [`ParallelScheduler::spawn_blocking`] blocks until all of its work has
+/// finished, and may run the work on the calling thread. If an implementation needs to block an
+/// async runtime thread while waiting (e.g. tokio's `block_in_place`), it handles that internally;
+/// callers don't wrap work in a separate hand-off.
 pub trait ParallelScheduler: Clone + Sync + Send {
     /// The number of tasks this scheduler can run at the same time. Always at least 1.
     fn parallelism(&self) -> usize;
 
-    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
-    where
-        R: Send;
+    /// Runs `f` in the background on a thread that may block (e.g. on file I/O), without waiting
+    /// for it to finish.
+    ///
+    /// Used for best-effort background work such as eagerly opening SST files. `f` handles its own
+    /// errors, and the caller never joins it. Implementations may run `f` on the calling thread
+    /// when they have no background thread to use.
+    fn spawn_blocking(&self, f: impl FnOnce() + Send + 'static);
 
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
@@ -78,11 +88,22 @@ impl ParallelScheduler for SerialScheduler {
         1
     }
 
-    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
-    where
-        R: Send,
-    {
-        f()
+    /// Runs `f` on a new thread.
+    ///
+    /// Under Miri `f` runs on the calling thread: Miri reports a process that exits while a
+    /// detached thread is still running.
+    fn spawn_blocking(&self, f: impl FnOnce() + Send + 'static) {
+        #[cfg(miri)]
+        f();
+        #[cfg(not(miri))]
+        if let Err(error) = std::thread::Builder::new()
+            .name("turbo-persistence background".into())
+            .spawn(f)
+        {
+            // `spawn` dropped `f` without running it. Work spawned here is best-effort (e.g. an
+            // eagerly opened SST is opened lazily instead), so skipping it is fine.
+            eprintln!("turbo-persistence: failed to spawn a background thread: {error}");
+        }
     }
 
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)

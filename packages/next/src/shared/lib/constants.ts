@@ -115,6 +115,8 @@ export const CONFIG_FILES = [
   'next.config.ts',
   // process.features can be undefined on Edge runtime
   // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ...((process?.features as any)?.typescript ? ['next.config.mts'] : []),
 ]
 export const BUILD_ID_FILE = 'BUILD_ID'
@@ -154,6 +156,11 @@ export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = 'polyfills'
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
 )
+// static/chunks/external-browser-runtime.js
+export const CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME =
+  'external-browser-runtime'
+export const CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL =
+  Symbol(CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME)
 export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const STATIC_PROPS_ID = '__N_SSG'

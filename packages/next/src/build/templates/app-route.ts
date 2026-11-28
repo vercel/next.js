@@ -27,6 +27,7 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { sendResponse } from '../../server/send-response'
+import { isNullBodyStatus } from '../../server/web/http'
 import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
@@ -127,8 +128,10 @@ export async function handler(
     // we always normalize /index specifically
     srcPage = '/'
   }
-  const multiZoneDraftMode = process.env
-    .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+  const multiZoneDraftMode =
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
+    process.env.__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
   // Registering `instrumentation.ts` usually installs the tracer provider, so
   // do it before starting the request span. The span is started before
@@ -276,6 +279,8 @@ async function handleRequest(
     ))
 
   incrementalCache?.resetRequestCache()
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__incrementalCache = incrementalCache
 
   const context: AppRouteRouteHandlerContext = {
@@ -341,6 +346,8 @@ async function handleRequest(
           ? await routeModule.handle(nextReq, context)
           : await routeModule.prerender(nextReq, context)
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(req as any).fetchMetrics = context.renderOpts.fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
 
@@ -507,14 +514,15 @@ async function handleRequest(
         )
       }
 
+      const status = cacheEntry.value.status || 200
+      // The cached body is an empty buffer for null body statuses, which the
+      // Response constructor rejects.
+      const body = isNullBodyStatus(status) ? null : cacheEntry.value.body
       await sendResponse(
         nodeNextReq,
         nodeNextRes,
         // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
-        new Response(cacheEntry.value.body, {
-          headers,
-          status: cacheEntry.value.status || 200,
-        })
+        new Response(body, { headers, status })
       )
       return
     } catch (err) {

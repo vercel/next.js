@@ -1,21 +1,21 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// This is a Turbopack-specific option
+// @force-gate turbopack
 describe.each([
   ['workerThreads', true],
   ['childProcesses', false],
 ] as const)(
   'turbopack-node-backend (%s)',
   (turbopackPluginRuntimeStrategy, expectSamePid) => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       env: {
         TEST_TURBOPACK_PLUGIN_RUNTIME_STRATEGY: turbopackPluginRuntimeStrategy,
       },
     })
 
-    const itOnlyTurbopack = isTurbopack ? it : it.skip
-
-    itOnlyTurbopack('should match expected loader pid behavior', async () => {
+    it('should match expected loader pid behavior', async () => {
       const response = await next.fetch('/api/pid')
       expect(response.status).toBe(200)
 

@@ -130,6 +130,7 @@ export type ClientState = {
   messages: Map<string, HmrMessageSentToBrowser>
   turbopackUpdates: TurbopackUpdate[]
   subscriptions: Map<string, AsyncIterator<any>>
+  hmrVersionChecked: boolean
 }
 
 export type ClientStateMap = WeakMap<ws, ClientState>
@@ -425,12 +426,12 @@ export async function handleRouteType({
 
       break
     }
-    case 'app-route': {
+    case 'app-route':
+    case 'app-route-go': {
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
-
       if (dev) {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries are invalidated
@@ -460,6 +461,12 @@ export async function handleRouteType({
       }
 
       const type = writtenEndpoint.value.type
+      const isNative = type === 'native'
+      if (isNative) {
+        // Native compilation may fail without publishing manifests. Keep the
+        // issue subscription above active so source edits can repair the route.
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       manifestLoader.loadAppPathsManifest(page)
       if (route.hasActionManifest) {
@@ -478,11 +485,15 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (!isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       break
     }
     default: {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       throw new Error(`unknown route type ${(route as any).type} for ${page}`)
     }
   }
@@ -670,7 +681,8 @@ export async function handleEntrypoints({
         })
         break
       }
-      case 'app-route': {
+      case 'app-route':
+      case 'app-route-go': {
         currentEntrypoints.app.set(route.originalName, route)
         break
       }
@@ -777,14 +789,26 @@ export async function handleEntrypoints({
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      if (logErrors && writtenEndpoint.value.type === 'native') {
+        // A Go proxy that failed to build has no fallback, so report its
+        // errors in the terminal as well as in the overlay.
+        for (const issue of writtenEndpoint.issues) {
+          if (issue.severity === 'error' || issue.severity === 'fatal') {
+            Log.error(formatIssue(issue))
+          }
+        }
+      }
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
 
       if (dev && middlewareConfig) {
         dev.serverFields.middleware = {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           match: null as any,
           page: '/',
+          runtime: 'edge',
           matchers: middlewareConfig.matchers,
         }
       }

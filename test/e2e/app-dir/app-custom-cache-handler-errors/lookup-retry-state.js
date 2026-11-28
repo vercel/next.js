@@ -14,6 +14,11 @@
  * @property {Promise<void> | null} pendingWrite
  * Keeps `set()` pending after it receives the cache entry.
  * @property {(() => void) | null} releaseWrite
+ * @property {boolean} failWrite
+ * @property {boolean} writeFailed
+ * @property {number} generationCount
+ * @property {Promise<void> | null} pendingRead
+ * @property {(() => void) | null} releaseRead
  */
 
 /**
@@ -30,4 +35,9 @@ module.exports = reference.lookupRetryState ??= {
   cacheReadsCompleted: false,
   pendingWrite: null,
   releaseWrite: null,
+  failWrite: false,
+  writeFailed: false,
+  generationCount: 0,
+  pendingRead: null,
+  releaseRead: null,
 }
