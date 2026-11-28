@@ -1,4 +1,5 @@
 import { stripFormatSpecifiers } from './receive-logs'
+import { preprocessStackTrace } from './source-map'
 
 describe('stripFormatSpecifiers', () => {
   it('should only process when first arg is string containing %', () => {
@@ -70,5 +71,28 @@ describe('stripFormatSpecifiers', () => {
 
   it('should handle % at end of string', () => {
     expect(stripFormatSpecifiers(['ends with %'])).toEqual(['ends with %'])
+  })
+})
+
+describe('preprocessStackTrace', () => {
+  it('should convert _next/static paths to file URLs (posix)', () => {
+    const input = '    at myFunc (_next/static/chunks/app/page.js:1:1)'
+    const distDir = '/project/.next'
+    const output = preprocessStackTrace(input, distDir)
+
+    expect(output).toContain('file://')
+    expect(output).toContain('/project/.next/static/chunks/app/page.js:1:1')
+  })
+
+  it('should convert _next static paths with backslashes (windows) to file URLs', () => {
+    const input = '    at myFunc (_next\\static\\chunks\\app\\page.js:1:1)'
+    const distDir = '/project/.next'
+    const output = preprocessStackTrace(input, distDir)
+
+    expect(output).toContain('file://')
+    expect(output).toContain('/project/.next/static/chunks/app/page.js:1:1')
+
+    expect(output).not.toContain('_next/static')
+    expect(output).not.toContain('\\')
   })
 })
