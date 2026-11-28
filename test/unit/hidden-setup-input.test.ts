@@ -34,7 +34,7 @@ const typed = (input: PassThrough, ...chunks: string[]) =>
   setTimeout(() => chunks.forEach((chunk) => input.write(chunk)), 100)
 
 describe('hidden setup input', () => {
-  it('reads one line with echo off and never writes the value', async () => {
+  it('reads one line with echo off and shows it as one * per character', async () => {
     const { input, written, rawModes, streams } = terminal()
     typed(input, 'secret-valuX\x7fe\r')
     const value = await withHiddenInput({
@@ -46,7 +46,7 @@ describe('hidden setup input', () => {
       ...streams,
     })
     expect(value).toBe('secret-value')
-    expect(written.join('')).toBe('  Key: \n')
+    expect(written.join('')).toBe('  Key: ************\b \b*\n')
     // Echo comes back only after the task is done.
     expect(rawModes).toEqual([true, false])
   })
@@ -57,6 +57,15 @@ describe('hidden setup input', () => {
     await expect(
       withHiddenInput({ task: (read: Read) => read('Key'), ...streams })
     ).resolves.toBe('sk-ant-oat01-abcdef')
+  })
+
+  it('removes a whole character and its * on backspace', async () => {
+    const { input, written, streams } = terminal()
+    typed(input, 'a\u{1F600}\x7f\r')
+    await expect(
+      withHiddenInput({ task: (read: Read) => read('Key'), ...streams })
+    ).resolves.toBe('a')
+    expect(written.join('')).toBe('  Key: **\b \b\n')
   })
 
   it('drops key sequences, also when they arrive in pieces', async () => {
