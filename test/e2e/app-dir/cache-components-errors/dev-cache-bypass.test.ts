@@ -27,6 +27,11 @@ describe('Cache Components Errors', () => {
           headers: { 'cache-control': 'no-cache' },
         })
 
+        if (process.env.IS_WEBPACK_TEST) {
+          expect(next.cliOutput.slice(from)).toContain(
+            '[DEP0144] DeprecationWarning: module.parent'
+          )
+        }
         expect(stripGetLines(next.cliOutput.slice(from)))
           .toMatchInlineSnapshot(`
          "Route / is rendering with server caches disabled. Next.js skips Instant Navigation validation for this request, so you won't see its errors or insights. Component Metadata in React DevTools cannot reliably show which parts of the route Next.js can prerender or prefetch at runtime. Learn more: https://nextjs.org/docs/messages/cache-bypass-in-dev
@@ -166,7 +171,14 @@ describe('Cache Components Errors', () => {
 })
 
 function stripGetLines(input: string): string {
-  return input
-    .replace(/^\s*GET.*(?:\r?\n|$)/gm, '')
-    .replace(/^\s*[○✓].*(?:\r?\n|$)/gm, '')
+  return (
+    input
+      // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
+      .replace(
+        /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent[^\r\n]*(?:\r?\n[ \t]+at [^\r\n]*)*\r?\n?/gm,
+        ''
+      )
+      .replace(/^\s*GET.*(?:\r?\n|$)/gm, '')
+      .replace(/^\s*[○✓].*(?:\r?\n|$)/gm, '')
+  )
 }
