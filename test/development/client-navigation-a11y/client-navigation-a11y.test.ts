@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('Client Navigation accessibility', () => {
   const { next } = nextTestSetup({
@@ -84,6 +85,28 @@ describe('Client Navigation accessibility', () => {
         const pathname = '/page-without-h1-or-title'
 
         expect(routeAnnouncerValue).toBe(pathname)
+      })
+    })
+
+    describe('The title is unchanged but the h1 is', () => {
+      it('has the innerText equal to the value of the new h1', async () => {
+        const browser = await next.browser('/shared-title/page-a')
+        await navigateTo(browser, 'shared-title-page-b')
+
+        await retry(async () => {
+          expect(await getAnnouncedTitle(browser)).toBe('Heading B')
+        })
+      })
+    })
+
+    describe('Neither the title nor the h1 changed', () => {
+      it('has the innerText equal to the value of the pathname', async () => {
+        const browser = await next.browser('/shared-title/no-h1-1')
+        await navigateTo(browser, 'shared-title-no-h1-2')
+
+        await retry(async () => {
+          expect(await getAnnouncedTitle(browser)).toBe('/shared-title/no-h1-2')
+        })
       })
     })
   })
