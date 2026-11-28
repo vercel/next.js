@@ -52,6 +52,10 @@ class CatchError<P extends UserProps> extends React.Component<
       error: null,
       previousPathname: this.props.pathname,
     }
+    // Bound methods, not arrow function class fields. See the comment in
+    // `ErrorBoundaryHandler`.
+    this.reset = this.reset.bind(this)
+    this.retry = this.retry.bind(this)
   }
 
   static getDerivedStateFromError(
@@ -104,11 +108,11 @@ class CatchError<P extends UserProps> extends React.Component<
     }
   }
 
-  reset = () => {
+  reset(): void {
     this.setState({ error: null })
   }
 
-  retry = () => {
+  retry(): void {
     if (this.props.isPagesRouter) {
       throw new Error(
         '`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
