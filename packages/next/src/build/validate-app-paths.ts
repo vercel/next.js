@@ -58,12 +58,15 @@ function validateSegmentParam(param: SegmentParam, pathname: string): void {
  * For interception routes, validates both the intercepting and intercepted routes separately.
  * Returns the validated segment parameters.
  */
-function validateAppRoute(route: NormalizedAppRoute): void {
+function validateAppRoute(
+  route: NormalizedAppRoute,
+  options: { skipCatchAllValidation?: boolean } = {}
+): void {
   // For interception routes, validate the intercepting and intercepted routes separately
   // This allows the same parameter name to appear in both parts
   if (isInterceptionAppRoute(route)) {
-    validateAppRoute(route.interceptingRoute)
-    validateAppRoute(route.interceptedRoute)
+    validateAppRoute(route.interceptingRoute, options)
+    validateAppRoute(route.interceptedRoute, options)
     return
   }
 
@@ -118,15 +121,17 @@ function validateAppRoute(route: NormalizedAppRoute): void {
     }
 
     // Check if catch-all is not at the end
-    if (hasCatchAll && i > catchAllPosition) {
-      throw new Error(
-        `Catch-all must be the last part of the URL in route "${route.pathname}".`
-      )
-    }
-    if (hasOptionalCatchAllInPath && i > catchAllPosition) {
-      throw new Error(
-        `Optional catch-all must be the last part of the URL in route "${route.pathname}".`
-      )
+    if (!options.skipCatchAllValidation) {
+      if (hasCatchAll && i > catchAllPosition) {
+        throw new Error(
+          `Catch-all must be the last part of the URL in route "${route.pathname}".`
+        )
+      }
+      if (hasOptionalCatchAllInPath && i > catchAllPosition) {
+        throw new Error(
+          `Optional catch-all must be the last part of the URL in route "${route.pathname}".`
+        )
+      }
     }
   }
 
@@ -141,13 +146,16 @@ function validateAppRoute(route: NormalizedAppRoute): void {
 /**
  * Validates a single path for internal consistency and returns its segment parameters.
  */
-function parseAndValidateAppPath(path: string): NormalizedAppRoute {
+function parseAndValidateAppPath(
+  path: string,
+  options: { skipCatchAllValidation?: boolean } = {}
+): NormalizedAppRoute {
   // Fast parse the route information. We're expecting this to be a normalized
   // route.
   const route = parseNormalizedAppRoute(path)
 
   // Slow walk the data from the route in order to validate it.
-  validateAppRoute(route)
+  validateAppRoute(route, options)
 
   return route
 }
@@ -196,16 +204,19 @@ function normalizeSegments(
  * 2. Cross-path validation (ambiguous routes, conflicting patterns)
  *
  * @param appPaths - Array of normalized app router paths to validate
+ * @param options - Optional validation options
+ * @param options.skipCatchAllValidation - Skip catch-all position validation (useful for static export)
  * @returns Array of validated routes
  * @throws Error if validation fails
  */
 export function validateAppPaths(
-  appPaths: readonly string[]
+  appPaths: readonly string[],
+  options: { skipCatchAllValidation?: boolean } = {}
 ): NormalizedAppRoute[] {
   // First, validate each path individually
   const paramsByPath = new Map<string, NormalizedAppRoute>()
   for (const path of appPaths) {
-    paramsByPath.set(path, parseAndValidateAppPath(path))
+    paramsByPath.set(path, parseAndValidateAppPath(path, options))
   }
 
   // Group paths by their normalized structure for ambiguity detection
