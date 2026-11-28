@@ -14,6 +14,7 @@ import {
   REMOTE_SCRIPT_RETRY_BASE_DELAY_MS,
   REMOTE_SCRIPT_RETRY_MAX_JITTER_MS,
 } from '../src/remote-loader'
+import reservedContainerNames from '../src/reserved-container-names.json'
 import {
   createShareScope,
   getSharedVersions,
@@ -485,6 +486,14 @@ describe('container and remote protocol', () => {
         },
       ]
     )
+  })
+
+  it('rejects every reserved container name', () => {
+    for (const name of reservedContainerNames) {
+      assert.throws(() =>
+        parseRemoteSyntax(`${name}@https://example.test/remote.js`)
+      )
+    }
   })
 })
 
