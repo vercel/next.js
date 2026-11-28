@@ -470,6 +470,67 @@ describe('switchyard', () => {
     })
   })
 
+  describe('connections', () => {
+    // Writes `request` on a new connection and resolves with everything the
+    // server sent, and whether it closed the connection within a second.
+    function exchange(request: string) {
+      return new Promise<{ text: string; closed: boolean }>(
+        (resolve, reject) => {
+          const socket = net.connect(Number(next.appPort), '127.0.0.1')
+          let text = ''
+          const timer = setTimeout(() => {
+            socket.destroy()
+            resolve({ text, closed: false })
+          }, 1000)
+          socket.on('data', (chunk) => (text += chunk.toString('latin1')))
+          socket.on('error', reject)
+          socket.on('close', () => {
+            clearTimeout(timer)
+            resolve({ text, closed: true })
+          })
+          socket.write(request)
+        }
+      )
+    }
+    const host = () => `Host: localhost:${next.appPort}\r\n`
+
+    it('says keep-alive and how long, as Node does', async () => {
+      const { text, closed } = await exchange(
+        `GET /api/sized HTTP/1.1\r\n${host()}\r\n`
+      )
+      expect(text).toMatch(/\r\nconnection: keep-alive\r\n/i)
+      expect(text).toMatch(/\r\nkeep-alive: timeout=5\r\n/i)
+      expect(closed).toBe(false)
+    })
+
+    it('closes the connection after a response the app asks to close it after', async () => {
+      const { text, closed } = await exchange(
+        `GET /api/close HTTP/1.1\r\n${host()}\r\nGET /api/sized HTTP/1.1\r\n${host()}\r\n`
+      )
+      expect(text).toMatch(/\r\nconnection: close\r\n/i)
+      expect(text).toContain('closing')
+      // Only the first request is answered.
+      expect(text.match(/HTTP\/1\.1 /g)).toHaveLength(1)
+      expect(closed).toBe(true)
+    })
+
+    it('closes the connection without an answer when the app drops it', async () => {
+      const { text, closed } = await exchange(
+        `POST /api/drop HTTP/1.1\r\n${host()}Content-Length: 1\r\n\r\nx`
+      )
+      expect(text).toBe('')
+      expect(closed).toBe(true)
+    })
+
+    it('closes the connection without an answer for an upgrade to a page', async () => {
+      const { text, closed } = await exchange(
+        `GET / HTTP/1.1\r\n${host()}Connection: Upgrade\r\nUpgrade: websocket\r\n\r\n`
+      )
+      expect(text).toBe('')
+      expect(closed).toBe(true)
+    })
+  })
+
   describe('HTTP/1.0 clients', () => {
     // Sends a raw HTTP/1.0 request asking for keep-alive and reports what came
     // back, and whether the server closed the connection within a second.
