@@ -24,8 +24,8 @@ use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        ModuleRule, ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
 };
 use turbopack_browser::BrowserChunkingContext;
@@ -54,6 +54,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_css::emit_options::CssEmitOptions;
 use turbopack_ecmascript::{
@@ -121,6 +122,15 @@ struct SnapshotOptions {
     chunk_loading_global: String,
     #[serde(default)]
     enable_rust_react_compiler: bool,
+    /// Also generate shallow source maps, without emitting them (as for an analysis of the
+    /// output). The emitted output must not change, see
+    /// [`generating_shallow_source_maps_doesnt_change_the_output`].
+    #[serde(default)]
+    generate_shallow_source_maps: bool,
+    /// With [`SnapshotOptions::generate_shallow_source_maps`], whether the shallow maps include
+    /// `sourcesContent` (then they're identical to the full ones, so both share one map).
+    #[serde(default)]
+    shallow_sources_content: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -206,6 +216,8 @@ impl Default for SnapshotOptions {
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
             enable_rust_react_compiler: false,
+            generate_shallow_source_maps: false,
+            shallow_sources_content: false,
         }
     }
 }
@@ -460,11 +472,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             postprocess: ResolvedVc::cell(Box::default()),
         }],
     );
+    let source_map_generation_options = SourceMapGenerationOptions {
+        shallow: options.generate_shallow_source_maps,
+        shallow_sources_content: options.generate_shallow_source_maps
+            && options.shallow_sources_content,
+        ..Default::default()
+    };
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                source_map_generation_options,
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
@@ -492,6 +511,14 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
+                    ecmascript: EcmascriptOptionsContext {
+                        source_map_generation_options,
+                        ..Default::default()
+                    },
+                    css: CssOptionsContext {
+                        source_map_generation_options,
+                        ..Default::default()
+                    },
                     environment: Some(env),
                     follow_reexports: options.follow_reexports,
                     module_fragments_enabled: options.module_fragments_enabled,
@@ -501,6 +528,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
+            css: CssOptionsContext {
+                source_map_generation_options,
+                ..Default::default()
+            },
             follow_reexports: options.follow_reexports,
             module_fragments_enabled: options.module_fragments_enabled,
             analyze_mode: AnalyzeMode::code_generation_and_tracing(),
@@ -611,6 +642,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .chunk_loading_global(options.chunk_loading_global.into())
             .emit_options(options.minify_mode.emit_options());
 
+            if options.generate_shallow_source_maps {
+                builder = builder.source_map_generation_options(source_map_generation_options);
+            }
+
             if options.single_chunk {
                 builder = builder.single_chunk().await?;
             }
@@ -661,6 +696,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
             .emit_options(options.minify_mode.emit_options());
+
+            if options.generate_shallow_source_maps {
+                builder = builder.source_map_generation_options(source_map_generation_options);
+            }
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(
@@ -819,6 +858,42 @@ fn styled_components_transform_plugin() -> Vc<TransformPlugin> {
     )) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
+/// Fixtures built from another fixture's input with
+/// [`SnapshotOptions::generate_shallow_source_maps`] (as for an analysis of the output), next to
+/// that fixture. The snapshots check each output; this checks that generating the extra maps
+/// changes none of the emitted files' names or bytes.
+const SHALLOW_SOURCE_MAP_FIXTURES: [(&str, &str); 2] = [
+    // Minified per item, the shallow maps without `sourcesContent`: two maps per module.
+    ("source_maps/minified", "source_maps/minified_shallow_maps"),
+    // Debug ids, the shallow maps with `sourcesContent`: one map shared by both.
+    ("debug-ids/node", "debug-ids/node_shared_maps"),
+];
+
+#[test]
+fn generating_shallow_source_maps_doesnt_change_the_output() {
+    fn files(dir: &std::path::Path) -> Vec<(std::ffi::OsString, Vec<u8>)> {
+        let mut files = fs::read_dir(dir)
+            .unwrap_or_else(|err| panic!("{dir:?}: {err}"))
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (entry.file_name(), fs::read(entry.path()).unwrap())
+            })
+            .collect::<Vec<_>>();
+        files.sort();
+        files
+    }
+    let snapshots = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshot");
+    for (base, shallow) in SHALLOW_SOURCE_MAP_FIXTURES {
+        let base_files = files(&snapshots.join(base).join("output"));
+        assert!(!base_files.is_empty());
+        let shallow_files = files(&snapshots.join(shallow).join("output"));
+        assert!(
+            base_files == shallow_files,
+            "{shallow} must emit the same files as {base}"
+        );
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn runtime_source_map_generation_requests() -> Result<()> {
     let tt = TurboTasks::new(TurboTasksBackend::new(
@@ -836,9 +911,7 @@ async fn runtime_source_map_generation_requests() -> Result<()> {
 
 #[turbo_tasks::function(operation, root)]
 async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
-    use turbopack_core::source_map::{
-        SourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps, Token,
-    };
+    use turbopack_core::source_map::{SourceMap, SourceMapType, SourceMaps, Token};
     use turbopack_ecmascript::StaticEcmascriptCode;
     use turbopack_ecmascript_runtime::embed_file_path;
 
