@@ -508,6 +508,9 @@ export default function OuterLayoutRouter({
   error,
   errorStyles,
   errorScripts,
+  slotError,
+  slotErrorStyles,
+  slotErrorScripts,
   templateStyles,
   templateScripts,
   template,
@@ -520,6 +523,9 @@ export default function OuterLayoutRouter({
   error: ErrorComponent | undefined
   errorStyles: React.ReactNode | undefined
   errorScripts: React.ReactNode | undefined
+  slotError?: ErrorComponent | undefined
+  slotErrorStyles?: React.ReactNode | undefined
+  slotErrorScripts?: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
@@ -670,39 +676,45 @@ export default function OuterLayoutRouter({
           errorStyles={errorStyles}
           errorScripts={errorScripts}
         >
-          <LoadingBoundary
-            name={debugNameToDisplay}
-            // TODO: The loading module data for a segment is stored on the
-            // parent, then applied to each of that parent segment's
-            // parallel route slots. In the simple case where there's only
-            // one parallel route (the `children` slot), this is no
-            // different from if the loading module data were stored on the
-            // child directly. But I'm not sure this actually makes sense
-            // when there are multiple parallel routes. It's not a huge
-            // issue because you always have the option to define a narrower
-            // loading boundary for a particular slot. But this sort of
-            // smells like an implementation accident to me.
-            loading={parentLoadingData}
+          <ErrorBoundary
+            errorComponent={slotError}
+            errorStyles={slotErrorStyles}
+            errorScripts={slotErrorScripts}
           >
-            <HTTPAccessFallbackBoundary
-              notFound={notFound}
-              forbidden={forbidden}
-              unauthorized={unauthorized}
+            <LoadingBoundary
+              name={debugNameToDisplay}
+              // TODO: The loading module data for a segment is stored on the
+              // parent, then applied to each of that parent segment's
+              // parallel route slots. In the simple case where there's only
+              // one parallel route (the `children` slot), this is no
+              // different from if the loading module data were stored on the
+              // child directly. But I'm not sure this actually makes sense
+              // when there are multiple parallel routes. It's not a huge
+              // issue because you always have the option to define a narrower
+              // loading boundary for a particular slot. But this sort of
+              // smells like an implementation accident to me.
+              loading={parentLoadingData}
             >
-              <RedirectBoundary>
-                <InnerLayoutRouter
-                  url={url}
-                  tree={tree}
-                  params={params}
-                  renderTree={renderTree}
-                  segmentPath={segmentPath}
-                  debugNameContext={childDebugNameContext}
-                  isActive={isActive && stateKey === activeStateKey}
-                />
-                {segmentBoundaryTriggerNode}
-              </RedirectBoundary>
-            </HTTPAccessFallbackBoundary>
-          </LoadingBoundary>
+              <HTTPAccessFallbackBoundary
+                notFound={notFound}
+                forbidden={forbidden}
+                unauthorized={unauthorized}
+              >
+                <RedirectBoundary>
+                  <InnerLayoutRouter
+                    url={url}
+                    tree={tree}
+                    params={params}
+                    renderTree={renderTree}
+                    segmentPath={segmentPath}
+                    debugNameContext={childDebugNameContext}
+                    isActive={isActive && stateKey === activeStateKey}
+                  />
+                  {segmentBoundaryTriggerNode}
+                </RedirectBoundary>
+              </HTTPAccessFallbackBoundary>
+            </LoadingBoundary>
+          </ErrorBoundary>
         </ErrorBoundary>
         {segmentViewStateNode}
       </ScrollHandler>
