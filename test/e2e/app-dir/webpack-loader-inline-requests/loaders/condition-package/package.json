@@ -1,0 +1,34 @@
+{
+  "name": "inline-conditions-loader",
+  "version": "1.0.0",
+  "exports": {
+    ".": {
+      "loader": "./loader.cjs",
+      "require": "./runtime.cjs",
+      "default": "./runtime.cjs"
+    },
+    "./require": {
+      "import": "./runtime.cjs",
+      "require": "./loader.cjs",
+      "default": "./runtime.cjs"
+    },
+    "./node": {
+      "browser": "./runtime.cjs",
+      "node": "./loader.cjs",
+      "default": "./runtime.cjs"
+    },
+    "./subpath": "./loader.cjs",
+    "./queried?q=1": "./loader.cjs",
+    "./fragmented#h": "./loader.cjs",
+    "./both?q=1#h": "./loader.cjs",
+    "./wild/*": "./*.cjs",
+    "./target-query": "./loader.cjs?from-export",
+    "./target-fragment": "./loader.cjs#exported",
+    "./target-both": "./loader.cjs?from-export#exported",
+    "./blocked": null,
+    "./esm": {
+      "loader": "./loader.mjs",
+      "default": "./runtime.cjs"
+    }
+  }
+}
