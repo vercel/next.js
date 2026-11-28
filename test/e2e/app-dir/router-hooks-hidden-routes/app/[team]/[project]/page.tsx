@@ -1,4 +1,4 @@
-import { Probe } from '../../../components/probe'
+import { Probe, SegmentHooksProbe } from '../../../components/probe'
 import { CatchErrorBoundary, Thrower } from '../../../components/thrower'
 
 export function generateStaticParams() {
@@ -15,6 +15,7 @@ export default async function ProjectPage({
   return (
     <>
       <Probe label="project-page" segmentParams={segmentParams} />
+      <SegmentHooksProbe label="project-page" segmentParams={segmentParams} />
       <Thrower project={project} action="error" />
       <Thrower project={project} action="not-found" />
       <CatchErrorBoundary>
