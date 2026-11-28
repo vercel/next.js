@@ -10,7 +10,7 @@ use crate::{
     FxIndexMap,
     span::{SpanBottomUp, SpanGraphEvent},
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
-    span_ref::{GroupNameToDirectAndRecusiveSpans, SpanRef},
+    span_ref::{GroupNameToDirectAndRecursiveSpans, SpanRef},
     store::{SpanId, Store},
     timestamp::Timestamp,
 };
@@ -87,7 +87,7 @@ impl<'a> SpanBottomUpRef<'a> {
                     let _ = self.first_span().graph();
                     self.first_span().extra().graph.get().unwrap().clone()
                 } else {
-                    let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
+                    let mut map: GroupNameToDirectAndRecursiveSpans = FxIndexMap::default();
                     let mut queue = VecDeque::with_capacity(8);
                     for child in self.spans() {
                         let name = child.group_name();
