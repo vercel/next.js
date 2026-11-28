@@ -1,0 +1,39 @@
+---
+title: Deprecated Middleware API Signature
+---
+
+> **Note**: The `middleware` file convention is deprecated and has been renamed to [`proxy`](/docs/app/api-reference/file-conventions/proxy). See [Renaming Middleware to Proxy](/docs/messages/middleware-to-proxy) for the migration guide. This error can still be thrown by existing `middleware` code.
+
+## Why This Error Occurred
+
+Your application is using a Middleware function that is using parameters from the deprecated API.
+
+```ts filename="middleware.ts"
+import { NextResponse } from 'next/server'
+
+export function middleware(event) {
+  if (event.request.nextUrl.pathname === '/blocked') {
+    event.respondWith(
+      new NextResponse(null, {
+        status: 403,
+      })
+    )
+  }
+}
+```
+
+## Possible Ways to Fix It
+
+Update to use the new API for Middleware:
+
+```ts filename="middleware.ts"
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+  if (request.nextUrl.pathname === '/blocked') {
+    return new NextResponse(null, {
+      status: 403,
+    })
+  }
+}
+```
