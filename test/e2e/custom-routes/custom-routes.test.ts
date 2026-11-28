@@ -489,6 +489,20 @@ describe('Custom routes', () => {
     expect(search).toEqual('')
   })
 
+  it('should redirect with query-like characters in the hash successfully', async () => {
+    const res = await next.fetch('/docs/router-status-hash/404', {
+      redirect: 'manual',
+    })
+    const { pathname, hash, search } = new URL(
+      res.headers.get('location'),
+      res.url
+    )
+    expect(res.status).toBe(301)
+    expect(pathname).toBe('/docs/v2/network/status-codes')
+    expect(hash).toBe('#/codes?code=404')
+    expect(search).toEqual('')
+  })
+
   it('should redirect successfully with provided statusCode', async () => {
     const res = await next.fetch('/redirect2', { redirect: 'manual' })
     const { pathname, search } = new URL(res.headers.get('location'), res.url)
@@ -1831,6 +1845,12 @@ describe('Custom routes', () => {
              "statusCode": 301,
            },
            {
+             "destination": "/docs/v2/network/status-codes#/codes?code=:code",
+             "regex": "^(?!\\/_next)\\/docs\\/router-status-hash(?:\\/([^\\/]+?))(?:\\/)?$",
+             "source": "/docs/router-status-hash/:code",
+             "statusCode": 301,
+           },
+           {
              "destination": "/docs/v2/advanced/now-for-github",
              "regex": "^(?!\\/_next)\\/docs\\/github(?:\\/)?$",
              "source": "/docs/github",
@@ -2837,6 +2857,12 @@ describe('Custom routes', () => {
              "destination": "/docs/v2/network/status-codes#:code",
              "regex": "^(?!\\/_next)\\/docs\\/router-status(?:\\/([^\\/]+?))(?:\\/)?$",
              "source": "/docs/router-status/:code",
+             "statusCode": 301,
+           },
+           {
+             "destination": "/docs/v2/network/status-codes#/codes?code=:code",
+             "regex": "^(?!\\/_next)\\/docs\\/router-status-hash(?:\\/([^\\/]+?))(?:\\/)?$",
+             "source": "/docs/router-status-hash/:code",
              "statusCode": 301,
            },
            {

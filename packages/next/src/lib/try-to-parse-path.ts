@@ -67,7 +67,11 @@ export function tryToParsePath(
   try {
     if (options?.handleUrl) {
       const parsed = new URL(route, 'http://n')
-      result.parsedPath = `${parsed.pathname}${parsed.hash || ''}`
+      // The hash may reference params (`#:section`) but is not a path, so
+      // characters like `?` in `#/login?return=1` are escaped to stay literal
+      // instead of being parsed as path-to-regexp modifiers.
+      const hash = parsed.hash.replace(/[*?+(){}]/g, '\\$&')
+      result.parsedPath = `${parsed.pathname}${hash}`
     }
 
     result.tokens = parse(result.parsedPath)
