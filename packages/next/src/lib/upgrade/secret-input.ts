@@ -1,8 +1,8 @@
 // Keep typing off the screen for as long as `task` runs, and hand it a
-// function that reads one hidden line. The line resolves to null when the user
-// presses Esc or Ctrl+C. Anything typed or pasted while `task` is busy, for
-// example a second paste during a slow request, is thrown away instead of
-// being shown or left for the shell.
+// function that reads one line, shown as one * per character. The line
+// resolves to null when the user presses Esc or Ctrl+C. Anything typed or
+// pasted while `task` is busy, for example a second paste during a slow
+// request, is thrown away instead of being shown or left for the shell.
 export async function withHiddenInput<T>({
   task,
   input,
@@ -71,9 +71,13 @@ export async function withHiddenInput<T>({
             finish(value)
             return
           } else if (character === '\x7f' || character === '\b') {
-            value = value.slice(0, -1)
+            if (value) {
+              value = [...value].slice(0, -1).join('')
+              output.write('\b \b')
+            }
           } else if (character >= ' ') {
             value += character
+            output.write('*')
           }
         }
       }
