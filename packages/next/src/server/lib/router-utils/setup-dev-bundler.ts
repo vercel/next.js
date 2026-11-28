@@ -513,7 +513,29 @@ async function startWatcher(
     // Startup only waits this long for Watchpack to observe the files found by
     // the snapshot above, so a file it never reports cannot stall the server.
     const initialScanDeadline = initialWatchTime + 30_000
-    wp.on('aggregated', async () => {
+    let initialScanFallback: NodeJS.Timeout | undefined
+    let initialScanTimedOut = false
+    let isProcessingAggregation = false
+    let hasPendingAggregation = false
+
+    const clearInitialScanFallback = () => {
+      if (initialScanFallback) {
+        clearTimeout(initialScanFallback)
+        initialScanFallback = undefined
+      }
+    }
+
+    const handleAggregationError = (e: unknown) => {
+      clearInitialScanFallback()
+      if (!resolved) {
+        reject(e)
+        resolved = true
+      } else {
+        Log.warn('Failed to reload dynamic routes:', e)
+      }
+    }
+
+    const processAggregation = async () => {
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
@@ -527,6 +549,7 @@ async function startWatcher(
       // Bounded by a deadline so an unwatchable file can never block startup.
       if (
         !resolved &&
+        !initialScanTimedOut &&
         performance.now() + performance.timeOrigin < initialScanDeadline &&
         initialPageFiles.some(
           (file) => fs.existsSync(file) && !knownFiles.has(file)
@@ -534,7 +557,14 @@ async function startWatcher(
       ) {
         return
       }
+
+      // If Watchpack still failed to report an initial page file before the
+      // deadline, include files from the pre-watch snapshot that still exist.
+      const snapshotPageFiles = initialPageFiles.filter(
+        (file) => fs.existsSync(file) && !knownFiles.has(file)
+      )
       hadInitialScan = true
+      clearInitialScanFallback()
 
       const appPaths: Record<string, string[]> = {}
       const defaultAppPaths = new Set<string>()
@@ -566,9 +596,10 @@ async function startWatcher(
       staticMetadataFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
-        sortByPageExts(nextConfig.pageExtensions)
-      )
+      const sortedKnownFiles: string[] = [
+        ...knownFiles.keys(),
+        ...snapshotPageFiles,
+      ].sort(sortByPageExts(nextConfig.pageExtensions))
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
@@ -1575,16 +1606,57 @@ async function startWatcher(
           resolved = true
         }
       } catch (e) {
-        if (!resolved) {
-          reject(e)
-          resolved = true
-        } else {
-          Log.warn('Failed to reload dynamic routes:', e)
-        }
+        handleAggregationError(e)
       }
-    })
+    }
 
-    wp.watch({ directories: [dir], startTime: 0 })
+    const scheduleAggregation = () => {
+      if (isProcessingAggregation) {
+        hasPendingAggregation = true
+        return
+      }
+      void (async () => {
+        isProcessingAggregation = true
+        try {
+          do {
+            hasPendingAggregation = false
+            try {
+              await processAggregation()
+            } catch (e) {
+              handleAggregationError(e)
+            }
+          } while (hasPendingAggregation)
+        } finally {
+          isProcessingAggregation = false
+        }
+      })()
+    }
+
+    wp.on('aggregated', scheduleAggregation)
+
+    if (!resolved) {
+      initialScanFallback = setTimeout(
+        () => {
+          initialScanFallback = undefined
+          initialScanTimedOut = true
+          if (!resolved && !hadInitialScan) {
+            scheduleAggregation()
+          }
+        },
+        Math.ceil(
+          Math.max(
+            0,
+            initialScanDeadline - (performance.now() + performance.timeOrigin)
+          )
+        )
+      )
+    }
+
+    wp.watch({
+      directories: [dir],
+      files: initialPageFiles,
+      startTime: 0,
+    })
   })
 
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
