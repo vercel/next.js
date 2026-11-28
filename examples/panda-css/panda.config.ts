@@ -16,7 +16,7 @@ export const textStyles = defineTextStyles({
   },
 });
 
-// https://panda-css.com/docs/concepts/recipes#config-recipe
+// https://panda-css.com/docs/recipes/config-recipe
 export const linkRecipe = defineRecipe({
   className: "link",
   description: "The styles for the link component",
@@ -38,7 +38,7 @@ export const linkRecipe = defineRecipe({
   },
 });
 
-// https://panda-css.com/docs/concepts/writing-styles#global-styles
+// https://panda-css.com/docs/styling/writing-styles#global-styles
 const globalCss = defineGlobalStyles({
   html: {
     bg: {
@@ -53,8 +53,10 @@ const globalCss = defineGlobalStyles({
   },
 });
 
-// https://panda-css.com/docs/references/config
+// https://panda-css.com/docs/reference/config
 export default defineConfig({
+  presets: ["@pandacss/preset-base", "@pandacss/preset-panda"],
+
   // Whether to use css reset
   preflight: true,
 

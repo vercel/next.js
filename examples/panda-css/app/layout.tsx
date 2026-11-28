@@ -2,7 +2,7 @@ import "./global.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
-// https://panda-css.com/docs/guides/fonts#setup
+// https://panda-css.com/docs/theming/fonts#nextjs
 const InterFont = Inter({
   weight: ["400", "500", "700"],
   display: "swap",

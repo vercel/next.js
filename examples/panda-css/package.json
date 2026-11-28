@@ -4,19 +4,20 @@
     "prepare": "panda codegen",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint ."
+    "start": "next start"
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@pandacss/dev": "^0.15.1",
-    "@types/node": "^20.7.0",
-    "@types/react": "^18.2.22",
-    "@types/react-dom": "^18.2.7",
-    "typescript": "^5.2.2"
+    "@pandacss/dev": "^2.1.2",
+    "@pandacss/preset-base": "^2.1.2",
+    "@pandacss/preset-panda": "^2.1.2",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^7"
   }
 }
