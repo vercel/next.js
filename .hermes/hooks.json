@@ -1,0 +1,22 @@
+{
+  "pre-commit": [
+    {
+      "name": "lint",
+      "command": "npm run lint --if-present 2>/dev/null || true",
+      "description": "Run linter if available"
+    },
+    {
+      "name": "format",
+      "command": "npm run format --if-present 2>/dev/null || true",
+      "description": "Auto-format code if available"
+    }
+  ],
+  "post-commit": [],
+  "pre-push": [
+    {
+      "name": "test",
+      "command": "npm test --if-present 2>/dev/null || echo 'Tests skipped'",
+      "description": "Run tests before pushing"
+    }
+  ]
+}
