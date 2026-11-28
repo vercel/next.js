@@ -124,7 +124,7 @@ class CatchError<P extends UserProps> extends React.Component<
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
     //When it's bot request, segment level error boundary will keep rendering the children,
-    // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
+    // the final error will be caught by the root error boundary and determine whether need to apply graceful degrade.
     if (this.state.error && !isBotUserAgent) {
       const thrownValue = this.state.error.thrownValue
       handleISRError({ error: thrownValue })
