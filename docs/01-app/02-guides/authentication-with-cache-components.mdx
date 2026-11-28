@@ -306,6 +306,8 @@ Two things keep it that way:
 
 The destination needs [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for this, so enable the [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag or set `prefetch = 'partial'` on the segment. Add the prop where the wait is worth it: that prefetch costs one server invocation per link, so a sidebar of `/chat/[id]` links pays that cost per item.
 
+**Account for authentication work on every prefetch.** The private cache avoids repeating a session read within one request, but it does not share the server-side `getCurrentUser()` lookup across separate requests for different links. With per-link prefetching, each destination can run its own database lookup before the user clicks. For a sidebar with many links, consider opting those links out of prefetching with `prefetch={false}`, or avoid enabling partial prefetching for that segment. Keep authorization checks on each request; don't replace the per-request check with a process-wide user cache.
+
 ## Common pitfalls
 
 - **Reading `cookies()` or `headers()` inside a plain `use cache` function.** This throws. Read the request outside and pass the value in, or use `use cache: private`.
