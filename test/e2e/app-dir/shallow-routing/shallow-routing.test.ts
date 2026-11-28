@@ -394,6 +394,42 @@ describe('shallow-routing', () => {
       })
     })
 
+    describe('after router.refresh()', () => {
+      it('should keep reflecting pushState on useSearchParams after navigating back', async () => {
+        const browser = await next.browser('/pushstate-after-refresh')
+
+        await browser.elementByCss('#push-a').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('a')
+        })
+
+        // Wait until the refreshed page is shown, so the refresh has replaced
+        // the data it started with, before navigating back.
+        const serverTime = await browser.elementByCss('#server-time').text()
+        await browser.elementByCss('#refresh').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#server-time').text()).not.toBe(
+            serverTime
+          )
+        })
+
+        await browser.back()
+        await retry(async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('none')
+        })
+
+        // Navigating back must not reuse data the refresh left unresolved;
+        // otherwise this pushState is never rendered.
+        await browser.elementByCss('#push-b').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#my-data').text()).toBe('b')
+        })
+        expect(await browser.url()).toBe(
+          `${next.url}/pushstate-after-refresh?query=b`
+        )
+      })
+    })
+
     // Browser navigation using `<a>` and such.
     describe('mpa navigation', () => {
       it('should support setting data and then still support navigating back and forward', async () => {
