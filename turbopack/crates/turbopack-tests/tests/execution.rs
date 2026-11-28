@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::{env, fs::canonicalize, path::PathBuf};
+use std::{env, fs::canonicalize, path::PathBuf, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
@@ -62,7 +62,7 @@ use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
 use turbopack_ecmascript::{chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
-    child_process_backend,
+    NodePoolOptions, child_process_backend,
     debug::should_debug,
     evaluate::{evaluate, get_evaluate_entries},
 };
@@ -612,7 +612,11 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    let node_backend = child_process_backend();
+    // Keep a process per pool, like in dev, so that the tests don't wait for processes to boot.
+    let node_backend = child_process_backend(NodePoolOptions {
+        idle_timeout: Duration::from_secs(1),
+        min_idle: 1,
+    });
 
     let entries = get_evaluate_entries(jest_entry_asset, asset_context, node_backend, None);
 

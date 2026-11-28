@@ -3,6 +3,7 @@ use std::{
     mem::forget,
     path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{Context, Result, bail};
@@ -50,7 +51,7 @@ use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
 use turbopack_ecmascript::{chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
+use turbopack_node::{NodePoolOptions, child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_trace_utils::exit::ExitHandler;
 
@@ -327,7 +328,11 @@ async fn build_assets(
 
     let compile_time_info =
         get_client_compile_time_info(browserslist_query.clone(), node_env, false);
-    let node_backend = child_process_backend();
+    // Stop all processes once they are idle: a build doesn't need them anymore afterwards.
+    let node_backend = child_process_backend(NodePoolOptions {
+        idle_timeout: Duration::from_secs(1),
+        min_idle: 0,
+    });
     let execution_context = ExecutionContext::new(
         root_path.clone(),
         Vc::upcast(

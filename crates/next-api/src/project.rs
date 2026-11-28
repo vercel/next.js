@@ -111,9 +111,9 @@ use turbopack_ecmascript::async_chunk::proxy::{
 };
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
-use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
 use turbopack_node::worker_threads_backend;
+use turbopack_node::{NodePoolOptions, execution_context::ExecutionContext};
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 pub use crate::additional_roots::{AdditionalRootConfig, AdditionalRootName, BuiltinRootKind};
@@ -136,6 +136,10 @@ use crate::{
     },
     versioned_content_map::VersionedContentMap,
 };
+
+/// How long a Node.js process (e.g. one running webpack loaders) may stay idle before it is
+/// stopped.
+const NODE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[turbo_tasks::task_input]
 #[derive(
@@ -1563,11 +1567,21 @@ impl Project {
             .next_config()
             .turbopack_plugin_runtime_strategy()
             .await?;
+        let pool_options = NodePoolOptions {
+            idle_timeout: NODE_POOL_IDLE_TIMEOUT,
+            // In watch mode (dev), keep one process per pool so that the next change doesn't
+            // have to wait for one to boot. In builds, stop all of them once they are idle.
+            min_idle: if *self.is_watch_enabled().await? {
+                1
+            } else {
+                0
+            },
+        };
         let node_backend = match strategy {
             #[cfg(feature = "worker_pool")]
-            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
+            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(pool_options),
             #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
-            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
+            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(pool_options),
         };
 
         let node_execution_chunking_context = Vc::upcast(
@@ -1852,9 +1866,7 @@ impl Project {
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = module_graphs_op.connect();
-        scale_down_node_pool(self).await?;
-        Ok(module_graphs_vc)
+        Ok(module_graphs_op.connect())
     }
 
     /// Computes the whole app module graph, dropping issues in development mode so that
@@ -1871,7 +1883,6 @@ impl Project {
             module_graphs_op.drop_issues();
             *vc
         };
-        scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
 
@@ -3195,18 +3206,6 @@ impl Project {
                 .collect(),
         ))
     }
-}
-
-/// Scales down or shuts down the Node.js process pool after module graph computation.
-async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
-    let execution_context = project.execution_context().await?;
-    let node_backend = execution_context.node_backend.into_trait_ref().await?;
-    if *project.is_watch_enabled().await? {
-        node_backend.scale_down()?;
-    } else {
-        node_backend.scale_zero()?;
-    }
-    Ok(())
 }
 
 /// Computes the client style groups of the whole-app module graph, so that they are ready by the

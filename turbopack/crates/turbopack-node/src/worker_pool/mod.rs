@@ -23,15 +23,15 @@ use crate::{
     AssetsForSourceMapping,
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
+    idle_timeout::NodePoolOptions,
     pool_stats::AcquiredPermits,
     worker_pool::{
         operation::{
-            TaskChannels, WORKER_POOL_OPERATION, WORKER_POOLS, WorkerOperation, WorkerOptions,
-            terminate_pool_worker, terminate_worker,
+            TaskChannels, WorkerOperation, WorkerOptions, terminate_pool_worker, terminate_worker,
         },
         worker_thread::create_worker,
     },
-    worker_pool_state::{PoolRegistration, PoolState},
+    worker_pool_state::{PoolState, PoolStateOwner},
 };
 
 mod operation;
@@ -54,10 +54,10 @@ struct WorkerThreadPool {
     project_dir: FileSystemPath,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     state: Arc<PoolState>,
-    /// Keeps `state` registered in [`WORKER_POOLS`] until the pool is dropped. Each pool has its
-    /// own state, even if another pool has the same `worker_options`.
+    /// Owns `state`, and closes it when the pool is dropped. Each pool has its own state, even if
+    /// another pool has the same `worker_options`.
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
-    _registration: PoolRegistration<Arc<WorkerOptions>>,
+    _state_owner: PoolStateOwner<Arc<WorkerOptions>>,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
@@ -75,12 +75,14 @@ impl WorkerThreadPool {
         project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
+        pool_options: NodePoolOptions,
     ) -> EvaluatePool {
         let cwd: RcStr = cwd.to_string_lossy().into();
         let filename: RcStr = entrypoint.to_string_lossy().into();
         let worker_options = Arc::new(WorkerOptions { cwd, filename });
-        let registration = WORKER_POOLS.register(worker_options.clone(), terminate_pool_worker);
-        let state = registration.state().clone();
+        let state_owner =
+            PoolStateOwner::new(worker_options.clone(), terminate_pool_worker, pool_options);
+        let state = state_owner.state().clone();
         EvaluatePool::new(
             Box::new(Self {
                 worker_options,
@@ -89,7 +91,7 @@ impl WorkerThreadPool {
                 assets_root: assets_root.clone(),
                 project_dir: project_dir.clone(),
                 state,
-                _registration: registration,
+                _state_owner: state_owner,
                 concurrency_semaphore: Arc::new(Semaphore::new(if debug {
                     1
                 } else {
@@ -156,8 +158,11 @@ impl WorkerThreadPool {
     }
 }
 
+/// Runs Node.js code in pools of worker threads.
 #[turbo_tasks::value(shared)]
-pub(crate) struct WorkerThreadsBackend;
+pub(crate) struct WorkerThreadsBackend {
+    pub(crate) pool_options: NodePoolOptions,
+}
 
 #[turbo_tasks::value_impl]
 impl NodeBackend for WorkerThreadsBackend {
@@ -170,6 +175,7 @@ impl NodeBackend for WorkerThreadsBackend {
     }
 
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
+        let pool_options = self.pool_options;
         Box::pin(async move {
             let CreatePoolOptions {
                 cwd,
@@ -191,28 +197,9 @@ impl NodeBackend for WorkerThreadsBackend {
                 project_dir,
                 concurrency,
                 debug,
+                pool_options,
             ))
         })
-    }
-
-    fn scale_down(&self) -> Result<()> {
-        WorkerThreadPool::scale_down();
-        Ok(())
-    }
-
-    fn scale_zero(&self) -> Result<()> {
-        WorkerThreadPool::scale_zero();
-        Ok(())
-    }
-}
-
-impl WorkerThreadPool {
-    fn scale_down() {
-        let _ = WORKER_POOL_OPERATION.scale_down();
-    }
-
-    fn scale_zero() {
-        let _ = WORKER_POOL_OPERATION.scale_zero();
     }
 }
 

@@ -14,10 +14,8 @@ use tokio::sync::{
 use turbo_rcstr::RcStr;
 
 use crate::{
-    evaluate::Operation,
-    pool_stats::AcquiredPermits,
-    worker_pool::worker_thread,
-    worker_pool_state::{PoolRegistry, PoolState},
+    evaluate::Operation, pool_stats::AcquiredPermits, worker_pool::worker_thread,
+    worker_pool_state::PoolState,
 };
 
 /// A bidirectional message channel using unbounded mpsc.
@@ -80,27 +78,7 @@ pub(super) struct WorkerPoolOperation {
     task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
 }
 
-/// The states of all live worker-thread pools. Each `WorkerThreadPool` registers its own state
-/// when it is created and unregisters it when it is dropped.
-pub(super) static WORKER_POOLS: PoolRegistry<Arc<WorkerOptions>> = PoolRegistry::new();
-
 impl WorkerPoolOperation {
-    pub(super) fn scale_down(&self) -> Result<()> {
-        self.terminate_workers(WORKER_POOLS.reduce_to(1))
-    }
-
-    pub(super) fn scale_zero(&self) -> Result<()> {
-        self.terminate_workers(WORKER_POOLS.reduce_to(0))
-    }
-
-    fn terminate_workers(&self, workers: Vec<(Arc<WorkerOptions>, u32)>) -> Result<()> {
-        workers
-            .into_iter()
-            .map(|(worker_options, worker_id)| self.terminate_worker(worker_options, worker_id))
-            .collect::<Result<Vec<_>>>()?;
-        Ok(())
-    }
-
     fn terminate_worker(&self, worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
         self.remove_worker_channel(worker_id);
         worker_thread::terminate_worker(worker_options, worker_id);
@@ -144,7 +122,7 @@ pub(super) fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u3
     WORKER_POOL_OPERATION.terminate_worker(worker_options, worker_id)
 }
 
-/// [`TerminateWorker`](crate::worker_pool_state::TerminateWorker) for [`WORKER_POOLS`].
+/// [`TerminateWorker`](crate::worker_pool_state::TerminateWorker) for pool states.
 pub(super) fn terminate_pool_worker(worker_options: &Arc<WorkerOptions>, worker_id: u32) {
     // Terminating a worker never fails.
     let _ = terminate_worker(worker_options.clone(), worker_id);
