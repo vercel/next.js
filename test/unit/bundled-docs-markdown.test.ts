@@ -330,6 +330,50 @@ describe('bundled docs as Markdown', () => {
     ).toBe(index + '\nIntro.\n')
   })
 
+  it('converts what sits inside a styled wrapper without eating text', () => {
+    const source = [
+      "<div style={{ padding: '1rem' }}>",
+      '  Some text here.',
+      '',
+      '  <Image',
+      '    alt="Diagram"',
+      '    srcLight="/docs/light/diagram.png"',
+      '  />',
+      '',
+      '  <PagesOnly>',
+      '',
+      '  Only for the Pages Router.',
+      '',
+      '  </PagesOnly>',
+      '',
+      '  <AppOnly>',
+      '',
+      '  Only for the App Router.',
+      '',
+      '  </AppOnly>',
+      '',
+      '  Last line with a <Check size={18} /> in it.',
+      '</div>',
+    ].join('\n')
+    const output = toMarkdown(source, { relativePath: '01-app/page.mdx' })
+    expect(output).toContain('Some text here.')
+    expect(output).toMatch(
+      /!\[Diagram\]\(https:\/\/[^)]*\/docs\/light\/diagram\.png\)/
+    )
+    expect(output).toContain('Only for the App Router.')
+    expect(output).not.toContain('Pages Router')
+    expect(output).toContain('Last line with a ✓ in it.')
+    expect(output).not.toMatch(/<\/?(div|AppOnly|PagesOnly|Image)\b/)
+    // Nothing indented is left, and no line lost its first characters.
+    for (const line of output.split('\n')) expect(line).not.toMatch(/^\s+\S/)
+    expect(output.split('\n').filter(Boolean)).toEqual([
+      'Some text here.',
+      expect.stringMatching(/^!\[Diagram\]/),
+      'Only for the App Router.',
+      'Last line with a ✓ in it.',
+    ])
+  })
+
   it('turns website layout into Markdown', () => {
     const source = [
       '<div',

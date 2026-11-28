@@ -264,7 +264,13 @@ function convertBody(parse, body, router) {
     ) {
       const indent = body.slice(at + 1, at + 3).match(/^ {1,2}/)
       if (indent) {
-        edits.push({ start: at + 1, end: at + 1 + indent[0].length, text: '' })
+        edits.push({
+          start: at + 1,
+          end: at + 1 + indent[0].length,
+          text: '',
+          // Gives way to an edit of something on the same line (see below).
+          indent: true,
+        })
       }
     }
   }
@@ -393,8 +399,26 @@ function convertBody(parse, body, router) {
   }
   walk(tree)
 
+  // A construct inside a dedented wrapper is itself cut or replaced from the
+  // start of its line, indentation included, so the dedent of that line is
+  // already covered: applying both would shift the text and eat characters.
+  const cuts = edits.filter((edit) => !edit.indent)
+  const overlaps = (a, b) =>
+    a.start === b.start || (a.start < b.end && b.start < a.end)
+  const applied = edits
+    .filter((edit) => !edit.indent || !cuts.some((cut) => overlaps(edit, cut)))
+    .sort((a, b) => b.start - a.start || b.end - a.end)
+
   let out = body
-  for (const edit of edits.sort((a, b) => b.start - a.start)) {
+  let from = Infinity
+  for (const edit of applied) {
+    // Two edits of the same text would corrupt the page: fail the build.
+    if (edit.end > from) {
+      throw new Error(
+        `Overlapping edits at offset ${edit.start}: ${JSON.stringify(body.slice(edit.start, edit.end))}`
+      )
+    }
+    from = edit.start
     out = out.slice(0, edit.start) + edit.text + out.slice(edit.end)
   }
   return out
