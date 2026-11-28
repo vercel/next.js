@@ -1,5 +1,6 @@
 import path from '../../../shared/lib/isomorphic/path'
 import type { MetadataContext } from '../types/resolvers'
+import { parsePath } from '../../../shared/lib/router/utils/parse-path'
 
 export type MetadataBaseURL = URL | null
 
@@ -125,9 +126,10 @@ function resolveAbsoluteUrlWithPathname(
   // Add trailing slash if it's enabled for urls matches the condition
   // - Not external, same origin with metadataBase
   // - Doesn't have query
-  if (trailingSlash && !resolvedUrl.endsWith('/')) {
+  const { pathname: urlPath, query, hash } = parsePath(resolvedUrl)
+  if (trailingSlash && !urlPath.endsWith('/')) {
     let isRelative = resolvedUrl.startsWith('/')
-    let hasQuery = resolvedUrl.includes('?')
+    let hasQuery = query !== ''
     let isExternal = false
     let isFileUrl = false
 
@@ -147,7 +149,7 @@ function resolveAbsoluteUrlWithPathname(
         !isExternal &&
         !hasQuery
       )
-        return `${resolvedUrl}/`
+        return `${urlPath}/${hash}`
     }
   }
 
