@@ -1028,7 +1028,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
       })
       expect((await data()).id).toBe('example')
     })
-    // This exercises host builds and startup checks for packaged servers.
+    // This exercises host builds and standalone execution of packaged servers.
     it('emits standalone Go adapter outputs alongside existing Node outputs', async () => {
       await next.stop()
       await next.patchFile('next.config.ts', (config) =>
@@ -1802,7 +1802,17 @@ describe('native-route-go with standalone output', () => {
     await next.patchFile('next.config.ts', (config) =>
       config.replace('experimental:', "output: 'standalone',\n  experimental:")
     )
-    const result = await next.build()
+    // Package initialization needs runtime configuration, which is absent during the build.
+    await next.patchFile('app/(group)/native/[id]/route.go', (source) =>
+      source.replace(
+        'func init() {',
+        `func init() {
+\tif os.Getenv("NATIVE_ROUTE_RUNTIME_ONLY") == "" {
+\t\tpanic("NATIVE_ROUTE_RUNTIME_ONLY is not set")
+\t}`
+      )
+    )
+    const result = await next.build({ env: { NATIVE_ROUTE_RUNTIME_ONLY: '' } })
     expect(result.exitCode).toBe(0)
     expect(result.cliOutput).not.toContain('Failed to copy traced files')
 
@@ -1834,6 +1844,7 @@ describe('native-route-go with standalone output', () => {
         PORT: String(port),
         HOSTNAME: '127.0.0.1',
         TURBOPACK_GO: '/missing-go-toolchain',
+        NATIVE_ROUTE_RUNTIME_ONLY: '1',
       },
       undefined,
       {
@@ -2034,38 +2045,6 @@ describe('native route diagnostics', () => {
       }
     )
   })
-  it('fails the build when routes conflict while initializing in one process', async () => {
-    // Each route has its own process in development, but every route shares
-    // one in production, where these registrations panic at startup.
-    const sibling = `package route
-
-import "net/http"
-
-func init() {
-\thttp.HandleFunc("/metrics", func(http.ResponseWriter, *http.Request) {})
-}
-`
-    const files = ['app/methods/metrics.go', 'app/explicit-methods/metrics.go']
-    try {
-      for (const file of files) await next.patchFile(file, sibling)
-      const result = await next.runCommand(['build', '--turbopack'], {
-        env: {
-          IS_WEBPACK_TEST: '',
-          IS_TURBOPACK_TEST: '1',
-          NEXT_RSPACK: '',
-          NEXT_TEST_USE_RSPACK: '',
-        },
-      })
-      expect(result.exitCode).not.toBe(0)
-      const output = result.stdout + result.stderr
-      expect(output).toContain(
-        'The Go Route Handler executable failed while initializing'
-      )
-      expect(output).toContain('"/metrics"')
-    } finally {
-      for (const file of files) await next.deleteFile(file)
-    }
-  })
   it.each(matchedPathCases.rejected)(
     'rejects $name in adapter builds',
     async ({ ids, diagnostic, adapterOnly }) => {
@@ -2169,59 +2148,6 @@ func GET(w http.ResponseWriter, r *http.Request) {}
       }
     } finally {
       await next.deleteFile('app/(alias-collision)')
-    }
-  })
-  it('skips the Go startup check when experimental.goRoutesStartupCheck is false', async () => {
-    // Initialization that needs runtime-only configuration fails the check,
-    // which runs with the build environment.
-    const config = await next.readFile('next.config.ts')
-    const route = 'app/methods/needs-runtime-config.go'
-    try {
-      await next.patchFile(
-        route,
-        `package route
-
-import "os"
-
-func init() {
-\tif os.Getenv("NATIVE_ROUTE_RUNTIME_ONLY") == "" {
-\t\tpanic("NATIVE_ROUTE_RUNTIME_ONLY is not set")
-\t}
-}
-`
-      )
-      const build = () =>
-        next.runCommand(['build', '--turbopack'], {
-          env: {
-            IS_WEBPACK_TEST: '',
-            IS_TURBOPACK_TEST: '1',
-            NEXT_RSPACK: '',
-            NEXT_TEST_USE_RSPACK: '',
-          },
-        })
-      const checked = await build()
-      expect(checked.exitCode).not.toBe(0)
-      expect(checked.stdout + checked.stderr).toContain(
-        'NATIVE_ROUTE_RUNTIME_ONLY is not set'
-      )
-      expect(checked.stdout + checked.stderr).toContain(
-        'experimental.goRoutesStartupCheck: false'
-      )
-      await next.patchFile(
-        'next.config.ts',
-        config.replace(
-          'experimental: {',
-          'experimental: {\n    goRoutesStartupCheck: false,'
-        )
-      )
-      const skipped = await build()
-      expect(skipped.stdout + skipped.stderr).not.toContain(
-        'NATIVE_ROUTE_RUNTIME_ONLY is not set'
-      )
-      expect(skipped.exitCode).toBe(0)
-    } finally {
-      await next.patchFile('next.config.ts', config)
-      await next.deleteFile(route)
     }
   })
   it('diagnoses conflicting Go and TS handlers', async () => {

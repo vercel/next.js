@@ -49,8 +49,7 @@ describe('native route worker events', () => {
       else holdReadiness = ready
       return child as unknown as childProcess.ChildProcess
     })
-    // Each entry names its own executable, so each gets its own worker, and
-    // the route ID the worker selects from x-matched-path.
+    // Each entry names its own executable, so each gets its own worker.
     jest.spyOn(fs, 'readFile').mockImplementation(async (file) =>
       JSON.stringify({
         executable: String(file).endsWith('b.native.json') ? 'b' : 'a',
@@ -115,7 +114,6 @@ describe('native route worker events', () => {
     address: address(),
     tokenHeader: 'x-next-internal-go-token',
     token,
-    route: page,
   })
 
   it('announces a worker that started before the observer at its next request', async () => {

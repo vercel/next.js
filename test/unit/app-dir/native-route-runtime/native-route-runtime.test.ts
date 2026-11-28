@@ -336,20 +336,19 @@ describe('native route runtime', () => {
         { route: ['/users/%5Bid%5D'], url: '/users/%255Bid%255D' },
         { route: ['/users/[id]'], url: '/users/1' },
       ])
-      // Switchyard sets the announced route ID as x-matched-path itself.
+      // Each routed page is announced once, even when pages share a worker.
       expect(
         events.flatMap((event) =>
-          event.event === 'worker' ? [[event.page, event.route]] : []
+          event.event === 'worker' ? [event.page] : []
         )
       ).toEqual([
-        ['/(group)/users/[id]/route', '/users/[id]'],
-        ['/health/route', '/health'],
-        ['/catch/[...slug]/route', '/catch/[...slug]'],
-        ['/route', '/'],
-        ['/日本語/route', '/日本語'],
-        ['/users/%5Bid%5D/route', '/users/%5Bid%5D'],
+        '/(group)/users/[id]/route',
+        '/health/route',
+        '/catch/[...slug]/route',
+        '/route',
+        '/日本語/route',
+        '/users/%5Bid%5D/route',
       ])
-      expect(events.some((event) => 'routeHeader' in event)).toBe(false)
     } finally {
       observeNativeRouteWorkers(() => {})
       child.exitCode = 0

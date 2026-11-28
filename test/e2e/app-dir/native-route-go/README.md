@@ -13,6 +13,10 @@ streaming, rewritten destination URLs and dynamic parameters.
 The executables target the build host. This is executable adapter-contract
 coverage, not a claim of hosted deployment coverage.
 
+The standalone-output test builds with runtime-only Go initialization configuration
+unset, then supplies it when starting the packaged server. This verifies that
+production builds compile route packages without running their initialization.
+
 `matched-path-cases.json` is shared by build validation and executable selection:
 the accepted IDs must build through Rust and select their own Go handlers, while
 ambiguous IDs must fail adapter builds. It includes `/index`, dynamic segments,

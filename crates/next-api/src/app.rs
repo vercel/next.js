@@ -38,6 +38,7 @@ use next_core::{
     pages_structure::PagesDirectoryStructure,
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
+use rustc_hash::FxHashMap;
 use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
@@ -1871,12 +1872,21 @@ fn go_diagnostic_mentions_directory(message: &str, directories: &[String]) -> bo
 /// The executable that serves every App Router `route.go` in a production build.
 #[turbo_tasks::value(shared)]
 struct GoRoutesBundle {
-    /// Source handlers included in the executable.
-    routes: Vec<FileSystemPath>,
+    /// Current source handlers, with either their route ID or their own analysis failure.
+    routes: ResolvedVc<GoRouteBundleEntries>,
     /// File name below `server/`, when compilation succeeded.
     executable_name: Option<RcStr>,
     executable: Option<ResolvedVc<Box<dyn OutputAsset>>>,
     build: Option<turbopack_go::GoBundleResult>,
+}
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+struct GoRouteBundleEntries(FxHashMap<FileSystemPath, GoRouteBundleEntry>);
+
+#[derive(Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+enum GoRouteBundleEntry {
+    Ready(String),
+    Failed(turbopack_go::GoBundleResult),
 }
 
 /// Warnings for a route.go in development about checks that only production builds run, as
@@ -1970,32 +1980,38 @@ async fn go_dev_route_warnings(
 /// The executable never selects a route by path. With an adapter, each request selects its output
 /// from the platform's `x-matched-path` header, normalized as the Next.js server reads it, unless
 /// the adapter pins one output with `__NEXT_GO_ROUTE` (`go_routes_adapter_main.go`,
-/// `go_routes_select.go`). With `next start`, Next.js, or Switchyard, routes the request, replaces
+/// `go_routes_select.go`). With `next start`, Next.js routes the request, replaces
 /// any client-sent `x-matched-path` with the selected route's exact ID, and authenticates it with
 /// the worker's token (`go_routes_main.go`).
 #[turbo_tasks::function]
 async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBundle>> {
-    let failed = |build: Option<turbopack_go::GoBundleResult>| {
+    let failed = |routes: FxHashMap<FileSystemPath, GoRouteBundleEntry>,
+                  build: Option<turbopack_go::GoBundleResult>| {
         GoRoutesBundle {
-            routes: vec![],
+            routes: GoRouteBundleEntries(routes).resolved_cell(),
             executable_name: None,
             executable: None,
             build,
         }
         .cell()
     };
-    let app_project =
-        (*project.app_project().await?).context("route.go requires an app directory")?;
+    let Some(app_project) = *project.app_project().await? else {
+        return Ok(failed(FxHashMap::default(), None));
+    };
     let mut routes = vec![];
     for entrypoint in app_project.app_entrypoints().await?.values() {
         if let AppEntrypoint::AppGoRoute { page, path, .. } = entrypoint {
             routes.push((page.clone(), path.clone()));
         }
     }
-    ensure!(!routes.is_empty(), "no route.go handlers to compile");
+    // An endpoint can outlive the app directory or the last Go route entrypoint.
+    if routes.is_empty() {
+        return Ok(failed(FxHashMap::default(), None));
+    }
     let session = go_session(project).await?;
     let go_session = session.await?;
     let mut packages = vec![];
+    let mut route_entries = FxHashMap::default();
     let mut blocked = false;
     let mut failed_build = None;
     for (page, path) in &routes {
@@ -2007,17 +2023,28 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
         )
         .await?
         {
-            GoPackageAnalysis::Ready(package) => packages.push((path.clone(), package)),
+            GoPackageAnalysis::Ready(package) => {
+                route_entries.insert(
+                    path.clone(),
+                    GoRouteBundleEntry::Ready(package.route_id.clone()),
+                );
+                packages.push((path.clone(), package));
+            }
             GoPackageAnalysis::Failed(build) => {
                 blocked = true;
-                if failed_build.is_none() {
-                    failed_build = build;
+                // Missing handlers have no entry. Rejected packages retain their own inputs,
+                // so request-side validation can retry the route whose source was fixed.
+                if let Some(build) = build {
+                    route_entries.insert(path.clone(), GoRouteBundleEntry::Failed(build.clone()));
+                    if failed_build.is_none() {
+                        failed_build = Some(build);
+                    }
                 }
             }
         }
     }
     if blocked {
-        return Ok(failed(failed_build));
+        return Ok(failed(route_entries, failed_build));
     }
     let ids = packages
         .iter()
@@ -2040,7 +2067,7 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
                 }
             }
         }
-        return Ok(failed(None));
+        return Ok(failed(route_entries, None));
     }
     let source_root = project.project_root_path().owned().await?;
     let display = |path: &FileSystemPath| -> String {
@@ -2099,7 +2126,7 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
             .resolved_cell()
             .emit();
         }
-        return Ok(failed(None));
+        return Ok(failed(route_entries, None));
     }
     let mut generated = BTreeMap::new();
     let module_path = match (&sets[0].module_path, sets[0].has_go_mod) {
@@ -2180,7 +2207,7 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
         aliased.push((import, package));
     }
     if duplicate_alias {
-        return Ok(failed(None));
+        return Ok(failed(route_entries, None));
     }
     aliased.sort_by(|(_, a), (_, b)| a.route_id.cmp(&b.route_id));
     // Next.js authenticates requests to a `next start` worker and replaces client-supplied
@@ -2269,7 +2296,7 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
                 .resolved_cell()
                 .emit();
             }
-            return Ok(failed(Some((*result).clone())));
+            return Ok(failed(route_entries, Some((*result).clone())));
         }
         GoBuildOutcome::Retry => {
             bail!("Go inputs changed during compilation; retry the request")
@@ -2298,7 +2325,7 @@ async fn go_routes_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBun
         .await?,
     );
     Ok(GoRoutesBundle {
-        routes: routes.into_iter().map(|(_, path)| path).collect(),
+        routes: GoRouteBundleEntries(route_entries).resolved_cell(),
         executable_name: Some(executable_name),
         executable: Some(executable),
         build: Some((*result).clone()),
@@ -2348,15 +2375,8 @@ impl Endpoint for GoEndpoint {
         }
         let session = go_session(project).await?;
         let go_session = session.await?;
-        let package = match analyze_go_package(project, session, &this.path, &this.kind).await? {
-            GoPackageAnalysis::Ready(package) => package,
-            GoPackageAnalysis::Failed(build) => return native_failed(build).await,
-        };
-        // The route ID that selects this route's handler in a production executable. It is
-        // written to the descriptor, so the server and adapters never derive it again.
-        let route_id = package.route_id.clone();
         let node_root = project.node_root().owned().await?;
-        let (executable, executable_asset, result) = if !is_proxy
+        let (route_id, executable, executable_asset, result) = if !is_proxy
             && project.next_mode().await?.is_production()
         {
             // Production builds serve every route.go from one executable. The adapter or the
@@ -2364,14 +2384,26 @@ impl Endpoint for GoEndpoint {
             // Development compiles each route on its own, so an edit rebuilds only that route.
             let bundle = go_routes_bundle(*project).await?;
             // The endpoint can outlive its entry in the shared build's route list.
-            if bundle.executable.is_some() && !bundle.routes.contains(&this.path) {
-                return native_failed(None).await;
-            }
+            let route_id = match bundle.routes.get(&this.path).await?.as_deref() {
+                Some(GoRouteBundleEntry::Ready(id)) => id.clone(),
+                Some(GoRouteBundleEntry::Failed(build)) => {
+                    return native_failed(Some(build.clone())).await;
+                }
+                None => return native_failed(None).await,
+            };
             match (&bundle.executable_name, bundle.executable, &bundle.build) {
-                (Some(name), Some(asset), Some(build)) => (name.clone(), asset, build.clone()),
+                (Some(name), Some(asset), Some(build)) => {
+                    (route_id, name.clone(), asset, build.clone())
+                }
                 _ => return native_failed(bundle.build.clone()).await,
             }
         } else {
+            let package = match analyze_go_package(project, session, &this.path, &this.kind).await?
+            {
+                GoPackageAnalysis::Ready(package) => package,
+                GoPackageAnalysis::Failed(build) => return native_failed(build).await,
+            };
+            let route_id = package.route_id.clone();
             // Development serves each route from its own executable, without x-matched-path.
             // Warn about routes that a production build will reject, before deployment.
             if !is_proxy {
@@ -2490,7 +2522,7 @@ impl Endpoint for GoEndpoint {
                 .to_resolved()
                 .await?,
             );
-            (executable, asset, (*result).clone())
+            (route_id, executable, asset, (*result).clone())
         };
         let original_name = match &this.kind {
             GoEndpointKind::Route { page } => page.to_string(),

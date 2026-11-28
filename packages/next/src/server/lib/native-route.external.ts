@@ -84,12 +84,6 @@ export type NativeRouteWorkerEvent =
       address: string
       tokenHeader: string
       token: string
-      /**
-       * The route ID that selects page in the worker's executable. Send it as
-       * the x-matched-path value, as its UTF-8 bytes, replacing every value the
-       * client sent.
-       */
-      route?: string
     }>
   // token identifies the worker: a new worker can get an exited one's port.
   | Readonly<{ event: 'gone'; address: string; token: string }>
@@ -357,7 +351,6 @@ export class NativeRouteManager {
         address: `127.0.0.1:${worker.port}`,
         tokenHeader: 'x-next-internal-go-token',
         token: worker.token,
-        ...(route === undefined ? {} : { route }),
       })
     }
     return { worker, route }

@@ -19,11 +19,6 @@ func main() {
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
 	}
-	// next build runs the executable once to surface failures in package
-	// initialization, which has completed by now, as build errors.
-	if os.Getenv("__NEXT_GO_STARTUP_CHECK") == "1" {
-		return
-	}
 	token := os.Getenv("__NEXT_GO_TOKEN")
 	if token == "" {
 		panic("native route must be started by Next.js")
@@ -32,7 +27,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// Next.js, or Switchyard, authenticates every request with this worker's
+	// Next.js authenticates every request with this worker's
 	// token and replaces client-supplied x-matched-path and x-next-internal-*
 	// headers before forwarding, so x-matched-path is trusted once the token
 	// matches. It carries the route ID as is, so unlike an adapter executable,
