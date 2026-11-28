@@ -18,7 +18,28 @@ export function getProjectDir(dir?: string, exitOnEnoent = true) {
       )
     }
 
-    return realDir
+    // On Windows, align the drive-letter casing of the project dir with Next.js's
+    // own location when they are on the same drive. Otherwise, if Next.js was loaded
+    // via a path with differing drive-letter casing (e.g. VS Code launching "c:\..."
+    // while the project dir is "C:\..."), Node's module cache treats them as separate
+    // paths and can load duplicate copies of external modules like React.
+    let finalDir = realDir
+    if (
+      process.platform === 'win32' &&
+      typeof finalDir === 'string' &&
+      finalDir.length > 2 &&
+      finalDir[1] === ':'
+    ) {
+      const nextDrive = __dirname[0]
+      if (
+        nextDrive.toLowerCase() === finalDir[0].toLowerCase() &&
+        nextDrive !== finalDir[0]
+      ) {
+        finalDir = nextDrive + finalDir.slice(1)
+      }
+    }
+
+    return finalDir
   } catch (err: any) {
     if (err.code === 'ENOENT' && exitOnEnoent) {
       if (typeof dir === 'string') {
