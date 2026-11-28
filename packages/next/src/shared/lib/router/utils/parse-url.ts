@@ -18,6 +18,22 @@ export interface ParsedUrl {
 }
 
 export function parseUrl(url: string): ParsedUrl {
+  if (url === '*') {
+    return {
+      auth: null,
+      hash: '',
+      hostname: null,
+      href: '*',
+      origin: null,
+      pathname: '*',
+      port: null,
+      protocol: null,
+      query: {},
+      search: '',
+      slashes: null,
+    }
+  }
+
   if (url.startsWith('/')) {
     return parseRelativeUrl(url)
   }
