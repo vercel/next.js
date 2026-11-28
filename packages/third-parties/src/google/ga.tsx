@@ -57,6 +57,10 @@ export function GoogleAnalytics(props: GAParams) {
 }
 
 export function sendGAEvent(..._args: Object[]) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
   if (currDataLayerName === undefined) {
     console.warn(`@next/third-parties: GA has not been initialized`)
     return
