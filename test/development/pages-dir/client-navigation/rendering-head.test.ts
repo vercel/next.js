@@ -170,6 +170,18 @@ describe('Client Navigation rendering <Head />', () => {
     expect(html).toContain('<meta content="meta fragment" data-next-head=""/>')
   })
 
+  test('header helper warns about and filters invalid html/body children', async () => {
+    const html = await render('/head-invalid-elements')
+
+    expect(html).toContain('<title data-next-head="">Valid Head Title</title>')
+    expect(html).toContain(
+      '<meta name="valid-head" content="kept" data-next-head=""/>'
+    )
+    expect(html).not.toContain('data-next-head-invalid')
+    expect(next.cliOutput).toContain('Do not add <html> tags using next/head')
+    expect(next.cliOutput).toContain('Do not add <body> tags using next/head')
+  })
+
   test('header helper renders boolean attributes correctly children', async () => {
     const html = await render('/head')
     expect(html).toContain(
