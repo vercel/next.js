@@ -2043,13 +2043,27 @@ function writeDynamicDataIntoNavigationTask(
         } else {
           // Check that the response is for the route we expected: same route
           // structure and same params, including the page's search params.
+          //
+          // For inactive (retained) parallel route segments, the server is
+          // explicitly requested using the slot's refreshState.canonicalUrl,
+          // which may include search params that were changed via
+          // history.replaceState after the slot was originally rendered. In
+          // that case, the server responds with a varyPath whose search params
+          // differ from the task node's (which still reflects the original
+          // rendered search). This search-param-only divergence is expected and
+          // must not be treated as a route mismatch.
+          const paramsChangeForChild = compareParams(
+            taskChild.node.varyPath,
+            serverRouteTreeChild.varyPath
+          )
+          const isSearchParamOnlyChangeForInactiveSlot =
+            paramsChangeForChild === ParamsChange.SearchParams &&
+            taskChild.node.refreshState !== null
           if (
             doesRouteStructureMatch(taskChild.node, serverRouteTreeChild) &&
             serverRouteTreeChild.data !== null &&
-            compareParams(
-              taskChild.node.varyPath,
-              serverRouteTreeChild.varyPath
-            ) === ParamsChange.None
+            (paramsChangeForChild === ParamsChange.None ||
+              isSearchParamOnlyChangeForInactiveSlot)
           ) {
             // Found a match for this task. Keep traversing down the task tree.
             const childDidReceiveUnknownParallelRoute =

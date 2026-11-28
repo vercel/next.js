@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { RefreshButton } from '../components/RefreshButton'
+import { ReplaceStateButton } from '../components/ReplaceStateButton'
 
 export default function Layout({
   children,
@@ -18,6 +19,8 @@ export default function Layout({
         Three
       </Link>
       <RefreshButton />
+      {/* Used by the history.replaceState regression test */}
+      <ReplaceStateButton searchParams="?value=replaced" />
       {children}
       <Suspense fallback={null}>{side}</Suspense>
     </>
