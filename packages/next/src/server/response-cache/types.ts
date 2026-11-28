@@ -79,6 +79,7 @@ export interface CachedAppPageValue {
   status: number | undefined
   postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
+  inlineScriptHashes: Array<string> | undefined
   segmentData: Map<string, Buffer> | undefined
 }
 
@@ -119,6 +120,7 @@ export interface IncrementalCachedAppPageValue {
   html: string
   rscData: Buffer | undefined
   headers: OutgoingHttpHeaders | undefined
+  inlineScriptHashes: Array<string> | undefined
   postponed: string | undefined
   status: number | undefined
   segmentData: Map<string, Buffer> | undefined
