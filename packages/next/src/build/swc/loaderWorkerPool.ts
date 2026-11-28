@@ -33,7 +33,7 @@ export async function runLoaderWorkerPool(
 
       workers.set(worker.threadId, worker)
     },
-    (termination) => {
+    async (termination) => {
       const {
         options: { filename, cwd },
         workerId,
@@ -41,8 +41,11 @@ export async function runLoaderWorkerPool(
 
       const poolId = getPoolId(cwd, filename)
       const workers = loaderWorkers[poolId]
-      workers.get(workerId)?.terminate()
-      workers.delete(workerId)
+      const worker = workers?.get(workerId)
+      if (worker) {
+        await worker.terminate()
+        workers.delete(workerId)
+      }
     }
   )
 }
