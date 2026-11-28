@@ -5,6 +5,7 @@ import {
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
 import {
+  type CachedFetchValue,
   CachedRouteKind,
   IncrementalCacheKind,
 } from 'next/dist/server/response-cache'
@@ -148,5 +149,145 @@ describe('IncrementalCache handler context', () => {
     })
     await cache.set('fetch-key', value, setContext)
     expect(set).toHaveBeenCalledWith('fetch-key', value, setContext)
+  })
+
+  describe('entry size checks', () => {
+    const maxFetchSize = 2 * 1024 * 1024
+
+    function createFetchData(size: number): CachedFetchValue {
+      const data: CachedFetchValue = {
+        kind: CachedRouteKind.FETCH,
+        data: {
+          headers: {},
+          body: '',
+          status: 200,
+          url: 'https://example.com/data',
+        },
+        revalidate: 60,
+      }
+      data.data.body = 'x'.repeat(size - JSON.stringify(data).length)
+      return data
+    }
+
+    afterEach(() => jest.restoreAllMocks())
+
+    it.each([
+      [
+        RouteKind.APP_PAGE,
+        {
+          kind: CachedRouteKind.APP_PAGE,
+          html: '<html>cached</html>',
+          rscData: Buffer.alloc(128 * 1024),
+          headers: undefined,
+          postponed: undefined,
+          status: undefined,
+          segmentData: undefined,
+        },
+      ],
+      [
+        RouteKind.APP_ROUTE,
+        {
+          kind: CachedRouteKind.APP_ROUTE,
+          body: Buffer.alloc(128 * 1024),
+          status: 200,
+          headers: {},
+        },
+      ],
+      [
+        RouteKind.PAGES,
+        {
+          kind: CachedRouteKind.PAGES,
+          html: '<html>cached</html>',
+          pageData: { title: 'cached' },
+          headers: undefined,
+          status: undefined,
+        },
+      ],
+      [RouteKind.APP_PAGE, null],
+    ] as const)(
+      'writes %s entries without serializing them',
+      async (kind, data) => {
+        const { cache, set } = createCache()
+        jest.replaceProperty(cache, 'hasCustomCacheHandler', false)
+        const pathname = '/handler/post'
+        const route = { kind, sourceRoute: '/handler/[id]' }
+        const cacheControl = { revalidate: 60, expire: 120 }
+        const stringify = jest.spyOn(JSON, 'stringify')
+
+        await cache.set(pathname, data, { route, cacheControl })
+
+        expect(stringify).not.toHaveBeenCalled()
+        expect(set).toHaveBeenCalledWith(
+          getRouteCacheKey(pathname, route),
+          data,
+          {
+            cacheControl,
+          }
+        )
+      }
+    )
+
+    it.each([maxFetchSize - 1, maxFetchSize])(
+      'caches fetch entries of %i characters',
+      async (size) => {
+        const { cache, set } = createCache()
+        jest.replaceProperty(cache, 'hasCustomCacheHandler', false)
+        const data = createFetchData(size)
+
+        await cache.set('fetch-key', data, { fetchCache: true })
+
+        expect(set).toHaveBeenCalledWith('fetch-key', data, {
+          fetchCache: true,
+        })
+      }
+    )
+
+    it.each([false, true])(
+      'rejects oversized fetch entries with dev=%s',
+      async (dev) => {
+        const { cache, set } = createCache()
+        jest.replaceProperty(cache, 'dev', dev)
+        jest.replaceProperty(cache, 'hasCustomCacheHandler', false)
+        const data = createFetchData(maxFetchSize + 1)
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+        const message = `Failed to set Next.js data cache for https://example.com/data, items over 2MB can not be cached (${maxFetchSize + 1} bytes)`
+        const result = cache.set('fetch-key', data, {
+          fetchCache: true,
+          fetchUrl: data.data.url,
+        })
+
+        if (dev) {
+          await expect(result).rejects.toThrow(message)
+          expect(warn).not.toHaveBeenCalled()
+        } else {
+          await result
+          expect(warn).toHaveBeenCalledWith(message)
+        }
+        expect(set).not.toHaveBeenCalled()
+      }
+    )
+
+    it.each(['custom handler', 'implicit build-time cache'])(
+      'skips serialization and the fetch limit for %s',
+      async (mode) => {
+        const { cache, set } = createCache()
+        jest.replaceProperty(
+          cache,
+          'hasCustomCacheHandler',
+          mode === 'custom handler'
+        )
+        const data = createFetchData(maxFetchSize + 1)
+        const ctx = {
+          fetchCache: true as const,
+          isImplicitBuildTimeCache: mode === 'implicit build-time cache',
+        }
+        const stringify = jest.spyOn(JSON, 'stringify')
+
+        await cache.set('fetch-key', data, ctx)
+
+        expect(stringify).not.toHaveBeenCalled()
+        expect(set).toHaveBeenCalledWith('fetch-key', data, ctx)
+      }
+    )
   })
 })
