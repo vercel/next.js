@@ -505,6 +505,9 @@ async function startWatcher(
     let previousRouteMatchingErrors: string | null = null
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
+    let interceptionRoutesFromPreviousScan: ReturnType<
+      typeof buildCustomRoute
+    >[] = []
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
@@ -1348,7 +1351,16 @@ async function startWatcher(
         )
       )
 
-      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
+      const beforeFilesRewrites = opts.fsChecker.rewrites.beforeFiles
+      const beforeFilesWithoutInterceptionRoutes = beforeFilesRewrites.filter(
+        (rewrite) => !interceptionRoutesFromPreviousScan.includes(rewrite)
+      )
+      beforeFilesRewrites.length = 0
+      beforeFilesRewrites.push(
+        ...beforeFilesWithoutInterceptionRoutes,
+        ...interceptionRoutes
+      )
+      interceptionRoutesFromPreviousScan = interceptionRoutes
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&

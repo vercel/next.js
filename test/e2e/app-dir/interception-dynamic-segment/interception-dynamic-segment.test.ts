@@ -183,6 +183,28 @@ describe('interception-dynamic-segment', () => {
         'Retained count: 1'
       )
     })
+
+    it('should still intercept after the dev server rescans routes', async () => {
+      const newRoutePath = 'app/rescan-trigger/page.tsx'
+      const newRouteContent =
+        'export default function Page() { return <p>rescan</p> }'
+
+      await next.patchFile(newRoutePath, newRouteContent, async () => {
+        await retry(async () => {
+          const response = await next.fetch('/rescan-trigger')
+          expect(response.status).toBe(200)
+        })
+
+        const browser = await next.browser('/')
+        await navigate(browser, '/simple-page')
+
+        await retry(async () => {
+          expect(await browser.elementByCss('#modal h3').text()).toContain(
+            'Simple interception page'
+          )
+        })
+      })
+    })
   }
 
   if (!isNextDev) {
