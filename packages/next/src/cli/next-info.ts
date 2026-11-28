@@ -54,9 +54,20 @@ type PlatformTaskScript =
 
 function getPackageVersion(packageName: string) {
   try {
-    return require(`${packageName}/package.json`).version
+    // Resolve from the project directory so `next info` reports the version
+    // installed in the project, even when the CLI binary itself is executed
+    // from elsewhere (e.g. `pnpm dlx next info` or a global install).
+    return require(
+      require.resolve(`${packageName}/package.json`, {
+        paths: [process.cwd()],
+      })
+    ).version
   } catch {
-    return 'N/A'
+    try {
+      return require(`${packageName}/package.json`).version
+    } catch {
+      return 'N/A'
+    }
   }
 }
 
