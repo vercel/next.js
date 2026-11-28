@@ -1008,6 +1008,104 @@ describe.each([true, false])(
         await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
       })
 
+      it('should reopen an intercepted route after navigating away from it inside the modal', async () => {
+        const browser = await next.browser(
+          `/intercepting-reopen${trailingSlash ? '/' : ''}`
+        )
+
+        // Open the intercepted modal.
+        await browser.elementById('open-search').click()
+        await retry(async () => {
+          expect(await browser.elementById('search-modal').text()).toContain(
+            'search modal (intercepted)'
+          )
+        })
+
+        // Navigate to a route with no matching @modal segment. The slot keeps
+        // the (.)search segment, which renders nothing outside /search.
+        await browser.elementById('result-link').click()
+        await retry(async () => {
+          expect(await browser.elementById('item-page').text()).toBe('item 1')
+          expect(await browser.url()).toContain('/intercepting-reopen/items/1')
+        })
+        expect(await browser.hasElementByCssSelector('#search-modal')).toBe(
+          false
+        )
+
+        // Open the modal again. The response reuses the slot's retained
+        // segment, which must be treated as active at /search again.
+        await browser.elementById('open-search').click()
+        await retry(async () => {
+          expect(await browser.url()).toContain('/intercepting-reopen/search')
+          expect(await browser.elementById('search-modal').text()).toContain(
+            'search modal (intercepted)'
+          )
+        })
+        // The intercepted page keeps the previous page in the children slot.
+        expect(await browser.elementById('item-page').text()).toBe('item 1')
+      })
+
+      it('should reopen an intercepted route that was retained with search params', async () => {
+        const browser = await next.browser(
+          `/intercepting-reopen${trailingSlash ? '/' : ''}`
+        )
+
+        // Open the modal with search params, then leave it. The slot keeps the
+        // segment rendered for /search?q=1.
+        await browser.eval(
+          `window.next.router.push('/intercepting-reopen/search?q=1')`
+        )
+        await retry(async () => {
+          expect(await browser.elementById('search-modal').text()).toContain(
+            'search modal (intercepted)'
+          )
+        })
+        await browser.elementById('result-link').click()
+        await retry(async () => {
+          expect(await browser.elementById('item-page').text()).toBe('item 1')
+        })
+
+        // Reopen it without search params. The server skips the retained
+        // segment because the target search is empty.
+        await browser.elementById('open-search').click()
+        await retry(async () => {
+          expect(await browser.url()).toContain('/intercepting-reopen/search')
+          expect(await browser.url()).not.toContain('q=1')
+          expect(await browser.elementById('search-modal').text()).toContain(
+            'search modal (intercepted)'
+          )
+        })
+      })
+
+      it('should navigate back to the page retained behind an intercepted route', async () => {
+        const browser = await next.browser(
+          `/intercepting-reopen/items/1${trailingSlash ? '/' : ''}`
+        )
+        await retry(async () => {
+          expect(await browser.elementById('item-page').text()).toBe('item 1')
+        })
+
+        // Open the modal over /items/1. The children slot keeps the item page
+        // as the retained segment.
+        await browser.elementById('open-search').click()
+        await retry(async () => {
+          expect(await browser.url()).toContain('/intercepting-reopen/search')
+          expect(await browser.elementById('search-modal').text()).toContain(
+            'search modal (intercepted)'
+          )
+        })
+
+        // Navigate back to the page behind the modal.
+        await browser.elementById('result-link').click()
+        await retry(async () => {
+          expect(await browser.url()).toContain('/intercepting-reopen/items/1')
+          expect(await browser.elementById('item-page').text()).toBe('item 1')
+        })
+        expect(await browser.hasElementByCssSelector('#search-modal')).toBe(
+          false
+        )
+      })
+
       it('should intercept on routes that contain hyphenated/special dynamic params', async () => {
         const browser = await next.browser(
           `/interception-route-special-params/some-random-param${trailingSlash ? '/' : ''}`

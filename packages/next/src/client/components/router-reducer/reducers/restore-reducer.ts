@@ -63,6 +63,8 @@ export function restoreReducer(
     true,
     null,
     renderedSearch,
+    // A restore keeps the tree's refresh states as they were saved.
+    false,
     null,
     UnknownDynamicStaleTime
   )
