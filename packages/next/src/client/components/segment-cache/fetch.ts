@@ -1,5 +1,3 @@
-import { getPreLockFetch } from './navigation-testing-lock'
-
 /**
  * Internal `fetch` used by the Next.js client router.
  *
@@ -15,6 +13,10 @@ function fetchInternal(
   init?: RequestInit
 ): Promise<Response> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    // A `require` behind the check, so that the bundler can leave the lock
+    // out where the flag is false at build time.
+    const { getPreLockFetch } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
     const preLockFetch = getPreLockFetch()
     if (preLockFetch !== null) {
       return preLockFetch(input, init)
