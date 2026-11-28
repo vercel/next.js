@@ -314,6 +314,29 @@ declare module 'next' {
 
   export type Route<T extends string = string> =
     __next_route_internal_types__.RouteImpl<T>
+  
+  /**
+   * All static routes in your application.
+   * @example
+   * \`\`\`ts
+   * import type { StaticRoutes } from 'next'
+   * const route: StaticRoutes = "/about"
+   * \`\`\`
+   */
+  export type StaticRoutes = __next_route_internal_types__.StaticRoutes
+  
+  /**
+   * All dynamic routes in your application.
+   * 
+   * The type parameter T represents the union of all possible values that can fill any dynamic segment in your routes.
+   * @example
+   * \`\`\`ts
+   * import type { DynamicRoutes } from 'next'
+   * // T applies to ALL dynamic segments across ALL routes
+   * const route: DynamicRoutes<"en" | "fr"> = "/en/about"
+   * \`\`\`
+   */
+  export type DynamicRoutes<T extends string = string> = __next_route_internal_types__.DynamicRoutes<T>
 }
 
 declare module 'next/link' {
