@@ -1721,12 +1721,57 @@ pub async fn resolve_inline(
             None
         };
 
-        let raw_result = match before_plugins_result {
-            Some(result) => result,
+        let (raw_result, request) = match before_plugins_result {
+            Some(result) => (result, request),
             None => {
-                *resolve_internal(lookup_path.clone(), request, options)
-                    .to_resolved()
-                    .await?
+                // Prefer a literal `#` path for static CommonJS requests, with URL fragments
+                // as a fallback when that path does not exist.
+                let literal_request = if matches!(&reference_type, ReferenceType::CommonJs(_))
+                    && let Request::Relative {
+                        path: Pattern::Constant(_),
+                        query,
+                        fragment,
+                        ..
+                    }
+                    | Request::Module {
+                        module: Pattern::Constant(_),
+                        path: Pattern::Constant(_),
+                        query,
+                        fragment,
+                    } = &*request.await?
+                    && query.is_empty()
+                    && !fragment.is_empty()
+                {
+                    Some(
+                        request
+                            .append_path(fragment.clone())
+                            .with_fragment(RcStr::default()),
+                    )
+                } else {
+                    None
+                };
+                let result = *resolve_internal(
+                    lookup_path.clone(),
+                    literal_request.unwrap_or(request),
+                    options,
+                )
+                .to_resolved()
+                .await?;
+                if literal_request.is_some() && result.await?.is_unresolvable() {
+                    (
+                        resolve_internal(lookup_path.clone(), request, options)
+                            .with_affecting_sources(
+                                result
+                                    .await?
+                                    .get_affecting_sources()
+                                    .map(|source| *source)
+                                    .collect(),
+                            ),
+                        request,
+                    )
+                } else {
+                    (result, literal_request.unwrap_or(request))
+                }
             }
         };
 

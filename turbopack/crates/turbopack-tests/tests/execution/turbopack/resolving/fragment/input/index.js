@@ -26,3 +26,17 @@ it('dynamic with fragments', async () => {
   expect(await helper('nofrag.js')).toBe('nofrag')
   expect(await helper('nofrag')).toBe('nofrag')
 })
+
+it('should prefer literal hash paths for CommonJS', () => {
+  expect(require('./client#component.js').default).toBe('client#component')
+  expect(require('./nofrag.js#frag').default).toBe('nofrag')
+
+  const contains = require('literal-hash-package/string/#/contains')
+  expect(contains.call('turbopack', 'pack')).toBe(true)
+  expect(require.resolve('literal-hash-package/string/#/contains')).toBe(
+    require.resolve('./node_modules/literal-hash-package/string/#/contains')
+  )
+  expect(Array.from(__turbopack_modules__.keys())).not.toContainEqual(
+    expect.stringMatching(/literal-hash-package\/string\/(index|unwanted)\.js/)
+  )
+})
