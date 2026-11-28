@@ -3118,6 +3118,58 @@ describe('opentelemetry with custom server', () => {
   })
 })
 
+// These tests start a custom Next.js server (custom-server-response-span.ts),
+// which is not supported in deploy mode.
+// @force-gate !deploy
+describe('opentelemetry with a server span that ends with the response', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    dependencies: require('./package.json').dependencies,
+    startCommand: 'pnpm start-response-span',
+    packageJson: {
+      scripts: {
+        'start-response-span': 'pnpm tsx custom-server-response-span.ts',
+      },
+    },
+    serverReadyPattern: /- Local:/,
+    env: {
+      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+      NEXT_TELEMETRY_DISABLED: '1',
+      NODE_ENV: isNextDev ? 'development' : 'production',
+    },
+  })
+
+  const getCollector = setupCollector(next, COLLECTOR_PORT)
+
+  // `@opentelemetry/instrumentation-http` ends its server span when the
+  // response closes. A route handler's response closes before
+  // `handleRequest`'s span callback propagates `http.route` to that span, so
+  // the attribute must not be set on the ended span.
+  it('should not set attributes on the parent span after it ended for a route handler', async () => {
+    const response = await next.fetch('/api/app/param/data')
+    expect(response.status).toBe(200)
+
+    await retry(async () => {
+      const handleRequestSpan = getCollector()
+        .getSpans()
+        .find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'BaseServer.handleRequest' &&
+            span.attributes?.['http.target'] === '/api/app/param/data'
+        )
+      expect(handleRequestSpan?.attributes?.['http.route']).toBe(
+        '/api/app/[param]/data'
+      )
+    })
+
+    expect(next.cliOutput).not.toContain(
+      '[response-span] attribute set on an ended span'
+    )
+  })
+})
+
 if (isNextStart) {
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next, skipped } = nextTestSetup({
