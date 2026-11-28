@@ -20,6 +20,7 @@ import {
   routeKindToIncrementalCacheKind,
   toResponseCacheEntry,
 } from './utils'
+import { createCacheKey, extractInvocationID } from './invocation-id'
 import type { RouteKind } from '../route-kind'
 import type { PrerenderFailure } from '../render-result'
 
@@ -67,18 +68,6 @@ const DEFAULT_MAX_SIZE = parsePositiveInt(
 )
 
 /**
- * Separator used in compound cache keys to join pathname and invocationID.
- * Using null byte (\0) since it cannot appear in valid URL paths or UUIDs.
- */
-const KEY_SEPARATOR = '\0'
-
-/**
- * Sentinel value used for TTL-based cache entries (when invocationID is undefined).
- * Chosen to be a clearly reserved marker for internal cache keys.
- */
-const TTL_SENTINEL = '__ttl_sentinel__'
-
-/**
  * Entry stored in the LRU cache.
  */
 type CacheEntry = {
@@ -89,28 +78,6 @@ type CacheEntry = {
    * Memory pressure is managed by LRU eviction rather than timers.
    */
   expiresAt: number
-}
-
-/**
- * Creates a compound cache key from pathname and invocationID.
- */
-function createCacheKey(
-  pathname: string,
-  invocationID: string | undefined
-): string {
-  return `${pathname}${KEY_SEPARATOR}${invocationID ?? TTL_SENTINEL}`
-}
-
-/**
- * Extracts the invocationID from a compound cache key.
- * Returns undefined if the key used TTL_SENTINEL.
- */
-function extractInvocationID(compoundKey: string): string | undefined {
-  const separatorIndex = compoundKey.lastIndexOf(KEY_SEPARATOR)
-  if (separatorIndex === -1) return undefined
-
-  const invocationID = compoundKey.slice(separatorIndex + 1)
-  return invocationID === TTL_SENTINEL ? undefined : invocationID
 }
 
 export * from './types'
