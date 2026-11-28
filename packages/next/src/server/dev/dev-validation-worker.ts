@@ -21,6 +21,7 @@ import {
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { serializeValidationErrorsToFlight } from '../app-render/dev-validation-error-delivery'
 import { formatValidationEvent } from '../app-render/dev-validation-events'
+import { describeValidationError } from '../app-render/dev-validation-results'
 import { clearManifestCache } from '../load-manifest.external'
 import { deleteCache } from './require-cache'
 import {
@@ -391,7 +392,7 @@ export async function runDevValidation(
   }
 
   try {
-    const chunks = collector
+    const { chunks, errors } = collector
       ? await runWithLocalSpanSink(collector.record, () =>
           runDevValidationOperation(message, signal)
         )
@@ -399,6 +400,7 @@ export async function runDevValidation(
 
     return {
       chunks,
+      errors,
       // Superseded validation is stale as a whole. Do not import a partial
       // worker trace for a page the user has already left.
       localSpans: signal.aborted ? null : (collector?.finish() ?? null),
@@ -423,7 +425,7 @@ export async function runDevValidation(
 async function runDevValidationOperation(
   message: DevValidationWorkerMessage,
   signal: AbortSignal
-): Promise<Uint8Array[] | null> {
+): Promise<Pick<DevValidationWorkerResult, 'chunks' | 'errors'>> {
   // Load the native SWC bindings and wire the code-frame renderer so the errors
   // logged below render with a source-mapped code frame, matching the
   // in-process dev output (the E2E tests snapshot the CLI text between the
@@ -463,7 +465,7 @@ async function runDevValidationOperation(
   }
 
   if (signal.aborted) {
-    return null
+    return { chunks: null, errors: null }
   }
 
   // Crossing into the app-page bundle: the entire validation runs there, so
@@ -475,10 +477,18 @@ async function runDevValidationOperation(
     signal
   )
 
-  if (validationErrors === undefined || signal.aborted) {
-    return null
+  if (signal.aborted) {
+    return { chunks: null, errors: null }
   }
 
+  // `undefined` without an abort means validation ran and found nothing.
+  if (validationErrors === undefined) {
+    return { chunks: null, errors: [] }
+  }
+
+  const described = message.captureValidationErrors
+    ? validationErrors.map(describeValidationError)
+    : null
   const errors: Error[] = []
   for (const validationError of validationErrors) {
     // Log to the worker's stderr; `node-environment` +
@@ -491,8 +501,11 @@ async function runDevValidationOperation(
   }
 
   if (errors.length === 0) {
-    return null
+    return { chunks: null, errors: described }
   }
 
-  return await serializeValidationErrorsToFlight(ComponentMod, errors)
+  return {
+    chunks: await serializeValidationErrorsToFlight(ComponentMod, errors),
+    errors: described,
+  }
 }
