@@ -17,12 +17,60 @@ export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
 const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
   'performance' in globalThis && process.env.NEXT_OTEL_PERFORMANCE_PREFIX
 
+// The default `threshold` of the `compression` middleware, which is how the
+// router server sets it up: a response whose `Content-Length` is known and
+// below it is not compressed.
+const SMALL_BODY_BYTES = 1024
+
 function createWriterFromResponse(
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>,
-  clientComponentLoadTracker?: ClientComponentLoadTracker
+  clientComponentLoadTracker?: ClientComponentLoadTracker,
+  sendSmallBodyWithLength: boolean = false
 ): WritableStream<Uint8Array> {
   let started = false
+
+  // A streamed body has no known length, so the compression middleware
+  // compresses it whatever its size, even a body of a few bytes that grows
+  // when compressed. With `sendSmallBodyWithLength`, and only while that
+  // middleware is active, a first chunk below its size threshold is held back
+  // until the next tick. A body that is already in memory (a string, a
+  // buffer, `Response.json()`) closes its stream before that, and then the
+  // chunk is the whole body: it is sent with `res.end()` and a
+  // `Content-Length`, so the middleware's threshold applies to it, as it does
+  // to a Pages API response. If the stream is still open on the next tick,
+  // the chunk is written and the response is streamed as before.
+  let held: Uint8Array | undefined
+
+  function startResponse() {
+    res.flushHeaders()
+    getTracer().trace(
+      NextNodeServerSpan.startResponse,
+      {
+        spanName: 'start response',
+      },
+      () => undefined
+    )
+  }
+
+  function writeHeld() {
+    if (held === undefined) return
+    const chunk = held
+    held = undefined
+    startResponse()
+    res.write(chunk)
+    if ('flush' in res && typeof res.flush === 'function') {
+      res.flush()
+    }
+  }
+
+  function writeHeldOnNextTick() {
+    try {
+      writeHeld()
+    } catch (err) {
+      res.destroy(err as Error)
+    }
+  }
 
   // Create a promise that will resolve once the response has drained. See
   // https://nodejs.org/api/stream.html#stream_event_drain
@@ -70,17 +118,35 @@ function createWriterFromResponse(
           }
         }
 
-        res.flushHeaders()
-        getTracer().trace(
-          NextNodeServerSpan.startResponse,
-          {
-            spanName: 'start response',
-          },
-          () => undefined
-        )
+        // This module is also bundled for the Edge runtime, which has neither
+        // the compression middleware nor `process.nextTick`. The branch that
+        // uses it has to be the `else` of this check to be removed there.
+        if (process.env.NEXT_RUNTIME === 'edge') {
+          // Nothing is held back.
+        } else if (
+          sendSmallBodyWithLength &&
+          chunk.byteLength > 0 &&
+          chunk.byteLength < SMALL_BODY_BYTES &&
+          // Added by the `compression` middleware. Without it nothing would
+          // be compressed and the response is left as it is.
+          'flush' in res &&
+          typeof res.flush === 'function' &&
+          !res.headersSent &&
+          !res.hasHeader('content-length') &&
+          !res.hasHeader('content-encoding') &&
+          !res.hasHeader('transfer-encoding')
+        ) {
+          held = chunk
+          process.nextTick(writeHeldOnNextTick)
+          return
+        }
+
+        startResponse()
       }
 
       try {
+        writeHeld()
+
         const ok = res.write(chunk)
 
         // Added by the `compression` middleware, this is a function that will
@@ -103,6 +169,7 @@ function createWriterFromResponse(
       }
     },
     abort: (err) => {
+      held = undefined
       if (res.writableFinished) return
 
       res.destroy(err)
@@ -116,7 +183,22 @@ function createWriterFromResponse(
 
       if (res.writableFinished) return
 
-      res.end()
+      if (held !== undefined) {
+        // The held chunk is the whole body.
+        const chunk = held
+        held = undefined
+        res.setHeader('Content-Length', chunk.byteLength)
+        getTracer().trace(
+          NextNodeServerSpan.startResponse,
+          {
+            spanName: 'start response',
+          },
+          () => undefined
+        )
+        res.end(chunk)
+      } else {
+        res.end()
+      }
       return finished.promise
     },
   })
@@ -126,7 +208,8 @@ export async function pipeToNodeResponse(
   readable: ReadableStream<Uint8Array>,
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>,
-  clientComponentLoadTracker?: ClientComponentLoadTracker
+  clientComponentLoadTracker?: ClientComponentLoadTracker,
+  sendSmallBodyWithLength: boolean = false
 ) {
   try {
     // If the response has already errored, then just return now.
@@ -140,7 +223,8 @@ export async function pipeToNodeResponse(
     const writer = createWriterFromResponse(
       res,
       waitUntilForEnd,
-      clientComponentLoadTracker
+      clientComponentLoadTracker,
+      sendSmallBodyWithLength
     )
 
     await readable.pipeTo(writer, { signal: controller.signal })
