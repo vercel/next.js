@@ -28,6 +28,11 @@ interface HTTPAccessFallbackBoundaryProps {
   // TODO: Make this required once `React.createElement` understands that positional args go into children
   children?: React.ReactNode
   missingSlots?: Set<string>
+  /**
+   * Whether the route this boundary belongs to is the one currently shown.
+   * False inside a hidden `<Activity>`. Defaults to true.
+   */
+  isActive?: boolean
 }
 
 interface HTTPAccessFallbackErrorBoundaryProps
@@ -39,6 +44,7 @@ interface HTTPAccessFallbackErrorBoundaryProps
 interface HTTPAccessBoundaryState {
   triggeredStatus: number | undefined
   previousPathname: string | null
+  previousIsActive: boolean
 }
 
 class HTTPAccessFallbackErrorBoundary extends React.Component<
@@ -50,6 +56,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     this.state = {
       triggeredStatus: undefined,
       previousPathname: props.pathname,
+      previousIsActive: props.isActive !== false,
     }
   }
 
@@ -95,19 +102,28 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   ): HTTPAccessBoundaryState | null {
     /**
      * Handles reset of the error boundary when a navigation happens.
-     * Ensures the error boundary does not stay enabled when navigating to a new page.
-     * Approach of setState in render is safe as it checks the previous pathname and then overrides
-     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     * Ensures the error boundary does not stay enabled when navigating to a new page,
+     * or when navigating back to a route that was hidden. A hidden route keeps its pathname,
+     * so the pathname alone doesn't tell that the route is shown again.
+     * Approach of setState in render is safe as it checks the previous values and then overrides
+     * them as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
      */
-    if (props.pathname !== state.previousPathname && state.triggeredStatus) {
+    const isActive = props.isActive !== false
+    if (
+      state.triggeredStatus &&
+      (props.pathname !== state.previousPathname ||
+        (isActive && !state.previousIsActive))
+    ) {
       return {
         triggeredStatus: undefined,
         previousPathname: props.pathname,
+        previousIsActive: isActive,
       }
     }
     return {
       triggeredStatus: state.triggeredStatus,
       previousPathname: props.pathname,
+      previousIsActive: isActive,
     }
   }
 
@@ -155,6 +171,7 @@ export function HTTPAccessFallbackBoundary({
   notFound,
   forbidden,
   unauthorized,
+  isActive,
   children,
 }: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
@@ -173,6 +190,7 @@ export function HTTPAccessFallbackBoundary({
         forbidden={forbidden}
         unauthorized={unauthorized}
         missingSlots={missingSlots}
+        isActive={isActive}
       >
         {children}
       </HTTPAccessFallbackErrorBoundary>
