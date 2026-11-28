@@ -511,8 +511,10 @@ function updateRenderTreeOnNavigation(
     }
 
     // A param change mostly acts the same as a refresh, except it does
-    // trigger a scroll.
-    if (isLeafSegment) {
+    // trigger a scroll. A path param change remounts the segment, so it's a
+    // scroll target even if it's not a leaf. A search param change only
+    // affects the page.
+    if (isLeafSegment || paramsChange === ParamsChange.PathParam) {
       accumulateScrollRef(freshness, newRenderTree.data, accumulation)
     }
   } else if (
@@ -709,13 +711,21 @@ function updateRenderTreeOnNavigation(
 }
 
 /**
- * Assigns a ScrollRef to a new leaf CacheNode so the scroll handler
- * knows to scroll to it after navigation. All leaves in the same
- * navigation share the same ScrollRef — the first segment to scroll
- * consumes it, preventing others from also scrolling.
+ * Assigns a ScrollRef to a new CacheNode so the scroll handler knows to
+ * scroll to it after navigation. All new segments in the same navigation
+ * share the same ScrollRef — the first segment to scroll consumes it,
+ * preventing others from also scrolling.
  *
- * Called for newly entered segments, and for segments whose params changed
- * (even if their data was reused). Refreshes keep the existing scroll ref.
+ * Scroll handlers fire in layout effect order (children first), so when the
+ * whole route commits at once, the page wins. When a loading boundary
+ * suspends the page, the page's handler hasn't mounted yet; the nearest new
+ * ancestor scrolls instead, bringing the loading fallback into view. The
+ * topmost new segment's handler always renders outside the loading boundary
+ * that wraps it, so some handler can always scroll immediately.
+ *
+ * Called for newly entered segments, for segments whose path params changed,
+ * and for pages whose search params changed (even if their data was
+ * reused). Refreshes keep the existing scroll ref.
  *
  * Skipped during hydration (initial render should not scroll) and
  * history traversal (scroll restoration is handled separately).
@@ -794,10 +804,7 @@ function createRenderTreeOnNavigation(
   const newRenderTree = result.node
   const needsDynamicRequest = result.needsDynamicRequest
 
-  const isLeafSegment = newSlots === null
-  if (isLeafSegment) {
-    accumulateScrollRef(freshness, newRenderTree.data, accumulation)
-  }
+  accumulateScrollRef(freshness, newRenderTree.data, accumulation)
 
   let patchedRouterStateChildren: {
     [parallelRouteKey: string]: FlightRouterState
