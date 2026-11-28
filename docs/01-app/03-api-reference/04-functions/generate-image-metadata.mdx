@@ -133,6 +133,10 @@ export default async function Icon({ id }) {
 }
 ```
 
+## Prerendering images for dynamic routes
+
+To prerender images for a [dynamic route](/docs/app/api-reference/file-conventions/dynamic-routes), export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) from the same image file. For each generated path, Next.js passes its route parameters to `generateImageMetadata` and prerenders the returned images.
+
 ## Image generation function props
 
 When using `generateImageMetadata`, the default export image generation function receives the following props:
