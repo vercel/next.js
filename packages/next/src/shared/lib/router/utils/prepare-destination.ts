@@ -35,6 +35,12 @@ function getSafeParamName(paramName: string) {
 }
 
 function escapeSegment(str: string, segmentName: string) {
+  // Most params and query keys of a request are not named in the destination.
+  // Without `:name` in it the replacement below returns the string as it is,
+  // so the server does not build the expression for it.
+  if (typeof window === 'undefined' && !str.includes(`:${segmentName}`)) {
+    return str
+  }
   return str.replace(
     new RegExp(`:${escapeStringRegexp(segmentName)}`, 'g'),
     `__ESC_COLON_${segmentName}`
@@ -214,6 +220,70 @@ export function parseDestination(args: {
   }
 }
 
+/**
+ * What `prepareDestination` compiles from the path and the hostname of a
+ * destination: the keys of its params and the function that fills them in.
+ * Each depends only on the string and holds no state between calls, and the
+ * strings come from the configuration, so they are kept by string. Without
+ * this path-to-regexp parsed the path twice for every request that a
+ * rewrite or a redirect applied to.
+ *
+ * Only the server keeps them. This module is also bundled for the browser
+ * when a Pages Router app has rewrites or a middleware; there the calls
+ * below are replaced by the plain ones at build time, which leaves that
+ * bundle unchanged.
+ */
+const MAX_COMPILED_DESTINATIONS = 1000
+let destinationKeys: Map<string, Key[]> | undefined
+let destinationPathCompilers:
+  | Map<string, ReturnType<typeof safeCompile>>
+  | undefined
+let destinationHostnameCompilers:
+  | Map<string, ReturnType<typeof safeCompile>>
+  | undefined
+
+function collectDestinationKeys(value: string, keys: Key[]): void {
+  destinationKeys ??= new Map()
+  let valueKeys = destinationKeys.get(value)
+  if (valueKeys === undefined) {
+    valueKeys = []
+    safePathToRegexp(value, valueKeys)
+    if (destinationKeys.size < MAX_COMPILED_DESTINATIONS) {
+      destinationKeys.set(value, valueKeys)
+    }
+  }
+  for (let i = 0; i < valueKeys.length; i++) {
+    keys.push(valueKeys[i])
+  }
+}
+
+function getDestinationPathCompiler(destPath: string) {
+  destinationPathCompilers ??= new Map()
+  let compiler = destinationPathCompilers.get(destPath)
+  if (compiler === undefined) {
+    compiler = safeCompile(destPath, { validate: false })
+    if (destinationPathCompilers.size < MAX_COMPILED_DESTINATIONS) {
+      destinationPathCompilers.set(destPath, compiler)
+    }
+  }
+  return compiler
+}
+
+function getDestinationHostnameCompiler(destHostname: string) {
+  destinationHostnameCompilers ??= new Map()
+  let compiler = destinationHostnameCompilers.get(destHostname)
+  if (compiler === undefined) {
+    compiler = safeCompile(destHostname, {
+      validate: false,
+      encode: encodeURIComponent,
+    })
+    if (destinationHostnameCompilers.size < MAX_COMPILED_DESTINATIONS) {
+      destinationHostnameCompilers.set(destHostname, compiler)
+    }
+  }
+  return compiler
+}
+
 export function prepareDestination(args: {
   appendParamsToQuery: boolean
   destination: string
@@ -238,36 +308,50 @@ export function prepareDestination(args: {
   const destParams: (string | number)[] = []
 
   const destPathParamKeys: Key[] = []
-  safePathToRegexp(destPath, destPathParamKeys)
+  if (typeof window === 'undefined') {
+    collectDestinationKeys(destPath, destPathParamKeys)
+  } else {
+    safePathToRegexp(destPath, destPathParamKeys)
+  }
   for (const key of destPathParamKeys) {
     destParams.push(key.name)
   }
 
   if (destHostname) {
     const destHostnameParamKeys: Key[] = []
-    safePathToRegexp(destHostname, destHostnameParamKeys)
+    if (typeof window === 'undefined') {
+      collectDestinationKeys(destHostname, destHostnameParamKeys)
+    } else {
+      safePathToRegexp(destHostname, destHostnameParamKeys)
+    }
     for (const key of destHostnameParamKeys) {
       destParams.push(key.name)
     }
   }
 
-  const destPathCompiler = safeCompile(
-    destPath,
-    // we don't validate while compiling the destination since we should
-    // have already validated before we got to this point and validating
-    // breaks compiling destinations with named pattern params from the source
-    // e.g. /something:hello(.*) -> /another/:hello is broken with validation
-    // since compile validation is meant for reversing and not for inserting
-    // params from a separate path-regex into another
-    { validate: false }
-  )
+  const destPathCompiler =
+    typeof window === 'undefined'
+      ? getDestinationPathCompiler(destPath)
+      : safeCompile(
+          destPath,
+          // we don't validate while compiling the destination since we should
+          // have already validated before we got to this point and validating
+          // breaks compiling destinations with named pattern params from the source
+          // e.g. /something:hello(.*) -> /another/:hello is broken with validation
+          // since compile validation is meant for reversing and not for inserting
+          // params from a separate path-regex into another
+          { validate: false }
+        )
 
   let destHostnameCompiler
   if (destHostname) {
-    destHostnameCompiler = safeCompile(destHostname, {
-      validate: false,
-      encode: encodeURIComponent,
-    })
+    destHostnameCompiler =
+      typeof window === 'undefined'
+        ? getDestinationHostnameCompiler(destHostname)
+        : safeCompile(destHostname, {
+            validate: false,
+            encode: encodeURIComponent,
+          })
   }
 
   // update any params in query values
