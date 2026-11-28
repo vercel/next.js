@@ -187,7 +187,7 @@ func main() {
 		close(stopped)
 	}()
 
-	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
+	if err := srv.Serve(clientListener{ln}); !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintln(os.Stderr, "switchyard:", err)
 		os.Exit(1)
 	}
@@ -253,6 +253,9 @@ func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout 
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			upstream := newClientUpstream()
 			upstreams.Store(c, upstream)
+			if conn, ok := c.(*clientConn); ok {
+				ctx = context.WithValue(ctx, clientConnKey{}, conn)
+			}
 			return context.WithValue(ctx, clientUpstreamKey{}, upstream)
 		},
 		ConnState: func(c net.Conn, state http.ConnState) {
@@ -505,6 +508,8 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			r.Body = body
 		}
 		r = r.WithContext(context.WithValue(r.Context(), nodeResponseKey{}, &nodeResponse{hopHeaders: nil, connection: nil, connected: atomic.Bool{}}))
+		r, release := endWithClient(r)
+		defer release()
 		proxy.ServeHTTP(&clientWriter{ResponseWriter: w, sentInformational: false}, r)
 	})
 }

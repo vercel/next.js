@@ -522,6 +522,42 @@ describe('switchyard', () => {
       expect(closed).toBe(true)
     })
 
+    // Writes `request`, stops sending (a half-close), and resolves with what
+    // the server sent before it closed the connection.
+    function sendThenStopSending(request: string) {
+      return new Promise<string>((resolve, reject) => {
+        const socket = net.connect(Number(next.appPort), '127.0.0.1')
+        let text = ''
+        socket.on('data', (chunk) => (text += chunk.toString('latin1')))
+        socket.on('error', reject)
+        socket.on('close', () => resolve(text))
+        socket.end(request)
+      })
+    }
+
+    it('answers a client that stops sending after its request, when the answer is ready at once', async () => {
+      const text = await sendThenStopSending(
+        `GET /api/sized HTTP/1.1\r\n${host()}\r\n`
+      )
+      expect(text).toMatch(/^HTTP\/1\.1 200 /)
+      expect(text.endsWith('sized')).toBe(true)
+    })
+
+    // Node drops an answer that isn't ready by the time the client stops
+    // sending; Switchyard still delivers it (README.md, "Half-closed
+    // connections").
+    it('delivers a slower answer to a client that stops sending only with Switchyard', async () => {
+      const text = await sendThenStopSending(
+        `GET /slow?ms=500 HTTP/1.1\r\n${host()}\r\n`
+      )
+      if (process.env[SWITCHYARD_ENV] === '1') {
+        expect(text).toMatch(/^HTTP\/1\.1 200 /)
+        expect(text).toContain('waited 500')
+      } else {
+        expect(text).toBe('')
+      }
+    })
+
     it('closes the connection without an answer for an upgrade to a page', async () => {
       const { text, closed } = await exchange(
         `GET / HTTP/1.1\r\n${host()}Connection: Upgrade\r\nUpgrade: websocket\r\n\r\n`

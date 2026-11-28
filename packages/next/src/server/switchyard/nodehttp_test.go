@@ -169,6 +169,63 @@ func TestAnswersABrokenUploadInsteadOfDroppingTheConnection(t *testing.T) {
 	}
 }
 
+// sendAndStopSending writes request, shuts down the sending side of the
+// connection, and returns everything the server sends until it closes.
+func sendAndStopSending(t *testing.T, addr, request string) string {
+	t.Helper()
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, request)
+	conn.(*net.TCPConn).CloseWrite()
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	raw, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func TestAnswersAClientThatStopsSendingAfterItsRequest(t *testing.T) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "answered")
+	})
+	for _, request := range []string{
+		"GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n",
+		"POST / HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 3\r\n\r\nabc",
+	} {
+		if got := sendAndStopSending(t, addr, request); !strings.HasPrefix(got, "HTTP/1.1 200 OK\r\n") || !strings.HasSuffix(got, "answered") {
+			t.Errorf("%q: got %q, want the answer", request, got)
+		}
+	}
+}
+
+// Switchyard keeps sending to Node after the client stops sending: it must
+// not end its own side of the connection to Node, which would leave that
+// connection's loopback port waiting for minutes before it can be used again.
+// A slower answer still reaches the client.
+func TestKeepsTheConnectionToNodeOpenWhenTheClientStopsSending(t *testing.T) {
+	sawEnd := make(chan bool, 1)
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done(): // Node's server would see an end of sending
+			sawEnd <- true
+		case <-time.After(300 * time.Millisecond):
+			sawEnd <- false
+			io.WriteString(w, "late")
+		}
+	})
+	got := sendAndStopSending(t, addr, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	if <-sawEnd {
+		t.Error("the end of the client's sending reached the upstream")
+	}
+	if !strings.HasPrefix(got, "HTTP/1.1 200 OK\r\n") || !strings.HasSuffix(got, "late") {
+		t.Errorf("got %q, want the late answer", got)
+	}
+}
+
 func TestCountsHeadersGoMovesOutOfTheHeaderMap(t *testing.T) {
 	r, err := http.ReadRequest(bufio.NewReader(strings.NewReader("POST /upload?x=1 HTTP/1.1\r\nHost: shop.example.com\r\n" +
 		"Transfer-Encoding: chunked\r\nTrailer: X-One, X-Two\r\nX-Other: v\r\n\r\n0\r\n\r\n")))
