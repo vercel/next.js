@@ -6,6 +6,7 @@ import {
   REDIRECT_ERROR_CODE,
 } from './redirect-error'
 import { actionAsyncStorage } from './server-async-storage'
+import { encodeHeaderSafe } from '../../server/lib/encode-header-safe'
 
 export function getRedirectError(
   url: string,
@@ -72,8 +73,9 @@ export function getURLFromRedirectError(error: unknown): string | null {
   if (!isRedirectError(error)) return null
 
   // Slices off the beginning of the digest that contains the code and the
-  // separating ';'.
-  return error.digest.split(';').slice(2, -2).join(';')
+  // separating ';'. The URL is written to response headers such as `Location`,
+  // so characters outside of printable ASCII are percent-encoded.
+  return encodeHeaderSafe(error.digest.split(';').slice(2, -2).join(';'))
 }
 
 export function getRedirectTypeFromError(error: RedirectError): RedirectType {
