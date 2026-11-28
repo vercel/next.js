@@ -344,6 +344,68 @@ export function trackAllowedDynamicAccess(
   return
 }
 
+const enum PostponedBoundaries {
+  None = 0,
+  RootLayout = 1,
+  Metadata = 2,
+}
+
+function findPostponedBoundaries(value: unknown): number {
+  if (typeof value === 'string') {
+    return value === METADATA_BOUNDARY_NAME
+      ? PostponedBoundaries.Metadata
+      : value === ROOT_LAYOUT_BOUNDARY_NAME
+        ? PostponedBoundaries.RootLayout
+        : PostponedBoundaries.None
+  }
+
+  let found = PostponedBoundaries.None
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      found |= findPostponedBoundaries(value[i])
+      if (found & PostponedBoundaries.Metadata) {
+        return found
+      }
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    for (const key in value) {
+      found |= findPostponedBoundaries((value as Record<string, unknown>)[key])
+      if (found & PostponedBoundaries.Metadata) {
+        return found
+      }
+    }
+  }
+  return found
+}
+
+/**
+ * Whether a task that React aborted in an HTML prerender may have been inside
+ * of the metadata boundary, judging by React's postponed state. Returns
+ * `false` only if that's certain. It replaces matching the metadata boundary
+ * in the component stack of every aborted task, without creating any.
+ *
+ * To resume a prerender, React records the path to every task that it
+ * postponed in the postponed state, as nested nodes that start with the name
+ * of the component they were created for. An aborted task is a postponed
+ * task, and its path is made of the same components as its component stack.
+ * So if the metadata boundary isn't named anywhere in the postponed state, no
+ * aborted task has it in its component stack.
+ *
+ * The postponed state is an opaque value that's owned by React. If it stopped
+ * recording component names, or changed how, we must not conclude that there
+ * is no dynamic metadata. So we only trust the absence of the metadata
+ * boundary when the root layout boundary is named in the same state, which is
+ * the case for every hole in a layout or a page. In any other case the caller
+ * falls back to the component stacks.
+ */
+function mayHaveDynamicMetadata(postponed: unknown): boolean {
+  if (postponed == null) {
+    return true
+  }
+
+  return findPostponedBoundaries(postponed) !== PostponedBoundaries.RootLayout
+}
+
 /**
  * A dynamic access that React reported while it aborted an HTML prerender,
  * kept so that its component stack is only read if validation needs it.
@@ -369,9 +431,11 @@ export type DeferredDynamicAccess = {
  *
  * - With a full prelude, it only reports dynamic metadata in an otherwise
  *   static route, i.e. it reads `hasDynamicMetadata` unless
- *   `hasAllowedDynamic` is set. Nothing else is read, so we can stop at the
- *   first access that sets `hasAllowedDynamic`. A route with a dynamic hole
- *   inside of a Suspense boundary typically needs a single component stack.
+ *   `hasAllowedDynamic` is set. Nothing else is read. If React's postponed
+ *   state shows that no dynamic hole is inside of the metadata boundary, the
+ *   metadata can't be dynamic, and no component stack is needed at all (see
+ *   `mayHaveDynamicMetadata`). Otherwise we stop at the first access that
+ *   sets `hasAllowedDynamic`.
  * - Without a full prelude, nothing is read when an empty static shell is
  *   allowed, so no component stack is needed at all. Otherwise every access
  *   may contribute an error that's going to be logged, and all of them are
@@ -383,10 +447,15 @@ export function trackDeferredAllowedDynamicAccesses(
   prelude: PreludeState,
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState,
-  allowEmptyStaticShell: boolean
+  allowEmptyStaticShell: boolean,
+  postponed: unknown
 ): void {
   const hasFullPrelude = prelude === PreludeState.Full
   if (!hasFullPrelude && allowEmptyStaticShell) {
+    return
+  }
+
+  if (hasFullPrelude && !mayHaveDynamicMetadata(postponed)) {
     return
   }
 
