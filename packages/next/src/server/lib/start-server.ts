@@ -52,8 +52,10 @@ import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
 import { isCI } from '../ci-info'
 import {
+  NODE_MAX_HEADER_LINES,
   restoreSwitchyardConnection,
   SWITCHYARD_HEADER_OVERHEAD,
+  SWITCHYARD_PRIVATE_MAX_HEADER_LINES,
 } from './switchyard-connection'
 
 const debug = setupDebug('next:start-server')
@@ -168,6 +170,8 @@ export type PrivateServer = {
   headersTimeout: number
   requestTimeout: number
   maxHeaderSize: number
+  /** How many header lines a client's request may have. */
+  maxHeaderLines: number
 }
 
 /** The address clients use, when it isn't the one this server listens on. */
@@ -350,6 +354,11 @@ export async function startServer(
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
+  if (switchyardToken) {
+    // Switchyard enforces the public header-line limit; this one leaves room
+    // for the headers it adds.
+    server.maxHeadersCount = SWITCHYARD_PRIVATE_MAX_HEADER_LINES
+  }
   server.on('upgrade', async (req, socket, head) => {
     try {
       if (
@@ -426,6 +435,7 @@ export async function startServer(
             headersTimeout: server.headersTimeout,
             requestTimeout: server.requestTimeout,
             maxHeaderSize: http.maxHeaderSize,
+            maxHeaderLines: NODE_MAX_HEADER_LINES,
           })
         } catch (err) {
           Log.error(`Failed to start server`)

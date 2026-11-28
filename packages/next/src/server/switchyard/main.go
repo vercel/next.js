@@ -7,7 +7,8 @@
 //
 //		switchyard --listen :3000 --upstream 127.0.0.1:51234 \
 //		  --idle-timeout-ms 5000 --header-timeout-ms 60000 \
-//		  --request-timeout-ms 300000 --upstream-idle-ms 4000 --max-header-bytes 16384
+//		  --request-timeout-ms 300000 --upstream-idle-ms 4000 --max-header-bytes 16384 \
+//		  --max-header-lines 1000
 //
 //	  - Every flag is required. Node passes every behavior value, read off its
 //	    own server, so Switchyard has no defaults of its own.
@@ -68,8 +69,11 @@ type config struct {
 	// keep-alive, so a request never goes out on a connection Node is
 	// closing.
 	upstreamIdle time.Duration
-	// Node's effective public header budget, including --max-http-header-size.
+	// Node's effective public header budget, including --max-http-header-size,
+	// counted as Node counts it (nodeHeaderBytes).
 	maxHeaderBytes int
+	// How many header lines Node reads from a request.
+	maxHeaderLines int
 }
 
 // net/http adds this read-buffer allowance to Server.MaxHeaderBytes.
@@ -85,6 +89,7 @@ func parseConfig(args []string) (config, error) {
 	requestMs := flags.Int("request-timeout-ms", 0, "how long a client may take to send a whole request; 0 means no limit")
 	upstreamIdleMs := flags.Int("upstream-idle-ms", 0, "how long an idle connection to Node stays pooled")
 	maxHeaderBytes := flags.Int("max-header-bytes", 0, "Node's maximum request header size")
+	maxHeaderLines := flags.Int("max-header-lines", 0, "how many request header lines Node reads")
 	if err := flags.Parse(args); err != nil {
 		return config{}, err
 	}
@@ -113,6 +118,7 @@ func parseConfig(args []string) (config, error) {
 		value    int
 		positive bool
 	}{
+		{"max-header-lines", *maxHeaderLines, true},
 		{"idle-timeout-ms", *idleMs, true},
 		{"upstream-idle-ms", *upstreamIdleMs, true},
 		{"header-timeout-ms", *headerMs, false},
@@ -131,6 +137,7 @@ func parseConfig(args []string) (config, error) {
 		requestTimeout: ms(*requestMs),
 		upstreamIdle:   ms(*upstreamIdleMs),
 		maxHeaderBytes: *maxHeaderBytes,
+		maxHeaderLines: *maxHeaderLines,
 	}, nil
 }
 
@@ -162,7 +169,7 @@ func main() {
 	addr := ln.Addr().(*net.TCPAddr)
 
 	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token))
-	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
+	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes, cfg.maxHeaderLines)
 
 	fmt.Printf("NEXT_SWITCHYARD_READY %d\n", addr.Port)
 
@@ -219,17 +226,29 @@ func goAcceptsGOMAXPROCS(env string) bool {
 	return err == nil && n > 0
 }
 
+// goHeaderBytes is the most request-head bytes Go's server reads before it
+// answers 431 itself: more than any request whose headers are within Node's
+// limits (maxHeaderBytes by Node's count, maxHeaderLines lines) can take on
+// the wire. Node's count leaves out the method, the protocol version, ": "
+// and the line endings (at most 4 bytes a line); the rest covers the request
+// line and extra spaces. Requests below it get Node's own checks
+// (withNodeHeaderLimits).
+func goHeaderBytes(maxHeaderBytes, maxHeaderLines int) int {
+	return maxHeaderBytes + 4*maxHeaderLines + 1024
+}
+
 // newServer is the public server. It times out what Node times out: idle
 // keep-alive connections, request headers, and whole requests. Responses
-// aren't limited, so long streams aren't cut off, as in Node.
-func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration, maxHeaderBytes int) *http.Server {
+// aren't limited, so long streams aren't cut off, as in Node. Requests whose
+// headers are over Node's limits are refused as Node refuses them.
+func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration, maxHeaderBytes, maxHeaderLines int) *http.Server {
 	// Each client connection gets its own connections to Node (see
 	// clientUpstream). ConnContext hands the request handler that client's
 	// set, and ConnState closes the set's idle connections to Node as soon
 	// as the client's connection closes or is taken over for an upgrade.
 	var upstreams sync.Map // net.Conn -> *clientUpstream
 	return &http.Server{
-		Handler: handler,
+		Handler: withNodeHeaderLimits(handler, maxHeaderBytes, maxHeaderLines),
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			upstream := newClientUpstream()
 			upstreams.Store(c, upstream)
@@ -247,7 +266,7 @@ func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout 
 		},
 		IdleTimeout:       idleTimeout,
 		ReadHeaderTimeout: headerTimeout,
-		MaxHeaderBytes:    maxHeaderBytes - headerReadAllowance,
+		MaxHeaderBytes:    goHeaderBytes(maxHeaderBytes, maxHeaderLines) - headerReadAllowance,
 		// Reading a request, body included, must finish within Node's
 		// requestTimeout. Go clears the deadline when a connection is taken
 		// over for a WebSocket upgrade, so those aren't cut off.

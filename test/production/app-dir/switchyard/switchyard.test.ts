@@ -155,6 +155,79 @@ describe('switchyard', () => {
     })
   })
 
+  describe('header limits', () => {
+    // Node's answer to headers over its limits, byte for byte.
+    const tooLarge =
+      'HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n'
+
+    // Sends a GET for /api/peer with `lines` header lines in all (Host and
+    // Connection included) and returns the raw answer and the client's port.
+    function requestWithLines(lines: number) {
+      return new Promise<{ raw: string; clientPort: number }>(
+        (resolve, reject) => {
+          const socket = net.connect(Number(next.appPort), '127.0.0.1')
+          let raw = ''
+          socket.on('data', (chunk) => (raw += chunk.toString('latin1')))
+          socket.on('error', reject)
+          socket.on('connect', () => {
+            const clientPort = socket.localPort!
+            socket.on('end', () => resolve({ raw, clientPort }))
+            socket.write(
+              `GET /api/peer HTTP/1.1\r\nHost: localhost:${next.appPort}\r\nConnection: close\r\n` +
+                'A: 1\r\n'.repeat(lines - 2) +
+                '\r\n'
+            )
+          })
+        }
+      )
+    }
+
+    it('keeps the client address on a request with as many headers as Node reads', async () => {
+      const { raw, clientPort } = await requestWithLines(1000)
+      expect(raw).toMatch(/^HTTP\/1\.1 200 /)
+      const peer = JSON.parse(raw.slice(raw.indexOf('\r\n\r\n') + 4))
+      expect(peer.remotePort).toBe(clientPort)
+      expect(peer.internalHeaderPresent).toBe(false)
+    })
+
+    // Node reads 1000 lines and drops the rest; Switchyard can't drop the
+    // same ones, so it refuses the request.
+    it('refuses more header lines than Node reads only with Switchyard', async () => {
+      const { raw, clientPort } = await requestWithLines(1001)
+      if (process.env[SWITCHYARD_ENV] === '1') {
+        expect(raw).toBe(tooLarge)
+      } else {
+        expect(raw).toMatch(/^HTTP\/1\.1 200 /)
+        const peer = JSON.parse(raw.slice(raw.indexOf('\r\n\r\n') + 4))
+        expect(peer.remotePort).toBe(clientPort)
+      }
+    })
+
+    it('answers 431 once the headers reach Node’s size limit', async () => {
+      // Node counts the URL and each header's name and value: here
+      // "/api/peer", Host, Connection: close (added by rawRequest) and X-Pad.
+      const host = `localhost:${next.appPort}`
+      const counted =
+        '/api/peer'.length +
+        'Host'.length +
+        host.length +
+        'Connectionclose'.length +
+        'X-Pad'.length
+      const send = (padding: number) =>
+        rawRequest(
+          Number(next.appPort),
+          `GET /api/peer HTTP/1.1\r\nHost: ${host}\r\nX-Pad: ${'a'.repeat(padding)}`
+        )
+      expect((await send(http.maxHeaderSize - counted - 1)).status).toBe(200)
+      const refused = await send(http.maxHeaderSize - counted)
+      expect(refused.statusLine).toBe(
+        'HTTP/1.1 431 Request Header Fields Too Large'
+      )
+      expect(refused.headers).toEqual([['connection', 'close']])
+      expect(refused.body.length).toBe(0)
+    })
+  })
+
   describe('client identity', () => {
     function peerRequest(
       hostname: string,
