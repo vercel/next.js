@@ -2491,12 +2491,21 @@ impl AppEndpoint {
             client_reference_manifest = Some(entry_manifest);
         }
         if emit_manifests == EmitManifests::Full {
+            let app_lookup_module = match &this.ty {
+                AppEndpointType::Page { loader_tree, .. }
+                    if app_entry.original_name.as_str() == "/_not-found/page" =>
+                {
+                    not_found_font_module(&*loader_tree.await?)
+                }
+                _ => None,
+            };
             let next_font_manifest_output = ResolvedVc::upcast(
                 FontManifest {
                     client_root: project.client_root().owned().await?,
                     node_root: node_root.clone(),
                     dir: this.app_project.app_dir().owned().await?,
                     original_name: app_entry.original_name.clone(),
+                    app_lookup_module,
                     manifest_path_prefix: app_entry.original_name.clone(),
                     pathname: app_entry.original_name.clone(),
                     client_assets,
@@ -3008,6 +3017,22 @@ impl AppEndpoint {
             this.app_project.project().additional_traced_modules(),
         ))
     }
+}
+
+/// The module the app-render looks up the fonts of the `/_not-found` entry by.
+///
+/// Next.js adds this entry itself, so none of its layouts or pages is at
+/// `{app_dir}/_not-found/page`. With a `global-not-found` file, it is that file, the root layout of
+/// the 404 (also when a server action calls `notFound()`). Otherwise it is the root `not-found`
+/// module, the file or the built-in one, which is the page of the 404. With
+/// `experimental.globalNotFound` and no such file, the page 404 renders neither, so nothing is
+/// preloaded there.
+fn not_found_font_module(loader_tree: &AppPageLoaderTree) -> Option<FileSystemPath> {
+    let modules = &loader_tree.modules;
+    modules
+        .global_not_found
+        .clone()
+        .or_else(|| modules.not_found.clone())
 }
 
 async fn create_app_paths_manifest(
