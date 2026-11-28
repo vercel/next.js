@@ -494,7 +494,8 @@ describe('middleware - development errors', () => {
            "source": "./middleware.js (1:28)
          Error: Expected '{', got '}'
          > 1 | export default function () }
-             |                            ^",
+             |                            ^
+         Expected '{', got '}'",
            "stack": [],
          }
         `)
@@ -579,7 +580,8 @@ describe('middleware - development errors', () => {
            "source": "./middleware.js (1:28)
          Error: Expected '{', got '}'
          > 1 | export default function () }
-             |                            ^",
+             |                            ^
+         Expected '{', got '}'",
            "stack": [],
          }
         `)
