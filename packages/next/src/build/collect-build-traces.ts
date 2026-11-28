@@ -455,8 +455,6 @@ export async function collectBuildTraces({
 
         const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
 
-        const cachedLookupIgnoreRoutes = new Map<string, boolean>()
-
         await Promise.all(
           [
             ...(entryNameFilesMap
@@ -495,7 +493,22 @@ export async function collectBuildTraces({
             }
             const traceOutputDir = path.dirname(traceOutputPath)
             const curTracedFiles = new Set<string>()
-
+            const cachedLookupIgnoreRoutes = new Map<string, boolean>()
+            const entryNameFilesSet = new Set(
+              entryNameFiles.map((file: string) =>
+                path.relative(outputFileTracingRoot, file).replace(/\\/g, '/')
+              )
+            )
+            const routeIgnoreFnForEntry = (file: string) => {
+              // Server chunks are omitted from route traces so that unrelated
+              // chunks are not copied into every route. The chunks referenced
+              // by this entry still need to act as trace parents, otherwise
+              // dependencies externalized from an async chunk are discarded.
+              return (
+                routeIgnoreFn(file) &&
+                !entryNameFilesSet.has(file.replace(/\\/g, '/'))
+              )
+            }
             for (const file of [...entryNameFiles, entryOutputPath]) {
               const curFiles = [
                 ...(parentFilesMap
@@ -506,7 +519,7 @@ export async function collectBuildTraces({
                 if (
                   !shouldIgnore(
                     curFile,
-                    routeIgnoreFn,
+                    routeIgnoreFnForEntry,
                     reasons,
                     cachedLookupIgnoreRoutes
                   )
