@@ -79,7 +79,8 @@ export class NextRequestAdapter {
 
   public static fromNodeNextRequest(
     request: NodeNextRequest,
-    signal: AbortSignal
+    signal: AbortSignal,
+    RequestClass: typeof NextRequest = NextRequest
   ): NextRequest {
     // HEAD and GET requests can not have a body.
     let body: BodyInit | null = null
@@ -104,7 +105,7 @@ export class NextRequestAdapter {
       }
     }
 
-    return new NextRequest(url, {
+    return new RequestClass(url, {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       duplex: 'half',
