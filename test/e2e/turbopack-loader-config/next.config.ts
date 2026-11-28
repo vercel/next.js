@@ -4,8 +4,14 @@ export default {
       // an empty condition should match
       'foo.js': {
         condition: {},
-        // use the shorthand syntax
-        loaders: ['./webpack-loader-replace-with-stub.cjs'],
+        loaders: [
+          // use the shorthand syntax
+          './webpack-loader-replace-with-stub.cjs',
+          {
+            loader: './webpack-loader-replace-with-stub.cjs',
+            options: { returnValue: 'untransformed intermediate value' },
+          },
+        ],
       },
       'bar.js': [
         // this condition should not match
