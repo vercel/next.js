@@ -31,11 +31,17 @@ type GlobalWithLocalSpanRecorder = typeof globalThis & {
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
 function getLocalSpanRecorder() {
-  if (process.env.__NEXT_DEV_SERVER) {
-    return (globalThis as GlobalWithLocalSpanRecorder)[LOCAL_SPAN_RECORDER_KEY]
-  } else {
-    return undefined
+  // Only the dev server registers a recorder. Look for it before reading
+  // `process.env`: this runs for every `trace()` call, and in the unbundled
+  // server the variable is not inlined, so reading it is a call into Node.js
+  // that costs far more than a property lookup.
+  const recorder = (globalThis as GlobalWithLocalSpanRecorder)[
+    LOCAL_SPAN_RECORDER_KEY
+  ]
+  if (recorder !== undefined && process.env.__NEXT_DEV_SERVER) {
+    return recorder
   }
+  return undefined
 }
 
 // we want to allow users to use their own version of @opentelemetry/api if they
