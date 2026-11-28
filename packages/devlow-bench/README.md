@@ -5,7 +5,7 @@ DEVeloper workfLOW BENCHmarking tool
 ## Installation
 
 ```bash
-npm install devlow-bench
+npm install @vercel/devlow-bench
 ```
 
 ## Usage
@@ -47,7 +47,7 @@ writing `run` explicitly. Its options include:
 A scenario file is similar to a test case file. It can contain one or multiple scenarios by using the `describe()` method to define them.
 
 ```js
-import { describe } from 'devlow-bench'
+import { describe } from '@vercel/devlow-bench'
 
 describe(
   'my scenario',
@@ -75,7 +75,7 @@ The `props` object can contain any number of properties. The key is the name of 
 ### Example
 
 ```js
-import { describe } from 'devlow-bench'
+import { describe } from '@vercel/devlow-bench'
 
 describe(
   'my scenario',
@@ -100,7 +100,7 @@ describe(
 ## Reporting measurements
 
 ```js
-import { measureTime, reportMeasurement } from 'devlow-bench'
+import { measureTime, reportMeasurement } from '@vercel/devlow-bench'
 
 // Measure a time
 await measureTime('name of the timing', {
@@ -121,10 +121,10 @@ Options:
 
 ## Browser operations
 
-The `devlow-bench` package provides a few helper functions to run operations in the browser.
+The `@vercel/devlow-bench` package provides a few helper functions to run operations in the browser.
 
 ```js
-import { newBrowserSession } from 'devlow-bench/browser'
+import { newBrowserSession } from '@vercel/devlow-bench/browser'
 
 const session = await newBrowserSession({
   // options
@@ -141,45 +141,44 @@ Run with `HEADLESS=false` to show the actual browser window.
 
 ## Shell operations
 
-The `devlow-bench` package provides a few helper functions to run operations in the shell.
+The `@vercel/devlow-bench` package provides a few helper functions to run operations in the shell.
 
 ```js
-import { command } from 'devlow-bench/shell';
+import { command } from '@vercel/devlow-bench/shell'
 
-const shell = await command("pnpm", ["run", "build"], {
-  env: { /* optional env vars */ }
-  cwd: "/optional/path/to/directory"
-});
+const shell = command('pnpm', ['run', 'build'], {
+  cwd: process.cwd(),
+})
 
 // Wait for successful exit
-await shell.ok();
+await shell.ok()
 
 // Wait for exit
-const exitCode = await shell.end();
+const exitCode = await shell.end()
 
 // Wait for specific output
-const [match, world] = await shell.waitForOutput(/hello (world)/);
+const [match, world] = await shell.waitForOutput(/hello (world)/)
 
 // Report memory usage or the process tree as metric
-await shell.reportMemUsage("metric name", { /* optional options */ });
+await shell.reportMemUsage('metric name', {
+  /* optional options */
+})
 
-shell.stdout, shell.stderr
-
-// merged output
-shell.output
+// Captured stdout, stderr, and merged output are available as
+// shell.stdout, shell.stderr, and shell.output.
 
 // Kill the process tree
-await shell.kill();
+await shell.kill()
 ```
 
 Run with `SHELL_OUTPUT=1` to show the output of the shell commands.
 
 ## File operations
 
-The `devlow-bench` package provides a few helper functions to run operations on the file system.
+The `@vercel/devlow-bench` package provides a few helper functions to run operations on the file system.
 
 ```js
-import { waitForFile } from 'devlow-bench/file'
+import { waitForFile } from '@vercel/devlow-bench/file'
 
 // wait for file to exist
 await waitForFile('/path/to/file', /* timeout = */ 30000)
