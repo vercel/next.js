@@ -406,15 +406,36 @@ Now, let’s create the Server Actions which this file calls.
 
 ### 3. Implementing Server Actions
 
-Create a new file to contain your actions at `app/actions.ts`. This file will handle creating subscriptions, deleting subscriptions, and sending notifications.
+Install `web-push` in your project:
+
+```bash package="pnpm"
+pnpm add web-push
+```
+
+```bash package="npm"
+npm install web-push
+```
+
+```bash package="yarn"
+yarn add web-push
+```
+
+```bash package="bun"
+bun add web-push
+```
+
+If you're using TypeScript, also install `@types/web-push` as a development dependency.
+
+Create the Server Actions in `app/actions.ts` or `app/actions.js`. Replace `your-email@example.com` with your contact address and set the VAPID keys from [step 4](#4-generating-vapid-keys).
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-import webpush from 'web-push'
+import { sendNotification as sendWebPush, setVapidDetails } from 'web-push'
+import type { PushSubscription } from 'web-push'
 
-webpush.setVapidDetails(
-  '<mailto:your-email@example.com>',
+setVapidDetails(
+  'mailto:your-email@example.com',
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
   process.env.VAPID_PRIVATE_KEY!
 )
@@ -441,7 +462,7 @@ export async function sendNotification(message: string) {
   }
 
   try {
-    await webpush.sendNotification(
+    await sendWebPush(
       subscription,
       JSON.stringify({
         title: 'Test Notification',
@@ -460,10 +481,10 @@ export async function sendNotification(message: string) {
 ```jsx filename="app/actions.js" switcher
 'use server'
 
-import webpush from 'web-push'
+import { sendNotification as sendWebPush, setVapidDetails } from 'web-push'
 
-webpush.setVapidDetails(
-  '<mailto:your-email@example.com>',
+setVapidDetails(
+  'mailto:your-email@example.com',
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 )
@@ -490,7 +511,7 @@ export async function sendNotification(message) {
   }
 
   try {
-    await webpush.sendNotification(
+    await sendWebPush(
       subscription,
       JSON.stringify({
         title: 'Test Notification',
@@ -512,30 +533,22 @@ In a production environment, you would want to store the subscription in a datab
 
 ### 4. Generating VAPID Keys
 
-To use the Web Push API, you need to generate [VAPID](https://vapidkeys.com/) keys. The simplest way is to use the web-push CLI directly:
-
-First, install web-push globally:
+Generate [VAPID](https://vapidkeys.com/) keys with the CLI included in the `web-push` package:
 
 ```bash package="pnpm"
-pnpm add -g web-push
+pnpm exec web-push generate-vapid-keys
 ```
 
 ```bash package="npm"
-npm install -g web-push
+npx web-push generate-vapid-keys
 ```
 
 ```bash package="yarn"
-yarn global add web-push
+yarn web-push generate-vapid-keys
 ```
 
 ```bash package="bun"
-bun add -g web-push
-```
-
-Generate the VAPID keys by running:
-
-```bash filename="Terminal"
-web-push generate-vapid-keys
+bunx web-push generate-vapid-keys
 ```
 
 Copy the output and paste the keys into your `.env` file:
