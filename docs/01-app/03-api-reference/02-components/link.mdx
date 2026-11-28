@@ -1370,6 +1370,37 @@ export default function Page() {
 
 When a user tries to navigate away using `CustomLink` while the form has unsaved changes, they'll be prompted to confirm before leaving.
 
+### Linking to Route Handlers and downloads
+
+`<Link>` assumes `href` points to a page. When it points to a [Route Handler](/docs/app/api-reference/file-conventions/route) instead, Next.js may request the URL during [prefetching](#prefetch) and before navigating on click, which runs the handler. For file downloads, this can run the handler more than once. For handlers with side-effects, such as logging out, the side-effect can happen before the user clicks.
+
+Use a plain `<a>` element for Route Handlers, file downloads, and other URLs that aren't pages:
+
+```tsx filename="app/page.tsx" switcher
+export default function Page() {
+  return (
+    <a href="/reports/export" download>
+      Download CSV
+    </a>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default function Page() {
+  return (
+    <a href="/reports/export" download>
+      Download CSV
+    </a>
+  )
+}
+```
+
+> **Good to know**:
+>
+> - If a `<Link>` has the `download` attribute, clicking it skips client-side navigation and lets the browser download the file.
+> - Route Handlers for `GET` requests should be safe to run at any time. Use a `POST` request, such as a [Server Action](/docs/app/getting-started/mutating-data) called from a form, for actions like logging out.
+
 </AppOnly>
 
 ## Version history
