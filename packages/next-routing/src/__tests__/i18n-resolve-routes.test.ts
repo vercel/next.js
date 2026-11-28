@@ -297,6 +297,31 @@ describe('resolveRoutes with i18n', () => {
       expect(result.redirect?.url.pathname).toBe('/base/ja/')
     })
 
+    it('should resolve dynamic api routes with basePath when the regex has a locale group', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        basePath: '/base',
+        url: new URL('http://example.com/base/api/users/123'),
+        headers: new Headers({}),
+        pathnames: ['/base/api/users/[id]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^\\/base[/]?(?<nextLocale>[^/]{1,})/api/users/(?<id>[^/]+?)(?:/)?$',
+              destination: '/base/$nextLocale/api/users/[id]?id=$id',
+            },
+          ],
+        },
+        i18n: i18nConfigNoDomains,
+      })
+
+      expect(result.redirect).toBeUndefined()
+      expect(result.resolvedPathname).toBe('/base/api/users/[id]')
+      expect(result.routeMatches).toMatchObject({ id: '123' })
+    })
+
     it('should handle basePath with domain redirect', async () => {
       const result = await resolveRoutes({
         ...baseParams,
@@ -403,6 +428,33 @@ describe('resolveRoutes with i18n', () => {
         '1': '123',
         id: '123',
       })
+    })
+
+    it('should resolve dynamic api routes when the regex has a locale group', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/api/users/123'),
+        headers: new Headers({
+          'accept-language': 'ja',
+          cookie: 'NEXT_LOCALE=de',
+        }),
+        pathnames: ['/api/users/[id]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})/api/users/(?<id>[^/]+?)(?:/)?$',
+              destination: '/$nextLocale/api/users/[id]?id=$id',
+            },
+          ],
+        },
+        i18n: i18nConfigNoDomains,
+      })
+
+      expect(result.redirect).toBeUndefined()
+      expect(result.resolvedPathname).toBe('/api/users/[id]')
+      expect(result.routeMatches).toMatchObject({ id: '123' })
     })
 
     it('should match non-localized dynamic templates when localized variant is absent', async () => {
