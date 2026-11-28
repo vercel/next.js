@@ -1,7 +1,0 @@
-type BlogPost implements Node {
-  content: String!
-  createdAt: DateTime!
-  id: ID! @isUnique
-  title: String!
-  updatedAt: DateTime!
-}
