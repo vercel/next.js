@@ -1,5 +1,6 @@
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { unpatchedSetImmediate } from '../../node-environment-extensions/fast-set-immediate.external'
+import { runAsIOForReactIOTracking } from './react-io-tracking'
 import type { SequentialTaskScheduler } from './types'
 
 let hasBadSetImmediate = false
@@ -94,7 +95,11 @@ export const scheduleSequentialTasks: SequentialTaskScheduler = (
       remainingImmediates[taskIndex] = null
 
       try {
-        return callback()
+        if (process.env.NODE_ENV === 'development') {
+          return runAsIOForReactIOTracking(callback)
+        } else {
+          return callback()
+        }
       } finally {
         if (taskIndex === tasks.length - 1) {
           onEnd()
