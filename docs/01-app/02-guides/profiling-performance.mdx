@@ -1,0 +1,452 @@
+---
+title: How to diagnose performance problems with React Performance Tracks
+nav_title: Profiling performance
+description: Profile a Next.js app in the Chrome Performance panel and React DevTools to find data waterfalls, slow Suspense boundaries, and blocking interactions (a React profiler workflow).
+related:
+  description: Guides for fixing the problems you find.
+  links:
+    - app/getting-started/fetching-data
+    - app/guides/streaming
+    - app/guides/interactive-apps
+---
+
+Browsers ship dev tools that measure and show what your app actually did. This guide uses the [Chrome Performance panel](https://developer.chrome.com/docs/devtools/performance/reference) and the [React Developer Tools](https://react.dev/learn/react-developer-tools) extension to profile a Next.js app and find what makes it slow.
+
+The goal is to use these tools instead of guessing from the source or scattering `console.log` timings. This guide is a how-to for finding and fixing problems by hand, and the same loop can be [automated with a skill](#automate-the-loop-with-a-skill).
+
+## The DevTools
+
+The Performance panel records a timeline of what the browser did during a session: tasks, renders, and network requests, with their start times and durations. You [record a session](https://developer.chrome.com/docs/devtools/performance/reference#record) by starting the recording, reloading the page or interacting with it, then stopping.
+
+React annotates that timeline with its own tracks: **Scheduler**, **Components**, and **Server Components**.
+
+For a reference on what the tracks, subtracks, and markers show, see [React Performance Tracks](https://react.dev/reference/dev-tools/react-performance-tracks).
+
+React DevTools also adds a **Suspense** view that marks when a `<Suspense>` boundary swaps its fallback for content. Together they show the three problems this guide covers: **sequential awaits on the server**, **content held behind a single boundary**, and **work that runs on the frame of a keystroke**.
+
+> **Good to know:** You need Chrome with the Performance panel open and the React Developer Tools extension installed. The React tracks appear in development or a profiling build (the **Server Components** track is development-only) and need no extra configuration or instrumentation.
+
+## Profiling
+
+The examples profile a small demo dashboard, one problem per step, following the same loop: record the app, read one track, recognize the pattern, apply the fix, then record again to confirm the fix worked.
+
+The demo is structured so the patterns are easy to see. Real apps bury the same patterns in more code, but the workflow is the same.
+
+Follow along with the demo: [performance-profiling-playground](https://github.com/OWNER/REPO), clone the repository, install dependencies and start the dev server.
+{/* TODO: set the demo repository URL */}
+
+### Step 1: Find a server-data waterfall
+
+In the demo, the dashboard page is a Server Component that reads three things before it renders the header:
+
+```tsx filename="app/dashboard/page.tsx"
+export default async function DashboardPage() {
+  const user = await getUser()
+  const teams = await getTeams(user.teamIds)
+  const notifications = await getNotifications(user.teamIds)
+
+  return <Header user={user} teams={teams} notifications={notifications} />
+}
+```
+
+Record a page load in the Performance panel and open the **Server Components** track. Observe the three spans: `getTeams` starts only when `getUser` resolves, and `getNotifications` only when `getTeams` does. The awaits run one after another, so the page cannot render until the last one resolves. This is a **data waterfall**.
+
+Reads that do not depend on one another could be started at the same time instead, which would cut the total down to just the slowest read.
+
+> **Good to know:** Running independent reads at the same time is concurrency, not parallelism. These reads are I/O-bound, so each `await` mostly waits on a network or database response, and a single thread can keep several requests in flight at once. They overlap their waiting instead of taking turns.
+
+The Performance panel can save the recording as JSON, where the spans carry their own start and duration, so the tracks can be read programmatically, not only on screen.
+
+<details>
+  <summary>Read the Server Components track as data</summary>
+
+In the Performance panel, **Save profile** writes the whole recording to JSON, and the bars you saw are events in it. A single read looks like this:
+
+```json
+{
+  "name": "await getTeams",
+  "cat": "blink.user_timing",
+  "ph": "b",
+  "id2": { "local": "0x7b" },
+  "ts": 486651743590,
+  "args": {
+    "detail": "{\"devtools\":{\"track\":\"Primary\",\"trackGroup\":\"Server Components ⚛\"}}"
+  }
+}
+```
+
+That is the begin (`ph: "b"`) of one span. A matching end (`ph: "e"`) with the same `id2.local` closes it, and the gap between their `ts` values (in microseconds) is its duration. The `args.detail` field, present only on the begin, names the track. These are the same three bars you saw stepping down on screen, now as values you can measure.
+
+To check the whole recording at once, pair the events and compute each duration:
+
+```js filename="parse-trace.js"
+const { traceEvents } = require('./trace.json')
+
+// Keep only the begin/end user-timing events, in time order.
+const timingEvents = traceEvents
+  .filter((event) => /user_timing/.test(event.cat || ''))
+  .filter((event) => event.ph === 'b' || event.ph === 'e')
+  .sort((a, b) => a.ts - b.ts)
+
+const openSpans = new Map()
+const spans = []
+
+for (const event of timingEvents) {
+  const key = `${event.id2?.local}|${event.name}`
+
+  // A "begin" opens a span; the matching "end" closes it.
+  if (event.ph === 'b') {
+    openSpans.set(key, event)
+    continue
+  }
+
+  const begin = openSpans.get(key)
+  if (!begin) continue
+  openSpans.delete(key)
+
+  const { trackGroup } = JSON.parse(begin.args.detail).devtools
+  spans.push({
+    name: begin.name,
+    trackGroup,
+    start: begin.ts,
+    dur: (event.ts - begin.ts) / 1000, // duration in ms
+  })
+}
+```
+
+With the spans as data, a script can flag the waterfall (two reads back to back on the same track) or hand the timings to an agent. Compare the start time of dependent work, not the raw span count: a read that resolves before a slower sibling in the same `Promise.all` never gets a span.
+
+</details>
+
+{/* TODO: screenshot, Server Components track showing the waterfall (before) */}
+
+In the demo all three reads sit in one function, so the waterfall is easy to spot in the source. In production it might look more like this: the layout awaits the user, the page awaits the teams, a nested panel awaits its own data.
+
+```txt
+app/layout.tsx              await getUser()
+  app/dashboard/page.tsx        await getTeams()
+    components/panel.tsx            await getNotifications()
+```
+
+Scattered like this, no single file shows the serialization, but the track still draws the three spans back to back.
+
+Because the other two need `user.teamIds`, `getUser` has to resolve first. But `getNotifications` and `getTeams` do not depend on each other, so run them together instead of in sequence:
+
+```tsx filename="app/dashboard/page.tsx"
+const user = await getUser()
+const [notifications, teams] = await Promise.all([
+  getNotifications(user.teamIds),
+  getTeams(user.teamIds),
+])
+```
+
+See [Parallel data fetching](/docs/app/getting-started/fetching-data#parallel-data-fetching) for the full pattern, including how to keep a real dependency in sequence.
+
+> **Good to know:** `Promise.all` rejects as a unit: one failed read fails the whole page, the same all-or-nothing risk as the sequential version. Use [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) when each read should resolve or fail on its own. A rejected `Promise.all` also does not cancel the other reads, which keep running, so abort them with an [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController) if a failure leaves the page unusable.
+
+Record again. The waterfall is gone: the reads now start together instead of one after another, so the group finishes in the time of its slowest member. The shell now finishes at `getUser` plus the slower of the two overlapping reads, not the sum of all three.
+
+{/* TODO: screenshot, Server Components track after parallelizing (after) */}
+
+Notice that after the fix the track shows `getUser` then `getTeams`, with no `getNotifications` span even though it still ran. In this app `getNotifications` finishes in 250ms while `getTeams` takes 300ms, so `getTeams` is the one holding up the render, and the span takes its name.
+
+Often the better structure is to move each read into the component that uses it, so the read starts when that component renders instead of blocking the page up front. 
+
+The demo does this for its content sections: `ActivityFeed` awaits its own data, so it can sit behind its own boundary and stream independently.
+
+```tsx filename="app/dashboard/components/activity-feed.tsx"
+export async function ActivityFeed({ teamIds }: { teamIds: string[] }) {
+  const activities = await getActivity(teamIds)
+
+  return <ActivityList activities={activities} />
+}
+```
+
+Profile as you refactor, so moving reads between components does not quietly reintroduce the waterfall.
+
+You can also start a read in the page without awaiting it and pass the unawaited promise down. Such a promise can even cross the boundary into a Client Component, read there with [`use`](https://react.dev/reference/react/use). Either way, deferring the read is what lets the rest of the page render while the data loads, which is the subject of the next step.
+
+### Step 2: Find content gated by one boundary
+
+In the demo, a single `<Suspense>` boundary wraps the whole content area of the dashboard, with three sections that load at different speeds inside it:
+
+```tsx filename="app/dashboard/page.tsx"
+return (
+  <>
+    <Header user={user} teams={teams} notifications={notifications} />
+
+    <Suspense fallback={<ContentSkeleton />}>
+      <Stats />
+      <ActivityFeed teamIds={user.teamIds} />
+      <WhoIsOnline teamIds={user.teamIds} />
+    </Suspense>
+  </>
+)
+```
+
+Open the **Suspense** view in React Developer Tools and reload this page. The panel draws each `<Suspense>` boundary and marks the point where it swaps its fallback for content. Here one boundary covers the whole area, and its reveal is a single event late on the timeline: the fallback stays until the slowest child, `WhoIsOnline` (about 1.2s), resolves. The `Stats` and `ActivityFeed` sections finish earlier, but their content does not appear, because a boundary reveals only when every child inside it is ready.
+
+The same reveal also appears on the **Scheduler** track in the Performance panel. Record both at once to line the reveal up against the rest of the timeline (network requests, hydration, other renders) and see what the fallback was waiting on.
+
+{/* TODO: screenshot, Suspense view: one late reveal (before) */}
+
+Here the boundary and its children sit in one file. In production it might look more like this: a layout wraps a region in one `<Suspense>`, and the slow read lives in a component nested deep inside it.
+
+```txt
+app/dashboard/layout.tsx
+  // one boundary, high up
+  <Suspense fallback={<Skeleton />}>
+
+  app/dashboard/page.tsx
+    // ready fast, but held back
+    <Stats />
+
+    components/who-is-online.tsx
+      // slow; gates everything above
+      await getWhoIsOnline()
+```
+
+The Suspense view shows the same single late reveal wherever the slow child lives.
+
+A boundary reveals its contents once all of its members are ready, and that is often fine. In some cases, though, more content can be revealed sooner: here `Stats` and `ActivityFeed` are ready long before `WhoIsOnline`, yet the single boundary makes them wait for it. Give each section its own boundary so it reveals as soon as its own data is ready:
+
+```tsx filename="app/dashboard/page.tsx"
+return (
+  <>
+    <Header user={user} teams={teams} notifications={notifications} />
+
+    <Suspense fallback={<StatsSkeleton />}>
+      <Stats />
+    </Suspense>
+    <Suspense fallback={<ActivitySkeleton />}>
+      <ActivityFeed teamIds={user.teamIds} />
+    </Suspense>
+    <Suspense fallback={<WhoIsOnlineSkeleton />}>
+      <WhoIsOnline teamIds={user.teamIds} />
+    </Suspense>
+  </>
+)
+```
+
+See [Parallel streaming with sibling boundaries](/docs/app/guides/streaming#parallel-streaming-with-sibling-boundaries).
+
+Reload again. The Suspense view now shows three reveal events at different times. The `Stats` and `ActivityFeed` sections paint as soon as their own data is ready, and only the `WhoIsOnline` region keeps its fallback until it resolves.
+
+Each skeleton still stands in for a whole section, its frame and its data. Push the boundary lower to show the frame right away and suspend only the data. `ActivityFeed` can render its heading and wrap just the list:
+
+```tsx filename="app/dashboard/components/activity-feed.tsx"
+export function ActivityFeed({ teamIds }: { teamIds: string[] }) {
+  return (
+    <section>
+      <h2>Recent activity</h2>
+      <Suspense fallback={<ActivityListSkeleton />}>
+        <ActivityList teamIds={teamIds} />
+      </Suspense>
+    </section>
+  )
+}
+
+async function ActivityList({ teamIds }: { teamIds: string[] }) {
+  const activities = await getActivity(teamIds)
+  // ...renders the rows
+}
+```
+
+Now the heading is on screen with the rest of the shell, and only the list streams. The page stops wrapping `ActivityFeed` in a boundary, because the boundary lives inside it.
+
+Splitting is only worth it when you can show more up front, the chrome and frames, and scope the skeleton to just the data that is still loading. Start with one boundary and push it down only as far as what you reveal still makes sense on its own. The heading reads fine without the list, but do not surface UI that means nothing until its data lands. Size each fallback to minimize layout shift.
+
+<details>
+  <summary>Nesting boundaries does not serialize them</summary>
+
+```tsx
+import { setTimeout } from 'node:timers/promises'
+
+async function RandomRoll({ delay }: { delay: number }) {
+  await setTimeout(delay) // stand-in for a slow read
+  return <pre>{Math.random().toString(36).slice(2)}</pre>
+}
+
+function Rolls() {
+  return (
+    <Suspense fallback={<p>Rolling...</p>}>
+      <RandomRoll delay={1000} />
+      <Suspense fallback={<p>Still rolling...</p>}>
+        <RandomRoll delay={2000} />
+      </Suspense>
+    </Suspense>
+  )
+}
+```
+
+Both `RandomRoll` reads start together. On the **Server Components** track they run in parallel and the pair finishes at 2s, not 3s, even though one boundary sits inside the other. A `<Suspense>` orders when its content is revealed, not when its data is fetched. Nest boundaries for a staggered reveal, not to sequence the work behind them.
+
+</details>
+
+{/* TODO: screenshot, Suspense view: three staggered reveals (after) */}
+
+The more of the page that is already there on load, the less has to stream behind a fallback at all.
+
+### Cache Components helps with both
+
+[Cache Components](/docs/app/getting-started/caching) lets one page mix static and dynamic content. In the demo the teams a user belongs to rarely change, so `getTeams` does not need to run on every request. Caching it for days is reasonable, as it almost never changes within that window, while a `cacheTag` allows an on-demand refresh when necessary:
+
+```tsx filename="lib/api.ts"
+import { cacheLife, cacheTag } from 'next/cache'
+
+async function getTeams(teamIds: string[]) {
+  'use cache'
+  cacheLife('days')
+  cacheTag('teams')
+  // served from cache until a team edit calls revalidateTag('teams')
+}
+```
+
+The same reasoning covers the other reads: cache the ones that change rarely, and keep genuinely live data dynamic. `Stats` reads `getStats`, so caching that read the same way puts `Stats` in the static shell with no fallback. `WhoIsOnline` is real-time, so you do not cache it. It keeps its `<Suspense>` boundary from the last step and streams per request:
+
+```tsx filename="app/dashboard/page.tsx"
+{/* cached: in the static shell, no fallback */}
+<Stats />                                
+<Suspense fallback={<WhoIsOnlineSkeleton />}>
+  {/* live: streams per request */}
+  <WhoIsOnline teamIds={user.teamIds} />
+</Suspense>
+```
+
+Each read you cache is one less waterfall and one less fallback at request time. That answers the tradeoff Step 2 ended on: the cached sections are part of the static shell, on the page from the first byte with no reveal, so only the live data streams. You are back to a couple of dynamic holes instead of a page full of staggered reveals, and revalidation keeps the cached parts current.
+
+> **Good to know:** In development the cache starts cold, so a `use cache` read still runs on the first render and the tracks show the waterfall.
+
+### Step 3: Catch a blocking keystroke
+
+In the demo, the `/explorer` page has a search box that filters a large list synchronously as you type. The query lives in one client component and the filtering happens in a child:
+
+```tsx filename="app/explorer/explorer.tsx"
+'use client'
+
+export function Explorer() {
+  const issues = useMemo(() => generateIssues(5000), [])
+  const [query, setQuery] = useState('')
+
+  return (
+    <>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      <Results issues={issues} query={query} />
+    </>
+  )
+}
+```
+
+```tsx filename="app/explorer/results.tsx"
+'use client'
+
+// No memo: re-renders and re-filters all 5000 rows on every keystroke.
+export function Results({ issues, query }: { issues: Issue[]; query: string }) {
+  const q = query.trim().toLowerCase()
+  const matches =
+    q === '' ? issues : issues.filter((i) => i.title.toLowerCase().includes(q))
+
+  return (
+    <ul>
+      {matches.map((issue) => (
+        <Row key={issue.id} issue={issue} />
+      ))}
+    </ul>
+  )
+}
+```
+
+Record while typing and look at the **main thread** in the Performance panel. Each keystroke produces a long task: a wide block, flagged with the red long-task corner, that runs from the input event until the next paint. The character you typed appears only after the block finishes. This is what a poor [Interaction to Next Paint (INP)](https://web.dev/articles/inp) score measures.
+
+{/* TODO: screenshot, main thread: long task per keystroke (before) */}
+
+Unlike the server and boundary problems, this one is not as easily visible on the React tracks. A controlled input's `onChange` renders synchronously inside the event, so React finishes inside that one main-thread task instead of scheduling separate work you could watch on the Scheduler track. To confirm the paint is waiting on it, line the long task up with the keystroke on the **Interactions** track: the next paint lands only after the task ends.
+
+<details>
+  <summary>Why the blocking render is quiet on the React tracks</summary>
+
+Record the renders across a single keystroke and read the per-component table. Two things stand out:
+
+- `Explorer` renders **once**, its change reason the `query` state you typed into. That part is correct.
+- The `Row`s re-render in the **thousands**, with change reason `parent` (not their own props). They re-render only because `Results` above them did.
+
+Meanwhile the Scheduler track shows a single `Update` and **no** `Cascading Update`. So this is not a cascade. It is one correct render at the top dragging a synchronous re-render of unmemoized children below it, which is why the keystroke lands as one long `EventDispatch` on the main thread.
+
+</details>
+
+This is a **blocking interaction**. Keep the typed value urgent and let the expensive filter run at a lower priority with `useDeferredValue`, passing the deferred value to the list:
+
+```tsx filename="app/explorer/explorer.tsx"
+export function Explorer() {
+  const issues = useMemo(() => generateIssues(5000), [])
+  const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+
+  return (
+    <>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      <Results issues={issues} query={deferredQuery} />
+    </>
+  )
+}
+```
+
+```tsx filename="app/explorer/results.tsx"
+// memo lets Results skip the keystroke render while deferredQuery is unchanged.
+export const Results = memo(function Results({
+  issues,
+  query,
+}: {
+  issues: Issue[]
+  query: string
+}) {
+  const q = query.trim().toLowerCase()
+  const matches =
+    q === '' ? issues : issues.filter((i) => i.title.toLowerCase().includes(q))
+  // ...renders the list
+})
+```
+
+On its own, `useDeferredValue` is not enough here. Typing updates `query`, which re-renders `Explorer` on every keystroke, and that re-renders `Results` with it, filter and all. Wrapping `Results` in [`memo`](https://react.dev/reference/react/memo) lets it skip the urgent keystroke render, because its props (`issues` and the lagging `deferredQuery`) have not changed yet. The filter then runs once `deferredQuery` catches up, as a deferred, interruptible task. You need both: `useDeferredValue` to defer the work, and `memo` to stop the keystroke render from doing it anyway.
+
+> **Good to know:** [React Compiler](https://react.dev/learn/react-compiler) adds this memoization for you. With it enabled you can drop the manual `memo` and `useMemo` and keep only `useDeferredValue`, which the compiler does not insert.
+
+Record again. The keystroke task is short (the input and its paint fit in one frame), and the filtering runs afterward as a separate, lower-priority task on the main thread.
+
+{/* TODO: screenshot, main thread: short keystroke, deferred filter (after) */}
+
+[Building interactive apps](/docs/app/guides/interactive-apps) goes deeper on keeping interactions responsive with transitions and optimistic updates.
+
+## Automate the loop with a skill
+
+The loop is mechanical: capture, read one track, spot the pattern. An agent can drive it, not just a person.
+
+[`agent-browser`](https://www.npmjs.com/package/agent-browser) drives a real Chrome with React DevTools from the command line. It runs the same captures you did by hand (start and stop a performance trace, read the Suspense boundary classifier, record a render profile) and returns them as JSON an agent can parse.
+
+This repository ships a [`next-performance-profiling`](https://github.com/vercel/next.js/tree/canary/skills/next-performance-profiling) skill that runs this loop for an agent. It builds on [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop), which opens the browser and connects to `/_next/mcp`.
+
+Loaded against a running app, the skill:
+
+1. triages with `vitals` and picks the surface that matches the symptom,
+2. captures it (a performance trace, the Suspense classifier, or a render profile),
+3. reads the result, recognizes the pattern, and proposes the fix,
+4. re-captures to confirm the shape changed.
+
+It also carries the traps that mislead a first read, learned from running it against builds with planted problems: StrictMode doubling dev renders, or a synchronous input whose blocking render looks nothing like a cascade.
+
+Point an agent at a running app with the skill loaded and it runs the same diagnosis these steps describe. For example:
+
+```txt
+Profile the /dashboard and /explorer routes for performance problems using the
+next-performance-profiling skill. For each issue, report the symptom, the track it
+appeared on, and the fix.
+```
+
+## Next steps
+
+Profiling and [Cache Components](/docs/app/getting-started/caching) pull in the same direction. The tracks tell you what to cache first: the reads that show up as the longest spans on the Server Components track are the best candidates, and caching them shrinks what the tracks have to show next time.
+
+- [Parallelize data fetching](/docs/app/getting-started/fetching-data#parallel-data-fetching)
+- [Stream content with sibling Suspense boundaries](/docs/app/guides/streaming#parallel-streaming-with-sibling-boundaries)
+- [Keep interactions responsive with transitions](/docs/app/guides/interactive-apps)
+- [Cache work out of the request path with Cache Components](/docs/app/getting-started/caching)
