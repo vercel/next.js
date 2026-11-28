@@ -1,5 +1,6 @@
 import path from '../../../shared/lib/isomorphic/path'
 import type { MetadataContext } from '../types/resolvers'
+import { parsePath } from '../../../shared/lib/router/utils/parse-path'
 
 export type MetadataBaseURL = URL | null
 
@@ -79,9 +80,10 @@ function resolveUrl(
 
   // Handle relative or absolute paths
   const pathname = metadataBase.pathname || ''
-  const joinedPath = path.posix.join(pathname, url)
+  const { pathname: urlPathname, query, hash } = parsePath(url)
+  const joinedPath = path.posix.join(pathname, urlPathname)
 
-  return new URL(joinedPath, metadataBase)
+  return new URL(joinedPath + query + hash, metadataBase)
 }
 
 // Resolve with `pathname` if `url` is a relative path.
