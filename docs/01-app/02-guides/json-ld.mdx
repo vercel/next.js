@@ -28,12 +28,9 @@ export default async function Page({ params }) {
   return (
     <section>
       {/* Add JSON-LD to your page */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
-        }}
-      />
+      <script type="application/ld+json">
+        {JSON.stringify(jsonLd).replace(/</g, '\\u003c')}
+      </script>
       {/* ... */}
     </section>
   )
