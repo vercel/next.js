@@ -56,7 +56,6 @@ import {
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
-import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -725,6 +724,7 @@ export async function handleBuildComplete({
   outputFileTracingRoot,
   adapterPath,
   appPageKeys,
+  staticMetadataFilePages,
   staticPages,
   nextVersion,
   hasStatic404,
@@ -765,6 +765,7 @@ export async function handleBuildComplete({
   prerenderManifest: PrerenderManifest
   middlewareManifest: MiddlewareManifest
   appPageKeys?: readonly string[] | undefined
+  staticMetadataFilePages: ReadonlySet<string>
   functionsConfigManifest: FunctionsConfigManifest
 }) {
   const adapterMod = interopDefault(
@@ -1348,8 +1349,9 @@ export async function handleBuildComplete({
       const staticMetadataPrerenders = new Set(
         Object.keys(prerenderManifest.routes).filter(
           (pathname) =>
-            isStaticMetadataFile(pathname) &&
-            !hasRevalidation(prerenderManifest.routes[pathname])
+            staticMetadataFilePages.has(
+              prerenderManifest.routes[pathname].srcRoute ?? pathname
+            ) && !hasRevalidation(prerenderManifest.routes[pathname])
         )
       )
 
@@ -2074,7 +2076,7 @@ export async function handleBuildComplete({
       }
 
       for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
-        if (isStaticMetadataFile(dynamicRoute)) {
+        if (staticMetadataFilePages.has(dynamicRoute)) {
           continue
         }
 
