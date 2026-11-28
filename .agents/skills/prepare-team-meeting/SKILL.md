@@ -62,10 +62,16 @@ Internal refactors still get listed and linked, but kept short.
      - `bodies/NN.md`: descriptions in chunks.
    - **Rebase-only updates are skipped:** an open or draft PR created before
      the window is left out when its commits were re-committed in the window
-     (committer date) but none was authored in it (author date). PRs updated
-     only by comments, reviews or edits are kept. Checking costs one `gh api`
-     request per open PR created before the window. A commit amended in the
-     window keeps its old author date, so it counts as a rebase too.
+     (committer date), none was authored in it (author date), and it got no
+     comment, review or review comment in the window. The check is a
+     heuristic based on dates:
+     - A commit amended in the window keeps its old author date, so an
+       amended change without discussion is skipped too.
+     - A PR with 250 or more commits (GitHub lists at most 250) or an
+       unreadable author date is kept.
+     - Checking costs one `gh api` request per open PR created before the
+       window, plus up to three per PR that looks rebased. Look at the
+       skipped list in `index.md` before writing the summary.
    - **Permissions:** `gh` needs read access to the repo's pull requests. An
      HTTP 403 means that permission is missing; get it, then re-run.
    - **Output directory:** the script never deletes anything and refuses a

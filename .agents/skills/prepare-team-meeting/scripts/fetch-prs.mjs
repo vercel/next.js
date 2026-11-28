@@ -11,9 +11,12 @@
 // so that re-running gives the same window.
 //
 // Open and draft PRs whose only update in the window was a rebase are skipped:
-// they were created before the window, and their commits were re-committed in
-// the window (committer date) but none was authored in it (author date).
-// Checking costs one `gh api` request per open PR created before the window.
+// they were created before the window, their commits were re-committed in
+// the window (committer date) but none was authored in it (author date), and
+// they got no comment, review or review comment in the window. Checking costs
+// one `gh api` request per open PR created before the window, plus three for
+// each PR that looks rebased. Dates can't tell a rebase from an amended
+// commit, which keeps its author date too.
 //
 // Then it writes:
 //
@@ -153,6 +156,9 @@ export function inWindow(iso, since, until) {
   )
 }
 
+// GitHub lists at most this many commits of a pull request.
+export const COMMITS_CAP = 250
+
 export function commitsArgs(repo, number) {
   return [
     'api',
@@ -163,10 +169,41 @@ export function commitsArgs(repo, number) {
   ]
 }
 
+// Dates of comments, reviews and review comments, one per line.
+export function activityArgs(repo, number, since) {
+  const from = `${since}T00:00:00Z`
+  return [
+    [
+      'api',
+      '--paginate',
+      `repos/${repo}/issues/${number}/comments?per_page=100&since=${from}`,
+      '--jq',
+      '.[] | .created_at, .updated_at',
+    ],
+    [
+      'api',
+      '--paginate',
+      `repos/${repo}/pulls/${number}/reviews?per_page=100`,
+      '--jq',
+      '.[] | .submitted_at // empty',
+    ],
+    [
+      'api',
+      '--paginate',
+      `repos/${repo}/pulls/${number}/comments?per_page=100&since=${from}`,
+      '--jq',
+      '.[] | .created_at, .updated_at',
+    ],
+  ]
+}
+
 // `commits` is a list of { authored, committed } ISO dates. A rebase keeps
-// the author date of each commit and only changes the committer date.
+// the author date of each commit and only changes the committer date. Keeps
+// the PR when the list may be incomplete or a date can't be read.
 export function isRebaseOnly(pr, commits, since, until) {
   if (inWindow(pr.createdAt, since, until)) return false
+  if (commits.length >= COMMITS_CAP) return false
+  if (commits.some((c) => Number.isNaN(Date.parse(c.authored)))) return false
   return (
     commits.some((c) => inWindow(c.committed, since, until)) &&
     !commits.some((c) => inWindow(c.authored, since, until))
@@ -221,9 +258,18 @@ export function collectPrs(args, runGh) {
           return { authored, committed }
         })
       if (isRebaseOnly(pr, commits, args.since, args.until)) {
-        const { body, hasNumbers, ...rest } = entry
-        skipped.push({ ...rest, reason: 'rebase only' })
-        continue
+        const discussed = activityArgs(args.repo, pr.number, args.since).some(
+          (ghArgs) =>
+            runGh(ghArgs)
+              .split('\n')
+              .filter(Boolean)
+              .some((date) => inWindow(date, args.since, args.until))
+        )
+        if (!discussed) {
+          const { body, hasNumbers, ...rest } = entry
+          skipped.push({ ...rest, reason: 'rebase only' })
+          continue
+        }
       }
     }
     prs.push(entry)

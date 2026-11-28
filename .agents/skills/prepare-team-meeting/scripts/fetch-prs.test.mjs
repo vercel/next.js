@@ -8,7 +8,9 @@ import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
+  COMMITS_CAP,
   SEARCH_CAP,
+  activityArgs,
   collectPrs,
   commitsArgs,
   inWindow,
@@ -53,14 +55,29 @@ function pr(number, author, extra = {}) {
 }
 
 // A fake `gh`: search results by "<author> <merged|open>", commit dates by PR
-// number as [authored, committed] pairs. Records every call.
-function fakeGh(searches, commits = {}) {
+// number as [authored, committed] pairs, and comment / review dates by
+// "<kind> <number>" with kind issue-comments, reviews or review-comments.
+// Records every call.
+function fakeGh(searches, commits = {}, activity = {}) {
   const calls = []
   const run = (ghArgs) => {
     if (ghArgs[0] === 'api') {
-      const number = Number(ghArgs[2].match(/pulls\/(\d+)\//)[1])
-      calls.push(`commits ${number}`)
-      return (commits[number] ?? []).map((c) => c.join('\t') + '\n').join('')
+      const [, kind, number, what] = ghArgs[2].match(
+        /repos\/[^/]+\/[^/]+\/(pulls|issues)\/(\d+)\/(\w+)/
+      )
+      const key =
+        what === 'commits'
+          ? 'commits'
+          : what === 'reviews'
+            ? 'reviews'
+            : kind === 'issues'
+              ? 'issue-comments'
+              : 'review-comments'
+      calls.push(`${key} ${number}`)
+      if (key === 'commits') {
+        return (commits[number] ?? []).map((c) => c.join('\t') + '\n').join('')
+      }
+      return (activity[`${key} ${number}`] ?? []).map((d) => d + '\n').join('')
     }
     const author = ghArgs[ghArgs.indexOf('--author') + 1]
     const kind = ghArgs.includes('--merged-at') ? 'merged' : 'open'
@@ -191,6 +208,27 @@ test('isRebaseOnly: only re-committed, never authored in the window', () => {
   assert.ok(!isRebaseOnly(old, [c(before, before)], ...w))
   // Created in the window.
   assert.ok(!isRebaseOnly({ createdAt: during }, [c(before, during)], ...w))
+  // GitHub lists at most COMMITS_CAP commits, so newer ones may be missing.
+  const capped = Array.from({ length: COMMITS_CAP }, () => c(before, during))
+  assert.ok(!isRebaseOnly(old, capped, ...w))
+  assert.ok(isRebaseOnly(old, capped.slice(1), ...w))
+  // An unreadable author date can't prove that nothing new was authored.
+  assert.ok(!isRebaseOnly(old, [c(before, during), c('', during)], ...w))
+  assert.ok(!isRebaseOnly(old, [c('garbage', during)], ...w))
+})
+
+test('activityArgs: comments, reviews and review comments of one PR', () => {
+  const [issue, reviews, review] = activityArgs('o/r', 12, '2026-11-10')
+  assert.equal(
+    issue[2],
+    'repos/o/r/issues/12/comments?per_page=100&since=2026-11-10T00:00:00Z'
+  )
+  assert.equal(reviews[2], 'repos/o/r/pulls/12/reviews?per_page=100')
+  assert.equal(
+    review[2],
+    'repos/o/r/pulls/12/comments?per_page=100&since=2026-11-10T00:00:00Z'
+  )
+  for (const a of [issue, reviews, review]) assert.equal(a[1], '--paginate')
 })
 
 test('collectPrs: skips open PRs whose only update was a rebase', () => {
@@ -201,6 +239,8 @@ test('collectPrs: skips open PRs whose only update was a rebase', () => {
   const old = { createdAt: '2026-10-01T00:00:00Z' }
   const before = '2026-10-02T00:00:00Z'
   const during = '2026-11-15T00:00:00Z'
+  const after = '2026-11-20T00:00:00Z'
+  const rebased = [[before, during]]
   const gh = fakeGh(
     {
       'a merged': [pr(1, 'a', old)],
@@ -209,25 +249,58 @@ test('collectPrs: skips open PRs whose only update was a rebase', () => {
         pr(3, 'a', { ...old, isDraft: true }),
         pr(4, 'a', old),
         pr(5, 'a'),
+        pr(6, 'a', old),
+        pr(7, 'a', old),
+        pr(8, 'a', { ...old, isDraft: true }),
+        pr(9, 'a', old),
       ],
     },
     {
-      2: [[before, during]],
+      2: rebased,
       3: [
         [before, during],
         [during, during],
       ],
       4: [[before, before]],
+      6: rebased,
+      7: rebased,
+      8: rebased,
+      9: rebased,
+    },
+    {
+      // Comments edited after the window and older reviews don't count.
+      'issue-comments 2': [before, after],
+      'reviews 2': [before],
+      'reviews 6': [during],
+      'review-comments 7': [during, during],
+      'issue-comments 9': [during],
     }
   )
   const { prs, skipped } = collectPrs(args, gh.run)
-  // Merged PRs and PRs created in the window need no commit check.
+  // Merged PRs and PRs created in the window need no commit check, and only
+  // rebased PRs need the activity checks, which stop at the first match.
   assert.deepEqual(gh.calls, [
     'a merged',
     'a open',
     'commits 2',
+    'issue-comments 2',
+    'reviews 2',
+    'review-comments 2',
     'commits 3',
     'commits 4',
+    'commits 6',
+    'issue-comments 6',
+    'reviews 6',
+    'commits 7',
+    'issue-comments 7',
+    'reviews 7',
+    'review-comments 7',
+    'commits 8',
+    'issue-comments 8',
+    'reviews 8',
+    'review-comments 8',
+    'commits 9',
+    'issue-comments 9',
   ])
   assert.deepEqual(
     prs.map((p) => [p.number, p.status]),
@@ -236,15 +309,27 @@ test('collectPrs: skips open PRs whose only update was a rebase', () => {
       [3, 'draft'],
       [4, 'open'],
       [5, 'open'],
+      [6, 'open'],
+      [7, 'open'],
+      [9, 'open'],
     ]
   )
+  const url = (n) => `https://github.com/vercel/next.js/pull/${n}`
   assert.deepEqual(skipped, [
     {
       number: 2,
-      url: 'https://github.com/vercel/next.js/pull/2',
+      url: url(2),
       title: 'PR 2',
       author: 'a',
       status: 'open',
+      reason: 'rebase only',
+    },
+    {
+      number: 8,
+      url: url(8),
+      title: 'PR 8',
+      author: 'a',
+      status: 'draft',
       reason: 'rebase only',
     },
   ])
