@@ -113,6 +113,25 @@ async function findTarballInDir(dir) {
 }
 
 /**
+ * Requires package names to remain literal URL path components. This checks
+ * the preview path shape, not npm registry naming policy.
+ *
+ * @param {string} packageName
+ */
+function assertValidPackageName(packageName) {
+  const name = packageName.slice(packageName.lastIndexOf('/') + 1)
+  if (
+    !/^(?:@[A-Za-z0-9._~-]+\/)?[A-Za-z0-9._~-]+$/.test(packageName) ||
+    name === '.' ||
+    name === '..'
+  ) {
+    throw new Error(
+      `Invalid preview package name: ${JSON.stringify(packageName)}`
+    )
+  }
+}
+
+/**
  * Formats the diagnostics of a failed response for an error message: all
  * response headers (including `x-vercel-id` on the authorize request) plus a
  * snippet of the response body.
@@ -270,6 +289,7 @@ async function main() {
     tarballDirectory
   )) {
     try {
+      assertValidPackageName(packageName)
       const downloadUrl = await withRetry(`Upload of ${packageName}`, () =>
         uploadPackageTarball({
           baseUrl,
