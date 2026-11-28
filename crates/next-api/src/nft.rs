@@ -376,11 +376,52 @@ pub async fn traced_modules_for_entries(
         false,
     )?;
 
+/// Pure `path.*` string ops (`join`, `resolve`, `dirname`, ...) never touch
+/// the disk. Warning on them (e.g. `path.resolve` inside a containment
+/// check like `path.dirname(path.resolve(t)) !== path.resolve(dir)`) is a
+/// false positive; only the actual filesystem call (`readFile`, `writeFile`,
+/// `readdir`, `unlink`, ...) should warn.
+fn is_pure_path_origin(origin_fn_name: Option<&RcStr>) -> bool {
+    const PURE_FNS: &[&str] = &[
+        "join",
+        "resolve",
+        "dirname",
+        "normalize",
+        "relative",
+        "basename",
+        "extname",
+        "parse",
+        "format",
+        "isAbsolute",
+        "toNamespacedPath",
+        "sep",
+        "delimiter",
+        "posix",
+        "win32",
+    ];
+    match origin_fn_name.map(|s| s.as_str()) {
+        Some(full) => {
+            // Handles `path.join`, `path.posix.join`, `join`, etc.
+            let base = full.rsplit('.').next().unwrap_or(full);
+            base == "pathToFileURL"
+                || base == "fileURLToPath"
+                || PURE_FNS.contains(&base)
+        }
+        None => false,
+    }
+}
+
     for (parent, reference) in forbidden_issues {
         let reference = reference.into_trait_ref().await?;
         let source = reference.source();
         let origin_fn_name = TraitRef::try_downcast::<Box<dyn DynamicTraceReference>>(reference)
             .map(|traced| traced.origin_fn_name());
+        // Skip pure path arithmetic: it only builds strings. The real
+        // filesystem access (if any) will emit its own warning with the fs
+        // function name, avoiding per-call noise on containment checks.
+        if is_pure_path_origin(origin_fn_name.as_ref()) {
+            continue;
+        }
         ForbiddenTracedFileIssue::new(parent.ident().await?.path.clone(), source, origin_fn_name)
             .to_resolved()
             .await?
