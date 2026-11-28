@@ -52,6 +52,31 @@ func restoreHopHeaders(out, in http.Header) {
 	}
 }
 
+// keepHopHeaders returns the response headers Go's proxy is about to remove
+// and Node passes on to the client: hopHeaders and the headers Connection
+// names, but not Connection itself. The caller puts them back once the proxy
+// has removed them; Go's server writes each as is.
+func keepHopHeaders(h http.Header) http.Header {
+	var kept http.Header
+	keep := func(name string) {
+		values, ok := h[name]
+		if !ok || name == "Connection" || name == "Transfer-Encoding" || name == "Trailer" {
+			return
+		}
+		if kept == nil {
+			kept = http.Header{}
+		}
+		kept[name] = values
+	}
+	for _, name := range hopHeaders {
+		keep(name)
+	}
+	for _, name := range connectionNames(h) {
+		keep(name)
+	}
+	return kept
+}
+
 // nodeHeaderBytes counts header bytes the way Node's HTTP parser does
 // (TrackHeader in Node's src/node_http_parser.cc): the variable part of the
 // first line (a request's URL, a response's reason phrase) plus every

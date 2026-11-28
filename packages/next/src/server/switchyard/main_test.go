@@ -317,6 +317,27 @@ func TestAddsNoContentTypeNodeDidNotSend(t *testing.T) {
 	}
 }
 
+func TestPassesOnHopByHopHeadersNodeSends(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Proxy-Authenticate", `Basic realm="shop"`)
+		w.Header().Set("Upgrade", "example/2")
+		w.Header().Set("Connection", "X-Listed")
+		w.Header().Set("X-Listed", "listed")
+		w.WriteHeader(http.StatusUpgradeRequired)
+	})
+	res := rawRoundTrip(t, addr, get("/"))
+	want := map[string]string{
+		"Proxy-Authenticate": `Basic realm="shop"`,
+		"Upgrade":            "example/2",
+		"X-Listed":           "listed",
+	}
+	for name, value := range want {
+		if got := res.Header.Get(name); got != value {
+			t.Errorf("%s = %q, want %q", name, got, value)
+		}
+	}
+}
+
 func TestAddsNoDateNodeDidNotSend(t *testing.T) {
 	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 		// What Node sends when the app sets res.sendDate = false.
