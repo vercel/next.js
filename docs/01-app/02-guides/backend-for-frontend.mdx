@@ -378,6 +378,12 @@ export async function POST(request) {
 }
 ```
 
+### Rendering UI after a POST request
+
+An App Router `page.tsx` does not receive the incoming `Request` object or its POST body. Use a [Server Action](/docs/app/getting-started/mutating-data) when a form submission should run server-side logic and return updated UI, or use a Route Handler when you need to own an HTTP method and read `request.formData()`, `request.json()`, or `request.text()`. A `page.tsx` and `route.ts` cannot serve the same route segment.
+
+If a multi-step flow must keep submitted fields out of the URL and navigate to a different server-rendered page, store the values in server-side state and redirect using an opaque, short-lived identifier. A short-lived `HttpOnly`, `Secure`, `SameSite` cookie may also suit some flows, but account for cookie size limits and CSRF protections. Avoid putting personal data in query parameters.
+
 ## Manipulating data
 
 Route Handlers can transform, filter, and aggregate data from one or more sources. This keeps logic out of the frontend and avoids exposing internal systems.
