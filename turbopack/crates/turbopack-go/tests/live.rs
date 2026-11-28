@@ -2314,5 +2314,6 @@ fn framework_filesystem(path: RcStr) -> Vc<DiskFileSystem> {
         vec![rcstr!(".next")],
         DiskWatcherConfig::default(),
         DiskFileSystemMap::empty(),
+        None,
     )
 }

@@ -23,6 +23,8 @@ verify_determinism = []
 # Off by default: the counters sit on the read-miss path, so a build that doesn't want the numbers
 # shouldn't pay for them. With the feature off there are no counters and no atomics at all.
 inline_execution_stats = []
+# Pause points inside effect publication, for deterministic interleaving tests only.
+publication_test_hooks = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.

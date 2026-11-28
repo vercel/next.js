@@ -444,6 +444,7 @@ fn disk_filesystem(path: RcStr, poll_interval_ms: Option<u64>) -> Vc<DiskFileSys
             ..Default::default()
         },
         DiskFileSystemMap::empty(),
+        None,
     )
 }
 

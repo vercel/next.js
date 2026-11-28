@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
+    Completion, Effects, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
     duration_span, parallel::available_parallelism,
-    resolve_strongly_consistent_and_take_and_apply_effects,
+    read_strongly_consistent_and_apply_effects_in_task, take_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -307,25 +307,45 @@ async fn emit_evaluate_pool_assets_operation(
     .cell())
 }
 
+#[turbo_tasks::value(serialization = "skip")]
+struct EmittedEvaluatePoolAssetsWithEffects {
+    assets: ResolvedVc<EmittedEvaluatePoolAssets>,
+    effects: Effects,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn emit_evaluate_pool_assets_with_effects_operation(
+    entries: ResolvedVc<EvaluateEntries>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
+    let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
+    // Collectibles are only stable after a strongly consistent read of their source.
+    let assets = operation.resolve().strongly_consistent().await?;
+    let effects = take_effects(operation).await?;
+    Ok(EmittedEvaluatePoolAssetsWithEffects { assets, effects }.cell())
+}
+
 #[turbo_tasks::function(operation, root, session_dependent)]
 async fn create_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
-    let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
-    // Apply the effects here (inside this producing task) via the bounded-retry helper, draining
-    // them from the nested emit operation. Returning the serializable `EmittedEvaluatePoolAssets`
-    // (rather than a `serialization = "skip"` wrapper carrying the effects) keeps this task's
-    // output restorable from the persistent cache, so a warm restart does not re-run the
-    // effect-producing tasks.
+    let operation =
+        emit_evaluate_pool_assets_with_effects_operation(entries, chunking_context, module_graph);
+    // Publish the effects here (inside this producing task), with the same protocol as top-level
+    // publication. Returning the serializable `EmittedEvaluatePoolAssets` (rather than the
+    // `serialization = "skip"` wrapper carrying the effects) keeps this task's output restorable
+    // from the persistent cache, so a warm restart does not re-run the effect-producing tasks.
     //
     // HACK: applying effects from inside a task means they may get re-applied if this task is
     // invalidated. That's acceptable because the pool is created lazily; we can't move the
     // apply to a true top-level task without eagerly reading the operation.
-    let assets = resolve_strongly_consistent_and_take_and_apply_effects(operation).await?;
+    let emitted =
+        read_strongly_consistent_and_apply_effects_in_task(operation, |v| &v.effects).await?;
 
-    Ok(*assets)
+    Ok(*emitted.assets)
 }
 
 #[turbo_tasks::task_input]

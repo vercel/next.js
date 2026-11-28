@@ -33,6 +33,11 @@ pub struct Invalidator {
 }
 
 impl Invalidator {
+    /// The id of the task this invalidator invalidates.
+    pub fn task_id(&self) -> TaskId {
+        self.task
+    }
+
     pub fn invalidate(self, turbo_tasks: &dyn TurboTasksApi) {
         turbo_tasks.invalidate(self.task);
     }

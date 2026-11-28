@@ -83,11 +83,11 @@ impl Effect for TestEffect {
         // matching our hash, elide content materialization (`content = false`). Otherwise
         // bump the captures-with-content counter (the test's stand-in for a `ReadRef` /
         // disk-read at this point).
-        let content = if self
-            .shared
-            .state_storage
-            .matches_applied(self.key.as_bytes(), self.value_hash)
-        {
+        let content = if self.shared.state_storage.matches_applied(
+            self.key.as_bytes(),
+            TEST_EFFECT,
+            self.value_hash,
+        ) {
             false
         } else {
             self.shared
@@ -103,6 +103,8 @@ impl Effect for TestEffect {
         }) as Box<dyn CapturedEffect>)
     }
 }
+
+const TEST_EFFECT: &str = "test";
 
 // Post-capture effect — session-only plain struct.
 #[derive(NonLocalValue)]
@@ -125,6 +127,14 @@ impl CapturedEffect for TestEffectCaptured {
         self.value_hash
     }
 
+    fn state_storage(&self) -> &EffectStateStorage {
+        &self.shared.state_storage
+    }
+
+    fn kind(&self) -> &'static str {
+        TEST_EFFECT
+    }
+
     async fn apply(&self) -> Result<(), ApplyError> {
         let body = if self.content {
             Some(async || {
@@ -142,7 +152,7 @@ impl CapturedEffect for TestEffectCaptured {
         };
         self.shared
             .state_storage
-            .run_apply::<TestError, _, _>(self.key(), self.value_hash, body)
+            .run_apply::<TestError, _, _>(self.key(), self.kind(), self.value_hash, body)
             .await
     }
 }
@@ -800,6 +810,16 @@ impl CapturedEffect for ProbeEffectCaptured {
 
     fn value_hash(&self) -> u128 {
         0
+    }
+
+    fn state_storage(&self) -> &EffectStateStorage {
+        static STORAGE: std::sync::LazyLock<EffectStateStorage> =
+            std::sync::LazyLock::new(EffectStateStorage::default);
+        &STORAGE
+    }
+
+    fn kind(&self) -> &'static str {
+        "probe"
     }
 
     async fn apply(&self) -> Result<(), ApplyError> {
