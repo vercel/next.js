@@ -44,6 +44,10 @@ import type { TLSSocket } from 'tls'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_URL,
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 
@@ -710,6 +714,19 @@ export function getResolveRoutes(
                 overriddenHeaders.add(key.trim())
               }
               delete middlewareHeaders['x-middleware-override-headers']
+
+              // The client computed the `_rsc` search param from the header
+              // values it sent, so the hash has to be verified against those
+              // rather than against whatever the middleware sets.
+              addRequestMeta(req, 'cacheBustingSearchParamHeaders', {
+                [NEXT_ROUTER_PREFETCH_HEADER]:
+                  req.headers[NEXT_ROUTER_PREFETCH_HEADER],
+                [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
+                  req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
+                [NEXT_ROUTER_STATE_TREE_HEADER]:
+                  req.headers[NEXT_ROUTER_STATE_TREE_HEADER],
+                [NEXT_URL]: req.headers[NEXT_URL],
+              })
 
               // Delete headers.
               for (const key of Object.keys(req.headers)) {
