@@ -69,7 +69,10 @@ import {
 } from '../../shared/lib/server-reference-info'
 import type { ServerActionLogInfo } from '../dev/server-action-logger'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
-import { synchronizeMutableCookies } from '../async-storage/request-store'
+import {
+  getMiddlewareCookies,
+  synchronizeMutableCookies,
+} from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -690,6 +693,14 @@ export async function handleAction({
       // This is an MPA action, so we return null
       return null
     }
+  }
+
+  // When Proxy changed cookies on this request, the page that the client has
+  // was rendered with the old cookies. Revalidate it as if the action had set
+  // the cookies itself.
+  const didProxySetCookies = getMiddlewareCookies(req.headers).length > 0
+  if (didProxySetCookies) {
+    workStore.pathWasRevalidated = ActionDidRevalidateStaticAndDynamic
   }
 
   // If the app has no server actions at all, we can reject the request early.

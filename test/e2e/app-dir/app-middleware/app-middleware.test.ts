@@ -204,6 +204,37 @@ describe('app-dir with middleware', () => {
     }
   )
 
+  it.each(['/rsc-cookies-route', '/rsc-cookies-route-edge'])(
+    'should prefer middleware cookies over request cookies in the route handler %s',
+    async (pathname) => {
+      const requestCookieHeader =
+        'rsc-cookie-value-1=from-request; other-cookie=preserved'
+      const res = await next.fetch(pathname, {
+        headers: { cookie: requestCookieHeader },
+      })
+      expect(res.status).toBe(200)
+
+      const setCookie = res.headers.get('set-cookie')
+      const cookie1 = setCookie.match(/rsc-cookie-value-1=([^;]+)/)[1]
+      const cookie2 = setCookie.match(/rsc-cookie-value-2=([^;]+)/)[1]
+      expect(cookie1).toMatch(/^\d+\.\d+$/)
+      expect(cookie2).toMatch(/^\d+\.\d+$/)
+
+      expect(await res.json()).toEqual({
+        cookie1,
+        cookie2,
+        otherCookie: 'preserved',
+        cookieCount: 3,
+        // The request itself keeps the cookies the client sent.
+        requestCookieHeader,
+      })
+
+      // The route handler doesn't send the middleware cookies a second time.
+      expect(setCookie.match(/rsc-cookie-value-1=/g)).toHaveLength(1)
+      expect(setCookie.match(/rsc-cookie-value-2=/g)).toHaveLength(1)
+    }
+  )
+
   it('should respect cookie options of merged middleware cookies', async () => {
     const browser = await next.browser('/rsc-cookies/cookie-options')
 
@@ -277,8 +308,14 @@ describe('app-dir with middleware', () => {
     await browser.elementById('submit-server-action').click()
 
     await retry(async () => {
-      expect(await browser.elementById('action-result').text()).toMatch(
-        /Action Result: \d+\.\d+/
+      const actionResult = await browser.elementById('action-result').text()
+      expect(actionResult).toMatch(/Action Result: \d+\.\d+/)
+
+      // Middleware changed the cookies, so the action revalidates the page,
+      // which re-renders with the cookie value that the action read.
+      const cookie1 = actionResult.replace('Action Result: ', '')
+      expect(await browser.elementById('rsc-cookie-1').text()).toBe(
+        `Cookie 1: ${cookie1}`
       )
     })
 
