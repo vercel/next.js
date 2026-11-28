@@ -21,8 +21,11 @@ export function getFontAxes(
   // If only normal is set, we can skip returning the ital axis as normal is the default
   const ital = hasItalic ? [...(hasNormal ? ['0'] : []), '1'] : undefined
 
-  // Weights will always contain one element if it's a variable font
-  if (weights[0] === 'variable') {
+  const isVariableWeight = weights[0] === 'variable'
+
+  // Weights will always contain one element if it's a variable font.
+  // Selected variable axes can also be combined with discrete weights.
+  if (isVariableWeight || selectedVariableAxes) {
     // Get all the available axes for the current font from the metadata file
     const allAxes = googleFontsMetadata[fontFamily].axes
     if (!allAxes) {
@@ -71,7 +74,11 @@ export function getFontAxes(
     }
 
     return {
-      wght: weightAxis ? [weightAxis] : undefined,
+      wght: isVariableWeight
+        ? weightAxis
+          ? [weightAxis]
+          : undefined
+        : weights,
       ital,
       variableAxes,
     }
