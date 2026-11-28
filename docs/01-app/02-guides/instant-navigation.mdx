@@ -385,6 +385,10 @@ The example route has no `generateStaticParams`, so its product heading is outsi
 
 See the Playwright guide for [installation](/docs/app/guides/testing/playwright#installing-the-helper), [production setup](/docs/app/guides/testing/playwright#production-builds), and [search-parameter updates](/docs/app/guides/testing/playwright#search-parameter-updates).
 
+### A selection resets when the page finishes loading
+
+If a choice works at first but switches back when more content arrives, [test the client navigation with `instant()`](/docs/app/guides/testing/playwright#client-navigations). Inside the callback, follow the link, wait for the destination URL, and make a selection. Check that the page shows the value you chose. After the callback returns, wait for the remaining content to appear and check the same value again without clicking a second time.
+
 ## Fixing a navigation that blocks
 
 Consider a different route, `/products/[slug]`, that fetches product data from a public API and shows a featured list alongside:
