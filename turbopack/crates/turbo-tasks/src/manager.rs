@@ -35,8 +35,9 @@ use crate::{
     OperationVc, OutputContent, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc,
     SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
-        Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
-        TurboTasksExecutionError, TypedCellContent, VerificationMode,
+        Backend, CellContent, CellHash, DeferredCellDependencies, TaskCollectiblesMap,
+        TaskExecutionSpec, TransientTaskType, TurboTasksExecutionError, TypedCellContent,
+        VerificationMode,
     },
     capture_future::CaptureFuture,
     dyn_task_inputs::DynTaskInputsStorage,
@@ -212,6 +213,12 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     /// See [`Backend::drop_task_cell_content_hint`].
     fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId) -> Result<()>;
+
+    /// See [`Backend::begin_deferred_cell_dependencies`].
+    fn begin_deferred_cell_dependencies(&self, reader: TaskId);
+
+    /// See [`Backend::end_deferred_cell_dependencies`].
+    fn end_deferred_cell_dependencies(&self, reader: TaskId, dependencies: Vec<(TaskId, CellId)>);
 
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(
@@ -1116,6 +1123,12 @@ task_local! {
     static TURBO_TASKS: Arc<dyn TurboTasksApi>;
 
     static CURRENT_TASK_STATE: CurrentTaskStateHandle;
+
+    /// Set in futures spawned with [`spawn_in_current_task`]. Their keyless tracked cell reads
+    /// record the dependency here, and it's added to the task when the future finishes, so that
+    /// parallel reads don't all contend on the task's lock. See
+    /// [`Backend::try_read_task_cell_deferred`].
+    static DEFERRED_CELL_DEPENDENCIES: Option<Arc<DeferredCellDependencies>>;
 
     /// Temporarily suppresses the eventual consistency check in top-level tasks.
     /// This is used by strongly consistent reads to allow them to succeed in top-level tasks.
@@ -2273,6 +2286,28 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         options: ReadCellOptions,
     ) -> Result<ReadOutcome<TypedCellContent>> {
         let reader = current_task_if_available("reading Vcs");
+        if let Some(reader) = reader
+            && options.tracking == (ReadCellTracking::Tracked { key: None })
+            && let Ok(Some(result)) = DEFERRED_CELL_DEPENDENCIES.try_with(|dependencies| {
+                // A task executed inline by the spawned future sees the same task-local, but its
+                // reads aren't part of the window.
+                dependencies
+                    .as_ref()
+                    .filter(|dependencies| dependencies.reader() == reader)
+                    .map(|dependencies| {
+                        self.backend.try_read_task_cell_deferred(
+                            task,
+                            index,
+                            reader,
+                            options,
+                            dependencies,
+                            self,
+                        )
+                    })
+            })
+        {
+            return result;
+        }
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
     }
@@ -2306,6 +2341,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId) -> Result<()> {
         self.backend.drop_task_cell_content_hint(task, index, self)
+    }
+
+    fn begin_deferred_cell_dependencies(&self, reader: TaskId) {
+        self.backend.begin_deferred_cell_dependencies(reader, self)
+    }
+
+    fn end_deferred_cell_dependencies(&self, reader: TaskId, dependencies: Vec<(TaskId, CellId)>) {
+        self.backend
+            .end_deferred_cell_dependencies(reader, dependencies, self)
     }
 
     #[track_caller]
@@ -2659,33 +2703,72 @@ pub fn turbo_tasks_future_scope<T>(
 /// Use it to spread work that reads many cells over several threads, e.g. when the reads restore
 /// data from the persistent cache.
 ///
+/// Keyless cell reads in the future (plain `.await`s of a `Vc` cell) only lock the cell's task.
+/// Their dependencies are added to the current task all at once when the future finishes (see
+/// [`Backend::try_read_task_cell_deferred`]), so that futures reading in parallel don't all wait
+/// for the current task's lock. Until then, any change to a cell the current task depends on
+/// conservatively marks it as stale.
+///
 /// A panic in `future` is resumed when the [`JoinHandle`] is awaited.
 ///
 /// Must be called from within a task execution.
-pub(crate) fn spawn_in_current_task<T: Send + 'static>(
+pub fn spawn_in_current_task<T: Send + 'static>(
     future: impl Future<Output = T> + Send + 'static,
 ) -> JoinHandle<T> {
-    /// Balances the `register_detached` below, even when the future is dropped before it
-    /// completes (e.g. on runtime shutdown).
-    struct InFlightGuard(CurrentTaskStateHandle);
+    /// Adds the deferred dependencies and balances the `register_detached` below, even when the
+    /// future is dropped before it completes (e.g. on a panic or runtime shutdown).
+    struct InFlightGuard {
+        task_state: CurrentTaskStateHandle,
+        deferred: Option<(
+            Arc<dyn TurboTasksApi>,
+            TaskId,
+            Arc<DeferredCellDependencies>,
+        )>,
+    }
     impl Drop for InFlightGuard {
         fn drop(&mut self) {
-            self.0.write().unwrap().local_tasks.decrement_in_flight();
+            // The dependencies must be added before the task execution can complete, which
+            // decrementing the in-flight count allows.
+            if let Some((tt, reader, dependencies)) = self.deferred.take() {
+                tt.end_deferred_cell_dependencies(reader, dependencies.take());
+            }
+            self.task_state
+                .write()
+                .unwrap()
+                .local_tasks
+                .decrement_in_flight();
         }
     }
 
     let task_state = CURRENT_TASK_STATE.with(|ts| ts.clone());
+    let tt = turbo_tasks();
     task_state.write().unwrap().local_tasks.register_detached();
-    let guard = InFlightGuard(task_state.clone());
+    let deferred = task_state.current_task_id().map(|reader| {
+        tt.begin_deferred_cell_dependencies(reader);
+        (
+            tt.clone(),
+            reader,
+            Arc::new(DeferredCellDependencies::new(reader)),
+        )
+    });
+    let dependencies = deferred
+        .as_ref()
+        .map(|(_, _, dependencies)| dependencies.clone());
+    let guard = InFlightGuard {
+        task_state: task_state.clone(),
+        deferred,
+    };
     let future = async move {
-        let result = CaptureFuture::new(future).await;
+        let result = DEFERRED_CELL_DEPENDENCIES
+            .scope(dependencies, CaptureFuture::new(future))
+            .await;
         // Mark the future as finished before the result is handed to the joining side.
         drop(guard);
         result
     };
     JoinHandle::new(tokio::task::spawn(
         TURBO_TASKS
-            .scope(turbo_tasks(), CURRENT_TASK_STATE.scope(task_state, future))
+            .scope(tt, CURRENT_TASK_STATE.scope(task_state, future))
             .instrument(Span::current()),
     ))
 }

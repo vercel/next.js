@@ -247,6 +247,13 @@ pub struct InProgressStateInner {
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
     pub new_children: FxHashSet<TaskId>,
+    /// Number of futures spawned with `spawn_in_current_task` that may have read cells whose
+    /// dependencies haven't been added to this task's forward edges yet (see
+    /// `Backend::try_read_task_cell_deferred`). The reverse edges of these reads already exist,
+    /// but without the forward edge a cell change would treat the dependency as removed (or not
+    /// read yet), so while this is non-zero, every cell change reaching this task marks it as
+    /// stale.
+    pub deferred_cell_dependency_windows: u32,
 }
 
 #[derive(Debug)]

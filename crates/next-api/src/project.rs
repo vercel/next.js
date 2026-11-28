@@ -1,7 +1,10 @@
 use std::{
     iter,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::{Duration, Instant, SystemTime},
 };
 
@@ -2270,22 +2273,60 @@ impl Project {
         //     to that feature's unique-importer set.
         let module_graph = self.whole_app_module_graphs().await?.full.await?;
 
-        let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static RcStr> = module_graph
-            .iter_modules_with_idents()
-            .map(async |(node, ident)| {
-                let ident = ident.await?;
-                let path = &ident.path.path;
-                for (feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
-                    if path.ends_with(suffix) {
-                        return Ok(Some((node, feature)));
+        //
+        // Classifying reads every module's ident cell. Polling those reads in one future would do
+        // them one by one on a single thread (and on a warm build each read may restore from the
+        // persistent cache), so the modules are spread over several workers running as part of
+        // this task (see `spawn_in_current_task`), which keeps the reads tracked as this task's
+        // dependencies. Their dependencies are added in one batch per worker, so the workers don't
+        // contend on this task's lock and can use every CPU (on vercel-site, ~93k modules:
+        // classifying took 23 ms serially, 3.8 ms with 8 workers and 3.2 ms with 14 on a warm
+        // build). Each worker claims the next batch from a shared counter to balance load.
+        const MIN_MODULES_PER_WORKER: usize = 1024;
+        const BATCH_SIZE: usize = 128;
+
+        fn match_feature(path: &str) -> Option<&'static RcStr> {
+            FEATURE_MODULE_PATH_SUFFIXES
+                .iter()
+                .find(|(_, suffix)| path.ends_with(suffix))
+                .map(|(feature, _)| feature)
+        }
+
+        let modules: Arc<Vec<_>> = Arc::new(module_graph.iter_modules_with_idents().collect());
+        let workers = turbo_tasks::parallel::available_parallelism()
+            .map_or(1, |n| n.get())
+            .min(modules.len() / MIN_MODULES_PER_WORKER)
+            .max(1);
+        let next = Arc::new(AtomicUsize::new(0));
+        let handles = (0..workers)
+            .map(|_| {
+                let modules = modules.clone();
+                let next = next.clone();
+                turbo_tasks::spawn_in_current_task(async move {
+                    let mut found = Vec::new();
+                    loop {
+                        let start = next.fetch_add(BATCH_SIZE, Ordering::Relaxed);
+                        if start >= modules.len() {
+                            break;
+                        }
+                        let end = (start + BATCH_SIZE).min(modules.len());
+                        for &(node, ident) in &modules[start..end] {
+                            if let Some(feature) = match_feature(&ident.await?.path.path) {
+                                found.push((node, feature));
+                            }
+                        }
                     }
-                }
-                Ok(None)
+                    anyhow::Ok(found)
+                })
             })
-            .try_flat_join()
-            .await?
-            .into_iter()
-            .collect();
+            .collect::<Vec<_>>();
+        // Wait for every worker, even after an error, so none of them is still reading as part of
+        // this task when we return.
+        let mut matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static RcStr> =
+            FxHashMap::default();
+        for result in futures::future::join_all(handles).await {
+            matching.extend(result?);
+        }
 
         // Collect (feature, parent) pairs for every edge whose target is a feature module.
         //
