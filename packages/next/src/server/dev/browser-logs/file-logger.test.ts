@@ -216,6 +216,27 @@ describe('FileLogger', () => {
       expect(lines[0]).toContain('Auto-flush test message')
     })
 
+    it('should flush even when logs are continuously enqueued', () => {
+      jest.useFakeTimers()
+      try {
+        const logFilePath = path.join(tempDir, 'logs', 'next-development.log')
+
+        // Enqueue a log every 50ms, i.e. faster than the flush delay. A
+        // debounced flush would be postponed forever and never write.
+        for (let i = 0; i < 10; i++) {
+          fileLogger.logServer('ERROR', `Continuous message ${i}`)
+          jest.advanceTimersByTime(50)
+        }
+
+        const lines = fs.readFileSync(logFilePath, 'utf-8').trim().split('\n')
+        expect(lines.length).toBeGreaterThan(0)
+        expect(lines[0]).toContain('Continuous message 0')
+        expect(fileLogger.getLogQueue().length).toBeLessThan(10)
+      } finally {
+        jest.useRealTimers()
+      }
+    })
+
     it('should flush immediately when queue reaches max size', () => {
       // Log many messages to test batching
       for (let i = 0; i < 100; i++) {

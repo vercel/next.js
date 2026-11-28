@@ -55,6 +55,43 @@ export function registerUnhandledRejectionListener(): void {
   process.on('unhandledRejection', listener)
 }
 
+/**
+ * Error listener for `process.stdout` and `process.stderr`.
+ *
+ * When the terminal the process is attached to has gone away, writes to
+ * stdout/stderr fail with `EIO`/`EPIPE`. Logging such an error with
+ * `console.error` writes to the same broken stream, which fails again, emits
+ * another stream "error" and so on, looping forever at 100% CPU. Node never
+ * leaves these streams in a `destroyed`/non-`writable` state (it resets them
+ * right after the error), so the state of the stream can't be used to detect
+ * this. Instead, handle the error at its source: the stream that emitted it.
+ *
+ * Other stream errors keep their previous behavior: they are rethrown, which
+ * surfaces them as an "uncaughtException" that is logged below.
+ *
+ * An `EPIPE`/`EIO` write error that doesn't originate from stdout/stderr (e.g.
+ * a socket) never reaches this listener and is still logged as before.
+ */
+function stdioErrorListener(error: unknown) {
+  const { code, syscall } = (error ?? {}) as {
+    code?: unknown
+    syscall?: unknown
+  }
+  if (syscall === 'write' && (code === 'EIO' || code === 'EPIPE')) {
+    return
+  }
+  throw error
+}
+
+function registerStdioErrorListeners() {
+  for (const stream of [process.stdout, process.stderr]) {
+    // Registering is a no-op if the listener is still attached.
+    if (!stream.listeners('error').includes(stdioErrorListener)) {
+      stream.on('error', stdioErrorListener)
+    }
+  }
+}
+
 export function installProcessErrorHandlers(
   shouldRemoveUncaughtErrorAndRejectionListeners: boolean
 ) {
@@ -117,6 +154,10 @@ export function installProcessErrorHandlers(
     process.on('uncaughtException', (reason: unknown) => {
       console.error(reason)
     })
+
+    // Don't let failed writes to stdout/stderr (e.g. after the terminal was
+    // closed) be logged back to the same broken stream in an endless loop.
+    registerStdioErrorListeners()
   }
 
   // Register the listener unconditionally, and not only during the guarded

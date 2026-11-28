@@ -8,6 +8,8 @@ export interface LogEntry {
   message: string
 }
 
+const FLUSH_DELAY_MS = 100
+
 // Logging server and browser logs to a file
 export class FileLogger {
   private logFilePath: string = ''
@@ -64,16 +66,18 @@ export class FileLogger {
   }
 
   private scheduleFlush(): void {
-    // Debounce the flush
+    // A flush is already pending. Don't reset the timer: under a continuous
+    // stream of logs a debounce would never fire and the queue would grow
+    // without bound. Instead, flush at most `FLUSH_DELAY_MS` after the first
+    // queued entry.
     if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = null
+      return
     }
 
     // Delay the log flush to ensure more logs can be batched together asynchronously
     this.flushTimer = setTimeout(() => {
       this.flush()
-    }, 100)
+    }, FLUSH_DELAY_MS)
   }
 
   public getLogQueue(): string[] {
@@ -116,12 +120,6 @@ export class FileLogger {
 
   private enqueueLog(formattedEntry: string): void {
     this.logQueue.push(formattedEntry)
-
-    // Cancel existing timer and start a new one to ensure all logs are flushed together
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = null
-    }
 
     this.scheduleFlush()
   }
