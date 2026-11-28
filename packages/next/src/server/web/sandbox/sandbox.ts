@@ -20,11 +20,11 @@ import type { EdgeHandler } from '../adapter'
 
 export const ErrorSource = Symbol('SandboxError')
 
-const FORBIDDEN_HEADERS = [
-  'content-length',
-  'content-encoding',
-  'transfer-encoding',
-]
+// content-length is recomputed and transfer-encoding is hop-by-hop, so
+// neither is forwarded. content-encoding is preserved as provided by the
+// handler: it describes the bytes the handler chose to send. Matches
+// FORBIDDEN_HEADERS in server/send-response.ts.
+const FORBIDDEN_HEADERS = ['content-length', 'transfer-encoding']
 
 interface RunnerFnParams {
   name: string
