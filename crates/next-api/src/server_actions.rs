@@ -1327,6 +1327,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
         _chunk_group: ChunkGroupKey,
         _module_graph: ResolvedVc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
+        _hmr_ident: Option<Vc<AssetIdent>>,
         _input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         bail!("evaluated_chunk_group should not be called in UseCacheContentHashChunkingContext");

@@ -596,6 +596,8 @@ pub trait ChunkingContext {
     /// are loaded alongside the entries (and tracked in the chunk-list register
     /// chunk for HMR) — used to extend the entry's HMR-tracked chunks with
     /// chunks computed elsewhere (e.g. app-router client references).
+    /// `hmr_ident` can identify the HMR chunk list separately from the evaluated
+    /// chunk group.
     #[turbo_tasks::function]
     fn evaluated_chunk_group(
         self: Vc<Self>,
@@ -603,6 +605,7 @@ pub trait ChunkingContext {
         chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        hmr_ident: Option<Vc<AssetIdent>>,
         availability_info: AvailabilityInfo,
     ) -> Vc<ChunkGroupResult>;
 
@@ -940,6 +943,7 @@ fn evaluated_chunk_group_assets(
             chunk_group,
             module_graph,
             extra_chunks,
+            None,
             availability_info,
         )
         .output_assets_with_referenced()

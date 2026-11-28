@@ -2099,9 +2099,14 @@ impl AppEndpoint {
             client_shared_chunks_vc,
             client_chunk_group_bootstrap_params,
         ) = if is_app_page {
+            let project_path = project.project_path().owned().await?;
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                AssetIdent::from_path(project.project_path().owned().await?)
+                AssetIdent::from_path(project_path.clone())
                     .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
+                AssetIdent::from_path(project_path)
+                    .with_modifier(rcstr!("client-shared-chunks-hmr"))
+                    .with_modifier(app_entry.original_name.clone())
                     .into_vc(),
                 this.app_project.client_runtime_entries(),
                 *module_graphs.full,
@@ -3245,9 +3250,14 @@ impl Endpoint for AppEndpoint {
         let app_entry = self.app_endpoint_entry().await?;
         let graphs = project.whole_app_module_graphs().await?;
         let client_chunking_context = project.client_chunking_context();
+        let project_path = project.project_path().owned().await?;
         let shared = get_app_client_shared_chunk_group(
-            AssetIdent::from_path(project.project_path().owned().await?)
+            AssetIdent::from_path(project_path.clone())
                 .with_modifier(rcstr!("client-shared-chunks"))
+                .into_vc(),
+            AssetIdent::from_path(project_path)
+                .with_modifier(rcstr!("client-shared-chunks-hmr"))
+                .with_modifier(app_entry.original_name.clone())
                 .into_vc(),
             this.app_project.client_runtime_entries(),
             *graphs.full,
