@@ -66,6 +66,11 @@ export async function proxyRequest(
   })
 
   proxy.on('proxyRes', (proxyRes, innerReq, innerRes) => {
+    if ('flush' in innerRes && typeof innerRes.flush === 'function') {
+      const flush = innerRes.flush.bind(innerRes)
+      proxyRes.on('data', () => process.nextTick(flush))
+    }
+
     const cleanup = (err: any) => {
       // cleanup event listeners to allow clean garbage collection
       proxyRes.removeListener('error', cleanup)
