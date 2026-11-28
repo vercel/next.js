@@ -54,7 +54,7 @@ describe('use-server-inserted-html', () => {
     await next.fetch('/css-in-js/suspense').then(async (response) => {
       const results = []
 
-      await resolveStreamResponse(response, (chunk: string) => {
+      const html = await resolveStreamResponse(response, (chunk: string) => {
         const isSuspenseyDataResolved =
           /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
         if (isSuspenseyDataResolved) results.push('data')
@@ -68,6 +68,21 @@ describe('use-server-inserted-html', () => {
       })
 
       expect(results).toEqual(['fallback', 'data', 'refresh-script'])
+
+      // The shell's flush inserts the footer's styles, and the flush that
+      // reveals the boundary inserts the inner styles. The registries return
+      // nothing for the flushes in between and after those, which must neither
+      // insert anything nor drop a later insertion. So each rule is inserted
+      // exactly once, before the element that it styles.
+      const footerStyle =
+        /\{border:1px solid orange;\s*color:(?:blue|#00f);?\}/g
+      const innerStyle = /\{padding:2px;\s*color:orange;?\}/g
+      expect(html.match(footerStyle) ?? []).toHaveLength(1)
+      expect(html.match(innerStyle) ?? []).toHaveLength(1)
+      expect(html.search(footerStyle)).toBeLessThan(html.indexOf('id="footer"'))
+      expect(html.search(innerStyle)).toBeLessThan(
+        html.indexOf('id="footer-inner"')
+      )
     })
     // // TODO-APP: fix streaming/suspense within browser for test suite
     // const browser = await next.browser( '/css-in-js', { waitHydration: false })
