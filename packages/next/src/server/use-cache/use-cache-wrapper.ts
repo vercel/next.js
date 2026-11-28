@@ -184,11 +184,12 @@ type CacheContext = PrivateCacheContext | PublicCacheContext
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
-export type CacheKeyParts = [
-  id: string,
-  args: unknown[],
-  implementationHash: unknown,
-]
+// Try to keep the cache key JSON-parseable and the first two entries (id and args) consistent for
+// any downstream consumers that try to parse cache keys for introspection.
+//
+// `rest` might contain additional components such as deployment id, implementation hash, env var
+// state, root params, etc.
+export type CacheKeyParts = [id: string, args: unknown[], ...rest: unknown[]]
 
 interface UseCachePageInnerProps {
   params: Promise<Params>
@@ -427,12 +428,12 @@ function addKnownRootParamNames(
   return created
 }
 
-function computeRootParamsCacheKeySuffix(
+function computeRootParamsCacheKeyPart(
   rootParams: Params,
   paramNames: ReadonlySet<string>
-): string {
+): string | undefined {
   if (paramNames.size === 0) {
-    return ''
+    return undefined
   }
 
   return JSON.stringify(
@@ -510,10 +511,10 @@ const HEADERS_EXCLUDED_FROM_PRIVATE_CACHE_KEY = new Set<string>([
 // and keying by only those. Note that Next-internal flight headers such as
 // `rsc` and `next-router-state-tree` are already stripped upstream in
 // `getHeaders`, so they never appear here.
-function computePrivateCacheKeyRequestSuffix(
+function computePrivateCacheKeyRequestPart(
   cookies: ReadonlyRequestCookies,
   headers: ReadonlyHeaders
-): string {
+): string | undefined {
   const relevantCookies = cookies
     .getAll()
     .filter(
@@ -527,7 +528,7 @@ function computePrivateCacheKeyRequestSuffix(
     .sort(([nameA], [nameB]) => (nameA < nameB ? -1 : nameA > nameB ? 1 : 0))
 
   if (relevantCookies.length === 0 && relevantHeaders.length === 0) {
-    return ''
+    return undefined
   }
 
   return JSON.stringify({ cookies: relevantCookies, headers: relevantHeaders })
@@ -548,7 +549,7 @@ function saveToResumeDataCache(
   const rdcResult = getNthCacheResult(split, 1)
 
   // The RDC is per-page and root params are fixed within a page, so we always
-  // use the coarse key (without root param suffix). Unlike the cache handler,
+  // use the coarse key (without root param part). Unlike the cache handler,
   // the RDC doesn't need root-param-specific keys for isolation.
   resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.(logPrefix, 'Resume Data Cache entry saved', serializedCacheKey)
@@ -721,9 +722,10 @@ function saveToCacheHandler(
     let coarseEntry: CacheEntry = fullEntry
 
     if (rootParamNames && rootParamNames.size > 0 && rootParams) {
-      const specificKey =
-        cacheHandlerKeyBase +
-        computeRootParamsCacheKeySuffix(rootParams, rootParamNames)
+      const specificKey = concatenateCacheKey(
+        cacheHandlerKeyBase,
+        computeRootParamsCacheKeyPart(rootParams, rootParamNames)
+      )
 
       setPromises.push(
         // Capture synchronous `set()` throws as rejected write promises.
@@ -1866,6 +1868,19 @@ async function getNthCacheResult(
   return (await split)[i]
 }
 
+function concatenateCacheKey(key: string, part: string | undefined) {
+  if (part === undefined) return key
+
+  if (!key.endsWith(']')) {
+    // Plain concatenation for non-JSON keys
+    return key + part
+  } else {
+    // A multipart encoding that ended in a closing bracket ']' might happen, but we can just use
+    // the JSON approach for that anyway, nothing breaks.
+    return key.slice(0, -1) + ',' + part + ']'
+  }
+}
+
 async function encodeFormData(formData: FormData): Promise<string> {
   let result = ''
   for (let [key, value] of formData) {
@@ -2622,6 +2637,13 @@ export async function cache(
         // Convert it to an ArrayBuffer if it wants to.
         encodedCacheKeyParts
       : await encodeFormData(encodedCacheKeyParts)
+  // Scope the cache handler key, but not the RDC key, by the runtime env var state.
+  const serializedCacheHandlerKey = concatenateCacheKey(
+    serializedCacheKey,
+    runtimeEnvVarStateHash === undefined
+      ? undefined
+      : JSON.stringify(runtimeEnvVarStateHash)
+  )
 
   const rootParams = workUnitStore.rootParams
   const knownRootParamNames = knownRootParamsByFunctionId.get(id)
@@ -2632,23 +2654,24 @@ export async function cache(
   // scoped by runtime env var state and, for private caches in development
   // (persisted in the built-in in-memory handler), the request's cookies and
   // headers. Keys derived from it inherit that scoping.
-  const cacheHandlerKeyBase =
-    serializedCacheKey +
-    (runtimeEnvVarStateHash ?? '') +
-    (process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
-      ? computePrivateCacheKeyRequestSuffix(
+  const cacheHandlerKeyBase = concatenateCacheKey(
+    serializedCacheHandlerKey,
+    process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
+      ? computePrivateCacheKeyRequestPart(
           cacheContext.outerWorkUnitStore.cookies,
           cacheContext.outerWorkUnitStore.headers
         )
-      : '')
+      : undefined
+  )
   // If we already know which root params this function reads, include them in
   // the cache handler key for a direct hit (skipping the redirect entry).
   // rootParams is undefined when nested inside unstable_cache.
-  let cacheHandlerKey =
+  let cacheHandlerKey = concatenateCacheKey(
+    cacheHandlerKeyBase,
     knownRootParamNames && rootParams
-      ? cacheHandlerKeyBase +
-        computeRootParamsCacheKeySuffix(rootParams, knownRootParamNames)
-      : cacheHandlerKeyBase
+      ? computeRootParamsCacheKeyPart(rootParams, knownRootParamNames)
+      : undefined
+  )
 
   let stream: undefined | ReadableStream = undefined
 
@@ -3362,12 +3385,10 @@ export async function cache(
               )
             }
             if (updatedRootParamNames && rootParams) {
-              const newCacheHandlerKey =
-                cacheHandlerKeyBase +
-                computeRootParamsCacheKeySuffix(
-                  rootParams,
-                  updatedRootParamNames
-                )
+              const newCacheHandlerKey = concatenateCacheKey(
+                cacheHandlerKeyBase,
+                computeRootParamsCacheKeyPart(rootParams, updatedRootParamNames)
+              )
 
               if (newCacheHandlerKey !== cacheHandlerKey) {
                 debug?.(
@@ -3423,12 +3444,10 @@ export async function cache(
               )
             }
             if (updatedRootParamNames && rootParams) {
-              const newCacheHandlerKey =
-                cacheHandlerKeyBase +
-                computeRootParamsCacheKeySuffix(
-                  rootParams,
-                  updatedRootParamNames
-                )
+              const newCacheHandlerKey = concatenateCacheKey(
+                cacheHandlerKeyBase,
+                computeRootParamsCacheKeyPart(rootParams, updatedRootParamNames)
+              )
 
               if (newCacheHandlerKey !== cacheHandlerKey) {
                 debug?.(
@@ -3510,9 +3529,10 @@ export async function cache(
             }
             if (paramNames.size > 0) {
               addKnownRootParamNames(id, paramNames)
-              cacheHandlerKey =
-                cacheHandlerKeyBase +
-                computeRootParamsCacheKeySuffix(rootParams, paramNames)
+              cacheHandlerKey = concatenateCacheKey(
+                cacheHandlerKeyBase,
+                computeRootParamsCacheKeyPart(rootParams, paramNames)
+              )
               observedRevalidation =
                 backgroundRevalidations.get(cacheHandlerKey)
               entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
@@ -3897,7 +3917,7 @@ export async function cache(
             }
 
             // The RDC is per-page and root params are fixed within a page, so
-            // we always use the coarse key (without root param suffix).
+            // we always use the coarse key (without root param part).
             resumeDataCache.cache.set(
               serializedCacheKey,
               Promise.resolve({
