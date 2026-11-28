@@ -21,6 +21,10 @@ NEXT_DEPLOYMENT_ID=my-deployment-id next build
 
 > **Good to know:** A non-empty `NEXT_DEPLOYMENT_ID` environment variable takes precedence over the `deploymentId` value in `next.config.js`.
 
+> **Good to know:** The `deploymentId` value is appended to URLs without encoding.
+> Avoid characters with special meaning in URLs such as `#`, `&`, `=`, and `?`.
+> A Git SHA or version string is recommended.
+
 ## How it works
 
 When a `deploymentId` is configured, Next.js:
