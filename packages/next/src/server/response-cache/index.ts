@@ -241,6 +241,14 @@ export default class ResponseCache implements ResponseCacheBase {
        * invocations can still share a pending render through the batchers.
        */
       invocationID?: string
+
+      /**
+       * Concurrent callers share the response generator, so its `signal` only
+       * aborts once every caller waiting on it has aborted. Callers still get
+       * the generator's result or rejection, and a result that finishes
+       * despite the abort is still cached.
+       */
+      signal?: AbortSignal
     }
   ): Promise<ResponseCacheResult> {
     // If there is no key for the cache, we can't possibly look this up in the
@@ -249,6 +257,7 @@ export default class ResponseCache implements ResponseCacheBase {
       return responseGenerator({
         hasResolved: false,
         previousCacheEntry: null,
+        signal: context.signal,
       })
     }
 
@@ -300,11 +309,12 @@ export default class ResponseCache implements ResponseCacheBase {
       isPrefetch = false,
       waitUntil,
       invocationID,
+      signal,
     } = context
 
     const response = await this.getBatcher.batch(
       { key, isOnDemandRevalidate },
-      ({ resolve }) => {
+      ({ resolve, signal: batchSignal }) => {
         const promise = this.handleGet(
           key,
           responseGenerator,
@@ -315,6 +325,7 @@ export default class ResponseCache implements ResponseCacheBase {
             isRoutePPREnabled,
             isPrefetch,
             invocationID,
+            signal: batchSignal,
           },
           resolve
         )
@@ -323,7 +334,8 @@ export default class ResponseCache implements ResponseCacheBase {
         if (waitUntil) waitUntil(promise)
 
         return promise
-      }
+      },
+      signal
     )
 
     // In minimal mode, each caller with an invocation ID stores the shared
@@ -365,6 +377,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isRoutePPREnabled: boolean
       isPrefetch: boolean
       invocationID: string | undefined
+      signal: AbortSignal | undefined
     },
     resolve: (value: IncrementalResponseCacheResult) => void
   ): Promise<IncrementalResponseCacheResult> {
@@ -411,6 +424,10 @@ export default class ResponseCache implements ResponseCacheBase {
       // wins would depend purely on request timing. Running the generator
       // directly lets every prefetch segment take the same fallback-shell path,
       // independent of any concurrent background upgrade.
+      //
+      // Once the callers have the stale entry, the revalidation only fills the
+      // cache, so it isn't aborted.
+      const signal = resolved ? undefined : context.signal
       const incrementalResponseCacheEntry =
         context.isPrefetch && previousIncrementalCacheEntry === null
           ? await this.handleRevalidate(
@@ -420,7 +437,8 @@ export default class ResponseCache implements ResponseCacheBase {
               context.isFallback,
               responseGenerator,
               previousIncrementalCacheEntry,
-              resolved
+              resolved,
+              signal
             )
           : await this.revalidate(
               key,
@@ -429,7 +447,8 @@ export default class ResponseCache implements ResponseCacheBase {
               context.isFallback,
               responseGenerator,
               previousIncrementalCacheEntry,
-              resolved
+              resolved,
+              { signal }
             )
 
       if (
@@ -481,8 +500,9 @@ export default class ResponseCache implements ResponseCacheBase {
    * @param responseGenerator - The response generator to use to generate the response cache entry.
    * @param previousIncrementalCacheEntry - The previous cache entry to use to revalidate the cache entry.
    * @param hasResolved - Whether the response has been resolved.
-   * @param waitUntil - Optional function to register background work.
-   * @param invocationID - The invocation ID for cache key scoping.
+   * @param options.waitUntil - Optional function to register background work.
+   * @param options.signal - The response generator's signal aborts once every
+   * caller waiting on it has aborted.
    * @returns The revalidated cache entry.
    */
   public async revalidate(
@@ -493,24 +513,35 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
     hasResolved: boolean,
-    waitUntil?: (prom: Promise<any>) => void
+    {
+      waitUntil,
+      signal,
+    }: {
+      waitUntil?: (prom: Promise<any>) => void
+      signal?: AbortSignal
+    } = {}
   ) {
-    return this.revalidateBatcher.batch(key, () => {
-      const promise = this.handleRevalidate(
-        key,
-        incrementalCache,
-        isRoutePPREnabled,
-        isFallback,
-        responseGenerator,
-        previousIncrementalCacheEntry,
-        hasResolved
-      )
+    return this.revalidateBatcher.batch(
+      key,
+      ({ signal: batchSignal }) => {
+        const promise = this.handleRevalidate(
+          key,
+          incrementalCache,
+          isRoutePPREnabled,
+          isFallback,
+          responseGenerator,
+          previousIncrementalCacheEntry,
+          hasResolved,
+          batchSignal
+        )
 
-      // We need to ensure background revalidates are passed to waitUntil.
-      if (waitUntil) waitUntil(promise)
+        // We need to ensure background revalidates are passed to waitUntil.
+        if (waitUntil) waitUntil(promise)
 
-      return promise
-    })
+        return promise
+      },
+      signal
+    )
   }
 
   private async handleRevalidate(
@@ -520,7 +551,8 @@ export default class ResponseCache implements ResponseCacheBase {
     isFallback: boolean,
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
-    hasResolved: boolean
+    hasResolved: boolean,
+    signal: AbortSignal | undefined
   ): Promise<IncrementalResponseCacheResult> {
     let failure: PrerenderFailure
     try {
@@ -529,6 +561,7 @@ export default class ResponseCache implements ResponseCacheBase {
         hasResolved,
         previousCacheEntry: previousIncrementalCacheEntry,
         isRevalidating: true,
+        signal,
       })
       if (!responseCacheEntry) {
         return null
@@ -556,13 +589,17 @@ export default class ResponseCache implements ResponseCacheBase {
         return incrementalResponseCacheEntry
       }
     } catch (err) {
-      await this.retainPreviousCacheEntry(
-        key,
-        incrementalCache,
-        isRoutePPREnabled,
-        isFallback,
-        previousIncrementalCacheEntry
-      )
+      // An abort isn't a failure, so it shouldn't delay the next attempt
+      if (!signal?.aborted || err !== signal.reason) {
+        // upon failure, delay retries by extending the cache expiration
+        await this.retainPreviousCacheEntry(
+          key,
+          incrementalCache,
+          isRoutePPREnabled,
+          isFallback,
+          previousIncrementalCacheEntry
+        )
+      }
       throw err
     }
 

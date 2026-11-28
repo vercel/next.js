@@ -1,6 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import { assertNoConsoleErrors } from 'next-test-utils'
+import { assertNoConsoleErrors, gate } from 'next-test-utils'
 const describeCacheComponents = isNextDev ? describe.skip : describe
 
 function runCustomBotTests(parallelRouteMetadata: boolean) {
@@ -224,6 +224,38 @@ describeCacheComponents.each([false, true])(
       } finally {
         abortController.abort()
         body?.cancel()
+      }
+    })
+  }
+)
+
+describeCacheComponents(
+  'metadata streaming with an oversized bot pattern',
+  () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      overrideFiles: {
+        'next.config.js': `
+        module.exports = {
+          cacheComponents: true,
+          htmlLimitedBots: new RegExp('MyBot|' + 'é'.repeat(513)),
+        }
+      `,
+      },
+    })
+
+    it('preserves the per-route bot bypass when the deployment matcher cannot fit the pattern', async () => {
+      const warm = await next.fetch('/fully-static')
+      expect(warm.status).toBe(200)
+      await warm.text()
+      const response = await next.fetch('/fully-static', {
+        headers: { 'user-agent': 'MyBot' },
+      })
+      expect(response.status).toBe(200)
+      const $ = cheerio.load(await response.text())
+      expect($('head title').text()).toBe('fully static')
+      if (await gate((conditions) => conditions.vercel)) {
+        expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
       }
     })
   }

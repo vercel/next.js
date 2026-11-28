@@ -3,4 +3,4 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2 free var = FreeVar(x)
+1 -> 2 free var = FreeVar(x)

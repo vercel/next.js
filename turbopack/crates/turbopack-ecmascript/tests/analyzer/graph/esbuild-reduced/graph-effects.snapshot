@@ -91,6 +91,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -177,6 +178,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -220,6 +222,66 @@
         prop: FreeVar(
             "platformKey",
         ),
+        base_effects: [
+            FreeVar {
+                var: "platformKey",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            2,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Right,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Prop,
+                    ),
+                    MemberProp(
+                        Computed,
+                    ),
+                    ComputedPropName(
+                        Expr,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 317..328,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -263,65 +325,7 @@
             ),
         ],
         span: 296..329,
-        in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "platformKey",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    2,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Prop,
-            ),
-            MemberProp(
-                Computed,
-            ),
-            ComputedPropName(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 317..328,
+        usage: Escapes,
     },
     Unreachable {
         start_ast_path: [
@@ -374,6 +378,7 @@
             ),
         ),
         span: 426..429,
+        target_escapes: true,
     },
     DestructuredMember {
         obj: Call(
@@ -394,6 +399,7 @@
             ),
         ),
         span: 431..438,
+        target_escapes: true,
     },
     Call {
         func: Variable(
@@ -462,6 +468,80 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "require",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            4,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            2,
+                        ),
+                    ),
+                    Stmt(
+                        Try,
+                    ),
+                    TryStmt(
+                        Block,
+                    ),
+                    BlockStmt(
+                        Stmts(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Right,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 515..522,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -525,79 +605,7 @@
             ),
         ],
         span: 515..530,
-        in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "require",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    4,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    2,
-                ),
-            ),
-            Stmt(
-                Try,
-            ),
-            TryStmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 515..522,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(
@@ -636,6 +644,7 @@
                         ),
                     ],
                 ),
+                [],
             ),
         ],
         ast_path: [

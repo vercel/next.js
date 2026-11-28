@@ -1,4 +1,5 @@
 import { revalidateTag } from 'next/cache'
+import { getCacheTag } from '../../utils'
 
 export function POST(req: Request) {
   const tag = new URL(req.url).searchParams.get('tag')
@@ -8,6 +9,6 @@ export function POST(req: Request) {
     })
   }
 
-  revalidateTag(tag, 'minutes')
+  revalidateTag(getCacheTag(tag), 'minutes')
   return new Response(null, { status: 200 })
 }

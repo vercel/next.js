@@ -9,7 +9,10 @@ severity: escalate (medium)
 - Changes under `test/lib/**`, `test/lib/e2e-utils/**`, `test/lib/next-test-utils.ts`, `test/lib/router-act.ts`, or the gate conditions
 - A timeout or retry added to a shared helper to get one test passing
 
-Not shared: a helper under `test/lib/**` that only one suite imports. Check the callers before escalating. A change to it is part of that suite's test, so review it like test code.
+Not shared:
+
+- A helper under `test/lib/**` that only one suite imports. Check the callers before escalating. A change to it is part of that suite's test, so review it like test code.
+- A new entry in `test/lib/gate/conditions.ts` that only reads a new `config.experimental.*` flag. It doesn't change how existing conditions are evaluated, so treat it as part of the PR's own tests.
 
 ## Example
 

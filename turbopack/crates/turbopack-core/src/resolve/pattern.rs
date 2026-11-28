@@ -169,28 +169,6 @@ impl Pattern {
         }
     }
 
-    /// Returns the alternatives that contain significant constant parts (everything except `/`).
-    ///
-    /// The pattern is expected to be normalized so that alternatives are at the top level.
-    pub fn filter_non_dynamic(&self) -> Option<Pattern> {
-        if let Pattern::Alternatives(list) = self {
-            let mut non_dynamic_alternatives = list
-                .iter()
-                .filter(|alternative| alternative.has_constant_parts())
-                .cloned()
-                .collect::<Vec<_>>();
-            match non_dynamic_alternatives.len() {
-                0 => None,
-                1 => non_dynamic_alternatives.pop(),
-                _ => Some(Pattern::Alternatives(non_dynamic_alternatives)),
-            }
-        } else if self.has_constant_parts() {
-            Some(self.clone())
-        } else {
-            None
-        }
-    }
-
     pub fn constant_prefix(&self) -> &str {
         // The normalized pattern is an Alternative of maximally merged
         // Concatenations, so extracting the first/only Concatenation child
@@ -1560,8 +1538,12 @@ pub struct PatternMatches(Vec<PatternMatch>);
 ///
 /// A path that cannot be resolved (a dangling or cyclic link) is read as-is, which yields
 /// [`RawDirectoryContent::NotFound`] just as it did before.
+///
+/// DETERMINISM: Result is in random order. Either sort result or do not
+/// depend on the order.
 async fn raw_read_dir_resolved(path: &FileSystemPath) -> Result<ReadRef<RawDirectoryContent>> {
     let resolved = path.realpath().await?.unwrap_or_else(|_| path.clone());
+    // DETERMINISM: Forward the unordered result; callers must sort or ignore entry order.
     resolved.raw_read_dir().await
 }
 
@@ -1627,6 +1609,8 @@ pub async fn read_matches(
                                 lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
+                                // DETERMINISM: The directory listing is only ever queried with
+                                // entries.get(last_segment), not iterated.
                                 Some(e.insert((raw_read_dir_resolved(&path).await?, path)))
                             } else {
                                 None
@@ -1794,6 +1778,7 @@ pub async fn read_matches(
                 prefix.pop();
                 prefix.pop();
             }
+            // DETERMINISM: `results` is sorted before returning.
             match &*raw_read_dir_resolved(&lookup_dir).await? {
                 RawDirectoryContent::Entries(map) => {
                     for (key, entry) in map.iter() {
@@ -2102,46 +2087,6 @@ mod tests {
             ])
             .filter_static(),
             None
-        );
-    }
-
-    #[test]
-    fn filter_non_dynamic() {
-        let constant = Pattern::Constant(rcstr!("./file.json"));
-        let partial = Pattern::Concatenation(vec![
-            Pattern::Constant(rcstr!("./prefix/")),
-            Pattern::Dynamic,
-        ]);
-        let dynamic = Pattern::Concatenation(vec![
-            Pattern::Dynamic,
-            Pattern::Constant(rcstr!("/")),
-            Pattern::DynamicNoSlash,
-        ]);
-
-        assert_eq!(constant.filter_non_dynamic(), Some(constant.clone()));
-        assert_eq!(partial.filter_non_dynamic(), Some(partial.clone()));
-        assert_eq!(Pattern::Dynamic.filter_non_dynamic(), None);
-        assert_eq!(Pattern::DynamicNoSlash.filter_non_dynamic(), None);
-        assert_eq!(Pattern::Constant(rcstr!("/")).filter_non_dynamic(), None);
-        assert_eq!(dynamic.filter_non_dynamic(), None);
-        assert_eq!(Pattern::Alternatives(vec![]).filter_non_dynamic(), None);
-        assert_eq!(
-            Pattern::Alternatives(vec![Pattern::Dynamic, dynamic.clone()]).filter_non_dynamic(),
-            None
-        );
-        assert_eq!(
-            Pattern::Alternatives(vec![Pattern::Dynamic, constant.clone()]).filter_non_dynamic(),
-            Some(constant.clone())
-        );
-        assert_eq!(
-            Pattern::Alternatives(vec![
-                Pattern::Dynamic,
-                constant.clone(),
-                dynamic,
-                partial.clone(),
-            ])
-            .filter_non_dynamic(),
-            Some(Pattern::Alternatives(vec![constant, partial]))
         );
     }
 

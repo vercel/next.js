@@ -10,7 +10,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks_macros::primitive as __turbo_tasks_internal_primitive;
 
 use crate::{
-    self as turbo_tasks, Vc,
+    self as turbo_tasks, OrderedJsonValue, Vc,
     value_type::{ManualDecodeWrapper, ManualEncodeWrapper},
 };
 
@@ -40,6 +40,8 @@ __turbo_tasks_internal_primitive!(
     serde_json::Value,
     bincode_wrappers(JsonValueEncodeWrapper, JsonValueDecodeWrapper),
 );
+// Compares object key order, unlike `serde_json::Value`. See [`OrderedJsonValue`].
+__turbo_tasks_internal_primitive!(OrderedJsonValue);
 __turbo_tasks_internal_primitive!(Duration);
 __turbo_tasks_internal_primitive!(Vec<u8>);
 __turbo_tasks_internal_primitive!(Vec<bool>);

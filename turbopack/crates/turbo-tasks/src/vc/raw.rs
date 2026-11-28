@@ -12,11 +12,10 @@ use bincode::{
     Decode, Encode,
     de::Decoder,
     enc::Encoder,
-    error::{DecodeError, EncodeError, IntegerType},
+    error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
 use serde::{Deserialize, Serialize};
-use turbo_bincode::fixed_width;
 
 use crate::{
     ReadCellOptions, ReadConsistency, ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId,
@@ -25,9 +24,9 @@ use crate::{
     event::EventListener,
     id::{ExecutionId, LocalTaskId, TASK_ID_MAX},
     manager::{
-        ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
-        ScheduleKey, TurboTasksApi, execute_read_target_inline, read_local_output,
-        with_turbo_tasks,
+        CellKey, ReadCellTracking, ReadTracking,
+        SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK, ScheduleKey, TurboTasksApi,
+        execute_read_target_inline, read_local_output, with_turbo_tasks,
     },
     read_options::ReadOutcome,
     registry::get_value_type,
@@ -50,20 +49,19 @@ pub struct CellId(NonZeroU32);
 // would always take 5 bytes.
 impl Encode for CellId {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        fixed_width::encode_u32(encoder, self.raw())
+        self.0.encode(&mut encoder.with_fixint())
     }
 }
 
 impl<Context> Decode<Context> for CellId {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let raw = fixed_width::decode_u32(decoder)?;
-        if raw >> CELL_INDEX_BITS == 0 {
-            return Err(DecodeError::NonZeroTypeIsZero {
-                non_zero_type: IntegerType::U32,
-            });
+        let raw = NonZeroU32::decode(&mut decoder.with_fixint())?;
+        // A non-zero word can still have zero `ValueTypeId` bits, which `type_id` relies on never
+        // happening.
+        if raw.get() >> CELL_INDEX_BITS == 0 {
+            return Err(DecodeError::Other("CellId has a zero ValueTypeId"));
         }
-        // SAFETY: the type id bits are non-zero, which is all `from_raw` requires.
-        Ok(unsafe { Self::from_raw(raw) })
+        Ok(CellId(raw))
     }
 }
 
@@ -193,17 +191,13 @@ impl Serialize for RawVc {
 impl Encode for RawVc {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
-        fixed_width::encode_u64(encoder, self.bits())
+        self.bits().encode(&mut encoder.with_fixint())
     }
 }
 
 impl<Context> Decode<Context> for RawVc {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        NonZeroU64::new(fixed_width::decode_u64(decoder)?)
-            .map(RawVc)
-            .ok_or(DecodeError::NonZeroTypeIsZero {
-                non_zero_type: IntegerType::U64,
-            })
+        NonZeroU64::decode(&mut decoder.with_fixint()).map(RawVc)
     }
 }
 
@@ -769,8 +763,50 @@ impl ReadRawVcFuture {
 
     /// Track the value as a dependency with an key.
     pub fn track_with_key(mut self, key: u64) -> Self {
-        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
+        self.read_cell_options.tracking = ReadCellTracking::Tracked {
+            key: Some(CellKey::hash(key)),
+        };
         self.map_resolve(|r| r.track_with_key())
+    }
+
+    /// Track the value as a [`CellKeyKind::Provisional`] dependency of a
+    /// [`Vc::keyed_reader`](crate::Vc::keyed_reader) or
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read. Like
+    /// [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs while
+    /// resolving the [`RawVc`].
+    ///
+    /// Must be called before the future is polled the first time.
+    ///
+    /// [`CellKeyKind::Provisional`]: crate::CellKeyKind::Provisional
+    pub(crate) fn set_track_provisional(&mut self, id: u32) {
+        let ReadRawVcState::Resolving(resolve) = &mut self.state else {
+            unreachable!("set_track_provisional must be called before the cell is read");
+        };
+        resolve.read_output_options.tracking = ReadTracking::Tracked;
+        self.read_cell_options.tracking = ReadCellTracking::Tracked {
+            key: Some(CellKey::provisional(id)),
+        };
+    }
+
+    /// Track the remaining reads as normal full dependencies, e.g. when a
+    /// [`CellKeyKind::Provisional`] read is polled in a different task execution than the one that
+    /// allocated its id. Can be called at any time before the future completes.
+    ///
+    /// [`CellKeyKind::Provisional`]: crate::CellKeyKind::Provisional
+    pub(crate) fn set_track_full(&mut self) {
+        if let ReadRawVcState::Resolving(resolve) = &mut self.state {
+            resolve.read_output_options.tracking = ReadTracking::Tracked;
+        }
+        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: None };
+    }
+
+    /// The task cell the [`RawVc`] was resolved to. Only available once the future has completed
+    /// successfully.
+    pub(crate) fn resolved_cell(&self) -> Option<(TaskId, CellId)> {
+        match self.state {
+            ReadRawVcState::Reading { task, index, .. } => Some((task, index)),
+            ReadRawVcState::Resolving(_) => None,
+        }
     }
 
     /// This will not track the value as dependency, but will still track the error as dependency,

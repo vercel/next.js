@@ -1,8 +1,20 @@
 #!/usr/bin/env node
 
-import { existsSync } from 'node:fs'
+// Posts the test report comment on a pull request.
+//
+// This runs from the base repository's default branch, in a privileged
+// `workflow_run` workflow that may write to any pull request, while the run it
+// reports on is a `pull_request` run whose workflow files, artifacts and job
+// logs all belong to the pull request author. Nothing the triggering run
+// produces may decide which pull request is written to. The target is resolved
+// only from `head_repository`, `head_branch` and `head_sha`, which GitHub mints
+// into the `workflow_run` payload.
+//
+// Without a token the script still resolves a pull request and can dry run,
+// because listing pull requests is public. Job logs are not, so a token-less
+// dry run of a failing run lists each failed job with a 401 reason.
+
 import { readFile } from 'node:fs/promises'
-import path from 'node:path'
 import { buildTestReport } from './test-report.js'
 
 const TEST_COMMENT_MARKER = '<!-- __NEXT_TEST_REPORT_COMMENT__ -->'
@@ -16,6 +28,15 @@ const ANSI_RE =
   /(?:\u001B\][\s\S]*?(?:\u0007|\u001B\\|\u009C))|(?:[\u001B\u009B][[\]()#;?]*(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~])/g
 
 const COMMENT_AUTHOR = 'github-actions[bot]'
+
+const API_BASE = (
+  process.env.GITHUB_API_URL || 'https://api.github.com'
+).replace(/\/+$/, '')
+
+// Conclusions that carry test results. A run that was cancelled, is waiting for
+// a maintainer to approve it, or failed to start ran no jobs, so reporting on it
+// would overwrite the comment with an empty report.
+const REPORTABLE_CONCLUSIONS = new Set(['success', 'failure', 'timed_out'])
 
 class GitHubClient {
   constructor({ token, owner, repo, dryRun }) {
@@ -43,12 +64,12 @@ class GitHubClient {
 
   async fetchApi(route, options = {}) {
     return fetchWithRateLimitRetry(
-      `https://api.github.com${route}`,
+      `${API_BASE}${route}`,
       {
         ...options,
         headers: {
           Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${this.token}`,
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
           'X-GitHub-Api-Version': '2022-11-28',
           ...options.headers,
         },
@@ -227,21 +248,17 @@ class GitHubClient {
     console.log(`Created placeholder comment ${created.html_url}`)
   }
 
-  async findPullRequestForCommit(sha) {
-    const pulls = await this.request(
-      `/repos/${this.owner}/${this.repo}/commits/${sha}/pulls`,
-      {
-        headers: {
-          Accept: 'application/vnd.github+json',
-        },
-      }
-    )
+  async listPullRequestsForHead({ ownerLogin, branch, state }) {
+    // Branch names may contain `&`, `=`, `#` and `%`, so the filter cannot be
+    // interpolated into the query string.
+    const params = new URLSearchParams({
+      state,
+      head: `${ownerLogin}:${branch}`,
+      sort: 'created',
+      direction: 'desc',
+    })
 
-    return pulls?.[0]
-  }
-
-  async getPullRequest(number) {
-    return this.request(`/repos/${this.owner}/${this.repo}/pulls/${number}`)
+    return this.paginate(`/repos/${this.owner}/${this.repo}/pulls?${params}`)
   }
 }
 
@@ -263,14 +280,24 @@ async function main() {
     throw new Error('This script must run from a workflow_run event')
   }
 
-  const [owner, repo] = (
-    event.repository?.full_name ||
-    process.env.GITHUB_REPOSITORY ||
-    ''
-  ).split('/')
+  const repository =
+    event.repository?.full_name || process.env.GITHUB_REPOSITORY || ''
+  const [owner, repo] = repository.split('/')
 
   if (!owner || !repo) {
-    throw new Error('Unable to resolve repository owner/name')
+    throw new Error(
+      `Unable to resolve repository owner/name from "${repository}"`
+    )
+  }
+
+  const phase = event.action
+  if (!shouldCommentForWorkflowRun(workflowRun, phase)) {
+    return
+  }
+
+  const head = getWorkflowRunHead(workflowRun)
+  if (!head) {
+    return
   }
 
   const github = new GitHubClient({
@@ -280,198 +307,180 @@ async function main() {
     dryRun,
   })
 
-  const pr = await getPullRequestMetadata(github, workflowRun)
+  const pull = await resolvePullRequestForWorkflowRun(github, head)
+  if (!pull) {
+    return
+  }
 
-  if (!pr?.number) {
+  // A run can come back completed after a new commit landed on the pull
+  // request head. The run that commit started owns the comment, and its body is
+  // keyed to a different commit, so writing this one would replace a current
+  // verdict with a stale one.
+  if (pull.headSha !== head.sha) {
     console.log(
-      `No pull request found for workflow run ${workflowRun.id}, skipping`
+      `Pull request #${pull.number} has moved on from ${head.sha} to ${pull.headSha}, a newer run owns the comment, skipping`
     )
     return
   }
 
-  const phase = event.action
-  if (phase !== 'requested' && phase !== 'completed') {
-    console.log(`Ignoring workflow_run action "${phase}"`)
-    return
-  }
-
-  if (workflowRun.name === 'build-and-test') {
-    await handleBuildAndTestWorkflow({
-      github,
-      workflowRun,
-      pr,
-      owner,
-      repo,
-      phase,
-    })
-    return
-  }
-
-  console.log(`Ignoring workflow "${workflowRun.name}"`)
+  await handleBuildAndTestWorkflow({
+    github,
+    workflowRun,
+    prNumber: pull.number,
+    isFork: head.repoFullName !== `${owner}/${repo}`,
+    owner,
+    repo,
+    phase,
+  })
 }
 
-async function getPullRequestMetadata(github, workflowRun) {
-  const fromArtifact = await readPullRequestMetadataArtifact()
-  if (fromArtifact?.number) {
-    const metadata = await validatePullRequestMetadata(
-      github,
-      workflowRun,
-      fromArtifact,
-      'PR metadata artifact'
-    )
-    if (metadata) {
-      return metadata
-    }
+function shouldCommentForWorkflowRun(workflowRun, phase) {
+  // The workflow `if:` filters this too, but a run that no pull request
+  // started has nothing to resolve a head branch against.
+  if (workflowRun.event !== 'pull_request') {
+    console.log(`Ignoring workflow run for "${workflowRun.event}" event`)
+    return false
   }
 
-  const fromPayload = workflowRun.pull_requests?.[0]
-  if (fromPayload?.number) {
-    const metadata = await validatePullRequestMetadata(
-      github,
-      workflowRun,
-      {
-        number: fromPayload.number,
-        headSha: fromPayload.head?.sha || workflowRun.head_sha,
-        headRef: fromPayload.head?.ref || workflowRun.head_branch,
-        headRepo: fromPayload.head?.repo?.full_name,
-        baseRef: fromPayload.base?.ref,
-      },
-      'workflow_run payload'
-    )
-    if (metadata) {
-      return metadata
-    }
+  if (workflowRun.name !== 'build-and-test') {
+    console.log(`Ignoring workflow "${workflowRun.name}"`)
+    return false
   }
 
-  if (workflowRun.head_sha && github.token) {
-    const pull = await github.findPullRequestForCommit(workflowRun.head_sha)
-    if (pull?.number) {
-      return validatePullRequestMetadata(
-        github,
-        workflowRun,
-        {
-          number: pull.number,
-          headSha: workflowRun.head_sha,
-          headRef: workflowRun.head_branch,
-          headRepo: workflowRun.head_repository?.full_name,
-          baseRef: pull.base?.ref,
-        },
-        'commit-associated PR'
-      )
-    }
-  }
-
-  return null
-}
-
-async function validatePullRequestMetadata(
-  github,
-  workflowRun,
-  candidate,
-  source
-) {
-  if (!candidate?.number) {
-    return null
-  }
-
-  if (!github.token) {
-    return candidate
-  }
-
-  try {
-    const pull = await github.getPullRequest(candidate.number)
-    const expectedHeadSha = candidate.headSha || workflowRun.head_sha
-    if (!expectedHeadSha) {
-      console.log(
-        `Ignoring ${source} for #${candidate.number}: missing workflow head SHA`
-      )
-      return null
-    }
-
-    if (pull.head?.sha !== expectedHeadSha) {
-      console.log(
-        `Ignoring ${source} for #${candidate.number}: current PR head ${pull.head?.sha} did not match workflow head ${expectedHeadSha}`
-      )
-      return null
-    }
-
-    if (!candidateMatchesWorkflowRun(candidate, workflowRun)) {
-      console.log(
-        `Ignoring ${source} for #${candidate.number}: metadata did not match workflow run`
-      )
-      return null
-    }
-
-    return {
-      number: pull.number,
-      headSha: pull.head?.sha || expectedHeadSha,
-      headRef: pull.head?.ref || candidate.headRef || workflowRun.head_branch,
-      headRepo: pull.head?.repo?.full_name || candidate.headRepo,
-      baseRef: pull.base?.ref || candidate.baseRef,
-      isFork: pull.head?.repo?.full_name !== pull.base?.repo?.full_name,
-    }
-  } catch (err) {
-    console.log(`Failed to validate ${source}`, err)
-    return null
-  }
-}
-
-function candidateMatchesWorkflowRun(candidate, workflowRun) {
-  if (candidate.headSha && candidate.headSha === workflowRun.head_sha) {
+  if (phase === 'requested') {
     return true
   }
 
-  const workflowHeadRepo = workflowRun.head_repository?.full_name
-  return Boolean(
-    candidate.headRef &&
-      candidate.headRepo &&
-      workflowRun.head_branch &&
-      workflowHeadRepo &&
-      candidate.headRef === workflowRun.head_branch &&
-      candidate.headRepo === workflowHeadRepo
-  )
+  if (phase !== 'completed') {
+    console.log(`Ignoring workflow_run action "${phase}"`)
+    return false
+  }
+
+  if (!REPORTABLE_CONCLUSIONS.has(workflowRun.conclusion)) {
+    console.log(
+      `Ignoring workflow run that concluded as "${workflowRun.conclusion}", it has no test results to report`
+    )
+    return false
+  }
+
+  return true
 }
 
-async function readPullRequestMetadataArtifact() {
-  const metadataPath =
-    process.env.PR_CI_METADATA_PATH || path.join('pr-ci-metadata', 'pr.json')
+function getWorkflowRunHead(workflowRun) {
+  const branch = workflowRun.head_branch
+  const sha = workflowRun.head_sha
+  const repoFullName = workflowRun.head_repository?.full_name
 
-  if (!existsSync(metadataPath)) {
+  if (!branch || !sha || !repoFullName) {
+    console.log(
+      `Ignoring workflow run ${workflowRun.id} without a complete head: ${repoFullName}:${branch} at ${sha}`
+    )
     return null
   }
 
-  const metadata = JSON.parse(await readFile(metadataPath, 'utf8'))
   return {
-    number: Number(metadata.number),
-    headSha: metadata.headSha,
-    headRef: metadata.headRef,
-    headRepo: metadata.headRepo,
-    baseRef: metadata.baseRef,
-    isFork: metadata.isFork === true || metadata.isFork === 'true',
+    branch,
+    sha,
+    repoFullName,
+    ownerLogin:
+      workflowRun.head_repository.owner?.login || repoFullName.split('/')[0],
   }
+}
+
+async function resolvePullRequestForWorkflowRun(github, head) {
+  const pull =
+    selectPullRequest(
+      await github.listPullRequestsForHead({
+        ownerLogin: head.ownerLogin,
+        branch: head.branch,
+        state: 'open',
+      }),
+      head,
+      { requireHeadSha: false }
+    ) ||
+    // A closed pull request whose branch was reused must never shadow the open
+    // one, so it only counts for the exact commit this run reported on.
+    selectPullRequest(
+      await github.listPullRequestsForHead({
+        ownerLogin: head.ownerLogin,
+        branch: head.branch,
+        state: 'all',
+      }),
+      head,
+      { requireHeadSha: true }
+    )
+
+  if (!pull) {
+    console.log(
+      `No pull request found for ${head.ownerLogin}:${head.branch}, skipping`
+    )
+    return null
+  }
+
+  console.log(
+    `Resolved #${pull.number} for ${head.ownerLogin}:${head.branch} at ${head.sha}`
+  )
+  return { number: pull.number, headSha: pull.head.sha }
+}
+
+function selectPullRequest(pulls, head, { requireHeadSha }) {
+  const candidates = (pulls || []).filter(
+    (pull) =>
+      pull.head?.ref === head.branch &&
+      pull.head?.repo?.full_name === head.repoFullName &&
+      (!requireHeadSha || pull.head?.sha === head.sha)
+  )
+
+  if (candidates.length > 1) {
+    console.log(
+      `Found ${candidates.length} pull requests for ${head.ownerLogin}:${head.branch}: ${candidates
+        .map((pull) => `#${pull.number}`)
+        .join(', ')}`
+    )
+  }
+
+  // One branch can back several pull requests with different bases, and the
+  // payload carries no base ref to tell them apart, so pick deterministically
+  // rather than give up on a legitimate run.
+  return [...candidates].sort(
+    (a, b) =>
+      Number(b.head.sha === head.sha) - Number(a.head.sha === head.sha) ||
+      Number(b.state === 'open') - Number(a.state === 'open') ||
+      b.number - a.number
+  )[0]
 }
 
 async function handleBuildAndTestWorkflow({
   github,
   workflowRun,
-  pr,
+  prNumber,
+  isFork,
   owner,
   repo,
   phase,
 }) {
   if (phase === 'requested') {
-    const sha = pr.headSha || workflowRun.head_sha
+    // A fork run waits for a maintainer to approve it, and the
+    // `action_required` conclusion it gets if nobody does is not reported, so
+    // the placeholder would be left claiming tests are running forever.
+    if (isFork) {
+      console.log(
+        `Skipping the in-progress comment for #${prNumber}, a fork run may never start`
+      )
+      return
+    }
+
     const body = [
       TEST_COMMENT_MARKER,
       '## Tests in progress',
       '',
-      `Commit: ${sha}`,
+      `Commit: ${workflowRun.head_sha}`,
       `[View workflow run](${workflowRun.html_url})`,
       '',
     ].join('\n')
 
     await github.insertIssueCommentIfMissing(
-      pr.number,
+      prNumber,
       TEST_COMMENT_MARKER,
       body,
       ['## Failing test suites', '## Failing CI jobs']
@@ -485,11 +494,12 @@ async function handleBuildAndTestWorkflow({
       '## Tests Passed',
       '',
       '<!-- ## Failing test suites -->',
-      `Commit: ${pr.headSha || workflowRun.head_sha}`,
+      `Commit: ${workflowRun.head_sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
       '',
     ].join('\n')
 
-    await github.upsertIssueComment(pr.number, TEST_COMMENT_MARKER, body, [
+    await github.upsertIssueComment(prNumber, TEST_COMMENT_MARKER, body, [
       '## Failing test suites',
       '## Failing CI jobs',
     ])
@@ -532,10 +542,10 @@ async function handleBuildAndTestWorkflow({
     otherFailures,
     owner,
     repo,
-    sha: pr.headSha || workflowRun.head_sha,
+    sha: workflowRun.head_sha,
   })
 
-  await github.upsertIssueComment(pr.number, TEST_COMMENT_MARKER, body, [
+  await github.upsertIssueComment(prNumber, TEST_COMMENT_MARKER, body, [
     '## Failing test suites',
     '## Failing CI jobs',
   ])

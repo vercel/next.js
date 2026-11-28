@@ -42,7 +42,7 @@ impl ProcessEnv for FilterProcessEnv {
                 }
             }
         }
-        Ok(Vc::cell(filtered))
+        Ok(Vc::cell(filtered.into()))
     }
 
     #[turbo_tasks::function]

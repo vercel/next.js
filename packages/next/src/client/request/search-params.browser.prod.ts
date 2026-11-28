@@ -14,7 +14,11 @@ function makeUntrackedSearchParams(
   const promise = Promise.resolve(underlyingSearchParams)
   // Mark it as fulfilled the way React does once it has tracked it, so `use()`
   // can unwrap it without suspending.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(promise as any).status = 'fulfilled'
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(promise as any).value = underlyingSearchParams
   CachedSearchParams.set(underlyingSearchParams, promise)
 

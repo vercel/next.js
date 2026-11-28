@@ -280,4 +280,64 @@ describe('ResponseCache', () => {
       expect(followUp).not.toBeNull()
     })
   })
+
+  describe('abort signals', () => {
+    it('aborts the response generator when the caller aborts', async () => {
+      const cache = new ResponseCache({ minimalMode: false, route })
+      const incrementalCache = mockIncrementalCache()
+      const previous = await fromResponseCacheEntry(makeCacheEntry('cached'))
+      // An expired entry is revalidated before responding, like a miss
+      incrementalCache.get.mockResolvedValue({ ...previous, isStale: -1 })
+
+      const generator = jest.fn(
+        ({ signal }: { signal?: AbortSignal }) =>
+          new Promise<never>((_, reject) => {
+            signal!.addEventListener('abort', () => reject(signal!.reason))
+          })
+      )
+      const a = new AbortController()
+      const result = cache.get('/test', generator, {
+        routeKind: RouteKind.APP_PAGE,
+        incrementalCache,
+        signal: a.signal,
+      })
+      await new Promise((r) => setTimeout(r, 0))
+      expect(generator).toHaveBeenCalledTimes(1)
+
+      a.abort(new Error('left'))
+      await expect(result).rejects.toThrow('left')
+
+      // An abort isn't a failure, so the expired entry isn't extended
+      await new Promise((r) => setTimeout(r, 0))
+      expect(incrementalCache.set).not.toHaveBeenCalled()
+    })
+
+    it("doesn't abort a revalidation after responding with a stale entry", async () => {
+      const cache = new ResponseCache({ minimalMode: false, route })
+      const incrementalCache = mockIncrementalCache()
+      const previous = await fromResponseCacheEntry(makeCacheEntry('cached'))
+      incrementalCache.get.mockResolvedValue({ ...previous, isStale: true })
+
+      let finishRevalidation!: (signal: AbortSignal | undefined) => void
+      const revalidated = new Promise<AbortSignal | undefined>((r) => {
+        finishRevalidation = r
+      })
+      const generator = jest.fn(async ({ signal }) => {
+        finishRevalidation(signal)
+        return makeCacheEntry('revalidated')
+      })
+
+      const a = new AbortController()
+      const result = await cache.get('/test', generator, {
+        routeKind: RouteKind.APP_PAGE,
+        incrementalCache,
+        signal: a.signal,
+      })
+      expect(result).toMatchObject({ isStale: true })
+      a.abort()
+
+      expect(await revalidated).toBeUndefined()
+      expect(generator).toHaveBeenCalledTimes(1)
+    })
+  })
 })

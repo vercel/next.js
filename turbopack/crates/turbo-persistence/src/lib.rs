@@ -15,7 +15,6 @@ mod collector;
 mod collector_entry;
 mod compaction;
 mod compression;
-mod concurrent_slice;
 mod constants;
 mod db;
 mod key;
@@ -32,6 +31,7 @@ mod shared_bytes;
 pub mod sst_filter;
 pub mod static_sorted_file;
 mod static_sorted_file_builder;
+mod unreadable;
 mod value_block_count_tracker;
 mod value_buf;
 mod write_batch;
@@ -45,6 +45,7 @@ pub use db::{
     CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
     TurboPersistence, read_current_version,
 };
+pub use unreadable::CacheFileUnreadable;
 
 /// Controls how SST and meta files are read from disk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

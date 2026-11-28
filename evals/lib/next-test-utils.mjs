@@ -75,6 +75,10 @@ export async function startNextServer({
     await stopped
   }
 
+  function getOutput() {
+    return logFile ? readFileSync(logFile, 'utf8') : output
+  }
+
   try {
     const deadline = Date.now() + 30_000
     while (Date.now() < deadline) {
@@ -91,7 +95,11 @@ export async function startNextServer({
           await response.arrayBuffer()
           if (response.ok) {
             if (detached) server.unref()
-            return { url, stop }
+            return {
+              url,
+              stop,
+              getOutput,
+            }
           }
         } catch {}
       }

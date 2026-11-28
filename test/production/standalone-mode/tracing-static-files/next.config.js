@@ -1,8 +1,6 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {
-  serverExternalPackages: ['external-dynamic'],
-}
+const nextConfig = {}
 
 module.exports = nextConfig

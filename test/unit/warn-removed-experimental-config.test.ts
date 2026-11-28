@@ -44,6 +44,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
         experimental: {
           skipTrailingSlashRedirect: true,
         },
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
       } as any,
       'skipTrailingSlashRedirect',
       'skipTrailingSlashRedirect',
@@ -64,6 +66,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
         experimental: {
           relay: true,
         },
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
       } as any,
       'relay',
       'compiler.relay',
@@ -83,6 +87,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       experimental: {
         skipTrailingSlashRedirect: true,
       },
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     } as any
     warnOptionHasBeenMovedOutOfExperimental(
       config,
@@ -101,6 +107,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       experimental: {
         foo: 'bar',
       },
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     } as any
     warnOptionHasBeenMovedOutOfExperimental(
       config,
@@ -119,6 +127,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       experimental: {
         bundlePagesExternals: true,
       },
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     } as any
 
     warnOptionHasBeenMovedOutOfExperimental(
@@ -148,6 +158,8 @@ describe('warnOptionHasBeenDeprecated', () => {
       experimental: {
         appDir: true,
       },
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     } as any
     warnOptionHasBeenDeprecated(
       config,

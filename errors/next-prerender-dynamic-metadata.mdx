@@ -22,7 +22,7 @@ If your metadata does not depend on any request data, then it may be possible fo
 
 Before:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { cms } from './cms'
 
 export async function generateMetadata() {
@@ -51,7 +51,7 @@ export default async function Page() {
 
 After:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { cms } from './cms'
 
 export async function generateMetadata() {
@@ -84,7 +84,7 @@ If your metadata requires Request data or depends on external data that is not c
 
 Before:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { cookies } from 'next/headers'
 import { getPersonalizedTitle } from './my-api'
 
@@ -106,7 +106,7 @@ export default function Page() {
 
 After:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'
@@ -127,7 +127,7 @@ async function DynamicMarker() {
     return null
   }
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <Connection />
     </Suspense>
   )
@@ -145,7 +145,7 @@ export default function Page() {
 }
 ```
 
-Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered.
+The `DynamicMarker` has its own Suspense boundary so the page content can still prerender. Its [empty fallback](/docs/app/guides/streaming#choosing-a-fallback) matches the marker's nonvisual output.
 
 ## Useful Links
 

@@ -50,6 +50,8 @@ describe('react-performance-track', () => {
     )
   })
 
+  // React's IO tracking does not consider setImmediate callbacks to be IO.
+  // @gate sequentialTaskScheduling !== 'unstable_immediate'
   it('should show params', async () => {
     const browser = await next.browser('/params/next', { extraHTTPHeaders })
     await browser.elementByCss('[data-react-server-requests-done]', {
@@ -67,6 +69,8 @@ describe('react-performance-track', () => {
     )
   })
 
+  // React's IO tracking does not consider setImmediate callbacks to be IO.
+  // @gate sequentialTaskScheduling !== 'unstable_immediate'
   it('should show searchParams', async () => {
     const browser = await next.browser('/searchparams?slug=next', {
       extraHTTPHeaders,
@@ -86,6 +90,8 @@ describe('react-performance-track', () => {
     )
   })
 
+  // React's IO tracking does not consider setImmediate callbacks to be IO.
+  // @gate sequentialTaskScheduling !== 'unstable_immediate'
   it('should show cookies', async () => {
     const browser = await next.browser('/cookies', { extraHTTPHeaders })
     await browser.elementByCss('[data-react-server-requests-done]', {
@@ -113,6 +119,8 @@ describe('react-performance-track', () => {
     expect(track).toEqual([])
   })
 
+  // React's IO tracking does not consider setImmediate callbacks to be IO.
+  // @gate sequentialTaskScheduling !== 'unstable_immediate'
   it('should show headers', async () => {
     const browser = await next.browser('/headers', { extraHTTPHeaders })
     await browser.elementByCss('[data-react-server-requests-done]', {

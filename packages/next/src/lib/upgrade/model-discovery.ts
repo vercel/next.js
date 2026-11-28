@@ -52,7 +52,8 @@ type DiscoveryProtocol = {
 export function getCodexModels(
   path: string,
   cwd: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  env?: NodeJS.ProcessEnv
 ) {
   return discoverModels(
     'codex',
@@ -127,14 +128,16 @@ export function getCodexModels(
           complete(models)
         },
       }
-    }
+    },
+    env
   )
 }
 
 export function getClaudeModels(
   path: string,
   cwd: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  env?: NodeJS.ProcessEnv
 ) {
   return discoverModels(
     'claude',
@@ -184,19 +187,23 @@ export function getClaudeModels(
           )
         },
       }
-    }
+    },
+    env
   )
 }
 
+// `env` replaces the CLI's environment, e.g. to read the models a fresh
+// install offers instead of those from the user's own agent configuration.
 export function getHarnessModels(
   name: 'codex' | 'claude',
   path: string,
   cwd: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  env?: NodeJS.ProcessEnv
 ): Promise<UpgradeModel[] | null> {
   return name === 'codex'
-    ? getCodexModels(path, cwd, signal)
-    : getClaudeModels(path, cwd, signal)
+    ? getCodexModels(path, cwd, signal, env)
+    : getClaudeModels(path, cwd, signal, env)
 }
 
 // null means discovery was cancelled, rather than an unavailable catalog.
@@ -209,12 +216,13 @@ async function discoverModels(
   createProtocol: (
     send: (message: unknown) => void,
     complete: (models: UpgradeModel[]) => void
-  ) => DiscoveryProtocol
+  ) => DiscoveryProtocol,
+  env?: NodeJS.ProcessEnv
 ): Promise<UpgradeModel[] | null> {
   if (signal?.aborted) return null
   let child: ReturnType<typeof spawn>
   try {
-    child = spawn(path, args, { cwd, stdio: 'pipe' })
+    child = spawn(path, args, { cwd, env: env ?? process.env, stdio: 'pipe' })
   } catch {
     debug('%s model discovery failed: could not start CLI', name)
     return []

@@ -54,6 +54,7 @@
             ),
         ],
         span: 191..199,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -226,6 +227,7 @@
             ),
         ],
         span: 286..299,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -363,6 +365,7 @@
             ),
         ],
         span: 350..363,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -549,6 +552,7 @@
             ),
         ],
         span: 403..411,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -686,6 +690,7 @@
             ),
         ],
         span: 484..492,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -872,6 +877,7 @@
             ),
         ],
         span: 532..540,
+        usage: Escapes,
     },
     Call {
         func: Member(

@@ -26,6 +26,7 @@
             ),
         ),
         span: 9..25,
+        target_escapes: true,
     },
     DestructuredMember {
         obj: Object {
@@ -54,6 +55,7 @@
             ),
         ),
         span: 65..79,
+        target_escapes: true,
     },
     DestructuredMember {
         obj: Object {
@@ -82,6 +84,7 @@
             ),
         ),
         span: 113..127,
+        target_escapes: true,
     },
     DestructuredMember {
         obj: Object {
@@ -116,6 +119,7 @@
             ),
         ),
         span: 231..236,
+        target_escapes: false,
     },
     DestructuredMember {
         obj: Object {
@@ -150,5 +154,6 @@
             ),
         ),
         span: 287..292,
+        target_escapes: false,
     },
 ]

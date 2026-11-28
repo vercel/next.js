@@ -53,6 +53,8 @@ function AvatarSkeleton() {
 function DynamicUserAvatar({ avatar }) {
   let backgroundColor = avatar.preferredBackground
   if (!backgroundColor) {
+    // Renders at request time inside `<Suspense>`
+    // eslint-disable-next-line react-hooks/purity
     const randomColor = `#${Math.random().toString(16).slice(2, 8)}`
     // imagine safelyGetRandomColor is a function that handles synchronizing
     // the random color chosen between SSR and hydration to avoid hydration errors

@@ -7,7 +7,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use futures::try_join;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map as JsonMap, Value as JsonValue, json};
+use serde_json::{Value as JsonValue, json};
 use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -48,7 +48,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
+    source_map::{GenerateSourceMap, SourceMapType, utils::resolve_source_map_sources},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -65,7 +65,8 @@ use crate::{
     embed_js::embed_file_path,
     evaluate::{
         EnvVarTracking, EvaluateArg, EvaluateContext, EvaluateEntries, EvaluatePool,
-        EvaluationIssue, custom_evaluate, get_evaluate_entries, get_evaluate_pool,
+        EvaluationIssue, SourceContentEncoding, custom_evaluate, get_evaluate_entries,
+        get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     format::FormattingMode,
@@ -92,7 +93,7 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-pub use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
+use turbopack_core::loader::WebpackLoaderItems;
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
@@ -155,6 +156,19 @@ impl SourceTransform for WebpackLoaders {
     }
 }
 
+/// Returns `true` if applying the `rename_as` pattern to `path` would only append an extension the
+/// path already has, e.g. `*.css` on `foo.css` or `foo.module.css`.
+///
+/// [`AssetIdent::rename_as`] replaces `*` with the full path, so without this check `*.css` would
+/// rename `foo.module.css` to `foo.module.css.css`. The renamed path no longer ends in
+/// `.module.css`, so the loader output would be processed as global CSS instead of as a CSS module.
+/// Keeping the original ident makes such a rule behave like one without a rename.
+fn is_redundant_rename(rename_as: &str, path: &str) -> bool {
+    rename_as
+        .strip_prefix('*')
+        .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('*') && path.ends_with(suffix))
+}
+
 #[turbo_tasks::value]
 struct WebpackLoadersProcessedAsset {
     transform: ResolvedVc<WebpackLoaders>,
@@ -166,18 +180,15 @@ struct WebpackLoadersProcessedAsset {
 impl Source for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(
-            if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
-                self.source
-                    .ident()
-                    .owned()
-                    .await?
-                    .rename_as(rename_as)
-                    .into_vc()
-            } else {
-                self.source.ident()
-            },
-        )
+        let ident_vc = self.source.ident();
+        let Some(rename_as) = self.transform.await?.rename_as.clone() else {
+            return Ok(ident_vc);
+        };
+        let ident = ident_vc.await?;
+        if is_redundant_rename(&rename_as, &ident.path.path) {
+            return Ok(ident_vc);
+        }
+        Ok(ReadRef::into_owned(ident).rename_as(&rename_as).into_vc())
     }
 
     #[turbo_tasks::function]
@@ -207,7 +218,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(self: Vc<Self>, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         Ok(*self.process().await?.source_map)
     }
 }
@@ -449,32 +460,6 @@ impl WebpackLoadersProcessedAsset {
                 env,
                 node_backend,
             } = &*transform.execution_context.await?;
-            let source_content = self.source.content();
-            let AssetContent::File(file) = *source_content.await? else {
-                bail!("Webpack Loaders transform only support transforming files");
-            };
-            let FileContent::Content(file_content) = &*file.await? else {
-                return Ok(ProcessWebpackLoadersResult {
-                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
-                        .resolved_cell(),
-                    assets: Vec::new(),
-                    source_map: FileContent::NotFound.resolved_cell(),
-                }
-                .cell());
-            };
-
-            // If the content is not a valid string (e.g. binary file), handle the error and pass a
-            // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
-            let content: JsonValue = match file_content.content().to_str() {
-                Ok(utf8_str) => utf8_str.to_string().into(),
-                Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
-                    "binary".to_string(),
-                    JsonValue::from(
-                        base64::engine::general_purpose::STANDARD
-                            .encode(file_content.content().to_bytes()),
-                    ),
-                )))),
-            };
             let evaluate_context = transform.evaluate_context;
 
             let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
@@ -528,7 +513,11 @@ impl WebpackLoadersProcessedAsset {
                 resolve_options_context: Some(transform.resolve_options_context),
                 asset_context: self.asset_context,
                 args: vec![
-                    EvaluateArg::Vc(ResolvedVc::cell(content)),
+                    EvaluateArg::SourceContent {
+                        source: self.source,
+                        // Pass non-UTF-8 content (e.g. images) to the loaders as a `Buffer`.
+                        encoding: SourceContentEncoding::TextOrBinary,
+                    },
                     EvaluateArg::Path(resource_fs_path.clone()),
                     // We need to pass the query string to the loader
                     EvaluateArg::Vc(ResolvedVc::cell(source_ident.query.to_string().into())),
@@ -592,8 +581,10 @@ impl WebpackLoadersProcessedAsset {
     }
 }
 
+/// Runs the loaders. Returns `None` when the transformed source doesn't exist or when an error was
+/// emitted as an issue.
 #[turbo_tasks::function]
-pub(crate) async fn evaluate_webpack_loader(
+pub(super) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
 ) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(webpack_loader_context).await
@@ -620,7 +611,8 @@ enum LogType {
 
 #[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct LogInfo {
+pub(super) struct LogInfo {
+    #[bincode(fixint)]
     time: u64,
     log_type: LogType,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
@@ -630,7 +622,7 @@ pub struct LogInfo {
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum InfoMessage {
+pub(super) enum InfoMessage {
     // Sent to inform Turbopack about the dependencies of the task.
     // All fields are `default` since it is ok for the client to
     // simply omit instead of sending empty arrays.
@@ -673,7 +665,7 @@ pub struct WebpackResolveOptions {
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum RequestMessage {
+pub(super) enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
@@ -702,7 +694,7 @@ pub struct ImportModuleChunk {
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
-pub enum ResponseMessage {
+pub(super) enum ResponseMessage {
     Resolve {
         path: RcStr,
     },
@@ -718,23 +710,23 @@ pub enum ResponseMessage {
 
 #[turbo_tasks::task_input]
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
-pub struct WebpackLoaderContext {
-    pub entries: ResolvedVc<EvaluateEntries>,
-    pub cwd: FileSystemPath,
-    pub env: ResolvedVc<Box<dyn ProcessEnv>>,
-    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
-    pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
-    pub module_graph: ResolvedVc<ModuleGraph>,
-    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub args: Vec<EvaluateArg>,
-    pub additional_invalidation: ResolvedVc<Completion>,
+pub(super) struct WebpackLoaderContext {
+    pub(super) entries: ResolvedVc<EvaluateEntries>,
+    pub(super) cwd: FileSystemPath,
+    pub(super) env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub(super) node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+    pub(super) context_source_for_issue: ResolvedVc<Box<dyn Source>>,
+    pub(super) module_graph: ResolvedVc<ModuleGraph>,
+    pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub(super) evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub(super) resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
+    pub(super) asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub(super) args: Vec<EvaluateArg>,
+    pub(super) additional_invalidation: ResolvedVc<Completion>,
     /// Names of the loaders being applied to the source, in pipeline order.
     /// Used to enrich error messages and issue details so users know which
     /// loader chain was running when an error occurred.
-    pub loader_names: Vec<RcStr>,
+    pub(super) loader_names: Vec<RcStr>,
 }
 
 impl WebpackLoaderContext {
@@ -995,13 +987,17 @@ impl EvaluateContext for WebpackLoaderContext {
                     .context("importModule: module is not evaluatable")?;
 
                 // Build a module graph from the resolved module and its
-                // transitive dependencies
+                // transitive dependencies. The loader evaluates it in a separate process that can't
+                // activate lazily compiled dynamic imports, so the graph includes their targets.
                 let single_graph = SingleModuleGraph::new_with_entry(
                     ChunkGroupEntry::Entry {
                         modules: vec![module],
                         heuristics: EntryHeuristics::default(),
                     },
-                    ModuleGraphOptions::default(),
+                    ModuleGraphOptions {
+                        force_activated: true,
+                        ..Default::default()
+                    },
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()
@@ -1215,9 +1211,9 @@ async fn apply_webpack_resolve_options(
 
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
-pub struct BuildDependencyIssue {
-    pub path: FileSystemPath,
-    pub source: IssueSource,
+struct BuildDependencyIssue {
+    path: FileSystemPath,
+    source: IssueSource,
 }
 
 #[async_trait]
@@ -1259,10 +1255,10 @@ impl Issue for BuildDependencyIssue {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct UnresolvedBuildDependencyIssue {
-    pub request: RcStr,
-    pub error: Option<RcStr>,
-    pub source: IssueSource,
+struct UnresolvedBuildDependencyIssue {
+    request: RcStr,
+    error: Option<RcStr>,
+    source: IssueSource,
 }
 
 #[async_trait]
@@ -1306,13 +1302,13 @@ impl Issue for UnresolvedBuildDependencyIssue {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct EvaluateEmittedErrorIssue {
-    pub source: IssueSource,
-    pub severity: IssueSeverity,
-    pub error: StructuredError,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
+struct EvaluateEmittedErrorIssue {
+    source: IssueSource,
+    severity: IssueSeverity,
+    error: StructuredError,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
 }
 
 #[async_trait]
@@ -1354,14 +1350,14 @@ impl Issue for EvaluateEmittedErrorIssue {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct EvaluateErrorLoggingIssue {
-    pub source: IssueSource,
-    pub severity: IssueSeverity,
+struct EvaluateErrorLoggingIssue {
+    source: IssueSource,
+    severity: IssueSeverity,
     #[turbo_tasks(unsafe_ignore)]
-    pub logging: Vec<LogInfo>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
+    logging: Vec<LogInfo>,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
 }
 
 #[async_trait]

@@ -4,27 +4,37 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
+use smallvec::SmallVec;
+use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef, ResolvedVc, State,
+    TransientInstance, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     message_queue::{CompilationEvent, Severity},
     turbo_tasks,
 };
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
-    update_instruction::UpdateInstruction,
-    version::{PartialUpdate, Update, Version},
+    chunk::ModuleId,
+    version::{Version, VersionedContent},
 };
-use turbopack_ecmascript::chunk_list::{
-    merged_update::EcmascriptMergedUpdate,
-    update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
-    version::ChunkListVersion,
+use turbopack_ecmascript::{
+    chunk_list::merged_update::{
+        EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
+        EcmascriptModuleEntry,
+    },
+    hmr::{EcmascriptHmrChunkContent, version::EcmascriptChunkVersion},
 };
-use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::{
-    EcmascriptBuildNodeChunkListContent, compute_update_from_version_operation,
-};
+use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
 #[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrChunkList {
@@ -37,131 +47,335 @@ pub struct ServerHmrChunkList {
 pub struct ServerHmrChunkLists(Vec<ServerHmrChunkList>);
 
 impl ServerHmrChunkLists {
-    pub fn new(chunk_lists: Vec<ServerHmrChunkList>) -> Self {
-        Self(chunk_lists)
-    }
-
     pub fn as_slice(&self) -> &[ServerHmrChunkList] {
         &self.0
     }
+}
 
-    pub fn retain_entry_paths(&mut self, entry_paths: &FxIndexSet<RcStr>) {
-        self.0
-            .retain(|chunk_list| entry_paths.contains(&chunk_list.relative_path));
+/// What the server runtimes have loaded, as far as server HMR knows: the modules of every route
+/// pulled since the server modules were last fully re-evaluated, and the modules shipped to the
+/// runtimes since then.
+///
+/// Held in a project-global `State`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, OperationValue)]
+pub struct ServerHmrLoadedState {
+    /// The code a runtime may have installed for a module, by runtime directory (the chunks'
+    /// output directory, which is how updates are routed to a runtime) and module id. Each runtime
+    /// has its own module factories, and some ids (e.g. externals) are loaded by several runtimes.
+    ///
+    /// Usually one piece of code. A runtime installs a module from whichever of its chunks loads
+    /// first, so when the chunks have different code for the module (see
+    /// [`ServerHmrRouteModule::code`]), any of them may be installed.
+    modules: FxHashMap<RuntimeDirectory, FxHashMap<ModuleId, SmallVec<[InstalledCode; 1]>>>,
+    /// Version ids of chunks that can't be expanded into modules, by chunk path.
+    opaque_chunks: FxHashMap<RcStr, RcStr>,
+    /// The routes pulled, by entry paths.
+    pulled_routes: FxHashSet<FrozenSet<RcStr>>,
+}
+
+impl Encode for ServerHmrLoadedState {
+    fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
+        Ok(())
     }
 }
 
-#[turbo_tasks::value(serialization = "skip", shared)]
-#[derive(Debug)]
-pub struct ServerHmrChunkListVersion {
-    pub versions_by_chunk_list_path: FxIndexMap<RcStr, ReadRef<ChunkListVersion>>,
-}
-
-#[turbo_tasks::value_impl]
-impl Version for ServerHmrChunkListVersion {
-    #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        hasher.write_value(self.versions_by_chunk_list_path.len());
-        for (path, version) in &self.versions_by_chunk_list_path {
-            hasher.write_value(path.as_str());
-            hasher.write_value(version.id.as_str());
-        }
-        Ok(Vc::cell(encode_base64(hasher.finish()).into()))
+impl<Context> Decode<Context> for ServerHmrLoadedState {
+    fn decode<D: Decoder<Context = Context>>(_decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::default())
     }
 }
 
-impl ServerHmrChunkListVersion {
-    pub async fn from_chunk_lists(chunk_lists: &[ServerHmrChunkList]) -> Result<Self> {
-        let versions_by_chunk_list_path = chunk_lists
-            .iter()
-            .map(|chunk_list| {
-                let relative_path = chunk_list.relative_path.clone();
-                let versioned_content = chunk_list.versioned_content;
-                async move {
-                    let version = versioned_content.version().await?;
-                    anyhow::Ok((relative_path, version))
+impl_borrow_decode!(ServerHmrLoadedState);
+
+/// The output directory of a server runtime's chunks, which identifies the runtime: each runtime
+/// has its own module factories, and updates are routed to a runtime by the directory of their
+/// chunks.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, ValueDebugFormat, NonLocalValue, OperationValue)]
+pub struct RuntimeDirectory(RcStr);
+
+impl RuntimeDirectory {
+    fn of_chunk(chunk_path: &str) -> Self {
+        Self(
+            chunk_path
+                .rsplit_once('/')
+                .map_or("", |(dir, _)| dir)
+                .into(),
+        )
+    }
+}
+
+/// Code that a runtime may have installed for a module.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, OperationValue)]
+struct InstalledCode {
+    /// The hash of the installed code.
+    hash: u128,
+    /// The chunk the code was installed from. Read for the chunk's *current* version, to check
+    /// whether it still has this code (see `outdated_modules`), so it is not a snapshot.
+    chunk_version: OperationVc<EcmascriptChunkVersion>,
+}
+
+#[turbo_tasks::function(operation, root)]
+fn server_hmr_chunk_version_operation(
+    content: ResolvedVc<Box<dyn EcmascriptHmrChunkContent>>,
+) -> Vc<EcmascriptChunkVersion> {
+    content.ecmascript_chunk_version()
+}
+
+impl ServerHmrLoadedState {
+    /// Records a route's modules as loaded, after the `outdated` ones (by runtime index) were
+    /// shipped. Returns whether anything changed.
+    fn record(
+        &mut self,
+        route: &ServerHmrRouteModules,
+        entry_paths: FrozenSet<RcStr>,
+        outdated: &[FxHashSet<ModuleId>],
+    ) -> bool {
+        let mut changed = self.pulled_routes.insert(entry_paths);
+        for (index, runtime) in route.runtimes.iter().enumerate() {
+            if runtime.modules.is_empty() {
+                continue;
+            }
+            let outdated = outdated.get(index);
+            let modules = self.modules.entry(runtime.output_dir.clone()).or_default();
+            let mut chunk_versions = vec![None; runtime.chunks.len()];
+            let mut installed_code = |code: &ServerHmrModuleCode| InstalledCode {
+                hash: code.hash,
+                chunk_version: *chunk_versions[code.chunk].get_or_insert_with(|| {
+                    server_hmr_chunk_version_operation(runtime.chunks[code.chunk].content)
+                }),
+            };
+            for (id, module) in &runtime.modules {
+                match modules.get_mut(id) {
+                    // Up to date modules stay installed as they are.
+                    Some(_) if !outdated.is_some_and(|outdated| outdated.contains(id)) => {}
+                    // Shipped.
+                    Some(installed) => {
+                        *installed = module
+                            .code
+                            .first()
+                            .into_iter()
+                            .map(&mut installed_code)
+                            .collect();
+                        changed = true;
+                    }
+                    // Installed from any of the route's chunks (or shipped).
+                    None => {
+                        let code = module.code.iter().map(&mut installed_code).collect();
+                        modules.insert(id.clone(), code);
+                        changed = true;
+                    }
                 }
+            }
+        }
+        for opaque in &route.opaque_chunks {
+            changed |= self
+                .opaque_chunks
+                .insert(opaque.path.clone(), opaque.version_id.clone())
+                .as_ref()
+                != Some(&opaque.version_id);
+        }
+        changed
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrRouteChunk {
+    pub content: ResolvedVc<Box<dyn EcmascriptHmrChunkContent>>,
+    pub version: ReadRef<EcmascriptChunkVersion>,
+}
+
+/// Code that a route's chunks have for a module.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrModuleCode {
+    /// The index of the chunk (in [`ServerHmrRouteRuntime::chunks`]) that has the code.
+    pub chunk: usize,
+    pub hash: u128,
+}
+
+/// A module of a route, in one runtime.
+#[derive(Clone, Debug, Default, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrRouteModule {
+    /// The distinct code the runtime's chunks have for the module. The first is shipped.
+    ///
+    /// Usually one piece of code. Async loaders, for example, only load the chunks that aren't
+    /// available yet where they are imported, so their code depends on the chunk that has them.
+    pub code: SmallVec<[ServerHmrModuleCode; 1]>,
+}
+
+impl ServerHmrRouteModule {
+    fn has(&self, hash: u128) -> bool {
+        self.code.iter().any(|code| code.hash == hash)
+    }
+}
+
+/// A route's chunks that one runtime loads, expanded into modules.
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrRouteRuntime {
+    pub output_dir: RuntimeDirectory,
+    pub chunks: Vec<ServerHmrRouteChunk>,
+    pub modules: FxIndexMap<ModuleId, ServerHmrRouteModule>,
+}
+
+/// A chunk of a route's chunk lists whose content isn't ECMAScript, so it can't be expanded into
+/// modules and only its version is compared. Server chunk lists normally only have ECMAScript
+/// chunks (CSS and WebAssembly, for example, don't add any), but a chunk list can track any output
+/// asset.
+#[derive(Clone, Debug, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrOpaqueChunk {
+    pub path: RcStr,
+    pub version_id: RcStr,
+}
+
+/// A route's chunks, by runtime.
+#[turbo_tasks::value(serialization = "skip", shared)]
+pub struct ServerHmrRouteModules {
+    pub runtimes: Vec<ServerHmrRouteRuntime>,
+    pub opaque_chunks: Vec<ServerHmrOpaqueChunk>,
+}
+
+impl ServerHmrRouteModules {
+    pub async fn from_chunk_lists(chunk_lists: &[ServerHmrChunkList]) -> Result<Self> {
+        let mut contents = FxIndexMap::default();
+        for chunk_list in chunk_lists {
+            let chunk_list = chunk_list.versioned_content.await?;
+            for (path, content) in chunk_list.chunks_contents() {
+                contents.insert(path.clone(), *content);
+            }
+        }
+
+        let mut ecmascript = Vec::new();
+        let mut opaque = Vec::new();
+        for (path, content) in contents {
+            match ResolvedVc::try_sidecast::<Box<dyn EcmascriptHmrChunkContent>>(content) {
+                Some(content) => ecmascript.push(content),
+                None => opaque.push((RcStr::from(path), content)),
+            }
+        }
+
+        let chunks = ecmascript
+            .into_iter()
+            .map(async |content| {
+                Ok(ServerHmrRouteChunk {
+                    content,
+                    version: content.ecmascript_chunk_version().await?,
+                })
             })
             .try_join()
-            .await?
+            .await?;
+        let mut runtimes = FxIndexMap::<RuntimeDirectory, ServerHmrRouteRuntime>::default();
+        for chunk in chunks {
+            let dir = RuntimeDirectory::of_chunk(&chunk.version.chunk_path);
+            let runtime = runtimes
+                .entry(dir.clone())
+                .or_insert_with(|| ServerHmrRouteRuntime {
+                    output_dir: dir,
+                    chunks: Vec::new(),
+                    modules: FxIndexMap::default(),
+                });
+            let index = runtime.chunks.len();
+            for (id, &hash) in &chunk.version.entries_hashes {
+                let module = runtime.modules.entry(id.clone()).or_default();
+                if !module.has(hash) {
+                    module.code.push(ServerHmrModuleCode { chunk: index, hash });
+                }
+            }
+            runtime.chunks.push(chunk);
+        }
+
+        let opaque_chunks = opaque
             .into_iter()
-            .collect();
+            .map(async |(path, content)| {
+                Ok(ServerHmrOpaqueChunk {
+                    path,
+                    version_id: content.version().id().owned().await?,
+                })
+            })
+            .try_join()
+            .await?;
         Ok(Self {
-            versions_by_chunk_list_path,
+            runtimes: runtimes.into_values().collect(),
+            opaque_chunks,
         })
     }
 }
 
-#[derive(Default)]
-pub struct ChunkListUpdateBuilder {
-    chunks: FxIndexMap<RcStr, ChunkUpdate>,
-    merged: FxIndexSet<EcmascriptMergedUpdate>,
+/// Modules of a chunk to read, with the hash they're expected to have.
+#[derive(NonLocalValue)]
+struct ChunkModules {
+    content: ResolvedVc<Box<dyn EcmascriptHmrChunkContent>>,
+    chunk_path: RcStr,
+    hashes: FxIndexMap<ModuleId, u128>,
 }
 
-impl ChunkListUpdateBuilder {
-    pub fn add_instruction(&mut self, instruction: &UpdateInstruction) {
-        let instruction = instruction
-            .downcast_ref::<EcmascriptUpdateInstruction>()
-            .expect("aggregate HMR only accepts ECMAScript update instructions");
+/// The code of the requested modules, by request, or `None` when any of them is gone or no longer
+/// has the requested hash.
+#[turbo_tasks::value(transparent, serialization = "skip")]
+struct ServerHmrModuleEntries(Option<Vec<FxIndexMap<ModuleId, EcmascriptModuleEntry>>>);
 
-        match instruction {
-            EcmascriptUpdateInstruction::ChunkList(update) => {
-                for (chunk_path, update) in &update.chunks {
-                    self.chunks.insert(chunk_path.clone(), update.clone());
-                }
-                for update in &update.merged {
-                    self.push_merged(update);
-                }
-            }
-            EcmascriptUpdateInstruction::Merged(update) => self.push_merged(update),
-        }
-    }
-
-    fn push_merged(&mut self, update: &EcmascriptMergedUpdate) {
-        self.merged.insert(update.clone());
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.chunks.is_empty() && self.merged.is_empty()
-    }
-
-    pub fn build(self) -> UpdateInstruction {
-        ChunkListUpdate {
-            chunks: self.chunks,
-            merged: self.merged.into_iter().collect(),
-        }
-        .into_instruction()
-    }
+/// Reads the code of modules of several chunks, in one operation so that it is read strongly
+/// consistently at once.
+#[turbo_tasks::function(operation, root)]
+async fn server_hmr_module_entries_operation(
+    requests: TransientInstance<Vec<ChunkModules>>,
+) -> Result<Vc<ServerHmrModuleEntries>> {
+    let chunks = requests
+        .iter()
+        .map(async |request| {
+            let entries = request.content.entries().await?;
+            let Some(entries) = request
+                .hashes
+                .keys()
+                .map(|id| entries.get(id).map(|entry| (id, entry)))
+                .collect::<Option<Vec<_>>>()
+            else {
+                return Ok(None);
+            };
+            let entries = entries
+                .into_iter()
+                .map(async |(id, entry)| {
+                    if *entry.hash.await? != request.hashes[id] {
+                        return Ok(None);
+                    }
+                    let entry =
+                        EcmascriptModuleEntry::from_code(id, *entry.code, &request.chunk_path)
+                            .await?;
+                    Ok(Some((id.clone(), entry)))
+                })
+                .try_join()
+                .await?;
+            Ok(entries.into_iter().collect::<Option<FxIndexMap<_, _>>>())
+        })
+        .try_join()
+        .await?;
+    Ok(Vc::cell(chunks.into_iter().collect()))
 }
 
-/// An update plus the baseline for the next pull.
+/// The current version of each of the chunks, or `None` for a chunk that can't be read anymore.
+#[turbo_tasks::value(transparent, serialization = "skip")]
+struct ServerHmrChunkVersions(Vec<Option<ReadRef<EcmascriptChunkVersion>>>);
+
+/// Reads the versions of several chunks, in one operation so that they are read strongly
+/// consistently at once.
+#[turbo_tasks::function(operation, root)]
+async fn server_hmr_chunk_versions_operation(
+    chunk_versions: Vec<OperationVc<EcmascriptChunkVersion>>,
+) -> Result<Vc<ServerHmrChunkVersions>> {
+    let versions = chunk_versions
+        .into_iter()
+        .map(async |chunk_version| Ok(chunk_version.connect().await.ok()))
+        .try_join()
+        .await?;
+    Ok(Vc::cell(versions))
+}
+
 #[derive(Debug)]
 pub enum ServerHmrUpdate {
-    /// No runtime update and the graph is equivalent. However, `to` may still advance the pull
-    /// version.
-    NoRuntimeUpdate {
-        to: Option<ReadRef<ServerHmrChunkListVersion>>,
-    },
-    FullReevaluation {
-        to: ReadRef<ServerHmrChunkListVersion>,
-    },
-    Partial {
-        to: ReadRef<ServerHmrChunkListVersion>,
-        instruction: UpdateInstruction,
-    },
-}
-
-struct DiffResult {
-    chunk_updates: Vec<ReadRef<Update>>,
-    membership: ChunkListMembershipChange,
-}
-
-/// Chunk lists that appeared or vanished relative to the pull baseline.
-#[derive(Default, Clone, Copy)]
-struct ChunkListMembershipChange {
-    has_new: bool,
-    has_removed: bool,
+    /// Nothing to ship.
+    None,
+    /// The runtimes can't be updated in place, so all server modules need to be re-evaluated.
+    FullReevaluation,
+    /// One update per runtime directory. Each update only touches chunks of its runtime.
+    Partial(Vec<EcmascriptMergedUpdate>),
 }
 
 static TRACE_DIFFING: LazyLock<bool> = LazyLock::new(|| {
@@ -199,321 +413,251 @@ impl CompilationEvent for ServerHmrChunkListDiffEvent {
     }
 }
 
-async fn diff_chunks_against(
-    chunk_lists: &[ServerHmrChunkList],
-    from: &ServerHmrChunkListVersion,
-) -> Result<DiffResult> {
-    let current_chunk_list_paths = chunk_lists
-        .iter()
-        .map(|chunk_list| &chunk_list.relative_path)
-        .collect::<FxIndexSet<_>>();
-    let has_removed_chunk_lists = from
-        .versions_by_chunk_list_path
-        .keys()
-        .any(|path| !current_chunk_list_paths.contains(path));
-    let mut has_new_chunk_lists = false;
-    let chunk_updates = chunk_lists
-        .iter()
-        .filter_map(
-            |ServerHmrChunkList {
-                 relative_path,
-                 versioned_content,
-             }| {
-                if *TRACE_DIFFING {
-                    turbo_tasks().send_compilation_event(Arc::new(ServerHmrChunkListDiffEvent {
-                        chunk_list_path: relative_path.clone(),
-                    }));
-                }
-                let Some(prev) = from.versions_by_chunk_list_path.get(relative_path).cloned()
-                else {
-                    has_new_chunk_lists = true;
-                    return None;
-                };
-                Some((*versioned_content, prev))
-            },
-        )
-        .map(|(content, prev)| async move {
-            compute_update_from_version_operation(
-                content,
-                turbo_tasks::TransientInstance::new(prev),
-            )
-            .read_strongly_consistent()
-            .await
-        })
-        .try_join()
-        .await?;
-    Ok(DiffResult {
-        chunk_updates,
-        membership: ChunkListMembershipChange {
-            has_new: has_new_chunk_lists,
-            has_removed: has_removed_chunk_lists,
-        },
-    })
+/// The modules of one chunk to ship.
+#[derive(Default)]
+struct ChunkShipment {
+    /// The modules to ship, with the hash they're shipped at.
+    hashes: FxIndexMap<ModuleId, u128>,
+    /// Which of them the runtime doesn't have yet.
+    added: FxIndexSet<ModuleId>,
 }
 
-enum ServerHmrChunkUpdate<'a> {
-    None,
-    Missing,
-    Total,
-    Partial(&'a UpdateInstruction),
-}
+/// The modules to ship to one runtime, by chunk (parallel to [`ServerHmrRouteRuntime::chunks`]).
+///
+/// The `outdated` modules (see `outdated_modules`) are shipped. A module the runtime doesn't have
+/// yet is shipped when the route was pulled before (its code is already running and may now import
+/// it), or when anything else is shipped to the runtime (a re-run self-accepting module may import
+/// it). Otherwise the route's chunks install it when they load.
+fn plan_runtime(
+    runtime: &ServerHmrRouteRuntime,
+    loaded: Option<&FxHashMap<ModuleId, SmallVec<[InstalledCode; 1]>>>,
+    outdated: &FxHashSet<ModuleId>,
+    route_was_pulled: bool,
+) -> Vec<ChunkShipment> {
+    let ship_missing = route_was_pulled || !outdated.is_empty();
 
-impl<'a> From<&'a Update> for ServerHmrChunkUpdate<'a> {
-    fn from(update: &'a Update) -> Self {
-        match update {
-            Update::None => Self::None,
-            Update::Missing => Self::Missing,
-            Update::Total(_) => Self::Total,
-            Update::Partial(PartialUpdate { instruction, .. }) => Self::Partial(instruction),
-        }
-    }
-}
-
-fn classify_server_hmr_update<'a>(
-    chunk_updates: impl IntoIterator<Item = ServerHmrChunkUpdate<'a>>,
-    membership: ChunkListMembershipChange,
-    to: ReadRef<ServerHmrChunkListVersion>,
-) -> ServerHmrUpdate {
-    if membership.has_removed {
-        return ServerHmrUpdate::FullReevaluation { to };
-    }
-
-    let mut builder = ChunkListUpdateBuilder::default();
-    for update in chunk_updates {
-        match update {
-            ServerHmrChunkUpdate::None => {}
-            ServerHmrChunkUpdate::Missing | ServerHmrChunkUpdate::Total => {
-                return ServerHmrUpdate::FullReevaluation { to };
-            }
-            ServerHmrChunkUpdate::Partial(instruction) => builder.add_instruction(instruction),
-        }
-    }
-
-    // New chunks load on demand but must advance the baseline.
-    if builder.is_empty() {
-        return ServerHmrUpdate::NoRuntimeUpdate {
-            to: membership.has_new.then_some(to),
+    let mut shipments = std::iter::repeat_with(ChunkShipment::default)
+        .take(runtime.chunks.len())
+        .collect::<Vec<_>>();
+    for (id, module) in &runtime.modules {
+        let missing = match loaded.is_some_and(|modules| modules.contains_key(id)) {
+            true if outdated.contains(id) => false,
+            true => continue,
+            false if ship_missing => true,
+            false => continue,
         };
+        let Some(code) = module.code.first() else {
+            continue;
+        };
+        let Some(shipment) = shipments.get_mut(code.chunk) else {
+            continue;
+        };
+        shipment.hashes.insert(id.clone(), code.hash);
+        if missing {
+            shipment.added.insert(id.clone());
+        }
     }
-
-    ServerHmrUpdate::Partial {
-        to,
-        instruction: builder.build(),
-    }
+    shipments
 }
 
-/// Kept outside Turbo Tasks so old pull baselines cannot reactivate.
-pub async fn compute_server_hmr_update(
-    chunk_lists: &[ServerHmrChunkList],
-    from: Option<&ServerHmrChunkListVersion>,
-    to: ReadRef<ServerHmrChunkListVersion>,
-) -> Result<ServerHmrUpdate> {
-    if chunk_lists.is_empty() {
-        return Ok(ServerHmrUpdate::NoRuntimeUpdate { to: None });
+/// Reads the code of the planned modules, by runtime (parallel to `plans`), into one update per
+/// runtime, or `None` when the code no longer matches the plans.
+async fn read_updates(
+    plans: Vec<(&ServerHmrRouteRuntime, Vec<ChunkShipment>)>,
+) -> Result<Option<Vec<EcmascriptMergedUpdate>>> {
+    let plan_count = plans.len();
+    let mut requests = Vec::new();
+    // The plan and added modules of each request.
+    let mut shipped = Vec::new();
+    for (plan, (runtime, shipments)) in plans.into_iter().enumerate() {
+        for (chunk, ChunkShipment { hashes, added }) in runtime.chunks.iter().zip(shipments) {
+            if hashes.is_empty() {
+                continue;
+            }
+            requests.push(ChunkModules {
+                content: chunk.content,
+                chunk_path: chunk.version.chunk_path.clone(),
+                hashes,
+            });
+            shipped.push((plan, chunk.version.chunk_path.clone(), added));
+        }
+    }
+    if requests.is_empty() {
+        return Ok(Some(Vec::new()));
     }
 
-    let Some(from) = from else {
-        return Ok(ServerHmrUpdate::NoRuntimeUpdate { to: Some(to) });
+    let entries = server_hmr_module_entries_operation(TransientInstance::new(requests))
+        .read_strongly_consistent()
+        .await?;
+    let Some(entries) = &*entries else {
+        return Ok(None);
     };
 
-    let DiffResult {
-        chunk_updates,
-        membership,
-    } = diff_chunks_against(chunk_lists, from).await?;
-
-    Ok(classify_server_hmr_update(
-        chunk_updates
-            .iter()
-            .map(|update| ServerHmrChunkUpdate::from(&**update)),
-        membership,
-        to,
+    let mut updates = std::iter::repeat_with(|| (FxIndexMap::default(), FxIndexMap::default()))
+        .take(plan_count)
+        .collect::<Vec<_>>();
+    for ((plan, chunk_path, added), chunk_entries) in shipped.into_iter().zip(entries) {
+        let Some((entries, chunks)) = updates.get_mut(plan) else {
+            continue;
+        };
+        entries.extend(
+            chunk_entries
+                .iter()
+                .map(|(id, entry)| (id.clone(), entry.clone())),
+        );
+        chunks.insert(
+            chunk_path,
+            EcmascriptMergedChunkUpdate::Partial(EcmascriptMergedChunkPartial {
+                added: FrozenSet::from(added),
+                deleted: FrozenSet::default(),
+            }),
+        );
+    }
+    Ok(Some(
+        updates
+            .into_iter()
+            .map(|(entries, chunks)| EcmascriptMergedUpdate {
+                entries: FrozenMap::from(entries),
+                chunks: FrozenMap::from(chunks),
+            })
+            .collect(),
     ))
 }
 
-#[cfg(test)]
-mod tests {
-    use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef};
-    use turbopack_core::update_instruction::UpdateInstruction;
-    use turbopack_ecmascript::chunk_list::{
-        merged_update::{
-            EcmascriptMergedChunkDeleted, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
-        },
-        update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
+/// The modules of each of the route's runtimes that the runtime may have at code that isn't
+/// current.
+///
+/// Installed code is current when the route has it too. Otherwise, it may still be current, from a
+/// chunk with different code for the module (see [`ServerHmrRouteModule::code`]), so the chunk it
+/// is from is checked. Shipping it again would replace one valid piece of code with another, on
+/// every request alternating between routes that disagree.
+async fn outdated_modules(
+    route: &ServerHmrRouteModules,
+    loaded: &State<ServerHmrLoadedState>,
+) -> Result<Vec<FxHashSet<ModuleId>>> {
+    // Installed code the route doesn't have, with the index of the chunk it is from.
+    let mut chunk_versions = FxIndexSet::default();
+    let mut unknown = Vec::new();
+    {
+        // Untracked, like every read of the loaded state: it is only used outside of tasks.
+        let loaded = loaded.get_untracked();
+        for (index, runtime) in route.runtimes.iter().enumerate() {
+            let Some(installed) = loaded.modules.get(&runtime.output_dir) else {
+                continue;
+            };
+            for (id, module) in &runtime.modules {
+                for code in installed.get(id).into_iter().flatten() {
+                    if !module.has(code.hash) {
+                        let (chunk, _) = chunk_versions.insert_full(code.chunk_version);
+                        unknown.push((index, id.clone(), code.hash, chunk));
+                    }
+                }
+            }
+        }
+    }
+
+    let mut outdated = vec![FxHashSet::default(); route.runtimes.len()];
+    if unknown.is_empty() {
+        return Ok(outdated);
+    }
+    let versions = server_hmr_chunk_versions_operation(chunk_versions.into_iter().collect())
+        .read_strongly_consistent()
+        .await?;
+    for (index, id, hash, chunk) in unknown {
+        // A chunk that can't be read anymore doesn't have the code either.
+        let current = versions
+            .get(chunk)
+            .and_then(Option::as_ref)
+            .is_some_and(|version| version.entries_hashes.get(&id) == Some(&hash));
+        if !current {
+            outdated[index].insert(id);
+        }
+    }
+    Ok(outdated)
+}
+
+/// Computes the update that brings the server runtimes up to date for a requested route, by
+/// diffing the route's modules against the modules the runtimes have loaded, and records the
+/// route's modules as loaded.
+///
+/// Only the route's own modules are shipped, so modules of other routes are still evaluated
+/// lazily, on their next request. See `plan_runtime` for which modules are shipped.
+///
+/// Kept outside Turbo Tasks: the loaded state is not a task input. No task depends on it, so it is
+/// read untracked.
+pub async fn compute_server_hmr_update(
+    chunk_lists: &[ServerHmrChunkList],
+    route: &ServerHmrRouteModules,
+    entry_paths: FrozenSet<RcStr>,
+    loaded: &State<ServerHmrLoadedState>,
+) -> Result<ServerHmrUpdate> {
+    if *TRACE_DIFFING {
+        for chunk_list in chunk_lists {
+            turbo_tasks().send_compilation_event(Arc::new(ServerHmrChunkListDiffEvent {
+                chunk_list_path: chunk_list.relative_path.clone(),
+            }));
+        }
+    }
+    if route.runtimes.is_empty() && route.opaque_chunks.is_empty() {
+        // Nothing of the route is built (e.g. its endpoint is gone), so nothing loads either.
+        return Ok(ServerHmrUpdate::None);
+    }
+
+    if route.opaque_chunks.iter().any(|opaque| {
+        loaded
+            .get_untracked()
+            .opaque_chunks
+            .get(&opaque.path)
+            .is_some_and(|version_id| *version_id != opaque.version_id)
+    }) {
+        // Non-ECMAScript chunks can't be updated in place.
+        return Ok(ServerHmrUpdate::FullReevaluation);
+    }
+
+    let outdated = outdated_modules(route, loaded).await?;
+    let plans = {
+        let loaded = loaded.get_untracked();
+        let route_was_pulled = loaded.pulled_routes.contains(&entry_paths);
+        route
+            .runtimes
+            .iter()
+            .zip(&outdated)
+            .map(|(runtime, outdated)| {
+                let shipments = plan_runtime(
+                    runtime,
+                    loaded.modules.get(&runtime.output_dir),
+                    outdated,
+                    route_was_pulled,
+                );
+                (runtime, shipments)
+            })
+            .filter(|(_, shipments)| shipments.iter().any(|shipment| !shipment.hashes.is_empty()))
+            .collect::<Vec<_>>()
     };
 
-    use super::{
-        ChunkListMembershipChange, ChunkListUpdateBuilder, ServerHmrChunkListVersion,
-        ServerHmrChunkUpdate, ServerHmrUpdate, classify_server_hmr_update,
+    // The code is read after the module hashes were snapshotted, and a file may have changed in
+    // between. Don't record or ship a plan whose code no longer matches.
+    let Some(updates) = read_updates(plans).await? else {
+        return Ok(ServerHmrUpdate::FullReevaluation);
     };
 
-    fn version() -> ReadRef<ServerHmrChunkListVersion> {
-        ReadRef::new_owned(ServerHmrChunkListVersion {
-            versions_by_chunk_list_path: Default::default(),
-        })
+    loaded.update_conditionally(|loaded| loaded.record(route, entry_paths, &outdated));
+
+    if updates.is_empty() {
+        return Ok(ServerHmrUpdate::None);
     }
+    Ok(ServerHmrUpdate::Partial(updates))
+}
 
-    fn unchanged_membership() -> ChunkListMembershipChange {
-        ChunkListMembershipChange::default()
+/// Forgets what the server runtimes have loaded, and optionally records a route's modules as
+/// loaded (the route the runtimes load next).
+pub fn reset_server_hmr_state(
+    loaded: &State<ServerHmrLoadedState>,
+    route: Option<(&ServerHmrRouteModules, FrozenSet<RcStr>)>,
+) {
+    let mut state = ServerHmrLoadedState::default();
+    if let Some((route, entry_paths)) = route {
+        state.record(route, entry_paths, &[]);
     }
-
-    fn added_chunk_lists() -> ChunkListMembershipChange {
-        ChunkListMembershipChange {
-            has_new: true,
-            has_removed: false,
-        }
-    }
-
-    fn removed_chunk_lists() -> ChunkListMembershipChange {
-        ChunkListMembershipChange {
-            has_new: false,
-            has_removed: true,
-        }
-    }
-
-    fn merged(chunk_path: &str) -> EcmascriptMergedUpdate {
-        EcmascriptMergedUpdate {
-            entries: Default::default(),
-            chunks: [(
-                chunk_path.into(),
-                EcmascriptMergedChunkUpdate::Deleted(EcmascriptMergedChunkDeleted {
-                    modules: Default::default(),
-                }),
-            )]
-            .into_iter()
-            .collect(),
-        }
-    }
-
-    #[test]
-    fn unchanged_chunks_produce_no_runtime_update() {
-        assert!(matches!(
-            classify_server_hmr_update(
-                [ServerHmrChunkUpdate::None],
-                unchanged_membership(),
-                version()
-            ),
-            ServerHmrUpdate::NoRuntimeUpdate { to: None }
-        ));
-    }
-
-    #[test]
-    fn missing_chunk_produces_full_reevaluation() {
-        assert!(matches!(
-            classify_server_hmr_update(
-                [ServerHmrChunkUpdate::Missing],
-                unchanged_membership(),
-                version()
-            ),
-            ServerHmrUpdate::FullReevaluation { .. }
-        ));
-    }
-
-    #[test]
-    fn total_update_produces_full_reevaluation() {
-        assert!(matches!(
-            classify_server_hmr_update(
-                [ServerHmrChunkUpdate::Total],
-                unchanged_membership(),
-                version()
-            ),
-            ServerHmrUpdate::FullReevaluation { .. }
-        ));
-    }
-
-    #[test]
-    fn partial_instructions_are_combined() {
-        let chunk_list = ChunkListUpdate {
-            chunks: FxIndexMap::from_iter([("a.js".into(), ChunkUpdate::Added)]),
-            merged: vec![],
-        }
-        .into_instruction();
-        let merged_instruction =
-            UpdateInstruction::new(EcmascriptUpdateInstruction::Merged(merged("b.js")));
-
-        let ServerHmrUpdate::Partial { instruction, .. } = classify_server_hmr_update(
-            [
-                ServerHmrChunkUpdate::Partial(&chunk_list),
-                ServerHmrChunkUpdate::Partial(&merged_instruction),
-            ],
-            unchanged_membership(),
-            version(),
-        ) else {
-            panic!("partial instructions should produce a partial aggregate update");
-        };
-        let instruction = instruction
-            .downcast_ref::<EcmascriptUpdateInstruction>()
-            .expect("aggregate instruction is ECMAScript");
-        let EcmascriptUpdateInstruction::ChunkList(update) = instruction else {
-            panic!("aggregate instruction should be a chunk-list update");
-        };
-        assert_eq!(update.chunks["a.js"], ChunkUpdate::Added);
-        assert_eq!(update.merged, [merged("b.js")]);
-    }
-
-    #[test]
-    fn new_chunk_lists_advance_baseline_without_runtime_update() {
-        assert!(matches!(
-            classify_server_hmr_update([], added_chunk_lists(), version()),
-            ServerHmrUpdate::NoRuntimeUpdate { to: Some(_) }
-        ));
-    }
-
-    #[test]
-    fn removed_chunk_lists_produce_full_reevaluation() {
-        assert!(matches!(
-            classify_server_hmr_update([], removed_chunk_lists(), version()),
-            ServerHmrUpdate::FullReevaluation { .. }
-        ));
-    }
-
-    #[test]
-    fn deduplicates_merged_updates_in_first_seen_order() {
-        let first = merged("first.js");
-        let second = merged("second.js");
-        let mut builder = ChunkListUpdateBuilder::default();
-
-        builder.add_instruction(&UpdateInstruction::new(
-            EcmascriptUpdateInstruction::Merged(first.clone()),
-        ));
-        builder.add_instruction(&UpdateInstruction::new(
-            EcmascriptUpdateInstruction::Merged(second.clone()),
-        ));
-        builder.add_instruction(&UpdateInstruction::new(
-            EcmascriptUpdateInstruction::Merged(first.clone()),
-        ));
-
-        assert_eq!(builder.merged, FxIndexSet::from_iter([first, second]));
-    }
-
-    #[test]
-    fn chunk_updates_use_last_writer_and_stable_order() {
-        let mut builder = ChunkListUpdateBuilder::default();
-        let first = ChunkListUpdate {
-            chunks: FxIndexMap::from_iter([
-                ("a.js".into(), ChunkUpdate::Total),
-                ("b.js".into(), ChunkUpdate::Added),
-            ]),
-            merged: vec![],
-        };
-        let second = ChunkListUpdate {
-            chunks: FxIndexMap::from_iter([
-                ("a.js".into(), ChunkUpdate::Deleted),
-                ("c.js".into(), ChunkUpdate::Total),
-            ]),
-            merged: vec![],
-        };
-
-        builder.add_instruction(&first.into_instruction());
-        builder.add_instruction(&second.into_instruction());
-
-        assert_eq!(
-            builder
-                .chunks
-                .keys()
-                .map(|path| path.as_str())
-                .collect::<Vec<_>>(),
-            ["a.js", "b.js", "c.js"]
-        );
-        assert_eq!(builder.chunks["a.js"], ChunkUpdate::Deleted);
-    }
+    loaded.set(state);
 }

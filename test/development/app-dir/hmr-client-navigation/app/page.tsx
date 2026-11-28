@@ -1,15 +1,23 @@
-import Link from 'next/link'
+import { LinkAccordion } from '../components/link-accordion'
 
 export default function Page() {
   return (
     <>
       <p id="home">home</p>
-      <Link id="to-plain" href="/plain">
-        to plain
-      </Link>
-      <Link id="to-dynamic" href="/dynamic/first">
-        to dynamic
-      </Link>
+      <ul>
+        <li>
+          <LinkAccordion href="/client-page">client page</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/server-page">server page</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/plain">plain page</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/dynamic/first">dynamic page</LinkAccordion>
+        </li>
+      </ul>
     </>
   )
 }

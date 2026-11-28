@@ -1,5 +1,11 @@
 ## Before changing files: check for duplicates
 
+For scheduled upgrades, the workflow handles duplicate checks and publication.
+Work in the checkout provided by the workflow. Complete the upgrade and
+verification below, then leave the changes in that checkout for the workflow.
+Skip this duplicate checklist and the commit and delivery checklist. Do not
+create a worktree, commit, push, or open a pull request.
+
 - [ ] Check the app for an equivalent upgrade or Future Defaults adoption already
       in progress.
 - [ ] If the app is in a Git repository, check local branches and commits. If it
@@ -69,4 +75,8 @@ adoption, before moving on to delivery or the next adoption.
       local changes and report that a PR requires a repository and remote.
 - [ ] If a PR is possible but permission has not been granted, ask the user
       whether to open one when reporting the completed work.
+- [ ] If the upgrade remains in a separate worktree, report its branch and path
+      and explain that the original checkout is unchanged. Tell the user how to
+      merge the changes or use that worktree, install dependencies, and restart
+      the development server.
 - [ ] If work is incomplete, report completed work, the blocker, and how to resume.

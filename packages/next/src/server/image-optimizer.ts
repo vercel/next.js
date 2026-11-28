@@ -49,12 +49,19 @@ import {
 } from 'zlib'
 import {
   imageOptimizerTransform,
+  type ImageOptimizerTransformOptions,
   type ImageUpstream,
 } from './image-optimizer/transform'
-import { extractEtag, getHash } from './image-optimizer/extract-etag'
+import {
+  extractEtag,
+  getHash,
+  getImageEtag,
+} from './image-optimizer/extract-etag'
+import { getMaxAge } from './image-optimizer/get-max-age'
 import { getPreviouslyCachedImageOrNull } from './image-optimizer/get-previously-cached-image-or-null'
 import { getImageSize } from './image-optimizer/get-image-size'
 import { ImageError } from './image-optimizer/image-error'
+import { NSIO_OUTPUT_MIME_TYPES } from '../shared/lib/image-optimizer-constants'
 
 // `next-server.ts` destructures `ImageError` from this module to check
 // `instanceof` on errors thrown by the transform.
@@ -100,7 +107,82 @@ export interface ImageParamsResult {
   minimumCacheTTL: number
 }
 
+type ImageUrlParamResult =
+  | { href: string; isAbsolute: boolean }
+  | { errorMessage: string }
+
+function validateUrlParam(
+  url: string | string[] | undefined,
+  imageData: ImageConfigComplete,
+  isRedirect = false
+): ImageUrlParamResult {
+  // Note - We intentionally skip validation for local/remotePatterns when
+  // validating redirect locations so that we don't break a src img redirect
+  // to a new domain (e.g. github.com => githubusercontent.com).
+  const { domains = [], remotePatterns = [], localPatterns } = imageData
+
+  if (!isRedirect && domains.length > 0) {
+    Log.warnOnce(
+      'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+    )
+  }
+
+  if (!url) {
+    return { errorMessage: '"url" parameter is required' }
+  } else if (Array.isArray(url)) {
+    return { errorMessage: '"url" parameter cannot be an array' }
+  }
+
+  if (url.length > 3072) {
+    return { errorMessage: '"url" parameter is too long' }
+  }
+
+  if (url.startsWith('//')) {
+    return {
+      errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
+    }
+  }
+
+  if (url.startsWith('/')) {
+    if (
+      /\/_next\/image($|\/)/.test(
+        decodeURIComponent(parseUrl(url)?.pathname ?? '')
+      )
+    ) {
+      return {
+        errorMessage: '"url" parameter cannot be recursive',
+      }
+    }
+    if (!isRedirect && !hasLocalMatch(localPatterns, url)) {
+      return { errorMessage: '"url" parameter is not allowed' }
+    }
+    return { href: url, isAbsolute: false }
+  }
+
+  let hrefParsed: URL
+
+  try {
+    hrefParsed = new URL(url)
+  } catch (_error) {
+    return { errorMessage: '"url" parameter is invalid' }
+  }
+
+  if (!['http:', 'https:'].includes(hrefParsed.protocol)) {
+    return { errorMessage: '"url" parameter is invalid' }
+  }
+
+  if (!isRedirect && !hasRemoteMatch(domains, remotePatterns, hrefParsed)) {
+    return { errorMessage: '"url" parameter is not allowed' }
+  }
+
+  return { href: hrefParsed.toString(), isAbsolute: true }
+}
+
 function getSupportedMimeType(options: string[], accept = ''): string {
+  // With no preferences, `mediaType()` returns the client's preferred type.
+  if (options.length === 0) {
+    return ''
+  }
   const mimeType = mediaType(accept, options)
   return accept.includes(mimeType) ? mimeType : ''
 }
@@ -185,73 +267,14 @@ export class ImageOptimizerCache {
     const {
       deviceSizes = [],
       imageSizes = [],
-      domains = [],
       minimumCacheTTL = 14400,
       formats = ['image/webp'],
     } = imageData
-    const remotePatterns = nextConfig.images?.remotePatterns || []
-    const localPatterns = nextConfig.images?.localPatterns
     const qualities = nextConfig.images?.qualities
     const { url, w, q } = query
-    let href: string
-
-    if (domains.length > 0) {
-      Log.warnOnce(
-        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
-      )
-    }
-
-    if (!url) {
-      return { errorMessage: '"url" parameter is required' }
-    } else if (Array.isArray(url)) {
-      return { errorMessage: '"url" parameter cannot be an array' }
-    }
-
-    if (url.length > 3072) {
-      return { errorMessage: '"url" parameter is too long' }
-    }
-
-    if (url.startsWith('//')) {
-      return {
-        errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
-      }
-    }
-
-    let isAbsolute: boolean
-
-    if (url.startsWith('/')) {
-      href = url
-      isAbsolute = false
-      if (
-        /\/_next\/image($|\/)/.test(
-          decodeURIComponent(parseUrl(url)?.pathname ?? '')
-        )
-      ) {
-        return {
-          errorMessage: '"url" parameter cannot be recursive',
-        }
-      }
-      if (!hasLocalMatch(localPatterns, url)) {
-        return { errorMessage: '"url" parameter is not allowed' }
-      }
-    } else {
-      let hrefParsed: URL
-
-      try {
-        hrefParsed = new URL(url)
-        href = hrefParsed.toString()
-        isAbsolute = true
-      } catch (_error) {
-        return { errorMessage: '"url" parameter is invalid' }
-      }
-
-      if (!['http:', 'https:'].includes(hrefParsed.protocol)) {
-        return { errorMessage: '"url" parameter is invalid' }
-      }
-
-      if (!hasRemoteMatch(domains, remotePatterns, hrefParsed)) {
-        return { errorMessage: '"url" parameter is not allowed' }
-      }
+    const urlResult = validateUrlParam(url, imageData)
+    if ('errorMessage' in urlResult) {
+      return urlResult
     }
 
     if (!w) {
@@ -317,11 +340,22 @@ export class ImageOptimizerCache {
       }
     }
 
-    const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
+    let supportedFormats: string[] = formats || []
+    if (nextConfig.experimental?.imgOptSafeMode?.nextImage) {
+      // `config.ts` warns about the formats that are filtered out
+      supportedFormats = supportedFormats.filter((format) =>
+        NSIO_OUTPUT_MIME_TYPES.includes(format)
+      )
+    }
 
+    const mimeType = getSupportedMimeType(
+      supportedFormats,
+      req.headers['accept']
+    )
+    const { href, isAbsolute } = urlResult
     const isStatic =
-      url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
-      url.startsWith(
+      href.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
+      href.startsWith(
         `${nextConfig.basePath || ''}/_next/static/immutable/media`
       )
 
@@ -532,7 +566,12 @@ export class ImageOptimizerCache {
     }
   }
 }
-function isRedirect(statusCode: number) {
+
+// Base origin used to resolve the `Location` header of an internal (relative
+// `src`) image response, which is handled in-process and has no real origin.
+const INTERNAL_IMAGE_BASE_URL = 'http://n'
+
+function isRedirectStatus(statusCode: number) {
   return [301, 302, 303, 307, 308].includes(statusCode)
 }
 
@@ -789,7 +828,8 @@ export async function fetchExternalImage(
   href: string,
   dangerouslyAllowLocalIP: boolean,
   maximumResponseBody: number,
-  count = 3
+  count = 3,
+  abortSignal?: AbortSignal
 ): Promise<ImageUpstream> {
   const url = new URL(href)
   // `URL.hostname` keeps the brackets around an IPv6 literal, the socket does not
@@ -828,11 +868,23 @@ export async function fetchExternalImage(
     }
   }
 
-  // The signal is owned here rather than by `requestUpstreamImage()` because it
-  // has to stay readable while the body streams. Node reports an abort during
-  // the body as a plain `ECONNRESET` on the response, so the signal is the only
-  // way to tell a timeout apart from the upstream resetting the connection.
-  const signal = AbortSignal.timeout(agentOptions.timeout)
+  // The signals are owned here rather than by `requestUpstreamImage()` because
+  // they have to stay readable while the body streams. Node reports an abort
+  // during the body as a plain `ECONNRESET` on the response, so the signals are
+  // the only way to tell a timeout or abort apart from the upstream resetting
+  // the connection.
+  const timeoutSignal = AbortSignal.timeout(agentOptions.timeout)
+  const signal = abortSignal
+    ? AbortSignal.any([timeoutSignal, abortSignal])
+    : timeoutSignal
+  const toAbortError = (err: unknown) => {
+    // Our own errors (e.g. an oversized body) were not caused by the signal,
+    // even if it happened to abort around the same time
+    if (err instanceof ImageError) return err
+    if (abortSignal?.aborted) return abortSignal.reason
+    if (timeoutSignal.aborted) return upstreamTimedOut(href)
+    return err
+  }
   let res: IncomingMessage
   try {
     res = await requestUpstreamImage(
@@ -843,10 +895,7 @@ export async function fetchExternalImage(
       signal
     )
   } catch (err) {
-    if (signal.aborted) {
-      throw upstreamTimedOut(href)
-    }
-    throw err
+    throw toAbortError(err)
   }
 
   const statusCode = res.statusCode
@@ -856,7 +905,7 @@ export async function fetchExternalImage(
   }
   const locationHeader = res.headers.location
   if (
-    isRedirect(statusCode) &&
+    isRedirectStatus(statusCode) &&
     locationHeader &&
     URL.canParse(locationHeader, href)
   ) {
@@ -877,7 +926,8 @@ export async function fetchExternalImage(
       redirect,
       dangerouslyAllowLocalIP,
       maximumResponseBody,
-      count - 1
+      count - 1,
+      abortSignal
     )
   }
 
@@ -914,10 +964,7 @@ export async function fetchExternalImage(
     }
   } catch (err) {
     res.destroy()
-    if (signal.aborted) {
-      throw upstreamTimedOut(href)
-    }
-    throw err
+    throw toAbortError(err)
   }
 
   if (totalSize === 0) {
@@ -939,14 +986,18 @@ export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
-  maximumResponseBody: number,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
     newParsedUrl?: NextUrlWithParsedQuery
-  ) => Promise<void>
+  ) => Promise<void>,
+  imagesConfig: ImageConfigComplete,
+  count = imagesConfig.maximumRedirects,
+  abortSignal?: AbortSignal
 ): Promise<ImageUpstream> {
   try {
+    abortSignal?.throwIfAborted()
+
     // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
@@ -966,11 +1017,67 @@ export async function fetchInternalImage(
         headers: {},
         socket: _req.socket,
       }),
-      res: new MockedResponse({ maximumResponseBody }),
+      res: new MockedResponse({
+        maximumResponseBody: imagesConfig.maximumResponseBody,
+      }),
     }
 
-    await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
-    await mocked.res.hasStreamed
+    // Destroying the mocked response rejects `hasStreamed` with the abort
+    // reason, and stops whatever is writing to it (it also aborts the
+    // `request.signal` of a route handler serving the image).
+    const onAbort = () => mocked.res.destroy(abortSignal?.reason)
+    abortSignal?.addEventListener('abort', onAbort, { once: true })
+    try {
+      // Not awaited in sequence, as `handleRequest` may never settle once the
+      // response is destroyed
+      await Promise.all([
+        handleRequest(mocked.req, mocked.res, parseReqUrl(href)),
+        mocked.res.hasStreamed,
+      ])
+    } finally {
+      abortSignal?.removeEventListener('abort', onAbort)
+    }
+
+    const locationHeader = mocked.res.getHeader('Location')
+    if (
+      mocked.res.statusCode &&
+      isRedirectStatus(mocked.res.statusCode) &&
+      locationHeader &&
+      URL.canParse(locationHeader, INTERNAL_IMAGE_BASE_URL)
+    ) {
+      if (count === 0) {
+        Log.error('internal image response had too many redirects', href)
+        throw new ImageError(
+          508,
+          '"url" parameter is valid but internal response is invalid'
+        )
+      }
+
+      const urlResult = validateUrlParam(locationHeader, imagesConfig, true)
+      if ('errorMessage' in urlResult) {
+        throw new ImageError(400, urlResult.errorMessage)
+      }
+
+      if (!urlResult.isAbsolute) {
+        return fetchInternalImage(
+          urlResult.href,
+          _req,
+          _res,
+          handleRequest,
+          imagesConfig,
+          count - 1,
+          abortSignal
+        )
+      }
+
+      return fetchExternalImage(
+        urlResult.href,
+        imagesConfig.dangerouslyAllowLocalIP,
+        imagesConfig.maximumResponseBody,
+        count - 1,
+        abortSignal
+      )
+    }
 
     if (
       !mocked.res.statusCode ||
@@ -1003,7 +1110,10 @@ export async function fetchInternalImage(
 
     return { buffer, contentType, cacheControl, etag }
   } catch (err) {
-    if (err instanceof ImageError) {
+    if (
+      err instanceof ImageError ||
+      (abortSignal?.aborted && err === abortSignal.reason)
+    ) {
       throw err
     }
 
@@ -1044,27 +1154,58 @@ async function makeBlurPlaceholder(buffer: Buffer, contentType: string) {
   }
 }
 
+type ImageOptimizerNextConfig = {
+  experimental: Pick<
+    NextConfigComplete['experimental'],
+    | 'imgOptConcurrency'
+    | 'imgOptOperationCache'
+    | 'imgOptMaxInputPixels'
+    | 'imgOptSequentialRead'
+    | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
+  > &
+    Partial<Pick<NextConfigComplete['experimental'], 'imgOptSafeMode'>>
+  images: Pick<
+    NextConfigComplete['images'],
+    'dangerouslyAllowSVG' | 'minimumCacheTTL'
+  >
+}
+
+/**
+ * Helper that extracts fields from `NextConfigComplete` into
+ * `ImageOptimizerTransformOptions`.
+ *
+ * `next/experimental/image-optimizer-transform` is a public module, so it
+ * doesn't make sense for it's functions to depend on the structure of
+ * `NextConfigComplete`, which is an internal-only interface for the
+ * post-transformed `next.config.js` file.
+ *
+ * Internally, we would like to call these APIs with the `NextConfigComplete`,
+ * so this transforms it.
+ */
+export function getImageOptimizerTransformOptions(
+  nextConfig: ImageOptimizerNextConfig
+): ImageOptimizerTransformOptions {
+  return {
+    dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
+    minimumCacheTTL: nextConfig.images.minimumCacheTTL,
+    concurrency: nextConfig.experimental.imgOptConcurrency,
+    operationCache: nextConfig.experimental.imgOptOperationCache,
+    maxInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+    sequentialRead: nextConfig.experimental.imgOptSequentialRead,
+    timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+    mozjpeg: nextConfig.experimental.imgOptMozjpeg,
+    safeImageOptimization: nextConfig.experimental.imgOptSafeMode?.nextImage,
+  }
+}
+
 export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
     ImageParamsResult,
     'href' | 'width' | 'quality' | 'mimeType'
   >,
-  nextConfig: {
-    experimental: Pick<
-      NextConfigComplete['experimental'],
-      | 'imgOptConcurrency'
-      | 'imgOptOperationCache'
-      | 'imgOptMaxInputPixels'
-      | 'imgOptSequentialRead'
-      | 'imgOptTimeoutInSeconds'
-      | 'imgOptMozjpeg'
-    >
-    images: Pick<
-      NextConfigComplete['images'],
-      'dangerouslyAllowSVG' | 'minimumCacheTTL'
-    >
-  },
+  transformOptions: ImageOptimizerTransformOptions,
   opts: {
     isDev?: boolean
     silent?: boolean
@@ -1078,29 +1219,55 @@ export async function imageOptimizer(
   upstreamEtag: string
   error?: unknown
 }> {
+  // If the upstream image is unchanged since the previous cache entry was
+  // optimized, re-running the transform would produce the same output.
   const previouslyCachedImage = getPreviouslyCachedImageOrNull(
     imageUpstream,
     opts.previousCacheEntry
   )
+  const previousContentType =
+    previouslyCachedImage && getContentType(previouslyCachedImage.extension)
+  if (previouslyCachedImage && previousContentType) {
+    return {
+      buffer: previouslyCachedImage.buffer,
+      contentType: previousContentType,
+      maxAge:
+        opts.previousCacheEntry?.cacheControl?.revalidate ||
+        Math.max(
+          transformOptions.minimumCacheTTL ?? 0,
+          getMaxAge(imageUpstream.cacheControl)
+        ),
+      etag: previouslyCachedImage.etag,
+      upstreamEtag: previouslyCachedImage.upstreamEtag,
+    }
+  }
 
-  return imageOptimizerTransform(imageUpstream, paramsResult, nextConfig, {
-    previousOutput: previouslyCachedImage
-      ? {
-          buffer: previouslyCachedImage.buffer,
-          maxAge:
-            opts.previousCacheEntry?.cacheControl?.revalidate || undefined,
-          etag: previouslyCachedImage.etag,
-          upstreamEtag: previouslyCachedImage.upstreamEtag,
-        }
-      : undefined,
+  const result = await imageOptimizerTransform(imageUpstream, paramsResult, {
+    ...transformOptions,
     logger: opts.silent ? undefined : Log,
-    handleDevOutput:
-      opts.isDev &&
-      paramsResult.width <= BLUR_IMG_SIZE &&
-      paramsResult.quality === BLUR_QUALITY
-        ? makeBlurPlaceholder
-        : undefined,
   })
+
+  // Images passed through unoptimized (SVG, animated, or failed) are served
+  // as-is rather than wrapped in a blur placeholder.
+  if (
+    opts.isDev &&
+    paramsResult.width <= BLUR_IMG_SIZE &&
+    paramsResult.quality === BLUR_QUALITY &&
+    result.optimized
+  ) {
+    const placeholder = await makeBlurPlaceholder(
+      result.buffer,
+      result.contentType
+    )
+    return {
+      ...result,
+      buffer: placeholder.buffer,
+      contentType: placeholder.contentType,
+      etag: getImageEtag(placeholder.buffer),
+    }
+  }
+
+  return result
 }
 
 function getFileNameWithExtension(

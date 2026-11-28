@@ -192,8 +192,8 @@ export async function prepareFixture(sandbox: Sandbox): Promise<void> {
 }
 
 /**
- * Write AGENTS.md to the sandbox root, directing agents to read bundled docs
- * from node_modules/next/dist/docs/.
+ * Generate the documentation pointer using the installed Next.js package,
+ * matching its managed AGENTS.md block instead of maintaining a separate copy.
  *
  * Skipped for a fixture that is not already a Next.js app: the path it points at
  * does not exist yet, and naming the framework would give away the answer to the
@@ -205,16 +205,19 @@ export async function writeAgentsMd(sandbox: Sandbox): Promise<void> {
     return
   }
 
-  const body = `<!-- BEGIN:nextjs-agent-rules -->
-
-# Next.js: ALWAYS read docs before coding
-
-Before any Next.js work, find and read the relevant doc in \`node_modules/next/dist/docs/\`. Your training data is outdated — the docs are the source of truth.
-
-<!-- END:nextjs-agent-rules -->
+  const script = String.raw`
+const path = require('node:path')
+const nextRoot = path.dirname(require.resolve('next/package.json'))
+require(path.join(nextRoot, 'dist/server/lib/generate-agent-files.js'))
+  .writeAgentFiles(process.cwd())
 `
+  const { exitCode, stderr } = await sandbox.runCommand('node', ['-e', script])
+  if (exitCode !== 0) {
+    throw new Error(
+      `Generating AGENTS.md from the installed Next.js package failed (exit ${exitCode}):\n${stderr}`
+    )
+  }
   await sandbox.writeFiles({
-    'AGENTS.md': body,
     'CLAUDE.md': '@AGENTS.md\n',
   })
 }

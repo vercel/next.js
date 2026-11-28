@@ -96,7 +96,6 @@ impl<T> VcCellMode<T> for VcCellKeyedCompareMode<T>
 where
     T: VcValueType + PartialEq,
     VcReadTarget<T>: KeyedEq,
-    <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
 {
     fn cell(inner: VcReadTarget<T>) -> Vc<T> {
         let cell = find_cell_by_type::<T>();

@@ -15,6 +15,14 @@ If you need to invalidate cache tags in Route Handlers or other contexts, use [`
 
 > **Good to know**: `updateTag` immediately expires the cached data for the specified tag. The next request will wait to fetch fresh data rather than serving stale content from the cache, ensuring users see their changes immediately.
 
+## Client cache behavior
+
+When a Server Action calls `updateTag`, Next.js re-renders the current route and sends the updated UI in the action's response, whether or not the route uses the tag. Uncached data is fetched again, and server-side cached data without the tag is reused.
+
+The client uses the action's response to re-render the current route and clears every prefetched route and the route data kept for back/forward navigation, not only routes that use the tag. Eligible visible links may prefetch again as a result. Pages preserved by [Activity](/docs/app/api-reference/config/next-config-js/cacheComponents#navigation-with-activity) stay mounted and keep their React state. Their server data refreshes when you navigate back to them.
+
+[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) has the same effects in a Server Action when its profile resolves to `expire: 0`. That covers `{ expire: 0 }`, a named profile with `expire: 0`, and the deprecated single-argument form. With a nonzero `expire`, such as `'max'`, it marks tagged data as stale and skips the re-render and the client cache clearing. Other calls in the action, such as [`refresh`](/docs/app/api-reference/functions/refresh), can still trigger a re-render.
+
 ## Parameters
 
 ```tsx

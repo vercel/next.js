@@ -1,0 +1,20 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/resolve-error-cjs/input/index.js:4:16  Module not found: Can't resolve 'does-not-exist/path'
+  
+       1 | it('reports an unresolvable require and throws when evaluating it', () => {
+       2 |   // The resolve error is reported as an issue (see `issues/`) and the require
+       3 |   // throws at runtime.
+         +                v----------------------------v
+       4 +   expect(() => require('does-not-exist/path')).toThrow(
+         +                ^----------------------------^
+       5 |     "Cannot find module 'does-not-exist/path'"
+       6 |   )
+       7 | })
+       8 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module 'does-not-exist' with subpath '/path'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/resolve-error-cjs/input/index.js
+  | Type of request: commonjs request
+  |

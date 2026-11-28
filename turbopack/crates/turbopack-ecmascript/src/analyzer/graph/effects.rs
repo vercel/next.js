@@ -92,23 +92,33 @@ impl<'a> ConditionalKind<'a> {
 
 #[derive(Debug)]
 pub enum EffectArg<'a> {
-    Value(JsValue<'a>),
+    /// Argument evaluation effects, skipped when codegen discards this argument.
+    Value(JsValue<'a>, BumpBox<'a, [Effect<'a>]>),
     Closure(JsValue<'a>, BumpBox<'a, EffectsBlock<'a>>),
-    Spread,
+    Spread(BumpBox<'a, [Effect<'a>]>),
 }
 
 impl<'a> EffectArg<'a> {
     /// Normalizes all contained values.
     pub fn normalize(&mut self, arena: &'a Bump) {
         match self {
-            EffectArg::Value(value) => value.normalize(arena),
+            EffectArg::Value(value, effects) => {
+                value.normalize(arena);
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
+            }
             EffectArg::Closure(value, effects) => {
                 value.normalize(arena);
                 for effect in effects.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
-            EffectArg::Spread => {}
+            EffectArg::Spread(effects) => {
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
+            }
         }
     }
 }
@@ -148,22 +158,31 @@ pub enum Effect<'a> {
     Member {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
+        /// Effects inside the expression, skipped when the whole expression is replaced.
+        base_effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
-        // Whether this value from this member access only ends up being used as a truthiness check
-        // (and the full value doesn't escape).
-        in_truthiness_context: bool,
+        /// How the accessed value (`obj.prop`) is used, e.g. `Escapes` for `foo(obj.prop)` or
+        /// `Access` for `obj.prop.x`.
+        usage: ValueUsage,
     },
     /// A property access created by an object destructuring pattern.
     DestructuredMember {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
         span: Span,
+        /// Whether the property's value escapes, i.e. it's not further destructured into
+        /// statically known keys: it's bound to a variable (`const { prop } = obj`, treated like
+        /// `const prop = obj.prop`) or copied with a rest element (`const { prop: { ...rest } } =
+        /// obj`).
+        target_escapes: bool,
     },
     /// A `x in y` expression.
     In {
         left: BumpBox<'a, JsValue<'a>>,
         right: BumpBox<'a, JsValue<'a>>,
+        /// Effects inside the expression, skipped when the whole expression is replaced.
+        effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
@@ -175,6 +194,9 @@ pub enum Effect<'a> {
         member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
+        /// How the imported value is used, e.g. `Escapes` for `foo(binding)`. Always `Access` for
+        /// a namespace member (`ns.export`), whose use is tracked by the `Member` effect instead.
+        usage: ValueUsage,
     },
     /// A reference to a free var access.
     FreeVar {
@@ -185,6 +207,8 @@ pub enum Effect<'a> {
     /// A typeof expression
     TypeOf {
         arg: BumpBox<'a, JsValue<'a>>,
+        /// Effects inside the expression, skipped when the whole expression is replaced.
+        effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
@@ -242,17 +266,33 @@ impl<'a> Effect<'a> {
                     arg.normalize(arena);
                 }
             }
-            Effect::Member { obj, prop, .. } => {
+            Effect::Member {
+                obj,
+                prop,
+                base_effects,
+                ..
+            } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
+                for effect in base_effects.iter_mut() {
+                    effect.normalize(arena);
+                }
             }
             Effect::DestructuredMember { obj, prop, .. } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
             }
-            Effect::In { left, right, .. } => {
+            Effect::In {
+                left,
+                right,
+                effects,
+                ..
+            } => {
                 left.normalize(arena);
                 right.normalize(arena);
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
             }
             Effect::DynamicImport { args, .. } => {
                 for arg in args.iter_mut() {
@@ -260,14 +300,33 @@ impl<'a> Effect<'a> {
                 }
             }
             Effect::ImportedBinding { .. } => {}
-            Effect::TypeOf { arg, .. } => {
+            Effect::TypeOf { arg, effects, .. } => {
                 arg.normalize(arena);
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
             }
             Effect::FreeVar { .. } => {}
             Effect::ImportMeta { .. } => {}
             Effect::Unreachable { .. } => {}
         }
     }
+}
+
+/// How the value of an expression is used.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ValueUsage {
+    /// Doesn't expose any keys beyond those analyzed by separate effects: as a member object
+    /// (`<value>.x`, `<value>[key]`), the right side of `in`, the source of an object
+    /// destructuring pattern without rest (`const { x, [key]: y } = <value>`, where every
+    /// property, including computed ones, gets a `DestructuredMember` effect), or only inspected
+    /// without running user code (`typeof <value>`, `<value> === x`, `<value> == null`,
+    /// `<value> && x`).
+    Access,
+    /// Only coerced to a boolean: `if (<value>)`, `!<value>`, `Boolean(<value>)`, ...
+    Truthiness,
+    /// Any other use, which might access arbitrary keys, e.g. `foo(<value>)`.
+    Escapes,
 }
 
 #[derive(Debug)]

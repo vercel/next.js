@@ -131,8 +131,9 @@ describe('custom server with quiet setting', () => {
 
 function createCacheSetLogRegExp(id: string) {
   // Expect a requestId, that's provided through ALS, to be present in the log
-  // message for the cache handler set call.
+  // message for the cache handler set call. Durable keys may also include a
+  // trailing environment-state hash.
   return new RegExp(
-    `set cache \\["(?:[0-9a-f]{2})+",\\[{"id":"${id}"}\\],\\["[A-Za-z0-9_-]+"(?:,"[^"]+")*\\]\\] requestId: \\d+`
+    `set cache \\["(?:[0-9a-f]{2})+",\\[{"id":"${id}"}\\],\\["[A-Za-z0-9_-]+"(?:,"[^"]+")*\\]\\](?:[0-9a-f]{64})? requestId: \\d+`
   )
 }

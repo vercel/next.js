@@ -36,6 +36,7 @@
             ),
         ],
         span: 158..159,
+        usage: Escapes,
     },
     ImportedBinding {
         esm_reference_index: 3,
@@ -74,6 +75,7 @@
             ),
         ],
         span: 170..171,
+        usage: Escapes,
     },
     ImportedBinding {
         esm_reference_index: 6,
@@ -110,5 +112,6 @@
             ),
         ],
         span: 182..183,
+        usage: Escapes,
     },
 ]

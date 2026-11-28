@@ -1,3 +1,4 @@
+runtime_all: false
 runtime: [
     "FOO1",
 ]

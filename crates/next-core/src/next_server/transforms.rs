@@ -3,13 +3,12 @@ use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_core::reference_type::{
-    CssReferenceSubType, EntryReferenceSubType, ReferenceTypeCondition,
-};
+use turbopack_core::reference_type::{CssReferenceSubType, ReferenceTypeCondition};
 
 use crate::{
     mode::NextMode,
     next_config::NextConfig,
+    next_pages::PAGE_DATA_ENTRY_TAG,
     next_server::context::ServerContextType,
     next_shared::transforms::{
         get_next_debug_instant_stack_rule, get_next_dynamic_transform_rule,
@@ -49,6 +48,10 @@ pub async fn get_next_server_transforms_rules(
     }
     rules.push(get_next_font_transform_rule(mdx_rs).await?);
 
+    // Static image imports produce `StaticImageData` regardless of whether the
+    // image lives in the project or in `node_modules` (matching webpack).
+    rules.push(get_next_image_rule().await?);
+
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
             // Ignore the inner EcmascriptCssModule -> CssModule references
@@ -84,7 +87,7 @@ pub async fn get_next_server_transforms_rules(
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                         vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
-                            Some(EntryReferenceSubType::PageData),
+                            Some(PAGE_DATA_ENTRY_TAG.clone()),
                         ))],
                         &next_config.page_extensions().await?,
                     )
@@ -177,8 +180,6 @@ pub async fn get_next_server_transforms_rules(
         // https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L409
         // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
         // optimize_use_state))
-
-        rules.push(get_next_image_rule().await?);
     }
 
     if let NextRuntime::Edge = next_runtime {

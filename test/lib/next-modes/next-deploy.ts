@@ -15,6 +15,7 @@ import {
   getPnpmSecuritySettings,
   mergeSettingsIntoYaml,
 } from '../pnpm-security-settings'
+import { readVercelRuntimeLogs } from '../vercel-runtime-logs'
 
 // Build-log polling bounds. See `fetchBuildLogsUntilComplete`.
 const BUILD_LOGS_INITIAL_RETRY_DELAY_MS = 2_000
@@ -120,6 +121,11 @@ export class NextDeployInstance extends NextInstance {
   private _restoreDnsLookup: (() => void) | null = null
   private _startPromise: Promise<void> | undefined
   private _npmrcAuthFile: string | undefined
+  // How `vercel` CLI commands for this deployment are run (see
+  // `getRuntimeLogs`). Undefined for deployments made by a custom script.
+  private _vercelCli:
+    | { env: NodeJS.ProcessEnv; flags: string[]; cwd: string | undefined }
+    | undefined
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -503,6 +509,23 @@ export class NextDeployInstance extends NextInstance {
       process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
     const customLogsScriptPath =
       process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH?.trim()
+    const stagingProxyRegion =
+      process.env.NEXT_TEST_STAGING_PROXY_REGION?.trim()
+    if (stagingProxyRegion) {
+      if (!/^[a-z]{3}\d+$/.test(stagingProxyRegion)) {
+        throw new Error(
+          'NEXT_TEST_STAGING_PROXY_REGION must be a region such as iad1'
+        )
+      }
+      if (
+        process.env.NEXT_TEST_PROXY_ADDRESS ||
+        process.env.NEXT_TEST_PROXY_IN_PROCESS
+      ) {
+        throw new Error(
+          'NEXT_TEST_STAGING_PROXY_REGION cannot be combined with a runner Proxy address override'
+        )
+      }
+    }
 
     // Check if using an existing deployment URL (takes priority)
     if (existingDeployUrl) {
@@ -518,13 +541,13 @@ export class NextDeployInstance extends NextInstance {
 
       this._parsedUrl = new URL(this._url)
 
-      // Configure proxy address if needed
-      await this.configureProxyAddress()
+      await this.configureProxyAddress(stagingProxyRegion)
 
       // Use custom logs script if provided, otherwise use Vercel CLI
       if (customLogsScriptPath) {
         this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
       } else {
+        this._vercelCli = { env: process.env, flags: [], cwd: undefined }
         // Use vercel inspect to get logs for existing deployment
         const buildLogs = await execa(
           'vercel',
@@ -559,8 +582,7 @@ export class NextDeployInstance extends NextInstance {
 
       this._parsedUrl = new URL(this._url)
 
-      // Configure proxy address if needed
-      await this.configureProxyAddress()
+      await this.configureProxyAddress(stagingProxyRegion)
 
       require('console').log(`Deployment URL: ${this._url}`)
 
@@ -601,8 +623,11 @@ export class NextDeployInstance extends NextInstance {
     // revalidatePath/revalidateTag invalidate at project scope, so CI jobs
     // that must not share a revalidation scope set VERCEL_TEST_PROJECT to a
     // dedicated project. Unset keeps the shared default.
-    const TEST_PROJECT_NAME =
+    const baseProjectName =
       process.env.VERCEL_TEST_PROJECT?.trim() || projectEnv.TEST_PROJECT_NAME
+    const TEST_PROJECT_NAME = stagingProxyRegion
+      ? `${baseProjectName}-staging-${stagingProxyRegion}`
+      : baseProjectName
 
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {
@@ -659,6 +684,7 @@ export class NextDeployInstance extends NextInstance {
         `Failed to link project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
       )
     }
+    this._vercelCli = { env: vercelEnv, flags: vercelFlags, cwd: this.testDir }
     require('console').log(`Deploying project at ${this.testDir}`)
 
     const additionalEnv: string[] = []
@@ -796,8 +822,7 @@ export class NextDeployInstance extends NextInstance {
     this._url = deployRes.stdout
     this._parsedUrl = new URL(this._url)
 
-    // Configure proxy address if needed
-    await this.configureProxyAddress()
+    await this.configureProxyAddress(stagingProxyRegion)
 
     require('console').log(`Deployment URL: ${this._url}`)
 
@@ -1133,7 +1158,35 @@ export class NextDeployInstance extends NextInstance {
     process.env[PROXY_HOST_MAP_ENV_KEY] = `${hostname}=${address}`
   }
 
-  private async configureProxyAddress(): Promise<void> {
+  private async configureProxyAddress(
+    stagingProxyRegion?: string
+  ): Promise<void> {
+    if (stagingProxyRegion) {
+      // Probe an asset path so this check does not prime a page under test.
+      const response = await fetch(
+        new URL(
+          '/_next/static/__next_e2e_staging_proxy_probe__',
+          this._parsedUrl
+        ),
+        {
+          method: 'HEAD',
+          redirect: 'manual',
+          signal: AbortSignal.timeout(10_000),
+        }
+      )
+      const vercelId = response.headers.get('x-vercel-id')
+      const expectedHop = `staging-${stagingProxyRegion}`
+      if (!vercelId?.split('::')[0].split(':').includes(expectedHop)) {
+        throw new Error(
+          `Expected ${this._parsedUrl.hostname} to resolve to ${expectedHop}. Received x-vercel-id: ${vercelId ?? '(missing)'}. Check the project's preview deployment suffix and DNS.`
+        )
+      }
+      require('console').log(
+        `Deployment DNS reaches ${expectedHop}: ${vercelId}`
+      )
+      return
+    }
+
     const proxyAddress = process.env.NEXT_TEST_PROXY_ADDRESS
     const redirectInProcess = !!process.env.NEXT_TEST_PROXY_IN_PROCESS
 
@@ -1230,6 +1283,48 @@ export class NextDeployInstance extends NextInstance {
 
   public get cliOutput() {
     return this._cliOutput || ''
+  }
+
+  /**
+   * The messages of the deployment's runtime logs since `since` (of all its
+   * functions, including middleware), one per line, read with
+   * `vercel logs --json` before `deadline` (see `readVercelRuntimeLogs`).
+   * `query` filters the messages by bare words (e.g. a trace ID). Runtime
+   * logs become available with a delay, so callers poll.
+   */
+  public async getRuntimeLogs({
+    since,
+    query,
+    deadline,
+  }: {
+    since: Date
+    query?: string
+    deadline: number
+  }): Promise<string> {
+    if (!this._vercelCli) {
+      throw new Error(
+        'Runtime logs are only available for deployments made or inspected with the Vercel CLI (not with NEXT_TEST_DEPLOY_SCRIPT_PATH).'
+      )
+    }
+    const { env, flags, cwd } = this._vercelCli
+    const messages = await readVercelRuntimeLogs(
+      (args, timeoutMs) =>
+        execa('vercel', args, { cwd, env, reject: false, timeout: timeoutMs }),
+      {
+        deployment: this._url,
+        since,
+        query,
+        flags,
+        deadline,
+        // A call can hang (e.g. while the logs backend is slow): give up on it
+        // and let the caller retry, instead of using up the whole deadline.
+        callTimeoutMs: 60_000,
+        // Every call is logged, so the test output shows how the logs were
+        // read (the token is in the environment, and redacted if in `flags`).
+        log: (message) => require('console').log(`[vercel-logs] ${message}`),
+      }
+    )
+    return messages.join('\n')
   }
 
   public async start() {

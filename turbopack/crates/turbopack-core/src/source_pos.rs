@@ -1,6 +1,7 @@
 use bincode::{Decode, Encode};
 use memchr::memchr3_iter;
 use serde::Serialize;
+use simd_utf16_len::utf16_len_bytes;
 use turbo_tasks_hash::DeterministicHash;
 
 #[turbo_tasks::task_input]
@@ -87,27 +88,10 @@ impl SourcePos {
             }
         }
         match line_start {
-            Some(start) => self.column = utf16_len(&code[start..]) as u32,
-            None => self.column += utf16_len(code) as u32,
+            Some(start) => self.column = utf16_len_bytes(&code[start..]) as u32,
+            None => self.column += utf16_len_bytes(code) as u32,
         }
     }
-}
-
-/// Counts the UTF-16 code units of UTF-8 encoded text, as JavaScript string lengths and source
-/// map columns do.
-///
-/// Every byte is counted on its own: continuation bytes (`10xxxxxx`) count 0, the leading byte
-/// of a 4-byte sequence (a non-BMP char, which UTF-16 encodes as a surrogate pair) counts 2, and
-/// all other bytes count 1. This is exact for valid UTF-8 and, as it doesn't decode chars, it is
-/// safe for arbitrary bytes and adds up across arbitrary splits of the input.
-//
-// TODO: Use the SIMD implementation of `simd-utf16-len` once it supports byte slices
-// (https://github.com/SyMind/simd-utf16-len/pull/22).
-pub(crate) fn utf16_len(bytes: &[u8]) -> usize {
-    bytes
-        .iter()
-        .map(|&b| 1 + (b >= 0xF0) as usize - ((b & 0xC0) == 0x80) as usize)
-        .sum()
 }
 
 impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
@@ -118,26 +102,12 @@ impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
 
 #[cfg(test)]
 mod tests {
-    use super::{SourcePos, utf16_len};
+    use super::SourcePos;
 
     fn pos_after(code: &str) -> SourcePos {
         let mut pos = SourcePos::new(0);
         pos.update(code.as_bytes());
         pos
-    }
-
-    #[test]
-    fn utf16_len_matches_std() {
-        for s in [
-            "",
-            "abc",
-            "é€",
-            "🦀",
-            "x🦀é€😀y\n\r\u{2028}",
-            "\u{0}\u{7f}\u{80}\u{7ff}\u{800}\u{ffff}\u{10000}\u{10ffff}",
-        ] {
-            assert_eq!(utf16_len(s.as_bytes()), s.encode_utf16().count(), "{s:?}");
-        }
     }
 
     #[test]

@@ -43,6 +43,7 @@ import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
+  APP_PATHS_MANIFEST,
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -855,6 +856,7 @@ export async function isPageStatic({
   deploymentId,
   clientAssetToken,
   sriEnabled,
+  isNativeRoute = false,
 }: {
   dir: string
   page: string
@@ -884,6 +886,7 @@ export async function isPageStatic({
   deploymentId: string
   clientAssetToken: string
   sriEnabled: boolean
+  isNativeRoute?: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
   if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
@@ -922,6 +925,18 @@ export async function isPageStatic({
         httpAgentOptions,
       })
 
+      if (isNativeRoute) {
+        return {
+          isStatic: false,
+          isRoutePPREnabled: false,
+          prerenderedRoutes: undefined,
+          prerenderRouteMatchers: undefined,
+          paramMatching: undefined,
+          prerenderFallbackMode: undefined,
+          rootParamKeys: undefined,
+          appConfig: { dynamic: 'force-dynamic', revalidate: 0 },
+        }
+      }
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
@@ -1143,6 +1158,8 @@ export async function isPageStatic({
         }))
       }
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
 
       let isStatic = false
@@ -1416,7 +1433,7 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
-  hasNodeMiddleware: boolean,
+  middlewareConfig: FunctionsConfigManifest['functions'][string] | undefined,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
 ) {
@@ -1613,15 +1630,44 @@ export async function copyTracedFiles(
     })
   }
 
-  if (hasNodeMiddleware) {
-    const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+  if (middlewareConfig) {
+    const middlewareFile = path.join(
+      distDir,
+      'server',
+      middlewareConfig.runtime === 'go'
+        ? middlewareConfig.nativeEntry
+        : 'middleware.js'
+    )
     const middlewareTrace = `${middlewareFile}.nft.json`
     await handleTraceFiles(middlewareTrace)
   }
 
   if (appPageKeys) {
+    // Go route handlers emit a `.native.json` descriptor instead of a JS
+    // module. Its trace lists the executable, so resolve entries through the
+    // app paths manifest to copy it into the standalone output.
+    const appPathsManifest: Record<string, string> =
+      serverConfig.experimental.goRoutes && appPageKeys.length
+        ? JSON.parse(
+            await fs.readFile(
+              /* turbopackIgnore: true */ path.join(
+                distDir,
+                'server',
+                APP_PATHS_MANIFEST
+              ),
+              'utf8'
+            )
+          )
+        : {}
+
     for (const page of appPageKeys) {
       if (middlewareManifest.functions.hasOwnProperty(page)) {
+        continue
+      }
+      const nativeEntry = appPathsManifest[page]
+      if (nativeEntry?.endsWith('.native.json')) {
+        const descriptorFile = path.join(distDir, 'server', nativeEntry)
+        await handleTraceFiles(`${descriptorFile}.nft.json`)
         continue
       }
       const pageFile = path.join(distDir, 'server', 'app', `${page}.js`)
@@ -1767,12 +1813,17 @@ export function getPossibleInstrumentationHookFilenames(
 
 export function getPossibleMiddlewareFilenames(
   folder: string,
-  extensions: string[]
+  extensions: string[],
+  goRoutes = false
 ) {
-  return extensions.flatMap((extension) => [
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
-    path.join(folder, `${PROXY_FILENAME}.${extension}`),
-  ])
+  return [
+    ...extensions.flatMap((extension) => [
+      path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+      path.join(folder, `${PROXY_FILENAME}.${extension}`),
+    ]),
+    // proxy.go is only a convention file when Go routes are enabled.
+    ...(goRoutes ? [path.join(folder, `${PROXY_FILENAME}.go`)] : []),
+  ]
 }
 
 export class NestedMiddlewareError extends Error {
@@ -1800,6 +1851,8 @@ export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
   )
 }
@@ -1808,6 +1861,8 @@ export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     layer && WEBPACK_LAYERS.GROUP.clientOnly.includes(layer as any)
   )
 }
@@ -1827,12 +1882,16 @@ export function isWebpackDefaultLayer(
 export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
 }
 
 export function isWebpackAppPagesLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
