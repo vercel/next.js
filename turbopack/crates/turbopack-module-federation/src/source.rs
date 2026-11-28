@@ -49,8 +49,6 @@ pub(crate) fn request_from_internal_directory(request: &str) -> String {
     )
 }
 
-// Used by the import resolver introduced in the next stack layer.
-#[allow(dead_code)]
 pub(crate) fn generate_internal_import_source(request: &str) -> Result<String> {
     // This source is the escape hatch used by a provider to import the real local module without
     // the shared-module import map redirecting it back to a consumer proxy.
