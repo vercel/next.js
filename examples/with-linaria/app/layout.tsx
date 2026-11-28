@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "./style.linaria.global";
 
 export const metadata: Metadata = {
   title: "With Linaria",
