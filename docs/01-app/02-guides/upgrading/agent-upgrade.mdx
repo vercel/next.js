@@ -153,7 +153,7 @@ Open a setup pull request against acme/web (main)?
   Cancel
 ```
 
-After opening the setup pull request, the CLI prints a `gh secret set` command for each of the two GitHub Actions repository secrets. Each command prompts you for the secret's value.
+After opening the setup pull request, the CLI walks you through the two GitHub Actions repository secrets. For each one, it can open the page that creates the value, then reads the value you paste without showing it and stores it with the GitHub CLI. You can also skip a secret and add it later with `gh secret set` or in **Settings > Secrets and variables > Actions**.
 
 | Secret                          | Value                                                                                                             |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
