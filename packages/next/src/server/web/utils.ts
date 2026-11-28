@@ -17,18 +17,40 @@ export function fromNodeOutgoingHttpHeaders(
   nodeHeaders: OutgoingHttpHeaders
 ): Headers {
   const headers = new Headers()
-  for (let [key, value] of Object.entries(nodeHeaders)) {
-    const values = Array.isArray(value) ? value : [value]
-    for (let v of values) {
-      if (typeof v === 'undefined') continue
-      if (typeof v === 'number') {
-        v = v.toString()
-      }
+  appendNodeOutgoingHttpHeaders(headers, nodeHeaders)
+  return headers
+}
 
-      headers.append(key, v)
+/**
+ * Appends the headers of a Node.js headers object to a Headers object, the way
+ * `fromNodeOutgoingHttpHeaders` fills a new one.
+ *
+ * @param headers the headers object to append to
+ * @param nodeHeaders the headers object to convert
+ */
+export function appendNodeOutgoingHttpHeaders(
+  headers: Headers,
+  nodeHeaders: OutgoingHttpHeaders
+): void {
+  // The same names in the same order as `Object.entries`, without an array of
+  // entries or names and without an array around a single value. `for...in`
+  // also visits inherited enumerable properties, which `Object.entries` does
+  // not, so those are skipped: a polluted `Object.prototype` must not add
+  // headers.
+  for (const key in nodeHeaders) {
+    if (!Object.hasOwn(nodeHeaders, key)) continue
+    const value = nodeHeaders[key]
+    if (Array.isArray(value)) {
+      const values = value as Array<string | number | undefined>
+      for (let j = 0; j < values.length; j++) {
+        const v = values[j]
+        if (typeof v === 'undefined') continue
+        headers.append(key, typeof v === 'number' ? v.toString() : v)
+      }
+    } else if (typeof value !== 'undefined') {
+      headers.append(key, typeof value === 'number' ? value.toString() : value)
     }
   }
-  return headers
 }
 
 /*
