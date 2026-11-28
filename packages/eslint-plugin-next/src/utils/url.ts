@@ -9,6 +9,8 @@ const fsReadDirSyncCache = {}
  * Recursively parse directory for page URLs.
  */
 function parseUrlForPages(urlprefix: string, directory: string) {
+  const extensions = ['js', 'jsx', 'ts', 'tsx']
+  const pageExtRegex = new RegExp(`\\.(${extensions.join('|')})$`)
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
@@ -16,13 +18,11 @@ function parseUrlForPages(urlprefix: string, directory: string) {
   fsReadDirSyncCache[directory].forEach((dirent) => {
     // TODO: this should account for all page extensions
     // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
+    if (pageExtRegex.test(dirent.name)) {
       if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
+        res.push(`${urlprefix}${dirent.name.replace(pageExtRegex, '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      res.push(`${urlprefix}${dirent.name.replace(pageExtRegex, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
@@ -37,6 +37,9 @@ function parseUrlForPages(urlprefix: string, directory: string) {
  * Recursively parse app directory for URLs.
  */
 function parseUrlForAppDir(urlprefix: string, directory: string) {
+  const extensions = ['js', 'jsx', 'ts', 'tsx']
+  const pageExtRegex = new RegExp(`\\.(${extensions.join('|')})$`)
+
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
@@ -44,11 +47,11 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
   fsReadDirSyncCache[directory].forEach((dirent) => {
     // TODO: this should account for all page extensions
     // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
+    if (pageExtRegex.test(dirent.name)) {
       if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
+        res.push(`${urlprefix}${dirent.name.replace(pageExtRegex, '')}`)
       } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+        res.push(`${urlprefix}${dirent.name.replace(pageExtRegex, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
