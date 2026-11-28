@@ -975,7 +975,13 @@ export function createAppPageEntrypoint({
           page: normalizedSrcPage,
           routeMatch,
           parsedRequestHeaders,
-          serverActionRequestMetadata,
+          serverActionRequestMetadata:
+            renderOperation === 'prerender' && isPossibleServerAction
+              ? {
+                  ...serverActionRequestMetadata,
+                  isPossibleServerAction: false,
+                }
+              : serverActionRequestMetadata,
           sharedContext: {
             buildId,
             deploymentId,
