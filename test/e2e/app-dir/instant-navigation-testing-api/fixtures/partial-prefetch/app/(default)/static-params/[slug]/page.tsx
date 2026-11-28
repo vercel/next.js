@@ -1,17 +1,17 @@
 import { Suspense } from 'react'
 
 export function generateStaticParams() {
-  return [{ slug: 'hello' }]
+  return [{ slug: 'prerendered' }]
 }
 
-export default function DynamicParamsPage({
+export default function StaticParamsPage({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   return (
     <div>
-      <h1 data-testid="dynamic-params-title">Dynamic Params Page</h1>
+      <h1 data-testid="static-params-title">Static Params Page</h1>
       <Suspense
         fallback={<div data-testid="params-fallback">Loading params...</div>}
       >

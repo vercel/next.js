@@ -1,14 +1,9 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 
-export const instant = {
-  unstable_samples: [{ searchParams: { myParam: 'testValue' } }],
-}
-export const prefetch = 'partial'
-
 type SearchParams = { [key: string]: string | string[] | undefined }
 
-export default async function RuntimePrefetchTargetPage({
+export default async function SearchParamsPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>
