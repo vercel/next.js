@@ -725,6 +725,8 @@ async function exportPage(
     ...result,
     duration: Date.now() - start,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
+    usedDefaultImageLoader:
+      (globalThis as any).__NEXT_IMAGE_DEFAULT_LOADER_USED === true,
   }
 }
 
