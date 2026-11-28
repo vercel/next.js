@@ -1103,7 +1103,9 @@ export function createAppPageEntrypoint({
               ),
               useCacheTimeout: nextConfig.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
-                nextConfig.experimental.durableUseCacheEntries
+                routeModule.isDev
+                  ? nextConfig.experimental.durableUseCacheEntriesInDev
+                  : nextConfig.experimental.durableUseCacheEntries
               ),
               cachedNavigations:
                 nextConfig.experimental.cachedNavigations ?? false,

@@ -644,7 +644,9 @@ export default abstract class Server<
           this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         durableUseCacheEntries: Boolean(
-          this.nextConfig.experimental.durableUseCacheEntries
+          this.dev
+            ? this.nextConfig.experimental.durableUseCacheEntriesInDev
+            : this.nextConfig.experimental.durableUseCacheEntries
         ),
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
@@ -1661,8 +1663,9 @@ export default abstract class Server<
       // cache, so it reaches every render that passes through this request
       // handling, including internal renders (e.g. dev validation/warmup) that
       // don't re-enter the top-level request handler. It's included in `"use
-      // cache"` keys so cached entries revalidate after an edit, for every
-      // client.
+      // cache"` keys that aren't keyed by a code hash (see
+      // `experimental.durableUseCacheEntriesInDev`), so those entries revalidate
+      // after an edit, for every client.
       if (!getRequestMeta(req, 'hmrRefreshHash')) {
         addRequestMeta(
           req,

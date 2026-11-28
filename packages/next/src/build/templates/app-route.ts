@@ -291,7 +291,9 @@ async function handleRequest(
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         durableUseCacheEntries: Boolean(
-          nextConfig.experimental.durableUseCacheEntries
+          routeModule.isDev
+            ? nextConfig.experimental.durableUseCacheEntriesInDev
+            : nextConfig.experimental.durableUseCacheEntries
         ),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),

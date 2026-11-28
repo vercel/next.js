@@ -802,7 +802,7 @@ export default class DevServer extends Server {
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
           useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
           durableUseCacheEntries: Boolean(
-            this.nextConfig.experimental.durableUseCacheEntries
+            this.nextConfig.experimental.durableUseCacheEntriesInDev
           ),
           staticPageGenerationTimeout:
             this.nextConfig.staticPageGenerationTimeout,

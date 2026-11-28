@@ -523,6 +523,7 @@ export const experimentalSchema = {
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   durableUseCacheEntries: z.boolean().optional(),
+  durableUseCacheEntriesInDev: z.boolean().optional(),
   useCacheStaticRootParamTracking: z.boolean().optional(),
   useCacheTimeout: z.number().positive().optional(),
   slowModuleDetection: z

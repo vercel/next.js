@@ -223,7 +223,7 @@ export function installDevValidationWorker(options: InstallOptions): void {
         cacheLifeProfiles: nextConfig.cacheLife,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         durableUseCacheEntries: Boolean(
-          nextConfig.experimental.durableUseCacheEntries
+          nextConfig.experimental.durableUseCacheEntriesInDev
         ),
         staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       },
