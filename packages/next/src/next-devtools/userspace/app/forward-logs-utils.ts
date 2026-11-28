@@ -62,7 +62,15 @@ export function preLogSerializationClone<T>(
     return out
   }
 
-  const proto = Object.getPrototypeOf(value)
+  // Exotic values can trap this too, e.g. a proxy whose `getPrototypeOf`
+  // throws. `Object.keys` above doesn't necessarily catch those.
+  let proto: unknown
+  try {
+    proto = Object.getPrototypeOf(value)
+  } catch {
+    return UNAVAILABLE_MARKER
+  }
+
   if (proto === Object.prototype || proto === null) {
     const out: Record<string, unknown> = {}
     seen.set(value as object, out)
@@ -78,7 +86,13 @@ export function preLogSerializationClone<T>(
     return out
   }
 
-  return Object.prototype.toString.call(value)
+  // `Object.prototype.toString` reads `Symbol.toStringTag`, which is a getter
+  // the value controls and can therefore throw.
+  try {
+    return Object.prototype.toString.call(value)
+  } catch {
+    return UNAVAILABLE_MARKER
+  }
 }
 
 // only safe if passed safeClone data
