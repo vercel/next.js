@@ -234,6 +234,67 @@ describe('router autoscrolling on navigation', () => {
     })
   })
 
+  describe('refresh after history.replaceState', () => {
+    it('should not scroll when router.refresh() follows a replaceState that changed the search params', async () => {
+      const browser = await next.browser('/replace-state-refresh')
+
+      const initialTimestamp = await browser
+        .elementByCss('#server-timestamp')
+        .text()
+
+      await scrollTo(browser, { x: 0, y: 1000 })
+
+      // The documented native History API pattern. The router adopts the new
+      // URL but keeps the previous `renderedSearch`, so the refresh below
+      // mismatches the server tree and is retried.
+      await browser.eval(
+        `window.history.replaceState(null, '', '/replace-state-refresh?open=1')`
+      )
+      await retry(async () => {
+        expect(await browser.elementByCss('#search').text()).toBe('open=1')
+      })
+
+      await browser.eval(`window.router.refresh()`)
+
+      await retry(async () => {
+        const newTimestamp = await browser
+          .elementByCss('#server-timestamp')
+          .text()
+        expect(newTimestamp).not.toBe(initialTimestamp)
+      })
+
+      await waitForScrollToComplete(browser, { x: 0, y: 1000 })
+    })
+
+    it('should not scroll when a revalidating server action follows a replaceState that changed the search params', async () => {
+      const browser = await next.browser('/replace-state-refresh')
+
+      const initialTimestamp = await browser
+        .elementByCss('#server-timestamp')
+        .text()
+
+      await scrollTo(browser, { x: 0, y: 1000 })
+
+      await browser.eval(
+        `window.history.replaceState(null, '', '/replace-state-refresh?open=1')`
+      )
+      await retry(async () => {
+        expect(await browser.elementByCss('#search').text()).toBe('open=1')
+      })
+
+      await browser.elementByCss('#refresh-button').click()
+
+      await retry(async () => {
+        const newTimestamp = await browser
+          .elementByCss('#server-timestamp')
+          .text()
+        expect(newTimestamp).not.toBe(initialTimestamp)
+      })
+
+      await waitForScrollToComplete(browser, { x: 0, y: 1000 })
+    })
+  })
+
   describe('bugs', () => {
     it('Should scroll to the top of the layout when the first child is display none', async () => {
       const browser = await next.browser('/')
