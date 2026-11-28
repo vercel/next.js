@@ -719,7 +719,7 @@ const cspHeader = `
 1. **Inline styles**: Use CSS-in-JS libraries that support nonces or move styles to external files
 2. **Dynamic imports**: Ensure dynamic imports are allowed in your script-src policy
 3. **WebAssembly**: Add `'wasm-unsafe-eval'` if using WebAssembly
-4. **Service workers**: Add appropriate policies for service worker scripts
+4. **Service workers**: Set the [worker's Content Security Policy on its script response](/docs/app/guides/progressive-web-apps#8-securing-your-application).
 
 ## Version History
 

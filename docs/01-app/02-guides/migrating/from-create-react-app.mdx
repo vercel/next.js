@@ -529,13 +529,16 @@ export default nextConfig
 
 ### Handling a Custom `Service Worker`
 
-If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-app`), you can register this service worker using the following syntax:
+If you used a custom service worker in CRA, pass its module URL to `register()` so Turbopack can bundle it:
 
 ```ts
-await navigator.serviceWorker.register(new URL('../serviceWorker.js', import.meta.url), ...)
+await navigator.serviceWorker.register(
+  new URL('../serviceWorker.js', import.meta.url),
+  { scope: '/' }
+)
 ```
 
-Learn more about how to create [Progressive Web Applications (PWAs)](/docs/app/guides/progressive-web-apps) with Next.js.
+See the PWA guide for the [bundled worker's URL, scope, and response headers](/docs/app/guides/progressive-web-apps#8-securing-your-application).
 
 ### Proxying API Requests
 
