@@ -25,6 +25,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -509,6 +510,32 @@ func markHeadersAbsent(h http.Header) {
 }
 
 func (c *clientWriter) Unwrap() http.ResponseWriter { return c.ResponseWriter }
+
+// Hijack hands the proxy the client's connection when Node accepts an
+// upgrade, such as a WebSocket.
+//
+// Node parity: Node gives the upgrade handler the bytes the client sent right
+// after the request (head) and everything after them. Go's server may have
+// read some of those bytes already: they sit in the returned reader's buffer
+// (Hijack's documentation says so). The proxy copies only from the
+// connection itself, so those bytes would be lost. The returned connection
+// reads from the buffer first.
+func (c *clientWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	conn, rw, err := http.NewResponseController(c.ResponseWriter).Hijack()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &bufferedConn{Conn: conn, reader: rw.Reader}, rw, nil
+}
+
+// bufferedConn is a connection whose reads go through reader, which holds
+// bytes already read from it.
+type bufferedConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+func (c *bufferedConn) Read(p []byte) (int, error) { return c.reader.Read(p) }
 
 type requestBodyKey struct{}
 

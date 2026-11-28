@@ -515,6 +515,41 @@ describe('switchyard', () => {
     expect(externalUpgrades).toContain('/socket')
   })
 
+  // Some clients send their first message right behind the handshake,
+  // without waiting for the 101.
+  it('passes on a WebSocket message sent along with the handshake', async () => {
+    const socket = net.connect(Number(next.appPort), '127.0.0.1')
+    let received = ''
+    socket.on('data', (chunk) => (received += chunk.toString('latin1')))
+    const mask = randomBytes(4)
+    const payload = Buffer.from('ping')
+    const frame = Buffer.concat([
+      // FIN and text frame, then a masked payload of payload.length bytes.
+      Buffer.from([0x81, 0x80 | payload.length]),
+      mask,
+      Buffer.from(payload.map((byte, i) => byte ^ mask[i % 4])),
+    ])
+    socket.write(
+      Buffer.concat([
+        Buffer.from(
+          `GET /external/socket HTTP/1.1\r\nHost: localhost:${next.appPort}\r\n` +
+            'Connection: Upgrade\r\nUpgrade: websocket\r\n' +
+            `Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: ${randomBytes(16).toString('base64')}\r\n\r\n`
+        ),
+        frame,
+      ])
+    )
+    try {
+      await retry(() => {
+        expect(received).toContain('101 Switching Protocols')
+        expect(received).toContain('hello from /socket')
+        expect(received).toContain('echo ping')
+      })
+    } finally {
+      socket.destroy()
+    }
+  })
+
   it('follows a server action redirect', async () => {
     const browser = await next.browser('/action')
     await browser.elementByCss('#submit').click()
