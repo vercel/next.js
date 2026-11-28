@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, check, getRedboxSource } from 'next-test-utils'
+import type { Page } from 'playwright'
 
 describe('app-dir root layout', () => {
   const { next, isNextDev: isDev } = nextTestSetup({
@@ -215,6 +216,72 @@ describe('app-dir root layout', () => {
       .waitForElementByCss('#root-b')
     expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
   })
+
+  it.each(['HTTP 204', 'dismissed beforeunload'])(
+    'should retry navigation between root layouts after %s',
+    async (cancellation) => {
+      // Use native browser events because router-act does not support hard navigations.
+      let page!: Page
+      const browser = await next.browser('/root-layout-a', {
+        beforePageLoad(p) {
+          page = p
+        },
+      })
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+
+      if (cancellation === 'HTTP 204') {
+        await page.route('**/root-layout-b', async (route) => {
+          if (route.request().isNavigationRequest()) {
+            await route.fulfill({ status: 204 })
+          } else {
+            await route.continue()
+          }
+        })
+        await Promise.all([
+          page.waitForResponse(
+            (response) =>
+              response.request().isNavigationRequest() &&
+              response.status() === 204
+          ),
+          page.locator('#link-to-b').click({ noWaitAfter: true }),
+        ])
+        await page.unroute('**/root-layout-b')
+      } else {
+        await page.evaluate(() => {
+          window.onbeforeunload = (event) => {
+            event.preventDefault()
+            event.returnValue = ''
+          }
+        })
+        await Promise.all([
+          page.waitForEvent('dialog').then(async (dialog) => {
+            await dialog.dismiss()
+            expect(dialog.type()).toBe('beforeunload')
+          }),
+          page.locator('#link-to-b').click({ noWaitAfter: true }),
+        ])
+        await page.evaluate(() => {
+          window.onbeforeunload = null
+        })
+      }
+
+      expect(new URL(await browser.url()).pathname).toBe('/root-layout-a')
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
+
+      // Retrying the same Link must issue a new document request.
+      await Promise.all([
+        page.waitForRequest(
+          (request) =>
+            request.isNavigationRequest() &&
+            new URL(request.url()).pathname === '/root-layout-b'
+        ),
+        page.locator('#link-to-b').click({ noWaitAfter: true }),
+      ])
+      await browser.waitForElementByCss('#root-b')
+      expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+    }
+  )
 
   it('should correctly handle navigation between multiple root layouts when redirecting in a server action', async () => {
     const browser = await next.browser('/root-layout-a')
