@@ -95,9 +95,27 @@ export function createFormSubmitDestinationUrl(
       value = value.name
     }
 
-    targetUrl.searchParams.append(name, value)
+    targetUrl.searchParams.append(
+      normalizeNewlines(name),
+      normalizeNewlines(value)
+    )
   }
   return targetUrl
+}
+
+/**
+ * Normalize lone CR and LF characters to CRLF, like the urlencoded serializer does:
+ *
+ *   "Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of
+ *    U+000A (LF) not preceded by U+000D (CR), in entry's name, by a string consisting of
+ *    U+000D (CR) and U+000A (LF)."
+ *   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#converting-an-entry-list-to-a-list-of-name-value-pairs
+ *
+ * `FormData` exposes textarea values with LF line breaks and `URLSearchParams` encodes them as-is,
+ * so without this a submitted textarea arrives as `%0A` where a native GET form sends `%0D%0A`.
+ */
+function normalizeNewlines(value: string) {
+  return value.replace(/\r\n|\r|\n/g, '\r\n')
 }
 
 export function checkFormActionUrl(
