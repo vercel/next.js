@@ -55,6 +55,18 @@ const tests = {
           );
         }
     }`,
+
+    // Valueless attributes have a null value; the rule should not crash.
+    `export class Blah extends Head {
+        render() {
+          return (
+            <div>
+              <link rel />
+              <link rel="stylesheet" href />
+            </div>
+          );
+        }
+    }`,
   ],
 
   invalid: [
