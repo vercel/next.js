@@ -2435,28 +2435,35 @@ async function fetchAndWritePerSegmentPrefetchResponse(
 
 /**
  * Reads a stale-at time from the staleTime async iterable of a fully-buffered
- * response — stage decodes, which go through
- * `bufferPrefetchResponseBody`. Drains synchronously via
- * `readFulfilledStaleTimeSeconds` (see decode-server-response). A missing
- * iterable, or a truncated shell decode whose value landed past the
- * boundary, reads as absent and falls back to the static stale time.
+ * response — stage decodes, runtime prefetches, and legacy loading-boundary
+ * prefetches, which go through `bufferPrefetchResponseBody`. Drains
+ * synchronously via `readFulfilledStaleTimeSeconds` (see
+ * decode-server-response), so an unclosed iterable (such as a runtime prefetch
+ * aborted by sync IO, or a truncated shell decode whose value landed past the
+ * boundary) reads whatever values were flushed instead of hanging forever under
+ * `allowPartialStream: true`. When no usable value was yielded, falls back to
+ * the `Next-Router-Stale-Time` header (if `response` is given) or the static
+ * stale time.
  *
- * For the one response kind that isn't buffered when read — a legacy full
- * response — use `resolveStaleAt` instead, since its values aren't
- * materialized synchronously.
+ * For responses that aren't buffered when read — legacy full prefetches and
+ * streamed complete prerenders — use `resolveStaleAt` instead, since their
+ * values aren't materialized synchronously.
  */
 function readFulfilledStaleAt(
   now: number,
-  staleTime: AsyncIterable<number> | undefined
+  staleTime: AsyncIterable<number> | undefined,
+  response?: RSCResponse
 ): number {
-  if (staleTime === undefined) {
-    return now + STATIC_STALETIME_MS
+  if (staleTime !== undefined) {
+    const staleTimeSeconds = readFulfilledStaleTimeSeconds(staleTime)
+    if (staleTimeSeconds !== null) {
+      return now + getStaleTimeMs(staleTimeSeconds)
+    }
   }
-  const staleTimeSeconds = readFulfilledStaleTimeSeconds(staleTime)
-  if (staleTimeSeconds === null) {
-    return now + STATIC_STALETIME_MS
+  if (response !== undefined) {
+    return getStaleAtFromHeader(now, response)
   }
-  return now + getStaleTimeMs(staleTimeSeconds)
+  return now + STATIC_STALETIME_MS
 }
 
 /**
@@ -2718,10 +2725,11 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
     let bufferedResponseSize: number | null = null
     let serverDataPromise: Promise<DynamicNavigationFlightResponse>
-    if (
+    const isBuffered = !(
       completeness === Completeness.FullyComplete &&
       stage === AppStage.Navigation
-    ) {
+    )
+    if (!isBuffered) {
       // Legacy full prefetches are dynamic responses stored in the prefetch cache.
       // They don't carry vary params or other cache metadata, so there's no
       // need to buffer them. Use the incremental version to allow data to be
@@ -2774,7 +2782,9 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     const serverData = await serverDataPromise
 
     const now = Date.now()
-    const staleAt = await resolveStaleAt(now, serverData.s, response)
+    const staleAt = isBuffered
+      ? readFulfilledStaleAt(now, serverData.s, response)
+      : await resolveStaleAt(now, serverData.s, response)
     const buildId =
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
 
@@ -2789,13 +2799,15 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
         responseChunks,
         serverData,
         AppStage.Shell,
-        headers
+        headers,
+        isBuffered
       )
       prefetchStageResponse = await resolveStageResponse(
         responseChunks,
         serverData,
         AppStage.Prefetch,
-        headers
+        headers,
+        isBuffered
       )
       // Every prefix has been cut, so stop keeping the response's bytes.
       responseChunks = null
@@ -3845,16 +3857,15 @@ function getStaleAtFromHeader(now: number, response: RSCResponse): number {
  * yielded value wins) and, if a `response` is given and the iterable yields
  * nothing, falling back to the `Next-Router-Stale-Time` header.
  *
- * The async form is required for the two things `readFulfilledStaleAt` can't
- * do: the header fallback, and reading a legacy full prefetch response — the
- * one response kind that isn't buffered before it's read, so its iterable
- * values must be awaited rather than drained synchronously off their thenable
- * status.
+ * The async form is required for responses that aren't buffered before they're
+ * read — legacy full prefetches and streamed complete prerenders — whose
+ * iterable values must be awaited rather than drained synchronously off their
+ * thenable status.
  *
- * Buffered responses (static PPR, runtime prefetch, stage decodes) don't need
- * the async form: segment bundles and the shell-stage decode already read
- * staleTime synchronously via `readFulfilledStaleAt`, and the remaining
- * buffered callers here could be moved to it too.
+ * Buffered responses (static PPR, runtime prefetches, stage decodes, embedded
+ * runtime prefetch streams) read staleTime synchronously via
+ * `readFulfilledStaleAt`, so an unclosed iterable under
+ * `allowPartialStream: true` cannot hang forever.
  */
 export async function resolveStaleAt(
   now: number,
@@ -3933,22 +3944,13 @@ export async function bufferAndWriteNavigationResponse(
     // aborted render errors them, and a cut-off stream leaves them pending),
     // we treat it as having no shell, and still write the full payload.
     staleAt = readFulfilledStaleAt(now, prefetchResponse.s)
-    const stageByteLengths =
-      prefetchResponse.a !== undefined
-        ? readFulfilledValue(prefetchResponse.a, undefined)
-        : undefined
-    if (stageByteLengths === undefined) {
-      shellResponse = null
-    } else if (stageByteLengths.length === 0) {
-      // The shell is the full response.
-      shellResponse = prefetchResponse
-    } else {
-      shellResponse = await decodeResponsePrefix<NavigationFlightResponse>(
-        [buffer],
-        stageByteLengths[AppStage.Shell],
-        undefined
-      )
-    }
+    shellResponse = await resolveStageResponse(
+      [buffer],
+      prefetchResponse,
+      AppStage.Shell,
+      undefined,
+      true
+    )
   } else if (
     process.env.__NEXT_CACHE_COMPONENTS &&
     process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
@@ -3962,7 +3964,8 @@ export async function bufferAndWriteNavigationResponse(
         responseChunks,
         response,
         AppStage.Shell,
-        undefined
+        undefined,
+        false
       )
       // Decode up to the end of the prefetch stage, just to read `u`. If the
       // prefix can't be decoded, we only use the full payload's `u`.
@@ -3970,7 +3973,8 @@ export async function bufferAndWriteNavigationResponse(
         responseChunks,
         response,
         AppStage.Prefetch,
-        undefined
+        undefined,
+        false
       )
       prefetchStageNeedsRuntimeRequest = prefetchStageResponse?.u
     } else {
@@ -4015,6 +4019,9 @@ export async function bufferAndWriteNavigationResponse(
  *
  * - If the response has no `a`, it wasn't staged, so we can't cut out the
  *   stage. Returns null.
+ * - On a buffered response decoded with `allowPartialStream: true`, `a` is
+ *   read synchronously; an unresolved (cut-off/halted) or rejected `a` returns
+ *   null instead of awaiting a halted promise forever.
  * - If `a` doesn't list the stage, the stage ends at the end of the response.
  *   Returns `flightResponse` itself (callers compare by reference).
  * - Otherwise, decodes the response's bytes up to the stage's offset (see
@@ -4026,14 +4033,20 @@ async function resolveStageResponse<
   chunks: Array<Uint8Array>,
   flightResponse: T,
   stage: AppStage.Shell | AppStage.Prefetch,
-  headers: RequestHeaders | undefined
+  headers: RequestHeaders | undefined,
+  isBuffered: boolean
 ): Promise<T | null> {
   if (flightResponse.a === undefined) {
     // The render wasn't staged.
     return null
   }
 
-  const stageByteLengths = await flightResponse.a
+  const stageByteLengths = isBuffered
+    ? readFulfilledValue(flightResponse.a, undefined)
+    : await flightResponse.a
+  if (stageByteLengths === undefined) {
+    return null
+  }
   const stageByteLength: number | undefined = stageByteLengths[stage]
   if (stageByteLength === undefined) {
     // The stage is the whole response. Return the response itself instead of
