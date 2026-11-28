@@ -51,12 +51,15 @@ type RouteLoaderEntry = LoadedRouteSuccess | LoadedRouteFailure
 
 interface Future<V> {
   resolve: (entrypoint: V) => void
+  reject: (error: unknown) => void
   future: Promise<V>
+  prefetch?: boolean
 }
 function withFuture<T extends object>(
   key: string,
   map: Map<string, Future<T> | T>,
-  generator?: () => Promise<T>
+  generator?: () => Promise<T>,
+  prefetch?: boolean
 ): Promise<T> {
   let entry = map.get(key)
   if (entry) {
@@ -66,10 +69,21 @@ function withFuture<T extends object>(
     return Promise.resolve(entry)
   }
   let resolver: (entrypoint: T) => void
-  const prom: Promise<T> = new Promise<T>((resolve) => {
+  let rejecter: (error: unknown) => void
+  const prom: Promise<T> = new Promise<T>((resolve, reject) => {
     resolver = resolve
+    rejecter = reject
   })
-  map.set(key, { resolve: resolver!, future: prom })
+  // Prevent unhandled rejection warnings if the future rejects before
+  // any caller attaches a handler, or if it is unobserved.
+  prom.catch(() => {})
+
+  map.set(key, {
+    resolve: resolver!,
+    reject: rejecter!,
+    future: prom,
+    prefetch,
+  })
   return generator
     ? generator()
         .then((value) => {
@@ -78,6 +92,7 @@ function withFuture<T extends object>(
         })
         .catch((err) => {
           map.delete(key)
+          rejecter(err)
           throw err
         })
     : prom
@@ -353,54 +368,75 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
         }
       })
     },
-    loadRoute(route: string, prefetch?: boolean) {
-      return withFuture<RouteLoaderEntry>(route, routes, () => {
-        let devBuildPromiseResolve: () => void
+    loadRoute(route: string, prefetch?: boolean): Promise<RouteLoaderEntry> {
+      const entry = routes.get(route)
+      if (entry && 'future' in entry && entry.prefetch && !prefetch) {
+        // A navigation request joined an in-flight prefetch.  When the
+        // prefetch fails, its shared future is rejected.  Rather than
+        // propagating that rejection to the navigation caller, retry the
+        // load independently so the user gets a fresh attempt.
+        return entry.future.then(undefined, () => this.loadRoute(route))
+      }
 
-        if (process.env.NODE_ENV === 'development') {
-          devBuildPromise = new Promise<void>((resolve) => {
-            devBuildPromiseResolve = resolve
-          })
-        }
+      const prom = withFuture<RouteLoaderEntry>(
+        route,
+        routes,
+        () => {
+          let devBuildPromiseResolve: () => void
 
-        return resolvePromiseWithTimeout(
-          getFilesForRoute(assetPrefix, route)
-            .then(({ scripts, css }) => {
-              return Promise.all([
-                entrypoints.has(route)
-                  ? []
-                  : Promise.all(scripts.map(maybeExecuteScript)).then((r) => {
-                      bootstrapRoute(route)
-                      return r
-                    }),
-                Promise.all(css.map(fetchStyleSheet)),
-              ] as const)
+          if (process.env.NODE_ENV === 'development') {
+            devBuildPromise = new Promise<void>((resolve) => {
+              devBuildPromiseResolve = resolve
             })
-            .then((res) => {
-              return this.whenEntrypoint(route).then((entrypoint) => ({
-                entrypoint,
-                styles: res[1],
-              }))
-            }),
-          markAssetError(new Error(`Route did not complete loading: ${route}`)),
-          devBuildPromise
-        )
-          .then(({ entrypoint, styles }) => {
-            const res: RouteLoaderEntry = Object.assign<
-              { styles: RouteStyleSheet[] },
-              RouteEntrypoint
-            >({ styles: styles! }, entrypoint)
-            return 'error' in entrypoint ? entrypoint : res
-          })
-          .catch((err) => {
-            if (prefetch) {
-              // we don't want to cache errors during prefetch
-              throw err
-            }
-            return { error: err }
-          })
-          .finally(() => devBuildPromiseResolve?.())
-      })
+          }
+
+          return resolvePromiseWithTimeout(
+            getFilesForRoute(assetPrefix, route)
+              .then(({ scripts, css }) => {
+                return Promise.all([
+                  entrypoints.has(route)
+                    ? []
+                    : Promise.all(scripts.map(maybeExecuteScript)).then((r) => {
+                        bootstrapRoute(route)
+                        return r
+                      }),
+                  Promise.all(css.map(fetchStyleSheet)),
+                ] as const)
+              })
+              .then((res) => {
+                return this.whenEntrypoint(route).then((entrypoint) => ({
+                  entrypoint,
+                  styles: res[1],
+                }))
+              }),
+            markAssetError(new Error(`Route did not complete loading: ${route}`)),
+            devBuildPromise
+          )
+            .then(({ entrypoint, styles }) => {
+              const res: RouteLoaderEntry = Object.assign<
+                { styles: RouteStyleSheet[] },
+                RouteEntrypoint
+              >({ styles: styles! }, entrypoint)
+              return 'error' in entrypoint ? entrypoint : res
+            })
+            .catch((err) => {
+              if (prefetch) {
+                // we don't want to cache errors during prefetch
+                throw err
+              }
+              return { error: err }
+            })
+            .finally(() => devBuildPromiseResolve?.())
+        },
+        prefetch
+      )
+      if (prefetch) {
+        // Suppress unhandled-rejection warnings for fire-and-forget prefetch
+        // callers that do not attach a `.catch()` handler.  Callers that do
+        // handle the rejection (e.g. the `prefetch()` method) are unaffected.
+        prom.catch(() => {})
+      }
+      return prom
     },
     prefetch(route: string): Promise<void> {
       // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
