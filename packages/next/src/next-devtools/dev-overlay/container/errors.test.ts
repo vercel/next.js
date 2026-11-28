@@ -1,3 +1,5 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import {
   createRuntimeBodyErrorInStaticRoute,
   createDynamicBodyErrorInStaticRoute,
@@ -39,9 +41,12 @@ import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
 import {
   CACHE_STAGE_METADATA_EXPLANATION,
   CACHE_STAGE_VIEWPORT_EXPLANATION,
+  SYNC_IO_CLIENT_DOCS,
+  SYNC_IO_DOCS,
   getCards,
   getStaticRouteDocsUrl,
 } from '../components/instant/instant-guidance-data'
+import { InstantHeaderExplanation } from '../components/instant/instant-guidance'
 import {
   deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
@@ -496,7 +501,11 @@ describe('getBlockingRouteErrorDetails', () => {
     (type, expression, expectedCause) => {
       expect(
         getBlockingRouteErrorDetails(createSyncIOError(ROUTE, expression, type))
-      ).toEqual({ type: 'sync-io', cause: expectedCause })
+      ).toEqual({
+        type: 'sync-io',
+        cause: expectedCause,
+        thirdPartyPackage: null,
+      })
     }
   )
 
@@ -511,9 +520,87 @@ describe('getBlockingRouteErrorDetails', () => {
         getBlockingRouteErrorDetails(
           createSyncIOClientError(ROUTE, expression, type)
         )
-      ).toEqual({ type: 'sync-io-client', cause: expectedCause })
+      ).toEqual({
+        type: 'sync-io-client',
+        cause: expectedCause,
+        thirdPartyPackage: null,
+      })
     }
   )
+
+  it.each<[string, Error, string]>([
+    [
+      'createSyncIOError',
+      createSyncIOError(ROUTE, 'new Date()', 'time', 'external-time'),
+      'sync-io',
+    ],
+    [
+      'createSyncIORuntimeError',
+      createSyncIORuntimeError(ROUTE, 'new Date()', 'time', 'external-time'),
+      'sync-io',
+    ],
+    [
+      'createSyncIOClientError',
+      createSyncIOClientError(ROUTE, 'new Date()', 'time', 'external-time'),
+      'sync-io-client',
+    ],
+  ])(
+    'extracts the third-party package from %s',
+    (_factory, error, expectedType) => {
+      const explanation =
+        expectedType === 'sync-io-client'
+          ? 'This value would be evaluated during the prerender, instead of recomputed on each visit.'
+          : 'This value can change between renders, so it must be either prerendered or computed later.'
+      expect(error.message.split('\n\n')[1]).toBe(
+        explanation + ' The call comes from the `external-time` package.'
+      )
+      expect(error.message).toMatch(
+        /Learn more: \S+#when-the-read-comes-from-an-external-library$/
+      )
+      expect(isSyncIOError(error.message)).toBe(true)
+      expect(isSyncIOClientError(error.message)).toBe(
+        expectedType === 'sync-io-client'
+      )
+      const docsUrl = error.message.match(/Learn more: (\S+)$/)![1]
+      const markup = renderToStaticMarkup(
+        createElement(InstantHeaderExplanation, {
+          explanation,
+          docsUrl:
+            expectedType === 'sync-io-client'
+              ? SYNC_IO_CLIENT_DOCS['new Date()']
+              : SYNC_IO_DOCS['new Date()'],
+          thirdPartyPackage: 'external-time',
+        })
+      )
+      expect(markup).toContain(
+        explanation +
+          ' The call comes from the <code>external-time</code> package.'
+      )
+      expect(markup).toContain(`href="${docsUrl}"`)
+      expect(getBlockingRouteErrorDetails(error)).toEqual({
+        type: expectedType,
+        cause: 'new Date()',
+        thirdPartyPackage: 'external-time',
+      })
+    }
+  )
+
+  it('extracts scoped third-party packages', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        createSyncIOError(
+          ROUTE,
+          'crypto.getRandomValues()',
+          'crypto',
+          '@scope/pkg'
+        )
+      )
+    ).toEqual({
+      type: 'sync-io',
+      cause: 'crypto.getRandomValues()',
+      thirdPartyPackage: '@scope/pkg',
+    })
+  })
 
   // The time-type factory always appends `elapsedTimeBullet` text containing
   // `Date.now()` regardless of which API the user actually called. If
@@ -530,6 +617,7 @@ describe('getBlockingRouteErrorDetails', () => {
       expect(getBlockingRouteErrorDetails(error)).toEqual({
         type: 'sync-io',
         cause: expectedCause,
+        thirdPartyPackage: null,
       })
     }
   )

@@ -198,11 +198,13 @@ type DynamicViewportErrorDetails = {
 type SyncIOErrorDetails = {
   type: 'sync-io'
   cause: string
+  thirdPartyPackage: string | null
 }
 
 type SyncIOClientErrorDetails = {
   type: 'sync-io-client'
   cause: string
+  thirdPartyPackage: string | null
 }
 
 type UnrenderedSegmentErrorDetails = {
@@ -434,6 +436,10 @@ export function isSyncIOClientError(message: string): boolean {
   return match !== null && match[2] === '-client'
 }
 
+// Matches the sentence `thirdPartyPackageSentence` in
+// `server/app-render/sync-io-messages.ts` adds when a dependency made the read.
+const SYNC_IO_PACKAGE_PATTERN = /The call comes from the `([^`]+)` package\./
+
 // Detects Instant Insights emitted during navigation validation. Body errors
 // identify the navigation in their message. `prefetch()` and
 // `navigation()` in metadata and viewport use dedicated docs URLs
@@ -535,6 +541,7 @@ export function getBlockingRouteErrorDetails(
         return {
           type: isClient ? 'sync-io-client' : 'sync-io',
           cause: api,
+          thirdPartyPackage: SYNC_IO_PACKAGE_PATTERN.exec(message)?.[1] ?? null,
         }
       }
     }
@@ -1286,6 +1293,7 @@ export function Errors({
             <InstantHeaderExplanation
               explanation="This value can change between renders, so it must be either prerendered or computed later."
               docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
+              thirdPartyPackage={errorDetails.thirdPartyPackage}
             />
           }
           renderTabBar={renderTabBar}
@@ -1329,6 +1337,7 @@ export function Errors({
             <InstantHeaderExplanation
               explanation="This value would be evaluated during the prerender, instead of recomputed on each visit."
               docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
+              thirdPartyPackage={errorDetails.thirdPartyPackage}
             />
           }
           renderTabBar={renderTabBar}

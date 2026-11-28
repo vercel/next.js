@@ -11,6 +11,33 @@ import {
 } from '../app-render/sync-io-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
+// Installed by `patchErrorInspectNodeJS` when source maps are enabled.
+const FIND_THIRD_PARTY_PACKAGE_IN_STACK = Symbol.for(
+  'next.server.findThirdPartyPackageInStack'
+)
+type GlobalWithFindThirdPartyPackageInStack = typeof globalThis & {
+  [FIND_THIRD_PARTY_PACKAGE_IN_STACK]?: (error: Error) => string | null
+}
+
+/**
+ * Returns the third-party package that made the sync IO call, so the error can
+ * name it even though its frames are ignore-listed.
+ */
+function findThirdPartyCaller(): string | null {
+  const findThirdPartyPackageInStack = (
+    globalThis as GlobalWithFindThirdPartyPackageInStack
+  )[FIND_THIRD_PARTY_PACKAGE_IN_STACK]
+  if (findThirdPartyPackageInStack === undefined) {
+    return null
+  }
+  try {
+    return findThirdPartyPackageInStack(new Error())
+  } catch {
+    // Attribution is best-effort and must never mask the actual error.
+    return null
+  }
+}
+
 export function io(expression: string, type: SyncIOApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   const workStore = workAsyncStorage.getStore()
@@ -31,7 +58,14 @@ export function io(expression: string, type: SyncIOApiType) {
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(createSyncIOError(workStore.route, expression, type)),
+          applyOwnerStack(
+            createSyncIOError(
+              workStore.route,
+              expression,
+              type,
+              findThirdPartyCaller()
+            )
+          ),
           workUnitStore
         )
       }
@@ -47,7 +81,12 @@ export function io(expression: string, type: SyncIOApiType) {
           workStore.route,
           expression,
           applyOwnerStack(
-            createSyncIOClientError(workStore.route, expression, type)
+            createSyncIOClientError(
+              workStore.route,
+              expression,
+              type,
+              findThirdPartyCaller()
+            )
           ),
           workUnitStore
         )
@@ -65,7 +104,12 @@ export function io(expression: string, type: SyncIOApiType) {
           case RenderStage.PrefetchStatic_prefetchApi:
           case RenderStage.PrefetchStatic:
           case RenderStage.NavigationStatic: {
-            syncIOError = createSyncIOError(workStore.route, expression, type)
+            syncIOError = createSyncIOError(
+              workStore.route,
+              expression,
+              type,
+              findThirdPartyCaller()
+            )
             break
           }
           case RenderStage.ShellRuntime:
@@ -77,7 +121,8 @@ export function io(expression: string, type: SyncIOApiType) {
             syncIOError = createSyncIORuntimeError(
               workStore.route,
               expression,
-              type
+              type,
+              findThirdPartyCaller()
             )
             break
           }
