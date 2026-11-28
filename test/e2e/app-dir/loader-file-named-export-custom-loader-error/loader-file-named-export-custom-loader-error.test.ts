@@ -10,6 +10,8 @@ async function testDev(browser, errorRegex) {
 }
 
 describe('Error test if the loader file export a named function', () => {
+  // The error overlay is only available in development.
+  // @force-gate dev
   describe('in Development', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
@@ -28,7 +30,8 @@ describe('Error test if the loader file export a named function', () => {
     })
   })
 
-  // @force-gate !dev
+  // These diagnostics require a local production build, not dev or deploy.
+  // @force-gate start
   describe('in Build and Start', () => {
     const { next } = nextTestSetup({
       skipStart: true,

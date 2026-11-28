@@ -11,6 +11,8 @@ describe('cache-components-route-handler-errors', () => {
     skipStart: true,
   })
 
+  // Build-failure diagnostics are verified with a local build, not a deployment.
+  // @force-gate !deploy
   it("should error when route handlers use segment configs that aren't supported by cacheComponents", async () => {
     if (isNextDev) {
       await next.start()

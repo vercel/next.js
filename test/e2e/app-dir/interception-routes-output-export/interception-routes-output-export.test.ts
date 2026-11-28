@@ -2,6 +2,8 @@ import type { ChildProcess } from 'child_process'
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { findPort, killApp, retry } from 'next-test-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('interception-routes-output-export', () => {
   const { next } = nextTestSetup({
     files: __dirname,

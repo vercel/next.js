@@ -1350,13 +1350,12 @@ describe('native-route-go in src/app', () => {
   })
 })
 
+// These assertions invoke local builds; HTTP adapter behavior is covered above.
+// @force-gate !deploy
 describe('native route diagnostics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // These assertions invoke local failing builds, which cannot be deployed.
-    // See README.md; HTTP adapter behavior is exercised by the start-mode cases.
-    skipDeployment: true,
   })
   it('reports Go routes without the experiment before invoking the compiler', async () => {
     const config = await next.readFile('next.config.ts')

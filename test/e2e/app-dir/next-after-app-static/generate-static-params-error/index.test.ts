@@ -22,6 +22,8 @@ describe('after() in generateStaticParams - thrown errors', () => {
       )
     })
   } else {
+    // Build-failure diagnostics are covered by local build/start runs.
+    // @force-gate !deploy
     it('fails the build if an error is thrown inside after', async () => {
       await expect(next.start()).rejects.toThrow()
 

@@ -8,7 +8,7 @@ import {
 import stripAnsi from 'strip-ansi'
 
 describe('use-cache-close-over-function', () => {
-  const { next, isNextDev, isTurbopack, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
@@ -112,6 +112,8 @@ describe('use-cache-close-over-function', () => {
       )
     })
   } else {
+    // Build-failure diagnostics are verified with a local build, not a deployment.
+    // @force-gate !deploy
     it('should fail the build with an error', async () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput
@@ -120,10 +122,7 @@ describe('use-cache-close-over-function', () => {
 Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
   [function]
    ^^^^^^^^`
-      // Vercel removes indentation from build log lines.
-      const normalize = (output: string) =>
-        isNextDeploy ? output.replace(/^[ \t]+/gm, '') : output
-      expect(normalize(cliOutput)).toInclude(normalize(expected))
+      expect(cliOutput).toInclude(expected)
 
       expect(cliOutput).toMatch(
         /Error occurred prerendering page "\/(client|server)"/

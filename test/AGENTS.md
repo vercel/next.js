@@ -13,8 +13,14 @@ deployment cannot exercise the protocol invariant under test. Explain that
 constraint in the test. A simulation must not replace real deployment coverage
 of behavior that deployed applications can observe.
 
-Log assertions do not justify excluding a whole test or suite from deploy mode.
-Use the deployment log support first:
+Suites that only assert build, compilation, or prerendering errors do not need
+deployment coverage. Local `next start` test mode is sufficient: it runs
+`next build` before starting the server and can assert the expected build failure
+and diagnostics. Use `// @force-gate !deploy` for these suites. In mixed suites,
+gate only the build-error cases and keep deployment-compatible runtime tests active.
+
+Otherwise, log assertions do not justify excluding a whole test or suite from
+deploy mode. Use the deployment log support first:
 
 - `next.cliOutput` exposes deployment build logs, including failed-build
   diagnostics.

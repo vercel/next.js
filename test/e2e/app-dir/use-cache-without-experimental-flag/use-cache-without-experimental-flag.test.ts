@@ -14,27 +14,19 @@ const nextConfigWithUseCache: NextConfig = {
 }
 
 describe('use-cache-without-experimental-flag', () => {
-  const { next, isNextDev, isNextDeploy, isTurbopack, isRspack } =
-    nextTestSetup({
-      files: __dirname,
-      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    })
+  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
+    files: __dirname,
+    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+  })
 
   if (!isNextDev) {
+    // Build-failure diagnostics are verified with a local build, not a deployment.
+    // @force-gate !deploy
     it('should fail the build with an error', async () => {
       await expect(next.start()).rejects.toThrow()
       const buildOutput = getBuildOutput(next.cliOutput)
 
-      if (isNextDeploy) {
-        expect(next.cliOutput).toContain(
-          'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
-        )
-        expect(next.cliOutput).toContain(
-          'Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage'
-        )
-        expect(next.cliOutput).toContain('./app/page.tsx')
-        expect(next.cliOutput).toContain("'use cache'")
-      } else if (isTurbopack) {
+      if (isTurbopack) {
         expect(buildOutput).toContain(
           'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
         )

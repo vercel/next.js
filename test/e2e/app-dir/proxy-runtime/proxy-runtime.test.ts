@@ -7,10 +7,8 @@ describe('proxy-runtime', () => {
     skipStart: true,
   })
 
-  // `getBuildError()` stops capturing at Vercel's
-  // `Error: Command "..." exited with N` line. Other hosts don't print it, so
-  // anything they log after the build error would end up in the snapshot.
-  // @force-gate !deploy || vercel
+  // Build-failure diagnostics are covered by local build/start runs.
+  // @force-gate !deploy
   it('should error when proxy file has runtime config export', async () => {
     let cliOutput: string
 
@@ -49,26 +47,13 @@ describe('proxy-runtime', () => {
   }, 240_000)
 })
 
-// Deployment logs prefix every line with a timestamp, drop code-frame
-// indentation, and can omit blank lines, so the same normalization is applied
-// in all modes to keep a single snapshot.
+// Normalize compiler code frames and install-specific stack paths.
 function getBuildError(cliOutput: string): string {
   const lines: string[] = []
   let capturing = false
 
   for (const rawLine of stripAnsi(cliOutput).split('\n')) {
-    const line = rawLine
-      .replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/, '')
-      .trim()
-
-    // Package-manager and Vercel command failures are not compiler output.
-    if (
-      /^(?:\[ELIFECYCLE\]\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
-        line
-      )
-    ) {
-      break
-    }
+    const line = rawLine.trim()
 
     if (capturing) {
       if (line.includes('at turbopackBuild')) {

@@ -218,6 +218,8 @@ describe('Dynamic Optional Routing', () => {
   }
 })
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('Dynamic Optional Routing - build validation', () => {
   describe.each([
     {

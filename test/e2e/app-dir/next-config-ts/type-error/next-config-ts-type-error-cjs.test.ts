@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('next-config-ts-type-error-cjs', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

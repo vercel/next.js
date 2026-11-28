@@ -192,9 +192,10 @@ describe('webpack-loader-parse-error (development)', () => {
   })
 })
 
-// @force-gate !dev
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !dev && !deploy
 describe('webpack-loader-parse-error (production)', () => {
-  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -204,17 +205,7 @@ describe('webpack-loader-parse-error (production)', () => {
 
     const output = normalizePaths(stripAnsi(next.cliOutput), next.testDir)
 
-    if (isNextDeploy) {
-      // Deployment logs prefix every line with a timestamp and strip
-      // code-frame indentation, so the exact formatting the snapshots below
-      // assert cannot survive the round trip. Assert the error titles, which
-      // are single lines, and leave the formatting to the local build.
-      expect(output).toContain('Unexpected token `{`. Expected identifier')
-
-      if (isTurbopack) {
-        expect(output).toContain('Parsing CSS source code failed')
-      }
-    } else if (isTurbopack) {
+    if (isTurbopack) {
       const jsError = extractErrorBlock(
         output,
         'Unexpected token `{`. Expected identifier'

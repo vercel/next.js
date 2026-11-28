@@ -168,6 +168,8 @@ describe('use-cache-hanging-inputs', () => {
     })
   } else {
     // TODO: Be more precise about the expected error messages and stacks.
+    // Build-failure diagnostics are verified with a local build, not a deployment.
+    // @force-gate !deploy
     it('should fail the build with errors after a timeout', async () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput

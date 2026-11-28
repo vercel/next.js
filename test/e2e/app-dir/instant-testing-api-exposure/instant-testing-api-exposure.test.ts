@@ -35,6 +35,8 @@ describe('instant-testing-api-exposure without Cache Components', () => {
     skipStart: true,
   })
 
+  // Build-failure diagnostics are verified with a local build, not a deployment.
+  // @force-gate !deploy
   it('rejects the production testing opt-in without Cache Components', async () => {
     const message =
       '`experimental.exposeTestingApiInProductionBuild` requires `cacheComponents` to be enabled. Please update your next.config.ts accordingly.'

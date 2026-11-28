@@ -1,6 +1,8 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('app-dir edge SSR invalid reexport', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: {
