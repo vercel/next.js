@@ -8,6 +8,13 @@ const message =
 
 const tests = {
   valid: [
+    `import Head from 'next/head';
+     import Script from 'another-library';
+     export default () => <Head><Script /></Head>;`,
+    `import NextHead from 'next/head';
+     import Script from 'next/script';
+     const Head = ({children}) => children;
+     export default () => <Head><Script /></Head>;`,
     `import Script from "next/script";
      const Head = ({children}) => children
 
@@ -22,6 +29,42 @@ const tests = {
   ],
 
   invalid: [
+    ...[
+      ['Head', 'Script'],
+      ['NextHead', 'NextScript'],
+    ].map(([head, script]) => ({
+      code: `
+        import { default as ${head} } from 'next/head';
+        import { default as ${script} } from 'next/script';
+        export default () => <${head}><${script} /></${head}>;
+      `,
+      filename: 'pages/index.js',
+      errors: [{ message }],
+    })),
+    {
+      code: `
+        import Head from 'next/head';
+        import NextHead from 'next/head';
+        import Script from 'next/script';
+        import NextScript from 'next/script';
+        export default () => <Head><Script /></Head>;
+      `,
+      filename: 'pages/index.js',
+      errors: [{ message }],
+    },
+    ...[
+      ['NextHead', 'Script'],
+      ['Head', 'NextScript'],
+      ['NextHead', 'NextScript'],
+    ].map(([head, script]) => ({
+      code: `
+        import ${head} from 'next/head';
+        import ${script} from 'next/script';
+        export default () => <${head}><${script} src='/script.js' /></${head}>;
+      `,
+      filename: 'pages/index.js',
+      errors: [{ message }],
+    })),
     {
       code: `
       import Head from "next/head";
