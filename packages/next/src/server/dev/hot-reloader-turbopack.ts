@@ -2124,7 +2124,7 @@ export async function createHotReloaderTurbopack(
       subscribeToChanges = true,
     }) {
       // When there is no route definition this is an internal file not a route the user added.
-      // Middleware and instrumentation are handled in turbopack-utils.ts handleEntrypoints instead.
+      // Middleware, proxy and instrumentation are handled in turbopack-utils.ts handleEntrypoints instead.
       if (!definition) {
         if (inputPage === '/middleware') return
         if (inputPage === '/src/middleware') return
