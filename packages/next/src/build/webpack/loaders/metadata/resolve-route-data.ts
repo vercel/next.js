@@ -51,6 +51,10 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
   return content
 }
 
+function serializeSitemapDate(date: string | Date): string {
+  return date instanceof Date ? date.toISOString() : date
+}
+
 // TODO-METADATA: support multi sitemap files
 // convert sitemap data to xml string
 export function resolveSitemap(data: MetadataRoute.Sitemap): string {
@@ -111,9 +115,9 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
           video.tag && `<video:tag>${video.tag}</video:tag>`,
           video.rating && `<video:rating>${video.rating}</video:rating>`,
           video.expiration_date &&
-            `<video:expiration_date>${video.expiration_date}</video:expiration_date>`,
+            `<video:expiration_date>${serializeSitemapDate(video.expiration_date)}</video:expiration_date>`,
           video.publication_date &&
-            `<video:publication_date>${video.publication_date}</video:publication_date>`,
+            `<video:publication_date>${serializeSitemapDate(video.publication_date)}</video:publication_date>`,
           video.family_friendly &&
             `<video:family_friendly>${video.family_friendly}</video:family_friendly>`,
           video.requires_subscription &&
@@ -131,12 +135,7 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
       }
     }
     if (item.lastModified) {
-      const serializedDate =
-        item.lastModified instanceof Date
-          ? item.lastModified.toISOString()
-          : item.lastModified
-
-      content += `<lastmod>${serializedDate}</lastmod>\n`
+      content += `<lastmod>${serializeSitemapDate(item.lastModified)}</lastmod>\n`
     }
 
     if (item.changeFrequency) {
