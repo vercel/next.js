@@ -1957,7 +1957,8 @@ export default class NextNodeServer extends BaseServer<
     })
 
     parsedUrl.pathname = pathnameInfo.pathname
-    const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
+    const pathname = parsed.pathname || ''
+    const normalizedPathname = removeTrailingSlash(pathname)
     let maybeDecodedPathname = normalizedPathname
 
     try {
@@ -1969,7 +1970,8 @@ export default class NextNodeServer extends BaseServer<
     if (
       !(
         middleware.match(normalizedPathname, req, parsedUrl.query) ||
-        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+        middleware.match(maybeDecodedPathname, req, parsedUrl.query) ||
+        middleware.match(pathname, req, parsedUrl.query)
       )
     ) {
       return handleFinished()

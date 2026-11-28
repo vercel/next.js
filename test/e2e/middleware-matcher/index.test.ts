@@ -745,3 +745,68 @@ describe.each([
     })
   }
 )
+
+describe('using a regex group matcher with i18n and trailingSlash', () => {
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export default function Page({ message }) {
+          return <p>{message}</p>
+        }
+        export const getServerSideProps = ({ locale }) => ({
+          props: { message: \`(\${locale}) Hello from /\` }
+        })
+      `,
+      'pages/about.js': `
+        export default function Page({ message }) {
+          return <p>{message}</p>
+        }
+        export const getServerSideProps = ({ locale }) => ({
+          props: { message: \`(\${locale}) Hello from /about\` }
+        })
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+        export const config = { matcher: '/(.*)' };
+        export default (req) => {
+          const res = NextResponse.next();
+          res.headers.set('X-From-Middleware', 'true');
+          return res;
+        }
+      `,
+      'next.config.js': `
+        module.exports = {
+          trailingSlash: true,
+          i18n: {
+            localeDetection: false,
+            locales: ['es', 'en'],
+            defaultLocale: 'en',
+          }
+        }
+      `,
+    },
+    dependencies: {},
+  })
+
+  it.each([
+    { path: '/', locale: 'en' },
+    { path: '/en/', locale: 'en' },
+    { path: '/es/', locale: 'es' },
+  ])('renders the locale root $path', async ({ path, locale }) => {
+    const res = await fetchViaHTTP(next.url, path, undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain(`(${locale}) Hello from /`)
+    expect(res.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it('renders a nested path', async () => {
+    const res = await fetchViaHTTP(next.url, '/es/about/', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('(es) Hello from /about')
+    expect(res.headers.get('X-From-Middleware')).toBe('true')
+  })
+})
