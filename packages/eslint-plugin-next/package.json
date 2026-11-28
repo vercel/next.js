@@ -14,7 +14,7 @@
   ],
   "dependencies": {
     "@eslint-community/eslint-utils": "4.9.1",
-    "fast-glob": "3.3.1"
+    "glob": "13.0.6"
   },
   "devDependencies": {
     "@types/eslint": "9.6.1",
