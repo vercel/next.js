@@ -52,6 +52,31 @@ describe('app dir - workers', () => {
     )
   })
 
+  it('should support web workers when URL has query parameters appended to hash', async () => {
+    const browser = await next.browser('/classic', {
+      beforePageLoad(page) {
+        beforePageLoad(page)
+        page.addInitScript(() => {
+          const NativeWorker = window.Worker
+          window.Worker = class extends NativeWorker {
+            constructor(url: string | URL, options?: WorkerOptions) {
+              super(`${String(url)}?fbclid=abc`, options)
+            }
+          } as any
+        })
+      },
+    })
+    expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () =>
+      expect(await browser.elementByCss('#worker-state').text()).toBe(
+        'worker.ts:worker-dep'
+      )
+    )
+  })
+
   it('should support module web workers with dynamic imports', async () => {
     const browser = await next.browser('/module', {
       beforePageLoad,
