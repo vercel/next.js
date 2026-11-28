@@ -92,7 +92,7 @@ function logIncomingRequests(
   devGenerateStaticParamsDuration: bigint | undefined
 ): void {
   const isRSC = getRequestMeta(request, 'isRSCRequest')
-  const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
+  const url = decodeURIComponent(isRSC ? stripNextRscUnionQuery(request.url) : request.url)
 
   const statusCodeColor =
     statusCode < 200
